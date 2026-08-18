@@ -116,7 +116,7 @@ tokio       = { version = "1", features = ["full"], optional = true }
 # Process-group termination for cooperative route cancellation
 [target.'cfg(unix)'.dependencies]
 libc        = "0.2"
-signal-hook = "0.3"
+signal-hook = "0.4"
 
 [dev-dependencies]
 ed25519-dalek = "2"
