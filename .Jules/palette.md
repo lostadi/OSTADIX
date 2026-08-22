@@ -1,0 +1,3 @@
+## 2026-08-22 - Graceful CLI Error Handling
+**Learning:** Raw stack traces from unhandled exceptions (like `FileNotFoundError` or `PermissionError`) in CLI tools degrade user experience by presenting overly technical details and obscuring the actual problem and solution. Users benefit significantly from friendly, actionable error messages.
+**Action:** When creating or modifying CLI tools, ensure that common expected failures (like file I/O operations) are wrapped in `try-except` blocks. Output clear, context-specific error messages to `sys.stderr` and exit with a non-zero code instead of propagating raw stack traces to the user.
