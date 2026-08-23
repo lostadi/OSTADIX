@@ -141,7 +141,14 @@ def main(argv: Optional[list] = None) -> int:
     )
     args = p.parse_args(argv)
 
-    src = Path(args.file).read_text(encoding="utf-8")
+    try:
+        src = Path(args.file).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        sys.stderr.write(f"error: file not found: '{args.file}'\n")
+        return 1
+    except PermissionError:
+        sys.stderr.write(f"error: permission denied: '{args.file}'\n")
+        return 1
     doc = parse(src)
 
     if args.dump_ast:
