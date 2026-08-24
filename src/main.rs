@@ -401,6 +401,14 @@ fn run_repl(
         match rl.readline(prompt) {
             Err(ReadlineError::Interrupted) => {
                 // Ctrl+C — cancel current input, return to fresh prompt
+                eprintln!(
+                    "{}",
+                    if color {
+                        "\x1b[90m^C\x1b[0m"
+                    } else {
+                        "^C"
+                    }
+                );
                 buf.clear();
                 cont = false;
                 continue;
