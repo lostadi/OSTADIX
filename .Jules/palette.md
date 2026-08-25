@@ -1,0 +1,3 @@
+## 2024-05-18 - Added `clear` command to REPL
+**Learning:** For long-running CLI sessions like an interactive REPL, screen clutter significantly degrades UX and accessibility, especially when using complex multiline inputs or large output data. Having explicit screen-clearing commands (`:c`, `:clear`, `clear`) helps users maintain focus and manage cognitive load by providing a fresh visual slate.
+**Action:** Always consider implementing terminal management commands (like clear screen, history navigation, and prompt resetting) in interactive REPL environments as baseline UX features, rather than treating them as optional enhancements.
