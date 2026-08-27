@@ -1,0 +1,3 @@
+## 2024-05-18 - Clear Screen Command in REPL
+**Learning:** Terminal-based REPL users often need to quickly clear the screen to focus on a fresh prompt after complex or verbose operations (like syntax errors, large outputs, or evaluating many files). The existing flow required quitting the REPL or depending on terminal emulator shortcuts. Implementing a native `:clear` command makes the interactive experience smoother and more inclusive, addressing cognitive overload and improving accessibility for users who depend on clear visual distinction.
+**Action:** Adding `:c` | `:clear` shortcuts to all future REPL environments as a foundational UX requirement.
