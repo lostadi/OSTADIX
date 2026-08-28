@@ -141,7 +141,15 @@ def main(argv: Optional[list] = None) -> int:
     )
     args = p.parse_args(argv)
 
-    src = Path(args.file).read_text(encoding="utf-8")
+    try:
+        src = Path(args.file).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        sys.exit(f"error: file not found: '{args.file}'")
+    except PermissionError:
+        sys.exit(f"error: permission denied reading file: '{args.file}'")
+    except IsADirectoryError:
+        sys.exit(f"error: expected a file but got a directory: '{args.file}'")
+
     doc = parse(src)
 
     if args.dump_ast:
