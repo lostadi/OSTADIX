@@ -1,0 +1,3 @@
+## 2024-08-29 - Clear Command in CLI REPL
+**Learning:** Keyboard-centric users working in REPLs frequently need to clear their screens to reduce cognitive load and focus on current context. While `Ctrl+L` works for some, having explicit `:clear` and `:c` commands in line with other REPL commands (like `:reset` or `:quit`) makes this feature discoverable and consistent with the interface's mental model.
+**Action:** When working on CLI REPLs, ensure screen clearing is available both as a standard keyboard shortcut (e.g. `Ctrl+L` via terminal bindings) and as an explicit, documented command that aligns with the application's command structure (e.g., `:clear` or `:c`).
