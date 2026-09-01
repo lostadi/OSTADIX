@@ -1,0 +1,3 @@
+## 2024-05-18 - Missing ARIA Labels in O-Notebook
+**Learning:** The interactive O-Notebook application (`src/bin/o-notebook.rs`) contains icon-only buttons for cell manipulation (move up, move down, clear output, delete) that rely entirely on the `title` attribute for context. `title` attributes are not a reliable way to provide accessible names. The buttons lack `aria-label`s, rendering them functionally opaque to screen readers.
+**Action:** Always add explicit `aria-label` attributes to icon-only buttons, even when a `title` attribute is present, to ensure consistent and reliable accessibility for assistive technologies.
