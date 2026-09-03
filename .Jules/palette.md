@@ -1,0 +1,3 @@
+## 2024-03-24 - Screen Reader Literalism with Unicode Symbols
+**Learning:** The notebook UI uses raw Unicode symbols (▶, ↑, ↓, ⬜, ✕) as pseudo-icons for cell control buttons. Without explicit `aria-label`s, screen readers read these literally (e.g., "black right-pointing triangle" or "multiplication x"), confusing visually impaired users relying on audio cues for functional understanding.
+**Action:** Always add semantic `aria-label`s to any icon-only button, especially those using Unicode glyphs, so screen readers announce the button's action (e.g., "Run cell") rather than its visual representation.

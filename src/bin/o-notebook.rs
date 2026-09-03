@@ -481,13 +481,13 @@ function createCell(code = '') {
   div.innerHTML = `
     <div class="ct">
       <span class="ec" id="ec${id}">[ ]</span>
-      <button class="rbtn" id="rb${id}" onclick="runCell(${id})" title="Run (Shift+Enter)">▶</button>
+      <button class="rbtn" id="rb${id}" onclick="runCell(${id})" aria-label="Run cell" title="Run (Shift+Enter)">▶</button>
       <span class="lang-badge">O</span>
       <div class="ca">
-        <button class="cbtn" onclick="moveCell(${id},-1)" title="Move up">↑</button>
-        <button class="cbtn" onclick="moveCell(${id},1)"  title="Move down">↓</button>
-        <button class="cbtn" onclick="clearCell(${id})"  title="Clear output">⬜</button>
-        <button class="cbtn del" onclick="deleteCell(${id})" title="Delete">✕</button>
+        <button class="cbtn" onclick="moveCell(${id},-1)" aria-label="Move cell up" title="Move up">↑</button>
+        <button class="cbtn" onclick="moveCell(${id},1)"  aria-label="Move cell down" title="Move down">↓</button>
+        <button class="cbtn" onclick="clearCell(${id})"  aria-label="Clear cell output" title="Clear output">⬜</button>
+        <button class="cbtn del" onclick="deleteCell(${id})" aria-label="Delete cell" title="Delete">✕</button>
       </div>
     </div>
     <textarea class="ci" id="ci${id}" placeholder="Ostadix-lang expression… (Shift+Enter to run)" spellcheck="false">${esc(code)}</textarea>
