@@ -122,6 +122,10 @@ impl GraphEvalFrame {
 /// This trait is deliberately crate-private and has no `Send` bound: the
 /// process registry and live actor state stay on the coordinator thread.
 pub(crate) trait GraphEvaluationHost {
+    fn morphism_contract(&self) -> Option<crate::backend_morphism::BackendCrossingContractV1> {
+        None
+    }
+
     fn crossing_observations_enabled(&self) -> bool {
         false
     }

@@ -771,6 +771,30 @@ class SourceReleaseTests(unittest.TestCase):
             "crates/ostadix-api/src/api/aot_source.rs": FIXTURE_AOT_SOURCE,
             "crates/ostadix-api/src/lib.rs": FIXTURE_API_SOURCE,
             "crates/ostadix-api/tests/public_surface.rs": FIXTURE_API_TEST,
+            "crates/ostadix-api/src/computation/graph_realization_plan.rs": (
+                "// fixture multi-operation realization planning\n"
+            ),
+            "crates/ostadix-api/src/hgraph/semantics.rs": "// fixture execution observations\n",
+            "crates/ostadix-api/src/migration.rs": "// fixture acknowledged actor migration\n",
+            "crates/ostadix-api/tests/graph_realization_execution.rs": (
+                "#[test] fn graph_realization_execution_fixture() {}\n"
+            ),
+            "src/bin/olangc/embedded_runtime.rs": "// fixture embedded runtime launch\n",
+            "src/bin/olangc/runtime_bundle.rs": "// fixture runtime bundle collection\n",
+            "docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md": "# Fixture morphism enforcement\n",
+            "docs/EMBEDDED_RUNTIME_BUNDLES.md": "# Fixture embedded runtime bundles\n",
+            "docs/EXECUTION_OBSERVATION_CONTRACT.md": "# Fixture execution observations\n",
+            "docs/LOCAL_ACTOR_MIGRATION.md": "# Fixture supported actor migration\n",
+            "docs/PHYSICAL_GRAPH_EXECUTION_V1.md": "# Fixture physical graph execution\n",
+            "docs/PYTHON_NATIVE_HANDLES.md": "# Fixture owner-process native handles\n",
+            "tests/actor_migration.rs": "#[test] fn actor_migration_fixture() {}\n",
+            "tests/backend_morphism_enforcement.rs": "#[test] fn morphism_enforcement_fixture() {}\n",
+            "tests/embedded_runtime_bundle.rs": "#[test] fn embedded_runtime_bundle_fixture() {}\n",
+            "tests/hgraph_observational_confluence.rs": "#[test] fn hgraph_confluence_fixture() {}\n",
+            "tests/python_native_handles.rs": "#[test] fn python_native_handles_fixture() {}\n",
+            "tests/test_morphism_enforcement_protocol.py": "# fixture morphism protocol tests\n",
+            "tests/test_python_native_handles.py": "# fixture native handle protocol tests\n",
+            "backends/o_native_objects.py": "# fixture owner-process native object support\n",
             "Dockerfile": "FROM scratch\n",
             "LICENSE": FIXTURE_LICENSE,
             "NOTICE": FIXTURE_NOTICE,
@@ -1616,6 +1640,26 @@ class SourceReleaseTests(unittest.TestCase):
                 "crates/ostadix-api/Cargo.toml",
                 "crates/ostadix-api/src/lib.rs",
                 "crates/ostadix-api/tests/public_surface.rs",
+                "crates/ostadix-api/src/computation/graph_realization_plan.rs",
+                "crates/ostadix-api/src/hgraph/semantics.rs",
+                "crates/ostadix-api/src/migration.rs",
+                "crates/ostadix-api/tests/graph_realization_execution.rs",
+                "src/bin/olangc/embedded_runtime.rs",
+                "src/bin/olangc/runtime_bundle.rs",
+                "docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md",
+                "docs/EMBEDDED_RUNTIME_BUNDLES.md",
+                "docs/EXECUTION_OBSERVATION_CONTRACT.md",
+                "docs/LOCAL_ACTOR_MIGRATION.md",
+                "docs/PHYSICAL_GRAPH_EXECUTION_V1.md",
+                "docs/PYTHON_NATIVE_HANDLES.md",
+                "tests/actor_migration.rs",
+                "tests/backend_morphism_enforcement.rs",
+                "tests/embedded_runtime_bundle.rs",
+                "tests/hgraph_observational_confluence.rs",
+                "tests/python_native_handles.rs",
+                "tests/test_morphism_enforcement_protocol.py",
+                "tests/test_python_native_handles.py",
+                "backends/o_native_objects.py",
                 "Dockerfile",
                 "LICENSE",
                 "NOTICE",
@@ -3185,6 +3229,35 @@ class SourceReleaseTests(unittest.TestCase):
             r"generated-runtime source closure path\(s\): crates/ostadix-api/src/missing-runtime\.rs",
         ):
             release.verify_archive(tampered)
+
+    def test_runtime_capability_sources_docs_and_tests_are_required(self) -> None:
+        required = (
+            "backends/o_native_objects.py",
+            "crates/ostadix-api/backends/o_native_objects.py",
+            "crates/ostadix-api/src/computation/graph_realization_plan.rs",
+            "crates/ostadix-api/src/hgraph/semantics.rs",
+            "crates/ostadix-api/src/migration.rs",
+            "crates/ostadix-api/tests/graph_realization_execution.rs",
+            "src/bin/olangc/embedded_runtime.rs",
+            "src/bin/olangc/runtime_bundle.rs",
+            "docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md",
+            "docs/EMBEDDED_RUNTIME_BUNDLES.md",
+            "docs/EXECUTION_OBSERVATION_CONTRACT.md",
+            "docs/LOCAL_ACTOR_MIGRATION.md",
+            "docs/PHYSICAL_GRAPH_EXECUTION_V1.md",
+            "docs/PYTHON_NATIVE_HANDLES.md",
+            "tests/actor_migration.rs",
+            "tests/backend_morphism_enforcement.rs",
+            "tests/embedded_runtime_bundle.rs",
+            "tests/hgraph_observational_confluence.rs",
+            "tests/python_native_handles.rs",
+            "tests/test_morphism_enforcement_protocol.py",
+            "tests/test_python_native_handles.py",
+        )
+        self._commit()
+        self._git("rm", *required)
+        self._git("commit", "-q", "-m", "remove runtime capability release surface")
+        self._assert_missing_required_paths("missing-runtime-capabilities.zip", required)
 
     def test_prepared_task_driver_pool_surface_is_required(self) -> None:
         self._commit()

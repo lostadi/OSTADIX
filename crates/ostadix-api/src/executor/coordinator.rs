@@ -44,8 +44,9 @@ enum OpRunState {
     Pending,
     InFlight,
     Buffered,
-    /// A verified-pure, admitted-infallible result whose outputs may unlock
-    /// more worker-only computation before its deterministic trace frontier.
+    /// A successful worker result published before its deterministic trace
+    /// frontier. Autonomous results remain visible only inside their exact
+    /// admitted group; derived pure worker results retain that restriction.
     Published,
     Settled,
 }
@@ -105,6 +106,7 @@ pub struct Coordinator<'a> {
     flat: Vec<&'a OIr>,
     ops: Vec<OpState>,
     materialized: HashSet<NodeId>,
+    provisional_groups: HashMap<NodeId, PlanNodeId>,
     failed_outputs: HashMap<NodeId, String>,
     worker_results: HashMap<usize, TaskOutcome>,
     worker_publications: HashMap<usize, WorkerPublication>,
@@ -202,6 +204,7 @@ impl<'a> Coordinator<'a> {
             flat,
             ops,
             materialized,
+            provisional_groups: HashMap::new(),
             failed_outputs: HashMap::new(),
             worker_results: HashMap::new(),
             worker_publications: HashMap::new(),
@@ -521,10 +524,17 @@ impl<'a> Coordinator<'a> {
             .filter(|&index| {
                 let op = &self.ops[index];
                 op.state == OpRunState::Pending
-                    && op
-                        .inputs
-                        .iter()
-                        .all(|input| self.materialized.contains(input))
+                    && op.inputs.iter().all(|input| {
+                        self.materialized.contains(input)
+                            && self.provisional_groups.get(input).is_none_or(|group| {
+                                op.dispatch_lane == DispatchLaneV1::LocalWorker
+                                    && crate::dispatch_model::autonomous_member(
+                                        self.plan,
+                                        op.plan_node,
+                                    )
+                                    .is_some_and(|(consumer_group, _)| consumer_group == *group)
+                            })
+                    })
             })
             .collect();
         ready.sort_by_key(|&index| (self.ops[index].ordinal, self.ops[index].plan_node.0));
@@ -565,6 +575,32 @@ impl<'a> Coordinator<'a> {
         .then_some(index)
     }
 
+    /// The explicit group also owns verified, read-only scope preparation for
+    /// its member expansions. Keeping those loads at the global fallible
+    /// frontier would serialize otherwise independent hosted parents.
+    fn autonomous_worker_group(&self, index: usize) -> Option<PlanNodeId> {
+        let op = &self.ops[index];
+        if op.dispatch_lane != DispatchLaneV1::LocalWorker {
+            return None;
+        }
+        match op.dispatch_adapter {
+            DispatchAdapterV1::AutonomousEphemeralShimV1 => {
+                crate::dispatch_model::autonomous_ephemeral_group(
+                    self.plan,
+                    op.plan_node,
+                    self.flat[op.plan_node.0],
+                )
+            }
+            DispatchAdapterV1::OScopeLoadV1
+                if parallel::effect_contract_worker_safe(&op.effect, self.flat[op.plan_node.0]) =>
+            {
+                crate::dispatch_model::autonomous_member(self.plan, op.plan_node)
+                    .map(|(group, _)| group)
+            }
+            _ => None,
+        }
+    }
+
     fn worker_dispatch_candidates(&self, ready: &[usize], slots: usize) -> Vec<usize> {
         if slots == 0 {
             return Vec::new();
@@ -579,7 +615,7 @@ impl<'a> Coordinator<'a> {
             return Vec::new();
         }
 
-        // Unknown hosted effects may overlap only among direct members of the
+        // Unknown hosted effects may overlap only among member expansions of the
         // same explicitly autonomous group, and only after every earlier
         // semantic operation outside that group has settled. This prevents an
         // autonomous region from leaking speculative effects backward across
@@ -588,17 +624,12 @@ impl<'a> Coordinator<'a> {
             .iter()
             .copied()
             .filter_map(|index| {
-                (self.ops[index].dispatch_adapter == DispatchAdapterV1::AutonomousEphemeralShimV1
-                    && self.is_worker_safe(index))
-                .then(|| {
-                    crate::dispatch_model::autonomous_ephemeral_group(
-                        self.plan,
-                        self.ops[index].plan_node,
-                        self.flat[self.ops[index].plan_node.0],
-                    )
-                    .map(|group| (index, group))
-                })
-                .flatten()
+                self.is_worker_safe(index)
+                    .then(|| {
+                        self.autonomous_worker_group(index)
+                            .map(|group| (index, group))
+                    })
+                    .flatten()
             })
             .collect::<Vec<_>>();
         autonomous_ready
@@ -607,11 +638,14 @@ impl<'a> Coordinator<'a> {
             let boundary_clear = (0..self.ops.len()).all(|index| {
                 self.ops[index].state == OpRunState::Settled
                     || self.ops[index].ordinal >= self.ops[first].ordinal
-                    || crate::dispatch_model::autonomous_ephemeral_group(
-                        self.plan,
-                        self.ops[index].plan_node,
-                        self.flat[self.ops[index].plan_node.0],
-                    ) == Some(group)
+                    || (self.ops[index].dispatch_lane == DispatchLaneV1::LocalWorker
+                        && (self.autonomous_worker_group(index) == Some(group)
+                            || self.ops[index].failure_class == FailureClassV1::Infallible)
+                        && crate::dispatch_model::autonomous_member(
+                            self.plan,
+                            self.ops[index].plan_node,
+                        )
+                        .is_some_and(|(candidate_group, _)| candidate_group == group))
             });
             if boundary_clear {
                 return autonomous_ready
@@ -750,6 +784,7 @@ impl<'a> Coordinator<'a> {
                                 evaluator.shim_path(&backend.canonical),
                                 sandbox,
                                 self.admitted.executable_leases()?,
+                                evaluator.morphism_contract(),
                             ))
                         }
                         _ => None,
@@ -909,10 +944,15 @@ impl<'a> Coordinator<'a> {
             }
         }
 
-        let outcome = if self.ops[index].failure_class == FailureClassV1::Infallible {
+        let autonomous_group = self.autonomous_worker_group(index);
+        let outcome = if self.ops[index].failure_class == FailureClassV1::Infallible
+            || autonomous_group.is_some()
+        {
             match completion.outcome {
                 TaskOutcome::Completed(Ok(value)) => {
-                    if !self.ops[index].effect.is_verified_pure_infallible() {
+                    if self.ops[index].failure_class == FailureClassV1::Infallible
+                        && !self.ops[index].effect.is_verified_pure_infallible()
+                    {
                         bail!(
                             "operation {} has an incoherent infallible worker contract",
                             self.ops[index].plan_node.0
@@ -923,8 +963,18 @@ impl<'a> Coordinator<'a> {
                         output_type: value.type_name().to_string(),
                         fingerprint: trace_fingerprint(&value),
                     };
+                    let inherited_group = self.ops[index]
+                        .inputs
+                        .iter()
+                        .find_map(|input| self.provisional_groups.get(input).copied());
+                    let publication_group = autonomous_group.or(inherited_group);
                     self.frame.set_value(id, *value)?;
                     self.publish_outputs(index);
+                    if let Some(group) = publication_group {
+                        for output in &self.ops[index].outputs {
+                            self.provisional_groups.insert(*output, group);
+                        }
+                    }
                     self.ops[index].state = OpRunState::Published;
                     if self
                         .worker_publications
@@ -975,6 +1025,9 @@ impl<'a> Coordinator<'a> {
                     .expect("published operation has one trace publication");
                 self.trace
                     .finished(id, publication.output_type, publication.fingerprint);
+                for output in &self.ops[index].outputs {
+                    self.provisional_groups.remove(output);
+                }
                 self.ops[index].state = OpRunState::Settled;
                 crate::process::lifecycle_trace(
                     "coordinator.result_settled",
@@ -1095,6 +1148,7 @@ impl<'a> Coordinator<'a> {
             self.worker_publications.remove(&index);
             for output in &self.ops[index].outputs {
                 self.materialized.remove(output);
+                self.provisional_groups.remove(output);
             }
             self.frame.values[self.ops[index].plan_node.0] = None;
             self.trace
@@ -1279,6 +1333,7 @@ impl<'a> Coordinator<'a> {
     fn record_failure(&mut self, index: usize, message: &str) {
         for output in self.ops[index].outputs.clone() {
             self.materialized.remove(&output);
+            self.provisional_groups.remove(&output);
             self.failed_outputs.insert(output, message.to_string());
         }
         self.ops[index].state = OpRunState::Settled;
@@ -2087,6 +2142,150 @@ mod tests {
             event,
             crate::eval::TraceEvent::NodeFinished { id, .. } if *id == later_id
         )));
+    }
+
+    #[test]
+    fn autonomous_nested_publications_stay_scoped_and_are_revoked_on_failure() {
+        use crate::ir::InvokeMode;
+        let exec = |language: &str, body| OIr::Exec {
+            lang: language.into(),
+            env_id: u32::MAX,
+            attr: None,
+            backend: BackendRegistry::global().interface_for(language),
+            body,
+        };
+        for (fail_left, load_child, fail_child) in [
+            (false, false, false),
+            (true, false, false),
+            (false, true, false),
+            (true, true, false),
+            (false, true, true),
+            (true, true, true),
+        ] {
+            let program = OIrProgram {
+                nodes: vec![OIr::Invoke {
+                    fn_name: "autonomous".into(),
+                    mode: InvokeMode::Autonomous,
+                    args: vec![OIr::Invoke {
+                        fn_name: "batch".into(),
+                        mode: InvokeMode::Group(crate::value::GroupMode::Batch),
+                        args: vec![
+                            exec("python", vec![OIr::Text("left".into())]),
+                            exec(
+                                "python",
+                                vec![
+                                    if load_child {
+                                        OIr::Load("bound".into())
+                                    } else {
+                                        exec("python", vec![OIr::Text("nested".into())])
+                                    },
+                                    exec("text", vec![OIr::Text("right".into())]),
+                                ],
+                            ),
+                        ],
+                    }],
+                }],
+            };
+            let plan = program.plan();
+            let mut graph = build_program(&program);
+            solve_types(&mut graph).unwrap();
+            let evaluator = Evaluator::new("/tmp".into());
+            let runtime = evaluator.admission_runtime_binding(&plan);
+            let evidence = analyze_execution(&program, &plan, &graph, runtime.clone()).unwrap();
+            let admitted =
+                admit_execution(&program, &plan, graph, Policy::Eager, runtime, evidence).unwrap();
+            let mut coordinator = Coordinator::new(admitted).unwrap();
+            coordinator.materialize_literals().unwrap();
+            let workers = coordinator
+                .ops
+                .iter()
+                .enumerate()
+                .filter(|(_, op)| op.dispatch_lane == DispatchLaneV1::LocalWorker)
+                .map(|(index, _)| index)
+                .collect::<Vec<_>>();
+            assert_eq!(workers.len(), 4);
+            let [left, child, renderer, parent]: [usize; 4] = workers.try_into().unwrap();
+            let group = coordinator
+                .ops
+                .iter()
+                .position(|op| {
+                    matches!(plan.nodes[op.plan_node.0].kind, PlanNodeKind::Group { .. })
+                })
+                .unwrap();
+            coordinator.ops[left].state = OpRunState::InFlight;
+            coordinator.trace.started(coordinator.ops[left].plan_node);
+            for index in [child, renderer, parent] {
+                let ready = coordinator.ready_ops();
+                assert!(
+                    ready.contains(&index),
+                    "nested operation {index} was withheld by unrelated left work"
+                );
+                assert!(coordinator
+                    .worker_dispatch_candidates(&ready, 2)
+                    .contains(&index));
+                coordinator.ops[index].state = OpRunState::InFlight;
+                coordinator.trace.started(coordinator.ops[index].plan_node);
+                if fail_child && index == child {
+                    coordinator
+                        .buffer_worker_completion(TaskCompletion::completed(
+                            TaskToken(index),
+                            Err(anyhow::anyhow!("scope load failed")),
+                        ))
+                        .unwrap();
+                    assert_eq!(coordinator.ops[index].state, OpRunState::Buffered);
+                    assert!(coordinator.ops[index]
+                        .outputs
+                        .iter()
+                        .all(|output| !coordinator.materialized.contains(output)));
+                    assert!(!coordinator.ready_ops().contains(&parent));
+                    break;
+                }
+                coordinator
+                    .buffer_worker_completion(TaskCompletion::completed(
+                        TaskToken(index),
+                        Ok(OValue::str_("value")),
+                    ))
+                    .unwrap();
+                assert_eq!(coordinator.ops[index].state, OpRunState::Published);
+                assert!(
+                    coordinator.ops[index]
+                        .outputs
+                        .iter()
+                        .all(|output| coordinator.provisional_groups.contains_key(output)),
+                    "derived renderer must retain its autonomous visibility restriction"
+                );
+            }
+            assert!(!coordinator.ready_ops().contains(&group));
+            let outcome = if fail_left {
+                Err(anyhow::anyhow!("left failed"))
+            } else {
+                Ok(OValue::str_("left"))
+            };
+            coordinator
+                .buffer_worker_completion(TaskCompletion::completed(TaskToken(left), outcome))
+                .unwrap();
+            // Even when every member physically succeeded, the coordinator
+            // group cannot consume provisional values before ordered settlement.
+            assert!(!coordinator.ready_ops().contains(&group));
+            if fail_left || fail_child {
+                let failure = coordinator
+                    .settle_buffered_results()
+                    .expect("failure remains ordinal-first");
+                assert_eq!(failure.index, if fail_left { left } else { child });
+                coordinator.discard_started_workers(None, "member expansion failed");
+                for index in [child, renderer, parent] {
+                    assert!(coordinator.frame.values[coordinator.ops[index].plan_node.0].is_none());
+                    assert!(coordinator.ops[index]
+                        .outputs
+                        .iter()
+                        .all(|output| !coordinator.materialized.contains(output)));
+                }
+            } else {
+                assert!(coordinator.settle_buffered_results().is_none());
+                assert!(coordinator.ready_ops().contains(&group));
+            }
+            assert!(coordinator.provisional_groups.is_empty());
+        }
     }
 
     #[test]
