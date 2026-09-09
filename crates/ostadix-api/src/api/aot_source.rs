@@ -101,6 +101,8 @@ pub const RUNTIME_COMPUTATION_CORE_RS: &str = include_str!("../computation_core.
 pub const RUNTIME_REALIZATION_PLAN_RS: &str = include_str!("../computation/realization_plan.rs");
 pub const RUNTIME_GRAPH_REALIZATION_PLAN_RS: &str =
     include_str!("../computation/graph_realization_plan.rs");
+pub const RUNTIME_OIR_PHYSICAL_EXECUTION_RS: &str =
+    include_str!("../computation/oir_physical_execution.rs");
 pub const RUNTIME_DISPATCH_MODEL_RS: &str = include_str!("../dispatch_model.rs");
 pub const RUNTIME_SYNTAX_DIALECT_RS: &str = include_str!("../syntax_dialect.rs");
 pub const RUNTIME_WIRE_RS: &str = include_str!("../wire.rs");

@@ -27,6 +27,7 @@ from o_shim_common import (
 from o_native_objects import NativeObjectStore
 
 _native_objects = NativeObjectStore()
+_active_native_operation = False
 
 # Save a reference to the real process stdout (fd 1) before anything can
 # redirect it. O.eval() must write eval_request directly over the IPC pipe
@@ -160,8 +161,9 @@ class _OMod:
         """Retain any Python object and return its owner-process descriptor.
 
         Use a persistent python[N] actor to resolve the handle in later blocks.
-        Fresh actors expire when their block finishes. No reconstruction or
-        remote method invocation is implied by carrying the descriptor.
+        Fresh actors expire when their block finishes. Explicit native_call,
+        native_get and native_set route operations to the retained owner;
+        carrying the descriptor never reconstructs the Python object.
         """
         if _active_morphism_contract is not None:
             raise TypeError("morphism.unsupported-native: owner handles are outside the plain-data contract")
@@ -180,6 +182,25 @@ class _OMod:
         if not isinstance(handle, OOpaqueValue):
             raise TypeError("native.invalid-handle: expected an O.native handle")
         _native_objects.release(handle.wire_value)
+
+    @staticmethod
+    def native_call(handle, *args):
+        return _OMod.eval("native_call($handle, $args)",
+                         _OMod.scope({"handle": handle, "args": list(args)}))
+
+    @staticmethod
+    def native_get(handle, name):
+        return _OMod.eval("native_get($handle, $name)",
+                         _OMod.scope({"handle": handle, "name": name}))
+
+    @staticmethod
+    def native_set(handle, name, value):
+        return _OMod.eval("native_set($handle, $name, $value)",
+                         _OMod.scope({"handle": handle, "name": name, "value": value}))
+
+    @staticmethod
+    def native_release(handle):
+        return _OMod.eval("native_release($handle)", _OMod.scope({"handle": handle}))
 
     @staticmethod
     def eval(q, scope_snapshot=None):
@@ -214,6 +235,8 @@ class _OMod:
         # for capturing print() output.  The IPC protocol must go over the
         # real pipe — not the StringIO capture buffer.
         msg = {"status": "eval_request", "src": src}
+        if _active_native_operation and scope_snapshot is None:
+            msg["scope"] = {"t": "scope", "bindings": dict(_current_o_scope_wire)}
         if scope_snapshot is not None:
             if not isinstance(scope_snapshot, OScopeValue):
                 raise TypeError(
@@ -231,6 +254,9 @@ class _OMod:
         write_wire_message(msg, _real_stdout.buffer)
         # Block until the runtime replies with eval_result.
         resp = read_wire_message(sys.stdin.buffer)
+        while resp is not None and resp.get("cmd") == "native_operation_v1":
+            handle_native_operation(resp)
+            resp = read_wire_message(sys.stdin.buffer)
         if resp is None:
             raise RuntimeError("O.eval: runtime closed stdin before sending eval_result")
         if resp.get("cmd") != "eval_result":
@@ -238,6 +264,8 @@ class _OMod:
                 f"O.eval: expected eval_result command, got {resp.get('cmd')!r}"
             )
         value = resp.get("value", {"t": "null"})
+        if value.get("t") == "error" and (_active_native_operation or src.startswith("native_")):
+            raise RuntimeError(value.get("msg", "native callback failed"))
         if _active_morphism_contract is not None:
             return _lossless_input(value, "$callback")
         return oval_to_py(value)
@@ -594,7 +622,7 @@ def _ambient_fingerprint():
         "environment": [
             [key, value]
             for key, value in sorted(os.environ.items())
-            if key not in {"O_BACKEND_SESSION_ID", "O_LIFECYCLE_TRACE"}
+            if key not in {"O_BACKEND_SESSION_ID", "O_BACKEND_NATIVE_INSTANCE_ID", "O_LIFECYCLE_TRACE"}
         ],
         "sys_path": list(sys.path),
         "decimal_context": {
@@ -1134,6 +1162,72 @@ def handle_cleanup():
     env.update(_BASE_ENV)
     send_ok(None)
 
+
+def _native_argument(value, depth=0):
+    if depth > 64:
+        raise ValueError("native.argument-depth: arguments exceed 64 levels")
+    if type(value) is not dict:
+        raise TypeError("native.invalid-argument: expected a typed OValue")
+    tag = value.get("t")
+    if tag == "native":
+        return _native_objects.resolve(value)
+    if tag == "list":
+        return [_native_argument(item, depth + 1) for item in value["v"]]
+    if tag == "map":
+        return {key: _native_argument(item, depth + 1) for key, item in value["v"].items()}
+    return _lossless_input(value, "$native_argument")
+
+
+def handle_native_operation(cmd):
+    global _active_native_operation
+    previous = _active_native_operation
+    request_id = cmd.get("request_id")
+    try:
+        if (type(request_id) is not str or len(request_id) != 64
+                or any(character not in "0123456789abcdef" for character in request_id)):
+            raise ValueError("native.invalid-request: expected a canonical request identity")
+        if _active_morphism_contract is not None:
+            raise TypeError("morphism.unsupported-native: native operations are outside plain data")
+        operation = cmd.get("operation")
+        arguments = cmd.get("arguments")
+        if operation not in {"call", "get", "set", "release"} or type(arguments) is not list:
+            raise ValueError("native.invalid-operation: expected call/get/set/release and arguments")
+        arity = {"get": 1, "set": 2, "release": 0}.get(operation)
+        if arity is not None and len(arguments) != arity:
+            raise ValueError("native.invalid-arguments: incorrect operation arity")
+        # Resolve/seal-check every handle and validate all data before running
+        # a callable, a descriptor, setattr, or a release finalizer.
+        retained = _native_objects.resolve(cmd.get("handle"))
+        args = [_native_argument(value) for value in arguments]
+        if operation in {"get", "set"} and type(args[0]) is not str:
+            raise TypeError("native.invalid-attribute: attribute name must be text")
+        _active_native_operation = True
+        with contextlib.redirect_stdout(io.StringIO()):
+            if operation == "call":
+                result = retained(*args)
+            elif operation == "get":
+                result = getattr(retained, args[0])
+            elif operation == "set":
+                setattr(retained, args[0], args[1])
+                result = None
+            else:
+                _native_objects.release(cmd["handle"])
+                retained = None  # Run any finalizer before publishing the receipt.
+                result = None
+        if type(result) in {type(None), bool, int, str, float}:
+            try:
+                value = _lossless_native_witness(result)
+            except (TypeError, ValueError):
+                value = _native_objects.export(result)
+        else:
+            value = _native_objects.export(result)
+    except BaseException as error:
+        value = {"t": "error", "msg": f"native.operation-failed: {type(error).__name__}: {error}"}
+    finally:
+        _active_native_operation = previous
+    write_wire_message({"status": "native_operation_result_v1", "request_id": request_id,
+                        "value": value}, _real_stdout.buffer)
+
 def handle_ping():
     send_ok(None)
 
@@ -1146,4 +1240,5 @@ command_loop(
     handle_restore=handle_restore,
     state_backend="python",
     handle_exec_morphism=handle_exec_morphism,
+    handle_native_operation=handle_native_operation,
 )

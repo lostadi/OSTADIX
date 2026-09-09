@@ -10,11 +10,14 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 const BOOTSTRAP: &str = include_str!("embedded_runtime.rs");
+const LINUX_ROOTFS: &str = include_str!("linux_rootfs.rs");
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Manifest {
     schema: String,
+    #[serde(default)]
+    execution: Option<String>,
     #[serde(default)]
     environment: BTreeMap<String, String>,
 }
@@ -62,6 +65,18 @@ pub(super) fn embed(root: &Path, build_dir: &Path) -> Result<()> {
     let manifest: Manifest = serde_json::from_slice(&fs::read(root.join("runtime.json"))?)?;
     if manifest.schema != "ostadix.embedded-runtime/v1" {
         bail!("unsupported embedded runtime manifest schema");
+    }
+    let rootfs = match manifest.execution.as_deref() {
+        None | Some("host") => false,
+        Some("linux-rootfs-v1") => true,
+        Some(other) => bail!("unsupported embedded execution profile {other}"),
+    };
+    if rootfs {
+        for reserved in [".ostadix", ".old-root", "proc", "dev", "tmp", "work", "run"] {
+            if fs::symlink_metadata(root.join(reserved)).is_ok() {
+                bail!("reserved rootfs execution path: {reserved}");
+            }
+        }
     }
     if !root.join("bin").is_dir() {
         bail!("runtime bundle requires bin/");
@@ -191,20 +206,43 @@ pub(super) fn embed(root: &Path, build_dir: &Path) -> Result<()> {
         data.push_str(&format!("({key:?}, {value:?}),\n"));
     }
     data.push_str("];\n");
+    let inventory = serde_json::json!({
+        "schema":"ostadix.embedded-runtime-inventory/v1", "command_lookup":"bundle-only",
+        "execution": if rootfs { "linux-rootfs-v1" } else { "host" },
+        "dynamic_closure_verified":false, "environment":manifest.environment,
+        "directories":directories.iter().map(|(path, mode)| serde_json::json!({"path":path,"mode":mode})).collect::<Vec<_>>(),
+        "symlinks":symlinks.iter().map(|(path, target, mode)| serde_json::json!({"path":path,"target":target,"target_mode":mode})).collect::<Vec<_>>(),
+        "files":inventory
+    });
+    let digest = format!("{:x}", Sha256::digest(serde_json::to_vec(&inventory)?));
+    data.push_str(&format!(
+        "const ROOTFS_IMAGE: Option<&str> = {};\n",
+        if rootfs {
+            format!("Some({digest:?})")
+        } else {
+            "None".into()
+        }
+    ));
     fs::write(bundle_dir.join("data.rs"), data)?;
     fs::write(build_dir.join("src/embedded_runtime.rs"), BOOTSTRAP)?;
+    fs::write(build_dir.join("src/linux_rootfs.rs"), LINUX_ROOTFS)?;
     fs::write(
         build_dir.join("runtime-bundle-manifest.json"),
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "schema":"ostadix.embedded-runtime-inventory/v1", "command_lookup":"bundle-only",
-            "dynamic_closure_verified":false, "environment":manifest.environment,
-            "directories":directories.iter().map(|(path, mode)| serde_json::json!({"path":path,"mode":mode})).collect::<Vec<_>>(),
-            "symlinks":symlinks.iter().map(|(path, target, mode)| serde_json::json!({"path":path,"target":target,"target_mode":mode})).collect::<Vec<_>>(),
-            "files":inventory
-        }))?,
+        serde_json::to_vec_pretty(&inventory)?,
     )?;
     let main_path = build_dir.join("src/main.rs");
-    let main = fs::read_to_string(&main_path)?;
+    let mut main = fs::read_to_string(&main_path)?;
+    if rootfs {
+        let entry = "fn main() -> anyhow::Result<()> {";
+        if main.matches(entry).count() != 1 {
+            bail!("generated rootfs entry point is missing or ambiguous");
+        }
+        main = main.replacen(
+            entry,
+            &format!("{entry}\n    embedded_runtime::enter_rootfs_if_requested()?;"),
+            1,
+        );
+    }
     let marker = "    #[cfg(not(target_family = \"wasm\"))]\n    let shim_dir =";
     if main.matches(marker).count() != 1 {
         bail!("generated runtime bootstrap insertion point is missing or ambiguous");
@@ -240,6 +278,38 @@ mod tests {
             .unwrap();
         }
         root
+    }
+    #[test]
+    fn rootfs_gate_precedes_multicall_and_binds_the_image_inventory() {
+        let root = fixture();
+        fs::write(
+            root.path().join("runtime.json"),
+            br#"{"schema":"ostadix.embedded-runtime/v1","execution":"linux-rootfs-v1"}"#,
+        )
+        .unwrap();
+        let out = tempfile::tempdir().unwrap();
+        fs::create_dir(out.path().join("src")).unwrap();
+        fs::write(out.path().join("src/main.rs"), "fn main() -> anyhow::Result<()> {\n    backend::run_backend_from_env_args()?;\n    #[cfg(not(target_family = \"wasm\"))]\n    let shim_dir = foo();\n    Ok(())\n}").unwrap();
+        embed(root.path(), out.path()).unwrap();
+        let main = fs::read_to_string(out.path().join("src/main.rs")).unwrap();
+        assert!(
+            main.find("enter_rootfs_if_requested").unwrap()
+                < main.find("run_backend_from_env_args").unwrap()
+        );
+        let inventory = fs::read(out.path().join("runtime-bundle-manifest.json")).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&inventory).unwrap();
+        let digest = format!("{:x}", Sha256::digest(serde_json::to_vec(&value).unwrap()));
+        assert!(
+            fs::read_to_string(out.path().join("src/runtime_bundle/data.rs"))
+                .unwrap()
+                .contains(&format!("Some({digest:?})"))
+        );
+        assert!(out.path().join("src/linux_rootfs.rs").is_file());
+        fs::create_dir(root.path().join("proc")).unwrap();
+        assert!(embed(root.path(), out.path())
+            .unwrap_err()
+            .to_string()
+            .contains("reserved rootfs"));
     }
     #[test]
     fn embeds_bytes_inventory_and_closed_command_search() {

@@ -5,10 +5,15 @@ use std::fs;
 use std::path::PathBuf;
 
 include!("runtime_bundle/data.rs");
+#[path = "linux_rootfs.rs"]
+mod linux_rootfs;
 
-pub struct RuntimeBundle(PathBuf);
+pub struct RuntimeBundle(PathBuf, bool);
 impl Drop for RuntimeBundle {
     fn drop(&mut self) {
+        if !self.1 {
+            return;
+        }
         // Retained directory modes may forbid removing their children. Restore
         // owner access parent-first, including directories created by a runtime.
         // Inspect the link itself before descent so cleanup does not traverse
@@ -44,6 +49,36 @@ impl Drop for RuntimeBundle {
 }
 
 pub fn activate() -> Result<RuntimeBundle> {
+    if let Some(image) = ROOTFS_IMAGE {
+        if !linux_rootfs::verify_active(image)? {
+            bail!("rootfs must be entered before evaluator startup");
+        }
+        let guard = RuntimeBundle(PathBuf::from("/"), false);
+        apply_environment(&guard.0)?;
+        return Ok(guard);
+    }
+    let guard = extract()?;
+    apply_environment(&guard.0)?;
+    Ok(guard)
+}
+
+/// Runs before multicall dispatch, so even built-in backend children retain
+/// the same filesystem and namespace boundary as the original program.
+pub fn enter_rootfs_if_requested() -> Result<()> {
+    let Some(image) = ROOTFS_IMAGE else {
+        return Ok(());
+    };
+    if linux_rootfs::verify_active(image)? {
+        apply_environment(std::path::Path::new("/"))?;
+        return Ok(());
+    }
+    let guard = extract()?;
+    let status = linux_rootfs::launch(&guard.0, image)?;
+    drop(guard);
+    linux_rootfs::exit_like(status)
+}
+
+fn extract() -> Result<RuntimeBundle> {
     let mut random = [0u8; 16];
     getrandom::fill(&mut random)
         .map_err(|error| anyhow::anyhow!("runtime bundle entropy: {error}"))?;
@@ -59,7 +94,7 @@ pub fn activate() -> Result<RuntimeBundle> {
     }
     #[cfg(not(unix))]
     fs::create_dir(&root)?;
-    let guard = RuntimeBundle(root);
+    let guard = RuntimeBundle(root, true);
     for (name, _) in DIRECTORIES {
         fs::create_dir_all(guard.0.join(name))?;
     }
@@ -98,14 +133,16 @@ pub fn activate() -> Result<RuntimeBundle> {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(guard.0.join(name), fs::Permissions::from_mode(*mode))?;
     }
-    // Called once during main, before workers or the evaluator are created.
-    // Runtime resolution/admission subsequently bind these extracted files.
-    std::env::set_var("PATH", guard.0.join("bin"));
+    Ok(guard)
+}
+
+fn apply_environment(root: &std::path::Path) -> Result<()> {
+    std::env::set_var("PATH", root.join("bin"));
     for (key, value) in ENVIRONMENT {
         let suffix = value
             .strip_prefix("${BUNDLE}/")
             .context("invalid runtime environment template")?;
-        std::env::set_var(key, guard.0.join(suffix));
+        std::env::set_var(key, root.join(suffix));
     }
-    Ok(guard)
+    Ok(())
 }

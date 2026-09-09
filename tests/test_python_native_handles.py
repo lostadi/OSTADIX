@@ -173,6 +173,48 @@ bounded and unchanged and store.live_count == 2 and store.resolve(first) is orig
         checkpoint = self.owner.request({"cmd": "checkpoint_v1", "max_bytes": 1024 * 1024})
         self.assertEqual("checkpoint_v1", checkpoint["status"], checkpoint)
 
+    def operation(self, handle, operation, arguments=(), request_id="ab" * 32):
+        response = self.owner.request({"cmd": "native_operation_v1", "request_id": request_id,
+                                       "handle": handle, "operation": operation,
+                                       "arguments": list(arguments)})
+        self.assertEqual("native_operation_result_v1", response.get("status"), response)
+        self.assertEqual(request_id, response["request_id"])
+        return response["value"]
+
+    def test_owner_operations_preserve_mutable_result_identity_and_validate_before_effects(self):
+        handle = self.exported("""
+effects = []
+class Box:
+    def __call__(self, other):
+        effects.append('call')
+        return other
+box = Box()
+O.native(box)
+""")
+        invalid = copy.deepcopy(handle)
+        invalid["v"]["codec"] = "altered"
+        rejected = self.operation(handle, "call", [invalid])
+        self.assertEqual("error", rejected["t"])
+        self.assertIn("native.altered-handle", rejected["msg"])
+        self.assertEqual({"t": "bool", "v": True}, self.execute("effects == []")["value"])
+        result = self.operation(handle, "call", [handle])
+        self.assertEqual("native", result["t"])
+        self.assertEqual({"t": "bool", "v": True}, self.execute(
+            "O.resolve_native(result) is box and effects == ['call']", {"result": result})["value"])
+        self.operation(result, "release")
+        expired = self.operation(result, "call")
+        self.assertEqual("error", expired["t"])
+        self.assertIn("native.handle-expired", expired["msg"])
+
+    def test_native_operations_can_interleave_at_an_explicit_eval_callback_boundary(self):
+        handle = self.exported("O.native(lambda: 42)")
+        callback = self.execute("O.eval('text' + '^(callback)_text')")
+        self.assertEqual("eval_request", callback["status"])
+        result = self.operation(handle, "call")
+        self.assertEqual({"t": "number", "v": {"kind": "int", "v": "42"}}, result)
+        settled = self.owner.request({"cmd": "eval_result", "value": {"t": "int", "v": 7}})
+        self.assertEqual({"status": "ok", "value": {"t": "int", "v": 7}}, settled)
+
 
 if __name__ == "__main__":
     unittest.main()

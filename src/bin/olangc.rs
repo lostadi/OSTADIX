@@ -1568,8 +1568,12 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
         computation_dir.join("graph_realization_plan.rs"),
         RUNTIME_GRAPH_REALIZATION_PLAN_RS,
     )?;
+    fs::write(
+        computation_dir.join("oir_physical_execution.rs"),
+        RUNTIME_OIR_PHYSICAL_EXECUTION_RS,
+    )?;
     fs::write(computation_dir.join("mod.rs"),
-        "pub mod realization_plan;\npub mod graph_realization_plan;\npub use realization_plan::*;\npub use graph_realization_plan::*;\n")?;
+        "pub mod realization_plan;\npub mod graph_realization_plan;\npub mod oir_physical_execution;\npub use realization_plan::*;\npub use graph_realization_plan::*;\npub use oir_physical_execution::*;\n")?;
     fs::write(src_dir.join("value.rs"), RUNTIME_VALUE_RS)?;
     fs::write(src_dir.join("capability.rs"), RUNTIME_CAPABILITY_RS)?;
     fs::write(src_dir.join("environment.rs"), RUNTIME_ENVIRONMENT_RS)?;
@@ -3634,6 +3638,10 @@ mod tests {
         assert_eq!(
             fs::read_to_string(src_dir.join("computation/graph_realization_plan.rs")).unwrap(),
             RUNTIME_GRAPH_REALIZATION_PLAN_RS
+        );
+        assert_eq!(
+            fs::read_to_string(src_dir.join("computation/oir_physical_execution.rs")).unwrap(),
+            RUNTIME_OIR_PHYSICAL_EXECUTION_RS
         );
         assert!(lib_rs.contains("pub mod effects;"));
         assert!(lib_rs.contains("pub mod execution_contract;"));

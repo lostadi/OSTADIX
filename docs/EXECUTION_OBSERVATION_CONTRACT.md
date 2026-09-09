@@ -14,18 +14,19 @@ requirements. They do not establish the unrestricted forms of those requirements
 
 | Requirement | Executable support | Remaining boundary |
 | --- | --- | --- |
-| Lossless native-object exchange | Python owner-process handles retain arbitrary Python objects and preserve identity through OValue transport. | Other runtimes can carry the handle; reconstruction and invocation outside its owner are not implemented. |
+| Lossless native-object exchange | Python handles retain arbitrary objects and identity; O, Python, and the Unix Node bridge invoke, read, write, and release them through their exact admitted owner. | Execution stays in the live Python owner. Other native owner runtimes, arbitrary reconstruction, and migration of live handles need additional adapters. |
 | Authoritative morphisms on edges | Opt-in Python plain-data crossings validate actual inputs and outputs; the physical graph executor requires an observation check on every transfer. | Each contract has a defined carrier and trusted adapter. This is not universal enforcement of contextual equivalence across all backends. |
 | Parallel evaluator blocks | Explicit autonomous groups admit fresh backend bodies with materialized nested evaluator inputs and refill worker slots as dependencies complete. | Persistent actors, callbacks, policy boundaries, and failure settlement retain their applicable coordination rules. Arbitrary effects are not proven serial-equivalent. |
-| Multi-operation physical planning | The embedding API plans and executes operation/transfer DAGs with real values and checked observations. | Transfer offers are supplied explicitly; arbitrary OIR-to-physical-plan lowering and authenticated remote transfer adapters are separate work. |
-| Recovery and migration | Admitted local evaluators restore portable actor checkpoints, wait for acknowledgements, and fence retired source identities. | In-flight computation, native handles, external resources, and distributed durable ownership are outside this handoff. |
-| One-binary foreign runtimes | Native compilation can embed an explicit relocatable runtime tree with digests and bundle-only command lookup. | The tree must be supplied. Dynamic libraries, OS services, and all registered foreign runtimes are not automatically made hermetic. |
+| Multi-operation physical planning | The embedding API executes operation/transfer DAGs; the automatic OIR bridge derives complete admitted local operation graphs and moves actual inputs through checked socket transfers. | Automatic remote placement and authenticated remote transfer adapters are separate work; the automatic profile remains local. |
+| Recovery and migration | Local handoffs and authenticated Hosted V2 checkpoint transfers restore supported actor state, require acknowledgements, durably fence the source, and recover interrupted handoff phases. | Quiescent Python/SQLite codecs are supported. In-flight computation, live handles, external resources, and automatic failover without signed fencing remain outside this handoff. |
+| One-binary foreign runtimes | Native compilation embeds runtime payloads. The Linux rootfs profile collects declared ELF dependencies/data and executes inside private namespaces with an immutable image and private network. | Each runtime closure still needs qualification. Host kernel/initial loader and standard streams remain inputs; computed imports, external services, and every catalog runtime are not automatically supplied. |
 
 Interface details and executable coverage are documented in
 [native handles](PYTHON_NATIVE_HANDLES.md),
 [crossing enforcement](BACKEND_MORPHISM_ENFORCEMENT_V1.md),
 [physical graphs](PHYSICAL_GRAPH_EXECUTION_V1.md),
-[local actor migration](LOCAL_ACTOR_MIGRATION.md), and
+[local actor migration](LOCAL_ACTOR_MIGRATION.md),
+[Hosted actor migration](HOSTED_ACTOR_MIGRATION.md), and
 [runtime bundles](EMBEDDED_RUNTIME_BUNDLES.md).
 
 ## Regression observation policy
