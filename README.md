@@ -2988,7 +2988,9 @@ pair. The canonical exchange form is explicit and inspectable rather than
 hidden in a compiler pass. Python's explicit [native object handles](docs/PYTHON_NATIVE_HANDLES.md)
 retain arbitrary objects in their owner process and carry checked opaque
 descriptors through O. They preserve owner identity without claiming portable
-reconstruction in other runtimes.
+reconstruction in other runtimes. O, Python, and the Unix JavaScript adapter can
+invoke, inspect, modify, and release those objects through the exact admitted
+owner using `native_call`, `native_get`, `native_set`, and `native_release`.
 
 ### 3. Explicit persistent environments
 
@@ -3971,6 +3973,10 @@ runtimes remain explicit host dependencies by default. The optional
 [`--runtime-bundle`](docs/EMBEDDED_RUNTIME_BUNDLES.md) embeds a supplied runtime
 tree and uses its `bin/` exclusively for command lookup; host OS, dynamic
 libraries, and external services still require separate qualification.
+Its Linux rootfs profile uses the [runtime closure collector](docs/LINUX_RUNTIME_ROOTFS.md)
+and private filesystem/network namespaces to run embedded foreign runtimes
+inside an immutable image, with writable scratch space and ordinary subprocess
+support. Runtime data and services still need explicit closure qualification.
 `--shim-dir` overlays or adds
 shim files before packaging. `--keep-build-dir` retains the generated Cargo
 project for inspection. `--backend-grant` may be repeated for script mode and

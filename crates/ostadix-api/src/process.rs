@@ -264,6 +264,8 @@ struct PendingMorphismV1 {
 
 struct BackendProcess {
     language: String,
+    session_id: String,
+    native_instance: String,
     child: Child,
     stdin: Option<BufWriter<ChildStdin>>,
     responses: mpsc::Receiver<std::result::Result<BackendWireResponseV2, String>>,
@@ -271,6 +273,8 @@ struct BackendProcess {
     terminal: bool,
     exec_pending: bool,
     pending_morphism: Option<PendingMorphismV1>,
+    awaiting_callback: bool,
+    native_operation_depth: usize,
 }
 
 pub(crate) fn backend_operation_timeout() -> Duration {
@@ -710,7 +714,14 @@ impl BackendProcess {
             ordinal,
             lang
         )));
-        Self::new_with_session(lang, shim_path, sandbox, executable_leases, &session_id)
+        Self::new_with_session(
+            lang,
+            shim_path,
+            sandbox,
+            executable_leases,
+            &session_id,
+            "unmanaged",
+        )
     }
 
     fn new_with_session(
@@ -719,6 +730,7 @@ impl BackendProcess {
         sandbox: &BackendSandboxPolicy,
         executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
         session_id: &str,
+        launch_generation: &str,
     ) -> Result<Self> {
         if session_id.len() != 64 || !session_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             bail!("backend session identity must be a 64-character SHA-256 digest");
@@ -744,7 +756,11 @@ impl BackendProcess {
             })?,
         )?;
 
-        command.env("O_BACKEND_SESSION_ID", session_id);
+        let native_instance = fresh_registry_identity();
+        command
+            .env("O_BACKEND_SESSION_ID", session_id)
+            .env("O_BACKEND_LAUNCH_GENERATION", launch_generation)
+            .env("O_BACKEND_NATIVE_INSTANCE_ID", &native_instance);
 
         #[cfg(unix)]
         command.process_group(0);
@@ -829,6 +845,8 @@ impl BackendProcess {
 
         Ok(Self {
             language: lang.to_string(),
+            session_id: session_id.to_owned(),
+            native_instance,
             child,
             stdin: Some(BufWriter::new(stdin)),
             responses,
@@ -836,6 +854,8 @@ impl BackendProcess {
             terminal: false,
             exec_pending: false,
             pending_morphism: None,
+            awaiting_callback: false,
+            native_operation_depth: 0,
         })
     }
 
@@ -889,6 +909,7 @@ impl BackendProcess {
     }
 
     fn response_step(&mut self, response: BackendWireResponseV2) -> Result<ExecStep> {
+        self.awaiting_callback = matches!(response, BackendWireResponseV2::EvalRequest { .. });
         if !matches!(response, BackendWireResponseV2::EvalRequest { .. }) {
             if let Some(PendingMorphismV1 {
                 contract,
@@ -907,6 +928,9 @@ impl BackendProcess {
             }
         }
         match response {
+            BackendWireResponseV2::NativeOperationResultV1 { .. } => {
+                bail!("native.unexpected-receipt: no native operation is pending")
+            }
             BackendWireResponseV2::MorphismResultV1 { .. } => {
                 bail!("morphism.unexpected-receipt: no enforced execution is pending")
             }
@@ -928,10 +952,12 @@ impl BackendProcess {
     }
 
     fn send_eval_result(&mut self, value: OValue) -> Result<()> {
-        if !self.exec_pending {
+        if !self.exec_pending && self.native_operation_depth == 0 {
             bail!("backend has no pending execution awaiting eval_result");
         }
-        self.send_command(&BackendWireCommandV2::EvalResult { value })
+        self.send_command(&BackendWireCommandV2::EvalResult { value })?;
+        self.awaiting_callback = false;
+        Ok(())
     }
 
     fn begin_exec_with_morphism(
@@ -940,7 +966,7 @@ impl BackendProcess {
         bindings: HashMap<String, OValue>,
         contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
     ) -> Result<()> {
-        if self.exec_pending {
+        if self.exec_pending || self.native_operation_depth > 0 {
             bail!("backend already has a pending execution");
         }
         if let Some(contract) = contract {
@@ -1064,7 +1090,7 @@ impl BackendProcess {
     }
 
     fn ensure_state_boundary(&self) -> Result<()> {
-        if self.exec_pending {
+        if self.exec_pending || self.native_operation_depth > 0 {
             bail!("state.not-settled: backend execution is still pending");
         }
         Ok(())
@@ -1395,6 +1421,7 @@ impl BackendProcess {
 
 fn unexpected_state_response(operation: &str, response: BackendWireResponseV2) -> anyhow::Error {
     let kind = match response {
+        BackendWireResponseV2::NativeOperationResultV1 { .. } => "native_operation_result_v1",
         BackendWireResponseV2::MorphismResultV1 { .. } => "morphism_result_v1",
         BackendWireResponseV2::Ok { .. } => "ok",
         BackendWireResponseV2::Err { .. } => "err",
@@ -1561,6 +1588,13 @@ pub struct ProcessRegistry {
 
 pub(crate) struct FreshActorSuspension(String);
 
+pub(crate) struct NativeOperationTicket {
+    instance: String,
+    request_id: String,
+    previous_callback: bool,
+    pub(crate) settled: bool,
+}
+
 struct SuspendedFreshActor {
     token: String,
     key: (String, u32, BackendSandboxPolicy, String),
@@ -1587,6 +1621,142 @@ impl Default for ProcessRegistry {
 }
 
 impl ProcessRegistry {
+    fn native_process_mut(&mut self, instance: &str) -> Result<&mut BackendProcess> {
+        if let Some(process) = self
+            .registry
+            .values_mut()
+            .find(|p| p.native_instance == instance)
+        {
+            return Ok(process);
+        }
+        self.suspended_fresh
+            .iter_mut()
+            .find(|p| p.process.native_instance == instance)
+            .map(|p| &mut p.process)
+            .context("native.owner-expired: exact physical owner is no longer live")
+    }
+
+    pub(crate) fn begin_native_operation(
+        &mut self,
+        handle: OValue,
+        operation: &str,
+        arguments: Vec<OValue>,
+    ) -> Result<NativeOperationTicket> {
+        if self.morphism_contract.is_some() {
+            bail!("morphism.unsupported-native: native operations are outside the plain-data contract");
+        }
+        let OValue::Native { v } = &handle else {
+            bail!("native.invalid-handle: expected an owner-resident native descriptor");
+        };
+        if v.lang != "python" || v.codec != "ostadix.python-owner-handle/v1" {
+            bail!("native.unsupported-owner: only Python owner handles support these operations");
+        }
+        let metadata = |key: &str| -> Result<String> {
+            match v.metadata.get(key) {
+                Some(OValue::Text { v }) => Ok(v.utf8.clone()),
+                _ => bail!("native.invalid-handle: missing owner {key}"),
+            }
+        };
+        let instance = metadata("instance")?;
+        let session = metadata("session")?;
+        let generation = metadata("generation")?;
+        let matching = self.registry.iter().any(|(key, process)| {
+            key.0 == "python"
+                && key.3 == generation
+                && process.session_id == session
+                && process.native_instance == instance
+        }) || self.suspended_fresh.iter().any(|entry| {
+            entry.key.0 == "python"
+                && entry.key.3 == generation
+                && entry.process.session_id == session
+                && entry.process.native_instance == instance
+        });
+        if !matching {
+            bail!(
+                "native.owner-expired: no exact owner/session/generation is live in this evaluator"
+            );
+        }
+        let process = self.native_process_mut(&instance)?;
+        if process.terminal
+            || ((process.exec_pending || process.native_operation_depth > 0)
+                && !process.awaiting_callback)
+        {
+            bail!("native.owner-busy: owner is not idle or suspended at a callback boundary");
+        }
+        if process.native_operation_depth >= 64 {
+            bail!("native.recursion-limit: owner operation nesting exceeds 64");
+        }
+        let request_id = fresh_registry_identity();
+        let previous_callback = process.awaiting_callback;
+        process.send_command(&BackendWireCommandV2::NativeOperationV1 {
+            request_id: request_id.clone(),
+            handle,
+            operation: operation.to_owned(),
+            arguments,
+        })?;
+        process.native_operation_depth += 1;
+        process.awaiting_callback = false;
+        Ok(NativeOperationTicket {
+            instance,
+            request_id,
+            previous_callback,
+            settled: false,
+        })
+    }
+
+    pub(crate) fn recv_native_operation(
+        &mut self,
+        ticket: &mut NativeOperationTicket,
+        timeout: Duration,
+    ) -> Result<ExecStep> {
+        let process = self.native_process_mut(&ticket.instance)?;
+        match process.recv_response_timeout(timeout)? {
+            BackendWireResponseV2::NativeOperationResultV1 { request_id, value }
+                if request_id == ticket.request_id =>
+            {
+                process.native_operation_depth -= 1;
+                process.awaiting_callback = ticket.previous_callback;
+                ticket.settled = true;
+                Ok(ExecStep::Done(value))
+            }
+            BackendWireResponseV2::EvalRequest { src, scope } => {
+                process.awaiting_callback = true;
+                Ok(ExecStep::EvalRequest { src, scope })
+            }
+            _ => bail!("native.invalid-receipt: owner returned an unmatched operation response"),
+        }
+    }
+
+    pub(crate) fn send_native_callback_result(
+        &mut self,
+        ticket: &NativeOperationTicket,
+        value: OValue,
+    ) -> Result<()> {
+        self.native_process_mut(&ticket.instance)?
+            .send_eval_result(value)
+    }
+
+    pub(crate) fn abort_native_operation(&mut self, ticket: &NativeOperationTicket) {
+        if ticket.settled {
+            return;
+        }
+        if let Some(key) = self
+            .registry
+            .iter()
+            .find(|(_, p)| p.native_instance == ticket.instance)
+            .map(|(key, _)| key.clone())
+        {
+            self.registry.remove(&key);
+        }
+        if let Some(index) = self
+            .suspended_fresh
+            .iter()
+            .position(|p| p.process.native_instance == ticket.instance)
+        {
+            self.suspended_fresh.remove(index);
+        }
+    }
+
     pub(crate) fn set_morphism_contract(
         &mut self,
         contract: crate::backend_morphism::BackendCrossingContractV1,
@@ -1662,6 +1832,7 @@ impl ProcessRegistry {
                 launch.sandbox,
                 launch.executable_leases.map(AsRef::as_ref),
                 &session_id,
+                &key.3,
             )
             .with_context(|| format!("failed to start backend for language `{lang}`"))?;
             self.registry.insert(key.clone(), process);
@@ -1926,6 +2097,7 @@ impl ProcessRegistry {
                 launch.sandbox,
                 launch.executable_leases.map(AsRef::as_ref),
                 &session_id,
+                &key.3,
             )
             .with_context(|| format!("failed to start backend for language `{lang}`"))?;
             self.registry.insert(key.clone(), process);
@@ -2150,6 +2322,7 @@ impl ProcessRegistry {
             launch.sandbox,
             launch.executable_leases.map(AsRef::as_ref),
             &session_id,
+            &key.3,
         )
         .with_context(|| format!("failed to start restore target for `{lang}[{env_id}]`"))?;
         match process.restore(checkpoint) {

@@ -100,6 +100,7 @@ struct OpState {
 }
 
 pub struct Coordinator<'a> {
+    physical: Option<crate::computation::oir_physical_execution::OirPhysicalSession>,
     admitted: AdmittedExecution<'a>,
     program: &'a OIrProgram,
     plan: &'a ExecutionPlan,
@@ -198,6 +199,7 @@ impl<'a> Coordinator<'a> {
         };
 
         Ok(Self {
+            physical: None,
             admitted,
             program,
             plan,
@@ -213,6 +215,14 @@ impl<'a> Coordinator<'a> {
             base_policy,
             crossing_observations: false,
         })
+    }
+
+    pub(crate) fn with_physical_session(
+        mut self,
+        physical: crate::computation::oir_physical_execution::OirPhysicalSession,
+    ) -> Self {
+        self.physical = Some(physical);
+        self
     }
 
     /// Drive the plan to completion, committing store deltas and root results
@@ -738,60 +748,75 @@ impl<'a> Coordinator<'a> {
         let mut prepared = Vec::with_capacity(selected.len());
         for &index in selected {
             let id = self.ops[index].plan_node;
-            let submission = if self.ops[index].dispatch_adapter
-                == DispatchAdapterV1::TrustedInlineRendererV1
-            {
-                if let Some(adapter) = physical_attempt_adapter {
-                    let prepared = adapter.prepare_attempt(
-                        &self.admitted,
-                        &self.frame,
-                        &self.flat,
-                        self.plan,
-                        id,
-                    )?;
-                    let (coordinate, task) = prepared.into_parts();
-                    TaskSubmission::physical(TaskToken(index), coordinate, task)
-                } else {
-                    TaskSubmission::new(
-                        TaskToken(index),
-                        parallel::prepare(
+            let restore = self
+                .physical
+                .as_mut()
+                .map(|physical| physical.prepare_inputs(index, &mut self.frame))
+                .transpose()?;
+            let submission = (|| -> Result<TaskSubmission> {
+                Ok(
+                    if self.ops[index].dispatch_adapter
+                        == DispatchAdapterV1::TrustedInlineRendererV1
+                    {
+                        if let Some(adapter) = physical_attempt_adapter {
+                            let prepared = adapter.prepare_attempt(
+                                &self.admitted,
+                                &self.frame,
+                                &self.flat,
+                                self.plan,
+                                id,
+                            )?;
+                            let (coordinate, task) = prepared.into_parts();
+                            TaskSubmission::physical(TaskToken(index), coordinate, task)
+                        } else {
+                            TaskSubmission::new(
+                                TaskToken(index),
+                                parallel::prepare(
+                                    self.ops[index].dispatch_adapter,
+                                    &self.frame,
+                                    self.plan,
+                                    id,
+                                    self.flat[id.0],
+                                    None,
+                                )?,
+                            )
+                        }
+                    } else {
+                        let task = parallel::prepare(
                             self.ops[index].dispatch_adapter,
                             &self.frame,
                             self.plan,
                             id,
                             self.flat[id.0],
-                            None,
-                        )?,
-                    )
-                }
-            } else {
-                let task = parallel::prepare(
-                    self.ops[index].dispatch_adapter,
-                    &self.frame,
-                    self.plan,
-                    id,
-                    self.flat[id.0],
-                    match self.ops[index].dispatch_adapter {
-                        DispatchAdapterV1::AutonomousEphemeralShimV1 => {
-                            let OIr::Exec { backend, .. } = self.flat[id.0] else {
-                                unreachable!("ephemeral shim adapter requires an Exec node")
-                            };
-                            let authority_scope =
-                                self.frame.scope_from_data_edges(id, self.plan)?;
-                            let sandbox = evaluator
-                                .authorize_autonomous_ephemeral_shim(backend, &authority_scope)?;
-                            Some(parallel::EphemeralShimRuntime::new(
-                                evaluator.shim_path(&backend.canonical),
-                                sandbox,
-                                self.admitted.executable_leases()?,
-                                evaluator.morphism_contract(),
-                            ))
-                        }
-                        _ => None,
+                            match self.ops[index].dispatch_adapter {
+                                DispatchAdapterV1::AutonomousEphemeralShimV1 => {
+                                    let OIr::Exec { backend, .. } = self.flat[id.0] else {
+                                        unreachable!("ephemeral shim adapter requires an Exec node")
+                                    };
+                                    let authority_scope =
+                                        self.frame.scope_from_data_edges(id, self.plan)?;
+                                    let sandbox = evaluator.authorize_autonomous_ephemeral_shim(
+                                        backend,
+                                        &authority_scope,
+                                    )?;
+                                    Some(parallel::EphemeralShimRuntime::new(
+                                        evaluator.shim_path(&backend.canonical),
+                                        sandbox,
+                                        self.admitted.executable_leases()?,
+                                        evaluator.morphism_contract(),
+                                    ))
+                                }
+                                _ => None,
+                            },
+                        )?;
+                        TaskSubmission::new(TaskToken(index), task)
                     },
-                )?;
-                TaskSubmission::new(TaskToken(index), task)
-            };
+                )
+            })();
+            if let Some(restore) = restore {
+                restore.restore(&mut self.frame);
+            }
+            let submission = submission?;
             crate::process::lifecycle_trace(
                 "coordinator.task_prepared",
                 format!("token={index} plan_node={}", id.0),
@@ -799,9 +824,32 @@ impl<'a> Coordinator<'a> {
             prepared.push((index, id, submission));
         }
 
+        if self.physical.is_some()
+            && selected.iter().any(|&index| {
+                self.ops[index].dispatch_adapter == DispatchAdapterV1::AutonomousEphemeralShimV1
+            })
+        {
+            // A host-supplied byte transport ran during preparation. Recheck
+            // live context after it, immediately before actual submissions.
+            evaluator.verify_admitted_runtime_context(&self.admitted)?;
+            for &index in selected {
+                if self.ops[index].dispatch_adapter == DispatchAdapterV1::AutonomousEphemeralShimV1
+                {
+                    let OIr::Exec { backend, .. } = self.flat[self.ops[index].plan_node.0] else {
+                        unreachable!("shim adapter")
+                    };
+                    self.admitted
+                        .executable_leases()?
+                        .verify_backend(&backend.canonical)?;
+                }
+            }
+        }
         for (index, id, submission) in prepared {
             let crossing = self.prepare_crossing_observation(id)?;
             driver.submit(submission)?;
+            if let Some(physical) = &self.physical {
+                physical.started(index);
+            }
             if let Some(crossing) = crossing {
                 self.trace.crossing_submitted(crossing);
             }
@@ -942,6 +990,13 @@ impl<'a> Coordinator<'a> {
                     crossing.state = RuntimeCrossingStateV1::InfrastructureFailure
                 }
             }
+        }
+
+        if let Some(physical) = &mut self.physical {
+            physical.completed(
+                index,
+                matches!(&completion.outcome, TaskOutcome::Completed(Ok(_))),
+            );
         }
 
         let autonomous_group = self.autonomous_worker_group(index);
@@ -1237,17 +1292,53 @@ impl<'a> Coordinator<'a> {
                 }
             }
         }
-        if let Some(crossing) = self.prepare_crossing_observation(id)? {
+        let restore = self
+            .physical
+            .as_mut()
+            .map(|physical| physical.prepare_inputs(index, &mut self.frame))
+            .transpose()?;
+        let crossing = (|| {
+            if self.physical.is_some() && (self.ops[index].effect.unknown || launches_backend) {
+                evaluator.verify_admitted_runtime_context(&self.admitted)?;
+                if let OIr::Exec { backend, .. } = self.flat[id.0] {
+                    if backend.execution == ExecutionMode::Shim {
+                        self.admitted
+                            .executable_leases()?
+                            .verify_backend(&backend.canonical)?;
+                    }
+                }
+            }
+            self.prepare_crossing_observation(id)
+        })();
+        let crossing = match crossing {
+            Ok(crossing) => crossing,
+            Err(error) => {
+                if let Some(restore) = restore {
+                    restore.restore(&mut self.frame);
+                }
+                return Err(error);
+            }
+        };
+        if let Some(crossing) = crossing {
             self.trace.crossing_submitted(crossing);
         }
         self.trace.ready(id);
         self.trace.started(id);
+        if let Some(physical) = &self.physical {
+            physical.started(index);
+        }
 
         let policy = self.frame.node_policy[id.0];
         let saved = evaluator.set_policy(policy);
         let outcome =
             evaluator.execute_ready_plan_node(id, self.flat[id.0], self.plan, &mut self.frame);
         evaluator.set_policy(saved);
+        if let Some(restore) = restore {
+            restore.restore(&mut self.frame);
+        }
+        if let Some(physical) = &mut self.physical {
+            physical.completed(index, outcome.is_ok());
+        }
 
         match outcome {
             Ok(value) => {

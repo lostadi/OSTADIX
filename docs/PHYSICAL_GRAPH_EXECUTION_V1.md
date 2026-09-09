@@ -98,9 +98,11 @@ and coordinator-observed Started/Succeeded/Failed transitions. A failure
 suppresses new tasks, drains already-started work, and returns its observations;
 it does not roll back effects already performed by an adapter.
 
-The current entry point is this embedding API. Automatic lowering of arbitrary
-OIR programs into `GraphPlanningRequestV1` is not supplied by this module.
-Generated native runtimes include the computation records and graph API.
+This module is the generic embedding API. The separate
+[automatic OIR bridge](OIR_PHYSICAL_EXECUTION_V1.md) derives these records from
+admitted local program graphs and executes their operations and real socket
+transfers through the existing coordinator. Generated native runtimes include
+the records, graph API, and automatic bridge.
 
 ## Executable coverage
 

@@ -14,10 +14,12 @@ use crate::computation_core::{
 pub mod build_oir;
 pub mod build_project;
 pub mod graph_realization_plan;
+pub mod oir_physical_execution;
 pub mod realization_plan;
 pub mod verify;
 
 pub use graph_realization_plan::*;
+pub use oir_physical_execution::*;
 pub use realization_plan::*;
 
 /// Incremental manifest assembly with verification deferred to `finish`.

@@ -1116,7 +1116,7 @@ impl Evaluator {
         })
     }
 
-    fn install_backend_launch_generations(
+    pub(crate) fn install_backend_launch_generations(
         &mut self,
         generations: Option<HashMap<String, String>>,
     ) -> Option<HashMap<String, String>> {
@@ -3218,6 +3218,15 @@ impl Evaluator {
                                     .with_context(|| format!("[{}] send_eval_result", env_label))?;
                             }
                             Err(e) => {
+                                if src.starts_with("native_") {
+                                    self.registry.send_eval_result(
+                                        runtime_lang,
+                                        runtime_env_id,
+                                        OValue::error(format!("{e:#}")),
+                                        &sandbox,
+                                    )?;
+                                    continue;
+                                }
                                 return Err(e).with_context(|| {
                                     format!(
                                         "[{}] O.eval() failed while evaluating quoted source",
@@ -3317,6 +3326,34 @@ impl Evaluator {
         scope: HashMap<String, OValue>,
     ) -> Result<OValue> {
         match fn_name {
+            "native_call" | "native_get" | "native_set" | "native_release" => {
+                if self.prepared_fragment_callbacks_forbidden {
+                    bail!("native.admission-refused: prepared placement cannot acquire owner operation authority");
+                }
+                let count = match fn_name {
+                    "native_set" => 3,
+                    "native_release" => 1,
+                    _ => 2,
+                };
+                if arg_vals.len() != count {
+                    bail!("{fn_name} requires {count} arguments");
+                }
+                let mut values = arg_vals.into_iter();
+                let handle = values.next().unwrap();
+                let arguments = if fn_name == "native_call" {
+                    match values.next().unwrap() {
+                        OValue::List { v } => v,
+                        _ => bail!("native_call arguments must be an O list"),
+                    }
+                } else {
+                    values.collect()
+                };
+                self.execute_native_operation(
+                    handle,
+                    fn_name.trim_start_matches("native_"),
+                    arguments,
+                )
+            }
             "instantiate" => {
                 if arg_vals.len() != 1 {
                     bail!(
@@ -3481,6 +3518,56 @@ impl Evaluator {
                 Ok(OValue::scope(scope))
             }
             other => bail!("Unknown built-in function: `{}(...)`", other),
+        }
+    }
+
+    fn execute_native_operation(
+        &mut self,
+        handle: OValue,
+        operation: &str,
+        arguments: Vec<OValue>,
+    ) -> Result<OValue> {
+        let deadline = Instant::now()
+            .checked_add(crate::process::backend_operation_timeout())
+            .context("native operation deadline overflow")?;
+        let deadline = self
+            .callback_operation_deadline
+            .map_or(deadline, |outer| outer.min(deadline));
+        let mut ticket = self
+            .registry
+            .begin_native_operation(handle, operation, arguments)?;
+        let outcome =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<OValue> {
+                loop {
+                    let remaining = deadline
+                        .checked_duration_since(Instant::now())
+                        .context("native.operation-timeout: owner operation deadline expired")?;
+                    match self
+                        .registry
+                        .recv_native_operation(&mut ticket, remaining)?
+                    {
+                        ExecStep::Done(OValue::Error { msg }) => bail!("{msg}"),
+                        ExecStep::Done(value) => return Ok(value),
+                        ExecStep::EvalRequest { src, scope } => {
+                            let scope = match scope {
+                                Some(OValue::Scope { bindings }) => bindings,
+                                None => HashMap::new(),
+                                _ => bail!("native.invalid-callback-scope: expected an O scope"),
+                            };
+                            let value =
+                                match self.eval_source_with_scope_until(&src, &scope, deadline) {
+                                    Ok(value) => value,
+                                    Err(error) => OValue::error(format!("{error:#}")),
+                                };
+                            self.registry.send_native_callback_result(&ticket, value)?;
+                        }
+                    }
+                }
+            }));
+        self.registry.abort_native_operation(&ticket);
+        match outcome {
+            Ok(result) => result,
+            Err(panic) => std::panic::resume_unwind(panic),
         }
     }
 
