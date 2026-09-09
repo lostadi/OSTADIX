@@ -112,6 +112,9 @@ pub fn run_backend(lang: &str) -> Result<()> {
             }
         }
         let response = match command {
+            BackendWireCommandV2::ExecMorphismV1 { .. } => BackendWireResponseV2::err(
+                "morphism.unsupported-backend: this native adapter has no executable morphism contract",
+            ),
             BackendWireCommandV2::Exec { code, bindings } => {
                 match backend.exec(lang, &code, bindings) {
                     Ok(value) => BackendWireResponseV2::ok(value),

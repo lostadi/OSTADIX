@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error as StdError;
 use std::fmt;
 use std::fs::OpenOptions;
@@ -256,6 +256,12 @@ pub enum ExecStep {
     EvalRequest { src: String, scope: Option<OValue> },
 }
 
+struct PendingMorphismV1 {
+    contract: crate::backend_morphism::BackendCrossingContractV1,
+    request_id: String,
+    bindings: HashMap<String, OValue>,
+}
+
 struct BackendProcess {
     language: String,
     child: Child,
@@ -264,6 +270,7 @@ struct BackendProcess {
     reader: Option<JoinHandle<()>>,
     terminal: bool,
     exec_pending: bool,
+    pending_morphism: Option<PendingMorphismV1>,
 }
 
 pub(crate) fn backend_operation_timeout() -> Duration {
@@ -828,6 +835,7 @@ impl BackendProcess {
             reader: Some(reader),
             terminal: false,
             exec_pending: false,
+            pending_morphism: None,
         })
     }
 
@@ -840,7 +848,8 @@ impl BackendProcess {
     }
 
     fn recv_step(&mut self) -> Result<ExecStep> {
-        let step = Self::response_step(self.recv_response()?);
+        let response = self.recv_response()?;
+        let step = self.response_step(response);
         if !matches!(&step, Ok(ExecStep::EvalRequest { .. })) {
             self.exec_pending = false;
         }
@@ -855,7 +864,8 @@ impl BackendProcess {
     }
 
     fn recv_step_timeout(&mut self, timeout: Duration) -> Result<ExecStep> {
-        let step = Self::response_step(self.recv_response_timeout(timeout)?);
+        let response = self.recv_response_timeout(timeout)?;
+        let step = self.response_step(response);
         if !matches!(&step, Ok(ExecStep::EvalRequest { .. })) {
             self.exec_pending = false;
         }
@@ -878,8 +888,28 @@ impl BackendProcess {
             .map_err(anyhow::Error::msg)
     }
 
-    fn response_step(response: BackendWireResponseV2) -> Result<ExecStep> {
+    fn response_step(&mut self, response: BackendWireResponseV2) -> Result<ExecStep> {
+        if !matches!(response, BackendWireResponseV2::EvalRequest { .. }) {
+            if let Some(PendingMorphismV1 {
+                contract,
+                request_id,
+                bindings,
+            }) = self.pending_morphism.take()
+            {
+                return match response {
+                    BackendWireResponseV2::MorphismResultV1 { receipt } => {
+                        receipt.verify(contract, &request_id, &bindings).map_err(anyhow::Error::msg)?;
+                        Ok(ExecStep::Done(receipt.value))
+                    }
+                    BackendWireResponseV2::Err { message } => Err(anyhow::Error::new(BackendSemanticError(message))),
+                    _ => bail!("morphism.missing-receipt: enforced execution returned an unverified response"),
+                };
+            }
+        }
         match response {
+            BackendWireResponseV2::MorphismResultV1 { .. } => {
+                bail!("morphism.unexpected-receipt: no enforced execution is pending")
+            }
             BackendWireResponseV2::Ok { value } => Ok(ExecStep::Done(value)),
             BackendWireResponseV2::Err { message } => {
                 Err(anyhow::Error::new(BackendSemanticError(message)))
@@ -904,20 +934,53 @@ impl BackendProcess {
         self.send_command(&BackendWireCommandV2::EvalResult { value })
     }
 
-    fn begin_exec(&mut self, code: &str, bindings: HashMap<String, OValue>) -> Result<()> {
+    fn begin_exec_with_morphism(
+        &mut self,
+        code: &str,
+        bindings: HashMap<String, OValue>,
+        contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+    ) -> Result<()> {
         if self.exec_pending {
             bail!("backend already has a pending execution");
         }
-        self.send_command(&BackendWireCommandV2::Exec {
-            code: code.to_string(),
-            bindings,
-        })?;
+        if let Some(contract) = contract {
+            contract
+                .validate_bindings(&self.language, &bindings)
+                .map_err(anyhow::Error::msg)?;
+            let request_id = fresh_registry_identity();
+            self.send_command(&BackendWireCommandV2::ExecMorphismV1 {
+                code: code.to_string(),
+                bindings: bindings.clone(),
+                contract,
+                request_id: request_id.clone(),
+            })?;
+            self.pending_morphism = Some(PendingMorphismV1 {
+                contract,
+                request_id,
+                bindings,
+            });
+        } else {
+            self.send_command(&BackendWireCommandV2::Exec {
+                code: code.to_string(),
+                bindings,
+            })?;
+        }
         self.exec_pending = true;
         Ok(())
     }
 
+    #[cfg(test)]
     fn exec(&mut self, code: &str, bindings: HashMap<String, OValue>) -> Result<OValue> {
-        self.begin_exec(code, bindings)?;
+        self.exec_with_morphism(code, bindings, None)
+    }
+
+    fn exec_with_morphism(
+        &mut self,
+        code: &str,
+        bindings: HashMap<String, OValue>,
+        contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+    ) -> Result<OValue> {
+        self.begin_exec_with_morphism(code, bindings, contract)?;
         match self.recv_step()? {
             ExecStep::Done(v) => Ok(v),
             ExecStep::EvalRequest { src, .. } => Err(anyhow!(
@@ -1008,6 +1071,9 @@ impl BackendProcess {
     }
 
     fn shutdown(&mut self, timeout: Duration) -> Result<()> {
+        // Retirement cancels publication of any unfinished execution. Its
+        // shutdown acknowledgement is not an execution result or receipt.
+        self.pending_morphism = None;
         let deadline = bounded_deadline(timeout, "backend shutdown")?;
         if let Err(error) = self.send_command(&BackendWireCommandV2::Shutdown) {
             let termination = self.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
@@ -1147,7 +1213,7 @@ impl BackendProcess {
                 }
             })?
             .map_err(anyhow::Error::msg)?;
-        Self::response_step(response)
+        self.response_step(response)
     }
 
     fn finish_graceful_shutdown(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
@@ -1329,6 +1395,7 @@ impl BackendProcess {
 
 fn unexpected_state_response(operation: &str, response: BackendWireResponseV2) -> anyhow::Error {
     let kind = match response {
+        BackendWireResponseV2::MorphismResultV1 { .. } => "morphism_result_v1",
         BackendWireResponseV2::Ok { .. } => "ok",
         BackendWireResponseV2::Err { .. } => "err",
         BackendWireResponseV2::EvalRequest { .. } => "eval_request",
@@ -1364,19 +1431,23 @@ pub(crate) fn run_ephemeral_with_eval_callback<F>(
     language: &str,
     code: &str,
     bindings: HashMap<String, OValue>,
-    shim_path: &Path,
-    sandbox: &BackendSandboxPolicy,
-    executable_leases: Option<&Arc<crate::runtime_exec::ExecutableLeaseSet>>,
+    launch: BackendLaunchContext<'_>,
+    morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
     mut evaluate: F,
 ) -> Result<OValue>
 where
     F: FnMut(String, Option<OValue>, Duration) -> Result<OValue>,
 {
+    if let Some(contract) = morphism_contract {
+        contract
+            .validate_bindings(language, &bindings)
+            .map_err(anyhow::Error::msg)?;
+    }
     let mut process = BackendProcess::new(
         language,
-        shim_path,
-        sandbox,
-        executable_leases.map(AsRef::as_ref),
+        launch.shim_path,
+        launch.sandbox,
+        launch.executable_leases.map(AsRef::as_ref),
     )
     .with_context(|| format!("failed to start ephemeral backend `{language}`"))
     .map_err(infrastructure_error)?;
@@ -1387,7 +1458,7 @@ where
 
     let execution = (|| {
         process
-            .begin_exec(code, bindings)
+            .begin_exec_with_morphism(code, bindings, morphism_contract)
             .map_err(infrastructure_error)?;
         lifecycle_trace(
             "worker.exec_sent",
@@ -1479,8 +1550,21 @@ fn positive_usize_from_env(name: &str, default: usize) -> usize {
 
 pub struct ProcessRegistry {
     registry: HashMap<(String, u32, BackendSandboxPolicy, String), BackendProcess>,
+    suspended_fresh: Vec<SuspendedFreshActor>,
+    // Ownership tombstones survive cleanup and prevent the old evaluator
+    // from silently recreating actors after an acknowledged migration.
+    migrated_actors: HashSet<(String, u32, BackendSandboxPolicy)>,
     session_limits: BackendSessionLimits,
     registry_identity_sha256: String,
+    morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+}
+
+pub(crate) struct FreshActorSuspension(String);
+
+struct SuspendedFreshActor {
+    token: String,
+    key: (String, u32, BackendSandboxPolicy, String),
+    process: BackendProcess,
 }
 
 /// Admission-scoped physical launch authority shared by persistent and
@@ -1503,11 +1587,27 @@ impl Default for ProcessRegistry {
 }
 
 impl ProcessRegistry {
+    pub(crate) fn set_morphism_contract(
+        &mut self,
+        contract: crate::backend_morphism::BackendCrossingContractV1,
+    ) {
+        self.morphism_contract = Some(contract);
+    }
+
+    pub(crate) fn morphism_contract(
+        &self,
+    ) -> Option<crate::backend_morphism::BackendCrossingContractV1> {
+        self.morphism_contract
+    }
+
     pub fn new() -> Self {
         Self {
             registry: HashMap::new(),
+            suspended_fresh: Vec::new(),
+            migrated_actors: HashSet::new(),
             session_limits: BackendSessionLimits::from_env(),
             registry_identity_sha256: fresh_registry_identity(),
+            morphism_contract: None,
         }
     }
 
@@ -1516,8 +1616,11 @@ impl ProcessRegistry {
         assert!(total > 0 && per_backend > 0 && per_backend <= total);
         Self {
             registry: HashMap::new(),
+            suspended_fresh: Vec::new(),
+            migrated_actors: HashSet::new(),
             session_limits: BackendSessionLimits { total, per_backend },
             registry_identity_sha256: fresh_registry_identity(),
+            morphism_contract: None,
         }
     }
 
@@ -1532,6 +1635,11 @@ impl ProcessRegistry {
         bindings: HashMap<String, OValue>,
         launch: BackendLaunchContext<'_>,
     ) -> Result<()> {
+        if let Some(contract) = self.morphism_contract {
+            contract
+                .validate_bindings(lang, &bindings)
+                .map_err(anyhow::Error::msg)?;
+        }
         let launch_generation_sha256 = actor_launch_generation(&launch, lang)?;
         self.reject_generation_conflict(lang, env_id, launch.sandbox, &launch_generation_sha256)?;
         let key = (
@@ -1542,7 +1650,7 @@ impl ProcessRegistry {
         );
         if !self.registry.contains_key(&key) {
             self.ensure_session_capacity(lang)?;
-            let session_id = actor_session_identity(
+            let session_id = fresh_or_persistent_session_identity(
                 &self.registry_identity_sha256,
                 lang,
                 env_id,
@@ -1561,7 +1669,7 @@ impl ProcessRegistry {
         self.registry
             .get_mut(&key)
             .expect("backend was just inserted but is missing")
-            .begin_exec(code, bindings)
+            .begin_exec_with_morphism(code, bindings, self.morphism_contract)
             .with_context(|| format!("failed to send Exec to backend `{lang}`"))?;
         lifecycle_trace(
             "worker.exec_sent",
@@ -1684,6 +1792,104 @@ impl ProcessRegistry {
             })
     }
 
+    /// Park a fresh invocation while it awaits O.eval. Nested fresh calls may
+    /// use the same public environment tag but own different physical actors.
+    pub(crate) fn suspend_fresh_actor(
+        &mut self,
+        lang: &str,
+        env_id: u32,
+        sandbox: &BackendSandboxPolicy,
+    ) -> Result<FreshActorSuspension> {
+        if env_id <= crate::environment::MAX_PERSISTENT_ENV_ID {
+            bail!("only fresh actors can be detached for callback recursion");
+        }
+        let key = self.process_key(lang, env_id, sandbox)?;
+        let process = self
+            .registry
+            .remove(&key)
+            .expect("resolved fresh actor exists");
+        let token = fresh_registry_identity();
+        self.suspended_fresh.push(SuspendedFreshActor {
+            token: token.clone(),
+            key,
+            process,
+        });
+        Ok(FreshActorSuspension(token))
+    }
+
+    pub(crate) fn resume_fresh_actor(&mut self, token: FreshActorSuspension) -> Result<()> {
+        if self
+            .suspended_fresh
+            .last()
+            .map(|actor| actor.token.as_str())
+            != Some(token.0.as_str())
+        {
+            bail!("fresh callback actor suspension stack is inconsistent");
+        }
+        let actor = self
+            .suspended_fresh
+            .pop()
+            .expect("checked suspension exists");
+        // Normally the nested invocation has already retired. Still reclaim
+        // every residual inner actor before restoring the outer full key.
+        let residual = self
+            .registry
+            .keys()
+            .filter(|key| key.0 == actor.key.0 && key.1 == actor.key.1 && key.2 == actor.key.2)
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut failures = Vec::new();
+        for key in residual {
+            if let Some(mut process) = self.registry.remove(&key) {
+                if let Err(error) = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
+                    failures.push(format!("{error:#}"));
+                }
+            }
+        }
+        self.registry.insert(actor.key, actor.process);
+        if !failures.is_empty() {
+            bail!(
+                "fresh callback residual actor cleanup failed: {}",
+                failures.join(" | ")
+            );
+        }
+        Ok(())
+    }
+
+    /// An unwinding callback cannot publish a result or leave its parked
+    /// actors consuming capacity after a caller catches the Rust panic.
+    pub(crate) fn cancel_fresh_callback_after_panic(&mut self, token: FreshActorSuspension) {
+        let Some(index) = self
+            .suspended_fresh
+            .iter()
+            .position(|actor| actor.token == token.0)
+        else {
+            return;
+        };
+        let mut processes = self
+            .suspended_fresh
+            .split_off(index)
+            .into_iter()
+            .map(|actor| actor.process)
+            .collect::<Vec<_>>();
+        let active = self
+            .registry
+            .keys()
+            .filter(|key| key.1 > crate::environment::MAX_PERSISTENT_ENV_ID)
+            .cloned()
+            .collect::<Vec<_>>();
+        for key in active {
+            if let Some(process) = self.registry.remove(&key) {
+                processes.push(process);
+            }
+        }
+        for mut process in processes {
+            if let Err(error) = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
+                lifecycle_trace("callback.panic_cleanup_failed", format!("{error:#}"));
+            }
+        }
+    }
+
     pub(crate) fn exec(
         &mut self,
         lang: &str,
@@ -1692,6 +1898,11 @@ impl ProcessRegistry {
         bindings: HashMap<String, OValue>,
         launch: BackendLaunchContext<'_>,
     ) -> Result<OValue> {
+        if let Some(contract) = self.morphism_contract {
+            contract
+                .validate_bindings(lang, &bindings)
+                .map_err(anyhow::Error::msg)?;
+        }
         let launch_generation_sha256 = actor_launch_generation(&launch, lang)?;
         self.reject_generation_conflict(lang, env_id, launch.sandbox, &launch_generation_sha256)?;
         let key = (
@@ -1703,7 +1914,7 @@ impl ProcessRegistry {
 
         if !self.registry.contains_key(&key) {
             self.ensure_session_capacity(lang)?;
-            let session_id = actor_session_identity(
+            let session_id = fresh_or_persistent_session_identity(
                 &self.registry_identity_sha256,
                 lang,
                 env_id,
@@ -1724,7 +1935,7 @@ impl ProcessRegistry {
             .registry
             .get_mut(&key)
             .expect("backend was just inserted but is missing")
-            .exec(code, bindings);
+            .exec_with_morphism(code, bindings, self.morphism_contract);
 
         if result
             .as_ref()
@@ -1867,6 +2078,11 @@ impl ProcessRegistry {
     ) -> Result<()> {
         for actor in actors {
             let sandbox = BackendSandboxPolicy::new(actor.sandbox_permissions.iter().copied());
+            self.ensure_actor_not_migrated(
+                &actor.canonical_backend,
+                actor.environment_id,
+                &sandbox,
+            )?;
             if self
                 .registry
                 .keys()
@@ -1897,6 +2113,7 @@ impl ProcessRegistry {
         checkpoint: BackendCheckpointV1,
         launch: BackendLaunchContext<'_>,
     ) -> Result<BackendRestoreReceiptV1> {
+        self.ensure_actor_not_migrated(lang, env_id, launch.sandbox)?;
         checkpoint.validate()?;
         if checkpoint.backend != lang {
             bail!(
@@ -1972,7 +2189,12 @@ impl ProcessRegistry {
     /// Explicitly shut down every persistent backend, attempting all entries
     /// and reporting the combined physical teardown failures to the caller.
     pub fn shutdown_all(&mut self, timeout: Duration) -> Result<()> {
-        let processes: Vec<_> = self.registry.drain().map(|(_, process)| process).collect();
+        let processes: Vec<_> = self
+            .registry
+            .drain()
+            .map(|(_, process)| process)
+            .chain(self.suspended_fresh.drain(..).map(|actor| actor.process))
+            .collect();
         let mut failures = Vec::new();
         for mut process in processes {
             if let Err(error) = process.shutdown(timeout) {
@@ -2014,7 +2236,7 @@ impl ProcessRegistry {
     }
 
     fn ensure_session_capacity(&self, lang: &str) -> Result<()> {
-        if self.registry.len() >= self.session_limits.total {
+        if self.registry.len() + self.suspended_fresh.len() >= self.session_limits.total {
             bail!(
                 "session.capacity-exhausted: open backend sessions reached configured total quota {}",
                 self.session_limits.total
@@ -2024,7 +2246,12 @@ impl ProcessRegistry {
             .registry
             .keys()
             .filter(|(candidate_lang, _, _, _)| candidate_lang == lang)
-            .count();
+            .count()
+            + self
+                .suspended_fresh
+                .iter()
+                .filter(|actor| actor.key.0 == lang)
+                .count();
         if backend_count >= self.session_limits.per_backend {
             bail!(
                 "session.capacity-exhausted: backend `{lang}` reached configured per-backend quota {}",
@@ -2041,6 +2268,7 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         launch_generation_sha256: &str,
     ) -> Result<()> {
+        self.ensure_actor_not_migrated(lang, env_id, sandbox)?;
         let conflicting_generation = self
             .registry
             .keys()
@@ -2059,6 +2287,62 @@ impl ProcessRegistry {
             );
         }
         Ok(())
+    }
+
+    fn ensure_actor_not_migrated(
+        &self,
+        lang: &str,
+        env_id: u32,
+        sandbox: &BackendSandboxPolicy,
+    ) -> Result<()> {
+        if self
+            .migrated_actors
+            .contains(&(lang.to_string(), env_id, sandbox.clone()))
+        {
+            bail!("state.actor-migrated: backend `{lang}[{env_id}]` ownership left this evaluator");
+        }
+        Ok(())
+    }
+
+    pub(crate) fn migration_origin(&self) -> &str {
+        &self.registry_identity_sha256
+    }
+
+    /// Remove exactly the transaction's actors. During commit, fence every
+    /// source actor before physical teardown; rollback removes only restored
+    /// destination actors and leaves their logical identities reusable.
+    pub(crate) fn retire_migration_actors(
+        &mut self,
+        actors: &[EvaluatorActorCheckpointV1],
+        fence: bool,
+    ) -> Vec<String> {
+        let mut retired = Vec::new();
+        for actor in actors {
+            let sandbox = BackendSandboxPolicy::new(actor.sandbox_permissions.iter().copied());
+            if fence {
+                self.migrated_actors.insert((
+                    actor.canonical_backend.clone(),
+                    actor.environment_id,
+                    sandbox.clone(),
+                ));
+            }
+            let key = (
+                actor.canonical_backend.clone(),
+                actor.environment_id,
+                sandbox,
+                actor.launch_generation_sha256.clone(),
+            );
+            if let Some(process) = self.registry.remove(&key) {
+                retired.push(process);
+            }
+        }
+        let mut failures = Vec::new();
+        for mut process in retired {
+            if let Err(error) = process.shutdown(backend_shutdown_timeout()) {
+                failures.push(format!("{error:#}"));
+            }
+        }
+        failures
     }
 }
 
@@ -2120,6 +2404,19 @@ fn actor_session_identity(
     hex::encode(digest.finalize())
 }
 
+fn fresh_or_persistent_session_identity(
+    registry: &str,
+    lang: &str,
+    env_id: u32,
+    sandbox: &BackendSandboxPolicy,
+) -> String {
+    if env_id > crate::environment::MAX_PERSISTENT_ENV_ID {
+        fresh_registry_identity()
+    } else {
+        actor_session_identity(registry, lang, env_id, sandbox)
+    }
+}
+
 impl Drop for ProcessRegistry {
     fn drop(&mut self) {
         // `BackendProcess::drop` performs only bounded best-effort local
@@ -2162,6 +2459,71 @@ mod tests {
             executable_leases: None,
             launch_generation_sha256: Some(launch_generation_sha256),
         }
+    }
+
+    #[test]
+    fn suspended_fresh_actor_preserves_identity_pending_state_and_capacity() -> Result<()> {
+        let mut registry = ProcessRegistry::with_session_limits(2, 1);
+        let shim = python_shim_path();
+        let sandbox = BackendSandboxPolicy::none();
+        registry.send_exec(
+            "python",
+            u32::MAX,
+            "O.eval('callback')",
+            HashMap::new(),
+            test_launch_context(&shim, &sandbox, &"ab".repeat(32)),
+        )?;
+        assert!(matches!(
+            registry.recv_exec_step("python", u32::MAX, &sandbox)?,
+            ExecStep::EvalRequest { .. }
+        ));
+        let pid = registry.registry.values().next().unwrap().child.id();
+        let token = registry.suspend_fresh_actor("python", u32::MAX, &sandbox)?;
+        assert!(registry.registry.is_empty());
+        assert!(registry
+            .ensure_session_capacity("python")
+            .unwrap_err()
+            .to_string()
+            .contains("session.capacity-exhausted"));
+        registry.ensure_session_capacity("javascript")?;
+        registry.resume_fresh_actor(token)?;
+        assert_eq!(registry.registry.values().next().unwrap().child.id(), pid);
+        registry.send_eval_result("python", u32::MAX, OValue::int(42), &sandbox)?;
+        assert!(
+            matches!(registry.recv_exec_step("python", u32::MAX, &sandbox)?, ExecStep::Done(value) if value == OValue::int(42))
+        );
+        registry.cleanup_env("python", u32::MAX)?;
+        registry.ensure_session_capacity("python")?;
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn suspended_fresh_panic_cancellation_reaps_process_and_releases_capacity() -> Result<()> {
+        let mut registry = ProcessRegistry::with_session_limits(1, 1);
+        let shim = python_shim_path();
+        let sandbox = BackendSandboxPolicy::none();
+        registry.send_exec(
+            "python",
+            u32::MAX,
+            "O.eval('callback')",
+            HashMap::new(),
+            test_launch_context(&shim, &sandbox, &"cd".repeat(32)),
+        )?;
+        assert!(matches!(
+            registry.recv_exec_step("python", u32::MAX, &sandbox)?,
+            ExecStep::EvalRequest { .. }
+        ));
+        let pid = registry.registry.values().next().unwrap().child.id() as i32;
+        let token = registry.suspend_fresh_actor("python", u32::MAX, &sandbox)?;
+        registry.cancel_fresh_callback_after_panic(token);
+        assert!(registry.registry.is_empty());
+        assert!(registry.suspended_fresh.is_empty());
+        registry.ensure_session_capacity("python")?;
+        // SAFETY: signal zero only observes this exact owned child PID.
+        assert_eq!(unsafe { libc::kill(pid, 0) }, -1);
+        assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
+        Ok(())
     }
 
     fn spawn_python_shim() -> Result<BackendProcess> {
@@ -2519,6 +2881,16 @@ mod tests {
         let shim = temp.path().join("delayed_shutdown.py");
         let common = Path::new(env!("CARGO_MANIFEST_DIR")).join("backends/o_shim_common.py");
         std::fs::copy(python_shim_path(), &shim)?;
+        for &support in crate::shims::BUNDLED_SHIM_SUPPORT_NAMES {
+            if support != "o_shim_common.py" {
+                std::fs::copy(
+                    Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("backends")
+                        .join(support),
+                    temp.path().join(support),
+                )?;
+            }
+        }
 
         let source = std::fs::read_to_string(&common)?;
         let original = concat!(
