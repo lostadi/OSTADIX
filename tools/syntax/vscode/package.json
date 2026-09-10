@@ -1,0 +1,40 @@
+{
+  "name": "ostadix-lang",
+  "displayName": "Ostadix-lang",
+  "description": "Ostadix-lang syntax highlighting with nested polyglot evaluator blocks.",
+  "version": "0.1.0",
+  "publisher": "lostadi",
+  "author": "Lee Daghlar Ostadi",
+  "license": "LGPL-2.1-only",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages"],
+  "repository": { "type": "git", "url": "https://github.com/lostadi/Ostadix-lang.git", "directory": "tools/syntax/vscode" },
+  "scripts": { "generate": "node generate.mjs", "test": "node test.mjs" },
+  "contributes": {
+    "languages": [{
+      "id": "ostadix",
+      "aliases": ["Ostadix-lang", "O-lang", "O"],
+      "extensions": [".O", ".olang"],
+      "firstLine": "^#!.*(?:/|\\s)(?:O|olang)(?:\\s|$)",
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "ostadix",
+      "scopeName": "source.ostadix",
+      "path": "./syntaxes/ostadix.tmLanguage.json",
+      "embeddedLanguages": {
+        "meta.embedded.block.python.ostadix": "python",
+        "meta.embedded.block.javascript.ostadix": "javascript",
+        "meta.embedded.block.shell.ostadix": "shellscript",
+        "meta.embedded.block.html.ostadix": "html",
+        "meta.embedded.block.sql.ostadix": "sql",
+        "meta.embedded.block.rust.ostadix": "rust",
+        "meta.embedded.block.c.ostadix": "c",
+        "meta.embedded.block.cpp.ostadix": "cpp",
+        "meta.embedded.block.csharp.ostadix": "csharp",
+        "meta.embedded.block.java.ostadix": "java",
+        "meta.embedded.block.ruby.ostadix": "ruby"
+      }
+    }]
+  }
+}

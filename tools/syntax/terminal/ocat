@@ -1,0 +1,15 @@
+#!/bin/sh
+# Plain-layout highlighted viewing. Redirects always use the system cat.
+if [ ! -t 1 ] || [ -n "${NO_COLOR-}" ] || [ "${TERM-}" = dumb ]; then
+    exec cat "$@"
+fi
+for ostadix_file in "$@"; do
+    case "$ostadix_file" in -*) exec cat "$@" ;; esac
+done
+if command -v bat >/dev/null 2>&1; then
+    exec bat --no-config --paging=never --style=plain -- "$@"
+elif command -v batcat >/dev/null 2>&1; then
+    exec batcat --no-config --paging=never --style=plain -- "$@"
+else
+    exec cat "$@"
+fi

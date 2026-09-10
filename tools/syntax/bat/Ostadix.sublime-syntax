@@ -1,0 +1,80 @@
+%YAML 1.2
+---
+# Ostadix syntax follows crates/ostadix-api/src/parser.rs.
+# bat matches extensions and syntax-map globs without case sensitivity, so
+# declaring .O also colors textual .o files. Use --language=txt for objects.
+name: Ostadix-lang
+file_extensions: [O, olang]
+scope: source.ostadix
+first_line_match: '^#!.*(?:/|\s)(?:O|o)(?:\s|$)'
+variables:
+  ident: '[A-Za-z_][A-Za-z0-9_]*'
+  tag: '(?:O|o|quote|nix|nix_expr|nix_store|nixos_test|html|markdown|md|latex|tex|text|plain|sql|haskell|ocaml|webassembly|python|py|ubuntu_vm|ubuntu|bash|shell|rust|racket|csharp|c|cpp|lisp|common_lisp|ruby|matlab|mathematica|java|javascript)'
+  env: '\[(?:[0-9]+|\*)\]'
+  attr: '{{ident}}(?:=[\x21-\x2B\x2D-\x3C\x3E-\x7A\x7C\x7E]+)?'
+  attrs: '\{[ \t]*{{attr}}[ \t]*(?:,[ \t]*{{attr}}[ \t]*)*\}'
+  header: '{{tag}}(?:{{env}})?(?:{{attrs}})?'
+contexts:
+  main:
+    - match: '^#!.*$'
+      scope: comment.line.shebang.ostadix
+    - match: '#.*$'
+      scope: comment.line.number-sign.ostadix
+    - include: structural
+    - match: '\blet\b'
+      scope: storage.type.ostadix
+    - match: '{{ident}}(?=\()'
+      scope: support.function.ostadix
+    - match: '[=,;()]'
+      scope: punctuation.separator.ostadix
+  structural:
+    - match: '\\(?:\$|{{header}}\^\(|\)_{{header}})'
+      scope: constant.character.escape.ostadix
+    - match: '\${{ident}}'
+      scope: variable.other.interpolation.ostadix
+    - match: '((O|o|quote)({{env}})?({{attrs}})?)(\^\()'
+      captures:
+        1: meta.tag.ostadix
+        2: entity.name.tag.ostadix
+        3: constant.numeric.environment.ostadix
+        4: storage.modifier.attributes.ostadix
+        5: keyword.control.block.begin.ostadix
+      push:
+        - meta_scope: meta.block.ostadix
+        - match: '\)_\1(?:(?<=\})|(?<=\])(?!\{)|(?<=[A-Za-z0-9_])(?![A-Za-z0-9_\[{]))'
+          scope: keyword.control.block.end.ostadix
+          pop: true
+        - include: structural
+        - include: main
+    - match: '(({{tag}})({{env}})?({{attrs}})?)(\^\()'
+      captures:
+        1: meta.tag.ostadix
+        2: entity.name.tag.ostadix
+        3: constant.numeric.environment.ostadix
+        4: storage.modifier.attributes.ostadix
+        5: keyword.control.block.begin.ostadix
+      push:
+        - meta_scope: meta.embedded.block.ostadix
+        - match: '\)_\1(?:(?<=\})|(?<=\])(?!\{)|(?<=[A-Za-z0-9_])(?![A-Za-z0-9_\[{]))'
+          scope: keyword.control.block.end.ostadix
+          pop: true
+        - include: structural
+        - include: foreign-code
+  # Bounded lexical accents for common foreign syntax. Full host grammars
+  # would swallow O markers inside strings/comments; O always parses those.
+  # These patterns deliberately stop before O openers, closers, or splices.
+  foreign-code:
+    - match: '(?:#|//)(?:(?!{{header}}\^\(|\)_|\$|\\(?:{{header}}\^\(|\)_{{header}}|\$)).)*'
+      scope: comment.line.foreign.ostadix
+    - match: '"(?:\\.|(?!{{header}}\^\(|\)_|\$)[^"\\\n])*"'
+      scope: string.quoted.double.foreign.ostadix
+    - match: "'(?:\\\\.|(?!{{header}}\\^\\(|\\)_|\\$)[^'\\\\\\n])*'"
+      scope: string.quoted.single.foreign.ostadix
+    - match: '\b(?:if|else|elif|for|while|return|def|class|fn|pub|use|import|from|as|match|struct|enum|impl|const|function|var|let|do|then|fi|done|select|SELECT|from|FROM|where|WHERE)\b'
+      scope: keyword.control.foreign.ostadix
+    - match: '\b(?:True|False|None|true|false|null|nil)\b'
+      scope: constant.language.foreign.ostadix
+    - match: '\b(?:0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)\b'
+      scope: constant.numeric.foreign.ostadix
+    - match: '[+*/%=<>!&|:-]+'
+      scope: keyword.operator.foreign.ostadix
