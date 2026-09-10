@@ -1,0 +1,23 @@
+# Ostadix-lang token highlighting for GNU nano (not macOS Pico).
+# nano uses POSIX extended regular expressions and cannot recursively match
+# blocks or delegate their contents to foreign-language syntaxes. Header and
+# splice markers are colored everywhere; strings/comments are approximations.
+# See crates/ostadix-api/src/parser.rs for authoritative parsing rules.
+syntax "ostadix" "\.(O|olang)$"
+header "^#!.*(/|[[:space:]])(O|o)([[:space:]]|$)"
+comment "#"
+
+# Common embedded-language tokens are visual aids, not O-native literals.
+color magenta "\<(let|if|else|elif|for|while|return|def|class|fn|pub|use|import|from|as|match|struct|enum|impl|const|function|var|do|then|fi|done)\>"
+color cyan "\<(True|False|None|true|false|null|nil)\>"
+color yellow "\<[0-9]+([.][0-9]+)?\>"
+color green "\"([^\"\\]|\\.)*\"" "'([^'\\]|\\.)*'"
+color brightblack "#.*$" "//.*$"
+
+# O identifiers are ASCII. Color headers after strings/comments because O
+# recognizes structural markers inside foreign strings/comments, too.
+color brightmagenta "[A-Za-z_][A-Za-z0-9_]*(\[([0-9]+|\*)\])?(\{[^{}]*\})?\^\("
+color brightmagenta "\)_[A-Za-z_][A-Za-z0-9_]*(\[([0-9]+|\*)\])?(\{[^{}]*\})?"
+color brightcyan "\$[A-Za-z_][A-Za-z0-9_]*"
+# Escaped O constructs are literal source, even inside foreign text.
+color yellow "\\\$" "\\[A-Za-z_][A-Za-z0-9_]*(\[([0-9]+|\*)\])?(\{[^{}]*\})?\^\(" "\\\)_[A-Za-z_][A-Za-z0-9_]*(\[([0-9]+|\*)\])?(\{[^{}]*\})?"

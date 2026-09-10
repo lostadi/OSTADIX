@@ -70,6 +70,7 @@ G13 qualification gates is named **OSTADIX Alpha**.
 - [Compiler-emitted O-linked HGraph as DOT](docs/figures/o-linked-codebase-hgraph.dot)
 - [Rendered O-linked HGraph as SVG](docs/figures/o-linked-codebase-hgraph.svg)
 - [Hosted language specification](SPEC.md)
+- [Syntax highlighting for VS Code, bat, Nano, and cat](tools/syntax/README.md)
 - [O-core language and ABI specification](docs/OCORE.md)
 - [Architecture](ARCHITECTURE.md)
 - [Claim and evidence index](docs/CLAIMS.md)
