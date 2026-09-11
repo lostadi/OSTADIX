@@ -131,7 +131,7 @@ libc        = "0.2"
 signal-hook = "0.3"
 
 [dev-dependencies]
-base64 = "0.22"
+base64 = "0.23"
 ed25519-dalek = "2"
 num-bigint = { version = "0.4", features = ["serde"] }
 proptest = "1"
