@@ -97,7 +97,7 @@ serde_json  = { version = "1", features = ["preserve_order"] }
 toml        = "0.8"
 
 # PATH resolution for backend binary checking
-which       = "6"
+which       = "8"
 
 # CLI hashing and artifact verification
 sha2        = "0.10"
