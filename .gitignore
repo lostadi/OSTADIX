@@ -118,3 +118,7 @@ CMakeCache.txt
 cmake_install.cmake
 install_manifest.txt
 ostadix-lang.zip
+
+# Anything else that you dont care to catagorize 
+big_iron_to_my_texas_red.sh
+big_iron_to_my_texas_red* 
