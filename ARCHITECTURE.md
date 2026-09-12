@@ -710,6 +710,25 @@ or opaque. The exhaustive fidelity matrix is specified in [SPEC.md](SPEC.md)
 and implemented by `RenderFidelity`; opaque control and authority values emit
 visible markers instead of silently falling through.
 
+The active HGraph solver carries `FidelityAssessmentV2` must/may loss
+bounds. Each backend crossing composes the input's accumulated assessment
+with its local transfer; a later lossless crossing cannot erase an earlier
+loss. Its legacy `Fidelity` field is the conservative possible-loss
+projection. Current V6 evidence/admission binds and validates these facts;
+this does not impose a blanket policy rejecting lossy work. The separately
+named `backend_morphism_shadow_assessment_for_value` compares the bounded
+backend-morphism V1 profile and remains shadow-only.
+
+The interval information order, abstraction/concretization adjunction,
+monotonicity, and sequential soundness proof are stated in
+[Fidelity intervals](docs/fidelity-domain.md), including the restrictions
+for sentinel outcomes. `AnnotationKind::BackendSpecific` has an open string
+vocabulary: the algebra works over finite loss sets in that vocabulary,
+while solver convergence requires a bounded vocabulary for each graph.
+[Fidelity evaluation](benchmarks/fidelity/README.md) supplies executable
+Python → JavaScript → Python counterexamples, exact CBOR controls, concrete
+loss verdicts, and observable downstream differences.
+
 Live OCapabilities are not validated from their serialized fields. The hosted
 O-core `CapabilityBroker` maps a 256-bit operating-system-random bearer to a
 kernel generation-tagged handle in a private session table, then checks kind
