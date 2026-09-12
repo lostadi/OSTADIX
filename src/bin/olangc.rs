@@ -11,6 +11,7 @@
 //   olangc <input.O> --target wasm                # wasm32-wasip1
 //   olangc <input.O> --target wasm --browser-bundle ./web
 //   olangc <input.O> --target wasm --materialize-only ./generated
+//   olangc <input.O> --target wasm --wasm-runtime-image IMAGE --wasm-builder-image IMAGE
 //   olangc <input.O> --target script              # run in-process
 //   olangc <input.O> --target ir                  # dump the lowered OIR
 //   olangc <input.O> --target ir --execution-intent-json
@@ -53,6 +54,10 @@
 //   emits a no-clobber browser payload with a strict manifest and local WASI
 //   host. Plans needing shims or effectful requests require an explicitly
 //   supplied whole-program provider at run time.
+//   --wasm-runtime-image instead compiles the native evaluator in a declared
+//   Linux image and packages that image into an emulated Linux WASI module
+//   with Docker/container2wasm. This experimental profile supplies foreign
+//   runtimes from the image and is separate from the browser bundle host.
 //
 // Target C ("script"):
 //   Parses, lowers to OIR, validates ExecutionPlan, and executes the plan
@@ -99,6 +104,8 @@ use o_lang::world::{GroundingReport, WorldEpoch, WorldId, WorldIdentity};
 
 #[path = "olangc/runtime_bundle.rs"]
 mod runtime_bundle;
+#[path = "olangc/wasm_container.rs"]
+mod wasm_container;
 
 // Cargo.lock from the workspace — embedded so the temp project gets identical
 // resolved dependency versions (Cargo may still download an absent crate).
@@ -213,7 +220,9 @@ a wasm32-wasip1 module (--target wasm), packages a browser payload \
 prints the lowered OIR/ExecutionPlan/HGraph or project plan/HGraph (--target ir), \
 or emits the execution hypergraph as Graphviz DOT (--target dot). Binary \
 outputs embed the program source, compatibility adapters, and the Ostadix-lang \
-runtime. --materialize-only writes the exact generated Cargo project for an \
+runtime. --wasm-runtime-image with --wasm-builder-image selects experimental \
+Linux-image-to-WASI packaging through Docker and container2wasm. \
+--materialize-only writes the exact generated Cargo project for an \
 ordinary .O binary or wasm target without invoking Cargo. Project IR/DOT \
 planning constructs route operations without running commands. In dot mode \
 the HGraph is serialised as a digraph; pipe to \
@@ -246,6 +255,20 @@ struct Cli {
     /// under synthetic local authority.
     #[arg(long, value_name = "DIR")]
     browser_bundle: Option<PathBuf>,
+
+    /// Embed a Linux/amd64 runtime image and the compiled O program into a
+    /// standalone WASI Linux-emulator module using Docker and container2wasm.
+    /// Requires --target wasm and --wasm-builder-image. Image references must
+    /// be digest-pinned (IMAGE@sha256:DIGEST). Runtime dependencies are supplied
+    /// by this image, not inferred or installed by olangc. Experimental.
+    #[arg(long, value_name = "IMAGE")]
+    wasm_runtime_image: Option<String>,
+
+    /// Digest-pinned Linux/amd64 Rust builder image for --wasm-runtime-image.
+    /// Must provide Cargo, the pinned Rust toolchain, and a native linker.
+    /// Builder/runtime images are trusted executable build inputs.
+    #[arg(long, value_name = "IMAGE")]
+    wasm_builder_image: Option<String>,
 
     /// Override or extend the bundled compatibility adapters with files from
     /// this directory. Files with names matching a bundled adapter replace it;
@@ -342,6 +365,7 @@ fn main() -> Result<()> {
         bail!("--runtime-bundle requires --target binary");
     }
     validate_admission_inspection(&cli)?;
+    let container_options = wasm_container_options(&cli)?;
     let grounding_world = parse_grounding_world(&cli)?;
 
     let input_is_dir = cli.input.is_dir();
@@ -357,6 +381,9 @@ fn main() -> Result<()> {
     // lists and runs the same routes.
     let is_project = input_is_dir || o_lang::project::lower::has_embedded_bundle(&source);
     if is_project {
+        if container_options.is_some() {
+            bail!("--wasm-runtime-image currently requires an ordinary .O input");
+        }
         if cli.runtime_bundle.is_some() {
             bail!("--runtime-bundle currently requires an ordinary .O input");
         }
@@ -380,6 +407,10 @@ fn main() -> Result<()> {
 
     match cli.target {
         CompileTarget::Binary | CompileTarget::Wasm => {
+            if let Some(options) = container_options.as_ref() {
+                let shims = read_shims(cli.shim_dir.as_deref())?;
+                return compile_container_wasm(&cli, &source, &shims, options);
+            }
             if let Some(bundle_dir) = cli.browser_bundle.as_deref() {
                 let shims = read_shims(cli.shim_dir.as_deref())?;
                 return compile_browser_bundle(
@@ -495,6 +526,109 @@ fn main() -> Result<()> {
         CompileTarget::Ir => dump_ir(&source),
         CompileTarget::Dot => dump_dot(&source),
     }
+}
+
+fn wasm_container_options(cli: &Cli) -> Result<Option<wasm_container::Options>> {
+    let options = match (&cli.wasm_runtime_image, &cli.wasm_builder_image) {
+        (None, None) => return Ok(None),
+        (Some(runtime_image), Some(builder_image)) => wasm_container::Options {
+            runtime_image: runtime_image.clone(),
+            builder_image: builder_image.clone(),
+        },
+        _ => bail!("--wasm-runtime-image and --wasm-builder-image must be supplied together"),
+    };
+    if cli.target != CompileTarget::Wasm {
+        bail!("--wasm-runtime-image requires --target wasm");
+    }
+    if cli.browser_bundle.is_some() {
+        bail!("--wasm-runtime-image cannot be combined with --browser-bundle: the embedded Linux WASI host profile is not yet qualified by the browser bundle runner");
+    }
+    if cli.runtime_bundle.is_some() {
+        bail!("--wasm-runtime-image uses its declared Linux image, not --runtime-bundle");
+    }
+    wasm_container::validate_images(&options)?;
+    Ok(Some(options))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// Keep the ordinary generated native evaluator and its process/admission
+/// semantics intact inside a Linux guest. The outer artifact is WASI, not a
+/// replacement evaluator or a captured result of running the source at build time.
+fn compile_container_wasm(
+    cli: &Cli,
+    source: &str,
+    shims: &[(String, Vec<u8>)],
+    options: &wasm_container::Options,
+) -> Result<()> {
+    let mut output = cli
+        .output
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(cli.input.file_stem().unwrap_or_default()));
+    output.set_extension("wasm");
+    // Validate the real plan without executing any backend. Its direct-WASI
+    // blockers remain informative; the caller supplies their Linux closure.
+    let (_, plan_text) = inspect_browser_compatibility(source)?;
+    let build_dir = if let Some(dir) = cli.materialize_only.as_deref() {
+        create_materialization_dir(dir)?;
+        dir.to_path_buf()
+    } else {
+        create_build_dir()?
+    };
+    let result = (|| {
+        eprintln!(
+            "olangc: preparing embedded Linux WASI build in {}",
+            build_dir.display()
+        );
+        write_binary_cargo_project(
+            &cli.input,
+            source,
+            shims,
+            &build_dir.join("cargo"),
+            Path::new("o-program"),
+            &cli.backend_grants,
+        )?;
+        wasm_container::write_recipe(&build_dir, options)?;
+        fs::write(build_dir.join("plan.txt"), &plan_text)?;
+        // This describes build inputs. It does not certify the caller's image
+        // closure, reproducibility, the artifact's ABI, or successful execution.
+        let manifest = serde_json::json!({
+            "schema": "ostadix.olang-wasm-container-build/v1",
+            "profile": "embedded-linux-amd64-wasi-experimental",
+            "source_sha256": sha256_hex(source.as_bytes()),
+            "plan_sha256": sha256_hex(plan_text.as_bytes()),
+            "runtime_image": options.runtime_image,
+            "builder_image": options.builder_image,
+            "dockerfile_sha256": sha256_hex(&fs::read(build_dir.join("Dockerfile.wasm-container"))?),
+            "converter": wasm_container::converter_manifest(&build_dir)?,
+            "cargo_lock_sha256": sha256_hex(&fs::read(build_dir.join("cargo/Cargo.lock"))?),
+            "backend_grants": cli.backend_grants,
+            "adapters": shims.iter().map(|(name, bytes)| serde_json::json!({
+                "name": name, "sha256": sha256_hex(bytes)
+            })).collect::<Vec<_>>(),
+            "runtime_closure_verified": false,
+            "execution_verified": false,
+            "browser_bundle_host_qualified": false
+        });
+        fs::write(
+            build_dir.join("wasm-build.json"),
+            serde_json::to_vec_pretty(&manifest)?,
+        )?;
+        if cli.materialize_only.is_some() {
+            eprintln!("olangc: materialize-only target=wasm profile=embedded-linux-amd64 cargo-invoked=false container-builder-invoked=false dir={}", build_dir.display());
+            Ok(())
+        } else {
+            wasm_container::build(&build_dir, &output, options)
+        }
+    })();
+    if cli.materialize_only.is_some() || cli.keep_build_dir {
+        eprintln!("olangc: keeping build directory: {}", build_dir.display());
+    } else {
+        let _ = fs::remove_dir_all(&build_dir);
+    }
+    result
 }
 
 fn validate_admission_inspection(cli: &Cli) -> Result<()> {
@@ -3234,6 +3368,115 @@ fn canonicalize_output(output: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn container_cli(extra: &[&str]) -> Cli {
+        let runtime = format!("example/runtime@sha256:{}", "a".repeat(64));
+        let builder = format!("example/rust@sha256:{}", "b".repeat(64));
+        let mut args = vec![
+            "olangc",
+            "demo.O",
+            "--target",
+            "wasm",
+            "--wasm-runtime-image",
+            &runtime,
+            "--wasm-builder-image",
+            &builder,
+        ];
+        args.extend_from_slice(extra);
+        Cli::try_parse_from(args).unwrap()
+    }
+
+    #[test]
+    fn wasm_container_cli_requires_explicit_paired_pinned_images() {
+        let ordinary = Cli::try_parse_from(["olangc", "demo.O", "--target", "wasm"]).unwrap();
+        assert!(wasm_container_options(&ordinary).unwrap().is_none());
+        let mut cli = container_cli(&[]);
+        assert!(wasm_container_options(&cli).unwrap().is_some());
+        cli.wasm_builder_image = None;
+        assert!(wasm_container_options(&cli)
+            .unwrap_err()
+            .to_string()
+            .contains("supplied together"));
+        cli.wasm_builder_image = Some("rust:latest".into());
+        assert!(wasm_container_options(&cli).is_err());
+        cli.wasm_runtime_image = None;
+        assert!(wasm_container_options(&cli).is_err());
+    }
+
+    #[test]
+    fn wasm_container_cli_preserves_browser_and_native_profile_boundaries() {
+        let mut cli = container_cli(&[]);
+        cli.target = CompileTarget::Binary;
+        assert!(wasm_container_options(&cli)
+            .unwrap_err()
+            .to_string()
+            .contains("requires --target wasm"));
+        cli.target = CompileTarget::Wasm;
+        cli.browser_bundle = Some("web".into());
+        assert!(wasm_container_options(&cli)
+            .unwrap_err()
+            .to_string()
+            .contains("not yet qualified"));
+        cli.browser_bundle = None;
+        cli.runtime_bundle = Some("runtimes".into());
+        assert!(wasm_container_options(&cli).is_err());
+    }
+
+    #[test]
+    fn wasm_container_materializes_the_real_source_bound_native_runtime_without_building() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("container-build");
+        let mut cli = container_cli(&[]);
+        cli.materialize_only = Some(dir.clone());
+        cli.output = Some(root.path().join("result.wasm"));
+        let source = "python^(__oval_result__ = 6 * 7)_python";
+        let shims = vec![("python".into(), b"fixture adapter".to_vec())];
+        let options = wasm_container_options(&cli).unwrap().unwrap();
+        compile_container_wasm(&cli, source, &shims, &options).unwrap();
+        assert_eq!(
+            fs::read_to_string(dir.join("cargo/src/program.O")).unwrap(),
+            source
+        );
+        let main = fs::read_to_string(dir.join("cargo/src/main.rs")).unwrap();
+        assert!(main.contains("OIrProgram::lower"));
+        assert!(main.contains("eval_ir_program_with_scope"));
+        assert!(main.contains("include_bytes!(\"shims/python\")"));
+        assert!(dir.join("cargo/Cargo.lock").is_file());
+        assert!(dir.join("Dockerfile.wasm-container").is_file());
+        assert!(dir.join("wasm-exit/Dockerfile").is_file());
+        assert!(!dir.join("cargo/target").exists());
+        assert!(!cli.output.as_ref().unwrap().exists());
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(dir.join("wasm-build.json")).unwrap()).unwrap();
+        assert_eq!(manifest["source_sha256"], sha256_hex(source.as_bytes()));
+        assert_eq!(
+            manifest["plan_sha256"],
+            sha256_hex(&fs::read(dir.join("plan.txt")).unwrap())
+        );
+        assert_eq!(manifest["runtime_image"], options.runtime_image);
+        assert_eq!(
+            manifest["converter"]["profile"],
+            "amd64-bochs-cold-boot-exit-status-v1"
+        );
+        assert_eq!(
+            manifest["converter"]["dockerfile_sha256"],
+            sha256_hex(&fs::read(dir.join("wasm-exit/Dockerfile")).unwrap())
+        );
+        assert_eq!(manifest["execution_verified"], false);
+        assert_eq!(manifest["browser_bundle_host_qualified"], false);
+        assert_eq!(
+            manifest["adapters"][0]["sha256"],
+            sha256_hex(b"fixture adapter")
+        );
+        assert!(compile_container_wasm(&cli, source, &shims, &options)
+            .unwrap_err()
+            .to_string()
+            .contains("already exists"));
+        assert_eq!(
+            fs::read_to_string(dir.join("cargo/src/program.O")).unwrap(),
+            source
+        );
+    }
 
     #[test]
     fn browser_bundle_cli_is_wasm_only_and_does_not_accept_output_aliases() {

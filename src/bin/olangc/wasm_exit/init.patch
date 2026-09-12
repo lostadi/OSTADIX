@@ -1,0 +1,28 @@
+diff --git a/cmd/init/main.go b/cmd/init/main.go
+--- a/cmd/init/main.go
++++ b/cmd/init/main.go
+@@ -30,11 +30,9 @@
+ 	packFSTag = "wasi1"
+ )
+ 
+-func main() {
+-	if err := doInit(); err != nil {
+-		panic(err)
+-	}
+-}
++func main() {
++	finishWithWASIStatus(doInit())
++}
+ 
+ func doInit() error {
+ 	os.Setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin")
+@@ -310,9 +308,6 @@
+ 		}
+ 	}
+ 
+-	if err := exec.Command("poweroff", "-f").Run(); err != nil {
+-		return fmt.Errorf("failed running poweroff")
+-	}
+ 	return lastErr
+ }
+ 

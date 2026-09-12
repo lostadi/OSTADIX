@@ -1448,8 +1448,15 @@ fn verify_running_linux_proxy(artifact: &ExecutableArtifactV1) -> Result<()> {
         .file_identity
         .as_ref()
         .context("launch-bound O proxy lacks a file identity")?;
+    // Observe the opened running object, just as admission observes its
+    // retained executable handle. Some Linux execution translators expose
+    // their own image through path-based statx on /proc/self/exe while open
+    // correctly resolves the program image. The identity checks stay exact.
+    let running =
+        File::open("/proc/self/exe").context("failed to open the running Linux O backend proxy")?;
     let actual = file_identity(
-        &fs::metadata("/proc/self/exe")
+        &running
+            .metadata()
             .context("failed to stat the running Linux O backend proxy")?,
     )?;
     if !same_open_object_identity(&actual, expected) {
@@ -2367,6 +2374,67 @@ mod tests {
         assert!(command
             .get_envs()
             .any(|(key, value)| { key == ADMITTED_PROXY_EXECUTION_ENV && value.is_none() }));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn running_linux_proxy_accepts_its_admitted_open_object() {
+        let current = std::env::current_exe().unwrap();
+        let mut retained = BTreeMap::new();
+        let artifact = capture_artifact(
+            "shell",
+            ArtifactSelection {
+                requirement_key: "shell",
+                selected_alternative: Some(0),
+                selection: ExecutableSelectionV1::CompleteCatalogAlternative,
+            },
+            CURRENT_O_LOGICAL_COMMAND,
+            "ostadix-proxy",
+            &current,
+            &mut retained,
+        )
+        .unwrap();
+        verify_running_linux_proxy(&artifact).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn running_linux_proxy_rejects_each_open_object_identity_mismatch() {
+        let current = std::env::current_exe().unwrap();
+        let mut retained = BTreeMap::new();
+        let artifact = capture_artifact(
+            "shell",
+            ArtifactSelection {
+                requirement_key: "shell",
+                selected_alternative: Some(0),
+                selection: ExecutableSelectionV1::CompleteCatalogAlternative,
+            },
+            CURRENT_O_LOGICAL_COMMAND,
+            "ostadix-proxy",
+            &current,
+            &mut retained,
+        )
+        .unwrap();
+        for coordinate in 0..6 {
+            let mut mismatched = artifact.clone();
+            let identity = mismatched.file_identity.as_mut().unwrap();
+            match coordinate {
+                0 => identity.device ^= 1,
+                1 => identity.inode ^= 1,
+                2 => identity.size ^= 1,
+                3 => identity.mode ^= 1,
+                4 => identity.mtime_seconds ^= 1,
+                5 => identity.mtime_nanoseconds ^= 1,
+                _ => unreachable!(),
+            }
+            let error = verify_running_linux_proxy(&mismatched)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("does not match its admitted open-object identity"),
+                "coordinate {coordinate}: {error}"
+            );
+        }
     }
 
     #[test]

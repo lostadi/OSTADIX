@@ -1,0 +1,133 @@
+diff --git a/bochs/iodev/unmapped.cc b/bochs/iodev/unmapped.cc
+--- a/bochs/iodev/unmapped.cc
++++ b/bochs/iodev/unmapped.cc
+@@ -25,7 +25,10 @@
+ // is used to know when we are exporting symbols and when we are importing.
+ #define BX_PLUGGABLE
+ #include "iodev.h"
+-#include "unmapped.h"
++#include "unmapped.h"
++#ifdef WASI
++#include <stdlib.h>
++#endif
+ 
+ #define LOG_THIS theUnmappedDevice->
+ 
+@@ -92,8 +95,13 @@
+     goto return_from_read;
+   }
+ 
+-  switch (address) {
+-    case 0x80:
++  switch (address) {
++#ifdef WASI
++    case 0xf4:
++      retval = 0x4f; // amd64 guest exit-status port signature
++      break;
++#endif
++    case 0x80:
+       retval = BX_UM_THIS s.port80;
+       break;
+     case 0x8e:
+@@ -189,8 +197,14 @@
+   if (address >= 0x02e0 && address <= 0x02ef)
+     goto return_from_write;
+ 
+-  switch (address) {
+-    case 0x80: // diagnostic test port to display progress of POST
++  switch (address) {
++#ifdef WASI
++    case 0xf4:
++      // Report directly to WASI; quit_sim deliberately discards this status.
++      fflush(NULL);
++      ::exit(io_len == 1 ? static_cast<int>(value & 0xff) : 125);
++#endif
++    case 0x80: // diagnostic test port to display progress of POST
+       //BX_DEBUG(("Diagnostic port 80h: write = %02xh", (unsigned) value));
+       BX_UM_THIS s.port80 = value;
+       break;
+diff --git a/bochs/config.cc b/bochs/config.cc
+--- a/bochs/config.cc
++++ b/bochs/config.cc
+@@ -34,6 +34,9 @@
+ #endif
+ #include "param_names.h"
+ #include <assert.h>
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
+ 
+ #ifdef HAVE_LOCALE_H
+ #include <locale.h>
+@@ -1924,6 +1927,23 @@
+   int retval = 0;
+   do {
+     ret = fgets(line, sizeof(line)-1, fd);
++    if (ret == NULL) {
++      if (ferror(fd)) {
++        const int read_errno = errno;
++        fprintf(stderr, "Bochs: cannot read configuration %s (fd=%d): %s (errno=%d)\n",
++                rcfile, fileno(fd), strerror(read_errno), read_errno);
++#ifdef WASI
++        // A startup failure must not retry forever or enter an interactive menu.
++        fclose(fd);
++        bochsrc_include_level--;
++        exit(125);
++#else
++        retval = -1;
++#endif
++      }
++      // EOF is normal; do not inspect an uninitialized/stale line buffer.
++      break;
++    }
+     line[sizeof(line) - 1] = '\0';
+     size_t len = strlen(line);
+     if ((len>0) && (line[len-1] < ' '))
+diff --git a/bochs/cpu/msr.cc b/bochs/cpu/msr.cc
+--- a/bochs/cpu/msr.cc
++++ b/bochs/cpu/msr.cc
+@@ -25,6 +25,9 @@
+ #include "bochs.h"
+ #include "cpu.h"
+ #include "msr.h"
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
+ #define LOG_THIS BX_CPU_THIS_PTR
+ 
+ #if BX_SUPPORT_CET
+@@ -1207,6 +1210,11 @@
+ int BX_CPU_C::load_MSRs(const char *file)
+ {
++  // An unset optional MSR file is disabled, not the WASI preopened root.
++  if (file == NULL || file[0] == '\0') {
++    return -1;
++  }
++
+   char line[512];
+   unsigned linenum = 0;
+   Bit32u index, type;
+   Bit32u reset_hi, reset_lo;
+@@ -1219,6 +1227,22 @@
+   do {
+     linenum++;
+     char* ret = fgets(line, sizeof(line)-1, fd);
++    if (ret == NULL) {
++      if (ferror(fd)) {
++        const int read_errno = errno;
++        fprintf(stderr, "Bochs: cannot read MSR configuration %s (fd=%d): %s (errno=%d)\n",
++                file, fileno(fd), strerror(read_errno), read_errno);
++#ifdef WASI
++        // Explicit unreadable input must not spin or continue guest startup.
++        fclose(fd);
++        exit(125);
++#else
++        retval = -1;
++#endif
++      }
++      // EOF is normal; never inspect an uninitialized/stale line buffer.
++      break;
++    }
+     line[sizeof(line) - 1] = '\0';
+     size_t len = strlen(line);
+     if (len>0 && line[len-1] < ' ')
