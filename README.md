@@ -3978,6 +3978,13 @@ Its Linux rootfs profile uses the [runtime closure collector](docs/LINUX_RUNTIME
 and private filesystem/network namespaces to run embedded foreign runtimes
 inside an immutable image, with writable scratch space and ordinary subprocess
 support. Runtime data and services still need explicit closure qualification.
+The experimental [`--wasm-runtime-image` route](docs/OLANGC_WASM.md) instead
+builds that ordinary O evaluator for Linux and packages it with a supplied
+runtime image into an emulated Linux WASI module. It requires a digest-pinned
+`--wasm-builder-image`, Docker, and container2wasm. A fresh Python `.O` fixture
+passes real Wasmtime and Wasmer execution, including exact failure propagation
+and the startup regression; arbitrary workloads and browser-host integration
+still require separate qualification.
 `--shim-dir` overlays or adds
 shim files before packaging. `--keep-build-dir` retains the generated Cargo
 project for inspection. `--backend-grant` may be repeated for script mode and
