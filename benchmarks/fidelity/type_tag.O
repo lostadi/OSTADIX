@@ -1,0 +1,16 @@
+O^(
+    let original = python^(__oval_result__ = 1.0)_python
+    let crossed = javascript^(console.log($original);)_javascript
+    python^(
+def dispatch(value):
+    return "integer branch" if isinstance(value, int) else "float branch"
+
+__oval_result__ = {
+    "original": $original,
+    "crossed": $crossed,
+    "same_numeric_value": $original == $crossed,
+    "before": dispatch($original),
+    "after": dispatch($crossed),
+}
+)_python
+)_O

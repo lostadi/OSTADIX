@@ -1129,6 +1129,110 @@ mod tests {
     }
 
     #[test]
+    fn crossing_chain_preserves_must_may_losses_in_every_edge_order() {
+        for concrete in [false, true] {
+            for order in [
+                [0, 1, 2],
+                [0, 2, 1],
+                [1, 0, 2],
+                [1, 2, 0],
+                [2, 0, 1],
+                [2, 1, 0],
+            ] {
+                let mut graph = HGraph::default();
+                let input = graph.add_node(HNode {
+                    domain: DomainFlags::INTEGER,
+                    rep: RepFlags::I64,
+                    value: concrete
+                        .then(|| OValue::big_int((BigInt::from(1_u8) << 53_usize) + 1_u8)),
+                    ..HNode::fresh()
+                });
+                let first = graph.add_node(HNode {
+                    domain: DomainFlags::INTEGER,
+                    rep: RepFlags::I64,
+                    ..HNode::fresh()
+                });
+                let loaded = graph.add_node(HNode::fresh());
+                let output = graph.add_node(HNode::fresh());
+                for relation in order {
+                    let (kind, source, destination) = match relation {
+                        0 => (
+                            OpKind::BackendCrossing {
+                                from_lang: "O".into(),
+                                to_lang: "javascript".into(),
+                            },
+                            input,
+                            first,
+                        ),
+                        1 => (OpKind::DataFlow, first, loaded),
+                        2 => (
+                            OpKind::BackendCrossing {
+                                from_lang: "javascript".into(),
+                                to_lang: "python".into(),
+                            },
+                            loaded,
+                            output,
+                        ),
+                        _ => unreachable!(),
+                    };
+                    graph.add_edge(HEdge::constraint(
+                        kind,
+                        vec![
+                            Port {
+                                node: source,
+                                role: PortRole::Input,
+                            },
+                            Port {
+                                node: destination,
+                                role: PortRole::Output,
+                            },
+                        ],
+                    ));
+                }
+
+                solve::solve_types(&mut graph).unwrap();
+                let expected =
+                    solve::fidelity_assessment_for(graph.node(input).unwrap(), "O", "javascript");
+                assert_eq!(
+                    solve::fidelity_assessment_for(
+                        graph.node(loaded).unwrap(),
+                        "javascript",
+                        "python",
+                    ),
+                    FidelityAssessmentV2::Lossless,
+                    "the final crossing adds no local loss",
+                );
+                assert_eq!(
+                    graph.node(output).unwrap().fidelity_assessment.as_ref(),
+                    Some(&expected),
+                    "prior crossing losses disappeared: concrete={concrete}, order={order:?}",
+                );
+                assert_eq!(
+                    expected
+                        .definite_losses()
+                        .unwrap()
+                        .contains(&AnnotationKind::NumericPrecision),
+                    concrete,
+                );
+                assert!(expected
+                    .possible_losses()
+                    .unwrap()
+                    .contains(&AnnotationKind::NumericPrecision));
+                assert_eq!(
+                    graph.node(output).unwrap().fidelity,
+                    Some(expected.possible_fidelity())
+                );
+
+                solve::solve_types(&mut graph).unwrap();
+                assert_eq!(
+                    graph.node(output).unwrap().fidelity_assessment,
+                    Some(expected)
+                );
+            }
+        }
+    }
+
+    #[test]
     fn fidelity_phase_waits_for_type_and_value_fixpoint() {
         let mut graph = HGraph::default();
         let input = graph.add_node(HNode::fresh());

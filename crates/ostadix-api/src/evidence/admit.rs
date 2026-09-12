@@ -3482,6 +3482,85 @@ mod tests {
     }
 
     #[test]
+    fn current_admission_binds_the_complete_crossing_chain_assessment() {
+        let backends = BackendRegistry::global().registered_backend_tags();
+        let nodes = Parser::new(
+            "html^(text^(python^(__oval_result__ = 42)_python)_text)_html",
+            &backends,
+        )
+        .parse()
+        .unwrap();
+        let program = OIrProgram::lower(&nodes);
+        let plan = program.plan();
+        let graph = solved_graph(&program);
+        let outer = plan
+            .nodes
+            .iter()
+            .find(|node| {
+                matches!(
+                    &node.kind, PlanNodeKind::Exec { backend, .. } if backend.canonical == "html"
+                )
+            })
+            .unwrap()
+            .id;
+        let runtime = inspection_runtime(&plan, "crossing-chain");
+        let evidence = analyze_execution(&program, &plan, &graph, runtime.clone()).unwrap();
+        let output = evidence
+            .nodes
+            .iter()
+            .find(|node| node.plan_node == outer)
+            .unwrap();
+        // The Python result is unknown before execution. Text conversion is
+        // therefore Unsupported statically; the later text -> HTML crossing
+        // must not clear that earlier assessment just because it is local
+        // Lossless. The current admission API consumes exactly these facts.
+        assert_eq!(
+            output.type_contract.output_fidelity_assessment,
+            Some(FidelityAssessmentV2::Unsupported),
+        );
+        let mut erased = evidence.clone();
+        erased
+            .nodes
+            .iter_mut()
+            .find(|node| node.plan_node == outer)
+            .unwrap()
+            .type_contract
+            .output_fidelity_assessment = Some(FidelityAssessmentV2::Lossless);
+        let error = admit_execution(
+            &program,
+            &plan,
+            solved_graph(&program),
+            Policy::Eager,
+            runtime.clone(),
+            erased,
+        )
+        .err()
+        .expect("admission must reject an erased crossing-chain assessment");
+        assert!(
+            error
+                .to_string()
+                .contains("hard Evidence V6 differs from the trusted analyzer result"),
+            "{error:#}",
+        );
+
+        let admitted =
+            admit_execution(&program, &plan, graph, Policy::Eager, runtime, evidence).unwrap();
+        assert_eq!(admitted.admission().schema(), ADMISSION_SCHEMA_V6);
+        assert_eq!(
+            admitted
+                .admission()
+                .operations()
+                .iter()
+                .find(|operation| operation.plan_node == outer)
+                .unwrap()
+                .evidence
+                .type_contract
+                .output_fidelity_assessment,
+            Some(FidelityAssessmentV2::Unsupported),
+        );
+    }
+
+    #[test]
     fn placement_admission_v2_excludes_process_context_and_binds_v6_coordinates() {
         assert_eq!(
             EXECUTION_ADMISSION_DIGEST_DOMAIN_V5,

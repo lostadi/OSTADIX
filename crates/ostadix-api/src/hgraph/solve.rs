@@ -349,7 +349,9 @@ fn derived_iteration_budget(graph: &HGraph) -> usize {
         .saturating_add(3);
     let per_node_height = domain_height
         .saturating_add(rep_height)
-        .saturating_add(fidelity_height.saturating_mul(2))
+        // V2 definite and possible losses grow independently; the retained
+        // V1 projection is a third ascending coordinate.
+        .saturating_add(fidelity_height.saturating_mul(3))
         .saturating_add(1); // value: None -> Some
 
     graph
@@ -671,7 +673,15 @@ fn propagate(
             OpKind::BackendCrossing { from_lang, to_lang } => {
                 let fidelity = input_value_nodes(graph, &edge)
                     .next()
-                    .map(|node| fidelity_assessment_for(node, from_lang, to_lang))
+                    .map(|node| {
+                        let crossing = fidelity_assessment_for(node, from_lang, to_lang);
+                        // A locally lossless crossing cannot restore losses
+                        // accumulated on the path that produced its input.
+                        node.fidelity_assessment
+                            .clone()
+                            .unwrap_or(FidelityAssessmentV2::Lossless)
+                            .then(crossing)
+                    })
                     .unwrap_or(FidelityAssessmentV2::Unsupported);
                 Ok(apply_fidelity_to_outputs(graph, &edge, fidelity, trace))
             }
@@ -880,6 +890,8 @@ pub fn fidelity_for(node: &HNode, from_lang: &str, to_lang: &str) -> Fidelity {
     fidelity_for_abstract(node, &to_spec.value_capabilities)
 }
 
+/// Assess this crossing alone. The solver composes this local transfer with
+/// the input node's accumulated V2 assessment before updating its outputs.
 pub fn fidelity_assessment_for(
     node: &HNode,
     from_lang: &str,
@@ -918,9 +930,10 @@ pub fn fidelity_for_value(value: &OValue, to_lang: &str) -> Fidelity {
     fidelity_for_value_with_capabilities(value, &spec.value_capabilities)
 }
 
-/// Return the bounded V1 morphism assessment beside the compatibility solver
-/// result. This is deliberately shadow-only: callers can inspect divergences,
-/// but it does not alter graph facts, evidence, admission, or dispatch.
+/// Return the separate bounded backend-morphism V1 assessment for comparison.
+/// Only this helper is shadow-only: it does not alter graph facts, evidence,
+/// admission, or dispatch. The active solver uses [`fidelity_assessment_for`]
+/// and stores its composed V2 bounds in the graph and current admission facts.
 pub fn backend_morphism_shadow_assessment_for_value(
     value: &OValue,
     to_lang: &str,

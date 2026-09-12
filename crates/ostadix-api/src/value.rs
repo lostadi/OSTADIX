@@ -177,6 +177,10 @@ pub enum FloatSpecial {
 /// must draw labels from a statically finite set accounted for by that budget
 /// (or add an explicit widening rule) and add a convergence regression. Current
 /// production transfer rules construct only the fixed variants above it.
+/// The fidelity interval laws hold over this entire, possibly infinite,
+/// vocabulary: they use finite sets and do not enumerate its complement. A
+/// finite vocabulary is required for a finite-height convergence argument,
+/// not for the definite-subset-possible invariant or composition soundness.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AnnotationKind {
@@ -321,11 +325,13 @@ impl FidelityAssessmentV2 {
 
     /// Embed one concrete V1 fidelity judgment as an exact V2 point interval.
     ///
-    /// This exact point embedding is written `alpha` in the fidelity docs:
+    /// This exact point embedding is written `alpha_point` in the fidelity docs:
     /// structural loss set `L` becomes the interval `[L, L]`, while the three
-    /// non-structural cases remain singleton points. The embedding and its
-    /// tested composition law do not, by themselves, assert a full Galois
-    /// connection.
+    /// non-structural cases remain singleton points. For every valid `a`,
+    /// `from_concrete(c).precision_leq(a) == a.concretization_contains(c)`.
+    /// On nonempty families of structural/lossless outcomes, reducing these
+    /// points with [`Self::join_paths`] is the left adjoint of concretization;
+    /// see `docs/fidelity-domain.md` for its domain, proof, and sentinel limits.
     pub fn from_concrete(fidelity: Fidelity) -> Self {
         match fidelity {
             Fidelity::Lossless => Self::Lossless,
@@ -365,6 +371,43 @@ impl FidelityAssessmentV2 {
             }
             _ => false,
         }
+    }
+
+    /// Checked information order: `self` represents a subset of `other`'s
+    /// concrete outcomes. Smaller assessments carry more precise information.
+    ///
+    /// For intervals, `[D1, P1] <= [D2, P2]` iff `D2 subset D1` and
+    /// `P1 subset P2`. `Lossless` is the interval `[empty, empty]`.
+    /// `NativeCapsule` and `Unsupported` each denote an isolated singleton,
+    /// so they compare only with themselves. In particular, this is not the
+    /// severity order induced by [`Self::join_paths`] across those sentinels.
+    /// Invalid bounds are rejected rather than treated as an implicit bottom.
+    pub fn try_precision_leq(&self, other: &Self) -> Result<bool, FidelityBoundsError> {
+        self.validate()?;
+        other.validate()?;
+        Ok(match (self, other) {
+            (Self::NativeCapsule, Self::NativeCapsule) | (Self::Unsupported, Self::Unsupported) => {
+                true
+            }
+            (Self::NativeCapsule | Self::Unsupported, _)
+            | (_, Self::NativeCapsule | Self::Unsupported) => false,
+            (left, right) => {
+                let (left_definite, left_possible) = left.loss_bounds();
+                let (right_definite, right_possible) = right.loss_bounds();
+                right_definite.is_subset(&left_definite) && left_possible.is_subset(&right_possible)
+            }
+        })
+    }
+
+    /// Compare valid assessments in the information order.
+    ///
+    /// # Panics
+    ///
+    /// Panics for a directly assembled invalid interval. Prefer
+    /// [`Self::try_precision_leq`] at an untrusted API boundary.
+    pub fn precision_leq(&self, other: &Self) -> bool {
+        self.try_precision_leq(other)
+            .expect("fidelity precision comparison requires valid interval bounds")
     }
 
     pub fn definite_losses(&self) -> Option<&FidelityLossSet> {
@@ -3681,6 +3724,26 @@ mod tests {
         ]
     }
 
+    fn structural_outcome_family_strategy() -> impl Strategy<Value = Vec<Fidelity>> {
+        proptest::collection::vec(
+            proptest::collection::btree_set(annotation_kind_strategy(), 0..=11)
+                .prop_map(Fidelity::structural),
+            1..=6,
+        )
+    }
+
+    fn abstract_structural_outcomes(outcomes: &[Fidelity]) -> FidelityAssessmentV2 {
+        assert!(outcomes
+            .iter()
+            .all(|outcome| matches!(outcome, Fidelity::Lossless | Fidelity::Structural { .. })));
+        outcomes
+            .iter()
+            .cloned()
+            .map(FidelityAssessmentV2::from_concrete)
+            .reduce(FidelityAssessmentV2::join_paths)
+            .expect("the structural abstraction requires a nonempty outcome family")
+    }
+
     #[test]
     fn fingerprint_preview_is_bounded_and_utf8_safe() {
         assert_eq!(fingerprint_preview(""), "");
@@ -4166,6 +4229,14 @@ mod tests {
             invalid.try_concrete_fidelity(),
             Err(FidelityBoundsError::DefiniteOutsidePossible)
         );
+        assert_eq!(
+            invalid.try_precision_leq(&FidelityAssessmentV2::Lossless),
+            Err(FidelityBoundsError::DefiniteOutsidePossible)
+        );
+        assert_eq!(
+            FidelityAssessmentV2::Lossless.try_precision_leq(&invalid),
+            Err(FidelityBoundsError::DefiniteOutsidePossible)
+        );
         let error = serde_json::to_string(&invalid).unwrap_err();
         assert!(error.to_string().contains("subset"), "{error}");
     }
@@ -4283,6 +4354,115 @@ mod tests {
         assert!(maybe_lossy.concretization_contains(&Fidelity::Lossless));
     }
 
+    #[test]
+    fn fidelity_v2_precision_order_does_not_treat_sentinels_as_tops() {
+        let lossless = FidelityAssessmentV2::Lossless;
+        for sentinel in [
+            FidelityAssessmentV2::NativeCapsule,
+            FidelityAssessmentV2::Unsupported,
+        ] {
+            assert!(sentinel.precision_leq(&sentinel));
+            assert!(!lossless.precision_leq(&sentinel));
+            assert!(!sentinel.precision_leq(&lossless));
+            // Severity merge deliberately loses the alternative outcome.
+            let merged = lossless.clone().join_paths(sentinel.clone());
+            assert_eq!(merged, sentinel);
+            assert!(!merged.concretization_contains(&Fidelity::Lossless));
+        }
+        assert!(
+            !FidelityAssessmentV2::NativeCapsule.precision_leq(&FidelityAssessmentV2::Unsupported)
+        );
+    }
+
+    #[test]
+    fn fidelity_v2_galois_connection_exhaustive_over_three_kind_vocabulary() {
+        let vocabulary = [
+            AnnotationKind::TypeTag,
+            AnnotationKind::NumericPrecision,
+            AnnotationKind::BackendSpecific {
+                lang: "python".into(),
+                label: "decimal_context".into(),
+            },
+        ];
+        let loss_set = |mask: usize| {
+            vocabulary
+                .iter()
+                .enumerate()
+                .filter(|(bit, _)| mask & (1 << bit) != 0)
+                .map(|(_, kind)| kind.clone())
+                .collect::<BTreeSet<_>>()
+        };
+        let outcomes = (0..8)
+            .map(|mask| Fidelity::structural(loss_set(mask)))
+            .collect::<Vec<_>>();
+        let mut assessments = Vec::new();
+        for definite in 0..8 {
+            for possible in 0..8 {
+                if definite & possible == definite {
+                    assessments.push(
+                        FidelityAssessmentV2::structural(loss_set(definite), loss_set(possible))
+                            .unwrap(),
+                    );
+                }
+            }
+        }
+        assert_eq!(assessments.len(), 27);
+
+        // Check the order against fully enumerated concretizations, rather
+        // than reproducing the implementation's endpoint subset formula.
+        for first in &assessments {
+            for second in &assessments {
+                let gamma_subset = outcomes.iter().all(|outcome| {
+                    !first.concretization_contains(outcome)
+                        || second.concretization_contains(outcome)
+                });
+                assert_eq!(first.precision_leq(second), gamma_subset);
+                if first.precision_leq(second) && second.precision_leq(first) {
+                    assert_eq!(first, second);
+                }
+            }
+        }
+
+        // All 255 nonempty sets of concrete outcomes, including {Lossless}.
+        let families = (1_usize..256)
+            .map(|mask| {
+                let members = outcomes
+                    .iter()
+                    .enumerate()
+                    .filter(|(bit, _)| mask & (1 << bit) != 0)
+                    .map(|(_, outcome)| outcome.clone())
+                    .collect::<Vec<_>>();
+                let abstracted = abstract_structural_outcomes(&members);
+                for assessment in &assessments {
+                    assert_eq!(
+                        abstracted.precision_leq(assessment),
+                        members
+                            .iter()
+                            .all(|outcome| assessment.concretization_contains(outcome)),
+                        "adjunction failed for family {mask}: {assessment:?}",
+                    );
+                }
+                (mask, abstracted)
+            })
+            .collect::<Vec<_>>();
+        for (first_mask, first) in &families {
+            for (second_mask, second) in &families {
+                if first_mask & second_mask == *first_mask {
+                    assert!(first.precision_leq(second), "alpha must be monotone");
+                }
+            }
+        }
+        // Every interval is the abstraction of its concretization.
+        for assessment in &assessments {
+            let members = outcomes
+                .iter()
+                .filter(|outcome| assessment.concretization_contains(outcome))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(abstract_structural_outcomes(&members), *assessment);
+        }
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig {
             cases: 128,
@@ -4336,6 +4516,77 @@ mod tests {
             );
             prop_assert_eq!(abstracted.concrete_fidelity(), Some(concrete.clone()));
             prop_assert_eq!(abstracted.possible_fidelity(), concrete);
+        }
+
+        #[test]
+        fn fidelity_v2_point_abstraction_order_iff_concretization_membership(
+            concrete in fidelity_strategy(),
+            assessment in fidelity_assessment_strategy(),
+            (witness_assessment, witness) in fidelity_assessment_with_witness_strategy(),
+        ) {
+            let point = FidelityAssessmentV2::from_concrete(concrete.clone());
+            prop_assert_eq!(
+                point.precision_leq(&assessment),
+                assessment.concretization_contains(&concrete),
+            );
+            // Constructive positive cases exercise the implication even for
+            // open BackendSpecific labels that rarely match by chance.
+            prop_assert!(FidelityAssessmentV2::from_concrete(witness)
+                .precision_leq(&witness_assessment));
+        }
+
+        #[test]
+        fn fidelity_v2_structural_family_abstraction_is_left_adjoint(
+            outcomes in structural_outcome_family_strategy(),
+            assessment in structural_assessment_strategy(),
+        ) {
+            let abstracted = abstract_structural_outcomes(&outcomes);
+            prop_assert_eq!(
+                abstracted.precision_leq(&assessment),
+                outcomes.iter().all(|outcome| assessment.concretization_contains(outcome)),
+            );
+            let containing = abstracted.clone().join_paths(assessment);
+            prop_assert!(abstracted.precision_leq(&containing));
+            prop_assert!(outcomes.iter().all(|outcome| containing.concretization_contains(outcome)));
+        }
+
+        #[test]
+        fn fidelity_v2_structural_family_abstraction_is_monotone(
+            outcomes in structural_outcome_family_strategy(),
+            extra_outcomes in structural_outcome_family_strategy(),
+        ) {
+            let original = abstract_structural_outcomes(&outcomes);
+            let mut superset = outcomes;
+            superset.extend(extra_outcomes);
+            prop_assert!(original.precision_leq(&abstract_structural_outcomes(&superset)));
+        }
+
+        #[test]
+        fn fidelity_v2_concretization_is_monotone_in_precision_order(
+            (assessment, witness) in structural_assessment_with_witness_strategy(),
+            extra in structural_assessment_strategy(),
+            further_extra in structural_assessment_strategy(),
+        ) {
+            let wider = assessment.clone().join_paths(extra);
+            let widest = wider.clone().join_paths(further_extra);
+            prop_assert!(assessment.precision_leq(&assessment));
+            prop_assert!(assessment.precision_leq(&wider));
+            prop_assert!(wider.precision_leq(&widest));
+            prop_assert!(assessment.precision_leq(&widest));
+            prop_assert!(wider.concretization_contains(&witness));
+            prop_assert!(widest.concretization_contains(&witness));
+        }
+
+        #[test]
+        fn fidelity_v2_then_is_monotone_in_precision_order(
+            left in structural_assessment_strategy(),
+            right in structural_assessment_strategy(),
+            left_extra in structural_assessment_strategy(),
+            right_extra in structural_assessment_strategy(),
+        ) {
+            let left_wider = left.clone().join_paths(left_extra);
+            let right_wider = right.clone().join_paths(right_extra);
+            prop_assert!(left.then(right).precision_leq(&left_wider.then(right_wider)));
         }
 
         #[test]

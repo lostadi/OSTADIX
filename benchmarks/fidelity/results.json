@@ -1,0 +1,228 @@
+[
+  {
+    "case": "type_tag.O",
+    "plain_cbor_roundtrip_exact": true,
+    "plain_cbor_payload_hex": "fb3ff0000000000000",
+    "tagged_ovalue_cbor_roundtrip_exact": true,
+    "tagged_ovalue_cbor_payload_hex": "a26174666e756d6265726176a3646269747388183f18f0000000000000646b696e646c62696e6172795f666c6f617466666f726d617463663634",
+    "graph_matches_serial": true,
+    "actual_result": {
+      "t": "map",
+      "v": {
+        "before": {
+          "t": "text",
+          "v": {
+            "utf8": "float branch",
+            "encoding": "utf-8"
+          }
+        },
+        "same_numeric_value": {
+          "t": "bool",
+          "v": true
+        },
+        "after": {
+          "t": "text",
+          "v": {
+            "utf8": "integer branch",
+            "encoding": "utf-8"
+          }
+        },
+        "crossed": {
+          "t": "number",
+          "v": {
+            "kind": "int",
+            "v": "1"
+          }
+        },
+        "original": {
+          "t": "number",
+          "v": {
+            "kind": "binary_float",
+            "format": "f64",
+            "bits": [
+              63,
+              240,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    },
+    "runtime_javascript_input_profile": {
+      "status": "assessed",
+      "fidelity": {
+        "kind": "structural",
+        "definite": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ],
+        "possible": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ]
+      }
+    },
+    "fidelity": {
+      "analysis": "known-value crossing graph",
+      "python_to_javascript": {
+        "kind": "structural",
+        "definite": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ],
+        "possible": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ]
+      },
+      "javascript_to_python": {
+        "kind": "lossless"
+      },
+      "accumulated": {
+        "kind": "structural",
+        "definite": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ],
+        "possible": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "integer_precision.O",
+    "plain_cbor_roundtrip_exact": true,
+    "plain_cbor_payload_hex": "1b0020000000000001",
+    "tagged_ovalue_cbor_roundtrip_exact": true,
+    "tagged_ovalue_cbor_payload_hex": "a26174666e756d6265726176a261767039303037313939323534373430393933646b696e6463696e74",
+    "graph_matches_serial": true,
+    "actual_result": {
+      "t": "map",
+      "v": {
+        "after": {
+          "t": "bool",
+          "v": false
+        },
+        "before": {
+          "t": "bool",
+          "v": true
+        },
+        "original": {
+          "t": "number",
+          "v": {
+            "kind": "int",
+            "v": "9007199254740993"
+          }
+        },
+        "crossed": {
+          "t": "number",
+          "v": {
+            "kind": "int",
+            "v": "9007199254740992"
+          }
+        },
+        "same_numeric_value": {
+          "t": "bool",
+          "v": false
+        }
+      }
+    },
+    "runtime_javascript_input_profile": {
+      "status": "outside-profile",
+      "reason": {
+        "backend": "javascript",
+        "direction": "o-value-to-backend-input-profile",
+        "kind": "integer-out-of-range",
+        "path": "$",
+        "message": "integer is outside JavaScript's consecutive [-2^53, 2^53] Number range"
+      }
+    },
+    "fidelity": {
+      "analysis": "known-value crossing graph",
+      "python_to_javascript": {
+        "kind": "structural",
+        "definite": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_precision"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ],
+        "possible": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_precision"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ]
+      },
+      "javascript_to_python": {
+        "kind": "lossless"
+      },
+      "accumulated": {
+        "kind": "structural",
+        "definite": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_precision"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ],
+        "possible": [
+          {
+            "kind": "type_tag"
+          },
+          {
+            "kind": "numeric_precision"
+          },
+          {
+            "kind": "numeric_exactness"
+          }
+        ]
+      }
+    }
+  }
+]

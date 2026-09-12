@@ -1,0 +1,13 @@
+O^(
+    let original = python^(__oval_result__ = 9007199254740993)_python
+    let crossed = javascript^(console.log($original);)_javascript
+    python^(
+__oval_result__ = {
+    "original": $original,
+    "crossed": $crossed,
+    "same_numeric_value": $original == $crossed,
+    "before": $original % 2 == 1,
+    "after": $crossed % 2 == 1,
+}
+)_python
+)_O
