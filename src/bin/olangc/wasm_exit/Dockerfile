@@ -57,7 +57,7 @@ FROM scratch AS oci-image-src
 COPY . .
 
 # Install shared packages before source-specific ARGs enter the build cache key.
-FROM ubuntu:22.04 AS ubuntu-git-base
+FROM ubuntu:26.04 AS ubuntu-git-base
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git ca-certificates && \
     rm -rf /var/lib/apt/lists
@@ -147,7 +147,7 @@ RUN if test -f image.json; then mv image.json /out/oci/ ; fi && \
     if test -f spec.json; then mv spec.json /out/oci/ ; fi
 RUN mv initconfig.json /out/oci/
 
-FROM ubuntu:22.04 AS gcc-riscv64-linux-gnu-base
+FROM ubuntu:26.04 AS gcc-riscv64-linux-gnu-base
 RUN apt-get update && apt-get install -y gcc-riscv64-linux-gnu libc-dev-riscv64-cross git make
 
 FROM gcc-riscv64-linux-gnu-base AS bbl-dev
@@ -260,7 +260,7 @@ WORKDIR /work/tini
 ENV CC="riscv64-linux-gnu-gcc -static"
 RUN cmake . && make && mkdir /out/ && mv tini /out/
 
-FROM ubuntu:22.04 AS rootfs-riscv64-dev
+FROM ubuntu:26.04 AS rootfs-riscv64-dev
 RUN apt-get update -y && apt-get install -y mkisofs
 COPY --link --from=busybox-riscv64-dev /out/ /rootfs/
 COPY --link --from=binfmt-dev / /rootfs/
@@ -273,7 +273,7 @@ RUN mkdir -p /rootfs/proc /rootfs/sys /rootfs/mnt /rootfs/run /rootfs/tmp /rootf
 RUN mkdir /out/ && mkisofs -R -o /out/rootfs.bin /rootfs/
 # RUN isoinfo -i /out/rootfs.bin -l
 
-FROM ubuntu:22.04 AS tinyemu-config-dev
+FROM ubuntu:26.04 AS tinyemu-config-dev
 ARG LINUX_LOGLEVEL
 ARG VM_MEMORY_SIZE_MB
 RUN apt-get update && apt-get install -y gettext-base && mkdir /out
@@ -561,7 +561,7 @@ WORKDIR /work/tini
 ENV CC="x86_64-linux-gnu-gcc -static"
 RUN cmake . && make && mkdir /out/ && mv tini /out/
 
-FROM ubuntu:22.04 AS grub-amd64-dev
+FROM ubuntu:26.04 AS grub-amd64-dev
 ARG LINUX_LOGLEVEL
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -596,7 +596,7 @@ RUN git clone https://github.com/hoytech/vmtouch.git && \
     CC="x86_64-linux-gnu-gcc -static" make && \
     mkdir /out && mv vmtouch /out/
 
-FROM ubuntu:22.04 AS rootfs-amd64-dev
+FROM ubuntu:26.04 AS rootfs-amd64-dev
 ARG OSTADIX_GUIX_STATE
 RUN apt-get update -y && apt-get install -y mkisofs
 COPY --link --from=busybox-amd64-dev /out/ /rootfs/
@@ -616,7 +616,7 @@ RUN mkdir -p /rootfs/proc /rootfs/sys /rootfs/mnt /rootfs/run /rootfs/tmp /rootf
 RUN mkdir /out/ && mkisofs -R -o /out/rootfs.bin /rootfs/
 # RUN isoinfo -i /out/rootfs.bin -l
 
-FROM ubuntu:22.04 AS bochs-config-dev
+FROM ubuntu:26.04 AS bochs-config-dev
 ARG VM_MEMORY_SIZE_MB
 ARG OSTADIX_GUIX_STATE
 RUN apt-get update && apt-get install -y gettext-base && mkdir /out
@@ -635,7 +635,7 @@ COPY --link --from=bios-amd64-dev /out/ /pack/
 COPY --link --from=rootfs-amd64-dev /out/rootfs.bin /pack/
 COPY --link --from=bochs-config-dev /out/bochsrc /pack/
 
-FROM ubuntu:22.04 AS gcc-aarch64-linux-gnu-base
+FROM ubuntu:26.04 AS gcc-aarch64-linux-gnu-base
 RUN apt-get update && apt-get install -y gcc-aarch64-linux-gnu linux-libc-dev-arm64-cross git make
 
 FROM gcc-aarch64-linux-gnu-base AS linux-aarch64-dev-common
@@ -712,7 +712,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     GOARCH=arm64 go build -ldflags "-s -w -extldflags '-static'" -tags "osusergo netgo static_build" -o /out/init ./cmd/init
 
-FROM ubuntu:22.04 AS rootfs-aarch64-dev
+FROM ubuntu:26.04 AS rootfs-aarch64-dev
 RUN apt-get update -y && apt-get install -y mkisofs
 COPY --link --from=busybox-aarch64-dev /out/ /rootfs/
 COPY --link --from=runc-aarch64-dev /out/runc /rootfs/sbin/runc
@@ -782,7 +782,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     go build -o /out/get-qemu-state ./cmd/get-qemu-state
 
-FROM ubuntu:22.04 AS qemu-config-dev-amd64
+FROM ubuntu:26.04 AS qemu-config-dev-amd64
 ARG LINUX_LOGLEVEL
 ARG VM_MEMORY_SIZE_MB
 ARG VM_CORE_NUMS
@@ -799,7 +799,7 @@ RUN echo "Module['arguments'] =" > /out/arg-module.js
 RUN cat /out/args.json >> /out/arg-module.js
 RUN echo ";" >> /out/arg-module.js
 
-FROM ubuntu:22.04 AS qemu-config-dev-aarch64
+FROM ubuntu:26.04 AS qemu-config-dev-aarch64
 ARG LINUX_LOGLEVEL
 ARG VM_MEMORY_SIZE_MB
 ARG VM_CORE_NUMS
@@ -816,7 +816,7 @@ RUN echo "Module['arguments'] =" > /out/arg-module.js
 RUN cat /out/args.json >> /out/arg-module.js
 RUN echo ";" >> /out/arg-module.js
 
-FROM ubuntu:22.04 AS qemu-config-dev-riscv64
+FROM ubuntu:26.04 AS qemu-config-dev-riscv64
 ARG LINUX_LOGLEVEL
 ARG VM_MEMORY_SIZE_MB
 ARG VM_CORE_NUMS
