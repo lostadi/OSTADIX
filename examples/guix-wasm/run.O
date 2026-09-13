@@ -1,0 +1,130 @@
+python^(
+import time
+operation_started = time.monotonic()
+import hashlib
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import tempfile
+from pathlib import Path
+
+# A trusted local qualification receipt establishes consistency, not authenticity.
+# This launcher neither builds a workload nor substitutes an O evaluator.
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+# Match the parent's positive-u64 parsing, default, and one-hour ceiling.
+# Only this body's elapsed time is observable, not the parent's admission time;
+# five seconds is a local cleanup margin, not a new authoritative deadline.
+raw_timeout = os.environ.get('O_BACKEND_OPERATION_TIMEOUT_MS', '')
+digits = raw_timeout.lstrip('+').lstrip('0')
+milliseconds = int(digits or '0') if re.fullmatch(r'\+?[0-9]+', raw_timeout) and len(digits) <= 20 else 0
+milliseconds = min(milliseconds, 3600000) if 0 < milliseconds <= 18446744073709551615 else 60000
+operation_deadline = operation_started + milliseconds / 1000
+
+def remaining():
+    seconds = operation_deadline - time.monotonic() - 5
+    require(seconds > 0, 'No execution budget remains after verification and the 5-second cleanup reserve; '
+            'set O_BACKEND_OPERATION_TIMEOUT_MS before invoking O for slow guests (maximum 3600000 ms)')
+    return seconds
+
+def digest(path):
+    value = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            remaining()
+            value.update(block)
+    return value.hexdigest()
+
+bundle = Path(os.environ.get('OSTADIX_GUIX_WASM_BUNDLE', Path.cwd() / 'target/guix-wasm')).resolve()
+require(bundle.is_dir(), 'Missing installed Guix Wasm bundle: ' + str(bundle))
+for name in ('qualification.json', 'manifest.json', 'wasm-build.json'):
+    require((bundle / name).is_file() and not (bundle / name).is_symlink(), 'Missing regular bundle file: ' + name)
+qualification = json.loads((bundle / 'qualification.json').read_text(encoding='utf-8'))
+manifest = json.loads((bundle / 'manifest.json').read_text(encoding='utf-8'))
+build = json.loads((bundle / 'wasm-build.json').read_text(encoding='utf-8'))
+require(qualification['schema'] == 'ostadix.guix-wasm-qualification/v1'
+        and qualification['status'] == 'passed', 'Bundle requires an actual passed Guix qualification receipt')
+expected_runs = {'build': 0, 'wasmtime.success': 0, 'wasmtime.failure': 1,
+                 'wasmer.success': 0, 'wasmer.failure': 1, 'browser': 0}
+runs = qualification['runs']
+require(isinstance(runs, dict) and expected_runs.keys() <= runs.keys()
+        and all(record.get('assertions_passed') is True and record.get('status') == 'completed'
+                for record in runs.values())
+        and all(type(runs[name].get('returncode')) is int and runs[name]['returncode'] == status
+                for name, status in expected_runs.items()), 'Incomplete or inconsistent qualification assertions')
+require(manifest['schema'] == 'ostadix.olang-linux-browser-bundle/v1'
+        and build['schema'] == 'ostadix.olang-wasm-container-build/v1'
+        and build['profile'] == 'embedded-linux-amd64-wasi-experimental', 'Wrong packaged Linux execution profile')
+for key, filename, qualified_hash in (
+    ('source', 'program.O', 'source_sha256'), ('plan', 'program.plan.txt', 'plan_sha256'),
+    ('artifact', 'program.wasm', 'artifact_sha256'), ('build', 'wasm-build.json', 'build_record_sha256'),
+):
+    record, path = manifest[key], bundle / filename
+    require(record['path'] == filename and path.is_file() and not path.is_symlink(), 'Invalid bundle record: ' + key)
+    require(type(record['bytes']) is int and path.stat().st_size == record['bytes']
+            and digest(path) == record['sha256'] == qualification[qualified_hash], 'Qualified file mismatch: ' + key)
+require(build['source_sha256'] == manifest['source']['sha256']
+        and build['plan_sha256'] == manifest['plan']['sha256']
+        and build['runtime_image'] == qualification['runtime_image']
+        and build['builder_image'] == qualification['builder_image']
+        and build['backend_grants'] == manifest['backend_grants'] == []
+        and build['adapters'] == [{'name': item['name'], 'sha256': item['file']['sha256']}
+                                 for item in manifest['adapters']], 'Qualified build inputs do not match the bundle')
+artifact = bundle / 'program.wasm'
+with artifact.open('rb') as stream:
+    require(stream.read(8) == b'\x00asm\x01\x00\x00\x00', 'Invalid Wasm header')
+engine = os.environ.get('OSTADIX_GUIX_WASM_ENGINE', 'wasmtime')
+require(engine in ('wasmtime', 'wasmer'), 'OSTADIX_GUIX_WASM_ENGINE must be wasmtime or wasmer')
+executable = shutil.which(engine)
+require(executable, 'Missing Wasm engine: ' + engine)
+forced_failure = os.environ.get('OSTADIX_GUIX_FORCE_FAILURE', '')
+require(forced_failure in ('', '1'), 'Only explicit OSTADIX_GUIX_FORCE_FAILURE=1 is supported')
+argv = [str(Path(executable).resolve()), 'run']
+if forced_failure:
+    argv.append('--env=OSTADIX_GUIX_FORCE_FAILURE=1')
+argv += [str(artifact)] + (['--'] if engine == 'wasmer' else []) + ['--no-stdin']
+
+def interrupted(number, frame):
+    raise KeyboardInterrupt('Guix Wasm execution interrupted by signal ' + str(number))
+
+previous_signals, process = {}, None
+with tempfile.TemporaryDirectory(prefix='o-guix-wasm-') as directory:
+    try:
+        for number in (signal.SIGINT, signal.SIGTERM):
+            previous_signals[number] = signal.signal(number, interrupted)
+        remaining()
+        # Inherit the backend's process group: O owns whole-tree shutdown.
+        # Guest processes live inside the engine; local cleanup targets this child.
+        process = subprocess.Popen(argv, cwd=directory, env={}, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, encoding='utf-8', errors='replace')
+        stdout, stderr = process.communicate(timeout=remaining())
+        require(process.returncode == 0, 'Guix Wasm failed (exit ' + str(process.returncode) + '): '
+                + (stderr + stdout).strip())
+        require(not forced_failure, 'Guix Wasm unexpectedly succeeded despite its explicit failure request')
+        require('OSTADIX_GUIX_PACKAGE:42->43' in stdout, 'Guix Wasm exited without its checked package result')
+        __oval_result__ = stdout
+    except BaseException as error:
+        if process is not None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            try:
+                process.communicate(timeout=max(0, min(3, operation_deadline - time.monotonic() - 1)))
+            except subprocess.TimeoutExpired:
+                pass
+        if isinstance(error, subprocess.TimeoutExpired):
+            raise RuntimeError('Guix Wasm exceeded the available O backend budget; '
+                    'set O_BACKEND_OPERATION_TIMEOUT_MS before invoking O for slow guests '
+                    '(maximum 3600000 ms)') from error
+        raise
+    finally:
+        for number, previous in previous_signals.items():
+            signal.signal(number, previous)
+)_python

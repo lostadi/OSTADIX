@@ -8,6 +8,13 @@ import {
 export const BROWSER_BUNDLE_SCHEMA = "ostadix.olang-browser-bundle/v1";
 export const WHOLE_PROGRAM_PROVIDER_SCHEMA = "ostadix.olang-browser-provider/v1";
 
+// Historical direct bundles predate the denied mkdir import. These are two
+// exact ABI contracts, not a subset allowlist. Binary imports and signatures
+// must still match the selected manifest exactly before execution.
+export const LEGACY_DIRECT_WASI_IMPORTS = Object.freeze(
+  WASI_PREVIEW1_IMPORTS.filter((name) => name !== "path_create_directory"),
+);
+
 const EXPECTED_ASSETS = Object.freeze([
   "browser-main.mjs",
   "index.html",
@@ -56,7 +63,11 @@ export class OlangBrowserProviderError extends Error {
   }
 }
 
-function validateManifest(manifest) {
+// The Linux runner selects its own fixed profile; ordinary callers retain the
+// exact direct-WASI v1 contract. A manifest cannot choose an arbitrary ABI.
+export function validateManifest(manifest, profile = {}) {
+  const schema = profile.schema ?? BROWSER_BUNDLE_SCHEMA;
+  const assets = profile.assets ?? EXPECTED_ASSETS;
   const invalid = (message) => {
     throw new OlangBrowserBundleError("manifest-invalid", message);
   };
@@ -103,20 +114,22 @@ function validateManifest(manifest) {
       "provider",
       "backend_grants",
       "abi",
+      ...(profile.build ? ["build"] : []),
     ],
     "browser bundle manifest",
   );
-  if (manifest.schema !== BROWSER_BUNDLE_SCHEMA) {
-    invalid(`browser bundle manifest schema must be ${BROWSER_BUNDLE_SCHEMA}`);
+  if (manifest.schema !== schema) {
+    invalid(`browser bundle manifest schema must be ${schema}`);
   }
   fileRecord(manifest.source, "program.O", "manifest.source");
   fileRecord(manifest.artifact, "program.wasm", "manifest.artifact");
+  if (profile.build) fileRecord(manifest.build, "wasm-build.json", "manifest.build");
 
-  if (!Array.isArray(manifest.assets) || manifest.assets.length !== EXPECTED_ASSETS.length) {
-    invalid("manifest.assets must list the four canonical browser assets");
+  if (!Array.isArray(manifest.assets) || manifest.assets.length !== assets.length) {
+    invalid("manifest.assets must list the canonical browser assets");
   }
   manifest.assets.forEach((record, index) => {
-    fileRecord(record, EXPECTED_ASSETS[index], `manifest.assets[${index}]`);
+    fileRecord(record, assets[index], `manifest.assets[${index}]`);
   });
 
   if (!Array.isArray(manifest.adapters) || manifest.adapters.length === 0) {
@@ -233,7 +246,11 @@ function validateManifest(manifest) {
   if (manifest.abi.module !== "wasi_snapshot_preview1") {
     invalid("manifest.abi.module must be wasi_snapshot_preview1");
   }
-  exactArray(manifest.abi.imports, WASI_PREVIEW1_IMPORTS, "manifest.abi.imports");
+  const canonicalImports = profile.imports ?? (
+    Array.isArray(manifest.abi.imports) && manifest.abi.imports.length === LEGACY_DIRECT_WASI_IMPORTS.length
+      ? LEGACY_DIRECT_WASI_IMPORTS : WASI_PREVIEW1_IMPORTS
+  );
+  exactArray(manifest.abi.imports, canonicalImports, "manifest.abi.imports");
   exactArray(
     manifest.abi.required_exports,
     ["memory", "_start"],
@@ -241,18 +258,18 @@ function validateManifest(manifest) {
   );
   exactArray(
     manifest.abi.local_capabilities,
-    EXPECTED_LOCAL_CAPABILITIES,
+    profile.localCapabilities ?? EXPECTED_LOCAL_CAPABILITIES,
     "manifest.abi.local_capabilities",
   );
   exactArray(
     manifest.abi.denied_capabilities,
-    EXPECTED_DENIED_CAPABILITIES,
+    profile.deniedCapabilities ?? EXPECTED_DENIED_CAPABILITIES,
     "manifest.abi.denied_capabilities",
   );
   return manifest;
 }
 
-async function fetchBytes(url) {
+export async function fetchBytes(url) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new OlangBrowserBundleError(
@@ -294,7 +311,7 @@ async function sha256Hex(bytes) {
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function verifyFile(record, bytes, subject) {
+export async function verifyFile(record, bytes, subject) {
   if (bytes.byteLength !== record.bytes) {
     throw new OlangBrowserBundleError(
       "integrity-failed",
@@ -310,7 +327,7 @@ async function verifyFile(record, bytes, subject) {
   }
 }
 
-function bytesFrom(value, subject) {
+export function bytesFrom(value, subject) {
   try {
     if (value instanceof Uint8Array) {
       return Uint8Array.from(value);
@@ -336,7 +353,7 @@ function bytesFrom(value, subject) {
   );
 }
 
-function immutableManifest(value) {
+function immutableManifest(value, validator = validateManifest) {
   let snapshot;
   try {
     snapshot = structuredClone(value);
@@ -354,7 +371,7 @@ function immutableManifest(value) {
     }
     return item;
   };
-  return freeze(validateManifest(snapshot));
+  return freeze(validator(snapshot));
 }
 
 function suppliedNamedBytes(payloads, optionName, path) {
@@ -536,7 +553,7 @@ function sameSignature(actual, expected) {
     && actual.results.every((value, index) => value === expected.results[index]);
 }
 
-async function compileAndVerifyModule(wasmBytes, abi) {
+export async function compileAndVerifyModule(wasmBytes, abi, signatures = WASI_PREVIEW1_SIGNATURES) {
   let module;
   try {
     module = await WebAssembly.compile(wasmBytes);
@@ -577,7 +594,7 @@ async function compileAndVerifyModule(wasmBytes, abi) {
   }
   for (const entry of typedModule.imports) {
     const expected = entry.module === abi.module
-      ? WASI_PREVIEW1_SIGNATURES[entry.name]
+      ? signatures[entry.name]
       : undefined;
     if (!expected || !sameSignature(entry, expected)) {
       const actualText = `(${entry.parameters.join(",")}) -> (${entry.results.join(",")})`;
@@ -651,11 +668,19 @@ function validateProviderResult(result) {
   });
 }
 
-export async function runOlangBrowserBundle(options = {}) {
+export async function loadAndVerifyBundle(options = {}, validator = validateManifest) {
   const baseUrl = options.baseUrl ?? new URL("./", import.meta.url);
+  // A specialized browser profile may provide cancellable, size-bounded I/O.
+  // All returned bytes still pass the same immutable manifest/hash checks; the
+  // default fetch path and supplied-byte snapshot semantics are unchanged.
+  const fetchFile = options.fetchFile === undefined ? fetchBytes : options.fetchFile;
+  if (typeof fetchFile !== "function") {
+    throw new OlangBrowserBundleError("invalid-options", "fetchFile must be a function");
+  }
   const manifest = immutableManifest(
     options.manifest
       ?? await fetchManifest(new URL("manifest.json", baseUrl)),
+    validator,
   );
   const blockers = manifest.compatibility.blockers;
 
@@ -675,16 +700,16 @@ export async function runOlangBrowserBundle(options = {}) {
     ? bytesFrom(options.sourceBytes, "sourceBytes")
     : options.source !== undefined
       ? new TextEncoder().encode(options.source)
-      : await fetchBytes(new URL(manifest.source.path, baseUrl));
+      : await fetchFile(new URL(manifest.source.path, baseUrl));
   const wasmBytes = options.wasmBytes !== undefined
     ? bytesFrom(options.wasmBytes, "wasmBytes")
-    : await fetchBytes(new URL(manifest.artifact.path, baseUrl));
+    : await fetchFile(new URL(manifest.artifact.path, baseUrl));
   const planBytes = options.planBytes !== undefined
     ? bytesFrom(options.planBytes, "planBytes")
-    : await fetchBytes(new URL(manifest.plan.path, baseUrl));
+    : await fetchFile(new URL(manifest.plan.path, baseUrl));
   const assetPayloads = await Promise.all(manifest.assets.map(async (record) => {
     const bytes = options.assetBytes === undefined
-      ? await fetchBytes(new URL(record.path, baseUrl))
+      ? await fetchFile(new URL(record.path, baseUrl))
       : suppliedNamedBytes(options.assetBytes, "assetBytes", record.path);
     if (bytes === null) {
       throw new OlangBrowserBundleError(
@@ -697,7 +722,7 @@ export async function runOlangBrowserBundle(options = {}) {
   const adapterPayloads = await Promise.all(manifest.adapters.map(async (adapter) => {
     const record = adapter.file;
     const bytes = options.adapterBytes === undefined
-      ? await fetchBytes(new URL(record.path, baseUrl))
+      ? await fetchFile(new URL(record.path, baseUrl))
       : suppliedNamedBytes(options.adapterBytes, "adapterBytes", record.path);
     if (bytes === null) {
       throw new OlangBrowserBundleError(
@@ -796,6 +821,12 @@ export async function runOlangBrowserBundle(options = {}) {
     );
   }
 
+  return { manifest, source, wasmBytes, adapterPayloads, assetPayloads, baseUrl };
+}
+
+export async function runOlangBrowserBundle(options = {}) {
+  const { manifest, source, wasmBytes, adapterPayloads } = await loadAndVerifyBundle(options);
+  const blockers = manifest.compatibility.blockers;
   const module = await compileAndVerifyModule(wasmBytes, manifest.abi);
 
   if (!manifest.compatibility.local_execution) {

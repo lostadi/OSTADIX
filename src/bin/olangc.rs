@@ -57,7 +57,8 @@
 //   --wasm-runtime-image instead compiles the native evaluator in a declared
 //   Linux image and packages that image into an emulated Linux WASI module
 //   with Docker/container2wasm. This experimental profile supplies foreign
-//   runtimes from the image and is separate from the browser bundle host.
+//   runtimes from the image. Combined with --browser-bundle it selects the
+//   separate embedded-Linux Worker host, not the direct-WASI provider contract.
 //
 // Target C ("script"):
 //   Parses, lowers to OIR, validates ExecutionPlan, and executes the plan
@@ -102,6 +103,8 @@ use o_lang::shims::read_shims;
 use o_lang::value::OValue;
 use o_lang::world::{GroundingReport, WorldEpoch, WorldId, WorldIdentity};
 
+#[path = "olangc/browser_guix.rs"]
+mod browser_guix;
 #[path = "olangc/runtime_bundle.rs"]
 mod runtime_bundle;
 #[path = "olangc/wasm_container.rs"]
@@ -117,6 +120,7 @@ const WORKSPACE_RUST_TOOLCHAIN_TOML: &[u8] = include_bytes!("../../rust-toolchai
 const GENERATED_PACKAGE_NAME: &str = "ostadix-generated-runtime";
 const GENERATED_PACKAGE_VERSION: &str = "0.1.0";
 const BROWSER_BUNDLE_SCHEMA: &str = "ostadix.olang-browser-bundle/v1";
+const LINUX_BROWSER_BUNDLE_SCHEMA: &str = "ostadix.olang-linux-browser-bundle/v1";
 const BROWSER_PROVIDER_SCHEMA: &str = "ostadix.olang-browser-provider/v1";
 const BROWSER_WASI_ABI: &str = "wasi_snapshot_preview1";
 const BROWSER_WASI_HOST_MJS: &str =
@@ -124,6 +128,49 @@ const BROWSER_WASI_HOST_MJS: &str =
 const BROWSER_RUNNER_MJS: &str = include_str!("../../apps/olang-browser-wasi/runner.mjs");
 const BROWSER_MAIN_MJS: &str = include_str!("../../apps/olang-browser-wasi/browser-main.mjs");
 const BROWSER_INDEX_HTML: &str = include_str!("../../apps/olang-browser-wasi/index.html");
+const LINUX_BROWSER_MAIN_MJS: &str =
+    include_str!("../../apps/olang-browser-wasi/linux-browser-main.mjs");
+const LINUX_BROWSER_RUNNER_MJS: &str =
+    include_str!("../../apps/olang-browser-wasi/linux-runner.mjs");
+const LINUX_BROWSER_WORKER_MJS: &str =
+    include_str!("../../apps/olang-browser-wasi/linux-worker.mjs");
+const LINUX_BROWSER_WASI_HOST_MJS: &str =
+    include_str!("../../apps/olang-browser-wasi/linux-wasi-host.mjs");
+const LINUX_BROWSER_WASI_IMPORTS: &[&str] = &[
+    "args_get",
+    "args_sizes_get",
+    "clock_time_get",
+    "environ_get",
+    "environ_sizes_get",
+    "fd_close",
+    "fd_fdstat_get",
+    "fd_fdstat_set_flags",
+    "fd_filestat_get",
+    "fd_filestat_set_size",
+    "fd_pread",
+    "fd_prestat_dir_name",
+    "fd_prestat_get",
+    "fd_pwrite",
+    "fd_read",
+    "fd_readdir",
+    "fd_seek",
+    "fd_write",
+    "path_create_directory",
+    "path_filestat_get",
+    "path_filestat_set_times",
+    "path_link",
+    "path_open",
+    "path_readlink",
+    "path_remove_directory",
+    "path_rename",
+    "path_symlink",
+    "path_unlink_file",
+    "poll_oneoff",
+    "proc_exit",
+    "sock_accept",
+    "sock_recv",
+    "sock_send",
+];
 const BROWSER_WASI_IMPORTS: &[&str] = &[
     "args_get",
     "args_sizes_get",
@@ -139,6 +186,7 @@ const BROWSER_WASI_IMPORTS: &[&str] = &[
     "fd_readdir",
     "fd_seek",
     "fd_write",
+    "path_create_directory",
     "path_filestat_get",
     "path_open",
     "path_readlink",
@@ -250,11 +298,19 @@ struct Cli {
 
     /// Compile a wasm32-wasip1 module and package it with the dependency-free
     /// browser WASI host, runner, source, compatibility manifest, and demo UI.
-    /// DIR must not already exist. Hosted/effectful plans require an explicit
-    /// whole-program provider at browser run time and are never instantiated
-    /// under synthetic local authority.
+    /// DIR must not already exist. Direct-WASI hosted/effectful plans require
+    /// an explicit whole-program provider. With --wasm-runtime-image, package
+    /// the Linux guest with a separate noninteractive Worker host profile;
+    /// the caller must supply the guest runtime closure.
     #[arg(long, value_name = "DIR")]
     browser_bundle: Option<PathBuf>,
+
+    /// Experimental browser-only interactive Guix profile: bounded terminal,
+    /// signed substitutes through a fixed CORS mirror, and an origin-owned disk.
+    /// Requires the pinned Linux image route and --browser-bundle (or
+    /// --materialize-only). This does not certify runtime compatibility.
+    #[arg(long)]
+    browser_guix: bool,
 
     /// Embed a Linux/amd64 runtime image and the compiled O program into a
     /// standalone WASI Linux-emulator module using Docker and container2wasm.
@@ -529,19 +585,23 @@ fn main() -> Result<()> {
 }
 
 fn wasm_container_options(cli: &Cli) -> Result<Option<wasm_container::Options>> {
+    if cli.browser_guix
+        && (cli.wasm_runtime_image.is_none()
+            || (cli.browser_bundle.is_none() && cli.materialize_only.is_none()))
+    {
+        bail!("--browser-guix requires the pinned Linux image route and --browser-bundle or --materialize-only");
+    }
     let options = match (&cli.wasm_runtime_image, &cli.wasm_builder_image) {
         (None, None) => return Ok(None),
         (Some(runtime_image), Some(builder_image)) => wasm_container::Options {
             runtime_image: runtime_image.clone(),
             builder_image: builder_image.clone(),
+            browser_guix: cli.browser_guix,
         },
         _ => bail!("--wasm-runtime-image and --wasm-builder-image must be supplied together"),
     };
     if cli.target != CompileTarget::Wasm {
         bail!("--wasm-runtime-image requires --target wasm");
-    }
-    if cli.browser_bundle.is_some() {
-        bail!("--wasm-runtime-image cannot be combined with --browser-bundle: the embedded Linux WASI host profile is not yet qualified by the browser bundle runner");
     }
     if cli.runtime_bundle.is_some() {
         bail!("--wasm-runtime-image uses its declared Linux image, not --runtime-bundle");
@@ -563,6 +623,9 @@ fn compile_container_wasm(
     shims: &[(String, Vec<u8>)],
     options: &wasm_container::Options,
 ) -> Result<()> {
+    if let Some(bundle_dir) = cli.browser_bundle.as_deref() {
+        preflight_browser_bundle_dir(bundle_dir)?;
+    }
     let mut output = cli
         .output
         .clone()
@@ -570,13 +633,16 @@ fn compile_container_wasm(
     output.set_extension("wasm");
     // Validate the real plan without executing any backend. Its direct-WASI
     // blockers remain informative; the caller supplies their Linux closure.
-    let (_, plan_text) = inspect_browser_compatibility(source)?;
+    let (compatibility, plan_text) = inspect_browser_compatibility(source)?;
     let build_dir = if let Some(dir) = cli.materialize_only.as_deref() {
         create_materialization_dir(dir)?;
         dir.to_path_buf()
     } else {
         create_build_dir()?
     };
+    if cli.browser_bundle.is_some() {
+        output = build_dir.join("program.wasm");
+    }
     let result = (|| {
         eprintln!(
             "olangc: preparing embedded Linux WASI build in {}",
@@ -602,7 +668,8 @@ fn compile_container_wasm(
             "runtime_image": options.runtime_image,
             "builder_image": options.builder_image,
             "dockerfile_sha256": sha256_hex(&fs::read(build_dir.join("Dockerfile.wasm-container"))?),
-            "converter": wasm_container::converter_manifest(&build_dir)?,
+            "converter": wasm_container::converter_manifest(&build_dir, options)?,
+            "browser_guix_state": if options.browser_guix { Some(browser_guix::state_profile(&options.runtime_image)) } else { None },
             "cargo_lock_sha256": sha256_hex(&fs::read(build_dir.join("cargo/Cargo.lock"))?),
             "backend_grants": cli.backend_grants,
             "adapters": shims.iter().map(|(name, bytes)| serde_json::json!({
@@ -612,15 +679,49 @@ fn compile_container_wasm(
             "execution_verified": false,
             "browser_bundle_host_qualified": false
         });
-        fs::write(
-            build_dir.join("wasm-build.json"),
-            serde_json::to_vec_pretty(&manifest)?,
-        )?;
+        let manifest_bytes = serde_json::to_vec_pretty(&manifest)?;
+        fs::write(build_dir.join("wasm-build.json"), &manifest_bytes)?;
         if cli.materialize_only.is_some() {
             eprintln!("olangc: materialize-only target=wasm profile=embedded-linux-amd64 cargo-invoked=false container-builder-invoked=false dir={}", build_dir.display());
             Ok(())
         } else {
-            wasm_container::build(&build_dir, &output, options)
+            if options.browser_guix {
+                browser_guix::build_assets(&build_dir, &options.runtime_image)?;
+            }
+            wasm_container::build(&build_dir, &output, options)?;
+            if let Some(bundle_dir) = cli.browser_bundle.as_deref() {
+                let wasm = fs::read(&output).with_context(|| {
+                    format!(
+                        "failed to read embedded Linux artifact {}",
+                        output.display()
+                    )
+                })?;
+                write_linux_browser_bundle(
+                    bundle_dir,
+                    source,
+                    &wasm,
+                    &plan_text,
+                    shims,
+                    &cli.backend_grants,
+                    &manifest_bytes,
+                )?;
+                if options.browser_guix {
+                    // This directory was just created by this invocation. The
+                    // upgrade never accepts or overwrites a caller's bundle.
+                    if let Err(error) =
+                        browser_guix::finish_bundle(bundle_dir, &build_dir, &options.runtime_image)
+                    {
+                        let _ = fs::remove_dir_all(bundle_dir);
+                        return Err(error);
+                    }
+                }
+                eprintln!(
+                    "olangc: linux-browser-bundle direct-wasi-blockers={} runtime-closure-verified=false dir={}",
+                    compatibility.blockers.len(),
+                    bundle_dir.display()
+                );
+            }
+            Ok(())
         }
     })();
     if cli.materialize_only.is_some() || cli.keep_build_dir {
@@ -1395,6 +1496,8 @@ struct BrowserBundleManifest {
     provider: BrowserBundleProvider,
     backend_grants: Vec<String>,
     abi: BrowserBundleAbi,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    build: Option<BrowserBundleFile>,
 }
 
 /// Parse and lower the exact source before Cargo is invoked, then classify the
@@ -1481,12 +1584,7 @@ fn compile_browser_bundle(
     bundle_dir: &Path,
     backend_grants: &[String],
 ) -> Result<()> {
-    if fs::symlink_metadata(bundle_dir).is_ok() {
-        bail!(
-            "--browser-bundle directory already exists: {}",
-            bundle_dir.display()
-        );
-    }
+    preflight_browser_bundle_dir(bundle_dir)?;
 
     let (compatibility, plan_text) = inspect_browser_compatibility(source)?;
     let build_dir = create_build_dir()?;
@@ -1566,6 +1664,132 @@ fn write_new_browser_file(path: &Path, bytes: &[u8]) -> Result<()> {
         .with_context(|| format!("failed to write browser bundle file {}", path.display()))
 }
 
+/// Recognize only the historical direct ABI, never infer arbitrary authority
+/// from a module. This bounded reader selects manifest names, not execution:
+/// the browser still validates the complete module and exact WASI signatures.
+/// Non-Wasm writer fixtures and unrecognized input retain the current profile.
+fn uses_legacy_browser_wasi_imports(wasm: &[u8]) -> bool {
+    fn u32_leb(bytes: &[u8], cursor: &mut usize) -> Option<u32> {
+        let mut value = 0u32;
+        for index in 0..5 {
+            let byte = *bytes.get(*cursor)?;
+            *cursor += 1;
+            if index == 4 && byte > 0x0f {
+                return None;
+            }
+            value |= u32::from(byte & 0x7f) << (index * 7);
+            if byte & 0x80 == 0 {
+                return Some(value);
+            }
+        }
+        None
+    }
+    fn name<'a>(bytes: &'a [u8], cursor: &mut usize) -> Option<&'a str> {
+        let length = u32_leb(bytes, cursor)? as usize;
+        if length > 128 {
+            return None;
+        }
+        let end = cursor.checked_add(length)?;
+        let value = std::str::from_utf8(bytes.get(*cursor..end)?).ok()?;
+        *cursor = end;
+        Some(value)
+    }
+    let recognized = (|| -> Option<bool> {
+        if wasm.get(..8)? != b"\0asm\x01\0\0\0" {
+            return None;
+        }
+        let expected: Vec<_> = BROWSER_WASI_IMPORTS
+            .iter()
+            .copied()
+            .filter(|name| *name != "path_create_directory")
+            .collect();
+        let mut cursor = 8;
+        let mut sections = 0;
+        let mut type_count = None;
+        let mut imports = None;
+        while cursor < wasm.len() {
+            sections += 1;
+            if sections > 4096 {
+                return None;
+            }
+            let id = *wasm.get(cursor)?;
+            cursor += 1;
+            if id > 12 {
+                return None;
+            }
+            let length = u32_leb(wasm, &mut cursor)? as usize;
+            let end = cursor.checked_add(length)?;
+            let section = wasm.get(cursor..end)?;
+            cursor = end;
+            let mut at = 0;
+            if id == 1 {
+                if type_count.is_some() || imports.is_some() || length > 1024 * 1024 {
+                    return None;
+                }
+                let count = u32_leb(section, &mut at)?;
+                if count > 65536 {
+                    return None;
+                }
+                for _ in 0..count {
+                    if *section.get(at)? != 0x60 {
+                        return None;
+                    }
+                    at += 1;
+                    for _ in 0..2 {
+                        let values = u32_leb(section, &mut at)? as usize;
+                        if values > 1024 {
+                            return None;
+                        }
+                        let next = at.checked_add(values)?;
+                        if section.get(at..next)?.iter().any(|value| {
+                            !matches!(*value, 0x7f | 0x7e | 0x7d | 0x7c | 0x7b | 0x70 | 0x6f)
+                        }) {
+                            return None;
+                        }
+                        at = next;
+                    }
+                }
+                if at != section.len() {
+                    return None;
+                }
+                type_count = Some(count);
+            } else if id == 2 {
+                if imports.is_some() || length > 65536 {
+                    return None;
+                }
+                let types = type_count?;
+                if u32_leb(section, &mut at)? as usize != expected.len() {
+                    return None;
+                }
+                let mut found = Vec::with_capacity(expected.len());
+                for _ in 0..expected.len() {
+                    if name(section, &mut at)? != BROWSER_WASI_ABI {
+                        return None;
+                    }
+                    found.push(name(section, &mut at)?);
+                    if *section.get(at)? != 0 {
+                        return None;
+                    }
+                    at += 1;
+                    if u32_leb(section, &mut at)? >= types {
+                        return None;
+                    }
+                }
+                if at != section.len() {
+                    return None;
+                }
+                found.sort_unstable();
+                if found != expected {
+                    return None;
+                }
+                imports = Some(found);
+            }
+        }
+        Some(imports.is_some())
+    })();
+    recognized == Some(true)
+}
+
 fn write_browser_bundle(
     bundle_dir: &Path,
     source: &str,
@@ -1584,6 +1808,7 @@ fn write_browser_bundle(
         bail!("browser bundle adapters must be non-empty, uniquely name-sorted bytes");
     }
     create_browser_bundle_dir(bundle_dir)?;
+    let legacy_imports = uses_legacy_browser_wasi_imports(wasm);
 
     let files: [(&str, &[u8]); 7] = [
         ("program.wasm", wasm),
@@ -1653,6 +1878,7 @@ fn write_browser_bundle(
                 module: BROWSER_WASI_ABI.to_string(),
                 imports: BROWSER_WASI_IMPORTS
                     .iter()
+                    .filter(|name| !legacy_imports || **name != "path_create_directory")
                     .map(|name| (*name).to_string())
                     .collect(),
                 required_exports: vec!["memory".to_string(), "_start".to_string()],
@@ -1672,6 +1898,7 @@ fn write_browser_bundle(
                     "process-spawn".to_string(),
                 ],
             },
+            build: None,
         };
         let mut json = serde_json::to_vec_pretty(&manifest)
             .context("failed to serialize browser bundle manifest")?;
@@ -1684,6 +1911,168 @@ fn write_browser_bundle(
         let _ = fs::remove_dir_all(bundle_dir);
     }
     write_result
+}
+
+/// The direct-WASI assessment is retained unchanged. The distinct schema names
+/// the Linux host boundary; it does not grant browser authority to shim nodes.
+fn write_linux_browser_bundle(
+    bundle_dir: &Path,
+    source: &str,
+    wasm: &[u8],
+    plan_text: &str,
+    shims: &[(String, Vec<u8>)],
+    backend_grants: &[String],
+    build_bytes: &[u8],
+) -> Result<()> {
+    preflight_browser_bundle_dir(bundle_dir)?;
+    if shims.is_empty()
+        || shims
+            .iter()
+            .any(|(name, _)| name.is_empty() || name.contains('\0'))
+        || shims.windows(2).any(|pair| pair[0].0 >= pair[1].0)
+    {
+        bail!("browser bundle adapters must be non-empty, uniquely name-sorted bytes");
+    }
+    let (compatibility, canonical_plan) = inspect_browser_compatibility(source)?;
+    if canonical_plan != plan_text {
+        bail!("Linux browser bundle plan does not match its source");
+    }
+    let build: serde_json::Value = serde_json::from_slice(build_bytes)
+        .context("failed to parse Linux browser bundle build manifest")?;
+    let expected_adapters = shims
+        .iter()
+        .map(|(name, bytes)| {
+            serde_json::json!({
+                "name": name, "sha256": sha256_hex(bytes)
+            })
+        })
+        .collect::<Vec<_>>();
+    if build["schema"] != "ostadix.olang-wasm-container-build/v1"
+        || build["profile"] != "embedded-linux-amd64-wasi-experimental"
+        || build["source_sha256"] != sha256_hex(source.as_bytes())
+        || build["plan_sha256"] != sha256_hex(plan_text.as_bytes())
+        || build["adapters"] != serde_json::json!(expected_adapters)
+        || build["backend_grants"] != serde_json::json!(backend_grants)
+        || build["runtime_closure_verified"] != false
+        || build["execution_verified"] != false
+        || build["browser_bundle_host_qualified"] != false
+    {
+        bail!("Linux browser bundle build manifest does not match its unqualified source, plan, adapters, and grants");
+    }
+    let image = |key: &str| -> Result<String> {
+        build[key]
+            .as_str()
+            .map(str::to_string)
+            .with_context(|| format!("Linux browser bundle build manifest lacks {key}"))
+    };
+    wasm_container::validate_images(&wasm_container::Options {
+        runtime_image: image("runtime_image")?,
+        builder_image: image("builder_image")?,
+        browser_guix: false,
+    })?;
+
+    // Only this successful create reserves ownership for error cleanup. A
+    // caller-owned path appearing after preflight must never be removed.
+    create_browser_bundle_dir(bundle_dir)?;
+    let assets: [(&str, &[u8]); 7] = [
+        ("browser-main.mjs", LINUX_BROWSER_MAIN_MJS.as_bytes()),
+        ("index.html", BROWSER_INDEX_HTML.as_bytes()),
+        ("linux-runner.mjs", LINUX_BROWSER_RUNNER_MJS.as_bytes()),
+        (
+            "linux-wasi-host.mjs",
+            LINUX_BROWSER_WASI_HOST_MJS.as_bytes(),
+        ),
+        ("linux-worker.mjs", LINUX_BROWSER_WORKER_MJS.as_bytes()),
+        ("runner.mjs", BROWSER_RUNNER_MJS.as_bytes()),
+        ("wasi-preview1-host.mjs", BROWSER_WASI_HOST_MJS.as_bytes()),
+    ];
+    let result = (|| -> Result<()> {
+        fs::create_dir(bundle_dir.join("adapters"))?;
+        for (path, bytes) in [
+            ("program.O", source.as_bytes()),
+            ("program.wasm", wasm),
+            ("program.plan.txt", plan_text.as_bytes()),
+            ("wasm-build.json", build_bytes),
+        ]
+        .into_iter()
+        .chain(assets)
+        {
+            write_new_browser_file(&bundle_dir.join(path), bytes)?;
+        }
+        let mut adapters = Vec::with_capacity(shims.len());
+        for (index, (name, bytes)) in shims.iter().enumerate() {
+            let path = format!("adapters/{index:04}.shim");
+            write_new_browser_file(&bundle_dir.join(&path), bytes)?;
+            adapters.push(BrowserBundleAdapter {
+                name: name.clone(),
+                file: browser_bundle_file(&path, bytes),
+            });
+        }
+        let provider_required = !compatibility.local_execution;
+        let manifest = BrowserBundleManifest {
+            schema: LINUX_BROWSER_BUNDLE_SCHEMA.to_string(),
+            source: browser_bundle_file("program.O", source.as_bytes()),
+            artifact: browser_bundle_file("program.wasm", wasm),
+            assets: assets
+                .iter()
+                .map(|(path, bytes)| browser_bundle_file(path, bytes))
+                .collect(),
+            adapters,
+            plan: BrowserBundlePlan {
+                path: "program.plan.txt".to_string(),
+                bytes: plan_text.len() as u64,
+                sha256: sha256_hex(plan_text.as_bytes()),
+                nodes: plan_text
+                    .lines()
+                    .filter(|line| line.starts_with("node "))
+                    .count(),
+            },
+            compatibility,
+            provider: BrowserBundleProvider {
+                schema: BROWSER_PROVIDER_SCHEMA.to_string(),
+                mode: "whole-program".to_string(),
+                required: provider_required,
+            },
+            backend_grants: backend_grants.to_vec(),
+            abi: BrowserBundleAbi {
+                module: BROWSER_WASI_ABI.to_string(),
+                imports: LINUX_BROWSER_WASI_IMPORTS
+                    .iter()
+                    .map(|name| (*name).to_string())
+                    .collect(),
+                required_exports: vec!["memory".to_string(), "_start".to_string()],
+                local_capabilities: [
+                    "args",
+                    "environment",
+                    "clock-realtime",
+                    "clock-monotonic",
+                    "stdin-eof",
+                    "stdout-capture",
+                    "stderr-capture",
+                    "embedded-linux-filesystem",
+                    "embedded-linux-processes",
+                ]
+                .map(str::to_string)
+                .to_vec(),
+                denied_capabilities: [
+                    "host-filesystem-paths",
+                    "preopened-directories",
+                    "host-process-spawn",
+                    "network-sockets",
+                ]
+                .map(str::to_string)
+                .to_vec(),
+            },
+            build: Some(browser_bundle_file("wasm-build.json", build_bytes)),
+        };
+        let mut json = serde_json::to_vec_pretty(&manifest)?;
+        json.push(b'\n');
+        write_new_browser_file(&bundle_dir.join("manifest.json"), &json)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_dir_all(bundle_dir);
+    }
+    result
 }
 
 fn write_runtime_sources(src_dir: &Path) -> Result<()> {
@@ -3128,7 +3517,13 @@ fn create_build_dir() -> Result<PathBuf> {
             timestamp,
             sequence
         ));
-        match fs::create_dir(&dir) {
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        match builder.create(&dir) {
             Ok(()) => return Ok(dir),
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
             Err(error) => return Err(error.into()),
@@ -3159,6 +3554,34 @@ fn create_materialization_dir(path: &Path) -> Result<()> {
 
 /// Reserve a caller-selected browser payload directory without reusing or
 /// overwriting any existing file, directory, or symlink.
+fn preflight_browser_bundle_dir(path: &Path) -> Result<()> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => bail!(
+            "--browser-bundle directory already exists: {}",
+            path.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "failed to inspect --browser-bundle directory {}",
+                    path.display()
+                )
+            });
+        }
+    }
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty());
+    if !parent.unwrap_or_else(|| Path::new(".")).is_dir() {
+        bail!(
+            "--browser-bundle parent directory does not exist: {}",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
 fn create_browser_bundle_dir(path: &Path) -> Result<()> {
     match fs::create_dir(path) {
         Ok(()) => Ok(()),
@@ -3413,13 +3836,47 @@ mod tests {
             .contains("requires --target wasm"));
         cli.target = CompileTarget::Wasm;
         cli.browser_bundle = Some("web".into());
-        assert!(wasm_container_options(&cli)
-            .unwrap_err()
-            .to_string()
-            .contains("not yet qualified"));
-        cli.browser_bundle = None;
+        assert!(wasm_container_options(&cli).unwrap().is_some());
+        validate_admission_inspection(&cli).unwrap();
         cli.runtime_bundle = Some("runtimes".into());
         assert!(wasm_container_options(&cli).is_err());
+    }
+
+    #[test]
+    fn linux_browser_bundle_keeps_output_and_materialization_exclusions() {
+        for extra in [
+            vec!["--browser-bundle", "web", "--output", "elsewhere.wasm"],
+            vec!["--browser-bundle", "web", "--materialize-only", "cargo"],
+            vec!["--browser-bundle", "web", "--keep-build-dir"],
+        ] {
+            let cli = container_cli(&extra);
+            assert!(wasm_container_options(&cli).unwrap().is_some());
+            assert!(validate_admission_inspection(&cli).is_err());
+        }
+    }
+
+    #[test]
+    fn linux_browser_bundle_rejects_existing_output_before_build_or_parsing() {
+        let root = tempfile::tempdir().unwrap();
+        let bundle = root.path().join("existing");
+        fs::create_dir(&bundle).unwrap();
+        fs::write(bundle.join("sentinel"), b"keep").unwrap();
+        let mut cli = container_cli(&[]);
+        cli.browser_bundle = Some(bundle.clone());
+        let options = wasm_container_options(&cli).unwrap().unwrap();
+        let error =
+            compile_container_wasm(&cli, "python^(unterminated", &[], &options).unwrap_err();
+        assert!(error.to_string().contains("already exists"));
+        assert_eq!(fs::read(bundle.join("sentinel")).unwrap(), b"keep");
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
+
+        cli.browser_bundle = Some(root.path().join("missing-parent/web"));
+        assert!(
+            compile_container_wasm(&cli, "python^(unterminated", &[], &options)
+                .unwrap_err()
+                .to_string()
+                .contains("parent directory does not exist")
+        );
     }
 
     #[test]
@@ -3542,6 +3999,70 @@ mod tests {
     }
 
     #[test]
+    fn browser_legacy_import_recognition_is_exact_and_bounded() {
+        fn leb(mut value: usize) -> Vec<u8> {
+            let mut bytes = Vec::new();
+            loop {
+                let byte = (value & 0x7f) as u8;
+                value >>= 7;
+                bytes.push(byte | if value == 0 { 0 } else { 0x80 });
+                if value == 0 {
+                    return bytes;
+                }
+            }
+        }
+        fn fixture(names: &[&str], module: &str, kind: u8, type_index: u8) -> Vec<u8> {
+            let mut section = leb(names.len());
+            for name in names {
+                section.extend(leb(module.len()));
+                section.extend_from_slice(module.as_bytes());
+                section.extend(leb(name.len()));
+                section.extend_from_slice(name.as_bytes());
+                section.extend([kind, type_index]);
+            }
+            // A structural import-section fixture, not an execution witness.
+            let mut wasm = b"\0asm\x01\0\0\0\x01\x04\x01\x60\x00\x00".to_vec();
+            wasm.push(2);
+            wasm.extend(leb(section.len()));
+            wasm.extend(section);
+            wasm
+        }
+        let legacy: Vec<_> = BROWSER_WASI_IMPORTS
+            .iter()
+            .copied()
+            .filter(|name| *name != "path_create_directory")
+            .collect();
+        assert_eq!(legacy.len(), 24);
+        let valid = fixture(&legacy, BROWSER_WASI_ABI, 0, 0);
+        assert!(uses_legacy_browser_wasi_imports(&valid));
+        let mut reordered = legacy.clone();
+        reordered.reverse();
+        assert!(uses_legacy_browser_wasi_imports(&fixture(
+            &reordered,
+            BROWSER_WASI_ABI,
+            0,
+            0
+        )));
+        let mut duplicate = legacy.clone();
+        duplicate[1] = duplicate[0];
+        for malformed in [
+            fixture(BROWSER_WASI_IMPORTS, BROWSER_WASI_ABI, 0, 0),
+            fixture(&legacy[1..], BROWSER_WASI_ABI, 0, 0),
+            fixture(&duplicate, BROWSER_WASI_ABI, 0, 0),
+            fixture(&legacy, "other", 0, 0),
+            fixture(&legacy, BROWSER_WASI_ABI, 1, 0),
+            fixture(&legacy, BROWSER_WASI_ABI, 0, 1),
+            valid[..valid.len() - 1].to_vec(),
+            [valid.as_slice(), &[2, 0]].concat(),
+            [valid.as_slice(), &[0, 0xff, 0xff, 0xff, 0xff, 0x10]].concat(),
+            b"\0asm\x01\0\0\0".to_vec(),
+            b"not-a-real-wasm".to_vec(),
+        ] {
+            assert!(!uses_legacy_browser_wasi_imports(&malformed));
+        }
+    }
+
+    #[test]
     fn browser_bundle_writer_is_manifest_bound_deterministic_and_no_clobber() {
         let root = tempfile::tempdir().unwrap();
         let bundle = root.path().join("browser");
@@ -3568,6 +4089,8 @@ mod tests {
         let manifest: serde_json::Value =
             serde_json::from_slice(&fs::read(bundle.join("manifest.json")).unwrap()).unwrap();
         assert_eq!(manifest["schema"], BROWSER_BUNDLE_SCHEMA);
+        assert_eq!(manifest.as_object().unwrap().len(), 10);
+        assert!(manifest.get("build").is_none());
         assert_eq!(manifest["source"]["bytes"], source.len());
         assert_eq!(
             manifest["source"]["sha256"],
@@ -3591,9 +4114,14 @@ mod tests {
             manifest["adapters"][0]["file"]["sha256"],
             hex::encode(Sha256::digest(b"fixture shim\n"))
         );
+        assert_eq!(manifest["abi"]["imports"].as_array().unwrap().len(), 25);
         assert_eq!(
-            manifest["abi"]["imports"].as_array().unwrap().len(),
-            BROWSER_WASI_IMPORTS.len()
+            manifest["abi"]["imports"],
+            serde_json::json!(BROWSER_WASI_IMPORTS)
+        );
+        assert_eq!(
+            manifest["abi"]["denied_capabilities"],
+            serde_json::json!(["filesystem-paths", "preopened-directories", "process-spawn"])
         );
         assert_eq!(
             manifest["abi"]["required_exports"],
@@ -3618,6 +4146,266 @@ mod tests {
             .to_string()
             .contains("--browser-bundle directory already exists"));
         assert_eq!(fs::read(bundle.join("program.wasm")).unwrap(), wasm);
+    }
+
+    fn linux_browser_build_fixture(
+        source: &str,
+        plan: &str,
+        shims: &[(String, Vec<u8>)],
+        grants: &[String],
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "schema": "ostadix.olang-wasm-container-build/v1",
+            "profile": "embedded-linux-amd64-wasi-experimental",
+            "source_sha256": sha256_hex(source.as_bytes()),
+            "plan_sha256": sha256_hex(plan.as_bytes()),
+            "runtime_image": format!("example/runtime@sha256:{}", "a".repeat(64)),
+            "builder_image": format!("example/builder@sha256:{}", "b".repeat(64)),
+            "adapters": shims.iter().map(|(name, bytes)| serde_json::json!({
+                "name": name, "sha256": sha256_hex(bytes)
+            })).collect::<Vec<_>>(),
+            "backend_grants": grants,
+            "runtime_closure_verified": false,
+            "execution_verified": false,
+            "browser_bundle_host_qualified": false
+        })
+    }
+
+    #[test]
+    fn linux_browser_bundle_writer_binds_build_and_preserves_direct_wasi_blockers() {
+        let root = tempfile::tempdir().unwrap();
+        let bundle = root.path().join("linux-browser");
+        let source = "python^(__oval_result__ = 6 * 7)_python\n";
+        let wasm = b"unit-test-artifact-not-execution-evidence";
+        let shims = vec![("python_shim.py".into(), b"test shim".to_vec())];
+        let grants = vec!["python".into()];
+        let (compatibility, plan) = inspect_browser_compatibility(source).unwrap();
+        let mut build =
+            serde_json::to_vec_pretty(&linux_browser_build_fixture(source, &plan, &shims, &grants))
+                .unwrap();
+        // Whitespace is significant to the build-file binding: do not reencode.
+        build.extend_from_slice(b"\n\n");
+        write_linux_browser_bundle(&bundle, source, wasm, &plan, &shims, &grants, &build).unwrap();
+        let manifest_bytes = fs::read(bundle.join("manifest.json")).unwrap();
+        let manifest: serde_json::Value = serde_json::from_slice(&manifest_bytes).unwrap();
+        assert_eq!(manifest.as_object().unwrap().len(), 11);
+        assert_eq!(manifest["schema"], LINUX_BROWSER_BUNDLE_SCHEMA);
+        assert_eq!(
+            manifest["compatibility"],
+            serde_json::to_value(compatibility).unwrap()
+        );
+        assert_eq!(manifest["compatibility"]["local_execution"], false);
+        assert_eq!(manifest["provider"]["required"], true);
+        assert_eq!(manifest["provider"]["mode"], "whole-program");
+        assert_eq!(manifest["backend_grants"], serde_json::json!(grants));
+        assert_eq!(fs::read(bundle.join("wasm-build.json")).unwrap(), build);
+        for (field, path, bytes) in [
+            ("source", "program.O", source.as_bytes()),
+            ("artifact", "program.wasm", wasm.as_slice()),
+            ("plan", "program.plan.txt", plan.as_bytes()),
+            ("build", "wasm-build.json", build.as_slice()),
+        ] {
+            assert_eq!(manifest[field]["path"], path);
+            assert_eq!(manifest[field]["bytes"], bytes.len());
+            assert_eq!(manifest[field]["sha256"], sha256_hex(bytes));
+        }
+        let assets = manifest["assets"].as_array().unwrap();
+        assert_eq!(
+            assets
+                .iter()
+                .map(|record| record["path"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "browser-main.mjs",
+                "index.html",
+                "linux-runner.mjs",
+                "linux-wasi-host.mjs",
+                "linux-worker.mjs",
+                "runner.mjs",
+                "wasi-preview1-host.mjs"
+            ]
+        );
+        for record in assets {
+            let bytes = fs::read(bundle.join(record["path"].as_str().unwrap())).unwrap();
+            assert_eq!(record["bytes"], bytes.len());
+            assert_eq!(record["sha256"], sha256_hex(&bytes));
+        }
+        assert_eq!(
+            fs::read(bundle.join("runner.mjs")).unwrap(),
+            BROWSER_RUNNER_MJS.as_bytes()
+        );
+        assert_eq!(
+            manifest["abi"]["imports"],
+            serde_json::json!(LINUX_BROWSER_WASI_IMPORTS)
+        );
+        assert_eq!(
+            manifest["abi"]["local_capabilities"],
+            serde_json::json!([
+                "args",
+                "environment",
+                "clock-realtime",
+                "clock-monotonic",
+                "stdin-eof",
+                "stdout-capture",
+                "stderr-capture",
+                "embedded-linux-filesystem",
+                "embedded-linux-processes"
+            ])
+        );
+        assert_eq!(
+            manifest["abi"]["denied_capabilities"],
+            serde_json::json!([
+                "host-filesystem-paths",
+                "preopened-directories",
+                "host-process-spawn",
+                "network-sockets"
+            ])
+        );
+        let again = root.path().join("again");
+        write_linux_browser_bundle(&again, source, wasm, &plan, &shims, &grants, &build).unwrap();
+        assert_eq!(
+            fs::read(again.join("manifest.json")).unwrap(),
+            manifest_bytes
+        );
+        assert!(write_linux_browser_bundle(
+            &bundle,
+            source,
+            b"replacement",
+            &plan,
+            &shims,
+            &grants,
+            &build
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("already exists"));
+        assert_eq!(fs::read(bundle.join("program.wasm")).unwrap(), wasm);
+    }
+
+    #[test]
+    fn linux_browser_bundle_rejects_mismatched_inputs_without_output() {
+        let root = tempfile::tempdir().unwrap();
+        let source = "text^(fixture)_text";
+        let (_, plan) = inspect_browser_compatibility(source).unwrap();
+        let shims = vec![("python_shim.py".into(), b"test shim".to_vec())];
+        let original = linux_browser_build_fixture(source, &plan, &shims, &[]);
+        for (index, (field, replacement)) in [
+            ("source_sha256", serde_json::json!("0".repeat(64))),
+            ("plan_sha256", serde_json::json!("0".repeat(64))),
+            ("adapters", serde_json::json!([])),
+            ("backend_grants", serde_json::json!(["unexpected"])),
+            ("runtime_closure_verified", serde_json::json!(true)),
+            ("execution_verified", serde_json::json!(true)),
+            ("browser_bundle_host_qualified", serde_json::json!(true)),
+            ("profile", serde_json::json!("direct-wasi")),
+            ("runtime_image", serde_json::json!("runtime:latest")),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut changed = original.clone();
+            changed[field] = replacement;
+            let bundle = root.path().join(format!("invalid-{index}"));
+            assert!(
+                write_linux_browser_bundle(
+                    &bundle,
+                    source,
+                    b"test",
+                    &plan,
+                    &shims,
+                    &[],
+                    &serde_json::to_vec(&changed).unwrap()
+                )
+                .is_err(),
+                "accepted changed {field}"
+            );
+            assert!(!bundle.exists());
+        }
+        let bundle = root.path().join("bad-plan");
+        assert!(write_linux_browser_bundle(
+            &bundle,
+            source,
+            b"test",
+            "different plan",
+            &shims,
+            &[],
+            &serde_json::to_vec(&original).unwrap()
+        )
+        .is_err());
+        assert!(!bundle.exists());
+    }
+
+    #[test]
+    fn browser_bundle_import_profile_matches_embedded_host() {
+        let declaration = BROWSER_WASI_HOST_MJS
+            .split("export const WASI_PREVIEW1_IMPORTS = Object.freeze([")
+            .nth(1)
+            .unwrap()
+            .split("]);")
+            .next()
+            .unwrap();
+        let names = declaration
+            .split('"')
+            .enumerate()
+            .filter_map(|(index, value)| (index % 2 == 1).then_some(value))
+            .collect::<Vec<_>>();
+        assert_eq!(names, BROWSER_WASI_IMPORTS);
+        assert_eq!(names.len(), 25);
+        assert!(names.contains(&"path_create_directory"));
+    }
+
+    #[test]
+    fn linux_browser_bundle_import_profile_matches_embedded_host() {
+        let declaration = LINUX_BROWSER_WASI_HOST_MJS
+            .split("export const LINUX_WASI_PREVIEW1_IMPORTS = Object.freeze([")
+            .nth(1)
+            .unwrap()
+            .split("]);")
+            .next()
+            .unwrap();
+        let names = declaration
+            .split('"')
+            .enumerate()
+            .filter_map(|(index, value)| (index % 2 == 1).then_some(value))
+            .collect::<Vec<_>>();
+        assert_eq!(names, LINUX_BROWSER_WASI_IMPORTS);
+        assert_eq!(names.len(), 33);
+    }
+
+    /// Optional packaging hook for a retained real artifact. This does not run
+    /// the artifact or turn its input recipe into execution qualification.
+    #[test]
+    #[ignore = "requires explicit retained-artifact paths; not an execution test"]
+    fn linux_browser_bundle_from_qualified_fixture() {
+        let keys = [
+            "OLANGC_LINUX_BROWSER_TEST_WASM",
+            "OLANGC_LINUX_BROWSER_TEST_SOURCE",
+            "OLANGC_LINUX_BROWSER_TEST_BUILD_MANIFEST",
+            "OLANGC_LINUX_BROWSER_TEST_OUT",
+        ];
+        let values = keys.map(std::env::var_os);
+        let paths: Vec<PathBuf> = values
+            .into_iter()
+            .zip(keys)
+            .map(|(value, key)| PathBuf::from(value.unwrap_or_else(|| panic!("missing {key}"))))
+            .collect();
+        let source = fs::read_to_string(&paths[1]).unwrap();
+        let build_bytes = fs::read(&paths[2]).unwrap();
+        let build: serde_json::Value = serde_json::from_slice(&build_bytes).unwrap();
+        let grants: Vec<String> = serde_json::from_value(build["backend_grants"].clone()).unwrap();
+        let shims = read_shims(None).unwrap();
+        let (_, plan) = inspect_browser_compatibility(&source).unwrap();
+        write_linux_browser_bundle(
+            &paths[3],
+            &source,
+            &fs::read(&paths[0]).unwrap(),
+            &plan,
+            &shims,
+            &grants,
+            &build_bytes,
+        )
+        .unwrap();
+        eprintln!("Linux browser retained-fixture bundle written: {}; execution not performed by this test", paths[3].display());
     }
 
     #[test]

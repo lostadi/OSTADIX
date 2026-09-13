@@ -1,7 +1,7 @@
 diff --git a/bochs/iodev/unmapped.cc b/bochs/iodev/unmapped.cc
 --- a/bochs/iodev/unmapped.cc
 +++ b/bochs/iodev/unmapped.cc
-@@ -25,7 +25,10 @@
+@@ -25,7 +25,11 @@
  // is used to know when we are exporting symbols and when we are importing.
  #define BX_PLUGGABLE
  #include "iodev.h"
@@ -9,11 +9,12 @@ diff --git a/bochs/iodev/unmapped.cc b/bochs/iodev/unmapped.cc
 +#include "unmapped.h"
 +#ifdef WASI
 +#include <stdlib.h>
++static bool ostadix_state_finalized = false;
 +#endif
  
  #define LOG_THIS theUnmappedDevice->
  
-@@ -92,8 +95,13 @@
+@@ -92,8 +96,16 @@
      goto return_from_read;
    }
  
@@ -24,12 +25,15 @@ diff --git a/bochs/iodev/unmapped.cc b/bochs/iodev/unmapped.cc
 +    case 0xf4:
 +      retval = 0x4f; // amd64 guest exit-status port signature
 +      break;
++    case 0xf5:
++      retval = 0x53; // guest persistence-finalization port signature
++      break;
 +#endif
 +    case 0x80:
        retval = BX_UM_THIS s.port80;
        break;
      case 0x8e:
-@@ -189,8 +197,14 @@
+@@ -189,8 +201,19 @@
    if (address >= 0x02e0 && address <= 0x02ef)
      goto return_from_write;
  
@@ -37,10 +41,15 @@ diff --git a/bochs/iodev/unmapped.cc b/bochs/iodev/unmapped.cc
 -    case 0x80: // diagnostic test port to display progress of POST
 +  switch (address) {
 +#ifdef WASI
++    case 0xf5:
++      ostadix_state_finalized = io_len == 1 && (value & 0xff) == 0xa5;
++      break;
 +    case 0xf4:
 +      // Report directly to WASI; quit_sim deliberately discards this status.
 +      fflush(NULL);
-+      ::exit(io_len == 1 ? static_cast<int>(value & 0xff) : 125);
++      ::exit(io_len == 1
++        ? static_cast<int>((ostadix_state_finalized ? 0x4f530000 : 0) | (value & 0xff))
++        : 125);
 +#endif
 +    case 0x80: // diagnostic test port to display progress of POST
        //BX_DEBUG(("Diagnostic port 80h: write = %02xh", (unsigned) value));

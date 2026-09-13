@@ -12,6 +12,7 @@ const FILES: &[(&str, &[u8])] = &[
     ("apply.sh", include_bytes!("apply.sh")),
     ("init.patch", include_bytes!("init.patch")),
     ("bochs.patch", include_bytes!("bochs.patch")),
+    ("bochs-network.patch", include_bytes!("bochs-network.patch")),
     (
         "exit_status_linux_amd64.go",
         include_bytes!("exit_status_linux_amd64.go"),
@@ -21,6 +22,10 @@ const FILES: &[(&str, &[u8])] = &[
         include_bytes!("LICENSE.container2wasm"),
     ),
     ("README.md", include_bytes!("README.md")),
+    (
+        "browser_guix_state_linux_amd64.go",
+        include_bytes!("browser_guix_state_linux_amd64.go"),
+    ),
 ];
 
 #[derive(Debug)]
@@ -30,6 +35,11 @@ pub struct Assets {
 }
 
 impl Assets {
+    pub fn browser_guix(&self) -> Result<bool> {
+        let value: serde_json::Value =
+            serde_json::from_slice(&fs::read(self.context.join("state-profile.json"))?)?;
+        Ok(value["schema"] == "ostadix.guix-state/v1")
+    }
     pub fn manifest(&self) -> Result<serde_json::Value> {
         let mut overlay = BTreeMap::new();
         for (name, _) in FILES {
@@ -38,11 +48,18 @@ impl Assets {
                 hex::encode(Sha256::digest(fs::read(self.context.join(name))?)),
             );
         }
+        overlay.insert(
+            "state-profile.json",
+            hex::encode(Sha256::digest(fs::read(
+                self.context.join("state-profile.json"),
+            )?)),
+        );
         Ok(serde_json::json!({
             "profile": "amd64-bochs-cold-boot-exit-status-v1",
             "container2wasm_source": "6ed3d98882a2b22eafc1334f574c364a5b2b8c47",
             "dockerfile_sha256": hex::encode(Sha256::digest(fs::read(&self.dockerfile)?)),
             "overlay_sha256": overlay,
+            "browser_guix": self.browser_guix()?,
         }))
     }
 
@@ -59,6 +76,9 @@ impl Assets {
         command
             .arg("--extra-flag")
             .arg(format!("--build-context=ostadix-exit={context}"));
+        if self.browser_guix()? {
+            command.args(["--build-arg", "OSTADIX_GUIX_STATE=1"]);
+        }
         Ok(())
     }
 }
@@ -97,7 +117,15 @@ fn write_file(path: &Path, bytes: &[u8]) -> Result<()> {
 
 /// Materialize exact assets without fetching sources, applying patches, or
 /// starting Docker. The caller must use a Buildx-capable converter invocation.
+#[cfg(test)]
 pub fn write_assets(build_dir: &Path) -> Result<Assets> {
+    write_assets_for_state(build_dir, None)
+}
+
+pub fn write_assets_for_state(
+    build_dir: &Path,
+    state: Option<&serde_json::Value>,
+) -> Result<Assets> {
     let root = build_dir
         .canonicalize()
         .context("resolve exit overlay build directory")?
@@ -110,6 +138,10 @@ pub fn write_assets(build_dir: &Path) -> Result<Assets> {
     for (name, contents) in FILES {
         write_file(&context.join(name), contents)?;
     }
+    write_file(
+        &context.join("state-profile.json"),
+        &serde_json::to_vec_pretty(&state.cloned().unwrap_or_else(|| serde_json::json!({})))?,
+    )?;
     Ok(Assets {
         dockerfile,
         context,
@@ -136,7 +168,7 @@ mod tests {
         );
         assert_eq!(
             manifest["overlay_sha256"].as_object().unwrap().len(),
-            FILES.len()
+            FILES.len() + 1
         );
         fs::write(assets.context.join("init.patch"), "changed").unwrap();
         assert!(write_assets(root.path()).is_err());
@@ -148,9 +180,13 @@ mod tests {
 
     #[test]
     fn converter_arguments_bind_the_local_overlay_without_shell_splitting() {
+        let root = tempfile::tempdir().unwrap();
+        let context = root.path().join("build with spaces");
+        fs::create_dir(&context).unwrap();
+        fs::write(context.join("state-profile.json"), b"{}").unwrap();
         let assets = Assets {
             dockerfile: "/build with spaces/Dockerfile".into(),
-            context: "/build with spaces/overlay".into(),
+            context: context.clone(),
         };
         let mut command = Command::new("c2w");
         assets.add_to_command(&mut command).unwrap();
@@ -164,7 +200,7 @@ mod tests {
                 "--dockerfile",
                 "/build with spaces/Dockerfile",
                 "--extra-flag",
-                "--build-context=ostadix-exit=/build with spaces/overlay"
+                &format!("--build-context=ostadix-exit={}", context.display())
             ]
         );
         let invalid = Assets {
@@ -198,6 +234,23 @@ mod tests {
         assert!(script.contains("2932eb64b3e1290c136c768ca5e6b334f8bd227d835e81450a743c39705ef63a"));
         assert!(script.contains("msr_source=bochs/cpu/msr.cc"));
         assert!(script.contains("4d7fde6fa6869e462eedf2a9d8b223e8cb2a2aed1e56c28619e1e8cd226fbc09"));
+    }
+
+    #[test]
+    fn amd64_packer_writes_its_export_path_in_one_layer() {
+        let recipe = std::str::from_utf8(DOCKERFILE).unwrap();
+        let stage = recipe
+            .split("FROM bochs-dev-native AS bochs-dev-packed\n")
+            .nth(1)
+            .unwrap()
+            .split("\nFROM scratch AS wasi-amd64")
+            .next()
+            .unwrap();
+        assert!(stage.starts_with("ARG OUTPUT_NAME\n"));
+        assert_eq!(stage.matches("RUN ").count(), 1);
+        assert!(stage.contains("RUN mkdir /out &&"));
+        assert!(stage.contains("--mapdir /pack::/minpack -o \"/out/${OUTPUT_NAME}\""));
+        assert!(!stage.contains("mv packed"));
     }
 
     #[test]

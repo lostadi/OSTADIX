@@ -14,9 +14,28 @@ diff --git a/cmd/init/main.go b/cmd/init/main.go
 +	finishWithWASIStatus(doInit())
 +}
  
- func doInit() error {
+-func doInit() error {
++func doInit() (result error) {
  	os.Setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin")
-@@ -310,9 +308,6 @@
+@@ -280,6 +278,17 @@
+ 	}
+ 
+ 	s = patchSpec(s, info, imageConfig)
++	state, err := prepareBrowserGuixState(&s, cfg.Container.ImageRootfsPath)
++	if err != nil {
++		return err
++	}
++	if state != nil {
++		defer func() {
++			if cleanupErr := state.finish(); cleanupErr != nil {
++				result = fmt.Errorf("browser Guix state cleanup failed: %v (workload result: %v)", cleanupErr, result)
++			}
++		}()
++	}
+ 	log.Printf("Running: %+v\n", s.Process.Args)
+ 	sd, err := json.Marshal(s)
+ 	if err != nil {
+@@ -310,9 +319,6 @@
  		}
  	}
  

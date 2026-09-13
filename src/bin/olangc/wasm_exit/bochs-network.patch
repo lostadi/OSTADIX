@@ -1,0 +1,79 @@
+diff --git a/bochs/wasm.cc b/bochs/wasm.cc
+--- a/bochs/wasm.cc
++++ b/bochs/wasm.cc
+@@ -3078,14 +3078,28 @@
+-    SocketState *s = (SocketState *)net->opaque;
+-    // uint32_t size = htonl(len);
+-    int ret;
+-
+-    if (s->fd < 0) {
+-      return;
+-    }
+-
+-    ret = send(s->fd, buf - 4, len + 4, 0); // TODO: check error
+-    if (ret < 0) {
+-      close(s->fd);
+-      s->fd = -1; // invalid fd. hopefully the watch loop will recover this.
+-      return;
+-    }
++    SocketState *s = (SocketState *)net->opaque;
++    if (s->fd < 0) {
++      return;
++    }
++    // The virtio caller owns and frees buf. Keep its allocation base intact;
++    // the QEMU length prefix belongs to this temporary wire buffer.
++    if (len < 14 || len > 16384) {
++      close(s->fd);
++      s->fd = -1;
++      return;
++    }
++    uint8_t *packet = (uint8_t *)malloc(len + 4);
++    if (packet == NULL) {
++      close(s->fd);
++      s->fd = -1;
++      return;
++    }
++    uint32_t size = htonl(len);
++    memcpy(packet, &size, 4);
++    memcpy(packet + 4, buf, len);
++    int ret = send(s->fd, packet, len + 4, 0);
++    free(packet);
++    // A partial nonblocking send cannot be silently accepted as a full frame.
++    // The browser transport admits complete packets or terminates the session.
++    if (ret != len + 4) {
++      close(s->fd);
++      s->fd = -1;
++    }
+@@ -3096,4 +3110,2 @@
+-  uint8_t * buf = (uint8_t *)malloc(len + 4);
+-  uint32_t size = htonl(len);
+-  put_le32(buf, size);
+-  return &buf[4];
++  // device_recv frees the pointer returned by this allocator.
++  return (uint8_t *)malloc(len);
+@@ -3160,3 +3172,3 @@
+-         ret = recv(fd, &s->sizebuf + s->sizeoff, 4 - s->sizeoff, 0);
+-         if (ret <= 0) {
+-           if (errno == EAGAIN)
++         ret = recv(fd, (uint8_t *)&s->sizebuf + s->sizeoff, 4 - s->sizeoff, 0);
++         if (ret <= 0) {
++           if (ret < 0 && errno == EAGAIN)
+@@ -3170,3 +3182,8 @@
+-       s->pktsize = ntohl(s->sizebuf);
+-       s->sizeoff = 0;
+-       s->sizebuf = 0;
++       s->pktsize = ntohl(s->sizebuf);
++       s->sizeoff = 0;
++       s->sizebuf = 0;
++       if (s->pktsize < 14 || s->pktsize > 16384) {
++         close(s->fd);
++         s->fd = -1;
++         return;
++       }
+@@ -3183,3 +3200,3 @@
+-         ret = recv(fd, s->pktbuf + s->pktoff, size - s->pktoff, 0);
+-         if (ret <= 0) {
+-           if (errno == EAGAIN)
++         ret = recv(fd, s->pktbuf + s->pktoff, size - s->pktoff, 0);
++         if (ret <= 0) {
++           if (ret < 0 && errno == EAGAIN)

@@ -3983,8 +3983,14 @@ builds that ordinary O evaluator for Linux and packages it with a supplied
 runtime image into an emulated Linux WASI module. It requires a digest-pinned
 `--wasm-builder-image`, Docker, and container2wasm. A fresh Python `.O` fixture
 passes real Wasmtime and Wasmer execution, including exact failure propagation
-and the startup regression; arbitrary workloads and browser-host integration
-still require separate qualification.
+and the startup regression. Combining the image pins with `--browser-bundle`
+emits a distinct Linux browser host that runs the packaged guest locally in a
+Worker, without a whole-program provider. The same Python artifact now also
+passes actual headless Chrome success/failure checks; arbitrary workloads and
+other browser engines still require separate qualification. The
+[Guix package-language example](examples/guix-wasm/README.md) includes a complete
+pinned closure recipe. Its real offline Guix container preflight passes;
+Guix-in-Wasm qualification remains separate.
 `--shim-dir` overlays or adds
 shim files before packaging. `--keep-build-dir` retains the generated Cargo
 project for inspection. `--backend-grant` may be repeated for script mode and
@@ -3997,8 +4003,9 @@ another executable or sharing generated target directories.
 
 #### Browser WASI payloads
 
-`--browser-bundle` turns one ordinary `.O` file into a self-contained browser
-directory instead of a bare module:
+Without OCI image flags, `--browser-bundle` turns one ordinary `.O` file into a
+self-contained direct-WASI browser directory instead of a bare module. This
+retains the original `ostadix.olang-browser-bundle/v1` contract:
 
 ```bash
 olangc examples/wasm_hello.O --target wasm \
@@ -4028,6 +4035,80 @@ source, immutable manifest, and fresh byte copies of every selected adapter. It
 is responsible for its own authentication, authority, adapter execution,
 limits, and result integrity. Browser bundle v1 does not yet accept a project
 directory or lifted project.
+
+#### Browser Linux-in-WASI payloads
+
+With both digest-pinned image flags, `--browser-bundle` selects the separate
+`ostadix.olang-linux-browser-bundle/v1` route:
+
+```bash
+olangc program.O --target wasm \
+  --wasm-runtime-image "$OLANG_WASM_RUNTIME_IMAGE" \
+  --wasm-builder-image "$OLANG_WASM_BUILDER_IMAGE" \
+  --browser-bundle target/program-linux-browser
+python3 apps/olang-browser-wasi/serve.py target/program-linux-browser --port 8000
+```
+
+Supply suitable image references as described in the
+[Wasm image-route guide](docs/OLANGC_WASM.md#supply-two-explicit-images), then open
+`http://127.0.0.1:8000/`. The output directory must be new; do not combine this
+option with `-o`, `--materialize-only`, or `--keep-build-dir`.
+
+The Linux bundle binds the original source, plan, adapters, grants, artifact,
+host assets, and source-matching build record. Its retained `compatibility` and
+`provider` fields describe direct-WASI limitations only; the distinct schema
+selects local Linux guest execution, and the Linux runner rejects an external
+provider option. Guest subprocesses and files stay inside the packaged guest.
+No host filesystem access, host process spawning, guest network sockets, or
+interactive stdin are supplied.
+
+This route requires a secure, cross-origin-isolated page with
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp`. The loopback development server
+above supplies those headers; plain `python3 -m http.server` does not. A site CSP,
+if configured, must also permit the verified module Worker and its `blob:` module
+imports, WebAssembly compilation, and bundle asset loading. See the
+[serving requirements](docs/OLANGC_WASM.md#serving-and-origin-requirements).
+
+The existing 149 MiB Python fixture passed actual headless Chrome 152.0.7977.83
+qualification at 1280×900: the shipped Run program UI printed the success marker
+and exited zero; a second verified-runner execution reported the intentional
+Python exception and exited exactly one. The compiler's bundle writer repackaged
+the already fresh-built Wasmtime/Wasmer-qualified artifact without changing its
+SHA-256 (`1b676c6088b84d73906f7dca64149c474f1ad0372f6b0c6ae8c945b52c8c52a3`);
+this was not a second fresh Docker build. DOM records, screenshots, and a passing
+hash-bound receipt were retained outside the checkout. See the
+[qualification matrix and reproducible browser check](docs/OLANGC_WASM.md#limits-and-validation-status).
+
+That Chrome result is distinct from the earlier Node host check. Safari,
+Firefox, mobile browsers, and Guix remain unqualified. Runtime closures, data
+files, required services, startup cost, and memory still need validation for
+each actual `.O` workload. An image digest does not discover or certify them.
+
+#### Browser-only interactive Guix
+
+`--browser-guix` adds a separate interactive profile to the Linux image route:
+
+```bash
+olangc guix.O --target wasm --browser-guix \
+  --wasm-runtime-image "$OLANG_GUIX_RUNTIME_IMAGE" \
+  --wasm-builder-image "$OLANG_GUIX_BUILDER_IMAGE" \
+  --browser-bundle target/guix-browser
+python3 apps/olang-browser-wasi/serve.py target/guix-browser --port 8787
+```
+
+Prepare both image pins using the [Guix guide](examples/guix-wasm/README.md#browser-only-interactive-guix--implemented-not-qualified),
+then open `http://127.0.0.1:8787/`. The profile connects the real Guix command
+dispatcher and daemon to queued browser input, a fixed 2 GiB origin-private
+disk, and bounded downloads from one browser-readable Guix mirror. Networking
+and saved state stay in the browser; the development server only serves static
+bundle files. Existing state is never automatically erased or repaired.
+
+This new profile is implemented but **not built or runtime-qualified**.
+Installation and restart checks are deferred to better-equipped hardware; the
+earlier Python results do not qualify it. The root `guix.O` is the guest program,
+not an automatic macOS launcher: `O guix.O` alone does not create or boot Wasm.
+Interactive Wasmer/Wasmtime support is not claimed for this browser profile.
 
 #### Public output forms
 

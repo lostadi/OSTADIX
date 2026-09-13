@@ -12,6 +12,11 @@ import (
 )
 
 const wasiExitPort = 0xf4
+const wasiStatePort = 0xf5
+
+// Set only by successful bounded cleanup of an admitted persistence profile.
+// Sealed workloads never set this and retain their original WASI exit status.
+var stateFinalized bool
 
 // Linux amd64 UAPI asm-generic/ioctls.h; syscall does not export TCSBRK.
 const tcdrainIoctl = 0x5409
@@ -66,6 +71,23 @@ func transmitGuestExit(status byte) error {
 	for _, stream := range []*os.File{os.Stdout, os.Stderr} {
 		if err := drainGuestTerminal(stream.Fd()); err != nil {
 			return fmt.Errorf("drain guest terminal before exit: %w", err)
+		}
+	}
+	if stateFinalized {
+		if _, err := port.Seek(wasiStatePort, io.SeekStart); err != nil {
+			return err
+		}
+		if _, err := io.ReadFull(port, signature[:]); err != nil {
+			return err
+		}
+		if signature[0] != 0x53 {
+			return fmt.Errorf("guest persistence-finalization port is unavailable")
+		}
+		if _, err := port.Seek(wasiStatePort, io.SeekStart); err != nil {
+			return err
+		}
+		if count, err := port.Write([]byte{0xa5}); err != nil || count != 1 {
+			return fmt.Errorf("write guest persistence acknowledgement: count=%d error=%v", count, err)
 		}
 	}
 	if _, err := port.Seek(wasiExitPort, io.SeekStart); err != nil {
