@@ -178,6 +178,9 @@ impl PackageStore {
     /// Atomically publish bytes already captured by [`VerifiedPackage::load`].
     pub fn publish(&self, package: &VerifiedPackage) -> Result<StoredPackage, StoreError> {
         self.ensure_layout()?;
+        // On macOS, clonefile inherits the destination parent's ACL. Mode
+        // bits alone cannot establish immutability in an ACL-bearing store.
+        ensure_no_extended_acl(&self.sha256_objects_path())?;
         if self.contains(package.digest())? {
             return self.verify(package.digest());
         }
@@ -189,17 +192,36 @@ impl PackageStore {
         }
 
         let destination = self.object_path(package.digest());
-        match fs::rename(&temporary, &destination) {
+        match publish_read_only_directory(&temporary, &destination) {
             Ok(()) => {
-                sync_directory(&self.sha256_objects_path()).map_err(|source| StoreError::Io {
-                    operation: "synchronize object directory",
-                    path: self.sha256_objects_path(),
-                    source,
-                })?;
+                // A clone creates new inode metadata. Synchronizing its source
+                // does not make that metadata durable. Keep this in the success
+                // branch so a sync failure cannot be mistaken for a concurrent
+                // publisher winning the destination name.
+                let synchronized = (|| {
+                    #[cfg(target_os = "macos")]
+                    sync_directory_tree_bottom_up(&destination)?;
+                    sync_directory(&self.sha256_objects_path()).map_err(|source| StoreError::Io {
+                        operation: "synchronize object directory",
+                        path: self.sha256_objects_path(),
+                        source,
+                    })
+                })();
+                // macOS clones retain the staging tree. Its inodes are
+                // independent, so cleanup cannot make the published clone
+                // writable. Release staging even when sync fails, while
+                // preserving that error. Other platforms consumed it by rename.
+                #[cfg(target_os = "macos")]
+                cleanup_temporary_directory(&temporary);
+                synchronized?;
             }
             Err(source) => {
                 cleanup_temporary_directory(&temporary);
-                if self.contains(package.digest())? {
+                if matches!(
+                    source.kind(),
+                    io::ErrorKind::AlreadyExists | io::ErrorKind::DirectoryNotEmpty
+                ) && self.contains(package.digest())?
+                {
                     return self.verify(package.digest());
                 }
                 return Err(StoreError::Io {
@@ -474,6 +496,7 @@ impl PackageStore {
             write_payload_file(&payload_path, payload_file)?;
         }
         make_directory_tree_read_only(temporary)?;
+        verify_read_only_tree(temporary)?;
         // File fsync alone is insufficient for crash-durable nested payloads:
         // every directory entry in the newly built tree must reach stable
         // storage before the object-root rename can become authoritative.
@@ -485,6 +508,118 @@ impl PackageStore {
         })?;
         Ok(())
     }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn publish_read_only_directory(source: &Path, destination: &Path) -> io::Result<()> {
+    fs::rename(source, destination)
+}
+
+#[cfg(target_os = "macos")]
+fn publish_read_only_directory(source: &Path, destination: &Path) -> io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let source = CString::new(source.as_os_str().as_bytes())?;
+    let destination = CString::new(destination.as_os_str().as_bytes())?;
+    // Darwin requires ADD_SUBDIRECTORY on a directory even for a same-parent
+    // rename. Temporarily granting it would expose a writable published object.
+    // clonefile(2) atomically creates an absent destination with source modes.
+    // Its documented directory-clone caveat is confined here to the bounded,
+    // verified regular-file staging tree. Unsupported volumes fail closed:
+    // there is no copy or writable-rename fallback.
+    // https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/clonefile.2
+    const CLONE_NOFOLLOW: u32 = 0x0001;
+    const CLONE_ACL: u32 = 0x0004;
+    // SAFETY: both paths are live, NUL-terminated C strings for this call.
+    let result = unsafe {
+        libc::clonefile(
+            source.as_ptr(),
+            destination.as_ptr(),
+            CLONE_NOFOLLOW | CLONE_ACL,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ensure_no_extended_acl(_path: &Path) -> Result<(), StoreError> {
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn ensure_no_extended_acl(path: &Path) -> Result<(), StoreError> {
+    use std::ffi::{c_int, c_void};
+    use std::os::fd::AsRawFd;
+
+    // Darwin's ACL APIs are not currently exposed by libc. ACL pointers are
+    // opaque; use only the native API to inspect and release them.
+    unsafe extern "C" {
+        fn acl_get_fd_np(fd: c_int, kind: c_int) -> *mut c_void;
+        fn acl_valid(acl: *mut c_void) -> c_int;
+        fn acl_get_entry(acl: *mut c_void, entry_id: c_int, entry: *mut *mut c_void) -> c_int;
+        fn acl_free(acl: *mut c_void) -> c_int;
+    }
+    const ACL_TYPE_EXTENDED: c_int = 0x00000100;
+    const ACL_FIRST_ENTRY: c_int = 0;
+    let inspect = || -> io::Result<bool> {
+        let file = open_store_file(path)?;
+        file.metadata()?;
+        // SAFETY: file owns a valid descriptor throughout the native call;
+        // the API returns an owned opaque ACL when the property is present.
+        let acl = unsafe { acl_get_fd_np(file.as_raw_fd(), ACL_TYPE_EXTENDED) };
+        if acl.is_null() {
+            let error = io::Error::last_os_error();
+            // Darwin reports ENOENT for an absent FILESEC_ACL property. The
+            // held, validated descriptor distinguishes that from a missing
+            // path, which already failed open_store_file above.
+            // https://github.com/apple-oss-distributions/Libc/blob/main/posix1e/acl_file.c
+            return if error.raw_os_error() == Some(libc::ENOENT) {
+                Ok(false)
+            } else {
+                Err(error)
+            };
+        }
+        // SAFETY: acl is the live allocation returned above. The entry pointer
+        // is only an output descriptor and is never dereferenced here.
+        let result = unsafe {
+            if acl_valid(acl) != 0 {
+                Err(io::Error::last_os_error())
+            } else {
+                let mut entry = std::ptr::null_mut();
+                if acl_get_entry(acl, ACL_FIRST_ENTRY, &mut entry) == 0 {
+                    Ok(true)
+                } else {
+                    let error = io::Error::last_os_error();
+                    // Darwin returns EINVAL for entry zero of a valid empty
+                    // ACL, rather than the POSIX iterator's zero sentinel.
+                    if error.raw_os_error() == Some(libc::EINVAL) {
+                        Ok(false)
+                    } else {
+                        Err(error)
+                    }
+                }
+            }
+        };
+        // SAFETY: release the owned ACL once, after all entry inspection.
+        unsafe { acl_free(acl) };
+        result
+    };
+    if inspect().map_err(|source| StoreError::Io {
+        operation: "inspect extended ACL",
+        path: path.to_path_buf(),
+        source,
+    })? {
+        return Err(StoreError::UnsafePath {
+            path: path.to_path_buf(),
+            reason: "extended ACLs are unsupported for immutable macOS store objects".to_owned(),
+        });
+    }
+    Ok(())
 }
 
 fn write_payload_file(payload_root: &Path, payload_file: &PayloadFile) -> Result<(), StoreError> {
@@ -815,6 +950,7 @@ fn verify_read_only_tree(path: &Path) -> Result<(), StoreError> {
             reason: "published object path is writable".to_owned(),
         });
     }
+    ensure_no_extended_acl(path)?;
     if metadata.is_dir() {
         let entries = fs::read_dir(path).map_err(|source| StoreError::Io {
             operation: "read immutable object directory",
@@ -859,6 +995,16 @@ fn sync_directory_tree_bottom_up(path: &Path) -> Result<(), StoreError> {
         }
         if metadata.is_dir() {
             sync_directory_tree_bottom_up(&entry_path)?;
+        }
+        #[cfg(target_os = "macos")]
+        if metadata.is_file() {
+            File::open(&entry_path)
+                .and_then(|file| file.sync_all())
+                .map_err(|source| StoreError::Io {
+                    operation: "synchronize immutable object file",
+                    path: entry_path,
+                    source,
+                })?;
         }
     }
     sync_directory(path).map_err(|source| StoreError::Io {
@@ -935,6 +1081,26 @@ mod tests {
     use crate::live_system::manifest::payload_sha256;
     use tempfile::TempDir;
 
+    struct WritableTempDir(TempDir);
+
+    impl WritableTempDir {
+        fn new() -> io::Result<Self> {
+            TempDir::new().map(Self)
+        }
+
+        fn path(&self) -> &Path {
+            self.0.path()
+        }
+    }
+
+    impl Drop for WritableTempDir {
+        fn drop(&mut self) {
+            // Only this test's freshly allocated fixture is made writable;
+            // TempDir then removes it, including published read-only objects.
+            make_tree_writable_for_cleanup(self.path());
+        }
+    }
+
     fn make_payload(root: &Path, contents: &[u8]) {
         fs::create_dir_all(root.join("bin")).unwrap();
         fs::write(root.join("bin/live"), contents).unwrap();
@@ -973,7 +1139,7 @@ builder = "ocorec-host/v1"
 
     #[test]
     fn publication_is_verified_atomic_and_read_only() {
-        let temporary = TempDir::new().unwrap();
+        let temporary = WritableTempDir::new().unwrap();
         let payload = temporary.path().join("source");
         make_payload(&payload, b"first\n");
         let payload_digest = payload_sha256(&payload).unwrap();
@@ -1003,7 +1169,7 @@ builder = "ocorec-host/v1"
 
     #[test]
     fn nested_payload_directories_are_published_and_verified() {
-        let temporary = TempDir::new().unwrap();
+        let temporary = WritableTempDir::new().unwrap();
         let payload = temporary.path().join("source");
         make_payload(&payload, b"runtime\n");
         fs::create_dir_all(payload.join("share/world/config")).unwrap();
@@ -1027,9 +1193,141 @@ builder = "ocorec-host/v1"
         assert_eq!(store.verify(stored.digest()).unwrap(), stored);
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn native_publication_preserves_read_only_modes_and_never_overwrites() {
+        use std::os::unix::fs::MetadataExt;
+
+        let temporary = WritableTempDir::new().unwrap();
+        let payload = temporary.path().join("source");
+        make_payload(&payload, b"immutable\n");
+        let payload_digest = payload_sha256(&payload).unwrap();
+        let package =
+            VerifiedPackage::load(&manifest("runtime/clone", &payload_digest), &payload).unwrap();
+        let store = PackageStore::open(temporary.path().join("store")).unwrap();
+        let staging = store.create_temporary_object_directory().unwrap();
+        store.write_temporary_object(&staging, &package).unwrap();
+        let destination = store.object_path(package.digest());
+
+        publish_read_only_directory(&staging, &destination).unwrap();
+        verify_read_only_tree(&destination).unwrap();
+        let published_inode = fs::metadata(&destination).unwrap().ino();
+        assert_ne!(fs::metadata(&staging).unwrap().ino(), published_inode);
+        for relative in [OBJECT_MANIFEST_FILE, "payload/bin/live"] {
+            let source = fs::metadata(staging.join(relative)).unwrap();
+            let cloned = fs::metadata(destination.join(relative)).unwrap();
+            assert_eq!(source.mode(), cloned.mode());
+            assert_ne!(source.ino(), cloned.ino());
+        }
+        assert_eq!(
+            publish_read_only_directory(&staging, &destination)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::AlreadyExists,
+        );
+        assert_eq!(fs::metadata(&destination).unwrap().ino(), published_inode);
+
+        cleanup_temporary_directory(&staging);
+        assert!(!staging.exists());
+        let stored = store.verify(package.digest()).unwrap();
+        assert_eq!(
+            fs::read(stored.payload_path().join("bin/live")).unwrap(),
+            b"immutable\n"
+        );
+        assert_eq!(store.publish(&package).unwrap(), stored);
+    }
+
+    #[cfg(target_os = "macos")]
+    fn add_read_acl(path: &Path, right: &str) {
+        let output = std::process::Command::new("/bin/chmod")
+            .args(["+a", &format!("everyone allow {right}")])
+            .arg(path)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn absent_acl_is_distinct_from_a_missing_or_symlinked_path() {
+        let temporary = WritableTempDir::new().unwrap();
+        ensure_no_extended_acl(temporary.path()).unwrap();
+        let file = temporary.path().join("plain");
+        fs::write(&file, b"no extended ACL\n").unwrap();
+        ensure_no_extended_acl(&file).unwrap();
+
+        let missing = temporary.path().join("missing");
+        let error = ensure_no_extended_acl(&missing).unwrap_err();
+        assert!(matches!(error, StoreError::Io { path, source, .. }
+            if path == missing && source.kind() == io::ErrorKind::NotFound));
+
+        let link = temporary.path().join("link");
+        std::os::unix::fs::symlink(&file, &link).unwrap();
+        assert!(ensure_no_extended_acl(&link).is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn acl_bearing_publication_parent_is_rejected_without_modification() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = WritableTempDir::new().unwrap();
+        let payload = temporary.path().join("source");
+        make_payload(&payload, b"immutable\n");
+        let payload_digest = payload_sha256(&payload).unwrap();
+        let store = PackageStore::open(temporary.path().join("store")).unwrap();
+        let parent = store.sha256_objects_path();
+        let mode = fs::metadata(&parent).unwrap().permissions().mode();
+        add_read_acl(&parent, "list");
+
+        let error = store
+            .install(&manifest("runtime/acl", &payload_digest), &payload)
+            .unwrap_err();
+        assert!(matches!(error, StoreError::UnsafePath { path, reason }
+            if path == parent && reason.contains("extended ACLs")));
+        assert_eq!(fs::read_dir(&parent).unwrap().count(), 0);
+        assert_eq!(fs::metadata(&parent).unwrap().permissions().mode(), mode);
+        assert!(
+            ensure_no_extended_acl(&parent).is_err(),
+            "the original ACL must remain"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn acl_bearing_immutable_objects_are_rejected_without_permission_changes() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temporary = WritableTempDir::new().unwrap();
+        let payload = temporary.path().join("source");
+        make_payload(&payload, b"immutable\n");
+        let payload_digest = payload_sha256(&payload).unwrap();
+        let store = PackageStore::open(temporary.path().join("store")).unwrap();
+        let stored = store
+            .install(&manifest("runtime/acl", &payload_digest), &payload)
+            .unwrap();
+        let file = stored.payload_path().join("bin/live");
+        let mode = fs::metadata(&file).unwrap().permissions().mode();
+        add_read_acl(&file, "read");
+
+        let error = store.verify(stored.digest()).unwrap_err();
+        assert!(matches!(error, StoreError::UnsafePath { path, reason }
+            if path == file && reason.contains("extended ACLs")));
+        assert_eq!(fs::metadata(&file).unwrap().permissions().mode(), mode);
+        assert_eq!(fs::read(&file).unwrap(), b"immutable\n");
+        assert!(
+            ensure_no_extended_acl(&file).is_err(),
+            "verification must not alter the ACL"
+        );
+    }
+
     #[test]
     fn moving_an_alias_does_not_change_object_identity() {
-        let temporary = TempDir::new().unwrap();
+        let temporary = WritableTempDir::new().unwrap();
         let first_payload = temporary.path().join("first");
         let second_payload = temporary.path().join("second");
         make_payload(&first_payload, b"first\n");
@@ -1065,7 +1363,7 @@ builder = "ocorec-host/v1"
     fn payload_tampering_and_writable_objects_are_denied() {
         use std::os::unix::fs::PermissionsExt;
 
-        let temporary = TempDir::new().unwrap();
+        let temporary = WritableTempDir::new().unwrap();
         let payload = temporary.path().join("source");
         make_payload(&payload, b"original\n");
         let payload_digest = payload_sha256(&payload).unwrap();
@@ -1081,7 +1379,7 @@ builder = "ocorec-host/v1"
 
     #[test]
     fn alias_traversal_is_rejected() {
-        let temporary = TempDir::new().unwrap();
+        let temporary = WritableTempDir::new().unwrap();
         let store = PackageStore::open(temporary.path()).unwrap();
         assert!(store.alias_path("../escape").is_err());
     }

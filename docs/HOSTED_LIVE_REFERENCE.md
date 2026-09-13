@@ -37,6 +37,19 @@ root. It never means `/bin/live.toml` on the host. The one resolver shared by
 manifest validation and worker launch rejects `..`, empty components,
 backslashes, NUL bytes, symlinks, and escapes from the package object.
 
+On macOS, package publication requires a filesystem supporting atomic
+`clonefile(2)` directory cloning, such as the APFS volume used by the regression
+tests. macOS rejects renaming the already read-only staging directory. The
+store therefore clones the bounded, frozen package tree without overwriting
+an existing object, synchronizes the cloned files and directories, and removes
+only the staging tree. Other platforms retain the rename path. Unsupported
+filesystems fail closed; there is no writable-publication or recursive-copy
+fallback. macOS object trees and their publication parent must have no extended
+ACL entries, so inherited ACL grants cannot bypass the read-only mode checks.
+Apple discourages general-purpose directory cloning; this use is restricted
+to the verified regular-file package trees and limits below. See Apple's
+[`clonefile(2)` contract](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/clonefile.2).
+
 Admission is quantitatively bounded before large reads or process launches:
 
 - manifests and activation-policy files are at most 64 KiB;
