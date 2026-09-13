@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -44,16 +45,20 @@ class LocalCiPostureTests(unittest.TestCase):
             "ci/required-jobs.toml",
             "ci/test-suites.toml",
             "docs/CI_POSTURE.md",
+            "examples/guix-wasm/Dockerfile",
             "scripts/build_source_release.py",
+            "src/bin/olangc/browser_guix/Dockerfile",
+            "src/bin/olangc/wasm_exit/Dockerfile",
         ):
             source = ROOT / relative
             target = destination / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
 
+        self.copy_workspace_member_manifests(ROOT, destination)
+
         # Dependabot coverage includes these independent Cargo roots.
         for relative in (
-            "crates/ostadix-api/Cargo.toml",
             "fuzz/Cargo.toml",
             "mcp/ostadix_lang_mcp_server/Cargo.toml",
         ):
@@ -61,6 +66,29 @@ class LocalCiPostureTests(unittest.TestCase):
             target = destination / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+
+    def copy_workspace_member_manifests(
+        self, source_root: Path, destination: Path
+    ) -> None:
+        # Build the fixture independently of the production coverage checker.
+        # Local workspace additions and member globs must remain complete when
+        # the root manifest is copied into an isolated temporary directory.
+        manifest = tomllib.loads(
+            (source_root / "Cargo.toml").read_text(encoding="utf-8")
+        )
+        for pattern in manifest.get("workspace", {}).get("members", ["."]):
+            members = (
+                [source_root] if pattern == "." else sorted(source_root.glob(pattern))
+            )
+            self.assertTrue(members, f"workspace member pattern must resolve: {pattern}")
+            for member in members:
+                source = member if member.name == "Cargo.toml" else member / "Cargo.toml"
+                self.assertTrue(
+                    source.is_file(), f"workspace member lacks a manifest: {member}"
+                )
+                target = destination / source.relative_to(source_root)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
 
     @staticmethod
     def finding_ids(report: object) -> set[str]:
@@ -79,6 +107,47 @@ class LocalCiPostureTests(unittest.TestCase):
         )
         self.assertNotIn("FINDING", result.stdout)
         self.assertNotIn("MISSING", result.stdout)
+
+    def test_copied_baseline_fixture_has_a_complete_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)
+            self.copy_baseline_fixture(fixture)
+            report = posture.audit_repository(fixture)
+
+        self.assertEqual(report.exit_code(), 0, report.document())
+
+    def test_workspace_fixture_copies_literal_and_glob_member_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            destination = Path(temporary) / "fixture"
+            source.mkdir()
+            (source / "Cargo.toml").write_text(
+                '[workspace]\nmembers = [".", "new-member", "generated/*"]\n',
+                encoding="utf-8",
+            )
+            expected = {Path("Cargo.toml")}
+            for relative, name in (
+                ("new-member", "new-member"),
+                ("generated/first", "first"),
+                ("generated/second", "second"),
+            ):
+                member = source / relative
+                member.mkdir(parents=True)
+                (member / "Cargo.toml").write_text(
+                    f'[package]\nname = "{name}"\nversion = "0.1.0"\n',
+                    encoding="utf-8",
+                )
+                expected.add(Path(relative) / "Cargo.toml")
+            self.copy_workspace_member_manifests(source, destination)
+            self.assertEqual(
+                {path.relative_to(destination) for path in destination.rglob("Cargo.toml")},
+                expected,
+            )
+            for relative in expected:
+                self.assertEqual(
+                    (source / relative).read_bytes(),
+                    (destination / relative).read_bytes(),
+                )
 
     def test_json_report_is_deterministic_and_versioned(self) -> None:
         first = self.run_posture("--profile", "baseline", "--format", "json")
@@ -206,6 +275,43 @@ class LocalCiPostureTests(unittest.TestCase):
         ]
         self.assertTrue(any("cargo at /fuzz" in record["message"] for record in findings))
 
+    def test_dependabot_must_cover_nested_wasm_dockerfiles(self) -> None:
+        for directory in (
+            "examples/guix-wasm",
+            "src/bin/olangc/browser_guix",
+            "src/bin/olangc/wasm_exit",
+        ):
+            with self.subTest(directory=directory), tempfile.TemporaryDirectory() as temporary:
+                fixture = Path(temporary)
+                self.copy_baseline_fixture(fixture)
+                dockerfile = Path(directory) / "Dockerfile"
+                self.assertEqual(
+                    (fixture / dockerfile).read_bytes(), (ROOT / dockerfile).read_bytes()
+                )
+                dependabot = fixture / ".github/dependabot.yml"
+                text = dependabot.read_text(encoding="utf-8")
+                entry = (
+                    "  - package-ecosystem: docker\n"
+                    f"    directory: /{directory}\n"
+                    "    schedule:\n"
+                    "      interval: weekly\n"
+                    "    open-pull-requests-limit: 3\n"
+                )
+                self.assertEqual(text.count(entry), 1)
+                dependabot.write_text(text.replace(entry, "", 1), encoding="utf-8")
+
+                report = posture.audit_repository(fixture)
+                findings = [
+                    record["message"]
+                    for record in report.ordered_checks()
+                    if record["id"] == "baseline.dependabot.coverage"
+                    and record["status"] == "finding"
+                ]
+                self.assertEqual(report.exit_code(), 1)
+                self.assertEqual(
+                    findings, [f"missing Dependabot update for docker at /{directory}"]
+                )
+
     def test_root_dependabot_entry_covers_declared_workspace_member(self) -> None:
         self.assertEqual(
             posture._manifest_directories(ROOT)
@@ -228,11 +334,13 @@ class LocalCiPostureTests(unittest.TestCase):
             self.copy_baseline_fixture(fixture)
             manifest = fixture / "Cargo.toml"
             text = manifest.read_text(encoding="utf-8")
-            text = text.replace(
-                'members = [".", "crates/ostadix-api"]',
-                'members = "crates/ostadix-api"',
-                1,
+            text, replacements = re.subn(
+                r"(?ms)^\[workspace\]\s*\n.*?(?=^\[|\Z)",
+                '[workspace]\nmembers = "crates/ostadix-api"\n\n',
+                text,
+                count=1,
             )
+            self.assertEqual(replacements, 1)
             manifest.write_text(text, encoding="utf-8")
 
             report = posture.audit_repository(fixture)

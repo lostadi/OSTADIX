@@ -60,6 +60,39 @@ mod tests {
         ]
     }
 
+    fn bounded_integer_shape_member_strategy() -> impl Strategy<Value = (RepFlags, BigInt)> {
+        prop_oneof![
+            any::<i8>().prop_map(|value| (RepFlags::I8, BigInt::from(value))),
+            any::<i16>().prop_map(|value| (RepFlags::I16, BigInt::from(value))),
+            any::<i32>().prop_map(|value| (RepFlags::I32, BigInt::from(value))),
+            any::<i64>().prop_map(|value| (RepFlags::I64, BigInt::from(value))),
+            any::<i128>().prop_map(|value| (RepFlags::I128, BigInt::from(value))),
+            any::<i64>().prop_map(|value| (RepFlags::I32 | RepFlags::I64, BigInt::from(value))),
+        ]
+    }
+
+    fn bounded_numeric_capabilities_strategy() -> impl Strategy<Value = BackendValueCapabilities> {
+        (0_u8..5, 0_u16..=127, any::<i64>(), any::<i64>(), 0_u8..3).prop_map(
+            |(kind, bits, first, second, rich)| BackendValueCapabilities {
+                integer_exactness: match kind {
+                    0 => IntegerExactness::Unknown,
+                    1 => IntegerExactness::Arbitrary,
+                    2 => IntegerExactness::ExactMagnitudeBits(bits),
+                    3 => IntegerExactness::TwosComplementBits(bits),
+                    _ => IntegerExactness::ExactRange {
+                        min: BigInt::from(first.min(second)),
+                        max: BigInt::from(first.max(second)),
+                    },
+                },
+                rich_numbers: match rich {
+                    0 => RichNumberPreservation::Unknown,
+                    1 => RichNumberPreservation::Preserved,
+                    _ => RichNumberPreservation::Collapsed,
+                },
+            },
+        )
+    }
+
     fn solve_dataflow_order(order: &[usize]) -> SolverProjection {
         let mut graph = HGraph::default();
         let dataflow_input = graph.add_node(HNode {
@@ -1086,6 +1119,195 @@ mod tests {
             inexact.concrete_fidelity(),
             Some(inexact.possible_fidelity())
         );
+    }
+
+    #[test]
+    fn abstract_javascript_integer_capability_model_covers_boundary_members() {
+        // This checks the declared consecutive exact-integer interval, not
+        // whether a particular JavaScript execution rounds a given number.
+        // Some integers outside that interval (2^53 + 2 and 2^54) are exactly
+        // representable as binary64 but still exceed the catalog guarantee.
+        let kind_losses = [AnnotationKind::TypeTag, AnnotationKind::NumericExactness];
+        let boundary = 1_i64 << 53;
+        for (rep, members, precision_possible) in [
+            (
+                RepFlags::I32,
+                vec![i64::from(i32::MIN), -1, 0, 1, i64::from(i32::MAX)],
+                false,
+            ),
+            (
+                RepFlags::I64,
+                vec![
+                    i64::MIN,
+                    -(1_i64 << 54),
+                    -boundary - 2,
+                    -boundary - 1,
+                    -boundary,
+                    -boundary + 1,
+                    0,
+                    boundary - 1,
+                    boundary,
+                    boundary + 1,
+                    boundary + 2,
+                    1_i64 << 54,
+                    i64::MAX,
+                ],
+                true,
+            ),
+        ] {
+            let shape = HNode {
+                domain: DomainFlags::INTEGER,
+                rep,
+                value: None,
+                ..HNode::fresh()
+            };
+            let abstracted = solve::fidelity_assessment_for(&shape, "O", "javascript");
+            let mut possible = kind_losses.to_vec();
+            if precision_possible {
+                possible.push(AnnotationKind::NumericPrecision);
+            }
+            assert_eq!(
+                abstracted,
+                FidelityAssessmentV2::structural(kind_losses.clone(), possible).unwrap(),
+                "shape={rep:?}",
+            );
+            for member in members {
+                let mut expected_losses = kind_losses.to_vec();
+                if member < -boundary || member > boundary {
+                    expected_losses.push(AnnotationKind::NumericPrecision);
+                }
+                let expected = Fidelity::structural(expected_losses);
+                let concrete =
+                    solve::fidelity_for_value(&OValue::big_int(BigInt::from(member)), "javascript");
+                assert_eq!(concrete, expected, "shape={rep:?}, member={member}");
+                assert!(
+                    abstracted.concretization_contains(&concrete),
+                    "shape={rep:?}, member={member}, abstract={abstracted:?}, concrete={concrete:?}",
+                );
+            }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 128,
+            failure_persistence: None,
+            ..ProptestConfig::default()
+        })]
+
+        #[test]
+        fn abstract_bounded_integer_transfer_contains_materialized_members(
+            (rep, member) in bounded_integer_shape_member_strategy(),
+            broad_domain in any::<bool>(),
+        ) {
+            let domain = if broad_domain { DomainFlags::NUMERIC } else { DomainFlags::INTEGER };
+            let shape = HNode { domain, rep, value: None, ..HNode::fresh() };
+            let materialized = HNode {
+                domain,
+                rep,
+                value: Some(OValue::big_int(member)),
+                ..HNode::fresh()
+            };
+            for backend in ["javascript", "java", "python"] {
+                let abstracted = solve::fidelity_assessment_for(&shape, "O", backend);
+                let refined = solve::fidelity_assessment_for(&materialized, "O", backend);
+                let concrete = refined.concrete_fidelity().expect("a materialized scalar is exact");
+                prop_assert!(
+                    abstracted.concretization_contains(&concrete),
+                    "backend={}, shape={:?}/{:?}, value={:?}, abstract={:?}, concrete={:?}",
+                    backend, domain, rep, materialized.value, abstracted, concrete,
+                );
+                prop_assert!(refined.precision_leq(&abstracted));
+            }
+        }
+
+        #[test]
+        fn abstract_bounded_integer_transfer_respects_capability_descriptors(
+            (rep, member) in bounded_integer_shape_member_strategy(),
+            capabilities in bounded_numeric_capabilities_strategy(),
+        ) {
+            let shape = HNode {
+                domain: DomainFlags::INTEGER,
+                rep,
+                value: None,
+                ..HNode::fresh()
+            };
+            let abstracted = solve::fidelity_assessment_for_abstract(&shape, &capabilities);
+            let concrete = solve::fidelity_for_value_with_capabilities(
+                &OValue::big_int(member.clone()),
+                &capabilities,
+            );
+            prop_assert!(
+                abstracted.concretization_contains(&concrete),
+                "shape={:?}, member={}, capabilities={:?}, abstract={:?}, concrete={:?}",
+                rep, member, capabilities, abstracted, concrete,
+            );
+        }
+    }
+
+    #[test]
+    fn abstract_solved_integer_crossing_contains_materialized_boundary_verdicts() {
+        let solve_crossing = |rep, value| {
+            let mut graph = HGraph::default();
+            let input = graph.add_node(HNode {
+                domain: DomainFlags::INTEGER,
+                rep,
+                value,
+                ..HNode::fresh()
+            });
+            let output = graph.add_node(HNode::fresh());
+            graph.add_edge(HEdge::constraint(
+                OpKind::BackendCrossing {
+                    from_lang: "O".into(),
+                    to_lang: "javascript".into(),
+                },
+                vec![
+                    Port {
+                        node: input,
+                        role: PortRole::Input,
+                    },
+                    Port {
+                        node: output,
+                        role: PortRole::Output,
+                    },
+                ],
+            ));
+            solve::solve_types(&mut graph).unwrap();
+            let result = graph.node(output).unwrap();
+            let assessment = result
+                .fidelity_assessment
+                .clone()
+                .expect("solved V2 crossing");
+            assert_eq!(result.fidelity, Some(assessment.possible_fidelity()));
+            assessment
+        };
+        let boundary = 1_i64 << 53;
+        for (rep, members) in [
+            (
+                RepFlags::I32,
+                vec![i64::from(i32::MIN), 0, i64::from(i32::MAX)],
+            ),
+            (
+                RepFlags::I64,
+                vec![
+                    i64::MIN,
+                    -boundary - 1,
+                    -boundary,
+                    0,
+                    boundary,
+                    boundary + 1,
+                    i64::MAX,
+                ],
+            ),
+        ] {
+            let abstracted = solve_crossing(rep, None);
+            for member in members {
+                let refined = solve_crossing(rep, Some(OValue::big_int(BigInt::from(member))));
+                let concrete = refined.concrete_fidelity().expect("materialized fidelity");
+                assert!(abstracted.concretization_contains(&concrete));
+                assert!(refined.precision_leq(&abstracted));
+            }
+        }
     }
 
     #[test]
