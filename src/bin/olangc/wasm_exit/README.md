@@ -10,7 +10,7 @@ The vendored Dockerfile derives from container2wasm v0.8.4, commit
 `b3b85664e7a1f37ac7d4e7ca03b2f9f2e34941576b929e1f0705cbbbccba3e87`.
 The paired Bochs source is commit
 `a88d1f687ec83ff82b5318f59dcecb8dab44fc83` of `ktock/Bochs`.
-Both patches retain upstream source headers and licenses. The patch script
+The patches retain upstream source headers and licenses. The patch script
 checks the exact SHA-256 of each original target before applying any change.
 The source fetch uses the official `container2wasm/container2wasm` repository
 and verifies the full commit, because the old `ktock/container2wasm` fork does
@@ -23,7 +23,7 @@ output, verifies the exit port signature, and writes the status byte to guest
 I/O port `0xf4` through `/dev/port`. The paired Bochs handler calls libc `exit`
 directly, preserving the byte in WASI `proc_exit`. No new host import is added.
 
-Successful completion reports zero; ordinary child exits retain their 0–255
+For the sealed profile, successful completion reports zero; ordinary child exits retain their 0–255
 status; signals are represented numerically as 128 plus the signal number;
 init/setup errors report 125. This does not reproduce native signal delivery.
 Port or drain failure does not fall back to successful poweroff. Kernel crashes
@@ -59,6 +59,71 @@ No upstream repository fork or publication is necessary. Hash checks bind
 these patched files and the prebuilt tools listed below, not every dependency
 of the conversion; the broader upstream build is not claimed to be hermetic.
 
+## Optional browser Guix state and finalization
+
+The compiler's explicit `--browser-guix` profile sets the build argument
+`OSTADIX_GUIX_STATE=1`; the default is zero. Its immutable
+`/oci/ostadix-guix-state.json` activates the new guest-init helper. Absence of
+that file preserves sealed behavior. The paired Bochs template patch adds a
+second EHCI USB disk at `/browser-state/guix.img`, after checking the original
+template hash. No workload capability, host device, or general-purpose root
+filesystem persistence is added.
+
+Init discovers whole SCSI disks through a private kernel sysfs mount; it does
+not assume the second USB port is `/dev/sdb`. Exactly one ext4 disk must match
+the immutable profile's UUID and fixed 2 GiB size/geometry and be clean without
+journal recovery. A read-only `noload` admission mount checks its profile marker
+against the schema, layout, runtime-image digest, UUID, and size. Only then may
+init mount it writable and overlay `/gnu/store`, `/var/guix`, and `/root` over
+the original embedded OCI lower directories. The raw disk preopen is removed
+from the workload's OCI mounts. `/ostadix` and its source-bound executable and
+adapters are not persistent overlays. Boot never formats or repairs existing
+state.
+
+Guix workers can create independent sessions, so process-group cleanup alone
+is insufficient. After runc returns, init stops remaining workers belonging to
+the exact owned container `foo`, unmounts the three overlays, calls `Syncfs`,
+and unmounts ext4. Cleanup has a ten-second caller deadline; a blocked sync or
+unmount cannot emit a late clean acknowledgement. Any cleanup failure reports
+init failure and leaves the browser responsible for treating storage as dirty.
+
+The paired trusted-init channel uses I/O port `0xf5`: reads return `0x53`, and
+only a single-byte write of `0xa5` sets the emulator's finalization flag. Other
+writes clear it. After successful cleanup, init acknowledges on F5 before the
+existing F4 status write. F4 then reports `0x4f530000 | status` to WASI;
+without acknowledgement it reports the original low-byte status. Thus a clean
+disk and the Guix command's success/failure are separate facts. The browser
+recognizes the tag, flushes its OPFS access handle, and only then clears its
+dirty marker. The tag is a protocol between the fixed emulator and guest init,
+not cryptographic authentication or evidence that an arbitrary guest is trusted.
+Guest OCI capabilities do not expose `/dev/port` or the private block nodes.
+
+The separate `bochs-network.patch` repairs the pinned Ethernet allocator's
+interior-pointer free: the device caller receives the allocation base, while
+the sender owns a temporary four-byte-length-prefixed wire buffer. It also
+rejects short writes and frame sizes outside 14–16,384 bytes, corrects partial
+header pointer arithmetic, and distinguishes EOF from `EAGAIN`. `apply.sh`
+checks original `bochs/wasm.cc` SHA-256
+`11f064262c1027618c729966a14f8407326dff061c745f60b44ffcebad3bb9a7`
+before applying this separate zero-context patch with `--unidiff-zero`.
+These changes preserve the existing WASI network imports; they do not grant
+arbitrary networking to the sealed host.
+
+**Status:** these Guix state, finalization, and network changes are implemented
+in source only. No new patch-application check, build, test, guest boot,
+installation, or persistence qualification was run; those were deferred to
+better-equipped hardware. Earlier sealed Python fixture results do not qualify
+this changed overlay. See the
+[browser profile guide](../../../../docs/OLANGC_WASM.md#browser-only-interactive-guix-profile)
+for the complete bounds and manual acceptance steps.
+
+When distributing binaries, retain the applicable source, license, and notice
+materials for the actual linked/runtime components. `LICENSE.container2wasm`
+does not cover Bochs or its embedded TinyEMU-derived virtio code, the Guix
+closure, Linux, or the remaining dependencies. The compiler guide's
+[source/license inventory](../../../../docs/OLANGC_WASM.md#source-and-license-materials)
+is a starting point, not a completed binary-redistribution notice bundle.
+
 ## Cold-boot, lower-resource build
 
 The amd64 exit overlay now defaults to and requires
@@ -83,8 +148,9 @@ The standalone Wizer executable and its Cargo build are omitted from this
 profile. The version-matched wasi-vfs CLI still performs filesystem packing;
 the exact pinned header supplies Bochs's compile-time initialization hooks.
 Overriding the filesystem-library or header versions is rejected rather than
-silently accepting an unreviewed combination. The existing hash-checked Bochs
-and guest-init patches are applied unchanged.
+silently accepting an unreviewed combination. The hash-checked Bochs and
+guest-init overlays remain part of this build, including the optional state
+profile described above.
 
 Explicit Make parallelism is one job, and Go stages inherit `GOMAXPROCS=1` and
 `GOFLAGS=-p=1`. Bochs is fetched shallowly at its exact commit. The amd64 Linux
@@ -126,6 +192,13 @@ a constrained builder should separately set worker `max-parallelism=1` using
 [Docker's BuildKit configuration](https://docs.docker.com/build/buildkit/configure/#max-parallelism).
 WASI SDK and Binaryen remain x86-64 build tools, so the converter's Linux/amd64
 build platform must be retained on an arm64 host.
+
+The amd64 packer writes directly to its final `/out/${OUTPUT_NAME}` path in
+one build step. Moving a large packed module in a later overlay layer can copy
+the whole lower-layer file before removing the old name, requiring another
+module-sized allocation even though packing itself succeeded. The single-step
+layout avoids that particular copy-up; it does not bound Wizer's memory use or
+the cache/exporter's storage requirements.
 
 Qualification must run both successful and failing O programs under the actual
 target engines, with exact exit status and observable output checks. Merely

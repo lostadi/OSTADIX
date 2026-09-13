@@ -1,0 +1,77 @@
+python^(
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
+guix = "/var/guix/profiles/per-user/root/current-guix/bin/guix"
+expected = "OSTADIX_GUIX_PACKAGE:42->43"
+scheme = r'''
+(use-modules (guix packages)
+             (guix build-system trivial)
+             ((guix licenses) #:prefix license:)
+             (ice-9 format))
+
+(define original
+  (package
+    (name "ostadix-guix-proof")
+    (version (number->string (* 6 7)))
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+      '(#:builder (begin (mkdir (assoc-ref %outputs "out")) #t)))
+    (home-page "https://guix.gnu.org/")
+    (synopsis "Offline Guix package-language example")
+    (description "Construct a package value without building or installing it.")
+    (license license:expat)))
+
+(define variant
+  (package
+    (inherit original)
+    (version (number->string (+ 1 (string->number (package-version original)))))))
+
+(unless (and (package? original)
+             (package? variant)
+             (string=? (package-version original) "42")
+             (string=? (package-version variant) "43")
+             (string=? (package-name original) (package-name variant))
+             (eq? (package-build-system variant) trivial-build-system)
+             (eq? (package-license variant) license:expat))
+  (error "OSTADIX_GUIX_PACKAGE_ASSERTION_FAILED"))
+
+(when (equal? (getenv "OSTADIX_GUIX_FORCE_FAILURE") "1")
+  (error "OSTADIX_GUIX_INTENTIONAL_FAILURE"))
+
+(format #t "OSTADIX_GUIX_PACKAGE:~a->~a~%"
+        (package-version original) (package-version variant))
+'''
+
+environment = os.environ.copy()
+environment["GUILE_AUTO_COMPILE"] = "0"
+environment["LANG"] = "C"
+environment["LC_ALL"] = "C"
+with tempfile.TemporaryDirectory(prefix="o-guix-") as directory:
+    script = Path(directory).resolve() / "package-proof.scm"
+    script.write_text(scheme, encoding="utf-8")
+    result = subprocess.run(
+        [guix, "repl", "-q", "--", str(script)],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=directory,
+        env=environment,
+        timeout=300,
+        check=False,
+    )
+if result.returncode != 0:
+    raise RuntimeError(
+        "Guix repl failed (exit {}): {}".format(
+            result.returncode, result.stderr.strip()
+        )
+    )
+if result.stdout.strip() != expected:
+    raise RuntimeError("Guix returned an unexpected package-language result")
+__oval_result__ = result.stdout.strip()
+)_python

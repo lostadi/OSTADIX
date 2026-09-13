@@ -19,6 +19,7 @@ export const WASI_PREVIEW1_IMPORTS = Object.freeze([
   "fd_readdir",
   "fd_seek",
   "fd_write",
+  "path_create_directory",
   "path_filestat_get",
   "path_open",
   "path_readlink",
@@ -53,6 +54,7 @@ export const WASI_PREVIEW1_SIGNATURES = Object.freeze({
   fd_readdir: signature(["i32", "i32", "i32", "i64", "i32"]),
   fd_seek: signature(["i32", "i64", "i32", "i32"]),
   fd_write: signature(["i32", "i32", "i32", "i32"]),
+  path_create_directory: signature(["i32", "i32", "i32"]),
   path_filestat_get: signature(["i32", "i32", "i32", "i32", "i32"]),
   path_open: signature([
     "i32", "i32", "i32", "i32", "i32", "i64", "i64", "i32", "i32",
@@ -348,6 +350,7 @@ export class WasiPreview1Host {
       fd_prestat_dir_name: () => ERRNO.BADF,
       fd_readdir: () => ERRNO.BADF,
       fd_seek: (fd) => this.#descriptorOpen(fd) ? ERRNO.SPIPE : ERRNO.BADF,
+      path_create_directory: () => ERRNO.NOTCAPABLE,
       path_filestat_get: () => ERRNO.NOTCAPABLE,
       path_open: () => ERRNO.NOTCAPABLE,
       path_readlink: () => ERRNO.NOTCAPABLE,

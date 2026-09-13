@@ -26,6 +26,7 @@ ARG QEMU_MIGRATION=true
 ARG NO_VMTOUCH=
 ARG EXTERNAL_BUNDLE=
 ARG NO_BINFMT=
+ARG OSTADIX_GUIX_STATE=0
 
 ARG LOAD_MODE=single # or separated
 
@@ -582,7 +583,7 @@ RUN mkdir /out/ && mv bios/BIOS-bochs-latest bios/VGABIOS-lgpl-latest /out/
 
 FROM golang-base AS init-amd64-dev
 COPY --link --from=assets / /work
-COPY --link --from=ostadix-exit /apply.sh /init.patch /exit_status_linux_amd64.go /ostadix-exit/
+COPY --link --from=ostadix-exit /apply.sh /init.patch /exit_status_linux_amd64.go /browser_guix_state_linux_amd64.go /ostadix-exit/
 RUN sh /ostadix-exit/apply.sh init
 WORKDIR /work
 RUN --mount=type=cache,target=/root/.cache/go-build \
@@ -596,6 +597,7 @@ RUN git clone https://github.com/hoytech/vmtouch.git && \
     mkdir /out && mv vmtouch /out/
 
 FROM ubuntu:22.04 AS rootfs-amd64-dev
+ARG OSTADIX_GUIX_STATE
 RUN apt-get update -y && apt-get install -y mkisofs
 COPY --link --from=busybox-amd64-dev /out/ /rootfs/
 COPY --link --from=runc-amd64-dev /out/runc /rootfs/sbin/runc
@@ -603,14 +605,28 @@ COPY --link --from=bundle-dev /out/ /rootfs/
 COPY --link --from=init-amd64-dev /out/init /rootfs/sbin/init
 COPY --link --from=vmtouch-amd64-dev /out/vmtouch /rootfs/bin/
 COPY --link --from=tini-amd64-dev /out/tini /rootfs/sbin/tini
+COPY --link --from=ostadix-exit /state-profile.json /ostadix-exit/state-profile.json
+RUN case "$OSTADIX_GUIX_STATE" in \
+      0) test ! -e /rootfs/oci/ostadix-guix-state.json ;; \
+      1) test ! -e /rootfs/oci/ostadix-guix-state.json && \
+         cp /ostadix-exit/state-profile.json /rootfs/oci/ostadix-guix-state.json ;; \
+      *) exit 1 ;; \
+    esac
 RUN mkdir -p /rootfs/proc /rootfs/sys /rootfs/mnt /rootfs/run /rootfs/tmp /rootfs/dev /rootfs/var /rootfs/etc && mknod /rootfs/dev/null c 1 3 && chmod 666 /rootfs/dev/null
 RUN mkdir /out/ && mkisofs -R -o /out/rootfs.bin /rootfs/
 # RUN isoinfo -i /out/rootfs.bin -l
 
 FROM ubuntu:22.04 AS bochs-config-dev
 ARG VM_MEMORY_SIZE_MB
+ARG OSTADIX_GUIX_STATE
 RUN apt-get update && apt-get install -y gettext-base && mkdir /out
 COPY --link --from=assets ./config/bochs/bochsrc.template /
+COPY --link --from=ostadix-exit /apply.sh /ostadix-exit/apply.sh
+RUN case "$OSTADIX_GUIX_STATE" in \
+      0) ;; \
+      1) sh /ostadix-exit/apply.sh bochs-state-config ;; \
+      *) exit 1 ;; \
+    esac
 RUN cat /bochsrc.template | MEMORY_SIZE=$VM_MEMORY_SIZE_MB envsubst > /out/bochsrc
 
 FROM scratch AS vm-amd64-dev
@@ -1019,7 +1035,7 @@ RUN wget -O /tmp/binaryen.tar.gz https://github.com/WebAssembly/binaryen/release
     rm /tmp/binaryen.tar.gz
 
 COPY --link --from=bochs-repo / /Bochs
-COPY --link --from=ostadix-exit /apply.sh /bochs.patch /ostadix-exit/
+COPY --link --from=ostadix-exit /apply.sh /bochs.patch /bochs-network.patch /ostadix-exit/
 RUN sh /ostadix-exit/apply.sh bochs
 
 WORKDIR /Bochs/bochs/wasi_extra/jmp
@@ -1050,9 +1066,9 @@ FROM bochs-dev-common AS bochs-dev-native
 COPY --link --from=vm-amd64-dev /pack /minpack
 
 FROM bochs-dev-native AS bochs-dev-packed
-RUN /tools/wasi-vfs/wasi-vfs pack /Bochs/bochs/bochs --mapdir /pack::/minpack -o packed && mkdir /out
 ARG OUTPUT_NAME
-RUN mv packed /out/$OUTPUT_NAME
+RUN mkdir /out && \
+    /tools/wasi-vfs/wasi-vfs pack /Bochs/bochs/bochs --mapdir /pack::/minpack -o "/out/${OUTPUT_NAME}"
 
 FROM scratch AS wasi-amd64
 COPY --link --from=bochs-dev-packed /out/ /

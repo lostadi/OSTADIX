@@ -7,9 +7,11 @@ import {
 } from "./wasi-preview1-host.mjs";
 import {
   BROWSER_BUNDLE_SCHEMA,
+  LEGACY_DIRECT_WASI_IMPORTS,
   OlangBrowserBundleError,
   OlangBrowserCompatibilityError,
   runOlangBrowserBundle,
+  validateManifest,
   WHOLE_PROGRAM_PROVIDER_SCHEMA,
 } from "./runner.mjs";
 
@@ -18,6 +20,7 @@ const memory = new WebAssembly.Memory({ initial: 1 });
 host.attach(memory);
 const wasi = host.imports.wasi_snapshot_preview1;
 
+assert.equal(WASI_PREVIEW1_IMPORTS.length, 25);
 assert.deepEqual(Object.keys(wasi).sort(), [...WASI_PREVIEW1_IMPORTS]);
 assert.deepEqual(Object.keys(WASI_PREVIEW1_SIGNATURES).sort(), [...WASI_PREVIEW1_IMPORTS]);
 assert.equal(wasi.random_get(64, 32), 0);
@@ -47,6 +50,14 @@ assert.equal(host.stdout, "pass€");
 assert.equal(wasi.clock_time_get(0, 0n, 144), 0);
 assert(view.getBigUint64(144, true) > 0n);
 assert.equal(wasi.path_open(0, 0, 0, 0, 0, 0n, 0n, 0, 0), 76);
+assert.deepEqual(WASI_PREVIEW1_SIGNATURES.path_create_directory,
+  { parameters: ["i32", "i32", "i32"], results: ["i32"] });
+const beforeDeniedCreate = new Uint8Array(memory.buffer).slice();
+for (const args of [[3, 256, 4], [0, 0, 0], [-1, -1, -1]]) {
+  assert.equal(wasi.path_create_directory(...args), 76);
+}
+assert.deepEqual(new Uint8Array(memory.buffer), beforeDeniedCreate);
+assert.equal(wasi.fd_prestat_get(3, 0), 8);
 assert.throws(() => wasi.proc_exit(7), (error) => error instanceof WasiExit && error.code === 7);
 
 async function sha256(bytes) {
@@ -101,8 +112,9 @@ function buildWasiFixture(
   signatureOverrides = {},
   startSignature = { parameters: [], results: [] },
   includeCoreStart = false,
+  importNames = WASI_PREVIEW1_IMPORTS,
 ) {
-  const signatures = WASI_PREVIEW1_IMPORTS.map(
+  const signatures = importNames.map(
     (name) => signatureOverrides[name] ?? WASI_PREVIEW1_SIGNATURES[name],
   );
   const uniqueTypes = [];
@@ -117,7 +129,7 @@ function buildWasiFixture(
   };
   const importTypeIndexes = signatures.map(typeIndex);
   const startType = typeIndex(startSignature);
-  const imports = WASI_PREVIEW1_IMPORTS.map((name, index) => concatBytes(
+  const imports = importNames.map((name, index) => concatBytes(
     wasmName("wasi_snapshot_preview1"),
     wasmName(name),
     [0x00],
@@ -318,28 +330,111 @@ const providerResult = await runOlangBrowserBundle({
 assert.equal(providerResult.executionMode, "whole-program-provider");
 assert.equal(providerResult.stdout, "provider-pass");
 
-const wrongSignatureWasm = buildWasiFixture({
-  fd_write: { parameters: ["i32", "i32", "i32"], results: ["i32"] },
-});
-const wrongSignatureManifest = structuredClone(incompatibleManifest);
-wrongSignatureManifest.artifact = await fileRecord("program.wasm", wrongSignatureWasm);
+const omittedDirectoryImportManifest = structuredClone(incompatibleManifest);
+omittedDirectoryImportManifest.abi.imports = WASI_PREVIEW1_IMPORTS.filter(
+  (name) => name !== "path_create_directory",
+);
 await assert.rejects(
   runOlangBrowserBundle({
-    manifest: wrongSignatureManifest,
-    wasmBytes: wrongSignatureWasm,
+    manifest: omittedDirectoryImportManifest,
+    wasmBytes: providerWasm,
     source: providerSource,
     ...suppliedClosure,
-    provider: {
-      schema: WHOLE_PROGRAM_PROVIDER_SCHEMA,
-      async executeProgram() {
-        throw new Error("provider must not run after an ABI mismatch");
-      },
-    },
   }),
   (error) => error instanceof OlangBrowserBundleError
     && error.code === "abi-mismatch"
-    && /fd_write/.test(error.message),
+    && /imports do not match/.test(error.message),
 );
+
+// Both historical/current manifests are admitted only as exact contracts;
+// their artifact import sets must still match, including for provider routes.
+assert.equal(LEGACY_DIRECT_WASI_IMPORTS.length, 24);
+const legacyWasm = buildWasiFixture({}, { parameters: [], results: [] }, false, LEGACY_DIRECT_WASI_IMPORTS);
+const legacyManifest = structuredClone(omittedDirectoryImportManifest);
+legacyManifest.artifact = await fileRecord("program.wasm", legacyWasm);
+assert.equal(validateManifest(legacyManifest), legacyManifest);
+const legacyResult = await runOlangBrowserBundle({
+  manifest: legacyManifest,
+  wasmBytes: legacyWasm,
+  source: providerSource,
+  ...suppliedClosure,
+  provider: {
+    schema: WHOLE_PROGRAM_PROVIDER_SCHEMA,
+    async executeProgram() { return { ok: true, stdout: "legacy-fixture", stderr: "", exitCode: 0 }; },
+  },
+});
+assert.equal(legacyResult.stdout, "legacy-fixture");
+assert.throws(() => validateManifest(legacyManifest, { imports: WASI_PREVIEW1_IMPORTS }),
+  (error) => error.code === "manifest-invalid");
+for (const imports of [
+  LEGACY_DIRECT_WASI_IMPORTS.slice(1),
+  [...LEGACY_DIRECT_WASI_IMPORTS.slice(0, -1), LEGACY_DIRECT_WASI_IMPORTS[0]],
+  [...LEGACY_DIRECT_WASI_IMPORTS].reverse(),
+  WASI_PREVIEW1_IMPORTS.filter((name) => name !== "random_get"),
+]) {
+  const changed = structuredClone(legacyManifest);
+  changed.abi.imports = imports;
+  assert.throws(() => validateManifest(changed),
+    (error) => error.code === "manifest-invalid" && /manifest.abi.imports/.test(error.message));
+}
+
+for (const [name, parameters] of [
+  ["fd_write", ["i32", "i32", "i32"]],
+  ["path_create_directory", ["i32", "i32"]],
+]) {
+  const wrongSignatureWasm = buildWasiFixture({
+    [name]: { parameters, results: ["i32"] },
+  });
+  const wrongSignatureManifest = structuredClone(incompatibleManifest);
+  wrongSignatureManifest.artifact = await fileRecord("program.wasm", wrongSignatureWasm);
+  await assert.rejects(
+    runOlangBrowserBundle({
+      manifest: wrongSignatureManifest,
+      wasmBytes: wrongSignatureWasm,
+      source: providerSource,
+      ...suppliedClosure,
+      provider: {
+        schema: WHOLE_PROGRAM_PROVIDER_SCHEMA,
+        async executeProgram() {
+          throw new Error("provider must not run after an ABI mismatch");
+        },
+      },
+    }),
+    (error) => error instanceof OlangBrowserBundleError
+      && error.code === "abi-mismatch"
+      && error.message.includes(name),
+  );
+}
+
+// Adding one declared import must not turn exact matching into subset matching.
+for (const importNames of [
+  WASI_PREVIEW1_IMPORTS.filter((name) => name !== "path_create_directory"),
+  [...WASI_PREVIEW1_IMPORTS, "fd_sync"],
+]) {
+  const changedImportsWasm = buildWasiFixture(
+    { fd_sync: { parameters: ["i32"], results: ["i32"] } },
+    { parameters: [], results: [] }, false, importNames,
+  );
+  const changedImportsManifest = structuredClone(incompatibleManifest);
+  changedImportsManifest.artifact = await fileRecord("program.wasm", changedImportsWasm);
+  await assert.rejects(
+    runOlangBrowserBundle({
+      manifest: changedImportsManifest,
+      wasmBytes: changedImportsWasm,
+      source: providerSource,
+      ...suppliedClosure,
+      provider: {
+        schema: WHOLE_PROGRAM_PROVIDER_SCHEMA,
+        async executeProgram() {
+          throw new Error("provider must not run after an import-set mismatch");
+        },
+      },
+    }),
+    (error) => error instanceof OlangBrowserBundleError
+      && error.code === "abi-mismatch"
+      && /imports do not match/.test(error.message),
+  );
+}
 
 const wrongStartWasm = buildWasiFixture({}, { parameters: ["i32"], results: [] });
 const wrongStartManifest = structuredClone(incompatibleManifest);

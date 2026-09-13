@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
+from http.server import ThreadingHTTPServer
+import importlib.util
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import threading
 import unittest
+from functools import partial
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +34,7 @@ EXPECTED_IMPORTS = [
     "fd_readdir",
     "fd_seek",
     "fd_write",
+    "path_create_directory",
     "path_filestat_get",
     "path_open",
     "path_readlink",
@@ -40,9 +46,64 @@ EXPECTED_IMPORTS = [
     "random_get",
     "sched_yield",
 ]
+LEGACY_EXPECTED_IMPORTS = [
+    name for name in EXPECTED_IMPORTS if name != "path_create_directory"
+]
 
 
 class OlangBrowserBundleTests(unittest.TestCase):
+    def test_loopback_server_isolation_headers_and_path_confinement(self) -> None:
+        spec = importlib.util.spec_from_file_location("olang_bundle_server", APP / "serve.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory(prefix="olang-server-test-") as temporary:
+            root = Path(temporary) / "bundle"
+            root.mkdir()
+            (root / "index.html").write_text("<h1>O bundle</h1>", encoding="utf-8")
+            (root / "empty").mkdir()
+            outside = Path(temporary) / "outside.txt"
+            outside.write_text("not public", encoding="utf-8")
+            (root / "escape").symlink_to(outside)
+            server = ThreadingHTTPServer(("127.0.0.1", 0), partial(module.BundleHandler, directory=str(root)))
+            thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01})
+            thread.start()
+            try:
+                for path, status in [("/", 200), ("/empty/", 403), ("/escape", 403)]:
+                    with self.subTest(path=path):
+                        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=2)
+                        try:
+                            connection.request("GET", path)
+                            response = connection.getresponse()
+                            body = response.read()
+                            self.assertEqual(response.status, status)
+                            self.assertEqual(response.getheader("Cross-Origin-Opener-Policy"), "same-origin")
+                            self.assertEqual(response.getheader("Cross-Origin-Embedder-Policy"), "require-corp")
+                            self.assertNotIn(b"not public", body)
+                        finally:
+                            connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+                self.assertFalse(thread.is_alive())
+
+    def test_linux_host_and_worker_contracts(self) -> None:
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed")
+        for script in [
+            "test-linux-host.mjs",
+            "test-linux-runner.mjs",
+            "test-interactive-linux-host.mjs",
+        ]:
+            with self.subTest(script=script):
+                completed = subprocess.run(
+                    [node, str(APP / script)], cwd=ROOT, check=False,
+                    capture_output=True, text=True, timeout=30,
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertIn("PASS", completed.stdout)
+
     def test_browser_harness_readiness_deadlines_and_cleanup(self) -> None:
         node = shutil.which("node")
         if node is None:
@@ -116,7 +177,11 @@ class OlangBrowserBundleTests(unittest.TestCase):
             self.assertEqual(manifest["schema"], "ostadix.olang-browser-bundle/v1")
             self.assertTrue(manifest["compatibility"]["local_execution"])
             self.assertEqual(manifest["compatibility"]["blockers"], [])
-            self.assertEqual(manifest["abi"]["imports"], EXPECTED_IMPORTS)
+            # Exactly two recorded direct ABIs, never an arbitrary subset.
+            self.assertIn(
+                manifest["abi"]["imports"],
+                (LEGACY_EXPECTED_IMPORTS, EXPECTED_IMPORTS),
+            )
             self.assertEqual(manifest["abi"]["required_exports"], ["memory", "_start"])
             adapter_names = [adapter["name"] for adapter in manifest["adapters"]]
             self.assertEqual(adapter_names, sorted(set(adapter_names)))

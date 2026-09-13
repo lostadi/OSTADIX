@@ -1,0 +1,253 @@
+python^(
+import time
+operation_started = time.monotonic()
+import os
+import re
+import select
+import shlex
+import signal
+import socket
+import stat
+import subprocess
+import sys
+import tempfile
+import termios
+
+# This opt-in is a safety guard, not proof of isolation. The caller MUST own
+# this entire disposable Linux guest/container and terminate it on completion,
+# cancellation, or timeout. Guix creates setsid workers: O's PGID alone does
+# not contain them. This program supervises only its direct child handles.
+# Network access and persistent /gnu/store, /var/guix and profiles are supplied
+# by the host profile, not implemented or automatically mounted here.
+GUIX_BIN = '/var/guix/profiles/per-user/root/current-guix/bin'
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+def operation_milliseconds(raw):
+    digits = raw.lstrip('+').lstrip('0')
+    value = int(digits or '0') if re.fullmatch(r'\+?[0-9]+', raw) and len(digits) <= 20 else 0
+    return min(value, 3600000) if 0 < value <= 18446744073709551615 else 60000
+
+operation_deadline = operation_started + operation_milliseconds(
+    os.environ.get('O_BACKEND_OPERATION_TIMEOUT_MS', '')) / 1000
+
+def remaining():
+    seconds = operation_deadline - time.monotonic() - 5
+    require(seconds > 0, 'Guix session exhausted its O operation budget; set '
+            'O_BACKEND_OPERATION_TIMEOUT_MS before starting O (maximum 3600000)')
+    return seconds
+
+def foreground(fd, group):
+    previous = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+    try:
+        os.tcsetpgrp(fd, group)
+    finally:
+        signal.signal(signal.SIGTTOU, previous)
+
+def set_attributes(fd, attributes):
+    previous = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+    try:
+        termios.tcsetattr(fd, termios.TCSANOW, attributes)
+    finally:
+        signal.signal(signal.SIGTTOU, previous)
+
+def say(fd, text):
+    data = text.encode('utf-8', errors='replace')
+    while data:
+        written = os.write(fd, data)
+        require(written > 0, 'Guest terminal closed while writing')
+        data = data[written:]
+
+def read_command(fd):
+    line = bytearray()
+    while True:
+        ready, _, _ = select.select([fd], [], [], remaining())
+        require(ready, 'Guix session timed out waiting for terminal input')
+        byte = os.read(fd, 1)
+        if not byte or byte == b'\n':
+            return line.decode('utf-8', errors='strict') if line or byte else None
+        require(byte != b'\0' and len(line) < 4096, 'Invalid or overlong Guix command')
+        line.extend(byte)
+
+def cancelled(number, frame):
+    raise RuntimeError('Guix session cancelled by signal ' + str(number))
+
+def stop_direct_child(child):
+    if child is None or child.poll() is not None:
+        return
+    def allowance():
+        return max(0, min(1, operation_deadline - time.monotonic() - 0.5))
+    try:
+        child.terminate()
+    except ProcessLookupError:
+        pass
+    try:
+        child.wait(timeout=allowance())
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        child.kill()
+    except ProcessLookupError:
+        pass
+    child.wait(timeout=allowance())
+
+def session():
+    require(os.environ.get('OSTADIX_GUIX_SESSION_GUEST') == '1',
+            'Set OSTADIX_GUIX_SESSION_GUEST=1 only inside an owned disposable guest/container')
+    require(sys.platform == 'linux' and os.geteuid() == 0,
+            'This session requires root inside its dedicated Linux guest')
+    guix, daemon_executable = GUIX_BIN + '/guix', GUIX_BIN + '/guix-daemon'
+    require(all(os.path.isfile(path) and os.access(path, os.X_OK)
+                for path in (guix, daemon_executable)), 'The real Guix runtime closure is missing')
+    remaining()
+    terminal = os.open('/dev/tty', os.O_RDWR | os.O_NOCTTY | os.O_CLOEXEC)
+    previous_attributes, previous_group = None, None
+    previous_signals = {}
+    daemon, client = None, None
+    directory, endpoint = None, None
+    commands, last_status = 0, 0
+    cleanup_errors = []
+    try:
+        require(os.isatty(terminal), 'An interactive guest terminal is required; RPC stdin is not a terminal')
+        previous_attributes = termios.tcgetattr(terminal)
+        previous_group = os.tcgetpgrp(terminal)
+        for number in (signal.SIGINT, signal.SIGTERM):
+            previous_signals[number] = signal.signal(number, cancelled)
+        foreground(terminal, os.getpgrp())
+        attributes = list(previous_attributes)
+        attributes[6] = list(previous_attributes[6])
+        attributes[0] = (attributes[0] & ~(termios.IGNCR | termios.INLCR)) | termios.ICRNL
+        attributes[1] |= termios.OPOST | termios.ONLCR
+        attributes[3] |= termios.ICANON | termios.ECHO | termios.ISIG
+        attributes[6][termios.VINTR] = b'\x03'
+        attributes[6][termios.VEOF] = b'\x04'
+        set_attributes(terminal, attributes)
+        directory = tempfile.mkdtemp(prefix='o-guix-session-', dir='/tmp')
+        endpoint = directory + '/daemon.sock'
+        require(len(os.fsencode(endpoint)) < 104, 'Private Guix socket path is too long')
+        environment = {
+            'HOME': '/root', 'USER': 'root', 'LOGNAME': 'root',
+            'PATH': '/root/.guix-profile/bin:' + GUIX_BIN + ':/usr/local/bin:/usr/bin:/bin',
+            'LANG': 'C', 'LC_ALL': 'C', 'TERM': 'dumb', 'GUILE_AUTO_COMPILE': '0',
+            'GUIX_DAEMON_SOCKET': endpoint, 'SSL_CERT_DIR': '/etc/ssl/certs',
+        }
+        browser_profile = os.environ.get('OSTADIX_GUIX_BROWSER_STATE') == '1'
+        if browser_profile:
+            require(os.path.isfile('/browser-proxy/proxy.crt'),
+                    'The admitted browser profile requires its per-run proxy CA')
+            environment.update({
+                'GUIX_TLS_CERTIFICATE_DIRECTORY': '/browser-proxy',
+                'http_proxy': 'http://192.168.127.253:80',
+                'https_proxy': 'http://192.168.127.253:80',
+            })
+        say(terminal, 'O-owned Guix session. Network and persistence depend on the guest host profile.\n'
+            'Type Guix arguments, e.g. install hello, package --list-installed, or repl.\n'
+            'No shell expansion. exit / Ctrl-D ends the session; Ctrl-C cancels it.\n')
+        # Guix 1.5.0 runs in the foreground. Empty build-users-group is accepted
+        # for root; Guix's normal chroot/user-namespace sandbox stays enabled.
+        daemon_arguments = [
+            daemon_executable, '--listen=' + endpoint, '--build-users-group=',
+            '--max-jobs=1', '--cores=1', '--no-offload', '--discover=no',
+        ]
+        if browser_profile:
+            # The browser broker admits this substitute origin; Guix's normal
+            # signature authentication still applies. Trust keys must come
+            # from the immutable runtime image, never writable store state.
+            daemon_arguments.append('--substitute-urls=https://mirror.yandex.ru/mirrors/guix')
+        daemon = subprocess.Popen(daemon_arguments,
+           stdin=subprocess.DEVNULL, stdout=terminal, stderr=terminal,
+           cwd='/tmp', env=environment)
+        while True:
+            require(daemon.poll() is None, 'guix-daemon exited before its private socket was ready; see terminal diagnostics')
+            require(os.getpgid(daemon.pid) == os.getpgrp(), 'Direct guix-daemon left the O-owned process group')
+            remaining()
+            try:
+                information = os.stat(endpoint)
+                require(stat.S_ISSOCK(information.st_mode) and information.st_uid == os.geteuid(),
+                        'Guix did not create the expected private Unix socket')
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+                    connection.settimeout(min(0.25, remaining()))
+                    connection.connect(endpoint)
+                break
+            except (FileNotFoundError, ConnectionRefusedError, socket.timeout):
+                time.sleep(min(0.05, remaining()))
+        while True:
+            remaining()
+            require(daemon.poll() is None, 'guix-daemon exited; see terminal diagnostics')
+            say(terminal, 'guix> ')
+            line = read_command(terminal)
+            if line is None:
+                break
+            try:
+                arguments = shlex.split(line)
+            except ValueError as error:
+                say(terminal, 'Command syntax: ' + str(error) + '\n')
+                continue
+            if arguments and arguments[0] == 'guix':
+                arguments = arguments[1:]
+            if not arguments:
+                continue
+            if arguments in (['exit'], ['quit']):
+                break
+            # No shell=True, setsid, replacement exec, or process-group change.
+            # Explicit terminal FDs keep all human I/O off the O RPC pipes.
+            client = subprocess.Popen([guix, *arguments], stdin=terminal,
+                                      stdout=terminal, stderr=terminal,
+                                      cwd='/root', env=environment)
+            last_status = client.wait(timeout=remaining())
+            client = None
+            commands += 1
+            say(terminal, 'Guix exit status: ' + str(last_status) + '\n')
+            set_attributes(terminal, attributes)
+        require(last_status == 0, 'Last Guix command failed with exit status ' + str(last_status))
+    except BaseException as error:
+        try:
+            say(terminal, 'Guix session failed: ' + str(error) + '\n')
+        except (OSError, RuntimeError):
+            pass
+        raise
+    finally:
+        # Only direct child handles are stopped here; guest/container teardown
+        # is responsible for Guix workers which created their own sessions.
+        for number in previous_signals:
+            signal.signal(number, signal.SIG_IGN)
+        for child in (client, daemon):
+            try:
+                stop_direct_child(child)
+            except BaseException as error:
+                cleanup_errors.append(str(error))
+        if not cleanup_errors and directory is not None:
+            try:
+                if endpoint is not None:
+                    try:
+                        os.unlink(endpoint)
+                    except FileNotFoundError:
+                        pass
+                os.rmdir(directory)  # Only our empty socket directory, never the store or profiles.
+            except OSError as error:
+                cleanup_errors.append(str(error))
+        if previous_attributes is not None:
+            try:
+                set_attributes(terminal, previous_attributes)
+            except (OSError, termios.error) as error:
+                cleanup_errors.append(str(error))
+        if previous_group is not None:
+            try:
+                foreground(terminal, previous_group)
+            except OSError as error:
+                cleanup_errors.append(str(error))
+        try:
+            os.close(terminal)
+        finally:
+            for number, previous in previous_signals.items():
+                signal.signal(number, previous)
+        if cleanup_errors:
+            raise RuntimeError('Guix session cleanup failed; terminate the owned guest: '
+                               + '; '.join(cleanup_errors))
+    return {'commands': commands, 'last_exit_code': last_status, 'session': 'closed'}
+
+__oval_result__ = session()
+)_python

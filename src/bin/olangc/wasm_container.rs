@@ -20,6 +20,7 @@ const IGNORE_CONTENTS: &str =
 pub struct Options {
     pub runtime_image: String,
     pub builder_image: String,
+    pub browser_guix: bool,
 }
 
 fn lower_alphanumeric(byte: u8) -> bool {
@@ -182,12 +183,21 @@ pub fn write_recipe(build_dir: &Path, options: &Options) -> Result<()> {
     validate_images(options)?;
     write_identical_or_new(&build_dir.join(RECIPE), recipe(options)?.as_bytes())?;
     write_identical_or_new(&build_dir.join(IGNORE), IGNORE_CONTENTS.as_bytes())?;
-    wasm_exit::write_assets(build_dir)?;
+    let state = options
+        .browser_guix
+        .then(|| super::browser_guix::state_profile(&options.runtime_image));
+    wasm_exit::write_assets_for_state(build_dir, state.as_ref())?;
+    if options.browser_guix {
+        super::browser_guix::materialize_assets(build_dir, &options.runtime_image)?;
+    }
     Ok(())
 }
 
-pub fn converter_manifest(build_dir: &Path) -> Result<serde_json::Value> {
-    wasm_exit::write_assets(build_dir)?.manifest()
+pub fn converter_manifest(build_dir: &Path, options: &Options) -> Result<serde_json::Value> {
+    let state = options
+        .browser_guix
+        .then(|| super::browser_guix::state_profile(&options.runtime_image));
+    wasm_exit::write_assets_for_state(build_dir, state.as_ref())?.manifest()
 }
 
 fn ensure_absent(path: &Path) -> Result<()> {
@@ -295,7 +305,11 @@ fn convert(
     command.arg("--builder").arg(docker).args([
         "--target-arch=amd64",
         "--build-arg",
-        "VM_MEMORY_SIZE_MB=512",
+        if assets.browser_guix()? {
+            "VM_MEMORY_SIZE_MB=1024"
+        } else {
+            "VM_MEMORY_SIZE_MB=512"
+        },
         "--build-arg",
         "OPTIMIZATION_MODE=native",
     ]);
@@ -447,7 +461,10 @@ pub fn build(build_dir: &Path, output: &Path, options: &Options) -> Result<()> {
         "Docker Buildx preflight (required for the paired guest exit-status overlay)",
     )?;
     write_recipe(&build_dir, options)?;
-    let assets = wasm_exit::write_assets(&build_dir)?;
+    let state = options
+        .browser_guix
+        .then(|| super::browser_guix::state_profile(&options.runtime_image));
+    let assets = wasm_exit::write_assets_for_state(&build_dir, state.as_ref())?;
     let scratch = Scratch::create(output.parent().context("WASM output has no parent")?)?;
     let nonce = scratch.0.file_name().unwrap().to_string_lossy();
     let image = TemporaryImage {
@@ -484,6 +501,7 @@ mod tests {
                 "a".repeat(64)
             ),
             builder_image: format!("rust:1.93.1@sha256:{}", "b".repeat(64)),
+            browser_guix: false,
         }
     }
 
@@ -571,12 +589,16 @@ mod tests {
                 "/build with spaces"
             ]
         );
+        let root = tempfile::tempdir().unwrap();
+        let context = root.path().join("build with spaces");
+        fs::create_dir(&context).unwrap();
+        fs::write(context.join("state-profile.json"), b"{}").unwrap();
         let command = convert(
             Path::new("/tools/c2w"),
             Path::new("/tools/docker"),
             &wasm_exit::Assets {
                 dockerfile: "/build with spaces/wasm-exit/Dockerfile".into(),
-                context: "/build with spaces/wasm-exit/overlay".into(),
+                context: context.clone(),
             },
             "temporary:tag",
             Path::new("/output with spaces/program.wasm"),
@@ -599,7 +621,7 @@ mod tests {
                 "--dockerfile",
                 "/build with spaces/wasm-exit/Dockerfile",
                 "--extra-flag",
-                "--build-context=ostadix-exit=/build with spaces/wasm-exit/overlay",
+                &format!("--build-context=ostadix-exit={}", context.display()),
                 "temporary:tag",
                 "/output with spaces/program.wasm"
             ]
