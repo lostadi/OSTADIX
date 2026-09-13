@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.11-slim-bookworm@sha256:b1add8a6f2aca6bcfcf0b9c9b522352f7ce0d62a3d556a2f2f32511aa0cca250 AS build
+FROM docker.io/library/python:3.14-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f AS build
 # This is an explicit build dependency, not a package operation in the guest.
 # Resulting sparse chunks are hashed into the emitted bundle; no reproducible
 # apt-resolution claim is made.
