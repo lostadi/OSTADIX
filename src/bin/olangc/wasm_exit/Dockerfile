@@ -107,7 +107,7 @@ RUN git clone --depth 100 ${QEMU_REPO} /qemu && \
 FROM scratch AS qemu-repo
 COPY --link --from=qemu-repo-base /qemu /
 
-FROM golang:1.26-bookworm AS golang-base
+FROM golang:1.27-bookworm AS golang-base
 ENV GOMAXPROCS=1 GOFLAGS=-p=1
 
 FROM golang-base AS bundle-dev
