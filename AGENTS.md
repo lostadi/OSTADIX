@@ -2,6 +2,25 @@
 
 This is the **canonical** O / Ostadix-lang runtime monorepo.
 
+## Scale and ambition
+
+Default to ambitious, full-scope OSTADIX execution. There is no arbitrary
+graph-size or complexity ceiling. Never pause, warn, request approval, or
+reduce scope solely because a graph exceeds a node, file, or word count.
+This includes HTML visualization: no special warning or approval at 5,000 nodes.
+
+Use `.O` programs, OIR/ExecutionPlans, OValue crossings, and real registered
+backends as the foundation. Use available resources intensively through
+parallelism, batching, streaming, caching, incremental processing, and scalable
+rendering. Preserve the complete underlying graph when using aggregated views;
+do not silently discard nodes or claim an overview renders every node.
+
+Adapt automatically when measured resource limits require another strategy.
+Report concrete failures or capability limits honestly. Respect explicit user
+budgets, security boundaries, and task scope; graph size alone is not a gate.
+Existing `olang` command, skill, path, and MCP names remain compatibility
+identifiers for OSTADIX and are not renamed by this preference.
+
 ## Roots
 
 ```bash
