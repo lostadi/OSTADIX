@@ -1,8 +1,9 @@
 # ostadix-mcp (Rust-only)
 
-Stdio MCP server for **Ostadix-lang / O-lang**. Agents can discover the
-installed toolchain, read task guides, invoke its command families with literal
-arguments, evaluate inline `.O`, and manage concurrent or interactive jobs.
+Stdio MCP server for **Ostadix-lang / O-lang**. Supply a complete `.O`
+computation to `o_execute`, or pass an existing program/project path. The
+20-tool surface also supports toolchain discovery, task guides, full native
+command arguments, and concurrent or interactive jobs.
 The server supplies an **absolute** `O_BACKENDS_DIR`, so relative `backends`
 and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 
@@ -10,6 +11,7 @@ and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 
 | Tool | Purpose |
 |------|---------|
+| `o_execute` | Primary source-or-path computation interface: execute, parse-only check, static plan, or compile; automatic same-intent gating for ordinary O with `mode: admitted`, native project placement, structured runtime output and job evidence |
 | `o_capabilities` | Search the command catalog, resolved executable availability, documentation paths, and related guide topics; optional `query` filters the inventory |
 | `o_guide` | Read a task guide; `topic` defaults to the overview, with runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance |
 | `o_cli` | Invoke a catalog command with its complete literal `args` array, optional cwd/env/stdin, timeout, background execution, and PTY |
@@ -32,8 +34,74 @@ and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 
 ## Agent workflow
 
-Start with `o_capabilities` and `o_guide`, then use `o_env`, `o_runtimes`, and
-`o_doctor` for the selected installation. The catalog covers the shipped Cargo
+Call `o_execute` with one complete program:
+
+```json
+{"source":"python^( __oval_result__ = 6 * 7 )_python"}
+```
+
+Exactly one `source` or `path` is required. `path` can identify an existing
+ordinary program, linked project bundle, or project directory. `cwd` preserves
+relative filesystem context. `action` defaults to `execute`; `check` parses
+ordinary O without backend execution, `plan` performs static inspection, and
+`compile` requests compiler output. Parse success does not prove grounding,
+backend health, or execution admission.
+
+For ordinary O, `mode: "admitted"` performs intent analysis internally and
+requires the runtime to recompute both source and intent before fresh native
+admission. The existing explicit one-use intent tools remain available.
+The single-call interface does not reserve a global intent handle or impose a
+new worker limit. Default `mode: "direct"` preserves native execution rules.
+Projects use their native project admission contract; `mode: "admitted"`
+selects strict project HGraph execution locally and retains strict mesh
+admission remotely. It does not claim the ordinary source/intent digest gate,
+which the compiler does not support for projects.
+
+Placement retains the runtime's current boundary:
+
+| Input | `auto` (default) | `local` | `mesh-required` |
+|---|---|---|---|
+| Ordinary O | Local HGraph | Local HGraph | Rejected before execution |
+| Project directory or linked bundle | Native mesh-prefer | Native local execution | Native required remote placement |
+
+Marked operation directories are recognized through native read-only operation
+inspection. Under `auto`, their own planner selects execution and placement;
+the MCP does not override that planner with mesh flags. Explicit placement
+requests remain subject to native validation. Admitted operation execution
+reports its native operation-planner contract separately.
+
+Linked bundle source is recognized and routed through the project runtime;
+evaluating its inert container as an ordinary O value would not execute the
+project. Native route, operation, authority, and placement checks remain
+decisive. Use `o_cli` for route declarations or other specialized controls.
+This interface does not add arbitrary remote partitioning of ordinary O.
+
+Ordinary execute/check results project the existing `O --json` object into
+`result`; project results retain their native summary/run references.
+Foreground project execution also inspects the exact returned run ID and
+provides the verified record and decoded value when available. A failed or
+oversized record lookup is reported separately from execution status.
+Process status, stdout/stderr logs and cleanup evidence remain available. Plans,
+compiler output, native receipts, and successful execution are distinct.
+There is no synthetic receipt claiming more than the invoked runtime reports.
+Inline result projection is bounded to 1 MiB. Larger results remain in full
+through `o_job_read`; `result_retrieval` identifies the log and cursor. This
+limits response size without limiting execution or discarding program output.
+
+For source input, ordinary direct execution/check use `O --eval` when the
+source fits the operating system's argument budget. Larger input, the compiler,
+and the same-intent gate use a private source snapshot. The MCP retains it
+through job completion. The caller supplies source text and
+does not manage that file. Relative outputs resolve against `cwd`.
+`compile` supports `ir`/`dot` as textual compiler output and `binary`/`wasm`
+with an explicit `output` path, for ordinary programs and supported projects.
+Wasm output follows the native compiler's `.wasm` extension normalization.
+The native compiler ignores output paths for
+IR/DOT, so this interface rejects that combination. Native `script` executes
+code; use `execute` or the explicit expert compiler interface for it.
+
+Use `o_capabilities` and `o_guide` for expert discovery, and `o_env`,
+`o_runtimes`, and `o_doctor` for installation diagnostics. The catalog covers the shipped Cargo
 binaries and supported dispatch/script entry points, including interpreter,
 compiler, project linking, O-core, mesh/node operations, Live-World, O-Git,
 kernel/capacity tooling, notebook, language server, and build/release helpers.
@@ -74,13 +142,15 @@ Inline programs avoid temporary-source bookkeeping:
 `o_eval` still executes ordinary O syntax and its selected backend. `$IDENT`
 inside an O source is a splice, including when the source is a JSON string;
 pass environment values through `env`, and let the hosted language read them.
-Use the original `o_analyze_intent` / `o_execute_intent` pair when execution
-must be bound to the analyzed source and graph intent.
+Use `o_execute` with `mode: "admitted"` for automatic source/intent binding,
+or the original `o_analyze_intent` / `o_execute_intent` pair when analysis and
+execution must be separate calls.
 
 ## Long-running and interactive jobs
 
-Set `background: true` on `o_cli` or `o_eval` for a managed job that returns
-immediately. Jobs are independent: waiting for one does not serialize another
+Set `background: true` on `o_execute`, `o_cli`, or `o_eval` for a managed job
+that returns once launched. Admitted `o_execute` first completes its analysis
+before returning the execution job. Jobs are independent: waiting for one does not serialize another
 job's execution. They survive individual tool calls within the same MCP
 session; they do not become detached persistent services after MCP shutdown.
 Use the native service-management mechanism when persistence across agent
@@ -179,7 +249,7 @@ source snapshot at `$OSTADIX_GUEST_SOURCE` inside that VM:
 
 ```bash
 cd "$OSTADIX_GUEST_SOURCE"
-cargo build --release --locked --package o-lang --bin O --bin olangc --bin o-info
+cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link
 cd "$OSTADIX_GUEST_SOURCE/mcp/ostadix_lang_mcp_server"
 cargo build --release --locked
 cp -f target/release/ostadix-mcp ~/.local/bin/ostadix-mcp
@@ -195,7 +265,7 @@ python3 scripts/smoke_ostadix_mcp.py
 ```
 
 The last command performs a real MCP initialize/list/call exchange and requires
-the root release `O`, `olangc`, and `o-info` binaries. Under a deliberately system-only
+the root release `O`, `o-cli`, `olangc`, `o-info`, and `o-link` binaries. Under a deliberately system-only
 `PATH`, it validates every tool's object schema, calls `o_runtimes`, `o_smoke`,
 both supported relative-path forms of `o_run`, relative-path `o_olangc`, and
 bundled `o_search_run`, rejects search-path escape, and performs fixed local
@@ -402,12 +472,13 @@ Reload MCP / restart the session so tools appear as `olang__o_runtimes`,
 
 ## Agent rules (encoded in tool instructions)
 
-1. Discover the current command families with `o_capabilities`, read the
-   relevant `o_guide`, and check the selected runtime with the environment tools.
-2. Use `o_cli` for complete CLI options, `o_eval` for inline programs, and job
-   tools for concurrent, long-running, or interactive work.
-3. Prefer `o_analyze_intent` + `o_execute_intent` when the action must remain
-   bound to inspected source and graph intent; `o_run` is direct execution.
+1. Prefer `o_execute` with one complete O `source` or existing program/project
+   `path`. Check parses only; plan inspects statically; compile requests output.
+2. Discover expert command families with `o_capabilities` and `o_guide`.
+   Use `o_cli` for full CLI options, `o_eval` for specialized inline evaluation,
+   and job tools for concurrent, long-running, or interactive work.
+3. Use `o_execute` with `mode: admitted` for automatic ordinary source/intent
+   binding, or the explicit intent pair to separate analysis from execution.
 4. Never pass the literal string `O_BACKENDS_DIR` as the backends argv.
 5. Never put `$VAR` / `$O_BACKENDS_DIR` **inside** `.O` sources (O splices `$IDENT`).
 6. Always use an absolute backends directory.

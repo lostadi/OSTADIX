@@ -1079,14 +1079,21 @@ this repository.
 
 The repository includes `ostadix-mcp`, a local stdio
 [Model Context Protocol](https://modelcontextprotocol.io/) server under
-`mcp/ostadix_lang_mcp_server/`. It exposes 10 typed tools over the
-existing local `O` and `olangc` binaries so an MCP-capable agent can discover
-the Ostadix environment and all canonical backend runtime requirements, run a
-smoke test, execute a `.O` program, or inspect a compiler target without
-reconstructing executable and backend paths by hand.
+`mcp/ostadix_lang_mcp_server/`. Its 20 typed tools include `o_execute`, the
+primary source-first computation interface. Supply exactly one complete O
+`source` or existing program/project `path`; use an explicit `cwd` for relative
+filesystem context. Execution, parse-only checking, static planning, compiler
+outputs, project placement, and optional same-intent gating use the existing
+native runtime. Expert discovery, full command arguments, and managed jobs
+remain available. See the [MCP guide](mcp/ostadix_lang_mcp_server/README.md)
+for the complete contract and native placement boundaries.
 
 | MCP tool | Current behavior |
 |----------|------------------|
+| `o_execute` | Execute source or an existing program/project; `action` also supports `check`, `plan`, and `compile`. `mode: admitted` adds automatic source/intent binding for ordinary O. `placement` preserves local/project mesh semantics. |
+| `o_capabilities`, `o_guide` | Discover the source-backed command catalog and embedded workflow guides. |
+| `o_cli`, `o_eval` | Full literal CLI arguments or inline O, with cwd/env/stdin, PTY, timeout and background jobs. |
+| `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, `o_job_cancel` | Follow independent session jobs, read retained logs, send input and cancel owned execution. |
 | `o_env` | Reports the resolved Ostadix root, backend directory, `O` and `olangc` paths, Python shim status, and a 30-backend runtime summary. |
 | `o_runtimes` | Discovers executable requirements and projects typed value capabilities from the canonical backend catalog compiled into that MCP binary, including alternative runtime sets, without failing because an optional runtime is absent. Rebuild MCP with O after catalog changes. |
 | `o_doctor` | Checks the local toolchain and inventories compatibility shims plus the complete backend runtime report. |
@@ -1105,21 +1112,19 @@ sequenceDiagram
     participant Analyzer as O intent analyzer
     participant Runtime as O runtime
 
-    Agent->>MCP: o_analyze_intent(source)
+    Agent->>MCP: o_execute(source, mode=admitted)
     MCP->>Analyzer: parse, lower, solve, fingerprint
-    Analyzer-->>MCP: Intent V1 plus one-use handle
-    MCP-->>Agent: opaque bounded handle
-    Agent->>MCP: o_execute_intent(handle, same source)
+    Analyzer-->>MCP: source and Intent V1 digests
     MCP->>Runtime: recompute Intent V1
     Runtime->>Runtime: fresh Evidence V6 and Admission V6
     Runtime-->>MCP: terminal OValue or structured failure
-    MCP-->>Agent: result and consumed handle status
+    MCP-->>Agent: native result and job evidence
 ```
 
-Read the sequence from top to bottom. Analysis produces an opaque one-use
-handle. Execution accepts the handle only after recomputing the same intent and
-performing a fresh admission, so an old analysis result never substitutes for
-dispatch-time validation.
+The single call owns analysis and execution. The runtime recomputes the same
+source and intent before fresh admission, so earlier analysis never substitutes
+for dispatch-time validation. The separate `o_analyze_intent` and
+`o_execute_intent` tools retain their original one-use handle contract.
 
 The normal setup builds this separate, lockfile-pinned Rust crate and, unless
 wrappers are disabled, copies the executable to
@@ -1129,11 +1134,11 @@ wrappers are disabled, copies the executable to
 ./setup.sh --minimal --yes
 ```
 
-For a build without the rest of setup, build the three Ostadix commands used by
+For a build without the rest of setup, build the Ostadix commands used by
 the server and then the server itself:
 
 ```bash
-cargo build --release --locked --package o-lang --bin O --bin olangc --bin o-info
+cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link
 cargo build --release --locked \
   --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
 ```
@@ -1185,15 +1190,14 @@ paths rather than relying on shell expansion inside JSON:
 ```
 
 After adding the configuration, reload the client's MCP servers and use a
-short discovery-to-execution workflow such as:
+source-first workflow such as:
 
 ```text
-o_env {}
-o_runtimes {}
-o_smoke {}
-o_run {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O"}
-o_olangc {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","target":"ir"}
-o_information_inspect {"state":"/absolute/path/to/existing-information-state","head":"main"}
+o_execute {"source":"python^( __oval_result__ = 2 )_python"}
+o_execute {"source":"python^( __oval_result__ = 2 )_python","action":"check"}
+o_execute {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","action":"plan"}
+o_capabilities {"query":"mesh"}
+o_guide {"topic":"projects"}
 ```
 
 Enter these names and argument objects through the MCP client's tool-call
@@ -4640,7 +4644,7 @@ Ostadix-lang/
 │   ├── lib.rs                  # 41 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
-├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 10 tools
+├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 20 tools
 ├── backends/                   # compatibility hosted-language adapters
 ├── ocore/                      # freestanding runtime and kernel proof
 ├── c_cpp/                      # standalone C17 hosted implementation

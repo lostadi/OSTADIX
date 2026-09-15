@@ -7,6 +7,7 @@
 
 mod capabilities;
 mod execution;
+mod unified;
 
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -1788,6 +1789,14 @@ impl Drop for ForegroundJobGuard {
 
 impl OstadixMcp {
     async fn execute_cli(&self, args: CliArgs) -> Result<CallToolResult, McpError> {
+        self.execute_cli_retained(args, ()).await
+    }
+
+    async fn execute_cli_retained<T: Send + 'static>(
+        &self,
+        args: CliArgs,
+        retained: T,
+    ) -> Result<CallToolResult, McpError> {
         if let Err(error) = validate_child_input(&args.args, &args.env) {
             return structured_failure(error);
         }
@@ -1836,15 +1845,18 @@ impl OstadixMcp {
             .filter(|value| *value != 0);
         let started = match self
             .jobs
-            .start(execution::ExecutionRequest {
-                program,
-                args: argv,
-                cwd,
-                env,
-                stdin: args.stdin,
-                timeout_secs,
-                pty: args.pty,
-            })
+            .start_retained(
+                execution::ExecutionRequest {
+                    program,
+                    args: argv,
+                    cwd,
+                    env,
+                    stdin: args.stdin,
+                    timeout_secs,
+                    pty: args.pty,
+                },
+                retained,
+            )
             .await
         {
             Ok(started) => started,
@@ -2113,6 +2125,21 @@ impl OstadixMcp {
             Some(guide) => structured_result(serde_json::json!({"topic": topic, "guide": guide})),
             None => structured_failure("unknown guide topic; use all, runtime, compiler, projects, mesh, core, live, capacity, device, or agents"),
         }
+    }
+
+    #[tool(
+        description = "Primary Ostadix computation interface. Supply exactly one complete O source or existing program/project path. Execute by default, or check syntax, plan, or compile an artifact. Preserves native runtime admission, project placement, structured results and job evidence; mode admitted binds ordinary O source and intent before fresh admission. Expert CLI tools remain available.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn o_execute(
+        &self,
+        Parameters(args): Parameters<unified::ExecuteArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        self.execute_computation(args).await
     }
 
     #[tool(
@@ -2804,12 +2831,14 @@ impl ServerHandler for OstadixMcp {
             server_info: rmcp::model::Implementation {
                 name: "ostadix-mcp".into(),
                 title: Some("Ostadix runtime and toolchain".into()),
-                version: concat!(env!("CARGO_PKG_VERSION"), "+agent-surface.1").into(),
+                version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.1").into(),
                 website_url: Some("https://github.com/lostadi/Ostadix-lang".into()),
                 icons: None,
             },
             instructions: Some(
-                "Ostadix-lang / O-lang MCP. Start with o_capabilities(query) and o_guide(topic) to discover the full command surface without loading every guide. \
+                "Ostadix-lang / O-lang MCP. Prefer o_execute with one complete polyglot O source or existing program/project path. Its action defaults to execute; check is parse-only, plan is static inspection, compile explicitly requests an artifact. \
+Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. \
+Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. \
 Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. \
 Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. \
 Jobs run concurrently, full logs stay on disk, and a job start is not success. Jobs end on MCP server shutdown; no restart persistence is claimed. \

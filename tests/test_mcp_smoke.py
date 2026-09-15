@@ -40,7 +40,7 @@ class ResponseReaderTests(unittest.TestCase):
 
     def test_ci_builds_every_binary_required_by_the_mcp_smoke(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-        for required_binary in ("O", "olangc", "o-info"):
+        for required_binary in ("O", "o-cli", "olangc", "o-info", "o-link"):
             self.assertIn(
                 f"--bin {required_binary}",
                 workflow,
@@ -155,6 +155,56 @@ class StructuredToolResultTests(unittest.TestCase):
             smoke._content_object(self.result(["job-1"]))
         with self.assertRaisesRegex(smoke.SmokeError, "invalid JSON"):
             smoke._content_object({"content": [{"type": "text", "text": "not-json"}]})
+
+
+class NativeExecuteResultTests(unittest.TestCase):
+    @staticmethod
+    def result(native: dict[str, object], **extra: object) -> dict[str, object]:
+        success = native.get("ok") is True
+        return {
+            "job_id": "job-1",
+            "state": "completed" if success else "failed",
+            "exit_code": 0 if success else 1,
+            "result": native,
+            "stdout": {"text": json.dumps(native)},
+            **extra,
+        }
+
+    def test_native_value_and_failure_preserve_exact_process_evidence(self) -> None:
+        for native in (
+            {"ok": True, "type": "text", "value": {"t": "text", "v": "answer"}},
+            {"ok": False, "stage": "parse", "error": "unterminated block"},
+        ):
+            with self.subTest(native=native):
+                self.assertEqual(smoke._native_execute_result(self.result(native)), native)
+
+    def test_native_value_cannot_disagree_with_retained_stdout(self) -> None:
+        with self.assertRaisesRegex(smoke.SmokeError, "disagrees with raw stdout"):
+            smoke._native_execute_result(
+                self.result({"ok": True}, stdout={"text": '{"ok": false}'})
+            )
+
+    def test_native_success_cannot_mask_failed_or_running_process(self) -> None:
+        for extra in (
+            {"exit_code": 1},
+            {"exit_code": None},
+            {"state": "running"},
+        ):
+            with self.subTest(extra=extra):
+                with self.assertRaisesRegex(smoke.SmokeError, "process outcome"):
+                    smoke._native_execute_result(self.result({"ok": True}, **extra))
+
+    def test_failure_cannot_claim_successful_process(self) -> None:
+        with self.assertRaisesRegex(smoke.SmokeError, "process outcome"):
+            smoke._native_execute_result(self.result({"ok": False}, exit_code=0))
+
+    def test_missing_identity_and_non_json_output_are_rejected(self) -> None:
+        with self.assertRaisesRegex(smoke.SmokeError, "job identity"):
+            smoke._native_execute_result(self.result({"ok": True}, job_id=None))
+        with self.assertRaisesRegex(smoke.SmokeError, "not native JSON"):
+            smoke._native_execute_result(
+                self.result({"ok": True}, stdout={"text": "not-json"})
+            )
 
 
 if __name__ == "__main__":

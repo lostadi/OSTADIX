@@ -9,6 +9,17 @@
 
 Key facts for agents:
 
+- Primary MCP computation: `o_execute {"source":"<complete O program>"}`.
+  Supply exactly one `source` or existing program/project `path`; preserve
+  relative filesystem context with `cwd`. `action` defaults to `execute`, with
+  `check` (parse only), `plan` (static inspection), and `compile` (artifact)
+  available. `mode: "admitted"` automatically binds ordinary source and graph
+  intent before fresh native admission. Expert tools remain available.
+- Placement through MCP: ordinary O runs on local HGraph; projects use native
+  mesh-prefer under `placement: "auto"`. `local` requests local execution;
+  `mesh-required` retains required remote placement and rejects unsupported
+  ordinary-O inputs. Marked operation directories retain their native planner
+  under auto. Runtime results and project run evidence remain distinct.
 - File extension: `.O` (hosted orchestration) and `.oc` (O-core native systems language).
 - Run a program: `O program.O` or `o run program.O` (Rust edition; build with
   `./setup.sh --minimal`).

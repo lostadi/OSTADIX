@@ -45,9 +45,16 @@ Do **not** use `~/O-lang` for builds/runs on this machine.
 
 ## MCP server
 
-`mcp/ostadix_lang_mcp_server` — Rust/`rmcp` stdio MCP server. Start with
-`o_capabilities` (optional query) and `o_guide` (workflow topic) to discover the
-full Ostadix command surface. `o_cli` accepts exact native argument arrays,
+`mcp/ostadix_lang_mcp_server` — Rust/`rmcp` stdio MCP server. Prefer
+`o_execute` with exactly one complete `source` or existing program/project
+`path`. `action` defaults to execute; check is parse-only, plan is static,
+and compile explicitly requests an artifact. `mode: admitted` automatically
+binds ordinary source and intent before fresh native admission. Placement auto
+uses local HGraph for ordinary O and native mesh-prefer for projects;
+marked operation directories retain their own planner. Mesh-required never
+silently falls back to local execution.
+Use `o_capabilities` (optional query) and `o_guide` (workflow topic) to discover
+the full expert command surface. `o_cli` accepts exact native argument arrays,
 cwd, per-child environment, stdin, optional Unix PTY, and background execution.
 `o_eval` runs inline polyglot O source. Long or interactive work uses
 `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, and `o_job_cancel`;

@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import queue
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,7 @@ EXPECTED_TOOLS = {
     "o_doctor",
     "o_env",
     "o_eval",
+    "o_execute",
     "o_execute_intent",
     "o_information_inspect",
     "o_guide",
@@ -201,6 +203,32 @@ def _content_object(result: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(structured, dict) or structured != text_value:
         raise SmokeError("MCP structuredContent and JSON text disagree")
     return structured
+
+
+def _native_execute_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Require native JSON and the retained process evidence to agree."""
+    if not isinstance(result.get("job_id"), str) or not result["job_id"]:
+        raise SmokeError(f"o_execute omitted retained job identity: {result}")
+    native = result.get("result")
+    if not isinstance(native, dict):
+        raise SmokeError(f"o_execute omitted its native result object: {result}")
+    stdout = result.get("stdout", {})
+    if not isinstance(stdout, dict) or not isinstance(stdout.get("text"), str):
+        raise SmokeError(f"o_execute omitted raw stdout evidence: {result}")
+    try:
+        raw = json.loads(stdout["text"])
+    except json.JSONDecodeError as error:
+        raise SmokeError(f"o_execute raw stdout is not native JSON: {stdout}") from error
+    if raw != native:
+        raise SmokeError(f"o_execute native result disagrees with raw stdout: {result}")
+    succeeded = native.get("ok") is True
+    expected_state = "completed" if succeeded else "failed"
+    if result.get("state") != expected_state or (
+        (result.get("exit_code") == 0) != succeeded
+        or not isinstance(result.get("exit_code"), int)
+    ):
+        raise SmokeError(f"o_execute native result disagrees with process outcome: {result}")
+    return native
 
 
 def _run_agent_surface_smoke(
@@ -395,6 +423,322 @@ def _run_agent_surface_smoke(
         time.sleep(2.2)
         if escaped.exists():
             raise SmokeError("cancelled job left a descendant able to commit an effect")
+
+
+def _run_unified_surface_smoke(
+    process: subprocess.Popen[bytes],
+    responses: ResponseReader,
+    root: Path,
+    timeout: float,
+    fixture: Path,
+) -> None:
+    """Exercise source-first execution through the actual MCP transport."""
+    next_request = 500
+
+    def call(
+        name: str, arguments: dict[str, Any], *, error: bool = False
+    ) -> dict[str, Any]:
+        nonlocal next_request
+        request_id = next_request
+        next_request += 1
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": "tools/call",
+                "params": {"name": name, "arguments": arguments},
+            },
+        )
+        result = responses.response(request_id, timeout)
+        if (result.get("isError") is True) != error:
+            raise SmokeError(f"{name} returned unexpected error status: {_content_text(result)}")
+        return _content_object(result)
+
+    def execute(arguments: dict[str, Any], *, error: bool = False) -> dict[str, Any]:
+        return call("o_execute", arguments, error=error)
+
+    source = "python^( __oval_result__ = 6 * 7 )_python\n"
+    program = fixture / "source with spaces.O"
+    program.write_text(source, encoding="utf-8")
+    for supplied in ({"source": source}, {"path": program.name, "cwd": os.fspath(fixture)}):
+        result = execute(supplied)
+        native = _native_execute_result(result)
+        if native.get("value") != {"t": "number", "v": {"kind": "int", "v": "42"}}:
+            raise SmokeError(f"o_execute changed the native numeric value: {native}")
+
+    # Source-first execution must adapt past the host's single-argument limit.
+    # The source is still ordinary O; only its transport needs a private file.
+    large_source = " " * (300 * 1024) + source
+    large_input = execute({"source": large_source})
+    if (
+        _native_execute_result(large_input).get("value")
+        != {"t": "number", "v": {"kind": "int", "v": "42"}}
+        or large_input.get("input", {}).get("temporary_source") is not True
+    ):
+        raise SmokeError(f"large inline source did not adapt to a file snapshot: {large_input}")
+
+    large_output = execute({"source": "python^( __oval_result__ = 'L' * (1024 * 1024) )_python"})
+    retrieval = large_output.get("result_retrieval", {})
+    if (
+        large_output.get("state") != "completed"
+        or large_output.get("exit_code") != 0
+        or large_output.get("result") is not None
+        or not large_output.get("result_projection_error")
+        or retrieval.get("tool") != "o_job_read"
+        or retrieval.get("job_id") != large_output.get("job_id")
+        or retrieval.get("stream") != "stdout"
+        or retrieval.get("full_output_retained") is not True
+    ):
+        raise SmokeError(f"large native result omitted deferred retrieval evidence: {large_output}")
+    offset = 0
+    chunks: list[str] = []
+    while True:
+        page = call("o_job_read", {
+            "job_id": retrieval["job_id"], "stream": "stdout", "offset": offset, "limit": 65536,
+        })
+        text = page.get("text")
+        advance = page.get("next_offset")
+        if (
+            not isinstance(text, str)
+            or not isinstance(advance, int)
+            or page.get("offset") != offset
+            or advance != offset + len(text.encode("utf-8"))
+        ):
+            raise SmokeError(f"large output pagination lost byte evidence: {page}")
+        chunks.append(text)
+        if page.get("eof") is True:
+            break
+        if advance <= offset:
+            raise SmokeError("large output retrieval stalled before EOF")
+        offset = advance
+    full_result = json.loads("".join(chunks))
+    if (
+        full_result.get("ok") is not True
+        or full_result.get("value", {}).get("v", {}).get("utf8") != "L" * (1024 * 1024)
+    ):
+        raise SmokeError("deferred large result did not retain the complete native value")
+
+    # Validation, planning, and denied placement must never dispatch effects.
+    marker = fixture / "must-not-execute"
+    effect_source = (
+        "python^(\nfrom pathlib import Path\n"
+        f"Path({os.fspath(marker)!r}).write_text('executed')\n"
+        "__oval_result__ = 42\n)_python\n"
+    )
+    checked = execute({"source": effect_source, "action": "check"})
+    if _native_execute_result(checked).get("stage") != "parse" or marker.exists():
+        raise SmokeError(f"source check did not remain parse-only: {checked}")
+    planned = execute({"source": effect_source, "action": "plan", "workers": 2})
+    plan = planned.get("result", {})
+    if (
+        planned.get("state") != "completed"
+        or planned.get("exit_code") != 0
+        or plan.get("schema") != "oexec.schedule-explanation/v2"
+        or plan.get("realizability", {}).get("dispatch") != "not-run"
+        or json.loads(planned.get("stdout", {}).get("text", "{}")) != plan
+        or marker.exists()
+    ):
+        raise SmokeError(f"source plan lost its nonexecuting native schedule: {planned}")
+    for target, expected in (("ir", "; OIrProgram"), ("dot", "digraph")):
+        compiled = execute({"source": effect_source, "action": "compile", "target": target})
+        if (
+            compiled.get("state") != "completed"
+            or compiled.get("exit_code") != 0
+            or not isinstance(compiled.get("result"), str)
+            or expected not in compiled["result"]
+            or compiled["result"] != compiled.get("stdout", {}).get("text")
+            or marker.exists()
+        ):
+            raise SmokeError(f"source {target} compilation failed or executed effects: {compiled}")
+    malformed = execute({"source": "python^( unterminated", "action": "check"}, error=True)
+    parse_error = _native_execute_result(malformed)
+    if parse_error.get("stage") != "parse" or not parse_error.get("error"):
+        raise SmokeError(f"malformed source lost its structured parse error: {malformed}")
+    for invalid in ({}, {"source": effect_source, "path": os.fspath(program)}):
+        rejected = execute(invalid, error=True)
+        if rejected.get("job_id") is not None or marker.exists():
+            raise SmokeError(f"source/path XOR rejection started a job: {rejected}")
+    denied_mesh = execute({"source": effect_source, "placement": "mesh-required"}, error=True)
+    if denied_mesh.get("job_id") is not None or marker.exists():
+        raise SmokeError(f"ordinary source required mesh placement dispatched locally: {denied_mesh}")
+    for options in (
+        {"action": "compile", "target": "script"},
+        {"action": "compile", "target": "binary"},
+        {"action": "check", "mode": "admitted"},
+    ):
+        rejected = execute({"source": effect_source, **options}, error=True)
+        if rejected.get("job_id") is not None or marker.exists():
+            raise SmokeError(f"unsupported operation options dispatched an effect: {rejected}")
+
+    # Each call receives its own literal environment and working directory.
+    literal = f"$(touch {marker}) `touch {marker}`"
+    context_source = (
+        "python^(\nimport json, os, sys\n"
+        "print('unified-stderr-preserved', file=sys.stderr)\n"
+        "__oval_result__ = json.dumps({'cwd': os.getcwd(), "
+        "'value': os.environ.get('OSTADIX_UNIFIED_SMOKE')}, sort_keys=True)\n)_python\n"
+    )
+    contextual = execute({
+        "source": context_source,
+        "cwd": os.fspath(fixture),
+        "env": {"OSTADIX_UNIFIED_SMOKE": literal},
+        "placement": "local",
+        "workers": 2,
+    })
+    context_json = _native_execute_result(contextual).get("value", {}).get("v", {}).get("utf8", "{}")
+    if json.loads(context_json) != {"cwd": os.fspath(fixture), "value": literal} or marker.exists():
+        raise SmokeError(f"o_execute changed literal environment/cwd: {contextual}")
+    if "unified-stderr-preserved" not in contextual.get("stderr", {}).get("text", ""):
+        raise SmokeError(f"o_execute lost raw stderr: {contextual}")
+    isolated = execute({"source": context_source, "cwd": os.fspath(fixture)})
+    isolated_json = _native_execute_result(isolated).get("value", {}).get("v", {}).get("utf8", "{}")
+    if json.loads(isolated_json) != {"cwd": os.fspath(fixture), "value": None} or marker.exists():
+        raise SmokeError(f"o_execute per-call environment leaked: {isolated}")
+
+    # Admitted execution must produce the same native result while retaining
+    # the analysis evidence that binds dispatch to this exact source.
+    for supplied in ({"source": source}, {"path": os.fspath(program)}):
+        admitted = execute({**supplied, "mode": "admitted"})
+        if _native_execute_result(admitted).get("ok") is not True:
+            raise SmokeError(f"admitted execution failed: {admitted}")
+        analysis = admitted.get("analysis", {})
+        analyzed_intent = analysis.get("intent", {})
+        analysis_job = analysis.get("job", {})
+        if (
+            analyzed_intent.get("schema") != "oexec.execution-intent/v1"
+            or analyzed_intent.get("source_sha256") != hashlib.sha256(source.encode()).hexdigest()
+            or analysis_job.get("state") != "completed"
+            or analysis_job.get("exit_code") != 0
+            or not isinstance(analysis_job.get("job_id"), str)
+            or analysis_job["job_id"] == admitted.get("job_id")
+        ):
+            raise SmokeError(f"admitted execution omitted its analysis evidence: {admitted}")
+
+    # A source snapshot used for admitted execution must remain available to
+    # the managed job. A second call releases it without serializing work.
+    barrier = fixture / "release-unified-background"
+    waiting_source = (
+        "python^(\nfrom pathlib import Path\nimport time\n"
+        f"barrier = Path({os.fspath(barrier)!r})\n"
+        "while not barrier.exists():\n    time.sleep(0.02)\n"
+        "__oval_result__ = 42\n)_python\n"
+    )
+    background = execute({
+        "source": waiting_source,
+        "mode": "admitted",
+        "background": True,
+        "timeout_secs": 30,
+    })
+    job_id = background.get("job_id")
+    if not isinstance(job_id, str) or background.get("state") != "running":
+        raise SmokeError(f"background o_execute omitted its running job: {background}")
+    snapshot = background.get("input", {}).get("path")
+    if not isinstance(snapshot, str) or not Path(snapshot).is_file():
+        raise SmokeError(f"background job lost its retained source snapshot: {background}")
+    if Path(snapshot).read_text(encoding="utf-8") != waiting_source:
+        raise SmokeError("background job source snapshot changed before dispatch")
+    release = execute({
+        "source": "python^(\nfrom pathlib import Path\n"
+        f"Path({os.fspath(barrier)!r}).write_text('released')\n"
+        "__oval_result__ = 42\n)_python\n",
+    })
+    _native_execute_result(release)
+    deadline = time.monotonic() + timeout
+    while True:
+        status = call("o_job_status", {"job_id": job_id})
+        if status.get("state") != "running":
+            if status.get("state") != "completed" or status.get("exit_code") != 0:
+                raise SmokeError(f"background source snapshot did not execute: {status}")
+            break
+        if time.monotonic() >= deadline:
+            raise SmokeError(f"background source execution did not finish: {status}")
+        time.sleep(0.05)
+    page = call("o_job_read", {"job_id": job_id, "stream": "stdout"})
+    if json.loads(page.get("text", "{}")).get("ok") is not True:
+        raise SmokeError(f"background source execution lost native result: {page}")
+    deadline = time.monotonic() + timeout
+    while Path(snapshot).exists():
+        if time.monotonic() >= deadline:
+            raise SmokeError(f"completed job retained its temporary source: {snapshot}")
+        time.sleep(0.02)
+
+    project = fixture / "route project"
+    project.mkdir()
+    project_marker = fixture / "project-route-executed"
+    (project / "main.py").write_text(
+        "from pathlib import Path\n"
+        f"marker = Path({os.fspath(project_marker)!r})\n"
+        "count = int(marker.read_text()) if marker.exists() else 0\n"
+        "marker.write_text(str(count + 1))\n"
+        "print(42)\n",
+        encoding="utf-8",
+    )
+    (project / "olang.project.toml").write_text(
+        '[project]\nname = "unified-smoke"\ndefault_route = "main"\n'
+        '[[routes]]\nid = "main"\ncommand = ["python3", "main.py"]\n'
+        'result_codec = "json"\n',
+        encoding="utf-8",
+    )
+    bundle = fixture / "lifted project.O"
+    linked = call("o_cli", {
+        "command": "o-link",
+        "args": [os.fspath(project), "--project", "-o", os.fspath(bundle)],
+    })
+    if linked.get("exit_code") != 0 or not bundle.is_file() or project_marker.exists():
+        raise SmokeError(f"native project lifting failed or dispatched a route: {linked}")
+    for target, expected in (("ir", "ProjectExecutionPlan"), ("dot", "digraph")):
+        compiled = execute({"source": bundle.read_text(encoding="utf-8"), "action": "compile", "target": target})
+        if (
+            compiled.get("state") != "completed"
+            or compiled.get("exit_code") != 0
+            or expected not in compiled.get("result", "")
+            or compiled.get("placement", {}).get("route") != "project-compiler"
+            or project_marker.exists()
+        ):
+            raise SmokeError(f"project {target} compilation lost its nonexecuting route: {compiled}")
+    # Project directories, bundle paths, and inline bundles all retain the
+    # route executor; interpreting their payload as inert text is not success.
+    for expected_count, supplied in enumerate((
+        {"path": os.fspath(project)},
+        {"path": os.fspath(bundle)},
+        {"source": bundle.read_text(encoding="utf-8")},
+        {"path": os.fspath(project), "mode": "admitted"},
+    ), start=1):
+        result = execute({**supplied, "placement": "local"})
+        native = result.get("result", {})
+        if (
+            result.get("state") != "completed"
+            or result.get("exit_code") != 0
+            or native.get("schema") != "ostadix.run-summary/v1"
+            or native.get("disposition") != "succeeded"
+            or json.loads(result.get("stdout", {}).get("text", "{}")) != native
+            or not project_marker.is_file()
+            or project_marker.read_text(encoding="utf-8") != str(expected_count)
+        ):
+            raise SmokeError(f"unified project input did not run its native route: {result}")
+
+    # The marked-operation planner chooses its own route. Its exact descriptor
+    # digests bind these files, so copy the native fixture without rewriting it.
+    operation_project = fixture / "marked operation"
+    shutil.copytree(root / "examples" / "normalize", operation_project)
+    operation_before = _snapshot_tree(operation_project)
+    operation = execute({"path": os.fspath(operation_project)})
+    operation_summary = operation.get("result", {})
+    operation_record = operation.get("record", {}).get("record", {})
+    route_results = operation_record.get("route_results", [])
+    if (
+        operation.get("state") != "completed"
+        or operation.get("exit_code") != 0
+        or operation_summary.get("disposition") != "succeeded"
+        or operation.get("placement", {}).get("route") != "project-operation"
+        or len(route_results) != 1
+        or route_results[0].get("route_id") != "normalize_chunked"
+        or route_results[0].get("value") != {"values": [0.2, 0.4, 0.6, 0.8, 1.0]}
+        or operation_record.get("run_id") != operation_summary.get("run_id")
+        or _snapshot_tree(operation_project) != operation_before
+    ):
+        raise SmokeError(f"default auto placement bypassed the marked-operation planner: {operation}")
 
 
 def run_smoke(
@@ -636,6 +980,15 @@ def run_smoke(
             "inputSchema"
         ]["properties"]:
             raise SmokeError("o_olangc schema omitted materialize_only")
+        execute_tools = [tool for tool in tools if tool.get("name") == "o_execute"]
+        execute_fields = {
+            "source", "path", "action", "placement", "mode", "cwd", "env", "stdin",
+            "timeout_secs", "background", "workers", "target", "output",
+        }
+        if len(execute_tools) != 1 or not execute_fields.issubset(
+            execute_tools[0]["inputSchema"]["properties"]
+        ):
+            raise SmokeError("o_execute schema omitted its unified input controls")
 
         _send(
             process,
@@ -1107,6 +1460,11 @@ def run_smoke(
         with tempfile.TemporaryDirectory(prefix=".mcp-agent-smoke-") as agent_fixture:
             _run_agent_surface_smoke(
                 process, responses, root, timeout, Path(agent_fixture).resolve()
+            )
+
+        with tempfile.TemporaryDirectory(prefix=".mcp unified smoke ") as unified_fixture:
+            _run_unified_surface_smoke(
+                process, responses, root, timeout, Path(unified_fixture).resolve()
             )
 
         if require_wasm:

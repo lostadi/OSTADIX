@@ -144,6 +144,16 @@ impl JobManager {
     }
 
     pub async fn start(&self, request: ExecutionRequest) -> Result<Value, String> {
+        self.start_retained(request, ()).await
+    }
+
+    /// A resource such as a source snapshot follows the spawned process from
+    /// its first await through monitor cleanup, even if start is cancelled.
+    pub async fn start_retained<T: Send + 'static>(
+        &self,
+        request: ExecutionRequest,
+        retained: T,
+    ) -> Result<Value, String> {
         if request.timeout_secs == Some(0) {
             return Err("timeout_secs must be positive when specified".into());
         }
@@ -252,13 +262,11 @@ impl JobManager {
             )
             .map(|_| ())
         });
-        tokio::spawn(monitor(
-            job.clone(),
-            child,
-            spool,
-            cancel_rx,
-            request.timeout_secs,
-        ));
+        let monitored_job = job.clone();
+        tokio::spawn(async move {
+            monitor(monitored_job, child, spool, cancel_rx, request.timeout_secs).await;
+            drop(retained);
+        });
         let result = snapshot(&job).await?;
         handoff.0 = None;
         Ok(result)

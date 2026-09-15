@@ -19,6 +19,52 @@ machine-oriented. The authoritative semantics live in [SPEC.md](../SPEC.md).
 
 ## The agent workflow
 
+### Through MCP
+
+Write one complete `.O` computation and call `o_execute`:
+
+```json
+{"source":"python^( __oval_result__ = sum(x*x for x in range(10)) )_python"}
+```
+
+Supply exactly one `source` or `path`. Existing `.O` files, project directories,
+and linked project bundles use `path`; `cwd` supplies the working directory for
+relative filesystem access. Source text is passed literally and uses the same
+O syntax and registered backends as a file.
+
+| Request | Behavior |
+|---|---|
+| `action: "execute"` (default) | Execute using the native interpreter or project runtime |
+| `action: "check"` | Parse ordinary O without executing; this does not check backend health or establish admission |
+| `action: "plan"` | Inspect the static program/project plan |
+| `action: "compile", target: "dot"` | Return the native compiler's graph output in the retained stdout log |
+| `action: "compile", target: "binary", output: "app"` | Produce the requested executable relative to `cwd` |
+| `mode: "admitted"` with ordinary execution | Analyze and bind the source/intent internally, then require fresh native admission |
+
+`placement: "auto"` uses local HGraph for ordinary O and the existing
+mesh-prefer policy for projects. `placement: "local"` requests local dispatch.
+`placement: "mesh-required"` requires a supported project and successful native
+remote placement; it never silently becomes local success. Arbitrary ordinary
+O graph distribution is not implemented by this MCP projection.
+
+The result preserves the runtime's JSON value/error object and managed job
+evidence. Project execution returns its native summary and run references;
+foreground calls also retrieve the exact run record and decoded value when
+available. Marked operation directories retain their own planner under auto.
+Large output remains complete in paged logs when it exceeds the inline result
+budget; follow `result_retrieval` with `o_job_read`.
+Read the returned status and errors: a plan or job ID does not prove execution.
+Use `background: true` for long work and the existing `o_job_*` tools to follow
+it. Compiler and admitted inline operations use server-owned source snapshots
+retained through job completion; callers do not manage temporary source files.
+
+Use `o_capabilities` and `o_guide` when additional capabilities are needed.
+`o_cli` retains full native arguments for routes, compiler options, placement
+administration and other expert operations. `o_eval`, `o_run`, `o_olangc`, and
+the explicit intent tools keep their existing contracts.
+
+### Through the CLI
+
 1. **Generate** a `.O` program (or an inline expression).
 2. **Validate** it without executing: `O --check --json program.O`.
    - Success: exit 0, stdout `{"ok":true,"stage":"parse",...}`.
