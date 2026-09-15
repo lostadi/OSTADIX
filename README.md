@@ -1090,7 +1090,7 @@ for the complete contract and native placement boundaries.
 
 | MCP tool | Current behavior |
 |----------|------------------|
-| `o_execute` | Execute source or an existing program/project; `action` also supports `check`, `plan`, and `compile`. `mode: admitted` adds automatic source/intent binding for ordinary O. `placement` preserves local/project mesh semantics. |
+| `o_execute` | Execute source or an existing program/project; `action` also supports `check`, `plan`, and `compile`. `mode: admitted` adds automatic source/intent binding for ordinary O. `placement` preserves local/project mesh semantics, `route` selects project work, and `node` submits a complete ordinary document to an authenticated peer. |
 | `o_capabilities`, `o_guide` | Discover the source-backed command catalog and embedded workflow guides. |
 | `o_cli`, `o_eval` | Full literal CLI arguments or inline O, with cwd/env/stdin, PTY, timeout and background jobs. |
 | `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, `o_job_cancel` | Follow independent session jobs, read retained logs, send input and cancel owned execution. |
@@ -1101,7 +1101,7 @@ for the complete contract and native placement boundaries.
 | `o_analyze_intent` | Analyzes exact source and a stable graph intent, then creates a bounded one-use handle. |
 | `o_execute_intent` | Consumes that handle, requires O to recompute the same Intent V1, then performs a fresh V6 admission before dispatch. |
 | `o_run` | Runs one local `.O` file directly with an explicit working directory and timeout. |
-| `o_olangc` | Runs `olangc` with the resolved shim directory; supports `ir`, `dot`, `script`, and `wasm`, or the default target. |
+| `o_olangc` | Runs `olangc` with the resolved shim directory; `ir`/`dot` inspect, `script` executes, and `wasm`/`binary` build artifacts. Omitting the target builds a binary. |
 | `o_search_run` | Runs one strictly named `.O` search program from `<work>/search` when an external `a18re` tree exists, otherwise from the installed bundled `examples/` corpus; path traversal and symlink escape are rejected. |
 | `o_information_inspect` | Runs fixed local `o-info head` against one existing non-symlink state root with bounded input, output, and timeout. It returns sanitized object IDs and counts while preserving entries, content, inode, mode, and mtime. |
 
@@ -1138,7 +1138,7 @@ For a build without the rest of setup, build the Ostadix commands used by
 the server and then the server itself:
 
 ```bash
-cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link
+cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link --bin o-node --bin octl
 cargo build --release --locked \
   --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
 ```

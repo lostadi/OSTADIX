@@ -1950,7 +1950,7 @@ struct OlangcArgs {
     path: String,
     #[serde(default)]
     #[schemars(
-        description = "olangc target: ir | dot | script | wasm | or omit for default AOT analysis"
+        description = "olangc target: ir | dot | script | wasm | binary. Omitted target defaults to binary and builds an executable; script executes the program. Use ir or dot for non-executing analysis."
     )]
     target: Option<String>,
     #[serde(default)]
@@ -2128,7 +2128,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Primary Ostadix computation interface. Supply exactly one complete O source or existing program/project path. Execute by default, or check syntax, plan, or compile an artifact. Preserves native runtime admission, project placement, structured results and job evidence; mode admitted binds ordinary O source and intent before fresh admission. Expert CLI tools remain available.",
+        description = "Primary Ostadix computation interface. Supply exactly one complete O source or existing program/project path. Execute by default, or check syntax, plan, or compile an artifact. Preserves native runtime admission, project placement, structured results and job evidence; route selects project work and node sends a complete ordinary document to one authenticated peer. mode admitted binds local ordinary O source and intent before fresh admission. Expert CLI tools remain available.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -2831,13 +2831,14 @@ impl ServerHandler for OstadixMcp {
             server_info: rmcp::model::Implementation {
                 name: "ostadix-mcp".into(),
                 title: Some("Ostadix runtime and toolchain".into()),
-                version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.1").into(),
+                version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.2").into(),
                 website_url: Some("https://github.com/lostadi/Ostadix-lang".into()),
                 icons: None,
             },
             instructions: Some(
                 "Ostadix-lang / O-lang MCP. Prefer o_execute with one complete polyglot O source or existing program/project path. Its action defaults to execute; check is parse-only, plan is static inspection, compile explicitly requests an artifact. \
 Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. \
+Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. \
 Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. \
 Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. \
 Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. \

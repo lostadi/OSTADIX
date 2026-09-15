@@ -101,6 +101,8 @@ def write_minimal_tree(root: Path) -> None:
         ),
         "crates/ostadix-api/src/registry.rs": "pub mod bundle;\n",
         "crates/ostadix-api/src/registry/bundle/mod.rs": "pub use crate::backend_catalog::*;\n",
+        "crates/ostadix-api/src/project.rs": "pub mod lower;\n",
+        "crates/ostadix-api/src/project/lower.rs": 'include!("input_kind.inc.rs");\n',
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
     for relative, source in facade_sources.items():
@@ -110,6 +112,7 @@ def write_minimal_tree(root: Path) -> None:
 
     for relative in (
         "crates/ostadix-api/src/backend_catalog.inc.rs",
+        "crates/ostadix-api/src/project/input_kind.inc.rs",
         "crates/ostadix-api/src/lib.rs",
         "crates/ostadix-api/src/world/identity.rs",
     ):
@@ -195,7 +198,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "path": "crates/ostadix-api/src/backend_catalog.inc.rs",
                     "owner": "backend_catalog",
                     "included_from": "crates/ostadix-api/src/backend_catalog.rs",
-                }
+                },
+                {
+                    "path": "crates/ostadix-api/src/project/input_kind.inc.rs",
+                    "owner": "project",
+                    "included_from": "crates/ostadix-api/src/project/lower.rs",
+                },
             ],
         )
         self.assertEqual(len(roots), 47)
@@ -819,17 +827,22 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         )
 
     def test_compiled_include_fragment_cannot_hide_a_root_edge(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            write_minimal_tree(root)
-            (root / "crates/ostadix-api/src/backend_catalog.inc.rs").write_text(
-                "use crate::api::Boundary;\n", encoding="utf-8"
-            )
-            result = run_checker(root)
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "root edge `backend_catalog -> api` is not declared", result.stderr
-        )
+        for relative, owner in (
+            ("crates/ostadix-api/src/backend_catalog.inc.rs", "backend_catalog"),
+            ("crates/ostadix-api/src/project/input_kind.inc.rs", "project"),
+        ):
+            with self.subTest(fragment=relative):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    write_minimal_tree(root)
+                    (root / relative).write_text(
+                        "use crate::api::Boundary;\n", encoding="utf-8"
+                    )
+                    result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    f"root edge `{owner} -> api` is not declared", result.stderr
+                )
 
     def test_compiled_fragment_cannot_declare_external_modules_in_inline_body(
         self,
@@ -1570,9 +1583,8 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             manifest_path = root / "ci/architecture-roots.toml"
             manifest_path.write_text(
                 manifest_path.read_text(encoding="utf-8").replace(
-                    'excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs"]',
-                    'excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", '
-                    '"crates/ostadix-api/src/parser/hidden.rs"]',
+                    'excluded_files = [',
+                    'excluded_files = ["crates/ostadix-api/src/parser/hidden.rs", ',
                     1,
                 ),
                 encoding="utf-8",

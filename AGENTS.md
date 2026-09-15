@@ -53,6 +53,11 @@ binds ordinary source and intent before fresh native admission. Placement auto
 uses local HGraph for ordinary O and native mesh-prefer for projects;
 marked operation directories retain their own planner. Mesh-required never
 silently falls back to local execution.
+Use `route` for explicit project execute/plan/IR/DOT selection. `node` sends an
+ordinary complete document to one authenticated peer through native `octl`;
+it is distinct from project mesh and does not partition the ordinary graph.
+Node cwd/env configure the local client; cancelling it cannot stop remote
+effects. Preserve receipt evidence and do not retry unknown completion.
 Use `o_capabilities` (optional query) and `o_guide` (workflow topic) to discover
 the full expert command surface. `o_cli` accepts exact native argument arrays,
 cwd, per-child environment, stdin, optional Unix PTY, and background execution.

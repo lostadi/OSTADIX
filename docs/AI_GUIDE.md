@@ -40,12 +40,23 @@ O syntax and registered backends as a file.
 | `action: "compile", target: "dot"` | Return the native compiler's graph output in the retained stdout log |
 | `action: "compile", target: "binary", output: "app"` | Produce the requested executable relative to `cwd` |
 | `mode: "admitted"` with ordinary execution | Analyze and bind the source/intent internally, then require fresh native admission |
+| `route: "secondary"` with a project | Select a native route or route-set for execute, plan, or IR/DOT; marked operations select their own routes |
+| `node: "my-node"` with ordinary execution | Send the complete document to one authenticated node through native `octl`; no local fallback |
 
 `placement: "auto"` uses local HGraph for ordinary O and the existing
 mesh-prefer policy for projects. `placement: "local"` requests local dispatch.
 `placement: "mesh-required"` requires a supported project and successful native
 remote placement; it never silently becomes local success. Arbitrary ordinary
 O graph distribution is not implemented by this MCP projection.
+
+Selected-node execution is distinct from project mesh. `node` accepts ordinary
+execution in direct mode and rejects explicit placement, workers, stdin, and
+project routes. `cwd`/`env` configure the local client only. Its response
+preserves the native hosted V1 receipt and typed value; background receipts
+remain in job output. Cancelling the client does not cancel remote effects.
+Unknown completion must not be retried automatically. Native hosted protocol
+source/output and IO/publication deadlines still apply; see the
+[MCP guide](../mcp/ostadix_lang_mcp_server/README.md#complete-document-execution-on-a-selected-node).
 
 The result preserves the runtime's JSON value/error object and managed job
 evidence. Project execution returns its native summary and run references;
@@ -59,7 +70,7 @@ it. Compiler and admitted inline operations use server-owned source snapshots
 retained through job completion; callers do not manage temporary source files.
 
 Use `o_capabilities` and `o_guide` when additional capabilities are needed.
-`o_cli` retains full native arguments for routes, compiler options, placement
+`o_cli` retains full native arguments for route policies, compiler options, placement
 administration and other expert operations. `o_eval`, `o_run`, `o_olangc`, and
 the explicit intent tools keep their existing contracts.
 

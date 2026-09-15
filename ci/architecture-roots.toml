@@ -8,16 +8,20 @@ schema_version = 1
 package_manifest = "crates/ostadix-api/Cargo.toml"
 source_root = "crates/ostadix-api/src"
 crate_root = "crates/ostadix-api/src/lib.rs"
-excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs"]
+excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
 excluded_directories = []
 
-# This token fragment is compiled into backend_catalog.rs with include!(). It
-# is scanned under that owning root but is not counted as a standalone module
-# file in the production-module inventory.
+# Token fragments compiled with include!() are scanned under their owning root
+# and are not counted as standalone modules in the production inventory.
 [[compiled_fragment]]
 path = "crates/ostadix-api/src/backend_catalog.inc.rs"
 owner = "backend_catalog"
 included_from = "crates/ostadix-api/src/backend_catalog.rs"
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/project/input_kind.inc.rs"
+owner = "project"
+included_from = "crates/ostadix-api/src/project/lower.rs"
 
 # These physical paths are compiled under roots that differ from their
 # conventional on-disk module path. They are part of the dependency identity,

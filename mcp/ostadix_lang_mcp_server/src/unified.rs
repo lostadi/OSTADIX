@@ -10,6 +10,16 @@ use std::io::Write;
 const MAX_PROJECTED_RESULT_BYTES: u64 = 1024 * 1024;
 const MAX_INLINE_ARG_BYTES: usize = 64 * 1024;
 
+mod project_input {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../crates/ostadix-api/src/project/input_kind.inc.rs"
+    ));
+}
+
+#[path = "selected_node.rs"]
+mod selected_node;
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 enum Action {
@@ -62,6 +72,13 @@ pub(super) struct ExecuteArgs {
     /// Required destination for binary/wasm compilation, relative to cwd.
     /// ir/dot return their text in result and do not accept output.
     output: Option<String>,
+    /// Explicit project route or route-set for execute, plan, or IR/DOT output.
+    /// Marked operation projects retain their native planner's route selection.
+    route: Option<String>,
+    /// Send an ordinary complete document to this native node. This is not
+    /// graph partitioning. env/cwd configure the local client, not the remote
+    /// workspace. Cancelling the client cannot cancel remote effects.
+    node: Option<String>,
     cwd: Option<String>,
     /// Per-child environment overrides, isolated from other calls.
     #[serde(default)]
@@ -69,7 +86,8 @@ pub(super) struct ExecuteArgs {
     /// Initial stdin. Foreground sends EOF; background keeps the pipe open.
     stdin: Option<String>,
     /// Overall operation budget in seconds. Foreground default 120; background
-    /// default unlimited. Zero explicitly disables the deadline.
+    /// default unlimited. Zero disables the local deadline. Selected-node
+    /// execution also retains native IO/publication deadlines (see its result).
     timeout_secs: Option<u64>,
     /// Return the managed execution job immediately after any required analysis.
     #[serde(default)]
@@ -90,6 +108,31 @@ impl ExecuteArgs {
             return Err("workers must be at least 1".into());
         }
         validate_child_input(&[], &self.env)?;
+        if let Some(route) = &self.route {
+            if route.is_empty() || route.contains('\0') {
+                return Err("route must be nonempty and contain no NUL bytes".into());
+            }
+            if self.action == Action::Check
+                || (self.action == Action::Compile
+                    && !matches!(self.target.as_deref(), Some("ir" | "dot")))
+            {
+                return Err("route is supported for project execute, plan, and IR/DOT; compiled project binaries select their route at runtime".into());
+            }
+        }
+        if let Some(node) = &self.node {
+            if node.is_empty() || node.contains('\0') {
+                return Err("node must be nonempty and contain no NUL bytes".into());
+            }
+            if self.action != Action::Execute
+                || self.mode != Mode::Direct
+                || self.placement != Placement::Auto
+                || self.workers.is_some()
+                || self.stdin.is_some()
+                || self.route.is_some()
+            {
+                return Err("node accepts ordinary execute with native remote admission; local intent binding, placement overrides, workers, application stdin and project routes are unsupported".into());
+            }
+        }
         if self.mode == Mode::Admitted && self.action != Action::Execute {
             return Err("mode admitted is supported only for action execute".into());
         }
@@ -172,8 +215,7 @@ impl Drop for SourceSnapshot {
 }
 
 fn is_project_source(source: &str) -> bool {
-    // Keep parity with ostadix-api::project::lower::has_embedded_bundle.
-    source.contains("# O-PROJECT-BUNDLE-V1 BEGIN") && source.contains("#olang-bundle-payload-begin")
+    project_input::has_embedded_bundle(source)
 }
 
 struct Input {
@@ -189,6 +231,7 @@ impl Input {
             let cwd = resolve_directory(root, args.cwd.as_deref(), "working directory")?;
             let project = is_project_source(source);
             let needs_file = project
+                || args.node.is_some()
                 || args.mode == Mode::Admitted
                 || matches!(args.action, Action::Plan | Action::Compile)
                 || source.len() > MAX_INLINE_ARG_BYTES;
@@ -360,6 +403,14 @@ impl OstadixMcp {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
         let input = Input::resolve(&root, &args)?;
+        if let Some(node) = &args.node {
+            if input.project {
+                return Err("node sends ordinary complete O documents; use native project mesh for project inputs".into());
+            }
+            return self
+                .execute_selected_node(&args, &input, node, deadline)
+                .await;
+        }
         if input.project {
             if args.action == Action::Check {
                 return Err("project inputs support execute, plan, and compile; use plan for a non-executing project validation".into());
@@ -369,6 +420,8 @@ impl OstadixMcp {
             }
         } else if args.placement == Placement::MeshRequired {
             return Err("mesh-required needs a native project directory or project bundle; ordinary O currently executes locally".into());
+        } else if args.route.is_some() {
+            return Err("route requires a project directory or lifted project bundle".into());
         }
         let mut env = args.env.clone();
         let mut analysis = None;
@@ -376,7 +429,7 @@ impl OstadixMcp {
         let mut operation_project = false;
         if input.project
             && args.action == Action::Execute
-            && args.placement == Placement::Auto
+            && matches!(args.placement, Placement::Auto | Placement::Local)
             && input.path.as_ref().is_some_and(|path| path.is_dir())
         {
             let probe = self
@@ -427,6 +480,9 @@ impl OstadixMcp {
             );
             argv.push(input.path.as_ref().unwrap().display().to_string());
             argv.push("--json".into());
+            if let Some(selected) = &args.route {
+                argv.push(format!("--route={selected}"));
+            }
             route = if args.action == Action::Plan {
                 "project-plan"
             } else if operation_project {
@@ -557,6 +613,9 @@ impl OstadixMcp {
                     "-o".into(),
                     absolute_output(&input.cwd, output)?.display().to_string(),
                 ]);
+            }
+            if let Some(selected) = &args.route {
+                argv.push(format!("--route={selected}"));
             }
         }
         let mut result = self
@@ -776,6 +835,67 @@ mod tests {
         assert!(is_project_source(
             "# O-PROJECT-BUNDLE-V1 BEGIN\n#olang-bundle-payload-begin"
         ));
+    }
+
+    #[test]
+    fn selected_node_rejects_unsupported_contracts_before_execution() {
+        for extra in [
+            json!({"node":""}),
+            json!({"node":"bad\u{0000}name"}),
+            json!({"mode":"admitted"}),
+            json!({"placement":"local"}),
+            json!({"placement":"mesh-required"}),
+            json!({"workers":2}),
+            json!({"stdin":"input"}),
+            json!({"route":"main"}),
+            json!({"action":"check"}),
+            json!({"action":"plan"}),
+            json!({"action":"compile", "target":"dot"}),
+        ] {
+            let mut value = json!({"source":"1", "node":"test-node"});
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            assert!(args(value.clone()).validate().is_err(), "{value}");
+        }
+        assert!(
+            args(json!({"source":"1", "node":"test-node", "background":true,
+            "env":{"XDG_CONFIG_HOME":"/tmp/fixture"}}))
+            .validate()
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn route_selection_preserves_native_compile_time_boundary() {
+        for extra in [
+            json!({"route":""}),
+            json!({"route":"bad\u{0000}route"}),
+            json!({"action":"check"}),
+            json!({"action":"compile", "target":"binary", "output":"app"}),
+            json!({"action":"compile", "target":"wasm", "output":"app"}),
+        ] {
+            let mut value = json!({"path":"project", "route":"secondary"});
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            assert!(args(value.clone()).validate().is_err(), "{value}");
+        }
+        for extra in [
+            json!({}),
+            json!({"action":"plan"}),
+            json!({"action":"compile", "target":"ir"}),
+            json!({"action":"compile", "target":"dot"}),
+        ] {
+            let mut value = json!({"path":"project", "route":"secondary"});
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            assert!(args(value.clone()).validate().is_ok(), "{value}");
+        }
     }
 
     #[test]

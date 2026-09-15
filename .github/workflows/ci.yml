@@ -302,12 +302,13 @@ jobs:
           components: clippy
       - name: Build and validate MCP
         run: |
-          cargo +1.97.1 build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link
+          cargo +1.97.1 build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link --bin o-node --bin octl
           cargo +1.97.1 test --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
           python3 -m unittest -v tests.test_mcp_smoke tests.test_mcp_client
           cargo +1.97.1 clippy --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml -- -D warnings
           cargo +1.97.1 build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
           python3 scripts/smoke_ostadix_mcp.py
+          python3 scripts/smoke_ostadix_mcp_node.py
 
   release-claims:
     name: Release-claim guard

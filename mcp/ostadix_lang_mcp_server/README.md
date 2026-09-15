@@ -73,8 +73,43 @@ reports its native operation-planner contract separately.
 Linked bundle source is recognized and routed through the project runtime;
 evaluating its inert container as an ordinary O value would not execute the
 project. Native route, operation, authority, and placement checks remain
-decisive. Use `o_cli` for route declarations or other specialized controls.
+decisive. Set `route` to select a project route or route-set for execution,
+planning, or IR/DOT output. Marked operation projects choose their own route
+and reject external route overrides. Compiled project binaries select routes
+at runtime, so binary/Wasm compilation rejects `route`. Bundle classification
+uses the same dependency-free predicate as the native project frontdoor.
 This interface does not add arbitrary remote partitioning of ordinary O.
+
+### Complete-document execution on a selected node
+
+```json
+{"source":"python^( __oval_result__ = 6 * 7 )_python","node":"my-node"}
+```
+
+`node` submits the complete ordinary document through native `octl node run`.
+It requires an already available, authenticated peer and never starts a node,
+falls back locally, or automatically retries an ambiguous result. This mode
+uses native hosted V1 admission; it rejects local `mode: "admitted"`, explicit
+`placement`, `workers`, application `stdin`, and project `route`. Use project
+mesh for lifted projects. Per-call `env` and `cwd` configure the local client
+and its peer configuration; they do not configure the remote workspace.
+
+The foreground response preserves the native digest-bound receipt in `result`
+and its typed OValue in `value`, including native failure receipts. The receipt
+is transported over mutual TLS; it is not a signed V2 session receipt. Process
+status and retained logs remain separate evidence. Background calls return a
+managed client job; retrieve the final receipt with `o_job_read`.
+
+Cancelling or timing out that job stops the local client. Remote effects may
+continue, and completion is unknown until a receipt is obtained. The native
+publication deadline suppresses late results rather than cancelling effects.
+`timeout_secs` also sets native IO and publication deadlines, capped at 3,600
+and 86,400 seconds respectively. Omitted or zero preserves native 60-second IO
+and 300-second publication deadlines; zero disables only the local supervisor
+deadline. Hosted V1 retains its native 1 MiB source and 768 KiB canonical-CBOR
+outcome bounds. These protocol limits do not apply to ordinary local O source.
+
+### Results and artifacts
 
 Ordinary execute/check results project the existing `O --json` object into
 `result`; project results retain their native summary/run references.
@@ -249,7 +284,7 @@ source snapshot at `$OSTADIX_GUEST_SOURCE` inside that VM:
 
 ```bash
 cd "$OSTADIX_GUEST_SOURCE"
-cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link
+cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link --bin o-node --bin octl
 cd "$OSTADIX_GUEST_SOURCE/mcp/ostadix_lang_mcp_server"
 cargo build --release --locked
 cp -f target/release/ostadix-mcp ~/.local/bin/ostadix-mcp
@@ -262,9 +297,10 @@ cargo test --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
 cargo clippy --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml -- -D warnings
 cargo build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
 python3 scripts/smoke_ostadix_mcp.py
+python3 scripts/smoke_ostadix_mcp_node.py
 ```
 
-The last command performs a real MCP initialize/list/call exchange and requires
+The first smoke performs a real MCP initialize/list/call exchange and requires
 the root release `O`, `o-cli`, `olangc`, `o-info`, and `o-link` binaries. Under a deliberately system-only
 `PATH`, it validates every tool's object schema, calls `o_runtimes`, `o_smoke`,
 both supported relative-path forms of `o_run`, relative-path `o_olangc`, and
@@ -279,6 +315,20 @@ cataloged command, start a real node, install software, or contact a remote
 service. PTY behavior has separate execution-layer tests.
 The client drains stdout/stderr concurrently and retains out-of-order JSON-RPC
 replies by id.
+
+The source-first cases exercise nested SQL/text/Python OValue crossings, native
+evaluation failure, admitted relative artifacts, two-worker graph overlap with
+a one-worker negative control, lifted bundles, explicit leading-hyphen routes,
+and native rejection of marked-operation route overrides.
+
+The selected-node smoke additionally requires release `o-node` and `octl`.
+It starts one disposable manual node on loopback with temporary TLS credentials
+and isolated XDG configuration. It verifies source/path receipt identity,
+server environment isolation, failure receipts, concurrent remote documents,
+unsupported-option rejection, and missing-node failure without local fallback.
+It cleans up only its own child processes. This is same-host TLS integration
+evidence; it does not qualify a physical remote machine or general graph
+partitioning.
 
 ## Read-only Information inspection
 

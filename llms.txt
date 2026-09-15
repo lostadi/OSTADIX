@@ -20,6 +20,12 @@ Key facts for agents:
   `mesh-required` retains required remote placement and rejects unsupported
   ordinary-O inputs. Marked operation directories retain their native planner
   under auto. Runtime results and project run evidence remain distinct.
+- Explicit project routes: `o_execute` accepts `route` for execute, plan and
+  IR/DOT. Marked operations select their own routes. `node` sends a complete
+  ordinary document through native authenticated `octl node run`, without
+  local fallback or graph partitioning. Its cwd/env are client-only; cancelling
+  the local job cannot cancel remote effects. Native hosted V1 receipts,
+  deadlines and protocol bounds remain authoritative.
 - File extension: `.O` (hosted orchestration) and `.oc` (O-core native systems language).
 - Run a program: `O program.O` or `o run program.O` (Rust edition; build with
   `./setup.sh --minimal`).

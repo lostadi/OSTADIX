@@ -467,6 +467,107 @@ def _run_unified_surface_smoke(
         if native.get("value") != {"t": "number", "v": {"kind": "int", "v": "42"}}:
             raise SmokeError(f"o_execute changed the native numeric value: {native}")
 
+    # One call must compose actual backend values. The SQL integer reaches
+    # Python as an integer, and the nested text reaches it as Unicode text.
+    composed = execute({
+        "source": (
+            "python^(\n"
+            "number = sql^( SELECT 21 )_sql\n"
+            "label = text^(nested OValue)_text\n"
+            "__oval_result__ = {'answer': number * 2, 'label': label, "
+            "'number_is_int': type(number) is int}\n)_python\n"
+        ),
+    })
+    composed_value = _native_execute_result(composed).get("value", {})
+    if composed_value != {
+        "t": "map",
+        "v": {
+            "answer": {"t": "number", "v": {"kind": "int", "v": "42"}},
+            "label": {"t": "text", "v": {"utf8": "nested OValue", "encoding": "utf-8"}},
+            "number_is_int": {"t": "bool", "v": True},
+        },
+    }:
+        raise SmokeError(f"nested heterogeneous execution lost its typed values: {composed}")
+
+    execution_failed = execute({
+        "source": "python^( raise RuntimeError('unified-backend-failure') )_python",
+    }, error=True)
+    failure = _native_execute_result(execution_failed)
+    if failure.get("stage") != "eval" or "unified-backend-failure" not in failure.get("error", ""):
+        raise SmokeError(f"backend failure lost its native structured error: {execution_failed}")
+
+    # Admitted inline source lives in a private snapshot; relative artifacts
+    # must still be written into the explicitly requested workspace.
+    artifact_run = execute({
+        "source": (
+            "python^(\nfrom pathlib import Path\n"
+            "output = Path('artifacts/relative-result.txt')\n"
+            "output.parent.mkdir()\n"
+            "output.write_text('workspace-artifact')\n"
+            "__oval_result__ = str(output.resolve())\n)_python\n"
+        ),
+        "cwd": os.fspath(fixture),
+        "mode": "admitted",
+    })
+    expected_artifact = fixture / "artifacts" / "relative-result.txt"
+    reported_artifact = _native_execute_result(artifact_run).get("value", {}).get("v", {}).get("utf8")
+    artifact_input = artifact_run.get("input", {})
+    if (
+        reported_artifact != os.fspath(expected_artifact)
+        or not expected_artifact.is_file()
+        or expected_artifact.read_text(encoding="utf-8") != "workspace-artifact"
+        or artifact_input.get("temporary_source") is not True
+        or Path(artifact_input.get("path", "")).parent == fixture
+    ):
+        raise SmokeError(f"inline snapshot changed the artifact working directory: {artifact_run}")
+
+    # Neither member can finish until the other has entered its backend.
+    # Identical source with one worker is a negative control: serialization
+    # must reach the fixture's own error instead of falsely passing the barrier.
+    # Cross-process intervals use wall time: macOS Python before 3.10 has
+    # process-specific monotonic origins. Deadlines remain monotonic locally.
+    for workers in (2, 1):
+        parallel_root = fixture / f"graph-workers-{workers}"
+        parallel_root.mkdir()
+
+        def member(mine: str, other: str) -> str:
+            return (
+                "python^(\nfrom pathlib import Path\nimport time\n"
+                f"Path('{mine}.ready').write_text(str(time.time_ns()))\n"
+                "deadline = time.monotonic() + 8\n"
+                f"while not Path('{other}.ready').exists():\n"
+                "    if time.monotonic() > deadline:\n"
+                "        raise RuntimeError('unified-workers-did-not-overlap')\n"
+                "    time.sleep(0.01)\n"
+                f"Path('{mine}.finished').write_text(str(time.time_ns()))\n"
+                f"__oval_result__ = '{mine}'\n)_python"
+            )
+
+        overlapping = execute({
+            "source": f"autonomous(batch({member('left', 'right')}, {member('right', 'left')}))",
+            "cwd": os.fspath(parallel_root),
+            "mode": "admitted",
+            "workers": workers,
+            "timeout_secs": 30,
+        }, error=workers == 1)
+        overlap_native = _native_execute_result(overlapping)
+        if workers == 1:
+            if (
+                overlap_native.get("stage") != "eval"
+                or "unified-workers-did-not-overlap" not in overlap_native.get("error", "")
+            ):
+                raise SmokeError(f"one-worker control did not reject the overlap barrier: {overlapping}")
+        else:
+            paths = [parallel_root / f"{side}.{event}" for side in ("left", "right") for event in ("ready", "finished")]
+            if not all(path.is_file() for path in paths):
+                raise SmokeError(f"two-worker graph did not complete both barrier members: {overlapping}")
+            left_start, left_end, right_start, right_end = [int(path.read_text()) for path in paths]
+            if not max(left_start, right_start) < min(left_end, right_end):
+                raise SmokeError(
+                    "two-worker graph returned success without actual backend overlap: "
+                    f"left=({left_start}, {left_end}) right=({right_start}, {right_end})"
+                )
+
     # Source-first execution must adapt past the host's single-argument limit.
     # The source is still ordinary O; only its transport needs a private file.
     large_source = " " * (300 * 1024) + source
@@ -566,6 +667,7 @@ def _run_unified_surface_smoke(
         {"action": "compile", "target": "script"},
         {"action": "compile", "target": "binary"},
         {"action": "check", "mode": "admitted"},
+        {"route": "-alternate"},
     ):
         rejected = execute({"source": effect_source, **options}, error=True)
         if rejected.get("job_id") is not None or marker.exists():
@@ -666,6 +768,7 @@ def _run_unified_surface_smoke(
     project = fixture / "route project"
     project.mkdir()
     project_marker = fixture / "project-route-executed"
+    alternate_marker = fixture / "alternate-route-executed"
     (project / "main.py").write_text(
         "from pathlib import Path\n"
         f"marker = Path({os.fspath(project_marker)!r})\n"
@@ -674,9 +777,19 @@ def _run_unified_surface_smoke(
         "print(42)\n",
         encoding="utf-8",
     )
+    (project / "alternate.py").write_text(
+        "from pathlib import Path\n"
+        f"marker = Path({os.fspath(alternate_marker)!r})\n"
+        "count = int(marker.read_text()) if marker.exists() else 0\n"
+        "marker.write_text(str(count + 1))\n"
+        "print(84)\n",
+        encoding="utf-8",
+    )
     (project / "olang.project.toml").write_text(
         '[project]\nname = "unified-smoke"\ndefault_route = "main"\n'
         '[[routes]]\nid = "main"\ncommand = ["python3", "main.py"]\n'
+        'result_codec = "json"\n'
+        '[[routes]]\nid = "-alternate"\ncommand = ["python3", "alternate.py"]\n'
         'result_codec = "json"\n',
         encoding="utf-8",
     )
@@ -697,6 +810,49 @@ def _run_unified_surface_smoke(
             or project_marker.exists()
         ):
             raise SmokeError(f"project {target} compilation lost its nonexecuting route: {compiled}")
+    # Explicit selection must reach the native planner/compiler rather than
+    # silently keeping the project's declared default route. A leading hyphen
+    # is valid in a route ID and must remain a value in the native argument list.
+    selected_plan = execute({"path": os.fspath(project), "action": "plan", "route": "-alternate"})
+    plan_result = selected_plan.get("result", {})
+    if (
+        selected_plan.get("state") != "completed"
+        or selected_plan.get("exit_code") != 0
+        or plan_result.get("schema") != "ostadix.intent-plan-summary/v1"
+        or "run-route:-alternate" not in plan_result.get("static_plan", "")
+        or "run-route:main" in plan_result.get("static_plan", "")
+        or project_marker.exists()
+        or alternate_marker.exists()
+    ):
+        raise SmokeError(f"explicit project planning ignored the selected route: {selected_plan}")
+    for target in ("ir", "dot"):
+        selected_compile = execute({
+            "source": bundle.read_text(encoding="utf-8"),
+            "action": "compile",
+            "target": target,
+            "route": "-alternate",
+        })
+        if (
+            selected_compile.get("state") != "completed"
+            or selected_compile.get("exit_code") != 0
+            or "run-route:-alternate" not in selected_compile.get("result", "")
+            or "run-route:main" in selected_compile.get("result", "")
+            or project_marker.exists()
+            or alternate_marker.exists()
+        ):
+            raise SmokeError(f"project {target} compilation ignored explicit route: {selected_compile}")
+    invalid_artifact = fixture / "must-not-compile"
+    rejected_route = execute({
+        "path": os.fspath(project), "action": "compile", "target": "binary",
+        "output": os.fspath(invalid_artifact), "route": "-alternate",
+    }, error=True)
+    if (
+        rejected_route.get("job_id") is not None
+        or invalid_artifact.exists()
+        or project_marker.exists()
+        or alternate_marker.exists()
+    ):
+        raise SmokeError(f"binary compilation accepted a route selected at compile time: {rejected_route}")
     # Project directories, bundle paths, and inline bundles all retain the
     # route executor; interpreting their payload as inert text is not success.
     for expected_count, supplied in enumerate((
@@ -717,12 +873,44 @@ def _run_unified_surface_smoke(
             or project_marker.read_text(encoding="utf-8") != str(expected_count)
         ):
             raise SmokeError(f"unified project input did not run its native route: {result}")
+    default_dispatch_count = project_marker.read_text(encoding="utf-8")
+    for selected_count, supplied in enumerate((
+        {"path": os.fspath(project)},
+        {"source": bundle.read_text(encoding="utf-8")},
+    ), start=1):
+        selected_run = execute({**supplied, "placement": "local", "route": "-alternate"})
+        selected_records = selected_run.get("record", {}).get("record", {}).get("route_results", [])
+        if (
+            selected_run.get("state") != "completed"
+            or selected_run.get("exit_code") != 0
+            or selected_run.get("result", {}).get("disposition") != "succeeded"
+            or len(selected_records) != 1
+            or selected_records[0].get("route_id") != "-alternate"
+            or selected_records[0].get("value") != 84
+            or not alternate_marker.is_file()
+            or alternate_marker.read_text(encoding="utf-8") != str(selected_count)
+            or project_marker.read_text(encoding="utf-8") != default_dispatch_count
+        ):
+            raise SmokeError(f"explicit nondefault route did not control native dispatch: {selected_run}")
 
     # The marked-operation planner chooses its own route. Its exact descriptor
     # digests bind these files, so copy the native fixture without rewriting it.
     operation_project = fixture / "marked operation"
     shutil.copytree(root / "examples" / "normalize", operation_project)
     operation_before = _snapshot_tree(operation_project)
+    overridden_operation = execute({
+        "path": os.fspath(operation_project), "route": "normalize_scalar", "placement": "local",
+    }, error=True)
+    overridden_summary = overridden_operation.get("result", {})
+    if (
+        overridden_operation.get("state") != "failed"
+        or overridden_operation.get("exit_code") in (None, 0)
+        or not isinstance(overridden_operation.get("job_id"), str)
+        or overridden_summary.get("disposition") != "preflight_failed"
+        or "realization planning owns the exact route" not in overridden_summary.get("failure", {}).get("message", "")
+        or _snapshot_tree(operation_project) != operation_before
+    ):
+        raise SmokeError(f"marked operation did not retain native route-override rejection: {overridden_operation}")
     operation = execute({"path": os.fspath(operation_project)})
     operation_summary = operation.get("result", {})
     operation_record = operation.get("record", {}).get("record", {})
@@ -983,7 +1171,7 @@ def run_smoke(
         execute_tools = [tool for tool in tools if tool.get("name") == "o_execute"]
         execute_fields = {
             "source", "path", "action", "placement", "mode", "cwd", "env", "stdin",
-            "timeout_secs", "background", "workers", "target", "output",
+            "timeout_secs", "background", "workers", "target", "output", "route",
         }
         if len(execute_tools) != 1 or not execute_fields.issubset(
             execute_tools[0]["inputSchema"]["properties"]

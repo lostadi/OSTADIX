@@ -216,6 +216,10 @@ pub const RUNTIME_PROJECT_SOURCES: &[(&str, &str)] = &[
     ("launch.rs", include_str!("../project/launch.rs")),
     ("logical.rs", include_str!("../project/logical.rs")),
     ("lower.rs", include_str!("../project/lower.rs")),
+    (
+        "input_kind.inc.rs",
+        include_str!("../project/input_kind.inc.rs"),
+    ),
     ("manifest.rs", include_str!("../project/manifest.rs")),
     ("materialize.rs", include_str!("../project/materialize.rs")),
     ("model.rs", include_str!("../project/model.rs")),

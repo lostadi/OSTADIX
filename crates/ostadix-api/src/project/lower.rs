@@ -15,21 +15,13 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use super::bundle::{deserialize, serialize};
 use super::model::ProjectBundle;
 
-/// Outer sentinel marking the start of the embedded project bundle.
-pub const BUNDLE_BEGIN: &str = "# O-PROJECT-BUNDLE-V1 BEGIN";
+include!("input_kind.inc.rs");
 /// Outer sentinel marking the end of the embedded project bundle.
 pub const BUNDLE_END: &str = "# O-PROJECT-BUNDLE-V1 END";
-/// Inner sentinel marking the start of the base64 payload lines.
-const PAYLOAD_BEGIN: &str = "#olang-bundle-payload-begin";
 /// Inner sentinel marking the end of the base64 payload lines.
 const PAYLOAD_END: &str = "#olang-bundle-payload-end";
 
 const CHUNK_WIDTH: usize = 76;
-
-/// True when `source` contains an embedded project bundle.
-pub fn has_embedded_bundle(source: &str) -> bool {
-    source.contains(BUNDLE_BEGIN) && source.contains(PAYLOAD_BEGIN)
-}
 
 /// Lower a bundle into a valid `.O` document (infallible construction).
 pub fn lower_to_o(bundle: &ProjectBundle) -> String {
