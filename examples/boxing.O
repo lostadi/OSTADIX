@@ -53,16 +53,29 @@ PAL = {
     'waist_gold': (249, 226, 175),  # Gold waistband
     'boot': (32, 32, 42),
     
-    # Dynamic Injury Palette
+    # Dynamic Injury & Visceral Gore Palette
     'blood': (235, 25, 45),         # Arterial cut blood
-    'blood_dark': (160, 15, 30),    # Dried / canvas blood
-    'bruise': (140, 45, 125),       # Violet hematoma
+    'blood_dark': (120, 12, 22),    # Dried coagulated venous blood
+    'blood_bright': (255, 40, 55),  # Fresh spraying arterial blood
+    'blood_pool': (60, 8, 12),      # Deep coagulated floor pool
+    'bruise': (140, 45, 125),       # Mottled violet contusion
+    'hematoma': (48, 14, 62),       # Severe blackened periorbital hematoma
+    'gash': (145, 10, 20),          # Open gaping flesh laceration
+    'wound': (175, 25, 35),         # Raw abraded subcutaneous tissue
+    'bone': (240, 235, 220),        # Dislodged tooth / nasal bone
     'eye_white': (245, 245, 250),
     'pupil': (20, 25, 35),
-    'mouthguard': (255, 255, 255),  # Ejected white mouthguard
+    'mouthguard': (240, 245, 255),  # Molded mouthguard
     'spark': (255, 255, 255),       # Impact flash
+    'spark_yel': (255, 230, 80),    # Core spark yellow
     'star': (255, 230, 90),         # Concussion stars
     'sweat': (200, 230, 255),       # Sweat aerosol
+    'trail': (90, 105, 140),        # Speed blur trail
+    'ref_white': (240, 240, 245),   # Referee white stripe
+    'ref_black': (20, 22, 28),      # Referee black stripe
+    'ref_skin': (230, 195, 175),    # Referee skin
+    'doc_coat': (245, 245, 250),    # Physician white coat
+    'doc_cross': (230, 35, 45),     # Medical red cross
 }
 
 # ==============================================================================
@@ -302,7 +315,76 @@ class Fighter:
         self.knockdowns_scored = 0
         self.knockdowns_taken = 0
 
+        # Dynamic combat animation telemetry
+        self.slip_ticks = 0
+        self.punch_type = None
+        self.punch_target = None
+        self.target_zone = 'HEAD'
+        self.last_hurt_zone = 'HEAD'
+        self.last_punch_taken = None
+        self.has_impacted = False
+
+    def get_hitboxes(self):
+        fx = self.x
+        fy = self.y
+        facing = self.facing_right
+        hx = fx + 7.0
+        hy = fy + 3.0
+        if self.state == 'SLIP':
+            hy = fy + 7.5
+            hx = fx + (3.0 if facing else 11.0)
+        elif self.state == 'HURT':
+            hx = fx + (5.0 if facing else 9.0)
+            hy = fy + 2.5
+        elif self.state == 'WOBBLE':
+            hx = fx + 7.0 + math.sin(self.state_frame * 0.8) * 2.0
+
+        guard_box = None
+        if self.state == 'GUARD':
+            gx = fx + (8.5 if facing else 5.5)
+            gy = fy + 4.0
+            guard_box = (gx, gy, 3.2)
+
+        return {
+            'head': (hx, hy, 2.2),
+            'jaw': (hx + (1.0 if facing else -1.0), hy + 1.8, 1.4),
+            'nose': (hx + (1.4 if facing else -1.4), hy + 0.8, 1.1),
+            'liver': (fx + (5.5 if facing else 8.5), fy + (8.5 if self.state != 'SLIP' else 11.5), 2.0),
+            'guard': guard_box
+        }
+
+    def get_glove_kinematics(self, dfn):
+        if self.state not in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT'):
+            return None
+        p = self.state_frame / max(1, self.state_duration)
+        ext = math.sin(p * math.pi)
+        sx = self.x + (10.0 if self.facing_right else 3.0)
+        sy = self.y + 6.0
+        if self.punch_target:
+            tx, ty = self.punch_target
+        else:
+            tx = dfn.x + (4.0 if not self.facing_right else 9.0)
+            ty = dfn.y + 4.0
+        gx = sx + (tx - sx) * ext
+        gy = sy + (ty - sy) * ext
+        if self.state == 'UPPERCUT':
+            gy += math.sin(p * math.pi) * -3.5 + (1.0 - p) * 2.0
+        elif self.state == 'HOOK':
+            if self.target_zone == 'LIVER':
+                gy += math.sin(p * math.pi) * 1.8
+            else:
+                gy -= math.sin(p * math.pi) * 1.5
+        ext_vel = math.pi * math.cos(p * math.pi)
+        vx = (tx - sx) * ext_vel / max(1, self.state_duration)
+        vy = (ty - sy) * ext_vel / max(1, self.state_duration)
+        return {
+            'x': gx, 'y': gy, 'vx': vx, 'vy': vy,
+            'speed': math.hypot(vx, vy), 'radius': 1.6,
+            'ext': ext, 'ext_vel': ext_vel
+        }
+
     def get_pixel_matrix(self, tick):
+        # Base matrix is strictly 14 characters wide to guarantee perfect flipping
         rows = [
             "....HHHHHH....",  # 0
             "...HHHHHHHH...",  # 1
@@ -325,93 +407,200 @@ class Fighter:
         ]
         m = [list(r) for r in rows]
 
+        # --- LOCOMOTION & STANCE ---
         if self.state in ('IDLE', 'ADVANCE', 'RETREAT'):
             bob = (tick // 3) % 2
             if bob == 1:
                 m[16] = list("... BBB BBB ...")
                 m[17] = list("... BB   BB ...")
+            if self.state == 'ADVANCE':
+                # Lean forward into stride
+                m[1] = list("....HHHHHHHH..")
+                m[2] = list("....LMDDMDDL..")
+                m[3] = list("....L E  E L..")
+            elif self.state == 'RETREAT':
+                # Lean away on back foot
+                m[1] = list("..HHHHHHHH....")
+                m[2] = list("..LMDDMDDL....")
+                m[3] = list("..L E  E L....")
 
-        if self.state == 'JAB':
-            m[6] = list("..  LMMMMML GGGGG")
-            m[7] = list(".GG LMMMMML     G")
-        elif self.state == 'CROSS':
-            m[7] = list(".   LMMMMML GGGGGG")
-            m[8] = list("..G LDDDDDL      G")
-        elif self.state == 'HOOK':
-            m[6] = list(".   LMMMMML GGGG.")
-            m[7] = list("..G LMMMMML GGG..")
-        elif self.state == 'UPPERCUT':
-            m[1] = list("...HHHHHHHH.GGG")
-            m[2] = list("...LMDDMDDL.  G")
-            m[6] = list("..  LMMMMML    ")
-        elif self.state == 'GUARD':
-            m[3] = list("..G G E  E G G.")
-            m[4] = list(".GG G M  M G GG")
+        # --- BLOOD TRACTION SLIP ANIMATION ---
+        if self.slip_ticks > 0:
+            m[6] = list("GG. LMMMMML .G")
+            m[7] = list(".G. LMMMMML .G")
+            m[14] = list(".. MM   MM ...")
+            m[15] = list(". MM     MM ..")
+            m[16] = list("BB        BB .")
+            m[17] = list("BBB      BBB .")
+
+        # --- ATTACK POSES (Body rotation & tucked guard) ---
+        elif self.state == 'JAB':
             m[6] = list("..G LMMMMML G.")
+            m[7] = list("..G LMMMMML ..")
+        elif self.state == 'CROSS':
+            m[6] = list("..  LMMMMML G.")
+            m[7] = list("..G LMMMMML ..")
+            m[10] = list("... WWWWWWW . ")
+        elif self.state == 'HOOK':
+            if self.target_zone == 'LIVER':
+                # Stance dropped low for liver hook
+                m[6] = list("..G LMMMMML ..")
+                m[7] = list(".GG LMMMMML ..")
+            else:
+                m[6] = list(".G  LMMMMML ..")
+                m[7] = list("..G LMMMMML .G")
+        elif self.state == 'UPPERCUT':
+            m[1] = list("...HHHHHHHH...")
+            m[2] = list("...LMDDMDDL...")
+            m[6] = list("..G LMMMMML ..")
+            m[7] = list("..G LMMMMML G.")
+
+        # --- DEFENSE & EVASION ---
+        elif self.state == 'GUARD':
+            # Tight high peek-a-boo guard covering face
+            m[3] = list("..GG E  E GG..")
+            m[4] = list("..GG M  M GG..")
+            m[5] = list("..GG ==== GG..")
+            m[6] = list("..GG LMMML GG.")
+            m[7] = list(".GG  LMMML  GG")
         elif self.state == 'SLIP':
-            m = m[2:] + [list("... BBB BBB ..."), list("... BBB BBB ...")]
+            # Evasive duck & roll beneath punch line
+            m[0] = list("..............")
+            m[1] = list("..............")
+            m[2] = list("....HHHHHH....")
+            m[3] = list("...HHHHHHHH...")
+            m[4] = list("...LMDDMDDL...")
+            m[5] = list("...L E  E L...")
+            m[6] = list(".GG LM == L GG")
+            m[7] = list(".GG LMMMMML GG")
+            m[16] = list("... BBB BBB ...")
+            m[17] = list("... BBB BBB ...")
+
+        # --- HIT REACTIONS ---
         elif self.state == 'HURT':
-            m[2] = list("....LMDDMDDL..")
-            m[3] = list("....L X  X L..")
-            m[6] = list(".G. LMMMMML .G")
+            if self.last_hurt_zone == 'LIVER' or self.injury.delayed_liver_timer > 0:
+                # Doubled over in severe liver agony
+                m[3] = list("...L X  X L...")
+                m[4] = list("...LM == L ...")
+                m[6] = list("... LMMMMML ...")
+                m[7] = list("..GGGGGGGGGG..")  # Both arms clamped over liver
+                m[8] = list("..GGGGGGGGGG..")
+            elif self.last_punch_taken == 'UPPERCUT':
+                # Violent head snap upward
+                m[0] = list("...HHHHHHHH...")
+                m[1] = list("...LMDDMDDL...")
+                m[2] = list("...L X  X L...")
+                m[3] = list("...LM == L....")
+                m[6] = list(".G. LMMMMML .G")
+            else:
+                # Recoil twist from cross or hook
+                m[2] = list("....LMDDMDL...")
+                m[3] = list("....L X  X L..")
+                m[6] = list(".G. LMMMMML .G")
+
         elif self.state == 'WOBBLE':
+            # Rubber legs sinusoidal sway
             w_bob = (tick // 2) % 3
             if w_bob == 0:
-                m[2] = list("... LMDDMDDL..")
+                m[2] = list(".. LMDDMDDL ..")
+                m[3] = list(".. L X  X L ..")
             elif w_bob == 2:
-                m[2] = list(".....LMDDMDDL.")
-        elif self.state == 'DOWN':
-            m = [list("." * 14) for _ in range(12)] + [
-                list("..HHHHHHHH...."),
-                list(".LMDDMDDL....."),
-                list(".LMMMMMLGGGGG."),
-                list(".TTTTTTTBBBB.."),
-                list(".TTTTTTTBBBB.."),
-                list(".............."),
-            ]
+                m[2] = list(".... LMDDMDDL.")
+                m[3] = list(".... L X  X L.")
+            # Drooping heavy gloves
+            m[7] = list("... LMMMMML ...")
+            m[8] = list(".G. LMMMMML .G.")
+            m[9] = list("GG. LDDDDDL .GG")
+
         elif self.state == 'VICTORY':
             m[0] = list("GGG........GGG")
             m[1] = list("..G.HHHHHH.G..")
             m[6] = list("....LMMMMML...")
 
-        # Injury overlays
-        if self.injury.l_eye_swelling > 25.0:
-            m[3][8] = 'b'
-            if self.injury.l_eye_swelling > 60.0:
-                m[2][8] = 'b'
-                m[3][7] = 'b'
+        # --- DYNAMIC VISCERAL INJURY & FACIAL TRAUMA OVERLAYS ---
+        # 1. Periorbital Hematomas & Swelling (Blackened eyes completely shut)
+        if self.injury.l_eye_swelling > 15.0:
+            m[3][8] = 'b'  # Purple swelling
+            if self.injury.l_eye_swelling > 40.0:
+                m[2][8] = 'h'  # Blackened hematoma spreading across brow
+                m[3][8] = 'h'
+                m[3][7] = 'h'
                 m[4][8] = 'b'
-        if self.injury.r_eye_swelling > 35.0:
+            if self.injury.l_eye_swelling > 70.0:
+                m[2][7] = 'h'
+                m[4][7] = 'h'
+                m[3][9] = 'g'  # Split swollen lid weeping blood
+        if self.injury.r_eye_swelling > 15.0:
             m[3][4] = 'b'
-            if self.injury.r_eye_swelling > 65.0:
-                m[2][4] = 'b'
+            if self.injury.r_eye_swelling > 40.0:
+                m[2][4] = 'h'
+                m[3][4] = 'h'
+                m[3][5] = 'h'
                 m[4][4] = 'b'
+            if self.injury.r_eye_swelling > 70.0:
+                m[2][5] = 'h'
+                m[4][5] = 'h'
+                m[3][3] = 'g'
 
-        if self.injury.l_brow_cut > 20.0:
-            m[2][8] = 'c'
-            if self.injury.l_brow_cut > 50.0:
-                m[3][9] = 'c'
-                m[4][9] = 'c'
-                m[5][8] = 'c'
-        if self.injury.r_brow_cut > 25.0:
-            m[2][4] = 'c'
-            if self.injury.r_brow_cut > 55.0:
-                m[3][3] = 'c'
+        # 2. Eyebrow Arterial Lacerations & Streaming Face Blood
+        if self.injury.l_brow_cut > 15.0:
+            m[2][8] = 'g'  # Open arterial tear
+            m[2][9] = 'c'
+            if self.injury.l_brow_cut > 40.0:
+                m[3][9] = 'C'  # Fresh arterial red dripping down temple
+                m[4][9] = 'c'  # Blood running down cheek
+                m[5][9] = 'k'  # Coagulated drip on jaw
+                m[6][8] = 'c'  # Dropping onto shoulder
+                m[7][7] = 'k'  # Blood smeared across chest
+        if self.injury.r_brow_cut > 15.0:
+            m[2][4] = 'g'
+            m[2][3] = 'c'
+            if self.injury.r_brow_cut > 40.0:
+                m[3][3] = 'C'
                 m[4][3] = 'c'
+                m[5][3] = 'k'
+                m[6][5] = 'c'
+                m[7][6] = 'k'
 
-        if self.injury.nose_fracture > 30.0:
-            m[4][6] = 'c'
-            m[5][6] = 'c'
+        # 3. Shattered Deviated Nose & Hemorrhaging Nostrils
+        if self.injury.nose_fracture > 18.0:
+            m[4][6] = 'g'  # Broken nasal bridge gash
+            m[4][7] = 'o'  # Exposed white cartilage/bone fragment
+            m[5][6] = 'C'  # Heavy arterial blood dripping down over lips
+            m[5][7] = 'c'
+            m[6][6] = 'k'  # Blood trickling down throat
+            if self.injury.nose_fracture > 50.0:
+                m[3][6] = 'h'  # Blackened hematoma between eyes
+                m[7][6] = 'C'  # Blood pouring over sternum
+                m[8][6] = 'k'
 
-        if self.injury.liver_trauma > 30.0:
-            m[8][4] = 'b'
-            if self.injury.liver_trauma > 60.0:
-                m[7][4] = 'b'
-                m[8][5] = 'b'
-                m[9][4] = 'b'
-
+        # 4. Bloody Gaping Mouth & Missing Teeth
+        if self.injury.jaw_concussion > 20.0:
+            m[5][4] = 'c'  # Split lip corner
+            m[5][8] = 'c'
         if not self.injury.has_mouthguard:
-            m[5][6] = 'c'
+            m[5][5] = 'g'  # Gaping bloody mouth
+            m[5][6] = 'o'  # Broken tooth stub
+            m[5][7] = 'C'  # Spitting blood
+
+        # 5. Massive Flank / Liver Hematoma & Subcutaneous Abrasion
+        if self.injury.liver_trauma > 20.0:
+            m[8][4] = 'h'  # Deep blackened flank hematoma
+            m[8][5] = 'b'
+            m[9][4] = 'w'  # Raw dermis tissue
+            m[9][5] = 'h'
+            if self.injury.liver_trauma > 50.0:
+                m[7][4] = 'b'
+                m[8][3] = 'w'
+                m[9][3] = 'h'
+                m[9][6] = 'b'
+
+        # 6. Blood Spatter Splattered on Trunks & Waistband
+        if (self.injury.l_brow_cut > 35.0 or self.injury.r_brow_cut > 35.0 or self.injury.nose_fracture > 35.0):
+            m[10][6] = 'c'  # Drops on gold waistband
+            m[11][5] = 'k'  # Dried blood stains on trunks
+            m[11][7] = 'C'  # Fresh red drops
+            m[12][6] = 'k'
 
         return [''.join(r) for r in m]
 
@@ -459,9 +648,14 @@ class BoxingArena:
             f.traction = 0.04
             if abs(f.vx) > 0.4 and random.random() < 0.2:
                 f.vx *= 1.4
+                f.slip_ticks = 6
+                self.physics.spawn_sweat_cloud(f.x + 7, self.physics.floor_y - 2)
                 self.add_commentary(f"⚠️ TRACTION LOSS! {f.name} slips on a slick patch of canvas blood!")
         else:
             f.traction = 0.22
+
+        if f.slip_ticks > 0:
+            f.slip_ticks -= 1
 
         f.x += f.vx
         if f.vx > 0:
@@ -469,6 +663,7 @@ class BoxingArena:
         elif f.vx < 0:
             f.vx = min(0.0, f.vx + f.traction)
 
+        # Rope elastic rebound
         if f.x <= 10.0:
             depth = 10.0 - f.x
             self.physics.deform_ropes(f.x, depth * 0.8)
@@ -549,152 +744,193 @@ class BoxingArena:
             if roll < 0.28:
                 self.execute_punch(atk, dfn, dist)
 
-    def execute_punch(self, atk: Fighter, dfn: Fighter, dist):
+    def execute_punch(self, atk: Fighter, dfn: Fighter, dist=None, punch=None):
         atk.punches_thrown += 1
+        if dist is None:
+            dist = abs(atk.x - dfn.x)
+        elif isinstance(dist, str) and punch is None:
+            punch = dist
+            dist = abs(atk.x - dfn.x)
         
-        if dist > 13:
-            punch = 'JAB'
-            dur = 4
-            stamina_cost = 6
-            impulse_force = 120.0
-        elif dist > 8:
-            punch = 'CROSS' if random.random() < 0.6 else 'HOOK'
-            dur = 6
-            stamina_cost = 14
-            impulse_force = 220.0
+        if punch is None:
+            if dist > 13:
+                punch = 'JAB'
+                dur = 5
+                stamina_cost = 6
+            elif dist > 8:
+                punch = 'CROSS' if random.random() < 0.6 else 'HOOK'
+                dur = 6
+                stamina_cost = 14
+            else:
+                punch = 'UPPERCUT' if random.random() < 0.5 else 'HOOK'
+                dur = 7
+                stamina_cost = 18
         else:
-            punch = 'UPPERCUT' if random.random() < 0.5 else 'HOOK'
-            dur = 7
-            stamina_cost = 18
-            impulse_force = 310.0
+            dur = 5 if punch == 'JAB' else (6 if punch in ('CROSS', 'HOOK') else 7)
+            stamina_cost = 6 if punch == 'JAB' else (14 if punch in ('CROSS', 'HOOK') else 18)
 
         atk.state = punch
         atk.state_frame = 0
         atk.state_duration = dur
         atk.stamina = max(0.0, atk.stamina - stamina_cost)
+        atk.punch_type = punch
+        atk.has_impacted = False
 
+        # Target zone preference
+        target_zone = 'HEAD'
+        if punch == 'HOOK' and random.random() < 0.55:
+            target_zone = 'LIVER'
+        elif punch == 'JAB' and random.random() < 0.3:
+            target_zone = 'NOSE'
+        atk.target_zone = target_zone
+
+        # Target coordinates in ring
+        target_x = dfn.x + (4.0 if not atk.facing_right else 9.0)
+        target_y = dfn.y + (7.0 if target_zone == 'LIVER' else (4.0 if target_zone == 'NOSE' else (2.0 if punch == 'UPPERCUT' else 3.0)))
+        atk.punch_target = (target_x, target_y)
+
+        # AI evasive or defensive reaction if anticipating
         blind_spot = False
         if atk.facing_right and dfn.injury.is_left_eye_shut():
             blind_spot = True
         elif (not atk.facing_right) and dfn.injury.is_right_eye_shut():
             blind_spot = True
 
-        slip_chance = 0.05 if blind_spot else (0.28 if dfn.style.startswith('Out') else 0.15)
+        slip_chance = 0.05 if blind_spot else (0.30 if dfn.style.startswith('Out') else 0.18)
         guard_chance = 0.15 if blind_spot else 0.35
 
-        if random.random() < slip_chance and punch in ('JAB', 'CROSS'):
+        if random.random() < slip_chance and punch in ('JAB', 'CROSS') and dfn.state not in ('HURT', 'DOWN'):
             dfn.state = 'SLIP'
             dfn.state_frame = 0
             dfn.state_duration = 5
-            self.add_commentary(f"💨 {dfn.name} slips under {atk.name}'s {punch.lower()} with slick head movement!")
-            return
-
-        is_blocked = False
-        if (not blind_spot) and random.random() < guard_chance and dfn.guard > 20.0:
+            self.add_commentary(f"💨 {dfn.name} ducks down into a slip under {atk.name}'s incoming {punch.lower()}!")
+        elif (not blind_spot) and random.random() < guard_chance and dfn.guard > 20.0 and dfn.state not in ('HURT', 'DOWN'):
             dfn.state = 'GUARD'
             dfn.state_frame = 0
             dfn.state_duration = 4
-            dfn.guard -= 15.0
-            is_blocked = True
 
-        atk.punches_landed += 1
-        hit_x = (atk.x + dfn.x) // 2 + 4
-        hit_y = atk.y + random.randint(2, 6)
-        
-        base_dmg = {'JAB': 6.0, 'CROSS': 14.0, 'HOOK': 18.0, 'UPPERCUT': 24.0}[punch]
-        if is_blocked:
-            base_dmg *= 0.25
-        
-        is_counter = dfn.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT')
-        if is_counter:
-            base_dmg *= 1.65
-            impulse_force *= 1.8
-            self.add_commentary(f"⚡ CRITICAL COUNTER! {atk.name} intercepts {dfn.name} with a flush {punch}!")
-
-        knockback_dir = 1 if atk.facing_right else -1
-        recoil_vel = (impulse_force / dfn.mass) * 0.65
-        dfn.vx += knockback_dir * recoil_vel
-        
-        dfn.hp = max(0.0, dfn.hp - base_dmg)
-
-        self.hit_sparks.append({'x': hit_x, 'y': hit_y, 'life': 3})
-        self.physics.spawn_sweat_cloud(hit_x, hit_y)
-
-        if is_blocked:
-            self.add_commentary(f"🛡️ {dfn.name} covers up and absorbs {atk.name}'s {punch.lower()}.")
+    def check_punch_collisions(self, atk: Fighter, dfn: Fighter):
+        if atk.state not in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT') or atk.has_impacted:
+            return
+            
+        glove = atk.get_glove_kinematics(dfn)
+        if not glove or glove['ext'] < 0.20:
+            return
+            
+        if glove['ext_vel'] <= 0.0:
             return
 
-        dfn.state = 'HURT'
-        dfn.state_frame = 0
-        dfn.state_duration = 6
+        hboxes = dfn.get_hitboxes()
+        gx, gy, gr = glove['x'], glove['y'], glove['radius']
 
-        target_zone = 'HEAD'
-        if punch == 'HOOK' and random.random() < 0.55:
-            target_zone = 'LIVER'
-        elif punch == 'JAB' and random.random() < 0.3:
-            target_zone = 'NOSE'
+        # 1. Physical Guard collision
+        if hboxes['guard']:
+            hx, hy, hr = hboxes['guard']
+            if math.hypot(gx - hx, gy - hy) < (gr + hr):
+                atk.has_impacted = True
+                base_dmg = {'JAB': 6.0, 'CROSS': 14.0, 'HOOK': 18.0, 'UPPERCUT': 24.0}[atk.punch_type]
+                blocked_dmg = base_dmg * 0.25
+                dfn.guard = max(0.0, dfn.guard - 15.0)
+                dfn.hp = max(0.0, dfn.hp - blocked_dmg)
+                self.hit_sparks.append({'x': int(gx), 'y': int(gy), 'life': 3})
+                self.physics.spawn_sweat_cloud(gx, gy)
+                self.add_commentary(f"🛡️ {dfn.name} absorbs {atk.name}'s {atk.punch_type.lower()} on high guard!")
+                return
 
-        if target_zone == 'LIVER':
-            dfn.injury.liver_trauma += base_dmg * 1.3
-            self.physics.spawn_blood_spray(hit_x, hit_y + 4, intensity=0.8)
-            self.add_commentary(f"💥 THUD! {atk.name} digs a brutal hook into {dfn.name}'s liver! Lactic acid flooding in!")
-            if dfn.injury.liver_trauma >= 65.0 and random.random() < 0.45:
-                dfn.injury.delayed_liver_timer = 12
-                self.add_commentary(f"⚠️ {dfn.name}'s legs turn to stone! The liver shot is setting in...")
+        # 2. Anatomical zones collision
+        hit_zone = None
+        for zone in ('jaw', 'nose', 'liver', 'head'):
+            hx, hy, hr = hboxes[zone]
+            if math.hypot(gx - hx, gy - hy) < (gr + hr):
+                hit_zone = zone
+                break
 
-        elif target_zone == 'NOSE':
-            dfn.injury.nose_fracture += 18.0
-            self.physics.spawn_blood_spray(hit_x, hit_y, intensity=1.2)
-            self.add_commentary(f"🩸 SNAP! {atk.name}'s stiff jab fractures {dfn.name}'s nose! Blood trickles over his lips!")
+        if hit_zone:
+            atk.has_impacted = True
+            atk.punches_landed += 1
 
-        else:
-            if punch in ('UPPERCUT', 'CROSS'):
-                dfn.injury.jaw_concussion += base_dmg * 0.9
-                atk.power_landed += 1
-                
-                if (punch == 'UPPERCUT' or is_counter) and dfn.injury.has_mouthguard and random.random() < 0.4:
-                    dfn.injury.has_mouthguard = False
-                    self.physics.spawn_mouthguard(hit_x, hit_y, direction=knockback_dir)
-                    self.add_commentary(f"🦷 MOUTHGUARD EJECTED! {dfn.name}'s mouthguard flies into orbit from that vicious {punch.lower()}!")
+            rel_vx = abs(glove['vx'] - dfn.vx)
+            rel_spd = math.hypot(rel_vx, glove['vy'])
+            vel_scale = max(0.65, min(1.75, rel_spd * 0.75))
 
-                if dfn.injury.jaw_concussion > 50.0 and random.random() < 0.5:
-                    dfn.state = 'WOBBLE'
-                    dfn.state_duration = 10
-                    self.add_commentary(f"💫 CONCUSSION ROCK! {dfn.name} is on rubber legs from that thunderous {punch.lower()}!")
-            
-            if atk.facing_right:
-                dfn.injury.l_eye_swelling += base_dmg * 0.75
-                if random.random() < 0.35:
-                    dfn.injury.l_brow_cut += random.uniform(15.0, 30.0)
-                    self.physics.spawn_blood_spray(hit_x, hit_y, intensity=1.5)
-                    self.add_commentary(f"🩸 GASH OPENED! A deep cut erupts over {dfn.name}'s left eye!")
-            else:
-                dfn.injury.r_eye_swelling += base_dmg * 0.75
-                if random.random() < 0.35:
-                    dfn.injury.r_brow_cut += random.uniform(15.0, 30.0)
-                    self.physics.spawn_blood_spray(hit_x, hit_y, intensity=1.5)
-                    self.add_commentary(f"🩸 GASH OPENED! A vicious cut tears across {dfn.name}'s right brow!")
+            base_dmg = {'JAB': 6.0, 'CROSS': 14.0, 'HOOK': 18.0, 'UPPERCUT': 24.0}[atk.punch_type]
+            is_counter = dfn.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT')
+            counter_mult = 1.65 if is_counter else 1.0
 
-        if (dfn.injury.has_severe_cut() or dfn.injury.l_eye_swelling >= 80.0) and not dfn.injury.doc_checked:
-            dfn.injury.doc_checked = True
-            self.doctor_inspecting = True
-            self.doctor_timer = 25
-            self.add_commentary("🩺 TIME OUT! The referee calls the Ringside Physician to examine the horrific lacerations!")
+            actual_dmg = base_dmg * vel_scale * counter_mult
+            impulse_force = (base_dmg * 14.0) * vel_scale * counter_mult
 
-        if dfn.hp <= 0.0 or (dfn.injury.jaw_concussion >= 85.0 and random.random() < 0.6):
-            dfn.state = 'DOWN'
+            knockback_dir = 1.0 if atk.facing_right else -1.0
+            recoil_vel = (impulse_force / dfn.mass) * 0.65
+            dfn.vx += knockback_dir * recoil_vel
+            dfn.hp = max(0.0, dfn.hp - actual_dmg)
+
+            dfn.state = 'HURT'
             dfn.state_frame = 0
-            dfn.state_duration = 90
-            dfn.knockdowns_taken += 1
-            atk.knockdowns_scored += 1
-            
-            dfn.ragdoll = VerletRagdoll(dfn.x, self.physics.floor_y, facing=1 if dfn.facing_right else -1)
-            dfn.ragdoll.apply_knockdown_impulse(knockback_dir * (impulse_force / dfn.mass) * 0.8, -1.6)
+            dfn.state_duration = 6
+            dfn.last_hurt_zone = hit_zone.upper()
+            dfn.last_punch_taken = atk.punch_type
 
-            self.referee_counting = True
-            self.referee_count = 1
-            self.add_commentary(f"🚨 DOWN GOES {dfn.name}! A devastating knockdown! The referee starts the count!")
+            self.hit_sparks.append({'x': int(gx), 'y': int(gy), 'life': 3})
+            self.physics.spawn_sweat_cloud(gx, gy)
 
+            if is_counter:
+                self.add_commentary(f"⚡ CRITICAL COUNTER! {atk.name} intercepts {dfn.name} with a flush {atk.punch_type}!")
+
+            if hit_zone == 'liver':
+                dfn.injury.liver_trauma += actual_dmg * 1.3
+                self.physics.spawn_blood_spray(gx, gy + 3, intensity=0.9)
+                self.add_commentary(f"💥 THUD! {atk.name}'s {atk.punch_type} collides with {dfn.name}'s liver at ({gx:.1f}, {gy:.1f})!")
+                if dfn.injury.liver_trauma >= 65.0 and random.random() < 0.5:
+                    dfn.injury.delayed_liver_timer = 12
+                    self.add_commentary(f"⚠️ {dfn.name}'s legs turn to stone! The liver shot is setting in...")
+            elif hit_zone == 'nose':
+                dfn.injury.nose_fracture += 18.0
+                self.physics.spawn_blood_spray(gx, gy, intensity=1.2)
+                self.add_commentary(f"🩸 SNAP! {atk.name}'s punch shatters {dfn.name}'s nose! Blood trickles over his lips!")
+            elif hit_zone in ('jaw', 'head'):
+                if atk.punch_type in ('UPPERCUT', 'CROSS'):
+                    dfn.injury.jaw_concussion += actual_dmg * 0.9
+                    atk.power_landed += 1
+                    if (atk.punch_type == 'UPPERCUT' or is_counter) and dfn.injury.has_mouthguard and random.random() < 0.4:
+                        dfn.injury.has_mouthguard = False
+                        self.physics.spawn_mouthguard(gx, gy, direction=int(knockback_dir))
+                        self.add_commentary(f"🦷 MOUTHGUARD EJECTED! {dfn.name}'s mouthguard flies into orbit from that vicious {atk.punch_type.lower()}!")
+                    if dfn.injury.jaw_concussion > 50.0 and random.random() < 0.5:
+                        dfn.state = 'WOBBLE'
+                        dfn.state_duration = 10
+                        self.add_commentary(f"💫 CONCUSSION ROCK! {dfn.name} is on rubber legs from that thunderous {atk.punch_type.lower()}!")
+
+                if atk.facing_right:
+                    dfn.injury.l_eye_swelling += actual_dmg * 0.75
+                    if random.random() < 0.35:
+                        dfn.injury.l_brow_cut += random.uniform(15.0, 30.0)
+                        self.physics.spawn_blood_spray(gx, gy, intensity=1.5)
+                        self.add_commentary(f"🩸 GASH OPENED! A deep cut erupts over {dfn.name}'s left eye!")
+                else:
+                    dfn.injury.r_eye_swelling += actual_dmg * 0.75
+                    if random.random() < 0.35:
+                        dfn.injury.r_brow_cut += random.uniform(15.0, 30.0)
+                        self.physics.spawn_blood_spray(gx, gy, intensity=1.5)
+                        self.add_commentary(f"🩸 GASH OPENED! A vicious cut tears across {dfn.name}'s right brow!")
+
+            if (dfn.injury.has_severe_cut() or dfn.injury.l_eye_swelling >= 80.0) and not dfn.injury.doc_checked:
+                dfn.injury.doc_checked = True
+                self.doctor_inspecting = True
+                self.doctor_timer = 25
+                self.add_commentary("🩺 TIME OUT! The referee calls the Ringside Physician to examine the lacerations!")
+
+            if dfn.hp <= 0.0 or (dfn.injury.jaw_concussion >= 85.0 and random.random() < 0.6):
+                dfn.state = 'DOWN'
+                dfn.state_frame = 0
+                dfn.state_duration = 90
+                dfn.knockdowns_taken += 1
+                atk.knockdowns_scored += 1
+                dfn.ragdoll = VerletRagdoll(dfn.x, self.physics.floor_y, facing=1 if dfn.facing_right else -1)
+                dfn.ragdoll.apply_knockdown_impulse(knockback_dir * (impulse_force / dfn.mass) * 0.8, -1.6)
+                self.referee_counting = True
+                self.referee_count = 1
+                self.add_commentary(f"🚨 DOWN GOES {dfn.name}! Physical impact knockdown! The referee starts the count!")
     def step(self, tick):
         self.clock_tick += 1
         
@@ -731,6 +967,7 @@ class BoxingArena:
                     self.match_over = True
                     self.ko_type = "KNOCKOUT (10-COUNT KO)"
                     self.winner = self.f2 if down_fighter == self.f1 else self.f1
+                    self.winner.state = 'VICTORY'
                     self.add_commentary(f"🏆 IT'S ALL OVER! {self.winner.name} WINS BY BRUTAL KNOCKOUT!")
                     return
                 elif self.referee_count >= 8 and down_fighter.hp > -15.0 and random.random() < 0.65:
@@ -746,11 +983,288 @@ class BoxingArena:
         if not self.match_over:
             self.update_ai_fighter(self.f1, self.f2, tick)
             self.update_ai_fighter(self.f2, self.f1, tick)
+            # Animation-driven physical collision & damage resolution
+            self.check_punch_collisions(self.f1, self.f2)
+            self.check_punch_collisions(self.f2, self.f1)
+
+    # --------------------------------------------------------------------------
+    # VERLET RAGDOLL RENDERING
+    # --------------------------------------------------------------------------
+    def render_ragdoll(self, f: Fighter, tick: int):
+        rd = f.ragdoll
+        if not rd:
+            return
+
+        h_x, h_y = int(round(rd.points[0]['x'])), int(round(rd.points[0]['y']))
+        c_x, c_y = int(round(rd.points[1]['x'])), int(round(rd.points[1]['y']))
+        w_x, w_y = int(round(rd.points[2]['x'])), int(round(rd.points[2]['y']))
+        f_x, f_y = int(round(rd.points[3]['x'])), int(round(rd.points[3]['y']))
+
+        glove_col = PAL['glove_titan'] if f.is_titan else PAL['glove_phantom']
+        trunks_col = PAL['trunks_titan'] if f.is_titan else PAL['trunks_phantom']
+        hair_col = PAL['hair_titan'] if f.is_titan else PAL['hair_phantom']
+
+        def set_px(px, py, col):
+            if 0 <= px < self.w and 0 <= py < self.h and col:
+                self.buf[py][px] = col
+
+        def draw_line(x0, y0, x1, y1, col, thick=1):
+            dist = max(1, int(math.hypot(x1 - x0, y1 - y0) * 1.5))
+            for step_i in range(dist + 1):
+                t = step_i / dist
+                ix = int(round(x0 + (x1 - x0) * t))
+                iy = int(round(y0 + (y1 - y0) * t))
+                for d in range(-thick, thick + 1):
+                    if abs(x1 - x0) > abs(y1 - y0):
+                        set_px(ix, iy + d, col)
+                    else:
+                        set_px(ix + d, iy, col)
+
+        # ----------------------------------------------------------------------
+        # A. DYNAMIC EXPANDING VISCERAL BLOOD POOL ON CANVAS
+        # ----------------------------------------------------------------------
+        # Pool expands under head and upper torso as referee counts
+        pool_rx = min(9, 4 + int(self.referee_count * 0.7))
+        pool_ry = min(3, 1 + int(self.referee_count * 0.3))
+        for pdy in range(-pool_ry, pool_ry + 1):
+            for pdx in range(-pool_rx, pool_rx + 1):
+                norm_d = (pdx * pdx) / max(1, pool_rx * pool_rx) + (pdy * pdy) / max(1, pool_ry * pool_ry)
+                if norm_d <= 1.0:
+                    bx = h_x + pdx
+                    by = int(self.physics.floor_y) + pdy
+                    if 4 <= bx < self.w - 4 and 0 <= by < self.h:
+                        if norm_d < 0.45:
+                            b_col = PAL['blood_pool']
+                        elif norm_d < 0.8:
+                            b_col = PAL['blood_dark']
+                        else:
+                            b_col = PAL['blood']
+                        self.blood_stains[(bx, by)] = b_col
+                        set_px(bx, by, b_col)
+
+        # Blood trail splatters radiating from knockout impact
+        for sp_dx, sp_dy in [(-pool_rx - 1, 0), (pool_rx + 2, 0), (pool_rx - 2, 1), (-pool_rx + 1, -1)]:
+            sx, sy = h_x + sp_dx, int(self.physics.floor_y) + sp_dy
+            if 4 <= sx < self.w - 4 and 0 <= sy < self.h:
+                self.blood_stains[(sx, sy)] = PAL['blood_dark']
+                set_px(sx, sy, PAL['blood_dark'])
+
+        # ----------------------------------------------------------------------
+        # B. FLESH VOLUME ANATOMY — CONTORTED MANGLED LIMBS & TORSO
+        # ----------------------------------------------------------------------
+        # 1. Lower Limbs (Pelvis to Feet): thick muscular legs sprawling on canvas
+        draw_line(w_x, w_y, f_x, f_y, PAL['skin_mid'], thick=1)
+        draw_line(w_x + 1, w_y, f_x + 1, f_y, PAL['skin_dark'], thick=0)
+        # Bruised twisted knee
+        mid_lx = (w_x + f_x) // 2
+        mid_ly = (w_y + f_y) // 2
+        set_px(mid_lx, mid_ly, PAL['bruise'])
+        set_px(mid_lx + 1, mid_ly, PAL['wound'])
+        # Trunks covering upper thighs
+        draw_line(w_x, w_y, mid_lx, mid_ly, trunks_col, thick=1)
+        set_px(mid_lx - 1, mid_ly, PAL['blood_dark']) # blood on trunks
+
+        # Sprawled boxing boots
+        for bdx in (-1, 0, 1):
+            for bdy in (0, 1):
+                set_px(f_x + bdx, f_y + bdy, PAL['boot'])
+
+        # 2. Torso (Chest to Pelvis): thick torso with bruised ribs and gold waistband
+        draw_line(c_x - 1, c_y, w_x - 1, w_y, PAL['skin_mid'], thick=0)
+        draw_line(c_x, c_y, w_x, w_y, PAL['skin_mid'], thick=1)
+        draw_line(c_x + 1, c_y, w_x + 1, w_y, PAL['skin_dark'], thick=0)
+        # Gold waistband draped over pelvis
+        for dx in (-2, -1, 0, 1, 2):
+            set_px(w_x + dx, w_y, PAL['waist_gold'])
+            set_px(w_x + dx, w_y + 1, trunks_col)
+        # Liver trauma purple hematoma on flank
+        set_px(w_x - 1, w_y - 1, PAL['hematoma'])
+        set_px(w_x, w_y - 1, PAL['wound'])
+
+        # 3. Sprawled Flung Arms & Heavy Gloves
+        g_off = -3 if f.facing_right else 3
+        # Left arm flung behind
+        draw_line(c_x, c_y, c_x + g_off, c_y - 1, PAL['skin_mid'], thick=1)
+        for gdx in (-1, 0):
+            for gdy in (-1, 0):
+                set_px(c_x + g_off + gdx, c_y - 1 + gdy, glove_col)
+        # Right arm limp on the floor
+        draw_line(c_x, c_y, c_x - g_off, int(self.physics.floor_y), PAL['skin_mid'], thick=1)
+        for gdx in (-1, 0, 1):
+            for gdy in (-1, 0):
+                set_px(c_x - g_off + gdx, int(self.physics.floor_y) + gdy, glove_col)
+
+        # 4. Upper neck & throat connecting to head
+        draw_line(h_x, h_y, c_x, c_y, PAL['skin_mid'], thick=1)
+        set_px(c_x, c_y - 1, PAL['blood_dark']) # blood running down neck
+
+        # ----------------------------------------------------------------------
+        # C. SMASHED BLOODY HEAD & MANGLED FACIAL TRAUMA
+        # ----------------------------------------------------------------------
+        # Head volume 3x3 at (h_x, h_y)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dy == -1 or abs(dx) == 1:
+                    set_px(h_x + dx, h_y + dy, hair_col)
+                else:
+                    set_px(h_x + dx, h_y + dy, PAL['skin_light'])
+
+        # Blackened swollen shut hematoma eye
+        set_px(h_x, h_y, PAL['hematoma'])
+        # Deep open eyebrow gash weeping fresh arterial blood
+        set_px(h_x + 1, h_y - 1, PAL['gash'])
+        set_px(h_x + 1, h_y, PAL['blood_bright'])
+        # Crushed bloody nose streaming down into the floor pool
+        set_px(h_x, h_y + 1, PAL['blood_bright'])
+        set_px(h_x - 1, h_y + 1, PAL['blood'])
+
+        # ----------------------------------------------------------------------
+        # D. SCATTERED TEETH & DISLODGED MOUTHGUARD
+        # ----------------------------------------------------------------------
+        # Dislodged white tooth stubs scattered on the canvas beside the face
+        tooth_dir = 1 if f.facing_right else -1
+        set_px(h_x + (tooth_dir * 3), int(self.physics.floor_y), PAL['bone'])
+        set_px(h_x + (tooth_dir * 5), int(self.physics.floor_y), PAL['bone'])
+        if f.injury.jaw_concussion > 30.0:
+            set_px(h_x + (tooth_dir * 4), int(self.physics.floor_y) - 1, PAL['bone'])
+
+        # Bloody ejected mouthguard lying in the pool
+        if not f.injury.has_mouthguard:
+            mg_x = h_x + (tooth_dir * 4)
+            mg_y = int(self.physics.floor_y)
+            set_px(mg_x, mg_y, PAL['mouthguard'])
+            set_px(mg_x + 1, mg_y, PAL['blood'])    # --------------------------------------------------------------------------
+    # DYNAMIC PUNCH EXTENSION RENDERING
+    # --------------------------------------------------------------------------
+    def render_punch_extension(self, atk: Fighter, dfn: Fighter):
+        if atk.state not in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT'):
+            return
+        p = atk.state_frame / max(1, atk.state_duration)
+        ext = math.sin(p * math.pi)
+        if ext < 0.15:
+            return
+
+        sx = int(atk.x + (10 if atk.facing_right else 3))
+        sy = int(atk.y + 6)
+        
+        if atk.punch_target:
+            tx, ty = atk.punch_target
+        else:
+            tx = int(dfn.x + (4 if not atk.facing_right else 9))
+            ty = int(dfn.y + 4)
+        
+        gx = sx + (tx - sx) * ext
+        gy = sy + (ty - sy) * ext
+
+        if atk.state == 'UPPERCUT':
+            gy += math.sin(p * math.pi) * -3.5 + (1.0 - p) * 2.0
+        elif atk.state == 'HOOK':
+            if atk.target_zone == 'LIVER':
+                gy += math.sin(p * math.pi) * 1.8
+            else:
+                gy -= math.sin(p * math.pi) * 1.5
+
+        glove_col = PAL['glove_titan'] if atk.is_titan else PAL['glove_phantom']
+
+        def set_px(px, py, col):
+            ix, iy = int(round(px)), int(round(py))
+            if 0 <= ix < self.w and 0 <= iy < self.h and col:
+                self.buf[iy][ix] = col
+
+        # Forearm line
+        steps = max(2, int(math.hypot(gx - sx, gy - sy)))
+        for s_i in range(steps):
+            t = s_i / steps
+            ax = sx + (gx - sx) * t
+            ay = sy + (gy - sy) * t
+            arm_col = PAL['skin_light'] if s_i > steps // 2 else PAL['skin_mid']
+            set_px(ax, ay, arm_col)
+            set_px(ax, ay + 1, PAL['skin_dark'])
+
+        # Speed trail on power punches
+        if ext > 0.65 and atk.state in ('CROSS', 'HOOK', 'UPPERCUT'):
+            trail_x = sx + (gx - sx) * (ext * 0.72)
+            trail_y = sy + (gy - sy) * (ext * 0.72)
+            set_px(trail_x, trail_y, PAL['trail'])
+            set_px(trail_x, trail_y + 1, PAL['sweat'])
+
+        # Glove block
+        igx, igy = int(round(gx)), int(round(gy))
+        for dx in (0, 1 if atk.facing_right else -1):
+            for dy in (-1, 0):
+                set_px(igx + dx, igy + dy, glove_col)
+
+    # --------------------------------------------------------------------------
+    # RINGSIDE DRAMA: REFEREE & DOCTOR
+    # --------------------------------------------------------------------------
+    def render_referee(self, down_f: Fighter):
+        rx = max(18, min(self.w - 18, int(down_f.x + (13 if down_f.x < self.w // 2 else -13))))
+        ry = 13
+        
+        def set_px(px, py, col):
+            if 0 <= px < self.w and 0 <= py < self.h and col:
+                self.buf[py][px] = col
+
+        # Head
+        for dx in (-1, 0, 1):
+            set_px(rx + dx, ry, PAL['hair_phantom'])
+            set_px(rx + dx, ry + 1, PAL['ref_skin'])
+        set_px(rx, ry + 2, PAL['ref_skin'])
+        
+        # Striped Shirt
+        for y in range(ry + 3, ry + 7):
+            for dx, ch in enumerate(['w', 'b', 'w', 'b']):
+                col = PAL['ref_white'] if ch == 'w' else PAL['ref_black']
+                set_px(rx - 1 + dx, y, col)
+        
+        # Trousers
+        for y in range(ry + 7, ry + 10):
+            set_px(rx - 1, y, PAL['ref_black'])
+            set_px(rx + 1, y, PAL['ref_black'])
+        set_px(rx - 1, ry + 10, PAL['boot'])
+        set_px(rx + 1, ry + 10, PAL['boot'])
+
+        # Counting gesture
+        arm_down = (self.clock_tick % 10) >= 5
+        arm_y = ry + (5 if arm_down else 0)
+        arm_x = rx + (3 if down_f.x > rx else -3)
+        set_px(arm_x, arm_y, PAL['ref_skin'])
+        set_px(arm_x, arm_y + 1, PAL['ref_white'])
+        # Star flash on count
+        set_px(arm_x, arm_y - 1, PAL['star'])
+
+    def render_doctor(self, injured_f: Fighter):
+        dx = int(injured_f.x + (13 if injured_f.facing_right else -5))
+        dy = 13
+
+        def set_px(px, py, col):
+            if 0 <= px < self.w and 0 <= py < self.h and col:
+                self.buf[py][px] = col
+
+        # Doctor head
+        for ox in (-1, 0, 1):
+            set_px(dx + ox, dy, PAL['hair_titan'])
+            set_px(dx + ox, dy + 1, PAL['skin_light'])
+        
+        # White coat with red cross
+        for y in range(dy + 2, dy + 8):
+            for ox in (-1, 0, 1):
+                set_px(dx + ox, y, PAL['doc_coat'])
+        set_px(dx, dy + 4, PAL['doc_cross'])
+        set_px(dx - 1, dy + 4, PAL['doc_cross'])
+        set_px(dx + 1, dy + 4, PAL['doc_cross'])
+        set_px(dx, dy + 3, PAL['doc_cross'])
+        set_px(dx, dy + 5, PAL['doc_cross'])
+
+        # Penlight inspection
+        target_eye_x = int(injured_f.x + (8 if injured_f.facing_right else 5))
+        set_px(target_eye_x, int(injured_f.y + 3), PAL['spark'])
 
     # --------------------------------------------------------------------------
     # 64-BIT PIXEL COMPOSITOR & TERMINAL RENDERER
     # --------------------------------------------------------------------------
     def render_frame(self, tick):
+        # 1. Arena backdrop and overhead spotlights
         for y in range(self.h):
             for x in range(self.w):
                 spot = max(0.0, 1.0 - (((x - self.w//2)**2 + (y - 4)**2) / 680.0))
@@ -759,20 +1273,14 @@ class BoxingArena:
                 b = int(PAL['bg'][2] + spot * 42)
                 self.buf[y][x] = (r, g, b)
 
+        # 2. Ring Corner Turnbuckles
         for y in range(3, 23):
             for x in range(2, 5):
                 self.buf[y][x] = PAL['post_red']
             for x in range(self.w - 5, self.w - 2):
                 self.buf[y][x] = PAL['post_blu']
 
-        for rope in self.physics.ropes:
-            col = rope['col']
-            nodes = rope['nodes']
-            for x in range(5, self.w - 5):
-                ry = int(round(nodes[x]))
-                if 0 <= ry < self.h:
-                    self.buf[ry][x] = col
-
+        # 3. Canvas base & Apron
         for y in range(17, 26):
             shade = 1.0 + (y - 17) * 0.035
             for x in range(4, self.w - 4):
@@ -784,10 +1292,12 @@ class BoxingArena:
             for x in range(self.w):
                 self.buf[y][x] = PAL['apron']
 
+        # 4. Canvas persistent blood stains
         for (sx, sy), col in self.blood_stains.items():
             if 0 <= sx < self.w and 0 <= sy < self.h:
                 self.buf[sy][sx] = col
 
+        # 5. Canvas Debris (ejected mouthguards)
         for obj in self.physics.canvas_objects:
             ox = obj['x']
             oy = obj['y']
@@ -796,12 +1306,63 @@ class BoxingArena:
                 if ox + 1 < self.w:
                     self.buf[oy][ox+1] = PAL['blood']
 
-        m1 = self.f1.get_pixel_matrix(tick)
-        self.stamp_sprite(m1, int(self.f1.x), int(self.f1.y), is_titan=True, flip=False)
+        # 6. Back Ropes (rendered before fighters)
+        for rope in self.physics.ropes[:2]:
+            col = rope['col']
+            nodes = rope['nodes']
+            for x in range(5, self.w - 5):
+                ry = int(round(nodes[x]))
+                if 0 <= ry < self.h:
+                    self.buf[ry][x] = col
 
-        m2 = self.f2.get_pixel_matrix(tick)
-        self.stamp_sprite(m2, int(self.f2.x), int(self.f2.y), is_titan=False, flip=True)
+        # 7. Referee / Doctor ringside presence
+        if self.referee_counting:
+            down_f = self.f1 if self.f1.state == 'DOWN' else self.f2
+            self.render_referee(down_f)
+        elif self.doctor_inspecting:
+            inj_f = self.f1 if self.f1.injury.has_severe_cut() else self.f2
+            self.render_doctor(inj_f)
 
+        # 8. Slingshot momentum speed lines
+        for f in (self.f1, self.f2):
+            if abs(f.vx) > 0.6:
+                streak_dir = -1 if f.vx > 0 else 1
+                for s_dist in (1, 2, 3):
+                    sx = int(f.x + 7 + streak_dir * s_dist * 3)
+                    sy = int(self.physics.floor_y - 1)
+                    if 4 <= sx < self.w - 4:
+                        self.buf[sy][sx] = PAL['trail']
+
+        # 9. Fighters (Sprites or Ragdolls)
+        if self.f1.state == 'DOWN' and self.f1.ragdoll:
+            self.render_ragdoll(self.f1, tick)
+        else:
+            m1 = self.f1.get_pixel_matrix(tick)
+            self.stamp_sprite(m1, int(self.f1.x), int(self.f1.y), is_titan=True, flip=False)
+
+        if self.f2.state == 'DOWN' and self.f2.ragdoll:
+            self.render_ragdoll(self.f2, tick)
+        else:
+            m2 = self.f2.get_pixel_matrix(tick)
+            self.stamp_sprite(m2, int(self.f2.x), int(self.f2.y), is_titan=False, flip=True)
+
+        # 10. Dynamic Punch Extensions across distance
+        if self.f1.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT'):
+            self.render_punch_extension(self.f1, self.f2)
+        if self.f2.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT'):
+            self.render_punch_extension(self.f2, self.f1)
+
+        # 11. Bottom Front Rope (rendered over fighters for 3D ring depth)
+        bot_rope = self.physics.ropes[2]
+        col = bot_rope['col']
+        nodes = bot_rope['nodes']
+        for x in range(5, self.w - 5):
+            ry = int(round(nodes[x]))
+            if 0 <= ry < self.h:
+                # Wrap over fighters when pressed into ropes
+                self.buf[ry][x] = col
+
+        # 12. Projectiles (Blood drops, sweat mist, flying mouthguard)
         for p in self.physics.projectiles:
             px = int(p['x'])
             py = int(p['y'])
@@ -810,16 +1371,25 @@ class BoxingArena:
                 if p['type'] == 'mouthguard' and px + 1 < self.w:
                     self.buf[py][px+1] = PAL['eye_white']
 
+        # 13. Directional Hit Spark Bursts
         for s in self.hit_sparks:
             sx = int(s['x'])
             sy = int(s['y'])
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    qx = sx + dx
-                    qy = sy + dy
+            rad = 3 - s['life']
+            if 0 <= sx < self.w and 0 <= sy < self.h:
+                self.buf[sy][sx] = PAL['spark']
+            if rad >= 1:
+                for (dx, dy) in [(-rad, 0), (rad, 0), (0, -rad), (0, rad)]:
+                    qx, qy = sx + dx, sy + dy
+                    if 0 <= qx < self.w and 0 <= qy < self.h:
+                        self.buf[qy][qx] = PAL['spark_yel']
+            if rad >= 2:
+                for (dx, dy) in [(-rad, -rad), (rad, -rad), (-rad, rad), (rad, rad)]:
+                    qx, qy = sx + dx, sy + dy
                     if 0 <= qx < self.w and 0 <= qy < self.h:
                         self.buf[qy][qx] = PAL['spark']
 
+        # 14. Compose 64-bit Half-Block TrueColor Terminal Output
         terminal_lines = []
         for row in range(self.h // 2):
             y_top = row * 2
@@ -868,10 +1438,24 @@ class BoxingArena:
                             col = PAL['boot']
                         elif ch == 'b':
                             col = PAL['bruise']
+                        elif ch == 'h':
+                            col = PAL['hematoma']
+                        elif ch == 'g':
+                            col = PAL['gash']
+                        elif ch == 'w':
+                            col = PAL['wound']
                         elif ch == 'c':
                             col = PAL['blood']
+                        elif ch == 'C':
+                            col = PAL['blood_bright']
+                        elif ch == 'k':
+                            col = PAL['blood_dark']
+                        elif ch == 'o':
+                            col = PAL['bone']
                         elif ch == '=':
                             col = PAL['mouthguard']
+                        elif ch == 'X':
+                            col = PAL['bruise']
                         if col:
                             self.buf[py][px] = col
 
