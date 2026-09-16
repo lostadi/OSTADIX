@@ -920,11 +920,15 @@ build_mcp_server() {
     gemini_mcp_bin="$HOME/.local/bin/ostadix-mcp"
   fi
   if $DRY_RUN; then
-    echo "[DRY] register ostadix in $HOME/.gemini/settings.json using $gemini_mcp_bin"
+    echo "[DRY] if $HOME/.gemini exists, register ostadix in its settings.json using $gemini_mcp_bin"
+  elif [[ ! -d "$HOME/.gemini" ]]; then
+    echo "  Gemini MCP registration skipped (no existing $HOME/.gemini profile)"
   elif has_cmd python3 && [[ -f "$gemini_mcp_bin" ]]; then
-    python3 "$PROJECT_ROOT/scripts/configure_gemini_mcp.py" \
+    if ! python3 "$PROJECT_ROOT/scripts/configure_gemini_mcp.py" \
       --settings "$HOME/.gemini/settings.json" \
-      --command "$gemini_mcp_bin"
+      --command "$gemini_mcp_bin"; then
+      echo "  Warning: Gemini MCP registration failed; Ostadix setup will continue" >&2
+    fi
   else
     echo "  Gemini MCP registration skipped (python3 or server binary unavailable)"
   fi
