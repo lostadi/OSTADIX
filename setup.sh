@@ -915,6 +915,19 @@ build_mcp_server() {
       echo "  wrapper → $HOME/.local/bin/ostadix-mcp"
     fi
   fi
+  local gemini_mcp_bin="$mcp_dir/target/release/ostadix-mcp"
+  if $INSTALL_WRAPPERS; then
+    gemini_mcp_bin="$HOME/.local/bin/ostadix-mcp"
+  fi
+  if $DRY_RUN; then
+    echo "[DRY] register ostadix in $HOME/.gemini/settings.json using $gemini_mcp_bin"
+  elif has_cmd python3 && [[ -f "$gemini_mcp_bin" ]]; then
+    python3 "$PROJECT_ROOT/scripts/configure_gemini_mcp.py" \
+      --settings "$HOME/.gemini/settings.json" \
+      --command "$gemini_mcp_bin"
+  else
+    echo "  Gemini MCP registration skipped (python3 or server binary unavailable)"
+  fi
   echo "MCP build done → $mcp_dir/target/release/ostadix-mcp"
 }
 

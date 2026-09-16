@@ -1129,6 +1129,13 @@ wrappers are disabled, copies the executable to
 ./setup.sh --minimal --yes
 ```
 
+Setup also idempotently registers that absolute executable path as the
+`ostadix` server in `~/.gemini/settings.json`. Existing Gemini authentication,
+servers, and unrelated preferences are preserved. The checked-in `GEMINI.md`
+makes Ostadix the required default for code creation, build, run, test,
+benchmark, and validation work in this repository. Re-running setup after an
+update refreshes both the installed server and its Gemini registration.
+
 For a build without the rest of setup, build the three Ostadix commands used by
 the server and then the server itself:
 
