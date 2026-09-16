@@ -818,7 +818,10 @@ fn run_script(
 ) -> Result<OValue> {
     let temp = TempDir::new("o-backend-script")?;
     let source = temp.path().join(format!("main.{suffix}"));
-    fs::write(&source, format!("{preamble}{code}"))?;
+    let mut source_file = fs::File::create(&source)?;
+    source_file.write_all(preamble.as_bytes())?;
+    source_file.write_all(code.as_bytes())?;
+    drop(source_file);
     let mut command = tools.command(program)?;
     output_to_value(
         lang,
@@ -1030,7 +1033,7 @@ fn run_rust(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let mut compiler = tools.command("rustc")?;
     expect_success(
         "rustc compilation failed",
-        compiler
+        &compiler
             .arg(&source)
             .arg("-o")
             .arg(&binary)
@@ -1053,7 +1056,7 @@ fn run_c(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let mut compiler = tools.command("cc")?;
     expect_success(
         "cc compilation failed",
-        compiler
+        &compiler
             .arg("-std=c17")
             .arg("-o")
             .arg(&binary)
@@ -1077,7 +1080,7 @@ fn run_cpp(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let mut compiler = tools.command("g++")?;
     expect_success(
         "g++ compilation failed",
-        compiler
+        &compiler
             .arg("-std=c++17")
             .arg("-o")
             .arg(&binary)
@@ -1101,7 +1104,7 @@ fn run_java(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let mut compiler = tools.command("javac")?;
     expect_success(
         "javac compilation failed",
-        compiler
+        &compiler
             .arg(&source)
             .output()
             .context("failed to launch admitted javac executable")?,
@@ -1132,7 +1135,7 @@ fn run_nix(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         ])
         .output()
         .context("failed to launch admitted nix executable")?;
-    expect_success("nix eval failed", output.clone())?;
+    expect_success("nix eval failed", &output)?;
     let json: Value =
         serde_json::from_slice(&output.stdout).context("nix eval returned non-JSON")?;
     json_value_to_ovalue(json)
@@ -1152,7 +1155,7 @@ fn run_nix_store(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         ])
         .output()
         .context("failed to launch admitted nix executable")?;
-    expect_success("nix eval --raw failed", output.clone())?;
+    expect_success("nix eval --raw failed", &output)?;
     let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if !path.starts_with("/nix/store/") {
         bail!("expression did not evaluate to a Nix store path: {path:?}");
@@ -1179,7 +1182,7 @@ fn run_haskell(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         let mut compiler = tools.command("ghc")?;
         expect_success(
             "ghc compilation failed",
-            compiler
+            &compiler
                 .arg("-o")
                 .arg(&binary)
                 .arg(&source)
@@ -1224,7 +1227,7 @@ fn run_ocaml(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let mut compiler_command = tools.command(compiler)?;
     expect_success(
         format!("{compiler} compilation failed"),
-        compiler_command
+        &compiler_command
             .arg("-o")
             .arg(&binary)
             .arg(&source)
@@ -1273,7 +1276,7 @@ fn run_csharp(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         let mut project_command = tools.command("dotnet")?;
         expect_success(
             "dotnet project creation failed",
-            project_command
+            &project_command
                 .args(["new", "console", "--force", "-o"])
                 .arg(temp.path())
                 .output()
@@ -1298,7 +1301,7 @@ fn run_csharp(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         let mut compiler = tools.command("mcs")?;
         expect_success(
             "mcs compilation failed",
-            compiler
+            &compiler
                 .arg(format!("-out:{}", binary.display()))
                 .arg(&source)
                 .output()
@@ -1418,7 +1421,7 @@ fn run_webassembly(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         converter_kind.configure(&mut converter, &wat, &wasm);
         expect_success(
             converter_kind.failure_label(),
-            converter.output().with_context(|| {
+            &converter.output().with_context(|| {
                 format!("failed to launch admitted {converter_name} executable")
             })?,
         )?;
@@ -1451,11 +1454,15 @@ fn run_webassembly(tools: &BackendToolchain, code: &str) -> Result<OValue> {
 }
 
 fn output_to_value(label: &str, output: Output) -> Result<OValue> {
-    expect_success(format!("{label} exited with failure"), output.clone())?;
-    Ok(stdout_to_ovalue(&String::from_utf8_lossy(&output.stdout)))
+    expect_success(format!("{label} exited with failure"), &output)?;
+    let stdout = match String::from_utf8(output.stdout) {
+        Ok(stdout) => stdout,
+        Err(error) => String::from_utf8_lossy(&error.into_bytes()).into_owned(),
+    };
+    Ok(stdout_to_ovalue(stdout))
 }
 
-fn expect_success(label: impl AsRef<str>, output: Output) -> Result<()> {
+fn expect_success(label: impl AsRef<str>, output: &Output) -> Result<()> {
     if output.status.success() {
         return Ok(());
     }
@@ -1477,8 +1484,13 @@ fn expect_success(label: impl AsRef<str>, output: Output) -> Result<()> {
     )
 }
 
-fn stdout_to_ovalue(output: &str) -> OValue {
-    let text = trim_stdout(output);
+fn stdout_to_ovalue(mut text: String) -> OValue {
+    if text.ends_with('\n') {
+        text.pop();
+        if text.ends_with('\r') {
+            text.pop();
+        }
+    }
     let stripped = text.trim();
     if !stripped.is_empty() {
         if let Ok(json) = serde_json::from_str::<Value>(stripped) {
@@ -1590,17 +1602,6 @@ fn float_to_ovalue(value: f64) -> OValue {
             bits: value.to_bits().to_be_bytes().to_vec(),
         })
     }
-}
-
-fn trim_stdout(output: &str) -> String {
-    let mut text = output.to_string();
-    if text.ends_with('\n') {
-        text.pop();
-        if text.ends_with('\r') {
-            text.pop();
-        }
-    }
-    text
 }
 
 fn is_integer_literal(value: &str) -> bool {
@@ -1794,8 +1795,9 @@ mod tests {
 
     use super::{
         has_native_backend, select_webassembly_text_converter, sql_checkpoint_profile_accepts,
-        WebAssemblyTextConverter,
+        stdout_to_ovalue, WebAssemblyTextConverter,
     };
+    use crate::value::OValue;
 
     #[test]
     fn webassembly_text_converter_selection_and_argv_are_fail_closed() {
@@ -1852,6 +1854,20 @@ mod tests {
         ] {
             assert!(!sql_checkpoint_profile_accepts(source), "{source}");
         }
+    }
+
+    #[test]
+    fn stdout_conversion_preserves_text_and_terminal_newline_semantics() {
+        assert_eq!(stdout_to_ovalue("42\n".into()), OValue::int(42));
+        assert_eq!(
+            stdout_to_ovalue("  plain text  \r\n".into()),
+            OValue::str_("  plain text  ")
+        );
+        assert_eq!(
+            stdout_to_ovalue("plain text\n\n".into()),
+            OValue::str_("plain text\n")
+        );
+        assert_eq!(stdout_to_ovalue("\n".into()), OValue::str_(""));
     }
 
     #[test]

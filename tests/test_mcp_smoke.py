@@ -40,7 +40,7 @@ class ResponseReaderTests(unittest.TestCase):
 
     def test_ci_builds_every_binary_required_by_the_mcp_smoke(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-        for required_binary in ("O", "olangc", "o-info"):
+        for required_binary in ("O", "o-cli", "o-link", "olangc", "o-info"):
             self.assertIn(
                 f"--bin {required_binary}",
                 workflow,
@@ -85,6 +85,11 @@ class ResponseReaderTests(unittest.TestCase):
         self.assertIn("for index, path in enumerate(restricted_path)", source)
         self.assertIn('"name": "o_doctor"', source)
         self.assertIn('"name": "o_search_run"', source)
+        self.assertIn('"source": "python^(', source)
+        self.assertIn('result.get("structuredContent")', source)
+        self.assertIn('"local_unified_front_door"', source)
+        self.assertIn('"o-link"', source)
+        self.assertIn("loaded a lifted bundle without executing", source)
         self.assertIn('"target": "wasm"', source)
         self.assertIn('wasm_output.read_bytes()[:4] != b"\\x00asm"', source)
         self.assertIn('"materialize_only"', source)

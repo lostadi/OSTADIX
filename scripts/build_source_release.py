@@ -283,8 +283,14 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
 }
 ALLOWED_EXACT_PATHS = frozenset(
     {
+        "benchmarks/fidelity/README.md",
+        "benchmarks/fidelity/RESULTS.md",
+        "benchmarks/fidelity/integer_precision.O",
+        "benchmarks/fidelity/results.json",
+        "benchmarks/fidelity/type_tag.O",
         "okernel-multikernel/boot-and-test.sh",
         "okernel-multikernel/MULTIKERNEL_PERSONALITY_PROPOSAL.md",
+        "tools/syntax/README.md",
     }
 ) | (
     HOSTED_HGRAPH_BENCHMARK_PATHS
@@ -334,6 +340,7 @@ EXCLUDED_DIRECTORY_NAMES = frozenset(
         "build",
         "dist",
         "htmlcov",
+        "node_modules",
         "out",
         "target",
     }
@@ -349,6 +356,18 @@ EXCLUDED_EXACT_PATHS = frozenset(
 )
 
 EXCLUDED_BASENAMES = frozenset({".DS_Store", "Thumbs.db"})
+# HTML is normally generated output in this repository. These reviewed browser
+# launchers and Chatprint source inputs are exceptions, so keep the allowlist
+# exact rather than admitting every HTML file under `apps/`.
+ALLOWED_HTML_PATHS = frozenset(
+    {
+        "apps/olang-browser-wasi/index.html",
+        "apps/browser-chat-pdf/mobile/install.template.html",
+        "apps/browser-chat-pdf/popup.html",
+        "apps/browser-chat-pdf/preview.html",
+        "apps/browser-chat-pdf/tests/fixtures/generic-chat.html",
+    }
+)
 EXCLUDED_SUFFIXES = (
     ".a",
     ".d",
@@ -421,6 +440,8 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "Cargo.toml",
         "apps/android-terminal/runtime/Cargo.lock",
         "apps/android-terminal/runtime/Cargo.toml",
+        "apps/browser-chat-pdf/README.md",
+        "apps/browser-chat-pdf/mobile/README.md",
         "CHANGELOG.md",
         "CODE_OF_CONDUCT.md",
         "CONTRIBUTING.md",
@@ -1224,10 +1245,7 @@ def is_allowed_release_path(path: str) -> bool:
         return False
     if basename.endswith("~") or basename.startswith(".#"):
         return False
-    # Browser bundles need one reviewed HTML launcher in the source closure.
-    # Keep the general generated-HTML exclusion intact rather than allowing
-    # arbitrary HTML anywhere under apps/.
-    if basename.endswith(EXCLUDED_SUFFIXES) and path != "apps/olang-browser-wasi/index.html":
+    if basename.endswith(EXCLUDED_SUFFIXES) and path not in ALLOWED_HTML_PATHS:
         return False
     return True
 

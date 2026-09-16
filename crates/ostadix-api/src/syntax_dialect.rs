@@ -9,6 +9,30 @@ pub trait SyntaxDialect {
     /// Whether `name` may begin a typed O expression in this parse.
     fn is_registered_syntax_tag(&self, name: &str) -> bool;
 
+    /// Borrow the complete registered syntax tag at the start of `source`.
+    ///
+    /// A match must end at an identifier boundary: a registered `py` must not
+    /// match the prefix of `python`. The compatibility default scans one source
+    /// identifier; catalog-backed implementations should override it so work is
+    /// bounded by the registered tag set.
+    fn match_registered_syntax_tag<'source>(&self, source: &'source str) -> Option<&'source str> {
+        let bytes = source.as_bytes();
+        if !bytes
+            .first()
+            .is_some_and(|byte| byte.is_ascii_alphabetic() || *byte == b'_')
+        {
+            return None;
+        }
+
+        let mut end = 1;
+        while end < bytes.len() && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_') {
+            end += 1;
+        }
+        let candidate = &source[..end];
+        self.is_registered_syntax_tag(candidate)
+            .then_some(candidate)
+    }
+
     /// Resolve a registered tag or alias to its canonical syntax name.
     fn canonical_syntax_name(&self, name: &str) -> String;
 

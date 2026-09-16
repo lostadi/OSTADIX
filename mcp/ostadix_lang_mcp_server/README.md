@@ -14,7 +14,7 @@ resolve an **absolute** `O_BACKENDS_DIR`, so relative `backends` and bare
 | `o_smoke` | `O examples/hello.O <absolute-backends>` — expect `2` |
 | `o_analyze_intent` | Nonexecutingly compute a stable execution intent and return a bounded, expiring, one-use opaque handle |
 | `o_execute_intent` | Consume that handle and require `O` to recompute the same source and execution-intent digests before fresh Graph V2/Evidence and Admission V6 dispatch |
-| `o_run` | Direct, ungated compatibility execution of any `.O` with absolute backends; relative input resolves once against `cwd` or the repository root, while an absolute path with no `cwd` runs from its parent directory |
+| `o_run` | Primary source-first execution: accept exactly one complete `.O` `source` or existing `path`, route local work through the unified project-aware front door, and return decoded value/project results as MCP structured content. Optional `route` resolves genuinely ambiguous projects. `placement=node` submits the complete document to one selected hosted node; it does not split a graph. |
 | `o_olangc` | `olangc` with `--shim-dir`; relative input/output resolves against the repository root. `materialize_only` admits ordinary binary/WASM inputs, requires a new contained destination below the server cwd, rejects traversal/existing targets, and invokes neither Cargo nor output publication. |
 | `o_search_run` | Run one strict leaf name from `<work>/search`, or bundled `examples/` when no external work tree exists; reject traversal and symlink escape |
 | `o_information_inspect` | Fixed, bounded `o-info head` inspection of one existing local Information V1 root; returns sanitized IDs/count, no state path or authority, and makes no logical/content/inode/mode/mtime change (atime untested) |
@@ -27,7 +27,7 @@ source snapshot at `$OSTADIX_GUEST_SOURCE` inside that VM:
 
 ```bash
 cd "$OSTADIX_GUEST_SOURCE"
-cargo build --release --locked --package o-lang --bin O --bin olangc --bin o-info
+cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info
 cd "$OSTADIX_GUEST_SOURCE/mcp/ostadix_lang_mcp_server"
 cargo build --release --locked
 cp -f target/release/ostadix-mcp ~/.local/bin/ostadix-mcp
@@ -43,9 +43,9 @@ python3 scripts/smoke_ostadix_mcp.py
 ```
 
 The last command performs a real MCP initialize/list/call exchange and requires
-the root release `O`, `olangc`, and `o-info` binaries. Under a deliberately system-only
+the root release `O`, `o-cli`, `olangc`, and `o-info` binaries. Under a deliberately system-only
 `PATH`, it validates every tool's object schema, calls `o_runtimes`, `o_smoke`,
-both supported relative-path forms of `o_run`, relative-path `o_olangc`, and
+fresh inline source plus both supported relative-path forms of `o_run`, relative-path `o_olangc`, and
 bundled `o_search_run`, rejects search-path escape, and performs fixed local
 Information V1 head inspection with a no-mutation tree comparison.
 The client drains stdout/stderr concurrently and retains out-of-order JSON-RPC
@@ -122,11 +122,13 @@ authority.
 
 This protocol is a local **same-intent gate**, not authorization, a capability,
 a retained admission object, proof of runtime health, or a capacity lease.
-`o_run` remains available as an explicitly ungated compatibility path. The MCP
+`o_run.path` preserves existing path clients, while `o_run.source` is the primary
+one-call interface. Local execution uses `o run --json --include-result`; the MCP
+returns the retained result without requiring a later record lookup. The MCP
 crate does not link the root runtime and does not add a worker, scheduler lane,
 or persistent `O` process.
 
-Package 0.3 MCP execution remains deliberately local and uses fresh Graph V2
+Local MCP execution uses fresh Graph V2
 with `oexec.evidence/v6` and `oexec.admission/v6`; current CLI/API inspection
 exposes Schedule Explanation/Why V2. Graph V1, Evidence/Admission V5, Schedule
 Explanation/Why V1, and `PreparedPlacementFragmentV1` remain explicit archival
@@ -135,13 +137,16 @@ dispatches them as current V2/V6 authority. Execution Intent V1 stays bound to
 the frozen Graph V1 identity, but a matching handle carries no authority and
 forces fresh Graph V2/V6 admission before dispatch.
 
-Hosted Placement V6 is a separate milestone. Its current preparation boundary
-is `PreparedPlacementFragmentV2`; the authenticated direct-node surface is the
+Hosted Placement V6 remains a distinct mechanism. `o_run` exposes the frozen
+whole-document V1 path as `placement=node`, with optional `node_id`, and labels
+that receipt `selected_node_complete_document`. This is not operation-level
+graph distribution, project mesh, or implicit local fallback. The current V6 preparation boundary
+is `PreparedPlacementFragmentV2`; the authenticated direct-node surface remains the
 `octl node ...` client and `o-node` service documented in
 [`docs/HOSTED_PLACEMENT_V6.md`](../../docs/HOSTED_PLACEMENT_V6.md). This MCP
 does not discover a federated registry, enroll a node, request a placement
-lease, or turn a stable intent handle into placement authority. No MCP tool
-wraps frozen one-operation V1, durable session V2, placement-authority issuance
+lease, or turn a stable intent handle into placement authority. No MCP tool wraps
+durable session V2, placement-authority issuance
 or the co-located development mint, explicit closed-session GC, or the separate
 local `o-registry` snapshot store. In particular, no MCP tool holds a session
 bearer, submits `PlacementLeaseV2`, consumes a V2 signed journal receipt, or

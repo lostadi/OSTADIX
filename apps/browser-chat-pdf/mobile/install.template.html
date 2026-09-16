@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Install Chatprint on Android</title>
+    <style>
+      :root{--blue:#155eef;--ink:#0b0b0d;--green:#079447;--muted:#65686f;--line:#d4d6da;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}*{box-sizing:border-box}body{margin:0;background:#fff}.wrap{width:min(100% - 48px,760px);margin:0 auto;padding:34px 0 38px}.brand{display:flex;align-items:center;gap:17px;padding:0 0 25px;border-bottom:1px solid var(--line);font-size:29px;font-weight:780;letter-spacing:-.04em}.doc-icon{width:34px;height:34px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.8}.hero{padding:31px 2px 0}.hero h1{max-width:620px;margin:0;font-size:clamp(38px,9vw,58px);line-height:1.07;letter-spacing:-.045em}.hero p{max-width:650px;margin:20px 0 0;font-size:20px;line-height:1.48}.copy{display:flex;align-items:center;justify-content:center;width:100%;min-height:65px;gap:14px;margin-top:27px;border:1px solid var(--blue);border-radius:7px;background:var(--blue);color:#fff;font-size:20px;font-weight:700}.copy svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8}.copied{display:flex;align-items:center;justify-content:center;gap:10px;min-height:55px;margin:4px 0 17px;color:var(--green);font-size:17px}.copied[hidden]{visibility:hidden}.check{display:grid;width:25px;height:25px;place-items:center;border:2px solid var(--green);border-radius:50%;font-size:15px}.setup{padding:25px 2px 0;border-top:1px solid var(--line)}.setup h2{margin:0 0 11px;font-size:25px;letter-spacing:-.02em}.steps{margin:0;padding:0;list-style:none;counter-reset:steps}.steps li{display:grid;grid-template-columns:46px 1fr;align-items:center;gap:17px;min-height:78px;padding:14px 0;border-bottom:1px solid var(--line);font-size:18px;line-height:1.36}.steps li::before{display:grid;width:40px;height:40px;place-items:center;border:2px solid var(--blue);border-radius:50%;color:var(--blue);font-size:18px;font-weight:750;counter-increment:steps;content:counter(steps)}.preview-label{margin:17px 0 9px;color:var(--muted);font-size:12px;letter-spacing:.09em;text-transform:uppercase}.bookmark{padding:11px 12px;border:1px solid var(--line);border-radius:7px}.bookmark-name{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700}.bookmark-name .doc-icon{width:20px;height:20px}.bookmark code{display:block;margin-top:8px;padding:9px 10px;overflow:hidden;border:1px solid var(--line);border-radius:5px;color:#565b66;font:13px/1.3 "SFMono-Regular",Consolas,monospace;white-space:nowrap;text-overflow:ellipsis}.details{padding:0 2px;border-bottom:1px solid var(--line)}.details summary{position:relative;padding:24px 28px 24px 0;color:var(--blue);cursor:pointer;font-size:16px;list-style:none}.details summary::-webkit-details-marker{display:none}.details summary::after{position:absolute;right:3px;content:"›";font-size:27px;line-height:.7;transform:rotate(0deg)}.details[open] summary::after{transform:rotate(90deg)}.detail-body{padding:0 0 22px;color:#344054;font-size:14px;line-height:1.5}.detail-body ol{padding-left:21px}.detail-body li{margin:8px 0}.build{color:var(--muted);font-size:12px}.footer{margin:17px 0 0;color:var(--muted);font-size:14px;letter-spacing:.01em}.copy:focus-visible,.details summary:focus-visible{outline:3px solid rgba(21,94,239,.18);outline-offset:3px}@media(max-width:460px){.wrap{width:min(100% - 48px,760px);padding-top:25px}.brand{gap:12px;padding-bottom:20px;font-size:23px}.brand>.doc-icon{width:26px;height:26px}.hero{padding-top:20px}.hero h1{font-size:34px}.hero p{margin-top:14px;font-size:16px;line-height:1.43}.copy{min-height:52px;gap:10px;margin-top:21px;font-size:16px}.copy svg{width:22px;height:22px}.copied{min-height:42px;gap:7px;margin:3px 0 12px;font-size:14px}.check{width:22px;height:22px;font-size:13px}.setup{padding-top:20px}.setup h2{font-size:22px}.steps li{grid-template-columns:38px 1fr;gap:12px;min-height:60px;padding:9px 0;font-size:15px}.steps li::before{width:32px;height:32px;font-size:15px}.preview-label{margin:13px 0 7px}.bookmark{padding:9px 10px}.bookmark-name{font-size:14px}.bookmark code{margin-top:6px;padding:7px 8px;font-size:11px}.details summary{padding:18px 25px 18px 0;font-size:14px}.footer{margin-top:13px;font-size:13px}}
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="brand">
+        <svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6zM14 2v5h5M9 12h6M9 16h6"/></svg>
+        <span>Chatprint</span>
+      </header>
+      <section class="hero" aria-labelledby="title">
+        <h1 id="title">Print AI chats<br> from your phone</h1>
+        <p>No extension required. Add Chatprint as a bookmark, open a conversation, then run it from your address bar.</p>
+        <button id="copy" class="copy" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>
+          <span>Copy bookmarklet</span>
+        </button>
+        <div id="copied" class="copied" role="status" aria-live="polite" hidden><span class="check">✓</span><span>Copied — now save it as a bookmark</span></div>
+      </section>
+      <section class="setup" aria-labelledby="setup-title">
+        <h2 id="setup-title">Set it up in 3 steps</h2>
+        <ol class="steps">
+          <li>Copy the bookmarklet</li>
+          <li>Create or edit a bookmark and paste it into the URL field</li>
+          <li>Open your AI chat, type Chatprint in the address bar, and select the bookmark</li>
+        </ol>
+        <p class="preview-label">Bookmark preview</p>
+        <div class="bookmark">
+          <div class="bookmark-name"><svg class="doc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6zM14 2v5h5M9 12h6M9 16h6"/></svg><span>Chatprint — Print this chat</span></div>
+          <code>javascript:(() =&gt; { /* Chatprint bookmarklet */ })();</code>
+        </div>
+      </section>
+      <details class="details">
+        <summary>Show detailed Android steps</summary>
+        <div class="detail-body">
+          <ol>
+            <li>Tap <strong>Copy bookmarklet</strong> above.</li>
+            <li>In Android Chrome, bookmark this page or any normal webpage.</li>
+            <li>Open Chrome’s bookmark manager and edit that bookmark.</li>
+            <li>Name it <strong>Chatprint</strong>, replace its URL with the copied code, then save.</li>
+            <li>Open an AI chat. Type <strong>Chatprint</strong> in the address bar and select the starred bookmark result.</li>
+            <li>In the preview, tap <strong>Print / Save PDF</strong>. If no dialog opens, use Chrome’s Share menu and choose Print.</li>
+          </ol>
+          <p>Chrome requires the bookmark-edit step; a webpage cannot silently add or modify your bookmarks.</p>
+          <p class="build">Build __BOOKMARKLET_SHA__ · __BOOKMARKLET_KIB__ KiB · no remote scripts</p>
+        </div>
+      </details>
+      <p class="footer">Runs locally&nbsp; • &nbsp;Nothing uploaded</p>
+    </main>
+    <script>
+      (() => {
+        "use strict";
+        const bookmarklet = __BOOKMARKLET_JSON__;
+        const button = document.querySelector("#copy");
+        const copied = document.querySelector("#copied");
+        async function copy() {
+          try {
+            if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error("clipboard unavailable");
+            await navigator.clipboard.writeText(bookmarklet);
+          } catch (_error) {
+            const field = document.createElement("textarea");
+            field.value = bookmarklet;
+            field.setAttribute("readonly", "");
+            field.style.position = "fixed";
+            field.style.opacity = "0";
+            document.body.appendChild(field);
+            field.select();
+            if (!document.execCommand("copy")) throw new Error("Your browser blocked clipboard access.");
+            field.remove();
+          }
+          copied.hidden = false;
+        }
+        button.addEventListener("click", () => copy().catch((error) => {
+          copied.hidden = false;
+          copied.textContent = `${error.message} Open chatprint-mobile.txt and copy its entire contents instead.`;
+        }));
+      })();
+    </script>
+  </body>
+</html>

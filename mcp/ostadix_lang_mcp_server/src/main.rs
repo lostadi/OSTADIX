@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 
@@ -36,9 +36,13 @@ const MAX_OLANGC_MATERIALIZE_PATH_BYTES: usize = 4096;
 const MAX_INFORMATION_HEAD_NAME_BYTES: usize = 128;
 const MAX_INFORMATION_INSPECTION_STDOUT_BYTES: usize = 256 * 1024;
 const MAX_INFORMATION_INSPECTION_STDERR_BYTES: usize = 16 * 1024;
+const MAX_COMMAND_STDOUT_BYTES: usize = 4 * 1024 * 1024;
+const MAX_COMMAND_STDERR_BYTES: usize = 256 * 1024;
 const DEFAULT_INFORMATION_INSPECTION_TIMEOUT_SECS: u64 = 10;
 const MAX_INFORMATION_INSPECTION_TIMEOUT_SECS: u64 = 30;
 const O_INFO_BIN_ENV: &str = "OSTADIX_O_INFO_BIN";
+const O_CLI_BIN_ENV: &str = "OSTADIX_O_CLI_BIN";
+const OCTL_BIN_ENV: &str = "OSTADIX_OCTL_BIN";
 const INFORMATION_NON_AUTHORITY_NOTICE: &str =
     "information presence and signatures grant no execution authority";
 
@@ -332,6 +336,36 @@ fn resolve_o_bin(root: &Path) -> PathBuf {
         return release;
     }
     which::which("O").unwrap_or_else(|_| PathBuf::from("O"))
+}
+
+fn resolve_o_cli(root: &Path) -> PathBuf {
+    if let Ok(path) = std::env::var(O_CLI_BIN_ENV) {
+        let path = PathBuf::from(path);
+        if path.is_file() {
+            return path;
+        }
+    }
+    let release = root.join("target/release/o-cli");
+    if release.is_file() {
+        return release;
+    }
+    which::which("o-cli")
+        .or_else(|_| which::which("o"))
+        .unwrap_or_else(|_| PathBuf::from("o-cli"))
+}
+
+fn resolve_octl(root: &Path) -> PathBuf {
+    if let Ok(path) = std::env::var(OCTL_BIN_ENV) {
+        let path = PathBuf::from(path);
+        if path.is_file() {
+            return path;
+        }
+    }
+    let release = root.join("target/release/octl");
+    if release.is_file() {
+        return release;
+    }
+    which::which("octl").unwrap_or_else(|_| PathBuf::from("octl"))
 }
 
 fn resolve_olangc(root: &Path) -> PathBuf {
@@ -1175,6 +1209,33 @@ fn text_err(s: impl Into<String>) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::error(vec![Content::text(s.into())]))
 }
 
+fn structured_command_result(
+    code: i32,
+    stdout: &str,
+    stderr: &str,
+    execution_mode: &str,
+) -> Result<CallToolResult, McpError> {
+    match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+        Ok(mut value) => {
+            if let Some(object) = value.as_object_mut() {
+                object.insert("execution_mode".into(), execution_mode.into());
+                if !stderr.is_empty() {
+                    object.insert("diagnostics".into(), stderr.into());
+                }
+            }
+            if code == 0 {
+                Ok(CallToolResult::structured(value))
+            } else {
+                Ok(CallToolResult::structured_error(value))
+            }
+        }
+        Err(error) => text_err(format!(
+            "execution command returned invalid JSON ({error})\n{}",
+            format_run(code, stdout, stderr)
+        )),
+    }
+}
+
 async fn run_cmd(
     program: &Path,
     args: &[&str],
@@ -1204,53 +1265,79 @@ async fn run_cmd(
         .spawn()
         .map_err(|e| format!("spawn {}: {e}", program.display()))?;
 
-    let mut stdout_pipe = child
+    let stdout_pipe = child
         .stdout
         .take()
         .ok_or_else(|| "child stdout was not piped".to_string())?;
-    let mut stderr_pipe = child
+    let stderr_pipe = child
         .stderr
         .take()
         .ok_or_else(|| "child stderr was not piped".to_string())?;
     #[cfg(unix)]
     let process_group_id = child.id();
-    let mut stdout_bytes = Vec::new();
-    let mut stderr_bytes = Vec::new();
-    let completed = tokio::time::timeout(Duration::from_secs(timeout_secs), async {
-        let (status, stdout, stderr) = tokio::join!(
-            child.wait(),
-            stdout_pipe.read_to_end(&mut stdout_bytes),
-            stderr_pipe.read_to_end(&mut stderr_bytes),
-        );
-        let status = status.map_err(|e| format!("wait: {e}"))?;
-        stdout.map_err(|e| format!("read stdout: {e}"))?;
-        stderr.map_err(|e| format!("read stderr: {e}"))?;
-        Ok::<_, String>(status)
-    })
-    .await;
+    let mut stdout_task = tokio::spawn(read_information_pipe_bounded(
+        stdout_pipe,
+        MAX_COMMAND_STDOUT_BYTES,
+    ));
+    let mut stderr_task = tokio::spawn(read_information_pipe_bounded(
+        stderr_pipe,
+        MAX_COMMAND_STDERR_BYTES,
+    ));
+    let timeout = tokio::time::sleep(Duration::from_secs(timeout_secs));
+    tokio::pin!(timeout);
+    let mut status = None;
+    let mut stdout_bytes = None;
+    let mut stderr_bytes = None;
 
-    let status = match completed {
-        Ok(result) => result?,
-        Err(_) => {
-            #[cfg(unix)]
-            if let Some(pid) = process_group_id {
-                if let Ok(group_id) = i32::try_from(pid) {
-                    // SAFETY: the child was placed in a new process group whose
-                    // id is the leader pid. Keep that id before waiting so the
-                    // group can still be killed after the leader has exited and
-                    // descendants are retaining its stdout/stderr pipes.
-                    unsafe {
-                        libc::kill(-group_id, libc::SIGKILL);
-                    }
+    while status.is_none() || stdout_bytes.is_none() || stderr_bytes.is_none() {
+        tokio::select! {
+            waited = child.wait(), if status.is_none() => match waited {
+                Ok(value) => status = Some(value),
+                Err(error) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stdout_task.abort();
+                    stderr_task.abort();
+                    return Err(format!("wait: {error}"));
                 }
+            },
+            output = &mut stdout_task, if stdout_bytes.is_none() => match output {
+                Ok(Ok(bytes)) => stdout_bytes = Some(bytes),
+                Ok(Err(())) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stderr_task.abort();
+                    return Err(format!("stdout exceeded {MAX_COMMAND_STDOUT_BYTES} bytes"));
+                }
+                Err(error) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stderr_task.abort();
+                    return Err(format!("read stdout task failed: {error}"));
+                }
+            },
+            output = &mut stderr_task, if stderr_bytes.is_none() => match output {
+                Ok(Ok(bytes)) => stderr_bytes = Some(bytes),
+                Ok(Err(())) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stdout_task.abort();
+                    return Err(format!("stderr exceeded {MAX_COMMAND_STDERR_BYTES} bytes"));
+                }
+                Err(error) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stdout_task.abort();
+                    return Err(format!("read stderr task failed: {error}"));
+                }
+            },
+            _ = &mut timeout => {
+                terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                stdout_task.abort();
+                stderr_task.abort();
+                return Err(format!("timeout after {timeout_secs}s"));
             }
-            if !matches!(child.try_wait(), Ok(Some(_))) {
-                let _ = child.kill().await;
-            }
-            let _ = child.wait().await;
-            return Err(format!("timeout after {timeout_secs}s"));
         }
-    };
+    }
+
+    let status = status.expect("run loop requires child status");
+    let stdout_bytes = stdout_bytes.expect("run loop requires stdout");
+    let stderr_bytes = stderr_bytes.expect("run loop requires stderr");
     let code = status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
     let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
@@ -1630,6 +1717,33 @@ fn resolve_run_target(
     Ok((program, cwd))
 }
 
+fn resolve_unified_run_target(
+    root: &Path,
+    requested_path: &str,
+    requested_cwd: Option<&str>,
+) -> Result<(PathBuf, PathBuf), String> {
+    match resolve_run_target(root, requested_path, requested_cwd) {
+        Ok(target) => Ok(target),
+        Err(file_error) => {
+            let input_path = Path::new(requested_path);
+            let cwd = match requested_cwd {
+                Some(requested) => resolve_directory(root, Some(requested), "cwd")?,
+                None if input_path.is_absolute() => resolve_directory(
+                    input_path.parent().ok_or_else(|| {
+                        format!("absolute target has no parent: {}", input_path.display())
+                    })?,
+                    None,
+                    "target cwd",
+                )?,
+                None => resolve_directory(root, None, "cwd")?,
+            };
+            resolve_directory(&cwd, Some(requested_path), "project target")
+                .map(|target| (target, cwd))
+                .map_err(|_| file_error)
+        }
+    }
+}
+
 fn format_run(code: i32, stdout: &str, stderr: &str) -> String {
     let mut s = format!("exit={code}\n");
     if !stdout.is_empty() {
@@ -1678,15 +1792,69 @@ impl schemars::JsonSchema for EmptyArgs {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RunOArgs {
     #[schemars(
-        description = "Path to a .O program (absolute paths default cwd to their parent; relative paths use cwd/O_LANG_ROOT)"
+        description = "Existing .O program or project path. Supply exactly one of path or source"
     )]
-    path: String,
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    #[schemars(description = "Complete .O source document. Supply exactly one of source or path")]
+    source: Option<String>,
     #[serde(default)]
     #[schemars(description = "Optional working directory (relative paths use O_LANG_ROOT)")]
     cwd: Option<String>,
     #[serde(default)]
     #[schemars(description = "Timeout seconds (default 120)")]
     timeout_secs: Option<u64>,
+    #[serde(default)]
+    #[schemars(
+        description = "Execution placement: local (default unified front door) or node (complete document on one selected hosted node)"
+    )]
+    placement: Option<String>,
+    #[serde(default)]
+    #[schemars(
+        description = "Optional discovered node identity for placement=node; omitted uses the remembered or deterministic node selection"
+    )]
+    node_id: Option<String>,
+    #[serde(default)]
+    #[schemars(
+        description = "Optional project route ID when a project or lifted bundle has no unambiguous default"
+    )]
+    route: Option<String>,
+}
+
+struct StagedSource(PathBuf);
+
+impl Drop for StagedSource {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+async fn stage_source(source: &str) -> Result<(StagedSource, PathBuf), String> {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("system clock cannot stage source: {error}"))?
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "ostadix-mcp-source-{}-{unique}",
+        std::process::id()
+    ));
+    tokio::fs::create_dir(&directory)
+        .await
+        .map_err(|error| format!("create private source staging directory: {error}"))?;
+    let guard = StagedSource(directory.clone());
+    #[cfg(unix)]
+    tokio::fs::set_permissions(
+        &directory,
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .await
+    .map_err(|error| format!("secure private source staging directory: {error}"))?;
+    let program = directory.join("program.O");
+    tokio::fs::write(&program, source)
+        .await
+        .map_err(|error| format!("stage complete .O source: {error}"))?;
+    Ok((guard, program))
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1728,7 +1896,7 @@ struct OlangcArgs {
     path: String,
     #[serde(default)]
     #[schemars(
-        description = "olangc target: ir | dot | script | wasm | or omit for default AOT analysis"
+        description = "olangc target: binary | ir | dot | script | wasm; omitted target defaults to binary"
     )]
     target: Option<String>,
     #[serde(default)]
@@ -2029,7 +2197,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Run a .O program with the O interpreter using absolute O_BACKENDS_DIR (fixes relative backends failures)"
+        description = "Execute one complete .O source document or existing path through Ostadix's unified, project-aware front door and return its structured result"
     )]
     async fn o_run(
         &self,
@@ -2037,18 +2205,91 @@ impl OstadixMcp {
     ) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
-        let o_bin = resolve_o_bin(&root);
-        let (path, cwd) = match resolve_run_target(&root, &args.path, args.cwd.as_deref()) {
-            Ok(target) => target,
-            Err(error) => return text_err(error),
+        let o_cli = resolve_o_cli(&root);
+        let (path, cwd, _staged) = match (&args.path, &args.source) {
+            (Some(_), Some(_)) | (None, None) => {
+                return text_err("o_run requires exactly one of `source` or `path`");
+            }
+            (Some(requested), None) => {
+                let (path, cwd) =
+                    match resolve_unified_run_target(&root, requested, args.cwd.as_deref()) {
+                        Ok(target) => target,
+                        Err(error) => return text_err(error),
+                    };
+                (path, cwd, None)
+            }
+            (None, Some(source)) => {
+                let cwd = match resolve_directory(&root, args.cwd.as_deref(), "cwd") {
+                    Ok(cwd) => cwd,
+                    Err(error) => return text_err(error),
+                };
+                let (staged, path) = match stage_source(source).await {
+                    Ok(staged) => staged,
+                    Err(error) => return text_err(error),
+                };
+                (path, cwd, Some(staged))
+            }
         };
+        let timeout = args.timeout_secs.unwrap_or(120);
+        let placement = args.placement.as_deref().unwrap_or("local");
+        if placement == "node" {
+            if args.route.is_some() {
+                return text_err("route is available only for local project-aware execution");
+            }
+            if timeout == 0 || timeout > 86_400 {
+                return text_err("node placement timeout must be between 1 and 86400 seconds");
+            }
+            let octl = resolve_octl(&root);
+            let deadline = timeout.to_string();
+            let path_text = path.to_string_lossy().into_owned();
+            let mut command_args = vec!["node", "run", path_text.as_str()];
+            if let Some(node_id) = args.node_id.as_deref() {
+                command_args.extend(["--node", node_id]);
+            }
+            command_args.extend(["--deadline-seconds", deadline.as_str()]);
+            return match run_cmd(
+                &octl,
+                &command_args,
+                Some(&cwd),
+                &[("O_LANG_ROOT", root.display().to_string())],
+                timeout,
+            )
+            .await
+            {
+                Ok((code, stdout, stderr)) => structured_command_result(
+                    code,
+                    &stdout,
+                    &stderr,
+                    "selected_node_complete_document",
+                ),
+                Err(error) => text_err(error),
+            };
+        }
+        if placement != "local" {
+            return text_err(format!(
+                "unsupported placement `{placement}`; expected `local` or `node`"
+            ));
+        }
+        if args.node_id.is_some() {
+            return text_err("node_id requires placement=node");
+        }
         if !backends.is_dir() {
             return text_err(format!("backends missing: {}", backends.display()));
         }
-        let timeout = args.timeout_secs.unwrap_or(120);
+        let path_text = path.to_string_lossy().into_owned();
+        let mut command_args = vec![
+            "run",
+            path_text.as_str(),
+            "--json",
+            "--include-result",
+            "--no-record",
+        ];
+        if let Some(route) = args.route.as_deref() {
+            command_args.extend(["--route", route]);
+        }
         match run_cmd(
-            &o_bin,
-            &[path.to_str().unwrap_or(""), backends.to_str().unwrap_or("")],
+            &o_cli,
+            &command_args,
             Some(&cwd),
             &[
                 ("O_LANG_ROOT", root.display().to_string()),
@@ -2060,12 +2301,7 @@ impl OstadixMcp {
         .await
         {
             Ok((code, stdout, stderr)) => {
-                let body = format_run(code, &stdout, &stderr);
-                if code == 0 {
-                    text_ok(body)
-                } else {
-                    text_err(body)
-                }
+                structured_command_result(code, &stdout, &stderr, "local_unified_front_door")
             }
             Err(e) => text_err(e),
         }
@@ -2422,10 +2658,11 @@ impl ServerHandler for OstadixMcp {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some(
-                "Ostadix-lang / O-lang MCP (Rust). Use o_env/o_runtimes/o_doctor first. \
-Use o_analyze_intent then o_execute_intent for a one-use same-intent gate; o_run remains direct ungated compatibility execution. \
+                "Ostadix-lang / O-lang MCP (Rust). Supply one complete .O document as o_run.source for the ordinary computational workflow; Ostadix performs supported classification, planning, admission, and execution internally and returns the structured result. \
+Use o_run.path for existing source files or lifted bundles. Use o_env/o_runtimes/o_doctor when diagnostics are needed. \
+Set o_run.placement=node only to submit the complete document to one selected hosted node; this is not graph splitting or project mesh. \
+Use o_analyze_intent then o_execute_intent only for an explicit review-then-execute workflow with a one-use same-intent gate. \
 Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. \
-Always run .O programs through an MCP O tool so backends is absolute. \
 Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
                     .into(),
             ),
@@ -2467,16 +2704,17 @@ mod tests {
         resolve_new_directory_under, resolve_o_info_with_override, resolve_run_target,
         resolve_search_corpus, resolve_search_program, run_cmd, run_information_inspect_bounded,
         runtime_search_path_with_mode, runtime_search_path_with_mode_and_manager_environment,
-        sanitize_information_head_output, validate_information_head_name, validate_intent_target,
-        EmptyArgs, InformationInspectRunError, IntentLease, IntentReservation, IntentStore,
-        OstadixMcp, RuntimePathMode, RuntimeSearchPath, CATALOG_BACKEND_RUNTIMES,
-        CATALOG_LEGACY_SCHEMA_V3, CATALOG_LEGACY_SCHEMA_V4, CATALOG_LEGACY_SCHEMA_V5,
-        CATALOG_RUNTIME_REQUIREMENTS, CATALOG_SCHEMA, INTENT_SCHEMA_V1, MAX_LIVE_INTENTS,
+        sanitize_information_head_output, stage_source, validate_information_head_name,
+        validate_intent_target, EmptyArgs, InformationInspectRunError, IntentLease,
+        IntentReservation, IntentStore, OstadixMcp, RuntimePathMode, RuntimeSearchPath,
+        CATALOG_BACKEND_RUNTIMES, CATALOG_LEGACY_SCHEMA_V3, CATALOG_LEGACY_SCHEMA_V4,
+        CATALOG_LEGACY_SCHEMA_V5, CATALOG_RUNTIME_REQUIREMENTS, CATALOG_SCHEMA, INTENT_SCHEMA_V1,
+        MAX_COMMAND_STDERR_BYTES, MAX_COMMAND_STDOUT_BYTES, MAX_LIVE_INTENTS,
     };
     use std::collections::BTreeSet;
     use std::ffi::OsStr;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     struct Fixture(PathBuf);
@@ -3249,6 +3487,51 @@ mod tests {
         .await
         .expect_err("unbounded stderr must be killed at the inspection cap");
         assert_eq!(stderr_error, InformationInspectRunError::StderrLimit);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn generic_runner_kills_oversized_output() {
+        let stdout_error = run_cmd(Path::new("/usr/bin/yes"), &[], Some(Path::new("/")), &[], 5)
+            .await
+            .expect_err("unbounded command stdout must be killed at the MCP cap");
+        assert_eq!(
+            stdout_error,
+            format!("stdout exceeded {MAX_COMMAND_STDOUT_BYTES} bytes")
+        );
+
+        let stderr_error = run_cmd(
+            Path::new("/bin/sh"),
+            &["-c", "while :; do printf x >&2; done"],
+            Some(Path::new("/")),
+            &[],
+            5,
+        )
+        .await
+        .expect_err("unbounded command stderr must be killed at the MCP cap");
+        assert_eq!(
+            stderr_error,
+            format!("stderr exceeded {MAX_COMMAND_STDERR_BYTES} bytes")
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn staged_source_is_private_and_removed_with_guard() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (guard, program) = stage_source("text^(staged)_text\n").await.unwrap();
+        let directory = guard.0.clone();
+        assert_eq!(
+            fs::read_to_string(&program).unwrap(),
+            "text^(staged)_text\n"
+        );
+        assert_eq!(
+            fs::metadata(&directory).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        drop(guard);
+        assert!(!directory.exists());
     }
 
     #[cfg(unix)]

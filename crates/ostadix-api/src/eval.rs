@@ -48,6 +48,7 @@ pub use crate::execution_contract::Policy;
 use crate::execution_contract::{
     is_o_identifier, validate_execution_metadata, BlockEvalPolicy, BlockOptions,
 };
+use crate::executor::CancellationToken;
 #[cfg(test)]
 use crate::ir::lower_node;
 use crate::ir::{
@@ -404,6 +405,11 @@ pub struct Evaluator {
     /// execution leaves this unset and binds `current_exe()` as before.
     runtime_executable_override: Option<PathBuf>,
 
+    /// Embedding-owned direct launchers keyed by catalog logical command.
+    /// These participate in the ordinary executable evidence and admission
+    /// manifest; they never alter or consult process-global PATH at dispatch.
+    backend_executable_overrides: HashMap<String, PathBuf>,
+
     /// STEP-4: buffer of non-Eval Requests constructed under
     /// Policy::Autonomous. Flushed by flush_autonomous_buffer() at force
     /// points: end of autonomous(expr) block, explicit now(), document end.
@@ -453,6 +459,11 @@ pub struct Evaluator {
     /// recursive work uses this field; ordinary top-level evaluation retains
     /// its existing execution contract.
     callback_operation_deadline: Option<Instant>,
+
+    /// Request-owner cancellation observed by graph scheduling and blocking
+    /// coordinator backend receives. It is process-local and never enters O
+    /// scope, evidence, backend state, or a serialized request.
+    active_request_cancellation: Option<CancellationToken>,
 
     /// Opaque process-local authority over the exact executable artifacts
     /// selected during the currently executing admission. Canonical evidence
@@ -808,6 +819,7 @@ impl Evaluator {
             reuse_local_worker_pool: false,
             local_worker_pool: None,
             runtime_executable_override: None,
+            backend_executable_overrides: HashMap::new(),
             autonomous_buffer: Vec::new(),
             last_execution_plan: None,
             last_execution_trace: None,
@@ -819,6 +831,7 @@ impl Evaluator {
             default_backend_authority,
             suspended_actors: HashSet::new(),
             callback_operation_deadline: None,
+            active_request_cancellation: None,
             active_executable_leases: None,
             active_backend_launch_generations: None,
             pending_backend_restores: HashMap::new(),
@@ -858,6 +871,17 @@ impl Evaluator {
     /// this is not an ambient PATH override.
     pub fn with_runtime_executable(mut self, executable: PathBuf) -> Self {
         self.runtime_executable_override = Some(executable);
+        self
+    }
+
+    /// Bind one catalog logical command to an embedding-owned executable.
+    pub fn with_backend_executable(
+        mut self,
+        logical_command: impl Into<String>,
+        executable: PathBuf,
+    ) -> Self {
+        self.backend_executable_overrides
+            .insert(logical_command.into(), executable);
         self
     }
 
@@ -1074,6 +1098,15 @@ impl Evaluator {
             context.push(("backend-morphism-contract", contract.name()));
         }
         let binding = match &self.runtime_executable_override {
+            Some(executable) if !self.backend_executable_overrides.is_empty() => {
+                crate::evidence::runtime_binding_from_directory_with_executable_overrides(
+                    plan,
+                    &self.shim_dir,
+                    &context,
+                    executable,
+                    &self.backend_executable_overrides,
+                )
+            }
             Some(executable) => {
                 crate::evidence::runtime_binding_from_directory_with_current_executable(
                     plan,
@@ -1082,7 +1115,10 @@ impl Evaluator {
                     executable,
                 )
             }
-            None => crate::evidence::runtime_binding_from_directory(plan, &self.shim_dir, &context),
+            None if self.backend_executable_overrides.is_empty() => {
+                crate::evidence::runtime_binding_from_directory(plan, &self.shim_dir, &context)
+            }
+            None => bail!("backend executable overrides require an explicit O runtime executable"),
         };
         crate::process::lifecycle_trace(
             "evidence.runtime_binding_finished",
@@ -2493,6 +2529,109 @@ impl Evaluator {
         self.eval_ir_program_with_mode(program, scope, Some(false), None)
     }
 
+    /// Execute a lowered program through the local HGraph coordinator under
+    /// an absolute deadline that is inherited by coordinator-owned backend
+    /// receives and nested `O.eval` callbacks.
+    ///
+    /// A backend that does not settle before the deadline is removed from the
+    /// registry and forcibly reaped by the existing process-lifecycle path;
+    /// its ambiguous state is never reused by a later request.
+    pub fn eval_ir_program_graph_with_scope_until(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        deadline: Instant,
+    ) -> Result<OValue> {
+        let previous_deadline = self.callback_operation_deadline;
+        let effective_deadline = previous_deadline
+            .map(|existing| existing.min(deadline))
+            .unwrap_or(deadline);
+        if effective_deadline
+            .checked_duration_since(Instant::now())
+            .is_none_or(|remaining| remaining.is_zero())
+        {
+            bail!("request execution deadline expired before dispatch");
+        }
+        self.callback_operation_deadline = Some(effective_deadline);
+        let execution = self.eval_ir_program_with_mode(program, scope, Some(false), None);
+        self.callback_operation_deadline = previous_deadline;
+        execution
+    }
+
+    /// Execute through the local HGraph coordinator while observing an
+    /// externally shareable cancellation token and optional absolute deadline.
+    pub fn eval_ir_program_graph_with_scope_controlled(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+    ) -> Result<OValue> {
+        self.eval_ir_program_graph_with_scope_controlled_inner(
+            program,
+            scope,
+            cancellation,
+            deadline,
+            None,
+        )
+    }
+
+    pub fn eval_ir_program_graph_with_scope_controlled_required(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+        expected_source_sha256: &str,
+        expected_execution_intent_sha256: &str,
+    ) -> Result<OValue> {
+        self.eval_ir_program_graph_with_scope_controlled_inner(
+            program,
+            scope,
+            cancellation,
+            deadline,
+            Some((expected_source_sha256, expected_execution_intent_sha256)),
+        )
+    }
+
+    fn eval_ir_program_graph_with_scope_controlled_inner(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+        required_execution_intent: Option<(&str, &str)>,
+    ) -> Result<OValue> {
+        let previous_cancellation = self
+            .active_request_cancellation
+            .replace(cancellation.clone());
+        let previous_deadline = self.callback_operation_deadline;
+        self.callback_operation_deadline = match (previous_deadline, deadline) {
+            (Some(existing), Some(request)) => Some(existing.min(request)),
+            (existing, request) => existing.or(request),
+        };
+        let execution = if cancellation.is_cancelled() {
+            Err(anyhow::anyhow!("request cancelled before dispatch"))
+        } else if self
+            .callback_operation_deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
+        {
+            Err(anyhow::anyhow!(
+                "request execution deadline expired before dispatch"
+            ))
+        } else {
+            self.eval_ir_program_with_mode(
+                program,
+                scope,
+                Some(false),
+                required_execution_intent.map(|(source, intent)| (source, source, intent)),
+            )
+        };
+        self.callback_operation_deadline = previous_deadline;
+        self.active_request_cancellation = previous_cancellation;
+        execution
+    }
+
     /// Execute an already-lowered program through the serial differential
     /// reference engine regardless of the ambient `O_EXECUTOR` value.
     pub fn eval_ir_program_serial_with_scope(
@@ -3084,7 +3223,20 @@ impl Evaluator {
 
             let mut forbidden_callback_refusal = None::<String>;
             loop {
-                let step_result = if let Some(deadline) = self.callback_operation_deadline {
+                let cancellation = self.active_request_cancellation.clone();
+                let step_result = if cancellation.is_some() {
+                    self.registry.recv_exec_step_controlled(
+                        runtime_lang,
+                        runtime_env_id,
+                        &sandbox,
+                        self.callback_operation_deadline,
+                        || {
+                            cancellation
+                                .as_ref()
+                                .is_some_and(CancellationToken::is_cancelled)
+                        },
+                    )
+                } else if let Some(deadline) = self.callback_operation_deadline {
                     let remaining =
                         deadline
                             .checked_duration_since(Instant::now())
@@ -3824,6 +3976,27 @@ impl GraphEvaluationHost for Evaluator {
         admitted: &crate::evidence::AdmittedExecution<'_>,
     ) -> Result<()> {
         Evaluator::verify_admitted_runtime_context(self, admitted)
+    }
+
+    fn check_request_control(&self) -> Result<()> {
+        if self
+            .active_request_cancellation
+            .as_ref()
+            .is_some_and(CancellationToken::is_cancelled)
+        {
+            bail!("request cancelled during graph execution");
+        }
+        if self
+            .callback_operation_deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
+        {
+            bail!("request execution deadline expired during graph execution");
+        }
+        Ok(())
+    }
+
+    fn request_cancellation_token(&self) -> Option<CancellationToken> {
+        self.active_request_cancellation.clone()
     }
 
     fn local_worker_parallelism_override(&self) -> Option<usize> {

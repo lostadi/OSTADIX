@@ -1,15 +1,22 @@
 package org.ostadix.terminal;
 
 import android.content.ClipData;
+import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
+import android.os.PersistableBundle;
 import android.text.Editable;
 import android.text.InputType;
+import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.util.AttributeSet;
 import android.util.TypedValue;
@@ -21,14 +28,27 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.OverScroller;
+import android.widget.Toast;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Dependency-free terminal renderer and Android input surface.
@@ -44,7 +64,12 @@ public final class TerminalView extends View {
     private static final float MIN_FONT_SIZE_SP = 8f;
     private static final float MAX_FONT_SIZE_SP = 48f;
     private static final long CURSOR_BLINK_MILLIS = 500L;
-    private static final int MAX_IME_DELETE = 1_024;
+    private static final int MAX_IME_DELETE = 32_768;
+    private static final int MAX_INPUT_SHADOW_CHARS = 32_768;
+    private static final int VOICE_COMPATIBLE_INPUT_TYPE = InputType.TYPE_CLASS_TEXT
+            | InputType.TYPE_TEXT_VARIATION_NORMAL
+            | InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
     private static final int MENU_COPY = 1;
     private static final int MENU_SELECT_ALL = 2;
     private static final int MENU_CLEAR = 3;
@@ -52,6 +77,25 @@ public final class TerminalView extends View {
     private static final int HANDLE_START = 1;
     private static final int HANDLE_END = 2;
     private static final int HANDLE_DYNAMIC = 3;
+    private static final long CLIPBOARD_VERSION_UNKNOWN = Long.MIN_VALUE;
+    private static final long CLIPBOARD_VERSION_EMPTY = Long.MIN_VALUE + 1;
+    private static final AtomicBoolean CLIPBOARD_CLEANUP_SCHEDULED = new AtomicBoolean();
+    private static final ThreadPoolExecutor CLIPBOARD_EXPORTER =
+            new ThreadPoolExecutor(
+                    1,
+                    1,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    new ArrayBlockingQueue<Runnable>(2),
+                    new ThreadFactory() {
+                        @Override
+                        public Thread newThread(Runnable runnable) {
+                            Thread thread = new Thread(runnable, "Ostadix-clipboard-export");
+                            thread.setDaemon(true);
+                            return thread;
+                        }
+                    },
+                    new ThreadPoolExecutor.AbortPolicy());
 
     public interface InputListener {
         void onTerminalInput(byte[] data);
@@ -110,6 +154,16 @@ public final class TerminalView extends View {
         }
     }
 
+    static final class InputReplacement {
+        final int deleteCodePoints;
+        final String suffix;
+
+        InputReplacement(int deleteCodePoints, String suffix) {
+            this.deleteCodePoints = deleteCodePoints;
+            this.suffix = suffix;
+        }
+    }
+
     private final TerminalBuffer buffer;
     private final AnsiParser parser;
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
@@ -118,6 +172,13 @@ public final class TerminalView extends View {
     private final GestureDetector gestureDetector;
     private final OverScroller scroller;
     private final Editable imeEditable = new SpannableStringBuilder();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final AtomicLong clipboardCopyGeneration = new AtomicLong();
+    private Future<?> pendingClipboardTask;
+    private long pendingClipboardTaskRequest = -1;
+    private ClipboardManager pendingClipboardManager;
+    private ClipboardManager.OnPrimaryClipChangedListener pendingClipboardListener;
+    private long pendingClipboardRequest = -1;
 
     private volatile InputListener inputListener;
     private volatile ResizeListener resizeListener;
@@ -337,20 +398,355 @@ public final class TerminalView extends View {
                 selectionEndColumn);
     }
 
-    /** Copies the current selection as plain text without sending anything to the PTY. */
+    /**
+     * Copies the selection without placing a large String in Android's Binder transaction.
+     *
+     * <p>Small selections publish synchronously as ordinary clipboard text. Larger selections use
+     * an immutable snapshot, a bounded UTF-8 file, and a read-only content URI.</p>
+     */
     public boolean copySelectionToClipboard() {
-        String text = getSelectedText();
-        if (text.isEmpty()) {
+        if (!selectionActive) {
             return false;
         }
-        ClipboardManager clipboard = (ClipboardManager)
-                getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+        cancelPendingClipboardCopy();
+        final TerminalBuffer.TextSelection selection = buffer.captureText(
+                selectionStartLine,
+                selectionStartColumn,
+                selectionEndLine,
+                selectionEndColumn);
+        final Context applicationContext = getContext().getApplicationContext();
+        final ClipboardManager clipboard = (ClipboardManager)
+                applicationContext.getSystemService(Context.CLIPBOARD_SERVICE);
+
+        if (selection.maximumUtf8ByteCount() <= ClipboardFileStore.MAX_INLINE_BYTES) {
+            String inlineText = selection.asString();
+            if (inlineText.isEmpty()) {
+                Toast.makeText(
+                        applicationContext,
+                        R.string.clipboard_selection_empty,
+                        Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (clipboard == null) {
+                Toast.makeText(
+                        applicationContext,
+                        R.string.clipboard_copy_failed,
+                        Toast.LENGTH_LONG).show();
+                return false;
+            }
+            return publishInlineClipboard(applicationContext, clipboard, inlineText);
+        }
+
         if (clipboard == null) {
+            Toast.makeText(
+                    applicationContext,
+                    R.string.clipboard_copy_failed,
+                    Toast.LENGTH_LONG).show();
             return false;
         }
-        clipboard.setPrimaryClip(ClipData.newPlainText("Terminal text", text));
-        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+
+        final long request = clipboardCopyGeneration.incrementAndGet();
+        guardPendingClipboard(clipboard, request);
+        try {
+            pendingClipboardTask = CLIPBOARD_EXPORTER.submit(new Runnable() {
+                @Override
+                public void run() {
+                    ClipboardFileStore.StagedPayload pending = null;
+                    try {
+                        pending = ClipboardFileStore.stage(
+                                applicationContext.getFilesDir(),
+                                new ClipboardFileStore.PayloadWriter() {
+                                    @Override
+                                    public void writeTo(Writer destination) throws IOException {
+                                        selection.writeTo(destination);
+                                    }
+                                });
+                        final ClipboardFileStore.StagedPayload payload = pending;
+                        if (!mainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                publishStagedClipboardPayload(
+                                        applicationContext, clipboard, request, payload);
+                            }
+                        })) {
+                            payload.delete();
+                        }
+                    } catch (final IOException error) {
+                        if (pending != null) {
+                            pending.delete();
+                        }
+                        mainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                clearPendingClipboardTask(request);
+                                clearPendingClipboardGuard(request);
+                                showClipboardFailure(applicationContext, request, error);
+                            }
+                        });
+                    }
+                }
+            });
+            pendingClipboardTaskRequest = request;
+        } catch (RejectedExecutionException busy) {
+            clearPendingClipboardGuard(request);
+            Toast.makeText(
+                    applicationContext,
+                    R.string.clipboard_copy_failed,
+                    Toast.LENGTH_LONG).show();
+            return false;
+        }
+        Toast.makeText(
+                applicationContext,
+                R.string.clipboard_large_selection_preparing,
+                Toast.LENGTH_SHORT).show();
         return true;
+    }
+
+    private boolean publishInlineClipboard(
+            Context applicationContext,
+            ClipboardManager clipboard,
+            String text) {
+        ClipData clip = ClipData.newPlainText("Terminal text", text);
+        markClipboardSensitive(clip);
+        try {
+            clipboard.setPrimaryClip(clip);
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    applicationContext,
+                    R.string.clipboard_copy_failed,
+                    Toast.LENGTH_LONG).show();
+            return false;
+        }
+        ClipboardPayloadTracker.clearActivePayload();
+        performCopyHaptic();
+        return true;
+    }
+
+    private void publishStagedClipboardPayload(
+            Context applicationContext,
+            ClipboardManager clipboard,
+            long request,
+            ClipboardFileStore.StagedPayload payload) {
+        clearPendingClipboardTask(request);
+        if (request != clipboardCopyGeneration.get()
+                || !isAttachedToWindow()
+                || !hasWindowFocus()
+                || getWindowVisibility() != VISIBLE) {
+            clearPendingClipboardGuard(request);
+            payload.delete();
+            return;
+        }
+        clearPendingClipboardGuard(request);
+
+        if (payload.byteCount == 0) {
+            payload.delete();
+            Toast.makeText(
+                    applicationContext,
+                    R.string.clipboard_selection_empty,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (payload.byteCount <= ClipboardFileStore.MAX_INLINE_BYTES) {
+            try {
+                String inlineText = payload.readInlineText();
+                payload.delete();
+                publishInlineClipboard(applicationContext, clipboard, inlineText);
+            } catch (IOException error) {
+                payload.delete();
+                showClipboardFailure(applicationContext, request, error);
+            }
+            return;
+        }
+
+        ClipData clip;
+        Uri payloadUri;
+        try {
+            payloadUri = LargeClipboardProvider.uriFor(payload.file);
+            clip = ClipData.newUri(
+                    applicationContext.getContentResolver(),
+                    "Ostadix terminal selection",
+                    payloadUri);
+            markClipboardSensitive(clip);
+            clipboard.setPrimaryClip(clip);
+        } catch (RuntimeException error) {
+            payload.delete();
+            showClipboardFailure(applicationContext, request, null);
+            return;
+        }
+
+        ClipboardPayloadTracker.onLargeClipPublished(clipboard, payload, payloadUri);
+        Toast.makeText(
+                applicationContext,
+                R.string.clipboard_large_selection_copied,
+                Toast.LENGTH_LONG).show();
+        performCopyHaptic();
+    }
+
+    private void guardPendingClipboard(
+            final ClipboardManager clipboard,
+            final long request) {
+        clearPendingClipboardGuard(pendingClipboardRequest);
+        final long expectedClipboardVersion = clipboardVersion(clipboard);
+        if (expectedClipboardVersion == CLIPBOARD_VERSION_UNKNOWN) {
+            return;
+        }
+        pendingClipboardManager = clipboard;
+        pendingClipboardRequest = request;
+        pendingClipboardListener = new ClipboardManager.OnPrimaryClipChangedListener() {
+            @Override
+            public void onPrimaryClipChanged() {
+                if (pendingClipboardRequest == request
+                        && clipboardVersionChanged(clipboard, expectedClipboardVersion)) {
+                    cancelPendingClipboardCopy();
+                }
+            }
+        };
+        try {
+            clipboard.addPrimaryClipChangedListener(pendingClipboardListener);
+        } catch (RuntimeException unavailable) {
+            pendingClipboardManager = null;
+            pendingClipboardListener = null;
+            pendingClipboardRequest = -1;
+        }
+    }
+
+    private static long clipboardVersion(ClipboardManager clipboard) {
+        try {
+            ClipDescription description = clipboard.getPrimaryClipDescription();
+            return description == null ? CLIPBOARD_VERSION_EMPTY : description.getTimestamp();
+        } catch (RuntimeException unavailable) {
+            return CLIPBOARD_VERSION_UNKNOWN;
+        }
+    }
+
+    private static boolean clipboardVersionChanged(
+            ClipboardManager clipboard,
+            long expectedVersion) {
+        long currentVersion = clipboardVersion(clipboard);
+        // If Android temporarily withholds clipboard metadata, keep the current request. Losing
+        // focus independently cancels it, and a later observable clipboard change will retry.
+        return currentVersion != CLIPBOARD_VERSION_UNKNOWN
+                && currentVersion != expectedVersion;
+    }
+
+    private void cancelPendingClipboardCopy() {
+        clipboardCopyGeneration.incrementAndGet();
+        Future<?> task = pendingClipboardTask;
+        pendingClipboardTask = null;
+        pendingClipboardTaskRequest = -1;
+        if (task != null) {
+            task.cancel(true);
+            CLIPBOARD_EXPORTER.purge();
+        }
+        clearPendingClipboardGuard(pendingClipboardRequest);
+    }
+
+    private void clearPendingClipboardTask(long request) {
+        if (request < 0 || pendingClipboardTaskRequest != request) {
+            return;
+        }
+        pendingClipboardTask = null;
+        pendingClipboardTaskRequest = -1;
+    }
+
+    private void clearPendingClipboardGuard(long request) {
+        if (request < 0 || pendingClipboardRequest != request) {
+            return;
+        }
+        if (pendingClipboardManager != null && pendingClipboardListener != null) {
+            try {
+                pendingClipboardManager.removePrimaryClipChangedListener(
+                        pendingClipboardListener);
+            } catch (RuntimeException unavailable) {
+                // Generation checks still prevent a stale export from publishing.
+            }
+        }
+        pendingClipboardManager = null;
+        pendingClipboardListener = null;
+        pendingClipboardRequest = -1;
+    }
+
+    private void showClipboardFailure(
+            Context applicationContext,
+            long request,
+            IOException error) {
+        if (request != clipboardCopyGeneration.get()) {
+            return;
+        }
+        int message = error instanceof ClipboardFileStore.PayloadTooLargeException
+                ? R.string.clipboard_selection_too_large
+                : R.string.clipboard_copy_failed;
+        Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show();
+    }
+
+    private void performCopyHaptic() {
+        if (isAttachedToWindow()) {
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        }
+    }
+
+    private static void markClipboardSensitive(ClipData clip) {
+        PersistableBundle extras = new PersistableBundle();
+        String key = Build.VERSION.SDK_INT >= 33
+                ? ClipDescription.EXTRA_IS_SENSITIVE
+                : "android.content.extra.IS_SENSITIVE";
+        extras.putBoolean(key, true);
+        clip.getDescription().setExtras(extras);
+    }
+
+    private static void reconcileClipboardPayloads(final Context applicationContext) {
+        final ClipboardManager clipboard = (ClipboardManager)
+                applicationContext.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            return;
+        }
+
+        ClipData current;
+        try {
+            current = clipboard.getPrimaryClip();
+        } catch (RuntimeException unavailable) {
+            return;
+        }
+        Uri currentUri = current != null && current.getItemCount() > 0
+                ? current.getItemAt(0).getUri()
+                : null;
+        String currentFileName = LargeClipboardProvider.payloadFileName(currentUri);
+        ClipboardFileStore.StagedPayload activePayload = null;
+        if (currentFileName != null) {
+            try {
+                activePayload = ClipboardFileStore.reopen(
+                        applicationContext.getFilesDir(), currentFileName);
+            } catch (IOException unavailable) {
+                currentFileName = null;
+            }
+        }
+        if (activePayload != null) {
+            ClipboardPayloadTracker.onLargeClipPublished(
+                    clipboard, activePayload, currentUri);
+        } else {
+            ClipboardPayloadTracker.clearActivePayload();
+        }
+
+        if (!CLIPBOARD_CLEANUP_SCHEDULED.compareAndSet(false, true)) {
+            return;
+        }
+
+        final String protectedFileName = currentFileName;
+        try {
+            CLIPBOARD_EXPORTER.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        ClipboardFileStore.deleteOrphanedPayloads(
+                                applicationContext.getFilesDir(), protectedFileName);
+                    } finally {
+                        CLIPBOARD_CLEANUP_SCHEDULED.set(false);
+                    }
+                }
+            });
+        } catch (RejectedExecutionException busy) {
+            CLIPBOARD_CLEANUP_SCHEDULED.set(false);
+        }
     }
 
     public void selectAll() {
@@ -426,6 +822,7 @@ public final class TerminalView extends View {
                 scroller.abortAnimation();
                 scrollOffsetPixels = 0;
                 composingText = "";
+                updateInputShadow("");
                 restartCursorBlink();
                 invalidate();
             }
@@ -442,9 +839,15 @@ public final class TerminalView extends View {
         // are always treated as exact terminal input.
         if (containsControlCharacter(text)) {
             dispatchInput(text.getBytes(StandardCharsets.UTF_8));
+            recordExactInput(text);
             return;
         }
         sendTextWithModifiers(text, virtualControl, virtualAlt);
+        if (virtualControl || virtualAlt) {
+            updateInputShadow("");
+        } else {
+            appendToInputShadow(text);
+        }
     }
 
     /** Sends exact bytes without transforming them. Useful for an app-owned extra-key row. */
@@ -576,17 +979,16 @@ public final class TerminalView extends View {
 
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
-        outAttrs.inputType = InputType.TYPE_CLASS_TEXT
-                | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                | InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
+        outAttrs.inputType = VOICE_COMPATIBLE_INPUT_TYPE;
         outAttrs.imeOptions = EditorInfo.IME_ACTION_NONE
                 | EditorInfo.IME_FLAG_NO_EXTRACT_UI
-                | EditorInfo.IME_FLAG_NO_FULLSCREEN;
-        outAttrs.initialSelStart = 0;
-        outAttrs.initialSelEnd = 0;
+                | EditorInfo.IME_FLAG_NO_FULLSCREEN
+                | EditorInfo.IME_FLAG_NO_ENTER_ACTION
+                | EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING;
+        outAttrs.initialSelStart = imeEditable.length();
+        outAttrs.initialSelEnd = imeEditable.length();
 
-        return new BaseInputConnection(this, false) {
+        return new BaseInputConnection(this, true) {
             @Override
             public Editable getEditable() {
                 return imeEditable;
@@ -607,24 +1009,36 @@ public final class TerminalView extends View {
             @Override
             public boolean finishComposingText() {
                 composingText = "";
-                imeEditable.clear();
+                syncInputSelection();
                 return true;
             }
 
             @Override
             public boolean deleteSurroundingText(int beforeLength, int afterLength) {
-                composingText = "";
-                imeEditable.clear();
-                int backwards = Math.min(MAX_IME_DELETE, Math.max(0, beforeLength));
-                if (backwards > 0) {
-                    byte[] deletes = new byte[backwards];
-                    Arrays.fill(deletes, (byte) 0x7f);
-                    dispatchInput(deletes);
+                int end = imeEditable.length();
+                int start = Math.max(0, end - Math.max(0, beforeLength));
+                if (start > 0 && start < end && Character.isLowSurrogate(
+                        imeEditable.charAt(start))) {
+                    start--;
                 }
-                int forwards = Math.min(MAX_IME_DELETE, Math.max(0, afterLength));
-                for (int index = 0; index < forwards; index++) {
-                    dispatchInput(new byte[] {0x1b, '[', '3', '~'});
+                int backwards = Character.codePointCount(imeEditable, start, end);
+                return deleteImeSurrounding(backwards, afterLength);
+            }
+
+            @Override
+            public boolean deleteSurroundingTextInCodePoints(
+                    int beforeLength, int afterLength) {
+                return deleteImeSurrounding(beforeLength, afterLength);
+            }
+
+            @Override
+            public boolean setComposingRegion(int start, int end) {
+                if (start < 0 || end < start || end > imeEditable.length()
+                        || end != imeEditable.length()) {
+                    return false;
                 }
+                composingText = imeEditable.subSequence(start, end).toString();
+                syncInputSelection();
                 return true;
             }
 
@@ -639,6 +1053,55 @@ public final class TerminalView extends View {
                 return true;
             }
         };
+    }
+
+    @Override
+    public void onInitializeAccessibilityEvent(AccessibilityEvent event) {
+        super.onInitializeAccessibilityEvent(event);
+        event.setClassName("android.widget.EditText");
+        event.setPassword(false);
+        event.setItemCount(imeEditable.length());
+        event.setFromIndex(imeEditable.length());
+        event.setToIndex(imeEditable.length());
+        event.getText().add(imeEditable.toString());
+    }
+
+    @Override
+    public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(info);
+        info.setClassName("android.widget.EditText");
+        info.setEditable(true);
+        info.setFocusable(true);
+        info.setFocused(hasFocus());
+        info.setMultiLine(true);
+        info.setPassword(false);
+        info.setInputType(VOICE_COMPATIBLE_INPUT_TYPE);
+        info.setText(imeEditable.toString());
+        info.setTextSelection(imeEditable.length(), imeEditable.length());
+        info.setHintText("Terminal input");
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT);
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_PASTE);
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_SELECTION);
+    }
+
+    @Override
+    public boolean performAccessibilityAction(int action, Bundle arguments) {
+        if (action == AccessibilityNodeInfo.ACTION_SET_TEXT) {
+            CharSequence replacement = arguments == null ? null : arguments.getCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE);
+            return replacement != null && replaceInputFromAccessibility(replacement.toString());
+        }
+        if (action == AccessibilityNodeInfo.ACTION_PASTE) {
+            return pasteInputFromAccessibility();
+        }
+        if (action == AccessibilityNodeInfo.ACTION_SET_SELECTION) {
+            int start = arguments == null ? -1 : arguments.getInt(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, -1);
+            int end = arguments == null ? -1 : arguments.getInt(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, -1);
+            return start == imeEditable.length() && end == imeEditable.length();
+        }
+        return super.performAccessibilityAction(action, arguments);
     }
 
     @Override
@@ -668,6 +1131,11 @@ public final class TerminalView extends View {
         int unicode = event.getUnicodeChar(metaState);
         if (unicode != 0) {
             sendCodePointWithModifiers(unicode, control, alt);
+            if (control || alt) {
+                updateInputShadow("");
+            } else {
+                appendToInputShadow(new String(Character.toChars(unicode)));
+            }
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -677,6 +1145,11 @@ public final class TerminalView extends View {
     public boolean onKeyMultiple(int keyCode, int repeatCount, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN && event.getCharacters() != null) {
             sendTextWithModifiers(event.getCharacters(), virtualControl, virtualAlt);
+            if (virtualControl || virtualAlt) {
+                updateInputShadow("");
+            } else {
+                appendToInputShadow(event.getCharacters());
+            }
             return true;
         }
         return super.onKeyMultiple(keyCode, repeatCount, event);
@@ -772,10 +1245,21 @@ public final class TerminalView extends View {
     @Override
     protected void onDetachedFromWindow() {
         attached = false;
+        cancelPendingClipboardCopy();
         clearSelection();
         removeCallbacks(cursorBlink);
         scroller.abortAnimation();
         super.onDetachedFromWindow();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        if (!hasWindowFocus) {
+            cancelPendingClipboardCopy();
+        } else {
+            reconcileClipboardPayloads(getContext().getApplicationContext());
+        }
     }
 
     @Override
@@ -1376,6 +1860,7 @@ public final class TerminalView extends View {
             default: return;
         }
         dispatchInput(sequence.getBytes(StandardCharsets.UTF_8));
+        recordSpecialInput(key);
     }
 
     private static String modifiedCsi(
@@ -1442,6 +1927,11 @@ public final class TerminalView extends View {
     }
 
     private void applyComposingText(String next, boolean committed) {
+        String current = imeEditable.toString();
+        String base = current;
+        if (!composingText.isEmpty() && current.endsWith(composingText)) {
+            base = current.substring(0, current.length() - composingText.length());
+        }
         int common = commonPrefixAtCodePointBoundary(composingText, next);
         int oldSuffixCodePoints = composingText.codePointCount(common, composingText.length());
         if (oldSuffixCodePoints > 0) {
@@ -1450,16 +1940,203 @@ public final class TerminalView extends View {
             dispatchInput(deletes);
         }
         if (common < next.length()) {
-            sendTextWithModifiers(next.substring(common), virtualControl, virtualAlt);
+            sendImeTextWithModifiers(next.substring(common));
         }
-        composingText = committed ? "" : next;
-        imeEditable.clear();
-        if (!committed) {
-            imeEditable.append(next);
+        String updated = trailingInputLine(base + next);
+        composingText = committed || containsLineBreak(next) ? "" : next;
+        updateInputShadow(updated);
+    }
+
+    private boolean replaceInputFromAccessibility(String replacement) {
+        String current = imeEditable.toString();
+        InputReplacement edit = planInputReplacement(current, replacement);
+        if (edit == null) {
+            return false;
+        }
+        if (edit.deleteCodePoints > 0) {
+            byte[] deletes = new byte[edit.deleteCodePoints];
+            Arrays.fill(deletes, (byte) 0x7f);
+            dispatchInput(deletes);
+        }
+        if (!edit.suffix.isEmpty()) {
+            sendImeTextWithModifiers(edit.suffix);
+        }
+        composingText = "";
+        updateInputShadow(trailingInputLine(replacement));
+        return true;
+    }
+
+    private boolean pasteInputFromAccessibility() {
+        ClipboardManager clipboard = (ClipboardManager)
+                getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            return false;
+        }
+        try {
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) {
+                return false;
+            }
+            CharSequence pasted = clip.getItemAt(0).coerceToText(getContext());
+            if (pasted == null || pasted.length() == 0) {
+                return false;
+            }
+            String text = pasted.toString();
+            sendImeTextWithModifiers(text);
+            composingText = "";
+            appendToInputShadow(text);
+            return true;
+        } catch (RuntimeException unavailable) {
+            return false;
         }
     }
 
-    private static int commonPrefixAtCodePointBoundary(String left, String right) {
+    private void sendImeTextWithModifiers(String text) {
+        int segmentStart = 0;
+        for (int index = 0; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (character != '\r' && character != '\n') {
+                continue;
+            }
+            if (segmentStart < index) {
+                sendTextWithModifiers(text.substring(segmentStart, index), virtualControl, virtualAlt);
+            }
+            dispatchInput(new byte[] {'\r'});
+            if (character == '\r' && index + 1 < text.length() && text.charAt(index + 1) == '\n') {
+                index++;
+            }
+            segmentStart = index + 1;
+        }
+        if (segmentStart < text.length()) {
+            sendTextWithModifiers(text.substring(segmentStart), virtualControl, virtualAlt);
+        }
+    }
+
+    private void appendToInputShadow(String text) {
+        updateInputShadow(trailingInputLine(imeEditable.toString() + text));
+    }
+
+    private boolean deleteImeSurrounding(int beforeCodePoints, int afterCodePoints) {
+        composingText = "";
+        int backwards = Math.min(MAX_IME_DELETE, Math.max(0, beforeCodePoints));
+        if (backwards > 0) {
+            byte[] deletes = new byte[backwards];
+            Arrays.fill(deletes, (byte) 0x7f);
+            dispatchInput(deletes);
+            removeInputShadowCodePoints(backwards);
+        }
+        int forwards = Math.min(MAX_IME_DELETE, Math.max(0, afterCodePoints));
+        for (int index = 0; index < forwards; index++) {
+            dispatchInput(new byte[] {0x1b, '[', '3', '~'});
+        }
+        return true;
+    }
+
+    private void removeInputShadowCodePoints(int count) {
+        String current = imeEditable.toString();
+        int available = current.codePointCount(0, current.length());
+        int removed = Math.min(Math.max(0, count), available);
+        int end = current.offsetByCodePoints(current.length(), -removed);
+        updateInputShadow(current.substring(0, end));
+    }
+
+    private void updateInputShadow(String text) {
+        String bounded = text;
+        if (bounded.length() > MAX_INPUT_SHADOW_CHARS) {
+            int start = bounded.length() - MAX_INPUT_SHADOW_CHARS;
+            if (start > 0 && Character.isLowSurrogate(bounded.charAt(start))) {
+                start++;
+            }
+            bounded = bounded.substring(start);
+        }
+        imeEditable.clear();
+        imeEditable.append(bounded);
+        syncInputSelection();
+        InputMethodManager manager = (InputMethodManager)
+                getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (manager != null) {
+            manager.updateSelection(
+                    this,
+                    imeEditable.length(),
+                    imeEditable.length(),
+                    -1,
+                    -1);
+        }
+        if (isAttachedToWindow()) {
+            sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED);
+        }
+    }
+
+    private void syncInputSelection() {
+        Selection.setSelection(imeEditable, imeEditable.length());
+    }
+
+    private void recordExactInput(String text) {
+        if (text.indexOf('\u001b') >= 0 || text.indexOf('\t') >= 0) {
+            updateInputShadow("");
+            return;
+        }
+        String current = imeEditable.toString();
+        for (int offset = 0; offset < text.length(); ) {
+            int codePoint = text.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            if (codePoint == '\r' || codePoint == '\n') {
+                current = "";
+            } else if (codePoint == '\b' || codePoint == 0x7f) {
+                int count = current.codePointCount(0, current.length());
+                if (count > 0) {
+                    current = current.substring(
+                            0, current.offsetByCodePoints(current.length(), -1));
+                }
+            } else if (codePoint >= 0x20) {
+                current += new String(Character.toChars(codePoint));
+            }
+        }
+        updateInputShadow(current);
+    }
+
+    private void recordSpecialInput(SpecialKey key) {
+        switch (key) {
+            case ENTER:
+                updateInputShadow("");
+                break;
+            case BACKSPACE:
+                removeInputShadowCodePoints(1);
+                break;
+            case DELETE:
+                break;
+            default:
+                // Cursor movement, history, completion, and control sequences can
+                // change the shell's editable line in ways a renderer cannot infer.
+                updateInputShadow("");
+                break;
+        }
+    }
+
+    static String trailingInputLine(String text) {
+        int carriage = text.lastIndexOf('\r');
+        int newline = text.lastIndexOf('\n');
+        int lastBreak = Math.max(carriage, newline);
+        return lastBreak < 0 ? text : text.substring(lastBreak + 1);
+    }
+
+    static boolean containsLineBreak(String text) {
+        return text.indexOf('\r') >= 0 || text.indexOf('\n') >= 0;
+    }
+
+    static InputReplacement planInputReplacement(String current, String replacement) {
+        if (replacement.length() > MAX_INPUT_SHADOW_CHARS) {
+            return null;
+        }
+        int common = commonPrefixAtCodePointBoundary(current, replacement);
+        int deletes = current.codePointCount(common, current.length());
+        if (deletes > MAX_IME_DELETE) {
+            return null;
+        }
+        return new InputReplacement(deletes, replacement.substring(common));
+    }
+
+    static int commonPrefixAtCodePointBoundary(String left, String right) {
         int maximum = Math.min(left.length(), right.length());
         int index = 0;
         while (index < maximum) {

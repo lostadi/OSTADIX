@@ -20,6 +20,18 @@ Package SemVer is only one of the independent coordinates documented in
   work. `docs/OPERATION_REALIZATION_V1.md` defines the complete boundary and is
   a required source-release member.
 
+- `apps/browser-chat-pdf` adds a dependency-free browser extension that
+  captures a rendered AI conversation from the tab's local DOM and creates a
+  print-focused preview with selectable, searchable text and retained document
+  structure. PDF creation remains an explicit handoff to the browser's native
+  print dialog, where the user selects **Save as PDF** and the destination; the
+  extension does not silently write files.
+
+- Chatprint Mobile adds a deterministic, self-contained Android Chrome
+  bookmarklet build and offline installer. It provides live-DOM capture on
+  browsers that cannot load the desktop extension, while keeping bookmark
+  creation and the final Save as PDF confirmation under browser control.
+
 - `o routes TARGET [--json] [--route-decl DECL]...` provides a read-only
   route-discovery UI for project directories and lifted project bundles. It
   reports ordered route IDs, kinds, result codecs, explicitly declared route

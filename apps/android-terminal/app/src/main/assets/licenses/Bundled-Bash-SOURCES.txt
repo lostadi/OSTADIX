@@ -1,7 +1,7 @@
 Bundled Bash runtime: source, license, and modification notice
 ================================================================
 
-Ostadix Terminal 0.1.6 derives its standalone Bash runtime from these Termux
+Ostadix Terminal 0.1.8 derives its standalone Bash runtime from these Termux
 aarch64 package payloads:
 
   GNU Bash 5.3.15                    GPL-3.0-or-later

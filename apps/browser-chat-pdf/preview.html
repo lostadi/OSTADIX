@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chatprint preview</title>
+    <link rel="stylesheet" href="preview.css">
+    <style id="pageRule">@page { size: A4; margin: 15mm 16mm 16mm; }</style>
+    <script defer src="shared.js"></script>
+    <script defer src="renderer.js"></script>
+    <script defer src="preview.js"></script>
+  </head>
+  <body data-theme="classic" data-images="show">
+    <header class="toolbar" aria-label="PDF preview controls">
+      <div class="toolbar__brand">Chatprint</div>
+      <label class="title-control">
+        <span class="sr-only">Document title</span>
+        <input id="titleInput" type="text" maxlength="180" autocomplete="off" aria-label="Document title">
+      </label>
+      <div class="toolbar__options">
+        <label class="select-control">
+          <span>Theme</span>
+          <select id="themeSelect">
+            <option value="classic">Classic</option>
+            <option value="clean">Clean</option>
+            <option value="compact">Compact</option>
+          </select>
+        </label>
+        <label class="select-control">
+          <span>Paper</span>
+          <select id="paperSelect">
+            <option value="a4">A4</option>
+            <option value="letter">Letter</option>
+          </select>
+        </label>
+        <label class="select-control">
+          <span>Images</span>
+          <select id="imagesSelect">
+            <option value="show">Show</option>
+            <option value="hide">Hide</option>
+          </select>
+        </label>
+      </div>
+      <button id="printButton" class="print-button" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M7 14h10v7H7z" />
+        </svg>
+        <span>Print / Save PDF</span>
+      </button>
+      <button id="captureAgainButton" class="text-button" type="button">Capture again</button>
+    </header>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <main class="workspace">
+      <article id="paper" class="paper" data-paper="a4" aria-label="Printable conversation preview">
+        <header id="documentHeader" class="document-header">
+          <h1 id="documentTitle"></h1>
+          <div class="document-meta">
+            <a id="sourceLink" target="_blank" rel="noreferrer noopener"></a>
+            <time id="capturedDate"></time>
+          </div>
+        </header>
+        <div id="messages" class="document-body"></div>
+      </article>
+    </main>
+
+    <template id="messageTemplate">
+      <section class="message">
+        <h2 class="message__role"></h2>
+        <div class="message__body"></div>
+      </section>
+    </template>
+  </body>
+</html>

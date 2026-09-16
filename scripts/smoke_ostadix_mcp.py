@@ -341,6 +341,68 @@ def run_smoke(
         )
 
     write_intent_fixture("intent-original")
+    lifted_fixture = tempfile.TemporaryDirectory(prefix=".mcp-lifted-project-")
+    lifted_project = Path(lifted_fixture.name) / "project"
+    lifted_project.mkdir()
+    (lifted_project / "payload.txt").write_text("source-closed\n", encoding="utf-8")
+    (lifted_project / "olang.project.toml").write_text(
+        "[project]\n"
+        'name = "mcp-lifted-acceptance"\n'
+        "\n"
+        "[[routes]]\n"
+        'id = "main"\n'
+        'label = "MCP lifted route"\n'
+        'kind = "shell"\n'
+        'command = ["sh", "-c", "printf lifted-mcp-ok"]\n'
+        "pure = true\n"
+        'guards = { requires_command = "sh" }\n\n'
+        "[[routes]]\n"
+        'id = "other"\n'
+        'label = "other route"\n'
+        'kind = "shell"\n'
+        'command = ["sh", "-c", "printf wrong-route"]\n'
+        "pure = true\n"
+        'guards = { requires_command = "sh" }\n',
+        encoding="utf-8",
+    )
+    lifted_program = Path(lifted_fixture.name) / "project.O"
+    link_binary = root / "target" / "release" / "o-link"
+    linked = subprocess.run(
+        [
+            os.fspath(link_binary),
+            os.fspath(lifted_project),
+            "--project",
+            "-o",
+            os.fspath(lifted_program),
+        ],
+        cwd=root,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if linked.returncode != 0 or not lifted_program.is_file():
+        raise SmokeError(
+            "could not build lifted-project MCP smoke fixture: "
+            + linked.stderr.decode("utf-8", "replace")
+        )
+    fake_octl = Path(lifted_fixture.name) / "octl"
+    fake_octl.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        "test \"$1\" = node\n"
+        "test \"$2\" = run\n"
+        "test -f \"$3\"\n"
+        "grep -q '__oval_result__ = 9' \"$3\"\n"
+        "test \"$4\" = --node\n"
+        "test \"$5\" = smoke-node\n"
+        "test \"$6\" = --deadline-seconds\n"
+        "test \"$7\" = 45\n"
+        "printf '%s\\n' '{\"schema\":\"mock.hosted-receipt/v1\",\"outcome\":\"succeeded\"}'\n",
+        encoding="utf-8",
+    )
+    fake_octl.chmod(0o700)
+    environment["OSTADIX_OCTL_BIN"] = os.fspath(fake_octl)
     process = subprocess.Popen(
         [os.fspath(binary)],
         cwd=launch_cwd,
@@ -419,6 +481,20 @@ def run_smoke(
             "inputSchema"
         ]["properties"]:
             raise SmokeError("o_olangc schema omitted materialize_only")
+        run_tools = [tool for tool in tools if tool.get("name") == "o_run"]
+        if len(run_tools) != 1:
+            raise SmokeError("tools/list did not expose exactly one o_run tool")
+        run_properties = run_tools[0]["inputSchema"]["properties"]
+        for required_property in (
+            "source",
+            "path",
+            "cwd",
+            "placement",
+            "node_id",
+            "route",
+        ):
+            if required_property not in run_properties:
+                raise SmokeError(f"o_run schema omitted {required_property}")
 
         _send(
             process,
@@ -506,43 +582,189 @@ def run_smoke(
         if "[number] 2" not in smoke_text:
             raise SmokeError(f"o_smoke omitted the expected result 2:\n{smoke_text}")
 
-        calls = [
+        integer_two = {"t": "number", "v": {"kind": "int", "v": "2"}}
+        run_calls = [
+            (6, {"path": "examples/hello.O", "timeout_secs": 45}, integer_two),
+            (7, {"path": "hello.O", "cwd": "examples", "timeout_secs": 45}, integer_two),
             (
-                6,
-                "o_run",
-                {"path": "examples/hello.O", "timeout_secs": 45},
-                "[number] 2",
+                88,
+                {
+                    "source": "python^(\n__oval_result__ = 1 + 1\n)_python\n",
+                    "timeout_secs": 45,
+                },
+                integer_two,
             ),
             (
-                7,
-                "o_run",
-                {"path": "hello.O", "cwd": "examples", "timeout_secs": 45},
-                "[number] 2",
+                85,
+                {
+                    "source": (
+                        "python^(\n"
+                        "__oval_result__ = open('Cargo.toml', encoding='utf-8').read()"
+                        ".startswith('[package]')\n"
+                        ")_python\n"
+                    ),
+                    "cwd": os.fspath(root),
+                    "timeout_secs": 45,
+                },
+                {"t": "bool", "v": True},
             ),
             (
-                8,
-                "o_olangc",
-                {"path": "examples/hello.O", "target": "ir", "timeout_secs": 45},
-                "; OIrProgram",
+                84,
+                {
+                    "source": (
+                        "python^(\n"
+                        "page = html^(<p>nested python^(\n"
+                        "__oval_result__ = 6 * 7\n"
+                        ")_python</p>)_html\n"
+                        "__oval_result__ = page\n"
+                        ")_python\n"
+                    ),
+                    "timeout_secs": 45,
+                },
+                {"t": "html", "v": "<p>nested 42</p>"},
             ),
         ]
-        for request_id, tool, arguments, marker in calls:
+        for request_id, arguments, expected_value in run_calls:
             _send(
                 process,
                 {
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "method": "tools/call",
-                    "params": {"name": tool, "arguments": arguments},
+                    "params": {"name": "o_run", "arguments": arguments},
                 },
             )
             result = responses.response(request_id, timeout)
-            result_text = _content_text(result)
-            if result.get("isError") is True or marker not in result_text:
+            structured = result.get("structuredContent")
+            decoded = (
+                structured.get("result", {}).get("decoded_value")
+                if isinstance(structured, dict)
+                else None
+            )
+            if (
+                result.get("isError") is True
+                or not isinstance(structured, dict)
+                or structured.get("execution_mode") != "local_unified_front_door"
+                or decoded != expected_value
+            ):
                 raise SmokeError(
-                    f"{tool} relative-path smoke failed; expected {marker!r}:\n"
-                    f"{result_text}"
+                    "o_run source/path structured-result smoke failed:\n"
+                    f"{json.dumps(result, sort_keys=True)}"
                 )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 86,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {"source": "python^(\nunclosed", "timeout_secs": 45},
+                },
+            },
+        )
+        failed_run = responses.response(86, timeout)
+        failed_structured = failed_run.get("structuredContent")
+        if (
+            failed_run.get("isError") is not True
+            or not isinstance(failed_structured, dict)
+            or failed_structured.get("disposition") != "preflight_failed"
+            or failed_structured.get("failure", {}).get("stage") != "preflight"
+        ):
+            raise SmokeError(
+                "o_run did not return a structured preflight failure:\n"
+                f"{json.dumps(failed_run, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 83,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "source": "python^(\n__oval_result__ = 9\n)_python\n",
+                        "placement": "node",
+                        "node_id": "smoke-node",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        node_run = responses.response(83, timeout)
+        node_structured = node_run.get("structuredContent")
+        if (
+            node_run.get("isError") is True
+            or not isinstance(node_structured, dict)
+            or node_structured.get("schema") != "mock.hosted-receipt/v1"
+            or node_structured.get("outcome") != "succeeded"
+            or node_structured.get("execution_mode")
+            != "selected_node_complete_document"
+        ):
+            raise SmokeError(
+                "o_run hosted-node adapter did not preserve whole-document placement:\n"
+                f"{json.dumps(node_run, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 87,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "path": os.fspath(lifted_program),
+                        "route": "main",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        lifted_result = responses.response(87, timeout)
+        lifted_structured = lifted_result.get("structuredContent")
+        lifted_routes = (
+            lifted_structured.get("result", {}).get("route_results")
+            if isinstance(lifted_structured, dict)
+            else None
+        )
+        if (
+            lifted_result.get("isError") is True
+            or not isinstance(lifted_routes, list)
+            or len(lifted_routes) != 1
+            or lifted_routes[0].get("route_id") != "main"
+            or lifted_routes[0].get("disposition") != "executed"
+            or lifted_routes[0].get("exit_code") != 0
+        ):
+            raise SmokeError(
+                "o_run loaded a lifted bundle without executing its default route:\n"
+                f"{json.dumps(lifted_result, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 8,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_olangc",
+                    "arguments": {
+                        "path": "examples/hello.O",
+                        "target": "ir",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        compiler_result = responses.response(8, timeout)
+        compiler_text = _content_text(compiler_result)
+        if compiler_result.get("isError") is True or "; OIrProgram" not in compiler_text:
+            raise SmokeError(f"o_olangc relative-path smoke failed:\n{compiler_text}")
 
         # Analyze is nonexecuting; mutation after analysis must be rejected by
         # O's recomputation, and the failed attempt must still consume the

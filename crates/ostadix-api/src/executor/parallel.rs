@@ -30,7 +30,7 @@ pub(crate) use crate::dispatch_model::{adapter_matches, effect_contract_worker_s
 use crate::eval_core::{render_with, GraphEvalFrame};
 use crate::evidence::DispatchAdapterV1;
 use crate::ir::{ExecutionPlan, OIr, PlanNodeId, PlanNodeKind};
-use crate::process::run_ephemeral_with_eval_callback;
+use crate::process::run_ephemeral_with_eval_callback_controlled;
 use crate::value::OValue;
 
 use super::task::{PreparedTask, TaskContext};
@@ -688,7 +688,7 @@ fn execute_prepared(task: &ParallelTask, context: &TaskContext) -> Result<OValue
             morphism_contract,
         } => {
             let lexical_bindings = bindings.clone();
-            run_ephemeral_with_eval_callback(
+            run_ephemeral_with_eval_callback_controlled(
                 language,
                 code,
                 bindings.clone(),
@@ -699,6 +699,7 @@ fn execute_prepared(task: &ParallelTask, context: &TaskContext) -> Result<OValue
                     launch_generation_sha256: None,
                 },
                 *morphism_contract,
+                context.cancellation_token(),
                 |src, explicit_scope, remaining| {
                     let callback_scope = match explicit_scope {
                         None => lexical_bindings.clone(),
@@ -843,7 +844,7 @@ mod tests {
         )
         .expect("the admitted scope-load adapter remains preparable");
         let (events, _event_rx) = std::sync::mpsc::channel();
-        let context = TaskContext::new(TaskToken(0), events);
+        let context = TaskContext::new(TaskToken(0), events, None);
         assert_eq!(task.execute(&context).unwrap(), OValue::str_("value"));
     }
 }

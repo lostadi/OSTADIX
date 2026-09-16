@@ -32,7 +32,8 @@ pub use analyze::{
     evidence_bundle_sha256_v6, graph_sha256_v1, graph_sha256_v2,
     runtime_binding_from_adapter_bytes, runtime_binding_from_directory,
     runtime_binding_from_directory_reusing_executables,
-    runtime_binding_from_directory_with_current_executable, EVIDENCE_BUNDLE_DIGEST_DOMAIN_V5,
+    runtime_binding_from_directory_with_current_executable,
+    runtime_binding_from_directory_with_executable_overrides, EVIDENCE_BUNDLE_DIGEST_DOMAIN_V5,
     EVIDENCE_BUNDLE_DIGEST_DOMAIN_V6, SOLVED_EXECUTABLE_HGRAPH_DIGEST_DOMAIN_V1,
     SOLVED_EXECUTABLE_HGRAPH_DIGEST_DOMAIN_V2,
 };

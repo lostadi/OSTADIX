@@ -1,0 +1,26 @@
+python^(
+replies = $replies
+policy_limit = $policy_limit
+if not replies:
+    raise ValueError("LLMResult must contain at least one reply")
+eligible = []
+for index, reply in enumerate(replies):
+    required = {"text", "score_milli", "stop_reason", "policy_scores_milli"}
+    if set(reply) != required:
+        raise ValueError("LLMReply has an invalid typed field set")
+    policy_scores = reply["policy_scores_milli"]
+    if any(score > policy_limit for score in policy_scores):
+        continue
+    if reply["stop_reason"] != 0:
+        continue
+    eligible.append((reply["score_milli"], -index, reply))
+if not eligible:
+    raise ValueError("LLMResult has no policy-safe finished reply")
+_, neg_index, winner = max(eligible, key=lambda item: (item[0], item[1]))
+__oval_result__ = {
+    "text": winner["text"],
+    "score_milli": winner["score_milli"],
+    "stop_reason": winner["stop_reason"],
+    "source_index": -neg_index,
+}
+)_python

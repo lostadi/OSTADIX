@@ -806,6 +806,13 @@ impl BackendToolchain {
 /// Resolve one exact direct-launch alternative using the same catalog and
 /// host refinement rules consumed by runtime admission.
 pub fn resolve_backend_launch_selection(backend: &str) -> Result<ResolvedBackendLaunchSelectionV1> {
+    resolve_backend_launch_selection_with_overrides(backend, &HashMap::new())
+}
+
+fn resolve_backend_launch_selection_with_overrides(
+    backend: &str,
+    executable_overrides: &HashMap<String, PathBuf>,
+) -> Result<ResolvedBackendLaunchSelectionV1> {
     let registry = BackendRegistry::global();
     let Some(spec) = registry.get(backend) else {
         // Unknown language tags remain locally executable through the
@@ -815,7 +822,10 @@ pub fn resolve_backend_launch_selection(backend: &str) -> Result<ResolvedBackend
         // or registry-publication authority.
         let requirement = registry.runtime_requirements_for(backend);
         let (selected_alternative, direct_commands) =
-            select_complete_alternative(requirement.alternatives).with_context(|| {
+            select_complete_alternative_with_overrides(
+                requirement.alternatives,
+                executable_overrides,
+            ).with_context(|| {
                 format!(
                     "backend `{backend}` has no complete direct executable alternative for requirement `{}`",
                     requirement.key
@@ -853,7 +863,10 @@ pub fn resolve_backend_launch_selection(backend: &str) -> Result<ResolvedBackend
             )
         }
         BackendAdapterKind::LegacyPythonShim | BackendAdapterKind::NativeRust => {
-            let (index, commands) = select_complete_alternative(requirement.alternatives)
+            let (index, commands) = select_complete_alternative_with_overrides(
+                requirement.alternatives,
+                executable_overrides,
+            )
                 .with_context(|| {
                     format!(
                         "backend `{}` has no complete direct executable alternative for requirement `{}`",
@@ -908,7 +921,11 @@ where
     } else {
         Some(resolve_current_executable()?)
     };
-    capture_execution_manifest_for_shim_backends(shim_backends, current_executable.as_deref())
+    capture_execution_manifest_for_shim_backends(
+        shim_backends,
+        current_executable.as_deref(),
+        &HashMap::new(),
+    )
 }
 
 /// Capture a manifest with an explicit O proxy entrypoint.
@@ -921,19 +938,42 @@ pub fn capture_execution_manifest_with_current_executable(
     plan: &ExecutionPlan,
     current_executable: &Path,
 ) -> Result<(ExecutableManifestV1, Arc<ExecutableLeaseSet>)> {
-    capture_execution_manifest_for_shim_backends(shim_backends(plan), Some(current_executable))
+    capture_execution_manifest_for_shim_backends(
+        shim_backends(plan),
+        Some(current_executable),
+        &HashMap::new(),
+    )
+}
+
+/// Capture a manifest with explicit, embedding-owned direct launchers.
+///
+/// Overrides are keyed by the catalog's logical command name (for example
+/// `bash`). Their exact invocation and resolved targets are still opened,
+/// hashed, admitted, retained, and revalidated like PATH-resolved launchers.
+pub fn capture_execution_manifest_with_executable_overrides(
+    plan: &ExecutionPlan,
+    current_executable: &Path,
+    executable_overrides: &HashMap<String, PathBuf>,
+) -> Result<(ExecutableManifestV1, Arc<ExecutableLeaseSet>)> {
+    capture_execution_manifest_for_shim_backends(
+        shim_backends(plan),
+        Some(current_executable),
+        executable_overrides,
+    )
 }
 
 fn capture_execution_manifest_for_shim_backends(
     shim_backends: BTreeSet<String>,
     current_executable: Option<&Path>,
+    executable_overrides: &HashMap<String, PathBuf>,
 ) -> Result<(ExecutableManifestV1, Arc<ExecutableLeaseSet>)> {
     let backends = shim_backends.clone();
     let mut artifacts = Vec::new();
     let mut retained = BTreeMap::new();
 
     for backend in backends {
-        let launch_selection = resolve_backend_launch_selection(&backend)?;
+        let launch_selection =
+            resolve_backend_launch_selection_with_overrides(&backend, executable_overrides)?;
         let selected_alternative = launch_selection.selected_alternative;
         let selection = launch_selection.selection;
         let requirement_key = launch_selection.requirement_key;
@@ -1062,8 +1102,9 @@ fn nixos_test_uses_nix_on_this_host() -> bool {
         || std::env::var_os("NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM").is_some_and(|value| value == "1")
 }
 
-fn select_complete_alternative(
+fn select_complete_alternative_with_overrides(
     alternatives: &'static [&'static [&'static str]],
+    executable_overrides: &HashMap<String, PathBuf>,
 ) -> Result<(usize, Vec<(&'static str, PathBuf)>)> {
     alternatives
         .iter()
@@ -1071,7 +1112,14 @@ fn select_complete_alternative(
         .find_map(|(index, alternative)| {
             alternative
                 .iter()
-                .map(|command| which::which(command).map(|path| (*command, path)))
+                .map(|command| {
+                    executable_overrides
+                        .get(*command)
+                        .cloned()
+                        .map(Ok)
+                        .unwrap_or_else(|| which::which(command))
+                        .map(|path| (*command, path))
+                })
                 .collect::<std::result::Result<Vec<_>, _>>()
                 .ok()
                 .map(|resolved| (index, resolved))

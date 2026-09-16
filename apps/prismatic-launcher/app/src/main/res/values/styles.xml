@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PrismaticLauncher" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@color/prismatic_transparent</item>
+        <item name="android:windowBackgroundFallback">@color/prismatic_background</item>
+        <item name="android:colorAccent">@color/prismatic_aqua</item>
+        <item name="android:colorControlActivated">@color/prismatic_aqua</item>
+        <item name="android:statusBarColor">@color/prismatic_transparent</item>
+        <item name="android:navigationBarColor">@color/prismatic_transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
+
+    <style name="TextAppearance.PrismaticLauncher.Label" parent="@android:style/TextAppearance.Material.Body1">
+        <item name="android:textColor">@color/prismatic_text</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.PrismaticLauncher.Secondary" parent="@android:style/TextAppearance.Material.Caption">
+        <item name="android:textColor">@color/prismatic_text_muted</item>
+    </style>
+</resources>

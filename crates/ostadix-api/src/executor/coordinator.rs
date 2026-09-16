@@ -235,6 +235,7 @@ impl<'a> Coordinator<'a> {
         scope: &mut std::collections::HashMap<String, OValue>,
         physical_attempt_adapter: Option<&dyn PhysicalAttemptAdapterV1>,
     ) -> Result<OValue> {
+        evaluator.check_request_control()?;
         evaluator.verify_admitted_runtime_context(&self.admitted)?;
         validate_execution_metadata(&self.flat)?;
         self.crossing_observations = evaluator.crossing_observations_enabled();
@@ -338,6 +339,15 @@ impl<'a> Coordinator<'a> {
         physical_attempt_adapter: Option<&dyn PhysicalAttemptAdapterV1>,
     ) -> Result<()> {
         loop {
+            if let Err(error) = evaluator.check_request_control() {
+                self.discard_started_workers(
+                    driver
+                        .as_mut()
+                        .map(|driver| &mut **driver as &mut (dyn AttemptDriver + '_)),
+                    "request cancellation or deadline stopped graph execution",
+                );
+                return Err(error);
+            }
             if let Some(driver) = driver.as_mut() {
                 loop {
                     let event = match driver.try_recv_event() {
@@ -445,8 +455,19 @@ impl<'a> Coordinator<'a> {
 
             if let Some(attempt_driver) = driver.as_mut().filter(|driver| driver.outstanding() > 0)
             {
-                let event = match attempt_driver.recv_event() {
-                    Ok(event) => event,
+                let event = match attempt_driver.try_recv_event() {
+                    Ok(Some(event)) => event,
+                    Ok(None) => {
+                        if let Err(error) = evaluator.check_request_control() {
+                            return Err(self.abort_after_worker_error(
+                                Some(attempt_driver.as_mut()),
+                                "request control aborted outstanding local-worker tasks",
+                                error,
+                            ));
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                        continue;
+                    }
                     Err(error) => {
                         return Err(self.abort_after_worker_error(
                             Some(attempt_driver.as_mut()),
@@ -817,7 +838,7 @@ impl<'a> Coordinator<'a> {
             if let Some(restore) = restore {
                 restore.restore(&mut self.frame);
             }
-            let submission = submission?;
+            let submission = submission?.with_cancellation(evaluator.request_cancellation_token());
             crate::process::lifecycle_trace(
                 "coordinator.task_prepared",
                 format!("token={index} plan_node={}", id.0),

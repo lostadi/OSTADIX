@@ -1,0 +1,13 @@
+[package]
+name = "mobile-console"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+description = "Runtime-only Android USB HID keyboard controller"
+license = "LGPL-2.1-only"
+
+[dependencies]
+libc = "0.2"
+
+# Keep Android/Termux dependencies and its lockfile independent of O-lang.
+[workspace]

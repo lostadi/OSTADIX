@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Prismatic Launcher</string>
+    <string name="home_activity_label">Prismatic Home</string>
+    <string name="app_grid_accessibility_label">Apps</string>
+    <string name="dock_accessibility_label">Favorite apps</string>
+</resources>

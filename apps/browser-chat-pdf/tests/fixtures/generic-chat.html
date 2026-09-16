@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Quarterly planning chat</title>
+    <style>
+      .fixture-hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="Application navigation">Chats Settings</nav>
+    <main id="conversation" aria-label="AI conversation">
+      <article data-role="user" data-message-id="turn-user-1">
+        <p>Show me a <strong>selectable PDF</strong> with the original structure.</p>
+        <button type="button">Copy prompt</button>
+      </article>
+
+      <article data-role="assistant" data-message-id="turn-assistant-1">
+        <h2>Export plan</h2>
+        <p>
+          Keep <em>semantic formatting</em>, and retain a
+          <a href="/docs/export" title="Export reference">reference link</a>.
+        </p>
+        <blockquote>Text should remain highlightable.</blockquote>
+        <ol start="2">
+          <li>Capture the live DOM.</li>
+          <li value="4">Print semantic HTML.</li>
+        </ol>
+        <pre><code class="language-js extra-token">const answer = 42;
+console.log(answer);</code></pre>
+        <table>
+          <thead>
+            <tr><th scope="col">Format</th><th scope="col">Selectable</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>HTML to PDF</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+        <img src="/assets/diagram.png" alt="Export pipeline diagram">
+        <p class="fixture-hidden">Hidden implementation detail</p>
+        <button type="button">Copy answer</button>
+      </article>
+    </main>
+  </body>
+</html>

@@ -271,7 +271,7 @@ struct Tag {
     /// Optional attribute list on the language tag. The normalized string is
     /// carried through OIR while `raw` preserves the exact closer spelling.
     attr: Option<String>,
-    /// The raw text of the tag — used to construct the closer match string.
+    /// The raw text of the tag — used to match the corresponding closer.
     /// Includes the lang, the optional `[N]` env, and the optional `{attr}`,
     /// in source order.
     raw: String,
@@ -715,22 +715,17 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        let mut i = start + 1;
-        while i < bytes.len() && is_ident_continue(bytes[i]) {
-            i += 1;
-        }
-
-        let lang = self.source[start..i].to_string();
-
-        if !self.syntax_dialect.is_registered_syntax_tag(&lang) {
+        let Some(lang) = self
+            .syntax_dialect
+            .match_registered_syntax_tag(&self.source[start..])
+        else {
             return Ok(None);
-        }
+        };
+        let mut i = start + lang.len();
 
         let mut env_id = EPHEMERAL_ENV_ID;
-        let mut raw = lang.clone();
 
         if i < bytes.len() && bytes[i] == b'[' {
-            let env_start = i;
             i += 1;
 
             if i < bytes.len() && bytes[i] == b'*' {
@@ -761,8 +756,6 @@ impl<'a> Parser<'a> {
                     .encoded();
                 i += 1;
             }
-
-            raw.push_str(&self.source[env_start..i]);
         }
 
         // Optional comma-separated `{attr}` list after the env slot. Entries
@@ -772,9 +765,8 @@ impl<'a> Parser<'a> {
         // declarations such as `project:src+host:/etc/hosts` without making
         // braces, commas, or newlines ambiguous. The exact source spelling
         // remains part of `raw` so closer matching stays literal.
-        let mut attr: Option<String> = None;
+        let mut attr_entries: Option<Vec<&str>> = None;
         if i < bytes.len() && bytes[i] == b'{' {
-            let attr_start = i;
             i += 1;
 
             let content_start = i;
@@ -832,10 +824,8 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            attr = Some(entries.join(","));
+            attr_entries = Some(entries);
             i += 1; // past '}'
-
-            raw.push_str(&self.source[attr_start..i]);
         }
 
         if bytes.get(i..i + 2) == Some(b"^(") {
@@ -844,13 +834,13 @@ impl<'a> Parser<'a> {
             // …) so the AST, evaluator env keys, and shim resolution all see
             // the canonical name. `raw` keeps the source spelling so the
             // closer `)_py` still matches its opener.
-            let lang = self.syntax_dialect.canonical_syntax_name(&lang);
+            let canonical_lang = self.syntax_dialect.canonical_syntax_name(lang);
             Ok(Some(Tag {
                 start,
-                lang,
+                lang: canonical_lang,
                 env_id,
-                attr,
-                raw,
+                attr: attr_entries.map(|entries| entries.join(",")),
+                raw: self.source[start..i].to_string(),
             }))
         } else {
             Ok(None)
@@ -1064,13 +1054,14 @@ impl<'a> Parser<'a> {
     /// would let a bare `)_python` consume `)_python[*]`, or let
     /// `)_python[1]` consume the prefix of `)_python[1]{lazy}`.
     fn exact_closer_len_at(&self, position: usize, tag: &Tag) -> Option<usize> {
-        let closer = format!(")_{}", tag.raw);
         let remaining = self.source.get(position..)?;
-        if !remaining.starts_with(&closer) {
+        let after_marker = remaining.strip_prefix(")_")?;
+        if !after_marker.starts_with(&tag.raw) {
             return None;
         }
 
-        let next = remaining.as_bytes().get(closer.len()).copied();
+        let closer_len = 2 + tag.raw.len();
+        let next = remaining.as_bytes().get(closer_len).copied();
         let has_environment = tag.raw.as_bytes().contains(&b'[');
         let has_attributes = tag.attr.is_some();
         let extends_tag = if has_attributes {
@@ -1080,7 +1071,7 @@ impl<'a> Parser<'a> {
         } else {
             next.is_some_and(is_ident_continue) || matches!(next, Some(b'[' | b'{'))
         };
-        (!extends_tag).then_some(closer.len())
+        (!extends_tag).then_some(closer_len)
     }
 
     fn current_byte(&self) -> Option<u8> {
@@ -1575,6 +1566,72 @@ mod tests {
                 other => panic!("expected TypedExpr for {src}, got {other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn alias_environment_and_spaced_attributes_roundtrip_canonically() {
+        let source = "py[7]{ defer, cap=runner }^(6 * 7)_py[7]{ defer, cap=runner }";
+        let backends = make_backends(&["py"]);
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        let [ONode::TypedExpr {
+            lang,
+            env_id,
+            attr,
+            body,
+        }] = nodes.as_slice()
+        else {
+            panic!("expected one typed expression");
+        };
+
+        assert_eq!(lang, "python");
+        assert_eq!(*env_id, 7);
+        assert_eq!(attr.as_deref(), Some("defer,cap=runner"));
+        assert_eq!(body, &[ONode::RawText("6 * 7".into())]);
+        assert_eq!(
+            reconstruct_source(&nodes),
+            "python[7]{defer,cap=runner}^(6 * 7)_python[7]{defer,cap=runner}"
+        );
+    }
+
+    #[test]
+    fn registered_tag_prefixes_do_not_capture_longer_identifiers() {
+        let source = "pythonista^(raw)_pythonista python^(canonical)_python py^(alias)_py";
+        let backends = make_backends(&["py", "python"]);
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+
+        assert!(matches!(
+            &nodes[0],
+            ONode::RawText(text) if text == "pythonista^(raw)_pythonista "
+        ));
+        assert!(matches!(
+            &nodes[1],
+            ONode::TypedExpr { lang, body, .. }
+                if lang == "python" && body == &[ONode::RawText("canonical".into())]
+        ));
+        assert!(matches!(&nodes[2], ONode::RawText(text) if text == " "));
+        assert!(matches!(
+            &nodes[3],
+            ONode::TypedExpr { lang, body, .. }
+                if lang == "python" && body == &[ONode::RawText("alias".into())]
+        ));
+    }
+
+    #[test]
+    fn long_identifier_with_registered_prefix_remains_raw_backend_text() {
+        let identifier = format!("python{}", "x".repeat(64 * 1024));
+        let source = format!("text^({identifier})_text");
+        let backends = make_backends(&["python", "text"]);
+        let nodes = Parser::new(&source, &backends).parse().unwrap();
+
+        let [ONode::TypedExpr {
+            lang, body, attr, ..
+        }] = nodes.as_slice()
+        else {
+            panic!("expected one text expression");
+        };
+        assert_eq!(lang, "text");
+        assert_eq!(attr, &None);
+        assert_eq!(body, &[ONode::RawText(identifier)]);
     }
 
     #[test]

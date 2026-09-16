@@ -892,6 +892,24 @@ impl BackendProcess {
         step
     }
 
+    /// Poll one execution step without changing actor state on an ordinary
+    /// timeout. A caller that owns cancellation/deadline policy decides when a
+    /// series of empty polls becomes terminal and then reaps the actor.
+    fn poll_step(&mut self, timeout: Duration) -> Result<Option<ExecStep>> {
+        let response = match self.responses.recv_timeout(timeout) {
+            Ok(response) => response.map_err(anyhow::Error::msg)?,
+            Err(mpsc::RecvTimeoutError::Timeout) => return Ok(None),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(anyhow!("backend process closed stdout unexpectedly"));
+            }
+        };
+        let step = self.response_step(response);
+        if !matches!(&step, Ok(ExecStep::EvalRequest { .. })) {
+            self.exec_pending = false;
+        }
+        step.map(Some)
+    }
+
     fn recv_response_timeout(&mut self, timeout: Duration) -> Result<BackendWireResponseV2> {
         self.responses
             .recv_timeout(timeout)
@@ -1452,14 +1470,15 @@ impl Drop for BackendProcess {
     }
 }
 
-/// Execute one ephemeral backend operation and close its physical process
-/// before returning the semantic result to the worker pool.
-pub(crate) fn run_ephemeral_with_eval_callback<F>(
+/// Execute one cancellation-aware ephemeral backend operation and close its
+/// physical process before returning the semantic result to the worker pool.
+pub(crate) fn run_ephemeral_with_eval_callback_controlled<F>(
     language: &str,
     code: &str,
     bindings: HashMap<String, OValue>,
     launch: BackendLaunchContext<'_>,
     morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+    cancellation: Option<&crate::executor::CancellationToken>,
     mut evaluate: F,
 ) -> Result<OValue>
 where
@@ -1492,6 +1511,11 @@ where
             format!("language={language} environment=ephemeral"),
         );
         loop {
+            if cancellation.is_some_and(crate::executor::CancellationToken::is_cancelled) {
+                return Err(infrastructure_error(anyhow!(
+                    "request cancelled while autonomous ephemeral backend `{language}` was running"
+                )));
+            }
             let remaining = operation_deadline
                 .checked_duration_since(Instant::now())
                 .ok_or_else(|| {
@@ -1500,13 +1524,16 @@ where
                         operation_timeout.as_millis()
                     ))
                 })?;
-            let step = process.recv_step_timeout(remaining).map_err(|error| {
-                if error.is::<BackendSemanticError>() {
-                    error
-                } else {
-                    infrastructure_error(error)
-                }
-            })?;
+            let step = process
+                .poll_step(remaining.min(Duration::from_millis(25)))
+                .map_err(|error| {
+                    if error.is::<BackendSemanticError>() {
+                        error
+                    } else {
+                        infrastructure_error(error)
+                    }
+                })?;
+            let Some(step) = step else { continue };
             match step {
                 ExecStep::Done(value) => {
                     lifecycle_trace(
@@ -1928,6 +1955,90 @@ impl ProcessRegistry {
             );
         }
         Ok(step)
+    }
+
+    /// Wait for a backend step while observing caller-owned cancellation and
+    /// deadline state. Poll timeouts are non-terminal; cancellation, deadline,
+    /// disconnection, or protocol failure removes and forcibly reaps the actor
+    /// so request-private state can never leak into a subsequent request.
+    pub(crate) fn recv_exec_step_controlled<F>(
+        &mut self,
+        lang: &str,
+        env_id: u32,
+        sandbox: &BackendSandboxPolicy,
+        deadline: Option<Instant>,
+        mut is_cancelled: F,
+    ) -> Result<ExecStep>
+    where
+        F: FnMut() -> bool,
+    {
+        const POLL_INTERVAL: Duration = Duration::from_millis(25);
+        let key = self.process_key(lang, env_id, sandbox)?;
+        loop {
+            let terminal_reason = if is_cancelled() {
+                Some("request cancellation was observed".to_string())
+            } else if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+                Some("request execution deadline expired".to_string())
+            } else {
+                None
+            };
+            if let Some(reason) = terminal_reason {
+                let mut process = self
+                    .registry
+                    .remove(&key)
+                    .expect("controlled receive process was present before removal");
+                let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
+                let error = match termination {
+                    Ok(()) => anyhow!("backend `{lang}[{env_id}]` {reason}; actor forcibly reaped"),
+                    Err(termination) => anyhow!(
+                        "backend `{lang}[{env_id}]` {reason}; actor termination also failed: {termination:#}"
+                    ),
+                };
+                return Err(infrastructure_error(error));
+            }
+
+            let wait = deadline
+                .and_then(|deadline| deadline.checked_duration_since(Instant::now()))
+                .map(|remaining| remaining.min(POLL_INTERVAL))
+                .unwrap_or(POLL_INTERVAL);
+            let step = self
+                .registry
+                .get_mut(&key)
+                .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+                .poll_step(wait);
+            match step {
+                Ok(None) => continue,
+                Ok(Some(step)) => {
+                    if matches!(step, ExecStep::Done(_)) {
+                        lifecycle_trace(
+                            "worker.done_received",
+                            format!("language={lang} environment={env_id}"),
+                        );
+                    }
+                    return Ok(step);
+                }
+                Err(error) if error.is::<BackendSemanticError>() => {
+                    return Err(error).with_context(|| {
+                        format!("backend `{lang}[{env_id}]` returned an execution error")
+                    });
+                }
+                Err(error) => {
+                    let mut process = self
+                        .registry
+                        .remove(&key)
+                        .expect("failed controlled receive process was present before removal");
+                    let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
+                    return match termination {
+                        Ok(()) => Err(infrastructure_error(error.context(format!(
+                            "backend `{lang}[{env_id}]` controlled receive failed"
+                        )))),
+                        Err(termination) => Err(infrastructure_error(anyhow!(
+                            "backend `{lang}[{env_id}]` controlled receive failed: {error:#}; actor termination also failed: {termination:#}"
+                        ))),
+                    };
+                }
+            }
+        }
     }
 
     /// Send an eval_result back to the shim so it can resume execution.

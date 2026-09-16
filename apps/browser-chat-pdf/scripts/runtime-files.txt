@@ -1,0 +1,19 @@
+# Files copied into an unpacked Chatprint extension and release archive.
+# Keep manifest.json at the archive root.
+manifest.json
+LICENSE
+background.js
+shared.js
+extractor.js
+renderer.js
+popup.html
+popup.css
+popup.js
+preview.html
+preview.css
+preview.js
+icons/chatprint.svg
+icons/icon-16.png
+icons/icon-32.png
+icons/icon-48.png
+icons/icon-128.png

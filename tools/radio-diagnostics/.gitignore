@@ -1,0 +1,10 @@
+.venv/
+private-artifacts/
+
+*.pcap
+*.pcapng
+*.qmdl
+*.qmdl.gz
+*.sdm
+*.sdm.gz
+*.lpd

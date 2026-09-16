@@ -1,0 +1,36 @@
+repositories {
+    google()
+    mavenCentral()
+}
+
+configurations {
+    mlkitRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    mlkitRuntime 'com.google.mlkit:genai-prompt:1.0.0-beta4'
+    mlkitRuntime 'com.google.mlkit:genai-summarization:1.0.0-beta1'
+    mlkitRuntime 'com.google.mlkit:genai-image-description:1.0.0-beta1'
+    mlkitRuntime 'com.google.mlkit:genai-speech-recognition:1.0.0-alpha1'
+}
+
+tasks.register('syncMlKitRuntime', Sync) {
+    from configurations.mlkitRuntime
+    into layout.buildDirectory.dir('maven')
+}
+
+tasks.register('printMlKitRuntime') {
+    doLast {
+        configurations.mlkitRuntime.resolvedConfiguration.resolvedArtifacts
+            .sort { left, right ->
+                left.moduleVersion.id.toString() <=> right.moduleVersion.id.toString()
+            }
+            .each { artifact ->
+                println "${artifact.moduleVersion.id} (${artifact.type}) -> ${artifact.file.name}"
+            }
+    }
+}
+

@@ -671,7 +671,7 @@ fn ensure_pairing_ca(
     let mut installed = Vec::new();
     for name in ["pairing-ca-key.pem", "pairing-ca.pem"] {
         let target = pki_dir.join(name);
-        if let Err(error) = fs::hard_link(temporary.path().join(name), &target) {
+        if let Err(error) = install_generated_pki_file(&temporary.path().join(name), &target) {
             for created in &installed {
                 let _ = fs::remove_file(created);
             }
@@ -2069,7 +2069,7 @@ fn process_is_detached_node(identity: &DetachedProcessIdentity) -> Result<bool> 
     }
     let expected = env::current_exe().context("failed to locate the current o-node executable")?;
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         if let Ok(bytes) = fs::read(format!("/proc/{pid}/cmdline")) {
             let arguments = bytes
@@ -2138,6 +2138,103 @@ fn gc_closed_session(args: AdminGcClosedArgs) -> Result<()> {
         args.session_id
     );
     Ok(())
+}
+
+// Publish verified PKI without overwriting a destination that appeared
+// after validation. Android app SELinux policy forbids hard links, so use
+// the Linux kernel's atomic no-replace rename on Android instead.
+fn install_generated_pki_file(source: &Path, target: &Path) -> io::Result<()> {
+    #[cfg(target_os = "android")]
+    {
+        use std::ffi::CString;
+        use std::os::unix::ffi::OsStrExt;
+
+        let source = CString::new(source.as_os_str().as_bytes())
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+        let target = CString::new(target.as_os_str().as_bytes())
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+        // Linux UAPI value. The raw syscall avoids requiring a particular
+        // Android API level for a bionic renameat2 wrapper symbol.
+        const RENAME_NOREPLACE: libc::c_uint = 1;
+        // SAFETY: both C strings are NUL-terminated and remain alive for the
+        // call. AT_FDCWD is valid for both paths; all syscall arguments match
+        // renameat2(olddirfd, oldpath, newdirfd, newpath, flags).
+        let result = unsafe {
+            libc::syscall(
+                libc::SYS_renameat2,
+                libc::AT_FDCWD,
+                source.as_ptr(),
+                libc::AT_FDCWD,
+                target.as_ptr(),
+                RENAME_NOREPLACE,
+            )
+        };
+        if result == 0 {
+            Ok(())
+        } else {
+            // Fail closed on unsupported kernels/filesystems or denials.
+            // Ordinary rename/copy would weaken no-overwrite protection.
+            Err(io::Error::last_os_error())
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        fs::hard_link(source, target)
+    }
+}
+
+#[cfg(test)]
+mod termux_pki_install_tests {
+    use super::*;
+
+    #[test]
+    fn publishes_complete_bytes_and_preserves_private_mode() {
+        let directory = create_private_temp_dir(&env::temp_dir()).unwrap();
+        let source = directory.path().join("staged");
+        let target = directory.path().join("published");
+        fs::write(&source, b"test material, not a real private key").unwrap();
+        #[cfg(unix)]
+        fs::set_permissions(&source, fs::Permissions::from_mode(0o600)).unwrap();
+        install_generated_pki_file(&source, &target).unwrap();
+        assert_eq!(
+            fs::read(&target).unwrap(),
+            b"test material, not a real private key"
+        );
+        #[cfg(unix)]
+        assert_eq!(
+            fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+
+    #[test]
+    fn refuses_existing_destination_without_modifying_either_file() {
+        let directory = create_private_temp_dir(&env::temp_dir()).unwrap();
+        let source = directory.path().join("staged");
+        let target = directory.path().join("published");
+        fs::write(&source, b"new bytes").unwrap();
+        fs::write(&target, b"existing identity").unwrap();
+        let error = install_generated_pki_file(&source, &target).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(fs::read(&source).unwrap(), b"new bytes");
+        assert_eq!(fs::read(&target).unwrap(), b"existing identity");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_a_dangling_destination_symlink() {
+        let directory = create_private_temp_dir(&env::temp_dir()).unwrap();
+        let source = directory.path().join("staged");
+        let target = directory.path().join("published");
+        let missing = directory.path().join("must-not-be-created");
+        fs::write(&source, b"new bytes").unwrap();
+        std::os::unix::fs::symlink(&missing, &target).unwrap();
+        let error = install_generated_pki_file(&source, &target).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(fs::read_link(&target).unwrap(), missing);
+        assert!(!missing.exists());
+        assert_eq!(fs::read(&source).unwrap(), b"new bytes");
+    }
 }
 
 fn init_development_pki(args: PkiInitArgs, pki_key_algorithm: PkiKeyAlgorithm) -> Result<()> {
@@ -2309,10 +2406,10 @@ fn init_development_pki(args: PkiInitArgs, pki_key_algorithm: PkiKeyAlgorithm) -
     let mut installed = Vec::new();
     for name in installed_names {
         let target = destination.join(name);
-        // The staging directory is a child of the destination, so hard-linking
-        // is same-filesystem and atomically refuses a raced-in target instead
-        // of replacing it.
-        if let Err(error) = fs::hard_link(temporary.path().join(name), &target) {
+        // Staging is a child of the destination, so publication is
+        // same-filesystem and atomically refuses a raced-in target.
+        // Android uses no-replace rename; other targets retain hard links.
+        if let Err(error) = install_generated_pki_file(&temporary.path().join(name), &target) {
             for created in &installed {
                 let _ = fs::remove_file(created);
             }
@@ -2520,6 +2617,12 @@ fn service_summary_with_fabric(base: &str, provider: Option<&FabricAttemptProvid
     }
 }
 
+fn mesh_actor_capacity(cpu_capacity: u32, max_connections: usize) -> Result<u32> {
+    let connection_capacity = u32::try_from(max_connections)
+        .context("node max-connections exceeds the mesh actor-capacity representation")?;
+    Ok(cpu_capacity.min(connection_capacity))
+}
+
 fn serve(mut args: ServeArgs) -> Result<()> {
     if let Some(token) = args.managed_start_token.as_deref() {
         validate_detached_launch_token(token)?;
@@ -2669,12 +2772,16 @@ fn serve(mut args: ServeArgs) -> Result<()> {
         let mesh_runtime = mesh_state_dir
             .as_ref()
             .map(|mesh_state_dir| {
+                // Socket admission and CPU-heavy actor execution are separate
+                // resources. Bound actors by both available CPU parallelism and
+                // the listener limit instead of inflating the actor pool to the
+                // connection limit (32 by default).
                 let mut config =
                     MeshNodeRuntimeConfig::new(v1_runtime.node_id.clone(), mesh_state_dir.clone());
-                config.max_concurrent_actors = u32::try_from(v1_runtime.max_concurrent_connections)
-                    .context(
-                        "node max-connections exceeds the mesh actor-capacity representation",
-                    )?;
+                config.max_concurrent_actors = mesh_actor_capacity(
+                    config.max_concurrent_actors,
+                    v1_runtime.max_concurrent_connections,
+                )?;
                 MeshNodeRuntime::open(config).with_context(|| {
                     format!(
                         "failed to open durable scheduler/actor mesh state at `{}`",
@@ -2699,10 +2806,15 @@ fn serve(mut args: ServeArgs) -> Result<()> {
             }
         }
         if let Some(mesh_state_dir) = mesh_state_dir.as_ref() {
+            let actor_capacity = mesh_runtime
+                .as_ref()
+                .expect("mesh runtime exists when its state directory is configured")
+                .config()
+                .max_concurrent_actors;
             eprintln!(
                 "o-node: scheduler/actor mesh enabled at `{}` with capacity for {} concurrent actors",
                 mesh_state_dir.display(),
-                v1_runtime.max_concurrent_connections
+                actor_capacity
             );
         }
         let ready_node_id = v1_runtime.node_id.clone();
@@ -3360,6 +3472,14 @@ mod tests {
     use super::*;
 
     use clap::CommandFactory;
+
+    #[test]
+    fn mesh_actor_capacity_is_bounded_by_cpu_and_connection_limits() {
+        assert_eq!(mesh_actor_capacity(8, 32).unwrap(), 8);
+        assert_eq!(mesh_actor_capacity(8, 8).unwrap(), 8);
+        assert_eq!(mesh_actor_capacity(8, 1).unwrap(), 1);
+        assert_eq!(mesh_actor_capacity(64, 32).unwrap(), 32);
+    }
 
     #[test]
     fn pairing_cli_requires_explicit_replacement_and_keeps_passcode_out_of_arguments() {

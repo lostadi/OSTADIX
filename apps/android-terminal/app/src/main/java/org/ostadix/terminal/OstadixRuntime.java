@@ -2,6 +2,9 @@ package org.ostadix.terminal;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /** In-process JNI wrapper around the stable Ostadix embedding API. */
 public final class OstadixRuntime implements AutoCloseable {
@@ -15,13 +18,35 @@ public final class OstadixRuntime implements AutoCloseable {
         public final String type;
         public final String output;
         public final String message;
+        public final String callerId;
+        public final String requestId;
+        public final String executionIntentSha256;
+        public final String requestScopeContentIdentity;
+        public final String admissionSha256;
+        public final String resultContentIdentity;
+        public final long elapsedMs;
+        public final int selectedSourceIndex;
+        public final int selectedScoreMilli;
 
-        private Evaluation(boolean ok, String stage, String type, String output, String message) {
+        private Evaluation(boolean ok, String stage, String type, String output, String message,
+                String callerId, String requestId, String executionIntentSha256,
+                String requestScopeContentIdentity, String admissionSha256,
+                String resultContentIdentity, long elapsedMs, int selectedSourceIndex,
+                int selectedScoreMilli) {
             this.ok = ok;
             this.stage = stage;
             this.type = type;
             this.output = output;
             this.message = message;
+            this.callerId = callerId;
+            this.requestId = requestId;
+            this.executionIntentSha256 = executionIntentSha256;
+            this.requestScopeContentIdentity = requestScopeContentIdentity;
+            this.admissionSha256 = admissionSha256;
+            this.resultContentIdentity = resultContentIdentity;
+            this.elapsedMs = elapsedMs;
+            this.selectedSourceIndex = selectedSourceIndex;
+            this.selectedScoreMilli = selectedScoreMilli;
         }
 
         public String terminalText() {
@@ -33,29 +58,94 @@ public final class OstadixRuntime implements AutoCloseable {
     }
 
     private long handle;
+    private final AtomicLong nextRequestId = new AtomicLong();
+    private final ReentrantReadWriteLock lifecycle = new ReentrantReadWriteLock();
+    private static final long DEFAULT_TIMEOUT_MS = 30_000;
 
-    public OstadixRuntime(String shimDirectory) {
-        handle = nativeCreate(shimDirectory);
+    public OstadixRuntime(String shimDirectory, String runtimeExecutable, String bashExecutable) {
+        handle = nativeCreate(shimDirectory, runtimeExecutable, bashExecutable);
         if (handle == 0) {
             throw new IllegalStateException("Unable to initialize the Ostadix runtime");
         }
     }
 
-    public synchronized Evaluation evaluate(String source) {
-        if (handle == 0) {
-            throw new IllegalStateException("Ostadix runtime is closed");
-        }
+    public Evaluation evaluate(String source) {
+        Lock lock = lifecycle.readLock();
+        lock.lock();
         try {
-            JSONObject result = new JSONObject(nativeEvaluate(handle, source));
+            if (handle == 0) {
+                throw new IllegalStateException("Ostadix runtime is closed");
+            }
+            String requestId = "terminal-" + nextRequestId.incrementAndGet();
+            JSONObject result = new JSONObject(nativeEvaluateBounded(handle, source,
+                    "org.ostadix.terminal", requestId, DEFAULT_TIMEOUT_MS));
             boolean ok = result.optBoolean("ok", false);
             return new Evaluation(
                     ok,
                     result.optString("stage", ok ? "complete" : "runtime"),
                     result.optString("type", "value"),
                     result.optString("output", ""),
-                    result.optString("message", "Unknown runtime error"));
+                    result.optString("message", "Unknown runtime error"),
+                    result.optString("callerId", "org.ostadix.terminal"),
+                    result.optString("requestId", requestId),
+                    result.optString("executionIntentSha256", ""),
+                    result.optString("requestScopeContentIdentity", ""),
+                    result.optString("admissionSha256", ""),
+                    result.optString("resultContentIdentity", ""),
+                    result.optLong("elapsedMs", 0),
+                    result.optInt("selectedSourceIndex", -1),
+                    result.optInt("selectedScoreMilli", 0));
         } catch (JSONException error) {
-            return new Evaluation(false, "bridge", "", "", error.getMessage());
+            return new Evaluation(false, "bridge", "", "", error.getMessage(),
+                    "org.ostadix.terminal", "", "", "", "", "", 0, -1, 0);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Run the fixed AICore reply selector without exposing generated text to Ostadix. */
+    public Evaluation postprocessAicoreReplies(int[] scoresMilli,
+            int[] stopReasons, int[] maxPolicyScoresMilli, int policyLimit,
+            String callerId, String requestId, long timeoutMs) {
+        Lock lock = lifecycle.readLock();
+        lock.lock();
+        try {
+            if (handle == 0) {
+                throw new IllegalStateException("Ostadix runtime is closed");
+            }
+            JSONObject result = new JSONObject(nativePostprocessAicoreReplies(handle,
+                    scoresMilli, stopReasons, maxPolicyScoresMilli, policyLimit,
+                    callerId, requestId, timeoutMs));
+            boolean ok = result.optBoolean("ok", false);
+            return new Evaluation(ok,
+                    result.optString("stage", ok ? "complete" : "runtime"),
+                    result.optString("type", "value"), result.optString("output", ""),
+                    result.optString("message", "Unknown runtime error"),
+                    result.optString("callerId", callerId),
+                    result.optString("requestId", requestId),
+                    result.optString("executionIntentSha256", ""),
+                    result.optString("requestScopeContentIdentity", ""),
+                    result.optString("admissionSha256", ""),
+                    result.optString("resultContentIdentity", ""),
+                    result.optLong("elapsedMs", 0),
+                    result.optInt("selectedSourceIndex", -1),
+                    result.optInt("selectedScoreMilli", 0));
+        } catch (JSONException error) {
+            return new Evaluation(false, "bridge", "", "", error.getMessage(), callerId,
+                    requestId, "", "", "", "", 0, -1, 0);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Cancel one active request without waiting for its evaluation call to return. */
+    public boolean cancelRequest(String callerId, String requestId) {
+        Lock lock = lifecycle.readLock();
+        lock.lock();
+        try {
+            return handle != 0 && nativeCancelRequest(handle, callerId, requestId);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -64,15 +154,29 @@ public final class OstadixRuntime implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() {
-        if (handle != 0) {
-            nativeDestroy(handle);
-            handle = 0;
+    public void close() {
+        Lock lock = lifecycle.writeLock();
+        lock.lock();
+        try {
+            if (handle != 0) {
+                nativeDestroy(handle);
+                handle = 0;
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
-    private static native long nativeCreate(String shimDirectory);
+    private static native long nativeCreate(String shimDirectory, String runtimeExecutable,
+            String bashExecutable);
     private static native String nativeEvaluate(long handle, String source);
+    private static native String nativeEvaluateBounded(long handle, String source,
+            String callerId, String requestId, long timeoutMs);
+    private static native String nativePostprocessAicoreReplies(long handle, int[] scoresMilli,
+            int[] stopReasons, int[] maxPolicyScoresMilli, int policyLimit,
+            String callerId, String requestId, long timeoutMs);
+    private static native boolean nativeCancelRequest(long handle, String callerId,
+            String requestId);
     private static native String nativeVersion();
     private static native void nativeDestroy(long handle);
 }

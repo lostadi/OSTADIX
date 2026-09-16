@@ -2,10 +2,13 @@ package org.ostadix.terminal;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.Manifest;
 import android.content.DialogInterface;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -26,6 +29,10 @@ import java.util.concurrent.ThreadFactory;
 
 /** Launcher and session coordinator for the standalone Ostadix terminal. */
 public final class MainActivity extends Activity {
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 1001;
+    private static final String NOTIFICATION_PERMISSION_ASKED =
+            "notification_permission_asked";
+
     private AppPreferences preferences;
     private AppFiles files;
     private TerminalView terminal;
@@ -68,6 +75,7 @@ public final class MainActivity extends Activity {
         }
 
         buildInterface();
+        requestNotificationPermissionIfNeeded();
         applySettings(settings);
         if (AppPreferences.STARTUP_SHELL.equals(settings.startupMode)) {
             startShell(false);
@@ -256,7 +264,7 @@ public final class MainActivity extends Activity {
     }
 
     private void startOConsole() {
-        stopActiveSession();
+        closeSessionObjects();
         terminal.resetTerminal();
         terminal.setTerminalResponsesEnabled(false);
         rootSession = false;
@@ -296,6 +304,7 @@ public final class MainActivity extends Activity {
                 });
         updateCpuBadge();
         oConsole.start();
+        TerminalSessionService.start(this, "Ostadix Console");
         terminal.requestFocus();
     }
 
@@ -304,7 +313,7 @@ public final class MainActivity extends Activity {
     }
 
     private void startShell(boolean root, boolean termux) {
-        stopActiveSession();
+        closeSessionObjects();
         terminal.resetTerminal();
         terminal.setTerminalResponsesEnabled(true);
         rootSession = root;
@@ -385,6 +394,7 @@ public final class MainActivity extends Activity {
                                 rootSession = false;
                                 shellCpu7Pinned = false;
                                 updateCpuBadge();
+                                TerminalSessionService.stop(MainActivity.this);
                             }
                         }
 
@@ -397,6 +407,7 @@ public final class MainActivity extends Activity {
                             }
                         }
                     });
+            TerminalSessionService.start(this, sessionTitle.getText().toString());
         } catch (IOException error) {
             terminal.feed(("\u001b[31mUnable to start " + executable + ":\u001b[0m "
                     + error.getMessage() + "\r\n").getBytes(StandardCharsets.UTF_8));
@@ -404,6 +415,7 @@ public final class MainActivity extends Activity {
             rootSession = false;
             shellCpu7Pinned = false;
             updateCpuBadge();
+            TerminalSessionService.stop(this);
         }
         terminal.requestFocus();
     }
@@ -551,6 +563,11 @@ public final class MainActivity extends Activity {
     }
 
     private void stopActiveSession() {
+        closeSessionObjects();
+        TerminalSessionService.stop(this);
+    }
+
+    private void closeSessionObjects() {
         PtySession oldPty = ptySession;
         ptySession = null;
         if (oldPty != null) {
@@ -563,6 +580,21 @@ public final class MainActivity extends Activity {
         }
         rootSession = false;
         shellCpu7Pinned = false;
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED
+                && !getPreferences(MODE_PRIVATE).getBoolean(
+                        NOTIFICATION_PERMISSION_ASKED, false)) {
+            getPreferences(MODE_PRIVATE).edit()
+                    .putBoolean(NOTIFICATION_PERMISSION_ASKED, true)
+                    .apply();
+            requestPermissions(
+                    new String[] {Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST);
+        }
     }
 
     private void updateCpuBadge() {

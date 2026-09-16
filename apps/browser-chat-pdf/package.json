@@ -1,0 +1,15 @@
+{
+  "name": "@ostadix/browser-chat-pdf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build and test tooling for the Chatprint desktop extension and Android bookmarklet.",
+  "license": "LGPL-2.1-only",
+  "scripts": {
+    "build:mobile": "node mobile/build.cjs",
+    "test": "npm run build:mobile && node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "terser": "5.51.2"
+  }
+}

@@ -1,0 +1,891 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Read-only, local diagnostics helper for one audited Pixel build.
+
+set -Eeuo pipefail
+umask 077
+
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly PRIVATE_ROOT="/data/data/com.termux/no_backup/ostadix-radio-diagnostics"
+readonly EXPECTED_RELEASE="17"
+readonly EXPECTED_BUILD_ID="CP2A.260805.005"
+readonly EXPECTED_DEVICE="blazer"
+readonly EXPECTED_FINGERPRINT="google/blazer/blazer:17/CP2A.260805.005/15828068:user/release-keys"
+readonly EXPECTED_VENDOR_FINGERPRINT="$EXPECTED_FINGERPRINT"
+readonly EXPECTED_HARDWARE_SKU="G4QUR"
+readonly EXPECTED_SECURITY_PATCH="2026-08-05"
+readonly EXPECTED_BASEBAND="g5400i-260317-260429-B-15308590,g5400i-260317-260429-B-15308590"
+readonly MAX_CAPTURE_SECONDS=300
+readonly DEFAULT_CAPTURE_SECONDS=60
+readonly RADIO_LOG_MAX_LINES=50000
+readonly FIRMWARE_MAX_MIB=1024
+readonly SDM_MAX_FILE_MIB=512
+readonly SDM_MAX_TOTAL_MIB=1024
+readonly SCAT_MAX_SECONDS=300
+readonly SCAT_MAX_OUTPUT_MIB=512
+readonly FREE_SPACE_RESERVE_MIB=64
+readonly ANDROID_TIMEOUT=/system/bin/timeout
+readonly SCAT_EXPECTED_COMMIT=361ff551a4fbb30789c46750c00586682a7a9b26
+
+readonly -a FIRMWARE_ROOTS=(
+  /vendor/firmware_mnt
+  /vendor/firmware
+  /vendor/etc/firmware
+  /system/vendor/firmware
+  /mnt/vendor/firmware_mnt
+  /odm/firmware
+)
+
+readonly -a SDM_ROOTS=(
+  /data/vendor/radio/diag_logs
+  /data/vendor/radio/sdm
+  /data/vendor/radio/log
+  /data/vendor/radio/logs
+  /data/vendor/modem_dump
+  /data/vendor/ssrdump
+  /data/vendor/log/modem
+  /data/vendor/log/radio
+  /data/vendor/logs/modem
+  /data/vendor/logs/radio
+)
+
+usage() {
+  cat <<'USAGE'
+Usage: radio-diagnostics COMMAND [OPTIONS]
+
+Read-only information:
+  status                         Show build gate and local prerequisites
+  capabilities                   Describe the intentionally narrow surface
+
+Private artifacts (target build and root required):
+  mirror-firmware [--source PATH]
+                                 Copy mounted modem.bin, hash, and record metadata
+  radio-log [SECONDS]            Capture Android's radio log buffer (1..300 seconds)
+  list-sdm                       List metadata for vendor SDM/QMDL/LPD dumps
+  export-sdm                     Copy bounded vendor dumps into a private bundle
+  parse-scat TYPE DUMP [OPTIONS] Parse one private dump to a local PCAP with SCAT
+
+parse-scat options:
+  --model NAME                   Samsung model override for headerless raw SDM
+  --layers LIST                  Comma list from ip,nas,rrc,pdcp,rlc,mac,qmi
+  --gsmtapv3                     Enable GSMTAPv3 for 2G/3G/4G
+  --trace --modem-file PATH      Decode Samsung trace with a private modem.bin mirror
+
+Tests:
+  self-test                      Run safe tests; never starts logging
+
+All produced data stays under Termux's app-private no_backup directory with
+private permissions. This tool never opens USB/serial diagnostic endpoints,
+changes device-node permissions, writes modem partitions, or enables persistent
+vendor logging.
+USAGE
+}
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+note() {
+  printf '%s\n' "$*" >&2
+}
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+prop() {
+  /system/bin/getprop "$1" 2>/dev/null || true
+}
+
+fingerprint_matches() {
+  local fingerprint="$1"
+  local vendor_fingerprint="$2"
+  local release="$3"
+  local build_id="$4"
+  local device="$5"
+  local hardware_sku="$6"
+  local security_patch="$7"
+  local baseband="$8"
+
+  [[ "$fingerprint" == "$EXPECTED_FINGERPRINT" ]] || return 1
+  [[ "$vendor_fingerprint" == "$EXPECTED_VENDOR_FINGERPRINT" ]] || return 1
+  [[ "$release" == "$EXPECTED_RELEASE" ]] || return 1
+  [[ "$build_id" == "$EXPECTED_BUILD_ID" ]] || return 1
+  [[ "$device" == "$EXPECTED_DEVICE" ]] || return 1
+  [[ "$hardware_sku" == "$EXPECTED_HARDWARE_SKU" ]] || return 1
+  [[ "$security_patch" == "$EXPECTED_SECURITY_PATCH" ]] || return 1
+  [[ "$baseband" == "$EXPECTED_BASEBAND" ]] || return 1
+}
+
+target_matches() {
+  fingerprint_matches \
+    "$(prop ro.build.fingerprint)" \
+    "$(prop ro.vendor.build.fingerprint)" \
+    "$(prop ro.build.version.release)" \
+    "$(prop ro.build.id)" \
+    "$(prop ro.product.device)" \
+    "$(prop ro.boot.hardware.sku)" \
+    "$(prop ro.build.version.security_patch)" \
+    "$(prop gsm.version.baseband)"
+}
+
+require_target() {
+  target_matches && return 0
+
+  cat >&2 <<EOF
+error: hardware access refused: this exact system/vendor/radio build was not audited
+expected fingerprint: ${EXPECTED_FINGERPRINT}
+actual fingerprint: $(prop ro.build.fingerprint)
+actual vendor fingerprint: $(prop ro.vendor.build.fingerprint)
+actual release/build/device/SKU: $(prop ro.build.version.release) / $(prop ro.build.id) / $(prop ro.product.device) / $(prop ro.boot.hardware.sku)
+actual security patch: $(prop ro.build.version.security_patch)
+actual baseband: $(prop gsm.version.baseband)
+There is deliberately no override flag.
+EOF
+  exit 2
+}
+
+shell_quote() {
+  local value="$1"
+  printf "'%s'" "${value//\'/\'\\\'\'}"
+}
+
+root_available() {
+  if [[ "$(id -u)" == 0 ]]; then
+    return 0
+  fi
+  have su || return 1
+  [[ "$(su -c '/system/bin/id -u' 2>/dev/null || true)" == 0 ]]
+}
+
+require_root() {
+  root_available || die 'root is required for this read-only operation'
+}
+
+root_shell() {
+  local command="$1"
+  if [[ "$(id -u)" == 0 ]]; then
+    /system/bin/sh -c "$command"
+  else
+    su -c "$command"
+  fi
+}
+
+path_mode() {
+  stat -c '%a' -- "$1"
+}
+
+ensure_private_root() {
+  case "$PRIVATE_ROOT" in
+    /data/data/com.termux/no_backup/*) ;;
+    *) die "private artifact root escaped Termux storage: $PRIVATE_ROOT" ;;
+  esac
+
+  [[ ! -L "$PRIVATE_ROOT" ]] || die "private artifact root must not be a symlink: $PRIVATE_ROOT"
+  mkdir -p -- "$PRIVATE_ROOT"
+
+  local mode
+  mode="$(path_mode "$PRIVATE_ROOT")"
+  (( (8#$mode & 077) == 0 )) || die "artifact root is visible to group/other (mode $mode); repair it manually"
+}
+
+new_bundle() {
+  local prefix="$1"
+  ensure_private_root
+  mktemp -d "${PRIVATE_ROOT}/${prefix}-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX"
+}
+
+forbidden_source_path() {
+  case "$1" in
+    /dev|/dev/*|/proc|/proc/*|/sys|/sys/*|/storage|/storage/*|/sdcard|/sdcard/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+under_one_of() {
+  local candidate="$1"
+  shift
+  local root
+  for root in "$@"; do
+    case "$candidate" in
+      "$root"|"$root"/*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+root_realpath() {
+  local path="$1"
+  root_shell "/system/bin/readlink -f $(shell_quote "$path")"
+}
+
+validate_firmware_source() {
+  local requested="$1"
+  local resolved
+  resolved="$(root_realpath "$requested")" || die "cannot resolve firmware source: $requested"
+
+  [[ "${resolved##*/}" == modem.bin ]] || die 'firmware source must be named exactly modem.bin'
+  forbidden_source_path "$resolved" && die "forbidden firmware source: $resolved"
+  under_one_of "$resolved" "${FIRMWARE_ROOTS[@]}" || die "firmware source is outside audited mounted firmware trees: $resolved"
+  root_shell "test -f $(shell_quote "$resolved") && test ! -b $(shell_quote "$resolved") && test ! -c $(shell_quote "$resolved")" \
+    || die "firmware source is not a regular mounted file: $resolved"
+  printf '%s\n' "$resolved"
+}
+
+discover_firmware_sources() {
+  local root
+  local found
+  for root in "${FIRMWARE_ROOTS[@]}"; do
+    found="$(root_shell "if test -d $(shell_quote "$root"); then /system/bin/find $(shell_quote "$root") -xdev -type f -name modem.bin -print 2>/dev/null; fi" || true)"
+    [[ -z "$found" ]] || printf '%s\n' "$found"
+  done | awk 'NF && !seen[$0]++'
+}
+
+root_stat_line() {
+  root_shell "/system/bin/stat -c '%s|%Y|%a|%u|%g' $(shell_quote "$1")"
+}
+
+root_file_size() {
+  root_shell "/system/bin/stat -c '%s' $(shell_quote "$1")"
+}
+
+root_sha256_prefix() {
+  local source="$1"
+  local byte_count="$2"
+  root_shell "/system/bin/head -c $byte_count $(shell_quote "$source")" |
+    sha256sum | awk '{print $1}'
+}
+
+ensure_free_space() {
+  local requested_bytes="$1"
+  ensure_private_root
+  local available_kib
+  local requested_kib
+  local reserve_kib=$((FREE_SPACE_RESERVE_MIB * 1024))
+  available_kib="$(df -Pk -- "$PRIVATE_ROOT" | awk 'END {print $4}')"
+  [[ "$available_kib" =~ ^[0-9]+$ ]] || die 'could not determine private storage free space'
+  requested_kib=$(((requested_bytes + 1023) / 1024))
+  ((available_kib >= requested_kib + reserve_kib)) ||
+    die "insufficient private storage: need $requested_kib KiB plus $reserve_kib KiB reserve"
+}
+
+copy_from_root() {
+  local source="$1"
+  local destination="$2"
+  local expected_bytes="$3"
+  local maximum_bytes="$4"
+  local temporary="${destination}.partial"
+
+  [[ "$expected_bytes" =~ ^[0-9]+$ && "$maximum_bytes" =~ ^[0-9]+$ ]] ||
+    die 'copy byte bounds must be integers'
+  ((expected_bytes > 0 && expected_bytes <= maximum_bytes)) ||
+    die "source size $expected_bytes exceeds bounded-copy policy"
+  ensure_free_space "$expected_bytes"
+  [[ ! -e "$destination" && ! -e "$temporary" ]] || die "refusing to overwrite: $destination"
+  : > "$temporary"
+  if ! root_shell "/system/bin/head -c $expected_bytes $(shell_quote "$source")" > "$temporary"; then
+    rm -f -- "$temporary"
+    die "bounded read failed: $source"
+  fi
+  local actual_bytes
+  actual_bytes="$(stat -c '%s' -- "$temporary")"
+  if [[ "$actual_bytes" != "$expected_bytes" ]]; then
+    rm -f -- "$temporary"
+    die "source shrank during bounded read: expected $expected_bytes bytes, received $actual_bytes"
+  fi
+  [[ "$(path_mode "$temporary")" == 600 ]] || die "unexpected artifact mode for $temporary"
+  mv -- "$temporary" "$destination"
+}
+
+scat_direct_url_file() {
+  find "${SCRIPT_DIR}/.venv" -path '*/signalcat-*.dist-info/direct_url.json' -type f -print 2>/dev/null
+}
+
+scat_provenance_matches() {
+  local -a provenance_files=()
+  mapfile -t provenance_files < <(scat_direct_url_file)
+  (("${#provenance_files[@]}" == 1)) || return 1
+  grep -Fq '"url": "https://github.com/fgsect/scat.git"' "${provenance_files[0]}" || return 1
+  grep -Fq "\"commit_id\": \"$SCAT_EXPECTED_COMMIT\"" "${provenance_files[0]}"
+}
+
+command_status() {
+  local gate='refused'
+  local root='no'
+  local scat='no'
+  local scat_provenance='missing'
+  local scat_trace='no'
+  local selinux='unknown'
+  target_matches && gate='accepted'
+  root_available && root='yes'
+  if [[ "$root" == yes ]]; then
+    selinux="$(root_shell '/system/bin/toybox getenforce' 2>/dev/null || printf unknown)"
+  fi
+  if [[ -x "${SCRIPT_DIR}/.venv/bin/scat" ]]; then
+    scat='yes'
+    scat_provenance='mismatch'
+    if scat_provenance_matches; then
+      scat_provenance='verified'
+      scat_supports_modem_file "${SCRIPT_DIR}/.venv/bin/scat" && scat_trace='yes'
+    fi
+  fi
+
+  printf 'fingerprint=%s\n' "$(prop ro.build.fingerprint)"
+  printf 'vendor_fingerprint=%s\n' "$(prop ro.vendor.build.fingerprint)"
+  printf 'release=%s\n' "$(prop ro.build.version.release)"
+  printf 'build_id=%s\n' "$(prop ro.build.id)"
+  printf 'device=%s\n' "$(prop ro.product.device)"
+  printf 'hardware_sku=%s\n' "$(prop ro.boot.hardware.sku)"
+  printf 'security_patch=%s\n' "$(prop ro.build.version.security_patch)"
+  printf 'baseband=%s\n' "$(prop gsm.version.baseband)"
+  printf 'gate=%s\n' "$gate"
+  printf 'root_available=%s\n' "$root"
+  printf 'selinux=%s\n' "$selinux"
+  printf 'scat_venv=%s\n' "$scat"
+  printf 'scat_provenance=%s\n' "$scat_provenance"
+  printf 'scat_trace_support=%s\n' "$scat_trace"
+  printf 'private_root=%s\n' "$PRIVATE_ROOT"
+}
+
+command_capabilities() {
+  cat <<EOF
+Audited target: google/blazer, Android 17, build ${EXPECTED_BUILD_ID}
+
+Available:
+  - Report the exact build gate and prerequisites.
+  - Copy a regular mounted modem.bin from an allowlisted read-only firmware tree.
+  - Verify firmware and dump copies with SHA-256 and metadata.
+  - Capture the Android radio log buffer for at most ${MAX_CAPTURE_SECONDS} seconds.
+  - List and privately export SDM/QMDL/LPD files from narrow vendor log roots.
+  - Parse a private dump using .venv/bin/scat with SCAT's local PCAP writer.
+
+Intentionally unavailable:
+  - Block-device reads or writes, partition flashing, remounting, and firmware mutation.
+  - USB or serial DM endpoints, TCP/UDP GSMTAP streaming, and remote listeners.
+  - chmod/chown of device nodes or vendor files.
+  - Persistent properties and automatic vendor modem-logging service changes.
+  - Off-target execution or a fingerprint bypass.
+EOF
+}
+
+command_mirror_firmware() {
+  require_target
+  require_root
+
+  local requested=''
+  if [[ "${1:-}" == --source ]]; then
+    [[ $# == 2 ]] || die 'mirror-firmware --source requires exactly one path'
+    requested="$2"
+  elif [[ $# != 0 ]]; then
+    die 'usage: radio-diagnostics mirror-firmware [--source PATH]'
+  fi
+
+  local -a sources=()
+  if [[ -n "$requested" ]]; then
+    sources+=("$requested")
+  else
+    mapfile -t sources < <(discover_firmware_sources)
+    ((${#sources[@]} > 0)) || die 'no mounted modem.bin found in audited firmware trees'
+    if ((${#sources[@]} > 1)); then
+      printf 'Multiple mounted modem.bin files found; select one explicitly:\n' >&2
+      printf '  %s\n' "${sources[@]}" >&2
+      die 'rerun with --source PATH'
+    fi
+  fi
+
+  local source
+  source="$(validate_firmware_source "${sources[0]}")"
+  local source_stat
+  local source_size
+  local maximum_bytes=$((FIRMWARE_MAX_MIB * 1024 * 1024))
+  source_stat="$(root_stat_line "$source")"
+  source_size="${source_stat%%|*}"
+  [[ "$source_size" =~ ^[0-9]+$ ]] || die 'could not read firmware source size'
+  ((source_size > 0 && source_size <= maximum_bytes)) ||
+    die "firmware size $source_size exceeds the ${FIRMWARE_MAX_MIB} MiB safety bound"
+  local before_hash
+  before_hash="$(root_sha256_prefix "$source" "$source_size")"
+  [[ "$before_hash" =~ ^[0-9a-fA-F]{64}$ ]] || die 'could not hash firmware source'
+
+  local bundle
+  bundle="$(new_bundle firmware)"
+  local copy="${bundle}/modem.bin"
+  copy_from_root "$source" "$copy" "$source_size" "$maximum_bytes"
+
+  local copy_hash
+  local after_hash
+  local after_size
+  copy_hash="$(sha256sum -- "$copy" | awk '{print $1}')"
+  after_size="$(root_file_size "$source")"
+  after_hash="$(root_sha256_prefix "$source" "$source_size")"
+  [[ "$after_size" == "$source_size" && "$before_hash" == "$copy_hash" && "$after_hash" == "$copy_hash" ]] \
+    || die "firmware changed during copy; incomplete bundle retained for inspection: $bundle"
+
+  local metadata="${bundle}/metadata.txt"
+  {
+    printf 'source=%s\n' "$source"
+    printf 'source_stat=size|mtime_epoch|mode|uid|gid:%s\n' "$source_stat"
+    printf 'copy_size=%s\n' "$(stat -c '%s' -- "$copy")"
+    printf 'sha256=%s\n' "$copy_hash"
+    printf 'build_fingerprint=%s\n' "$(prop ro.build.fingerprint)"
+    printf 'vendor_fingerprint=%s\n' "$(prop ro.vendor.build.fingerprint)"
+    printf 'baseband=%s\n' "$(prop gsm.version.baseband)"
+    printf 'build_id=%s\n' "$(prop ro.build.id)"
+    printf 'mirrored_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$metadata"
+
+  [[ "$(path_mode "$copy")" == 600 && "$(path_mode "$metadata")" == 600 ]] \
+    || die 'private mode verification failed'
+  printf 'firmware_copy=%s\nsha256=%s\n' "$copy" "$copy_hash"
+}
+
+valid_duration() {
+  local duration="$1"
+  [[ "$duration" =~ ^([1-9]|[1-9][0-9]|[12][0-9]{2}|300)$ ]]
+}
+
+build_radio_capture_script() {
+  local duration="$1"
+  valid_duration "$duration" || return 1
+  printf 'ulimit -f 65536 || exit 70; exec /system/bin/timeout -s INT -k 3 %ss /system/bin/logcat -b radio -v threadtime -T 1 -m %s' \
+    "$duration" "$RADIO_LOG_MAX_LINES"
+}
+
+command_radio_log() {
+  require_target
+  require_root
+  local duration="${1:-$DEFAULT_CAPTURE_SECONDS}"
+  [[ $# -le 1 ]] || die 'usage: radio-diagnostics radio-log [SECONDS]'
+  valid_duration "$duration" || die "duration must be an integer from 1 through $MAX_CAPTURE_SECONDS"
+
+  local bundle
+  bundle="$(new_bundle radio-log)"
+  local output="${bundle}/radio.log"
+  local errors="${bundle}/capture.stderr"
+  [[ -x "$ANDROID_TIMEOUT" ]] || die 'Android Toybox timeout is required for bounded capture'
+  ensure_free_space $((64 * 1024 * 1024))
+  local root_capture_script
+  root_capture_script="$(build_radio_capture_script "$duration")" ||
+    die 'could not construct bounded root capture command'
+
+  local result=0
+  set +e
+  # Timeout and logcat must share UID 0. A Termux-owned timeout cannot signal a
+  # child after KernelSU transitions that child to root. The validated duration
+  # and fixed command are the only values placed in this root shell script.
+  root_shell "$root_capture_script" > "$output" 2> "$errors"
+  result=$?
+  set -e
+
+  local completion
+  local capture_ok=1
+  case "$result" in
+    0) completion='line-limit-or-clean-exit' ;;
+    124|137) completion='duration-limit' ;;
+    *) completion='unexpected-error'; capture_ok=0 ;;
+  esac
+
+  {
+    printf 'duration_seconds=%s\n' "$duration"
+    printf 'line_limit=%s\n' "$RADIO_LOG_MAX_LINES"
+    printf 'file_limit_mib=64\n'
+    printf 'exit_status=%s\n' "$result"
+    printf 'completion=%s\n' "$completion"
+    printf 'bytes=%s\n' "$(stat -c '%s' -- "$output")"
+    printf 'sha256=%s\n' "$(sha256sum -- "$output" | awk '{print $1}')"
+    printf 'build_fingerprint=%s\n' "$(prop ro.build.fingerprint)"
+    printf 'captured_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "${bundle}/metadata.txt"
+
+  ((capture_ok == 1)) || die "radio log failed unexpectedly (status $result); see $errors"
+  [[ -s "$output" ]] || die "radio log capture produced no data; see $errors"
+  printf 'radio_log=%s\nexit_status=%s\n' "$output" "$result"
+}
+
+discover_sdm_files() {
+  local root
+  local found
+  for root in "${SDM_ROOTS[@]}"; do
+    found="$(root_shell "if test -d $(shell_quote "$root"); then /system/bin/find $(shell_quote "$root") -xdev -type f \\( -iname '*.sdm' -o -iname '*.sdm.gz' -o -iname '*.qmdl' -o -iname '*.qmdl.gz' -o -iname '*.lpd' \\) -print 2>/dev/null; fi" || true)"
+    [[ -z "$found" ]] || printf '%s\n' "$found"
+  done | awk 'NF && !seen[$0]++'
+}
+
+validate_sdm_source() {
+  local requested="$1"
+  local resolved
+  resolved="$(root_realpath "$requested")" || return 1
+  forbidden_source_path "$resolved" && return 1
+  under_one_of "$resolved" "${SDM_ROOTS[@]}" || return 1
+  case "${resolved,,}" in
+    *.sdm|*.sdm.gz|*.qmdl|*.qmdl.gz|*.lpd) ;;
+    *) return 1 ;;
+  esac
+  root_shell "test -f $(shell_quote "$resolved") && test ! -b $(shell_quote "$resolved") && test ! -c $(shell_quote "$resolved")" || return 1
+  printf '%s\n' "$resolved"
+}
+
+command_list_sdm() {
+  require_target
+  require_root
+  [[ $# == 0 ]] || die 'usage: radio-diagnostics list-sdm'
+
+  local count=0
+  local source
+  local resolved
+  printf 'size_bytes\tmtime_epoch\tmode\tuid\tgid\tpath\n'
+  while IFS= read -r source; do
+    [[ -n "$source" ]] || continue
+    resolved="$(validate_sdm_source "$source")" || continue
+    printf '%s\t%s\n' "$(root_stat_line "$resolved" | tr '|' '\t')" "$resolved"
+    ((count += 1))
+  done < <(discover_sdm_files)
+  note "eligible_files=$count"
+}
+
+sanitize_name() {
+  printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'
+}
+
+command_export_sdm() {
+  require_target
+  require_root
+  [[ $# == 0 ]] || die 'usage: radio-diagnostics export-sdm'
+
+  local bundle
+  bundle="$(new_bundle sdm-export)"
+  mkdir -- "${bundle}/files"
+  local manifest="${bundle}/manifest.tsv"
+  printf 'index\tsize_bytes\tsha256\tsource\tcopy\n' > "$manifest"
+
+  local max_file_bytes=$((SDM_MAX_FILE_MIB * 1024 * 1024))
+  local max_total_bytes=$((SDM_MAX_TOTAL_MIB * 1024 * 1024))
+  local total=0
+  local exported=0
+  local skipped=0
+  local source
+  local resolved
+  local stat_line
+  local size
+  local index
+  local name
+  local destination
+  local copy_hash
+
+  while IFS= read -r source; do
+    [[ -n "$source" ]] || continue
+    resolved="$(validate_sdm_source "$source")" || { ((skipped += 1)); continue; }
+    stat_line="$(root_stat_line "$resolved")"
+    size="${stat_line%%|*}"
+    [[ "$size" =~ ^[0-9]+$ ]] || { ((skipped += 1)); continue; }
+    if ((size == 0 || size > max_file_bytes || total + size > max_total_bytes)); then
+      note "skipping size-limited dump: $resolved ($size bytes)"
+      ((skipped += 1))
+      continue
+    fi
+
+    index="$(printf '%04d' "$((exported + 1))")"
+    name="$(sanitize_name "${resolved##*/}")"
+    destination="${bundle}/files/${index}-${name}"
+    local before_hash
+    local after_hash
+    local after_size
+    before_hash="$(root_sha256_prefix "$resolved" "$size")"
+    copy_from_root "$resolved" "$destination" "$size" "$max_file_bytes"
+    copy_hash="$(sha256sum -- "$destination" | awk '{print $1}')"
+    after_size="$(root_file_size "$resolved")"
+    after_hash="$(root_sha256_prefix "$resolved" "$size")"
+    if [[ "$after_size" != "$size" || "$before_hash" != "$copy_hash" || "$after_hash" != "$copy_hash" ]]; then
+      note "source changed during copy; excluding unstable artifact: $resolved"
+      rm -f -- "$destination"
+      ((skipped += 1))
+      continue
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\n' "$index" "$size" "$copy_hash" "$resolved" "$destination" >> "$manifest"
+    total=$((total + size))
+    ((exported += 1))
+  done < <(discover_sdm_files)
+
+  ((exported > 0)) || die "no eligible vendor dumps were exported; empty bundle retained: $bundle"
+  printf 'bundle=%s\nexported=%s\nskipped=%s\nbytes=%s\n' "$bundle" "$exported" "$skipped" "$total"
+}
+
+private_input_path() {
+  local requested="$1"
+  local resolved
+  resolved="$(readlink -f -- "$requested")" || return 1
+  [[ -f "$resolved" && ! -L "$requested" ]] || return 1
+  forbidden_source_path "$resolved" && return 1
+  case "$resolved" in
+    "$PRIVATE_ROOT"/*) ;;
+    *) return 1 ;;
+  esac
+  printf '%s\n' "$resolved"
+}
+
+valid_layers() {
+  local value="$1"
+  [[ -n "$value" && "$value" != ,* && "$value" != *, && "$value" != *,,* ]] || return 1
+  local old_ifs="$IFS"
+  local layer
+  IFS=,
+  for layer in $value; do
+    case "$layer" in
+      ip|nas|rrc|pdcp|rlc|mac|qmi) ;;
+      *) IFS="$old_ifs"; return 1 ;;
+    esac
+  done
+  IFS="$old_ifs"
+  [[ -n "$value" ]]
+}
+
+safe_model_name() {
+  [[ "$1" =~ ^[A-Za-z0-9._+-]{1,64}$ ]]
+}
+
+scat_supports_modem_file() {
+  local help_text
+  help_text="$("$1" --help 2>&1)" || return 1
+  [[ "$help_text" == *--modem-file* ]]
+}
+
+command_parse_scat() {
+  require_target
+  [[ $# -ge 2 ]] || die 'usage: radio-diagnostics parse-scat TYPE DUMP [OPTIONS]'
+  local type="$1"
+  local requested_dump="$2"
+  shift 2
+  case "$type" in qc|sec|hisi) ;; *) die 'TYPE must be qc, sec, or hisi' ;; esac
+
+  local model=''
+  local layers='nas,rrc'
+  local gsmtapv3=0
+  local trace=0
+  local requested_modem=''
+  while (($#)); do
+    case "$1" in
+      --model)
+        [[ $# -ge 2 ]] || die '--model requires a value'
+        model="$2"
+        shift 2
+        ;;
+      --layers)
+        [[ $# -ge 2 ]] || die '--layers requires a value'
+        layers="$2"
+        shift 2
+        ;;
+      --gsmtapv3)
+        gsmtapv3=1
+        shift
+        ;;
+      --trace)
+        trace=1
+        shift
+        ;;
+      --modem-file)
+        [[ $# -ge 2 ]] || die '--modem-file requires a path'
+        requested_modem="$2"
+        shift 2
+        ;;
+      *) die "unsupported SCAT option: $1" ;;
+    esac
+  done
+
+  [[ -z "$model" ]] || safe_model_name "$model" || die 'unsafe model name'
+  [[ -z "$model" || "$type" == sec ]] || die '--model is available only for TYPE sec'
+  valid_layers "$layers" || die 'invalid --layers list'
+  if ((trace)); then
+    [[ "$type" == sec ]] || die '--trace is available only for TYPE sec'
+    [[ -n "$requested_modem" ]] || die '--trace requires --modem-file from mirror-firmware'
+  elif [[ -n "$requested_modem" ]]; then
+    die '--modem-file requires --trace'
+  fi
+
+  local scat_bin="${SCRIPT_DIR}/.venv/bin/scat"
+  [[ -x "$scat_bin" ]] || die "SCAT is not installed at $scat_bin; see README.md"
+  scat_provenance_matches ||
+    die "SCAT provenance does not match pinned commit $SCAT_EXPECTED_COMMIT"
+  if ((trace)) && ! scat_supports_modem_file "$scat_bin"; then
+    die 'installed SCAT lacks --modem-file; reinstall the pinned upstream commit from requirements-scat.txt'
+  fi
+  local dump
+  dump="$(private_input_path "$requested_dump")" || die 'DUMP must be a regular file inside the private no_backup artifact root'
+  case "$type:${dump,,}" in
+    qc:*.qmdl|qc:*.qmdl.gz|sec:*.sdm|sec:*.sdm.gz|hisi:*.lpd) ;;
+    *) die "dump extension does not match TYPE $type" ;;
+  esac
+  local dump_size
+  local maximum_dump_bytes=$((SDM_MAX_FILE_MIB * 1024 * 1024))
+  dump_size="$(stat -c '%s' -- "$dump")"
+  [[ "$dump_size" =~ ^[0-9]+$ ]] || die 'could not read dump size'
+  ((dump_size > 0 && dump_size <= maximum_dump_bytes)) ||
+    die "dump exceeds the ${SDM_MAX_FILE_MIB} MiB parser input limit"
+
+  local modem=''
+  if [[ -n "$requested_modem" ]]; then
+    modem="$(private_input_path "$requested_modem")" || die 'modem mirror must be a regular file inside the private no_backup artifact root'
+    [[ "${modem##*/}" == modem.bin ]] || die 'modem mirror must be named modem.bin'
+  fi
+
+  local bundle
+  bundle="$(new_bundle scat-parse)"
+  [[ -x "$ANDROID_TIMEOUT" ]] || die 'Android Toybox timeout is required for bounded parsing'
+  ensure_free_space $((SCAT_MAX_OUTPUT_MIB * 2 * 1024 * 1024))
+  local pcap="${bundle}/decoded.pcap"
+  local log="${bundle}/parser.log"
+  local -a args=(-t "$type" -d "$dump" -F "$pcap" -L "$layers")
+  [[ -z "$model" ]] || args+=(--model "$model")
+  ((gsmtapv3 == 0)) || args+=(--gsmtapv3)
+  if ((trace)); then
+    args+=(--trace --modem-file "$modem")
+  fi
+
+  # -F selects SCAT's file writer. No hostname, port, USB, or serial option is
+  # accepted by this wrapper, so parsing remains local and offline.
+  local result=0
+  set +e
+  (
+    ulimit -f $((SCAT_MAX_OUTPUT_MIB * 1024))
+    "$ANDROID_TIMEOUT" -s TERM -k 5 "${SCAT_MAX_SECONDS}s" "$scat_bin" "${args[@]}"
+  ) > "$log" 2>&1
+  result=$?
+  set -e
+  [[ "$result" == 0 ]] || die "SCAT failed or reached a safety limit (status $result); see $log"
+  [[ -f "$pcap" ]] || die "SCAT did not create a PCAP; see $log"
+  [[ "$(path_mode "$pcap")" == 600 && "$(path_mode "$log")" == 600 ]] ||
+    die 'SCAT output mode verification failed'
+  {
+    printf 'type=%s\n' "$type"
+    printf 'dump=%s\n' "$dump"
+    printf 'dump_sha256=%s\n' "$(sha256sum -- "$dump" | awk '{print $1}')"
+    printf 'pcap_sha256=%s\n' "$(sha256sum -- "$pcap" | awk '{print $1}')"
+    printf 'layers=%s\n' "$layers"
+    printf 'runtime_limit_seconds=%s\n' "$SCAT_MAX_SECONDS"
+    printf 'per_file_limit_mib=%s\n' "$SCAT_MAX_OUTPUT_MIB"
+    printf 'scat_version=%s\n' "$("$scat_bin" -V 2>&1 || true)"
+    printf 'parsed_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "${bundle}/metadata.txt"
+  printf 'pcap=%s\nparser_log=%s\n' "$pcap" "$log"
+}
+
+assert_test() {
+  local description="$1"
+  shift
+  if "$@"; then
+    printf 'ok - %s\n' "$description"
+  else
+    printf 'not ok - %s\n' "$description" >&2
+    return 1
+  fi
+}
+
+radio_capture_script_is_safe() {
+  local script
+  script="$(build_radio_capture_script 2)" || return 1
+  [[ "$script" == 'ulimit -f 65536 || exit 70; exec /system/bin/timeout -s INT -k 3 2s /system/bin/logcat -b radio -v threadtime -T 1 -m 50000' ]]
+}
+
+timeout_cleanup_probe() {
+  local pid_file
+  pid_file="$(mktemp "${TMPDIR:-/tmp}/ostadix-timeout-pid.XXXXXX")"
+  local child_pid=''
+  local result=0
+  set +e
+  "$ANDROID_TIMEOUT" -s INT -k 1 0.1 /system/bin/sh -c \
+    'printf "%s\n" "$$" > "$1"; trap "" INT; exec /system/bin/sleep 5.123' \
+    ostadix-timeout-probe "$pid_file" >/dev/null 2>&1
+  result=$?
+  set -e
+  child_pid="$(<"$pid_file")"
+  rm -f -- "$pid_file"
+
+  [[ "$result" == 124 || "$result" == 137 ]] || return 1
+  [[ "$child_pid" =~ ^[0-9]+$ ]] || return 1
+  ! kill -0 "$child_pid" 2>/dev/null
+}
+
+command_self_test() {
+  local failures=0
+  assert_test 'accepts the exact audited system/vendor/radio identity' fingerprint_matches \
+    "$EXPECTED_FINGERPRINT" "$EXPECTED_VENDOR_FINGERPRINT" \
+    "$EXPECTED_RELEASE" "$EXPECTED_BUILD_ID" "$EXPECTED_DEVICE" \
+    "$EXPECTED_HARDWARE_SKU" "$EXPECTED_SECURITY_PATCH" "$EXPECTED_BASEBAND" ||
+    ((failures += 1))
+  if fingerprint_matches \
+    "$EXPECTED_FINGERPRINT" \
+    'google/blazer/blazer:17/CP2A.260805.005/other:user/release-keys' \
+    "$EXPECTED_RELEASE" "$EXPECTED_BUILD_ID" "$EXPECTED_DEVICE" \
+    "$EXPECTED_HARDWARE_SKU" "$EXPECTED_SECURITY_PATCH" "$EXPECTED_BASEBAND"; then
+    printf 'not ok - rejects a mismatched vendor slot\n' >&2
+    ((failures += 1))
+  else
+    printf 'ok - rejects a mismatched vendor slot\n'
+  fi
+  assert_test 'accepts the 300-second maximum' valid_duration 300 || ((failures += 1))
+  if valid_duration 301; then
+    printf 'not ok - rejects a capture over 300 seconds\n' >&2
+    ((failures += 1))
+  else
+    printf 'ok - rejects a capture over 300 seconds\n'
+  fi
+  if valid_duration 18446744073709551617; then
+    printf 'not ok - rejects an overflowing duration string\n' >&2
+    ((failures += 1))
+  else
+    printf 'ok - rejects an overflowing duration string\n'
+  fi
+  assert_test 'constructs a fixed same-UID root timeout command' radio_capture_script_is_safe ||
+    ((failures += 1))
+  assert_test 'Toybox timeout escalates and reaps an uncooperative child' timeout_cleanup_probe ||
+    ((failures += 1))
+  assert_test 'rejects device-node sources' forbidden_source_path /dev/diag || ((failures += 1))
+  assert_test 'accepts safe layer names' valid_layers ip,nas,rrc || ((failures += 1))
+  if valid_layers 'nas,,rrc'; then
+    printf 'not ok - rejects empty SCAT layer fields\n' >&2
+    ((failures += 1))
+  else
+    printf 'ok - rejects empty SCAT layer fields\n'
+  fi
+  if valid_layers 'ip,evil'; then
+    printf 'not ok - rejects unknown SCAT layers\n' >&2
+    ((failures += 1))
+  else
+    printf 'ok - rejects unknown SCAT layers\n'
+  fi
+
+  local test_dir
+  test_dir="$(mktemp -d "${TMPDIR:-/tmp}/ostadix-radio-test.XXXXXX")"
+  local test_file="${test_dir}/private"
+  : > "$test_file"
+  if [[ "$(path_mode "$test_file")" == 600 ]]; then
+    printf 'ok - umask creates mode-0600 artifacts\n'
+  else
+    printf 'not ok - umask creates mode-0600 artifacts\n' >&2
+    ((failures += 1))
+  fi
+  rm -f -- "$test_file"
+  rmdir -- "$test_dir"
+
+  ((failures == 0)) || die "$failures self-test(s) failed"
+  printf 'all self-tests passed; no logging service or device endpoint was touched\n'
+}
+
+main() {
+  local command="${1:-}"
+  [[ -n "$command" ]] || { usage; exit 1; }
+  shift || true
+  case "$command" in
+    status) [[ $# == 0 ]] || die 'status takes no arguments'; command_status ;;
+    capabilities) [[ $# == 0 ]] || die 'capabilities takes no arguments'; command_capabilities ;;
+    mirror-firmware) command_mirror_firmware "$@" ;;
+    radio-log) command_radio_log "$@" ;;
+    list-sdm) command_list_sdm "$@" ;;
+    export-sdm) command_export_sdm "$@" ;;
+    parse-scat) command_parse_scat "$@" ;;
+    self-test) [[ $# == 0 ]] || die 'self-test takes no arguments'; command_self_test ;;
+    -h|--help|help) usage ;;
+    *) die "unknown command: $command" ;;
+  esac
+}
+
+main "$@"

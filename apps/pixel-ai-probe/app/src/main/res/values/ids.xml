@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="probe_prompt" type="id" />
+    <item name="probe_summary" type="id" />
+    <item name="probe_image" type="id" />
+    <item name="probe_speech" type="id" />
+    <item name="probe_clear" type="id" />
+    <item name="probe_output" type="id" />
+</resources>
+

@@ -6,12 +6,15 @@
 //! modules directly; none of those implementations live in the `o-lang`
 //! compatibility shell.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
+use crate::executor::CancellationToken;
 use crate::ir::BackendRegistry;
+use crate::ir::OIrProgram;
 
 #[doc(hidden)]
 pub mod aot_source;
@@ -140,6 +143,115 @@ pub struct Runtime {
     evaluator: Evaluator,
 }
 
+/// Bounds applied before an embedding request enters the evaluator.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RuntimeRequestLimits {
+    pub max_source_bytes: usize,
+    pub max_bindings: usize,
+    /// Maximum canonical-CBOR bytes across all binding names and values.
+    pub max_binding_bytes: usize,
+    pub deadline: Option<Instant>,
+}
+
+impl Default for RuntimeRequestLimits {
+    fn default() -> Self {
+        Self {
+            max_source_bytes: 64 * 1024,
+            max_bindings: 64,
+            max_binding_bytes: 1024 * 1024,
+            deadline: None,
+        }
+    }
+}
+
+/// Caller-owned, request-private input to the canonical O evaluator.
+///
+/// `caller_id` and `request_id` are opaque audit correlation values. They are
+/// never injected into O scope, persisted, or used as authority.
+#[derive(Clone, Debug)]
+pub struct RuntimeRequest {
+    pub caller_id: String,
+    pub request_id: String,
+    pub source: String,
+    pub bindings: HashMap<String, OValue>,
+    pub limits: RuntimeRequestLimits,
+    pub cancellation: CancellationToken,
+}
+
+/// Canonical preflight output retained by the request owner until execution.
+#[derive(Debug)]
+pub struct PreparedRuntimeRequest {
+    caller_id: String,
+    request_id: String,
+    program: OIrProgram,
+    bindings: HashMap<String, OValue>,
+    limits: RuntimeRequestLimits,
+    cancellation: CancellationToken,
+    plan_nodes: usize,
+    hgraph_nodes: usize,
+    hgraph_exec_edges: usize,
+    source_sha256: String,
+    execution_intent_sha256: String,
+    request_scope_content_identity: String,
+}
+
+impl PreparedRuntimeRequest {
+    pub fn caller_id(&self) -> &str {
+        &self.caller_id
+    }
+    pub fn request_id(&self) -> &str {
+        &self.request_id
+    }
+    pub const fn plan_nodes(&self) -> usize {
+        self.plan_nodes
+    }
+    pub const fn hgraph_nodes(&self) -> usize {
+        self.hgraph_nodes
+    }
+    pub const fn hgraph_exec_edges(&self) -> usize {
+        self.hgraph_exec_edges
+    }
+    pub fn source_sha256(&self) -> &str {
+        &self.source_sha256
+    }
+    pub fn execution_intent_sha256(&self) -> &str {
+        &self.execution_intent_sha256
+    }
+    pub fn request_scope_content_identity(&self) -> &str {
+        &self.request_scope_content_identity
+    }
+}
+
+/// Authority-free identities proving which canonical OSTADIX execution was
+/// admitted and which typed value it produced. These fields do not grant
+/// backend authority and deliberately contain no caller or prompt text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeExecutionEvidenceV1 {
+    pub source_sha256: String,
+    pub execution_intent_sha256: String,
+    pub request_scope_content_identity: String,
+    pub oir_sha256: String,
+    pub plan_sha256: String,
+    pub analyzed_graph_sha256: String,
+    pub evidence_sha256: String,
+    pub admitted_graph_sha256: String,
+    pub admission_sha256: String,
+    pub result_content_identity: String,
+}
+
+/// Typed result plus structural proof that execution used canonical lowering.
+#[derive(Clone, Debug)]
+pub struct RuntimeRequestResult {
+    pub caller_id: String,
+    pub request_id: String,
+    pub value: OValue,
+    pub plan_nodes: usize,
+    pub hgraph_nodes: usize,
+    pub hgraph_exec_edges: usize,
+    pub elapsed: Duration,
+    pub evidence: RuntimeExecutionEvidenceV1,
+}
+
 impl Runtime {
     /// Construct a runtime over the caller-selected backend-shim directory.
     pub fn new(shim_dir: impl Into<PathBuf>) -> Self {
@@ -162,6 +274,33 @@ impl Runtime {
         self
     }
 
+    /// Bind backend proxy launches to one caller-owned native O executable.
+    ///
+    /// The evaluator opens, hashes, and retains the admitted executable; it is
+    /// not rediscovered through PATH for each request. Generic embedding hosts
+    /// that execute hosted backends must set this because their own executable
+    /// normally does not implement O's private `--o-backend` entry point.
+    pub fn with_runtime_executable(mut self, executable: impl Into<PathBuf>) -> Self {
+        self.evaluator = self.evaluator.with_runtime_executable(executable.into());
+        self
+    }
+
+    /// Bind a backend catalog command to an embedding-owned executable.
+    ///
+    /// The executable remains subject to ordinary content hashing, admission,
+    /// retained-file identity checks, and per-dispatch freshness validation.
+    /// An explicit O runtime executable is also required for shim execution.
+    pub fn with_backend_executable(
+        mut self,
+        logical_command: impl Into<String>,
+        executable: impl Into<PathBuf>,
+    ) -> Self {
+        self.evaluator = self
+            .evaluator
+            .with_backend_executable(logical_command, executable.into());
+        self
+    }
+
     /// Parse and evaluate one complete O source document. A leading shebang
     /// is excluded from executable syntax by the same rule as the O CLI. Each
     /// call receives a fresh lexical scope, while this owned runtime retains
@@ -175,6 +314,172 @@ impl Runtime {
             .eval_document(nodes)
             .map_err(|error| RuntimeError::new(RuntimeStage::Evaluate, format!("{error:#}")))
     }
+
+    /// Parse, lower, validate, and project one request without executing it.
+    pub fn prepare_request(
+        &self,
+        request: RuntimeRequest,
+    ) -> Result<PreparedRuntimeRequest, RuntimeError> {
+        if request.source.len() > request.limits.max_source_bytes {
+            return Err(RuntimeError::new(
+                RuntimeStage::Parse,
+                format!(
+                    "source is {} bytes; request limit is {}",
+                    request.source.len(),
+                    request.limits.max_source_bytes
+                ),
+            ));
+        }
+        if request.bindings.len() > request.limits.max_bindings {
+            return Err(RuntimeError::new(
+                RuntimeStage::Parse,
+                format!(
+                    "request has {} bindings; request limit is {}",
+                    request.bindings.len(),
+                    request.limits.max_bindings
+                ),
+            ));
+        }
+        let binding_bytes =
+            crate::wire::encoded_message_len(&request.bindings).map_err(|error| {
+                RuntimeError::new(
+                    RuntimeStage::Parse,
+                    format!("cannot measure canonical request bindings: {error:#}"),
+                )
+            })?;
+        if binding_bytes > request.limits.max_binding_bytes {
+            return Err(RuntimeError::new(
+                RuntimeStage::Parse,
+                format!(
+                    "request bindings are {binding_bytes} canonical bytes; request limit is {}",
+                    request.limits.max_binding_bytes
+                ),
+            ));
+        }
+        let request_scope_content_identity =
+            OValue::scope(request.bindings.clone()).content_identity();
+        check_request_control(&request.cancellation, request.limits.deadline)?;
+        let source = strip_initial_shebang(&request.source);
+        let nodes = Parser::new(source, &self.backends)
+            .parse()
+            .map_err(|error| RuntimeError::new(RuntimeStage::Parse, format!("{error:#}")))?;
+        let program = OIrProgram::lower(&nodes);
+        let plan = program.plan();
+        plan.validate(program.nodes.len())
+            .map_err(|error| RuntimeError::new(RuntimeStage::Parse, error))?;
+        let mut graph = program
+            .hgraph_for_plan(&plan)
+            .map_err(|error| RuntimeError::new(RuntimeStage::Parse, error))?;
+        crate::hgraph::solve::solve_types(&mut graph).map_err(|error| {
+            RuntimeError::new(
+                RuntimeStage::Parse,
+                format!("failed to solve request HGraph: {error:#}"),
+            )
+        })?;
+        crate::hgraph::try_schedule(&graph)
+            .map_err(|error| RuntimeError::new(RuntimeStage::Parse, error))?;
+        let intent = crate::evidence::ExecutionIntentV1::compile(
+            source.as_bytes(),
+            &program,
+            &plan,
+            &graph,
+            Policy::Eager,
+        )
+        .map_err(|error| {
+            RuntimeError::new(
+                RuntimeStage::Parse,
+                format!("failed to identify canonical request intent: {error:#}"),
+            )
+        })?;
+        Ok(PreparedRuntimeRequest {
+            caller_id: request.caller_id,
+            request_id: request.request_id,
+            program,
+            bindings: request.bindings,
+            limits: request.limits,
+            cancellation: request.cancellation,
+            plan_nodes: plan.nodes.len(),
+            hgraph_nodes: graph.nodes.len(),
+            hgraph_exec_edges: graph.exec_edges.len(),
+            source_sha256: intent.source_sha256,
+            execution_intent_sha256: intent.execution_intent_sha256,
+            request_scope_content_identity,
+        })
+    }
+
+    /// Execute a preflighted request with a fresh, request-private scope.
+    ///
+    /// Cancellation and deadlines are checked before and after evaluator entry.
+    /// Backends already running at cancellation time remain governed by their
+    /// own admitted process/resource limits; this method does not pretend that
+    /// a Rust thread can safely be killed asynchronously.
+    pub fn execute_request(
+        &mut self,
+        mut request: PreparedRuntimeRequest,
+    ) -> Result<RuntimeRequestResult, RuntimeError> {
+        check_request_control(&request.cancellation, request.limits.deadline)?;
+        let started = Instant::now();
+        let value = self
+            .evaluator
+            .eval_ir_program_graph_with_scope_controlled_required(
+                &request.program,
+                &mut request.bindings,
+                request.cancellation.clone(),
+                request.limits.deadline,
+                &request.source_sha256,
+                &request.execution_intent_sha256,
+            )
+            .map_err(|error| RuntimeError::new(RuntimeStage::Evaluate, format!("{error:#}")))?;
+        check_request_control(&request.cancellation, request.limits.deadline)?;
+        let admission = self.evaluator.last_execution_admission().ok_or_else(|| {
+            RuntimeError::new(
+                RuntimeStage::Evaluate,
+                "execution completed without V6 admission evidence",
+            )
+        })?;
+        let bindings = admission.bindings();
+        let evidence = RuntimeExecutionEvidenceV1 {
+            source_sha256: request.source_sha256,
+            execution_intent_sha256: request.execution_intent_sha256,
+            request_scope_content_identity: request.request_scope_content_identity,
+            oir_sha256: bindings.oir_sha256.clone(),
+            plan_sha256: bindings.plan_sha256.clone(),
+            analyzed_graph_sha256: bindings.analyzed_graph_sha256.clone(),
+            evidence_sha256: admission.evidence_sha256().to_string(),
+            admitted_graph_sha256: admission.admitted_graph_sha256().to_string(),
+            admission_sha256: admission.admission_sha256().to_string(),
+            result_content_identity: value.content_identity(),
+        };
+        Ok(RuntimeRequestResult {
+            caller_id: request.caller_id,
+            request_id: request.request_id,
+            value,
+            plan_nodes: request.plan_nodes,
+            hgraph_nodes: request.hgraph_nodes,
+            hgraph_exec_edges: request.hgraph_exec_edges,
+            elapsed: started.elapsed(),
+            evidence,
+        })
+    }
+}
+
+fn check_request_control(
+    cancellation: &CancellationToken,
+    deadline: Option<Instant>,
+) -> Result<(), RuntimeError> {
+    if cancellation.is_cancelled() {
+        return Err(RuntimeError::new(
+            RuntimeStage::Evaluate,
+            "request cancelled",
+        ));
+    }
+    if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+        return Err(RuntimeError::new(
+            RuntimeStage::Evaluate,
+            "request deadline exceeded",
+        ));
+    }
+    Ok(())
 }
 
 fn strip_initial_shebang(source: &str) -> &str {

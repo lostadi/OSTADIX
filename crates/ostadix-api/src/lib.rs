@@ -59,6 +59,7 @@ pub mod world;
 pub use api::{
     BackendAuthority, BigInt, CapabilityKind, DecimalSpecial, FloatFormat, FloatSpecial, GraphNode,
     GroupMode, NativeBoundary, NativeCodecSafety, NativeIdentity, NodeId, OBytes, OKeyword,
-    ONative, ONumber, OSymbol, OText, OValue, RehydratePolicy, RequestKind, Runtime,
-    RuntimeBoundary, RuntimeError, RuntimeStage, SeqKind, SetKind, SnapshotKind,
+    ONative, ONumber, OSymbol, OText, OValue, PreparedRuntimeRequest, RehydratePolicy, RequestKind,
+    Runtime, RuntimeBoundary, RuntimeError, RuntimeExecutionEvidenceV1, RuntimeRequest,
+    RuntimeRequestLimits, RuntimeRequestResult, RuntimeStage, SeqKind, SetKind, SnapshotKind,
 };

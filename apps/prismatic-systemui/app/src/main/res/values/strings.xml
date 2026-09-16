@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Prismatic SystemUI Glass</string>
+    <string name="module_description">Separately consent-gated glass highlights for audited Pixel SystemUI surfaces.</string>
+</resources>
+

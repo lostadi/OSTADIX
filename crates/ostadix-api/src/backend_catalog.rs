@@ -865,6 +865,32 @@ impl SyntaxDialect for std::collections::HashSet<String> {
         self.contains(name)
     }
 
+    fn match_registered_syntax_tag<'source>(&self, source: &'source str) -> Option<&'source str> {
+        let source_bytes = source.as_bytes();
+        // The boundary check makes valid matches mutually exclusive even when
+        // one registered tag is an identifier prefix of another.
+        let matched_len = self.iter().find_map(|tag| {
+            let tag_bytes = tag.as_bytes();
+            if !source_bytes.starts_with(tag_bytes) {
+                return None;
+            }
+            let is_identifier = tag_bytes
+                .first()
+                .is_some_and(|byte| byte.is_ascii_alphabetic() || *byte == b'_')
+                && tag_bytes[1..]
+                    .iter()
+                    .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+            if !is_identifier {
+                return None;
+            }
+
+            let next = source_bytes.get(tag_bytes.len()).copied();
+            (!next.is_some_and(|byte| byte.is_ascii_alphanumeric() || byte == b'_'))
+                .then_some(tag_bytes.len())
+        })?;
+        source.get(..matched_len)
+    }
+
     fn canonical_syntax_name(&self, name: &str) -> String {
         BackendRegistry::global().canonical(name).to_owned()
     }

@@ -13,6 +13,9 @@ TERMUX_PREFIX=${TERMUX_PREFIX:-/data/data/com.termux/files/usr}
 TERMUX_LIB="$TERMUX_PREFIX/lib"
 TERMUX_DOC="$TERMUX_PREFIX/share/doc"
 BUNDLED_BASH_INPUT="$TERMUX_PREFIX/bin/bash"
+PINNED_LIBICONV_DEB=${OSTADIX_LIBICONV_DEB:-$HOME/../../cache/apt/archives/libiconv_1.18-1_aarch64.deb}
+PINNED_LIBICONV_DEB_SHA256=b19e6f348034bb48d2a5590b5cb242769f682c476717374d134d004cc663dc84
+PINNED_LIBICONV_SHA256=53349c7a84ad06da53c3976754c742d6a79f3297562f0fbe61b7ee620f783667
 ANDROID_BUILD_JOBS=${OSTADIX_ANDROID_BUILD_JOBS:-6}
 ANDROID_CPU_PROFILE=${OSTADIX_ANDROID_CPU_PROFILE:-portable}
 case "$ANDROID_CPU_PROFILE" in
@@ -41,7 +44,7 @@ require_tool() {
     }
 }
 
-for tool in aapt2 apksigner cargo clang d8 env jar java javac keytool ld.lld python3 readelf sha256sum; do
+for tool in aapt2 apksigner cargo clang d8 dpkg-deb env jar java javac keytool ld.lld python3 readelf sha256sum; do
     require_tool "$tool"
 done
 
@@ -127,10 +130,38 @@ cp "$REPO_ROOT/target/release/O" \
 echo "[3/10] Staging the standalone GNU Bash runtime"
 READLINE_SOURCE=$(readlink -f "$TERMUX_LIB/libreadline.so.8")
 NCURSESW_SOURCE=$(readlink -f "$TERMUX_LIB/libncursesw.so.6")
+LIBICONV_SOURCE="$TERMUX_LIB/libiconv.so"
+LIBICONV_DOC_SOURCE="$TERMUX_DOC/libiconv"
+installed_libiconv_sha256=
+if [[ -f "$LIBICONV_SOURCE" ]]; then
+    installed_libiconv_sha256=$(sha256sum "$LIBICONV_SOURCE")
+    installed_libiconv_sha256=${installed_libiconv_sha256%% *}
+fi
+if [[ "$installed_libiconv_sha256" != "$PINNED_LIBICONV_SHA256" ]]; then
+    if [[ ! -f "$PINNED_LIBICONV_DEB" ]]; then
+        echo "Installed libiconv is not the pinned 1.18-1 input and its package is unavailable:" >&2
+        echo "  $PINNED_LIBICONV_DEB" >&2
+        echo "Set OSTADIX_LIBICONV_DEB to the verified libiconv_1.18-1_aarch64.deb." >&2
+        exit 1
+    fi
+    libiconv_deb_sha256=$(sha256sum "$PINNED_LIBICONV_DEB")
+    libiconv_deb_sha256=${libiconv_deb_sha256%% *}
+    if [[ "$libiconv_deb_sha256" != "$PINNED_LIBICONV_DEB_SHA256" ]]; then
+        echo "Pinned libiconv package hash mismatch: $PINNED_LIBICONV_DEB" >&2
+        echo "  expected $PINNED_LIBICONV_DEB_SHA256" >&2
+        echo "  actual   $libiconv_deb_sha256" >&2
+        exit 1
+    fi
+    PINNED_LIBICONV_ROOT="$INTERMEDIATES/pinned-libiconv"
+    mkdir -p "$PINNED_LIBICONV_ROOT"
+    dpkg-deb -x "$PINNED_LIBICONV_DEB" "$PINNED_LIBICONV_ROOT"
+    LIBICONV_SOURCE="$PINNED_LIBICONV_ROOT$TERMUX_PREFIX/lib/libiconv.so"
+    echo "Using verified cached libiconv 1.18-1; installed Termux libiconv is unchanged."
+fi
 declare -A BUNDLED_BASH_INPUT_HASHES=(
     ["$BUNDLED_BASH_INPUT"]="0179c7b15fb3df857608ef745daa17077523ffc42b7755ccc725ad7a712698a2"
     ["$TERMUX_LIB/libandroid-support.so"]="739cf829511d71dafd6c67fdbb70f3f0c6048642ea2e1967790ee961fde14430"
-    ["$TERMUX_LIB/libiconv.so"]="53349c7a84ad06da53c3976754c742d6a79f3297562f0fbe61b7ee620f783667"
+    ["$LIBICONV_SOURCE"]="$PINNED_LIBICONV_SHA256"
     ["$READLINE_SOURCE"]="aab81ed5d196100e7b2c2a7606b2cba2cffef2395c3ef3e602dca804f9c6acba"
     ["$NCURSESW_SOURCE"]="795f855f5a988d9e89116847b2c9aa03720cedbc02026259ca735be25398c4c5"
 )
@@ -152,7 +183,7 @@ done
 BASH_PACKAGE_DIR="$INTERMEDIATES/package/lib/arm64-v8a"
 cp "$BUNDLED_BASH_INPUT" "$BASH_PACKAGE_DIR/libostadix_bash.so"
 cp "$TERMUX_LIB/libandroid-support.so" "$BASH_PACKAGE_DIR/libandroid-support.so"
-cp "$TERMUX_LIB/libiconv.so" "$BASH_PACKAGE_DIR/libiconv.so"
+cp "$LIBICONV_SOURCE" "$BASH_PACKAGE_DIR/libiconv.so"
 cp "$READLINE_SOURCE" "$BASH_PACKAGE_DIR/libreadline_8.so"
 cp "$NCURSESW_SOURCE" "$BASH_PACKAGE_DIR/libncursesw_6.so"
 
@@ -292,9 +323,9 @@ cp -L "$TERMUX_DOC/bash/copyright" \
     "$INTERMEDIATES/assets/licenses/GNU-Bash-GPL-3.0.txt"
 cp -L "$TERMUX_DOC/readline/copyright" \
     "$INTERMEDIATES/assets/licenses/GNU-Readline-GPL-3.0.txt"
-cp -L "$TERMUX_DOC/libiconv/copyright" \
+cp -L "$LIBICONV_DOC_SOURCE/copyright" \
     "$INTERMEDIATES/assets/licenses/GNU-libiconv-LGPL-2.1.txt"
-cp -L "$TERMUX_DOC/libiconv/copyright.1" \
+cp -L "$LIBICONV_DOC_SOURCE/copyright.1" \
     "$INTERMEDIATES/assets/licenses/GNU-libiconv-GPL-3.0.txt"
 cp -L "$TERMUX_DOC/ncurses/copyright" \
     "$INTERMEDIATES/assets/licenses/ncurses-LICENSE.txt"
@@ -390,8 +421,8 @@ aapt2 link \
     --java "$INTERMEDIATES/generated" \
     --min-sdk-version 28 \
     --target-sdk-version 34 \
-    --version-code 7 \
-    --version-name 0.1.6 \
+    --version-code 9 \
+    --version-name 0.1.8 \
     -A "$INTERMEDIATES/assets" \
     -R "$INTERMEDIATES/compiled-res/resources.zip" \
     --auto-add-overlay
@@ -431,7 +462,10 @@ env "LD_LIBRARY_PATH=$JNI_LIBRARY_DIR:$TERMUX_LIB" \
 env "LD_LIBRARY_PATH=$JNI_LIBRARY_DIR:$TERMUX_LIB" \
     java -Djava.library.path="$JNI_LIBRARY_DIR" \
     -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR" \
-    org.ostadix.terminal.RuntimeJniSmoke "$INTERMEDIATES/assets/backends"
+    org.ostadix.terminal.RuntimeJniSmoke \
+    "$INTERMEDIATES/assets/backends" \
+    "$CLI_SMOKE_ROOT/bin/O" \
+    "$CLI_SMOKE_ROOT/bin/bash"
 jar cf "$INTERMEDIATES/classes.jar" -C "$INTERMEDIATES/classes" .
 d8 \
     --min-api 28 \

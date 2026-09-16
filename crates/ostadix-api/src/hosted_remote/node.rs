@@ -15,7 +15,7 @@ use crate::runtime_exec::validate_native_runtime_binary;
 
 use super::fabric::{serve_fabric_stream_v1, FabricAttemptProviderV1};
 use super::protocol::{
-    canonical_hosted_bytes, canonical_hosted_sha256, read_hosted_frame, sha256_hex, unix_time_ms,
+    canonical_hosted_len, canonical_hosted_sha256, read_hosted_frame, sha256_hex, unix_time_ms,
     write_hosted_frame, HostedFailureStageV1, HostedOperationOutcomeV1, HostedOperationReceiptV1,
     HostedProtocolErrorV1, HostedRequestV1, HostedResponseV1, NodeDoctorCheckV1, NodeDoctorV1,
     NodeProfileV1, RemotePreparedOperationV1, NODE_DOCTOR_SCHEMA_V1,
@@ -239,20 +239,19 @@ impl HostedNodeRuntime {
                 "evaluation-failed",
                 format!("{error:#}"),
             ),
-            Ok(value) => match canonical_hosted_bytes(&value) {
+            Ok(value) => match canonical_hosted_len(&value) {
                 Err(error) => HostedOperationOutcomeV1::failed(
                     HostedFailureStageV1::Output,
                     "result-encoding-failed",
                     format!("{error:#}"),
                 ),
-                Ok(bytes) if bytes.len() > operation.output_limit_bytes as usize => {
+                Ok(len) if len > operation.output_limit_bytes as usize => {
                     HostedOperationOutcomeV1::failed(
                         HostedFailureStageV1::Output,
                         "result-too-large",
                         format!(
                             "serialized result length {} exceeds prepared output limit {}",
-                            bytes.len(),
-                            operation.output_limit_bytes
+                            len, operation.output_limit_bytes
                         ),
                     )
                 }

@@ -104,6 +104,14 @@ pub fn canonical_hosted_bytes<T: Serialize>(message: &T) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+pub(crate) fn canonical_hosted_len<T: Serialize>(message: &T) -> Result<usize> {
+    let len = crate::wire::encoded_message_len(message)?;
+    if len > MAX_HOSTED_FRAME_BYTES {
+        bail!("canonical hosted message length {len} exceeds maximum {MAX_HOSTED_FRAME_BYTES}");
+    }
+    Ok(len)
+}
+
 pub fn canonical_hosted_sha256<T: Serialize>(message: &T) -> Result<String> {
     Ok(hex::encode(Sha256::digest(canonical_hosted_bytes(
         message,

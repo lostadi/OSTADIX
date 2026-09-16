@@ -715,10 +715,11 @@ __oval_result__ = "unreachable"
         !run.output.status.success(),
         "a nonresponsive autonomous backend unexpectedly succeeded"
     );
+    let stderr = String::from_utf8_lossy(&run.output.stderr);
     assert!(
-        String::from_utf8_lossy(&run.output.stderr).contains("did not answer within"),
+        stderr.contains("did not answer within") || stderr.contains("operation exceeded 200 ms"),
         "bounded timeout was not reported\nstderr:\n{}",
-        String::from_utf8_lossy(&run.output.stderr)
+        stderr
     );
     let trace = fs::read_to_string(&run.trace_path).expect("read timeout lifecycle trace");
     assert!(trace.contains("outcome=infrastructure_failure"), "{trace}");
