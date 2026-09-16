@@ -9,6 +9,14 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- The primary MCP `o_run` operation now accepts a complete source document or
+  compatible path, offers a non-executing unified `mode=check`, and can require
+  existing authenticated project-mesh placement without local fallback. Mesh
+  responses attach the engine-produced placement trace; selected-node execution
+  remains whole-document submission. Neither lane claims general distributed
+  execution of ordinary OIR graphs. MCP cancellation now kills the complete
+  child process group so descendants cannot commit late side effects.
+
 - Experimental `OperationContractV1`, `OperationInterfaceV1`,
   `RealizationDescriptorV1`, and `RealizationSetV1` records add four bounded,
   canonical, independently domain-separated descriptions of one logical

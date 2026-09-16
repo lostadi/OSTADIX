@@ -1,6 +1,7 @@
 //! User-facing loopback gate for the bounded hosted-node preview.
 
 use std::fs;
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 #[cfg(unix)]
 use std::net::TcpStream;
@@ -8,6 +9,8 @@ use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
+
+use o_lang::hosted_remote::store_paired_lan_peer;
 
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
@@ -115,6 +118,115 @@ fn diagnostic(output: &Output, server_stderr: &Path) -> String {
     )
 }
 
+fn mcp_transact(
+    stdin: &mut impl Write,
+    stdout: &mut impl BufRead,
+    request: &serde_json::Value,
+) -> serde_json::Value {
+    serde_json::to_writer(&mut *stdin, request).unwrap();
+    stdin.write_all(b"\n").unwrap();
+    stdin.flush().unwrap();
+    let mut line = String::new();
+    stdout.read_line(&mut line).unwrap();
+    assert!(!line.is_empty(), "MCP closed stdout before replying");
+    serde_json::from_str(&line).unwrap()
+}
+
+fn run_mcp_direct_node_gate_if_configured(
+    root: &Path,
+    address: &str,
+    pki: &Path,
+    server_stderr: &Path,
+) {
+    let Some(mcp_binary) = std::env::var_os("OSTADIX_MCP_TEST_BIN") else {
+        return;
+    };
+    let config = root.join("mcp-config");
+    let peers = config.join("ostadix/peers");
+    let address = address.parse().unwrap();
+    store_paired_lan_peer(
+        &peers,
+        address,
+        "hosted-cli-test",
+        "localhost",
+        address.port(),
+        false,
+        &fs::read_to_string(pki.join("ca.pem")).unwrap(),
+        &fs::read_to_string(pki.join("client-cert.pem")).unwrap(),
+        &fs::read(pki.join("client-key.pem")).unwrap(),
+        None,
+    )
+    .unwrap();
+
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut child = Command::new(mcp_binary)
+        .current_dir(repository)
+        .env("O_LANG_ROOT", repository)
+        .env("O_BACKENDS_DIR", repository.join("backends"))
+        .env("OSTADIX_OCTL_BIN", env!("CARGO_BIN_EXE_octl"))
+        .env("XDG_CONFIG_HOME", &config)
+        .env("XDG_STATE_HOME", root.join("mcp-state"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let initialized = mcp_transact(
+        &mut stdin,
+        &mut stdout,
+        &serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18", "capabilities": {},
+                "clientInfo": {"name": "hosted-node-test", "version": "1"}
+            }
+        }),
+    );
+    assert_eq!(initialized["id"], 1);
+    serde_json::to_writer(
+        &mut stdin,
+        &serde_json::json!({
+            "jsonrpc": "2.0", "method": "notifications/initialized", "params": {}
+        }),
+    )
+    .unwrap();
+    stdin.write_all(b"\n").unwrap();
+    stdin.flush().unwrap();
+    let response = mcp_transact(
+        &mut stdin,
+        &mut stdout,
+        &serde_json::json!({
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": {
+                "name": "o_run",
+                "arguments": {
+                    "source": "python^(\n__oval_result__ = 21 * 2\n)_python\n",
+                    "placement": "node", "node_id": "hosted-cli-test",
+                    "timeout_secs": 30
+                }
+            }
+        }),
+    );
+    assert_ne!(
+        response["result"]["isError"],
+        true,
+        "MCP direct node failed: {response:#}\n{}",
+        fs::read_to_string(server_stderr).unwrap_or_default()
+    );
+    let structured = &response["result"]["structuredContent"];
+    assert_eq!(
+        structured["execution_mode"],
+        "selected_node_complete_document"
+    );
+    assert_eq!(structured["node_id"], "hosted-cli-test");
+    assert_eq!(structured["outcome"]["status"], "succeeded");
+    assert_eq!(structured["outcome"]["value"]["v"]["v"], "42");
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
 #[test]
 fn provision_profile_doctor_and_run_are_usable_end_to_end() {
     if !support::require_runtimes(&["openssl", "python3"]) {
@@ -219,6 +331,8 @@ fn provision_profile_doctor_and_run_are_usable_end_to_end() {
     assert_eq!(receipt["outcome"]["value"]["t"], "number");
     assert_eq!(receipt["outcome"]["value"]["v"]["v"], "2");
     assert_eq!(receipt["receipt_sha256"].as_str().unwrap().len(), 64);
+
+    run_mcp_direct_node_gate_if_configured(root.path(), &address, &pki, &server_stderr);
 }
 
 #[test]

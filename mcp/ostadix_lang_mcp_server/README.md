@@ -14,7 +14,7 @@ resolve an **absolute** `O_BACKENDS_DIR`, so relative `backends` and bare
 | `o_smoke` | `O examples/hello.O <absolute-backends>` — expect `2` |
 | `o_analyze_intent` | Nonexecutingly compute a stable execution intent and return a bounded, expiring, one-use opaque handle |
 | `o_execute_intent` | Consume that handle and require `O` to recompute the same source and execution-intent digests before fresh Graph V2/Evidence and Admission V6 dispatch |
-| `o_run` | Primary source-first execution: accept exactly one complete `.O` `source` or existing `path`, route local work through the unified project-aware front door, and return decoded value/project results as MCP structured content. Optional `route` resolves genuinely ambiguous projects. `placement=node` submits the complete document to one selected hosted node; it does not split a graph. |
+| `o_run` | Primary source-first operation: accept exactly one complete `.O` `source` or existing `path`. Default `mode=execute` routes work through the unified project-aware front door and returns decoded value/project results. `mode=check` returns the non-executing unified static plan/graph validation and never contacts a node or mesh. Optional `route` resolves genuinely ambiguous projects. `placement=node` submits the complete document to one selected hosted node. `placement=project_mesh` requires authenticated project-route mesh execution with local fallback disabled; neither placement splits an ordinary OIR graph. |
 | `o_olangc` | `olangc` with `--shim-dir`; relative input/output resolves against the repository root. `materialize_only` admits ordinary binary/WASM inputs, requires a new contained destination below the server cwd, rejects traversal/existing targets, and invokes neither Cargo nor output publication. |
 | `o_search_run` | Run one strict leaf name from `<work>/search`, or bundled `examples/` when no external work tree exists; reject traversal and symlink escape |
 | `o_information_inspect` | Fixed, bounded `o-info head` inspection of one existing local Information V1 root; returns sanitized IDs/count, no state path or authority, and makes no logical/content/inode/mode/mtime change (atime untested) |
@@ -139,13 +139,17 @@ forces fresh Graph V2/V6 admission before dispatch.
 
 Hosted Placement V6 remains a distinct mechanism. `o_run` exposes the frozen
 whole-document V1 path as `placement=node`, with optional `node_id`, and labels
-that receipt `selected_node_complete_document`. This is not operation-level
-graph distribution, project mesh, or implicit local fallback. The current V6 preparation boundary
+that receipt `selected_node_complete_document`. For projects and lifted project
+bundles, `placement=project_mesh` delegates to the existing unified front door
+with required authenticated mesh placement and local fallback disabled. Ordinary
+`.O` mesh requests are rejected by that same engine boundary. Neither mode claims
+general operation-level OIR distribution. The current V6 preparation boundary
 is `PreparedPlacementFragmentV2`; the authenticated direct-node surface remains the
 `octl node ...` client and `o-node` service documented in
 [`docs/HOSTED_PLACEMENT_V6.md`](../../docs/HOSTED_PLACEMENT_V6.md). This MCP
-does not discover a federated registry, enroll a node, request a placement
-lease, or turn a stable intent handle into placement authority. No MCP tool wraps
+does not enroll a node, request a placement lease, or turn a stable intent handle
+into placement authority. Mesh discovery and authentication use the existing
+Ostadix host configuration; MCP does not start peers implicitly. No MCP tool wraps
 durable session V2, placement-authority issuance
 or the co-located development mint, explicit closed-session GC, or the separate
 local `o-registry` snapshot store. In particular, no MCP tool holds a session
@@ -153,6 +157,12 @@ bearer, submits `PlacementLeaseV2`, consumes a V2 signed journal receipt, or
 opens or upgrades a durable state root; `o-node` rejects durable state without
 the exact package-0.3 execution-authority marker, while a fresh empty root may
 be initialized with that marker.
+
+An operator may bind mesh discovery to an existing paired-peer registry with
+the absolute `OSTADIX_MCP_MESH_PEER_ROOT` environment path. In that configured
+mode the adapter disables LAN discovery, keeps the registry path out of model
+arguments, requires remote placement, and attaches the engine-produced mesh
+trace (including dispatched node identities) to the structured tool response.
 
 The checked-in `.mcp.json` contains no shell expressions. When explicit
 environment paths are absent, the server recognizes the repository from its

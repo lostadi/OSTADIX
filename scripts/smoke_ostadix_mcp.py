@@ -489,6 +489,7 @@ def run_smoke(
             "source",
             "path",
             "cwd",
+            "mode",
             "placement",
             "node_id",
             "route",
@@ -652,6 +653,45 @@ def run_smoke(
                     f"{json.dumps(result, sort_keys=True)}"
                 )
 
+        check_marker = Path(lifted_fixture.name) / "check-must-not-execute.marker"
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 90,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "source": (
+                            "python^(\n"
+                            "from pathlib import Path\n"
+                            f"Path({json.dumps(os.fspath(check_marker))}).write_text('effect')\n"
+                            "__oval_result__ = 42\n"
+                            ")_python\n"
+                        ),
+                        "mode": "check",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        checked = responses.response(90, timeout)
+        checked_structured = checked.get("structuredContent")
+        if (
+            checked.get("isError") is True
+            or not isinstance(checked_structured, dict)
+            or checked_structured.get("schema")
+            != "ostadix.intent-plan-summary/v1"
+            or checked_structured.get("execution_mode")
+            != "nonexecuting_unified_static_plan"
+            or check_marker.exists()
+        ):
+            raise SmokeError(
+                "o_run mode=check did not return a static plan without effects:\n"
+                f"{json.dumps(checked, sort_keys=True)}"
+            )
+
         _send(
             process,
             {
@@ -675,6 +715,36 @@ def run_smoke(
             raise SmokeError(
                 "o_run did not return a structured preflight failure:\n"
                 f"{json.dumps(failed_run, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 92,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "source": "python^(\nraise RuntimeError('mcp-runtime-failure')\n)_python\n",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        runtime_failure = responses.response(92, timeout)
+        runtime_failure_structured = runtime_failure.get("structuredContent")
+        if (
+            runtime_failure.get("isError") is not True
+            or not isinstance(runtime_failure_structured, dict)
+            or runtime_failure_structured.get("disposition") != "execution_failed"
+            or runtime_failure_structured.get("failure", {}).get("stage") != "execution"
+            or "mcp-runtime-failure"
+            not in runtime_failure_structured.get("failure", {}).get("message", "")
+        ):
+            raise SmokeError(
+                "o_run did not distinguish a runtime execution failure:\n"
+                f"{json.dumps(runtime_failure, sort_keys=True)}"
             )
 
         _send(
@@ -743,6 +813,99 @@ def run_smoke(
             raise SmokeError(
                 "o_run loaded a lifted bundle without executing its default route:\n"
                 f"{json.dumps(lifted_result, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 91,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "path": os.fspath(lifted_program),
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        ambiguous = responses.response(91, timeout)
+        ambiguous_structured = ambiguous.get("structuredContent")
+        if (
+            ambiguous.get("isError") is not True
+            or not isinstance(ambiguous_structured, dict)
+            or ambiguous_structured.get("disposition") != "preflight_failed"
+            or "no unambiguous default route"
+            not in ambiguous_structured.get("failure", {}).get("message", "")
+        ):
+            raise SmokeError(
+                "o_run did not report lifted-project route ambiguity precisely:\n"
+                f"{json.dumps(ambiguous, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 89,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "path": os.fspath(lifted_program),
+                        "route": "main",
+                        "placement": "project_mesh",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        mesh_result = responses.response(89, timeout)
+        mesh_structured = mesh_result.get("structuredContent")
+        if (
+            mesh_result.get("isError") is not True
+            or not isinstance(mesh_structured, dict)
+            or mesh_structured.get("execution_mode")
+            != "authenticated_project_mesh_required"
+            or mesh_structured.get("mesh_trace", {}).get("candidates") != []
+            or "no authenticated peer eligible" not in _content_text(mesh_result)
+        ):
+            raise SmokeError(
+                "o_run project mesh did not require authenticated remote placement:\n"
+                f"{json.dumps(mesh_result, sort_keys=True)}"
+            )
+
+        _send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 93,
+                "method": "tools/call",
+                "params": {
+                    "name": "o_run",
+                    "arguments": {
+                        "source": "python^(\n__oval_result__ = 2\n)_python\n",
+                        "placement": "project_mesh",
+                        "timeout_secs": 45,
+                    },
+                },
+            },
+        )
+        ordinary_mesh = responses.response(93, timeout)
+        ordinary_mesh_structured = ordinary_mesh.get("structuredContent")
+        if (
+            ordinary_mesh.get("isError") is not True
+            or not isinstance(ordinary_mesh_structured, dict)
+            or ordinary_mesh_structured.get("disposition") != "preflight_failed"
+            or ordinary_mesh_structured.get("mesh_trace_status", {}).get("complete")
+            is not False
+            or "ordinary OIR execution uses only the local HGraph worker pool"
+            not in ordinary_mesh_structured.get("failure", {}).get("message", "")
+        ):
+            raise SmokeError(
+                "o_run silently accepted or obscured unsupported ordinary OIR mesh:\n"
+                f"{json.dumps(ordinary_mesh, sort_keys=True)}"
             )
 
         _send(

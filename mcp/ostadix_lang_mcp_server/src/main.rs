@@ -1214,6 +1214,7 @@ fn structured_command_result(
     stdout: &str,
     stderr: &str,
     execution_mode: &str,
+    attachment: Option<(&str, serde_json::Value)>,
 ) -> Result<CallToolResult, McpError> {
     match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
         Ok(mut value) => {
@@ -1221,6 +1222,9 @@ fn structured_command_result(
                 object.insert("execution_mode".into(), execution_mode.into());
                 if !stderr.is_empty() {
                     object.insert("diagnostics".into(), stderr.into());
+                }
+                if let Some((name, attachment)) = attachment {
+                    object.insert(name.into(), attachment);
                 }
             }
             if code == 0 {
@@ -1234,6 +1238,25 @@ fn structured_command_result(
             format_run(code, stdout, stderr)
         )),
     }
+}
+
+fn structured_runner_error(
+    error: impl Into<String>,
+    execution_mode: &str,
+) -> Result<CallToolResult, McpError> {
+    Ok(CallToolResult::structured_error(serde_json::json!({
+        "schema": "ostadix.mcp-execution-failure/v1",
+        "execution_mode": execution_mode,
+        "disposition": "infrastructure_failed",
+        "output": {
+            "complete": false
+        },
+        "replayed": false,
+        "failure": {
+            "stage": "mcp_runner",
+            "message": error.into()
+        }
+    })))
 }
 
 async fn run_cmd(
@@ -1275,6 +1298,8 @@ async fn run_cmd(
         .ok_or_else(|| "child stderr was not piped".to_string())?;
     #[cfg(unix)]
     let process_group_id = child.id();
+    #[cfg(unix)]
+    let mut process_group_guard = ProcessGroupDropGuard(process_group_id);
     let mut stdout_task = tokio::spawn(read_information_pipe_bounded(
         stdout_pipe,
         MAX_COMMAND_STDOUT_BYTES,
@@ -1341,7 +1366,29 @@ async fn run_cmd(
     let code = status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
     let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+    #[cfg(unix)]
+    {
+        process_group_guard.0 = None;
+    }
     Ok((code, stdout, stderr))
+}
+
+#[cfg(unix)]
+struct ProcessGroupDropGuard(Option<u32>);
+
+#[cfg(unix)]
+impl Drop for ProcessGroupDropGuard {
+    fn drop(&mut self) {
+        let Some(pid) = self.0 else {
+            return;
+        };
+        if let Ok(group_id) = i32::try_from(pid) {
+            // SAFETY: run_cmd creates this exact child in a fresh process group.
+            unsafe {
+                libc::kill(-group_id, libc::SIGKILL);
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1807,7 +1854,12 @@ struct RunOArgs {
     timeout_secs: Option<u64>,
     #[serde(default)]
     #[schemars(
-        description = "Execution placement: local (default unified front door) or node (complete document on one selected hosted node)"
+        description = "Operation mode: execute (default) or check (non-executing unified static plan and graph validation)"
+    )]
+    mode: Option<String>,
+    #[serde(default)]
+    #[schemars(
+        description = "Execution placement: local (default unified front door), node (complete document on one selected hosted node), or project_mesh (project route on authenticated peers; never ordinary OIR graph splitting)"
     )]
     placement: Option<String>,
     #[serde(default)]
@@ -1831,17 +1883,26 @@ impl Drop for StagedSource {
 }
 
 async fn stage_source(source: &str) -> Result<(StagedSource, PathBuf), String> {
+    let (guard, directory) = private_staging_directory("source").await?;
+    let program = directory.join("program.O");
+    tokio::fs::write(&program, source)
+        .await
+        .map_err(|error| format!("stage complete .O source: {error}"))?;
+    Ok((guard, program))
+}
+
+async fn private_staging_directory(kind: &str) -> Result<(StagedSource, PathBuf), String> {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|error| format!("system clock cannot stage source: {error}"))?
+        .map_err(|error| format!("system clock cannot stage {kind}: {error}"))?
         .as_nanos();
     let directory = std::env::temp_dir().join(format!(
-        "ostadix-mcp-source-{}-{unique}",
+        "ostadix-mcp-{kind}-{}-{unique}",
         std::process::id()
     ));
     tokio::fs::create_dir(&directory)
         .await
-        .map_err(|error| format!("create private source staging directory: {error}"))?;
+        .map_err(|error| format!("create private {kind} staging directory: {error}"))?;
     let guard = StagedSource(directory.clone());
     #[cfg(unix)]
     tokio::fs::set_permissions(
@@ -1849,12 +1910,8 @@ async fn stage_source(source: &str) -> Result<(StagedSource, PathBuf), String> {
         std::os::unix::fs::PermissionsExt::from_mode(0o700),
     )
     .await
-    .map_err(|error| format!("secure private source staging directory: {error}"))?;
-    let program = directory.join("program.O");
-    tokio::fs::write(&program, source)
-        .await
-        .map_err(|error| format!("stage complete .O source: {error}"))?;
-    Ok((guard, program))
+    .map_err(|error| format!("secure private {kind} staging directory: {error}"))?;
+    Ok((guard, directory))
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -2231,7 +2288,53 @@ impl OstadixMcp {
             }
         };
         let timeout = args.timeout_secs.unwrap_or(120);
+        let mode = args.mode.as_deref().unwrap_or("execute");
+        if mode != "execute" && mode != "check" {
+            return text_err(format!(
+                "unsupported mode `{mode}`; expected `execute` or `check`"
+            ));
+        }
         let placement = args.placement.as_deref().unwrap_or("local");
+        if mode == "check" {
+            if placement != "local" {
+                return text_err(
+                    "mode=check is non-executing and requires placement=local; it never contacts a node or mesh",
+                );
+            }
+            if args.node_id.is_some() {
+                return text_err("node_id is unavailable for mode=check");
+            }
+            if !backends.is_dir() {
+                return text_err(format!("backends missing: {}", backends.display()));
+            }
+            let path_text = path.to_string_lossy().into_owned();
+            let mut command_args = vec!["plan", path_text.as_str(), "--json"];
+            if let Some(route) = args.route.as_deref() {
+                command_args.extend(["--route", route]);
+            }
+            return match run_cmd(
+                &o_cli,
+                &command_args,
+                Some(&cwd),
+                &[
+                    ("O_LANG_ROOT", root.display().to_string()),
+                    ("O_BACKENDS_DIR", backends.display().to_string()),
+                    ("A18_WORK", cwd.display().to_string()),
+                ],
+                timeout,
+            )
+            .await
+            {
+                Ok((code, stdout, stderr)) => structured_command_result(
+                    code,
+                    &stdout,
+                    &stderr,
+                    "nonexecuting_unified_static_plan",
+                    None,
+                ),
+                Err(error) => structured_runner_error(error, "nonexecuting_unified_static_plan"),
+            };
+        }
         if placement == "node" {
             if args.route.is_some() {
                 return text_err("route is available only for local project-aware execution");
@@ -2261,13 +2364,14 @@ impl OstadixMcp {
                     &stdout,
                     &stderr,
                     "selected_node_complete_document",
+                    None,
                 ),
-                Err(error) => text_err(error),
+                Err(error) => structured_runner_error(error, "selected_node_complete_document"),
             };
         }
-        if placement != "local" {
+        if placement != "local" && placement != "project_mesh" {
             return text_err(format!(
-                "unsupported placement `{placement}`; expected `local` or `node`"
+                "unsupported placement `{placement}`; expected `local`, `node`, or `project_mesh`"
             ));
         }
         if args.node_id.is_some() {
@@ -2278,18 +2382,55 @@ impl OstadixMcp {
         }
         let path_text = path.to_string_lossy().into_owned();
         let mut command_args = vec![
-            "run",
-            path_text.as_str(),
-            "--json",
-            "--include-result",
-            "--no-record",
+            "run".to_string(),
+            path_text,
+            "--json".to_string(),
+            "--include-result".to_string(),
+            "--no-record".to_string(),
         ];
         if let Some(route) = args.route.as_deref() {
-            command_args.extend(["--route", route]);
+            command_args.extend(["--route".to_string(), route.to_string()]);
         }
+        let mut mesh_trace_staging = None;
+        if placement == "project_mesh" {
+            command_args.extend([
+                "--mesh=required".to_string(),
+                "--mesh-local-fallback=never".to_string(),
+            ]);
+            let (guard, directory) = match private_staging_directory("mesh-trace").await {
+                Ok(staging) => staging,
+                Err(error) => return text_err(error),
+            };
+            let trace_path = directory.join("trace.json");
+            command_args.extend([
+                "--mesh-trace-out".to_string(),
+                trace_path.to_string_lossy().into_owned(),
+            ]);
+            if let Some(configured) = std::env::var_os("OSTADIX_MCP_MESH_PEER_ROOT") {
+                let configured = PathBuf::from(configured);
+                if !configured.is_absolute() {
+                    return text_err("OSTADIX_MCP_MESH_PEER_ROOT must be absolute");
+                }
+                let peer_root = match resolve_directory(
+                    &root,
+                    configured.to_str(),
+                    "configured mesh peer root",
+                ) {
+                    Ok(peer_root) => peer_root,
+                    Err(error) => return text_err(error),
+                };
+                command_args.extend([
+                    "--mesh-peer-root".to_string(),
+                    peer_root.to_string_lossy().into_owned(),
+                    "--mesh-no-lan-discovery".to_string(),
+                ]);
+            }
+            mesh_trace_staging = Some((guard, trace_path));
+        }
+        let command_arg_refs = command_args.iter().map(String::as_str).collect::<Vec<_>>();
         match run_cmd(
             &o_cli,
-            &command_args,
+            &command_arg_refs,
             Some(&cwd),
             &[
                 ("O_LANG_ROOT", root.display().to_string()),
@@ -2301,9 +2442,54 @@ impl OstadixMcp {
         .await
         {
             Ok((code, stdout, stderr)) => {
-                structured_command_result(code, &stdout, &stderr, "local_unified_front_door")
+                let mesh_trace = if let Some((_guard, path)) = mesh_trace_staging {
+                    match tokio::fs::read(&path).await {
+                        Ok(bytes) => match serde_json::from_slice(&bytes) {
+                            Ok(trace) => Some(("mesh_trace", trace)),
+                            Err(error) => {
+                                return text_err(format!(
+                                    "project mesh returned an invalid placement trace ({error})"
+                                ));
+                            }
+                        },
+                        Err(error) if code != 0 && error.kind() == std::io::ErrorKind::NotFound => {
+                            Some((
+                                "mesh_trace_status",
+                                serde_json::json!({
+                                    "complete": false,
+                                    "reason": "execution failed before mesh dispatch produced a trace"
+                                }),
+                            ))
+                        }
+                        Err(error) => {
+                            return text_err(format!(
+                                "project mesh did not produce its required placement trace: {error}"
+                            ));
+                        }
+                    }
+                } else {
+                    None
+                };
+                structured_command_result(
+                    code,
+                    &stdout,
+                    &stderr,
+                    if placement == "project_mesh" {
+                        "authenticated_project_mesh_required"
+                    } else {
+                        "local_unified_front_door"
+                    },
+                    mesh_trace,
+                )
             }
-            Err(e) => text_err(e),
+            Err(error) => structured_runner_error(
+                error,
+                if placement == "project_mesh" {
+                    "authenticated_project_mesh_required"
+                } else {
+                    "local_unified_front_door"
+                },
+            ),
         }
     }
 
@@ -2660,7 +2846,8 @@ impl ServerHandler for OstadixMcp {
             instructions: Some(
                 "Ostadix-lang / O-lang MCP (Rust). Supply one complete .O document as o_run.source for the ordinary computational workflow; Ostadix performs supported classification, planning, admission, and execution internally and returns the structured result. \
 Use o_run.path for existing source files or lifted bundles. Use o_env/o_runtimes/o_doctor when diagnostics are needed. \
-Set o_run.placement=node only to submit the complete document to one selected hosted node; this is not graph splitting or project mesh. \
+Use o_run.mode=check for a non-executing unified static plan and graph validation; it never contacts a node or mesh and is broader than parse-only O --check. \
+Set o_run.placement=node to submit the complete document to one selected hosted node. Set placement=project_mesh only for required authenticated project-route mesh execution; it disables local fallback and does not split ordinary OIR graphs. \
 Use o_analyze_intent then o_execute_intent only for an explicit review-then-execute workflow with a one-use same-intent gate. \
 Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. \
 Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
@@ -2704,12 +2891,13 @@ mod tests {
         resolve_new_directory_under, resolve_o_info_with_override, resolve_run_target,
         resolve_search_corpus, resolve_search_program, run_cmd, run_information_inspect_bounded,
         runtime_search_path_with_mode, runtime_search_path_with_mode_and_manager_environment,
-        sanitize_information_head_output, stage_source, validate_information_head_name,
-        validate_intent_target, EmptyArgs, InformationInspectRunError, IntentLease,
-        IntentReservation, IntentStore, OstadixMcp, RuntimePathMode, RuntimeSearchPath,
-        CATALOG_BACKEND_RUNTIMES, CATALOG_LEGACY_SCHEMA_V3, CATALOG_LEGACY_SCHEMA_V4,
-        CATALOG_LEGACY_SCHEMA_V5, CATALOG_RUNTIME_REQUIREMENTS, CATALOG_SCHEMA, INTENT_SCHEMA_V1,
-        MAX_COMMAND_STDERR_BYTES, MAX_COMMAND_STDOUT_BYTES, MAX_LIVE_INTENTS,
+        sanitize_information_head_output, stage_source, structured_runner_error,
+        validate_information_head_name, validate_intent_target, EmptyArgs,
+        InformationInspectRunError, IntentLease, IntentReservation, IntentStore, OstadixMcp,
+        RuntimePathMode, RuntimeSearchPath, CATALOG_BACKEND_RUNTIMES, CATALOG_LEGACY_SCHEMA_V3,
+        CATALOG_LEGACY_SCHEMA_V4, CATALOG_LEGACY_SCHEMA_V5, CATALOG_RUNTIME_REQUIREMENTS,
+        CATALOG_SCHEMA, INTENT_SCHEMA_V1, MAX_COMMAND_STDERR_BYTES, MAX_COMMAND_STDOUT_BYTES,
+        MAX_LIVE_INTENTS,
     };
     use std::collections::BTreeSet;
     use std::ffi::OsStr;
@@ -3693,6 +3881,19 @@ mod tests {
     }
 
     #[test]
+    fn runner_failures_report_incomplete_output_without_replay() {
+        let result = structured_runner_error("timeout after 1s", "local_unified_front_door")
+            .expect("structured runner failure");
+        assert!(result.is_error.unwrap_or(false));
+        let structured = result
+            .structured_content
+            .expect("runner failure structured content");
+        assert_eq!(structured["output"]["complete"], false);
+        assert_eq!(structured["replayed"], false);
+        assert_eq!(structured["failure"]["stage"], "mcp_runner");
+    }
+
+    #[test]
     fn materialize_destination_is_new_and_contained_under_server_cwd() {
         let fixture = Fixture::new();
         let workspace = fixture.0.join("workspace");
@@ -3743,6 +3944,47 @@ mod tests {
         assert!(
             !sentinel.exists(),
             "a backend descendant survived the timeout and wrote {}",
+            sentinel.display()
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn cancelled_runner_future_kills_descendants_before_they_can_commit() {
+        let fixture = Fixture::new();
+        let started = fixture.0.join("backend-started");
+        let sentinel = fixture.0.join("late-cancelled-backend-write");
+        let command = format!(
+            "printf started > '{}'; (sleep 1; printf late > '{}') & wait",
+            started.display(),
+            sentinel.display()
+        );
+        let task = tokio::spawn(async move {
+            run_cmd(
+                PathBuf::from("/bin/sh").as_path(),
+                &["-c", &command],
+                None,
+                &[],
+                30,
+            )
+            .await
+        });
+        for _ in 0..100 {
+            if started.exists() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert!(
+            started.exists(),
+            "backend never reached its cancellation point"
+        );
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        tokio::time::sleep(std::time::Duration::from_millis(1_250)).await;
+        assert!(
+            !sentinel.exists(),
+            "a backend descendant survived request cancellation and wrote {}",
             sentinel.display()
         );
     }
