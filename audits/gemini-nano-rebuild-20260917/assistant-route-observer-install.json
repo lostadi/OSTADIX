@@ -1,0 +1,12 @@
+{
+  "utc": "2026-09-17T18:53:45.500075+00:00",
+  "installed_apk": "/data/app/~~xSPAKEVCOo8BVHWSPqc90A==/org.ostadix.aicore.extension-4l2lCn9HlSnvZqIx7pj9ug==/base.apk",
+  "apk_sha256": "f1601f95c41b32da6ab13157fe65c0d19694e3aa83ee70e8e7419ecb3fe43e2b",
+  "version_code": 4,
+  "probe_text": "Ostadix route probe 20260917: reply with the word ready.",
+  "probe_sha256": "a7cf2d750715da18049a11cec087a6e182f0b80a394cfeb629baf3aeeccdb372",
+  "previous_probe_setting": "null",
+  "observer_only": true,
+  "model_identity": "unverified",
+  "assistant_operator": "Codex injects ordinary assistant key and synthetic text; no user-send claim"
+}

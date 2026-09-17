@@ -1,5 +1,10 @@
 # Ordinary Gemini assistant boundaries — 2026-09-17
 
+Follow-up: [dispatch and pending-turn trace](ASSISTANT-DISPATCH-TRACE.md) recovers
+the concrete senders and a callback after pending-turn publication, and records
+an installed diagnostic observer. The original review below remains a record
+of what was established before that follow-up.
+
 This bounded review identifies concrete installed-code submission and rendering
 methods. It does **not** establish a working ordinary-assistant-to-local-model
 adapter. Fresh assistant-turn creation, publication, cancellation and verified

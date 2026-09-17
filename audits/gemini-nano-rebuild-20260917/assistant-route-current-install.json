@@ -1,0 +1,10 @@
+{
+  "utc": "2026-09-17T19:01:41.983966+00:00",
+  "installed_apk": "/data/app/~~h9-G-VwQzQRG0BCAjsysiA==/org.ostadix.aicore.extension-fK0D6vjf-JoduCLIubl48g==/base.apk",
+  "apk_sha256": "f4c92a0f73ef5a36f59ef518f783313da7eb41a7bf4b2386c8fa57ab4c1dff39",
+  "version_code": 4,
+  "observer_hooks_expected": 10,
+  "ui_input": false,
+  "startup_observed": true,
+  "replaced_gsa_search_pid": 14386
+}

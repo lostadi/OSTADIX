@@ -1,0 +1,8 @@
+{
+  "utc": "2026-09-17T18:57:04.312106+00:00",
+  "installed_apk": "/data/app/~~SfEZHxX6vZ1R9OIsz_KdrA==/org.ostadix.aicore.extension-PLJ1iyNMSJFmxUJimHyBiA==/base.apk",
+  "apk_sha256": "385791f1f50e7aad86658885b4137042f779b3dd973e3a19b2732e7f6488727e",
+  "version_code": 4,
+  "change": "Add early-gate diagnostics; no bypass",
+  "ui_input": false
+}

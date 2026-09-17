@@ -1,0 +1,7 @@
+--------- beginning of main
+09-17 15:01:43.744 16884 16884 I OstadixAicoreExperiment: event=early_gate process=com.google.android.googlequicksearchbox:search accepted=true sdk=37 fingerprint=google/blazer/blazer:17/CP2A.260805.005/15828068:user/release-keys framework=Vector api=102
+09-17 15:01:43.802 16884 16884 I OstadixAicoreExperiment: org.ostadix.aicore.extension: Installed one-shot OSTADIX Application.attach bootstrap
+09-17 15:01:44.346 16884 16884 I OstadixAicoreExperiment: event=startup_gate identity=true activation=true package=com.google.android.googlequicksearchbox
+09-17 15:01:44.348 16884 16884 I OstadixAicoreExperiment: org.ostadix.aicore.extension: Installed version-pinned Gemini AppFunction schema inventory hook
+09-17 15:01:44.352 16884 16884 I OstadixGeminiRoute: event=observer_installed hooks=10 pid=16884 uid=10191
+09-17 15:01:44.352 16884 16884 I OstadixAicoreExperiment: event=gsa_hooks_installed observer_hooks=10

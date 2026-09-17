@@ -22,6 +22,10 @@ public final class AicoreOstadixModule extends XposedModule {
         acceptedProcess = !param.isSystemServer()
                 && ExtensionGate.matchesEarlyProcess(
                         param.getProcessName(), getFrameworkName(), getApiVersion());
+        Log.i(TAG, "event=early_gate process=" + param.getProcessName()
+                + " accepted=" + acceptedProcess + " sdk=" + android.os.Build.VERSION.SDK_INT
+                + " fingerprint=" + android.os.Build.FINGERPRINT
+                + " framework=" + getFrameworkName() + " api=" + getApiVersion());
         if (!acceptedProcess) {
             detach();
         }
@@ -90,6 +94,8 @@ public final class AicoreOstadixModule extends XposedModule {
         initialized = true;
         boolean identityAccepted = ExtensionGate.acceptsInstalledPackages(context);
         boolean activationAccepted = ExtensionGate.isExplicitlyEnabled(context);
+        Log.i(TAG, "event=startup_gate identity=" + identityAccepted
+                + " activation=" + activationAccepted + " package=" + context.getPackageName());
         if (!identityAccepted || !activationAccepted) {
             log(Log.WARN, TAG, "Startup gate rejected; identity=" + identityAccepted
                     + " activation=" + activationAccepted
@@ -269,6 +275,7 @@ public final class AicoreOstadixModule extends XposedModule {
 
     private void initializeGsa(Context context) {
         XposedInterface.HookHandle installedHook = null;
+        List<XposedInterface.HookHandle> observations = null;
         try {
             ClassLoader loader = context.getClassLoader();
             Class<?> inventory = Class.forName(
@@ -290,9 +297,17 @@ public final class AicoreOstadixModule extends XposedModule {
                     });
             log(Log.INFO, TAG,
                     "Installed version-pinned Gemini AppFunction schema inventory hook");
+            observations = GeminiRouteObservation.install(this, context);
+            Log.i(TAG, "event=gsa_hooks_installed observer_hooks=" + observations.size());
             detach();
         } catch (Throwable error) {
             ExtensionGate.rethrowIfVmFatal(error);
+            Log.e(TAG, "event=gsa_hooks_failed", error);
+            if (observations != null) {
+                for (XposedInterface.HookHandle observation : observations) {
+                    observation.unhook();
+                }
+            }
             if (installedHook != null) {
                 try {
                     installedHook.unhook();

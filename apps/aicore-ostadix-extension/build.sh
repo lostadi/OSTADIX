@@ -15,8 +15,8 @@ EXPECTED_API_SHA256=423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe914
 NATIVE_HASH_MANIFEST="$APP_ROOT/app/src/main/resources/META-INF/ostadix/native-sha256.txt"
 MIN_SDK=31
 TARGET_SDK=34
-VERSION_CODE=3
-VERSION_NAME=0.3.0-nano-local-loader
+VERSION_CODE=4
+VERSION_NAME=0.4.0-assistant-route-observation
 
 for tool in aapt2 apksigner d8 jar javac javap keytool readelf sed sha256sum unzip; do
     command -v "$tool" >/dev/null 2>&1 || { echo "Missing build tool: $tool" >&2; exit 1; }
