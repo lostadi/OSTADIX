@@ -1290,4 +1290,61 @@ output is one rendering of that tree.</p>
 <td></td>
 <td>Interprets or compiles with the OCaml toolchain.</td>
 </tr>
-</tbody></t
+</tbody></table>
+<h3>Python reference implementation (<code>o_lang/</code>)</h3>
+<p>Same core tag set minus Rust-only orchestration extensions.
+<code>quote</code> and <code>O</code> are structural backends implemented via <code>eval_ast</code>.
+Let-bindings (<code>let NAME = LANG^(...)</code>) and <code>$var</code> substitution are supported.
+Sequential <code>LANG[*]</code> blocks use fresh evaluator state per occurrence. General
+call-expression grammar, including <code>autonomous(batch(...))</code>, is not implemented.</p>
+<p>Adding a new language: write a Backend subclass, add it to
+<code>o_lang/backends/__init__.py::default_registry</code>, and add the tag to
+<code>REGISTERED_LANGUAGES</code> in <code>parser.py</code>.</p>
+<hr>
+<h2>7. Known limitations / current status</h2>
+<ul>
+<li><strong><code>$var</code> splice</strong> is supported for top-level <code>let</code> bindings in both runtimes.
+Variable references inside nested typed-expression bodies in the Rust runtime
+work through lexical scope passed into OIR <code>Exec</code>. The Python ref impl
+similarly threads scope through <code>_eval_expression</code>.</li>
+<li><strong>Async coordination.</strong> <code>{lazy}</code> and <code>{defer}</code> attributes create
+deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
+deferred requests require explicit <code>now()</code>. <code>lazy(…)</code> and <code>autonomous(…)</code>
+switch policy for their planned child region. When <code>now(group)</code> is called,
+Nix-family Request members (<code>Instantiate</code>, <code>Realise</code>) and dry activation are
+dispatched as concurrent threads; real activation remains evaluator-local;
+<code>any(…)</code> returns the first success, <code>race(…)</code> returns the first result
+(success or failure). Eval Requests and nested plain values resolve serially.
+Full cancellation and async I/O are future work.</li>
+<li><strong><code>O.eval</code> same-environment recursion.</strong> The callback uses a caller snapshot
+or explicit OScope and keeps callback writes local. A callback
+cannot execute the same persistent backend environment that is currently
+waiting for the callback result; nested backend work must use another
+environment index.</li>
+<li><strong>Optional runtime dependencies.</strong> Executing shims report an explicit error
+when their target interpreter or compiler is not installed locally.</li>
+<li><strong>Python ref impl</strong> (<code>o_lang/</code>): maintained as a readable reference and test
+harness. The Rust runtime is the authoritative implementation.</li>
+</ul>
+<hr>
+<h2>8. Versioning</h2>
+<p>This spec accompanies the Unreleased package v0.4.0 line. The immutable v0.3
+tag added the
+publishable explicit-shim <code>ostadix-api</code> embedding facade while retaining the
+root <code>o-lang</code> implementation package. The post-tag Unreleased tree moves that
+same runtime implementation into <code>ostadix-api</code> and retains <code>o-lang</code> as its
+compatibility/CLI shell; this ownership change does not alter the language
+semantics below and is represented by the synchronized 0.4.0 engine/shell
+package coordinate before publication.
+Protocol and evidence coordinates remain independently versioned. The earlier
+v0.2 bump reflected:</p>
+<ul>
+<li><code>OExpr</code> wire format and <code>quote^</code> / <code>O.eval</code> semantics are now implemented in both runtimes.</li>
+<li><code>OValue</code> wire format table expanded with all Rust-runtime types.</li>
+<li><code>let</code> binding and <code>$var</code> substitution work in both runtimes.</li>
+<li>Registered-language table updated with all registered backends and their
+implementation status.</li>
+</ul>
+<p>Breaking changes to OValue or the Backend protocol
+will bump the minor version until v1.0.</p>
+<p>Author: Lee Daghlar Ostadi</p>

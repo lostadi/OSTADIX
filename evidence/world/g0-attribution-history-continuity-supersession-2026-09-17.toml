@@ -1,0 +1,9 @@
+schema_version = 1
+id = "g0-attribution-history-continuity-supersession-2026-09-17"
+event = "supersede"
+subject = "g0-attribution-history-continuity-2026-09-03"
+replacement = "g0-attribution-history-continuity-2026-09-17"
+reason_code = "attribution-history-provenance-bridge"
+reason = "The 2026-09-17 history metadata rewrite composes the sealed provenance map to the current master lineage while preserving every mapped historical Git tree. The prior G0 record remains immutable and is superseded by a fresh G0 conformance run whose exact source closure binds the current validator and 599-row rewrite map."
+source_commit = "220d6451f30a77535cf8c134f4618a0fea6d7aa3"
+signatures = []

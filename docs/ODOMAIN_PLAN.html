@@ -968,4 +968,199 @@ Every statement remains scoped to its fixed-capacity, single-CPU gate.</p>
 <li>Domain, personality, rootfs, process, thread, and CSpace identities are
 distinct types and cannot be substituted by integer coincidence.</li>
 <li>Kernel pointers are never returned or interpreted as user authority. A
-negative test may deliberately const
+negative test may deliberately construct a kernel-range address, but the
+kernel must reject it before dereference.</li>
+<li>Every authority lookup checks slot bounds, occupancy, generation, object
+type, and requested rights. Delegation can only preserve or reduce rights.</li>
+<li>All user pointer checks are overflow-safe and cover the full byte range.
+Milestone 0.2 checks a concrete immutable bootstrap region and copies through
+exact page-fault fixups. Modes 19 and 24 test explicit unmap dispositions;
+Mode 24&#39;s supervisor invokes its disposition before terminal reply and does
+not mutate the mapping. Mode 25 snapshots two exact 20-byte <code>IN</code> views and
+likewise does not test concurrent mapping mutation. Concurrent mapping-change
+integration and pinning remain future work.</li>
+<li>Executable mappings are not writable. Anonymous stacks and data are NX.
+Milestone 0.2 proves this for the bootstrap kernel, user image, and stack.</li>
+<li>Syscall and exception return validates user RIP/RSP and sanitizes RFLAGS.</li>
+<li>The current address space, PCB, personality, domain, and CSpace switch as one
+scheduler transaction.</li>
+<li>Namespace lookup grants no authority. It returns a capability only after
+policy checks.</li>
+<li>Personality code receives capabilities to mechanisms, not ambient kernel
+access. A personality failure is contained to its dependent domains.</li>
+<li>OValues are data, capabilities are authority, and native capsules preserve
+affinity. No transport silently converts one category into another.</li>
+<li>Unsupported ABI behavior fails explicitly. Compatibility claims name the
+binary corpus, architecture, syscall slice, and execution mode tested.</li>
+<li>Persistence records version, provenance, and capability rebind policy.
+Live handles are never restored as authority from serialized bits alone.</li>
+</ol>
+<h2>6. Primary risks and controls</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Engineering control</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>x86-64 entry/return bugs compromise ring separation</td>
+<td>Mechanism-only assembly, macro-generated trap stubs, trap-frame tests, negative CPL3 faults, sanitized return state, per-CPU entry data before SMP</td>
+</tr>
+<tr>
+<td>Linux ABI scope expands without a credible result</td>
+<td>Pinned static corpus, syscall-by-syscall conformance oracle, explicit unsupported list</td>
+</tr>
+<tr>
+<td>Personality code bloats the trusted kernel</td>
+<td>Capability-bounded user-space services after the first proof</td>
+</tr>
+<tr>
+<td>Capability confused-deputy or rights amplification</td>
+<td>Typed objects, attenuation-only transfer, call provenance, no authority from metadata or names</td>
+</tr>
+<tr>
+<td>User-pointer races and fault recursion</td>
+<td>Request-scoped memory views, fault-aware copy/pin APIs, bounded commits, no raw personality dereference</td>
+</tr>
+<tr>
+<td>Scheduler and teardown use-after-free</td>
+<td>Explicit state machines, reference ownership, cancellation points, forced-switch stress</td>
+</tr>
+<tr>
+<td>Rootfs names are mistaken for compatibility proof</td>
+<td>Content-addressed image manifests plus execution of pinned unmodified binaries</td>
+</tr>
+<tr>
+<td>Package metadata is mistaken for authority</td>
+<td>Policy-resolved capability requests, immutable digests, transactional activation, no authority from names or manifests</td>
+</tr>
+<tr>
+<td>Native capsules become an untyped escape hatch</td>
+<td>Origin affinity, explicit codec/safety/lifetime policy, conservative <code>never</code> rehydration</td>
+</tr>
+<tr>
+<td>Full-kernel mode bypasses the common security model</td>
+<td>Guest-agent crossings, paravirtual devices first, quotas, no ambient host mounts or sockets, no passthrough before IOMMU evidence</td>
+</tr>
+<tr>
+<td>Demonstrations overstate implementation</td>
+<td>Every claim tied to an executable gate, serial trace, corpus hash, and documented non-claims</td>
+</tr>
+</tbody></table>
+<h2>7. Concise feature matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pre-0.1 baseline</th>
+<th>Current verified boundary</th>
+<th>First multi-rootfs demo</th>
+<th>Long-term</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU/privilege</td>
+<td>x86-64 ring-0 boot</td>
+<td>one CPU, canonical CPL3 frames, timer/SYSCALL switching</td>
+<td>isolated x86-64 processes</td>
+<td>SMP and hardened entry</td>
+</tr>
+<tr>
+<td>Domains</td>
+<td>none</td>
+<td>bounded generation-tagged native worlds; four-process IPC and live-system scenarios</td>
+<td>native, Alpine, Debian instances</td>
+<td>persistent lifecycle and quotas</td>
+</tr>
+<tr>
+<td>Personalities</td>
+<td>none</td>
+<td>native dispatch, package-loaded scalar M6A, exact four-byte Mode 24 test personality, Mode 25&#39;s pinned minimal Linux corpus, and Mode 26&#39;s native Plan-9-style client/server composition</td>
+<td>broader translated Linux x86-64 across multiple roots</td>
+<td>persistent Lisp plus user-space and full-kernel backends</td>
+</tr>
+<tr>
+<td>Address spaces</td>
+<td>one identity map</td>
+<td>independent CR3s, guarded loaded stacks, exact W^X ELF mappings, optional shared RW/NX page</td>
+<td>per-process page tables</td>
+<td>demand paging and general shared mappings</td>
+</tr>
+<tr>
+<td>Processes</td>
+<td>none</td>
+<td>up to four loaded CPL3 principals in the current gates with teardown and stale denial</td>
+<td>multiple isolated processes</td>
+<td>complete process/thread lifecycle</td>
+</tr>
+<tr>
+<td>CSpaces</td>
+<td>one small global table</td>
+<td>exact owners, endpoint transfer attenuation, isolated service CSpaces, typed REPL control cap</td>
+<td>one CSpace per process</td>
+<td>general atomic cross-domain attenuation</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>bump-only frames</td>
+<td>typed reclaim, private/shared mappings, bounded-copy request staging, and nonexecuting guest-page objects</td>
+<td>mapped per-process objects</td>
+<td>discovered RAM, paging, NUMA policy</td>
+</tr>
+<tr>
+<td>Scheduling</td>
+<td>timer marker only</td>
+<td>bounded preemptive/blocking TCB scheduler with yield, sleep, IPC wake, and loaded-program completion</td>
+<td>preemptive blocking scheduler</td>
+<td>multicore policy and accounting</td>
+</tr>
+<tr>
+<td>IPC</td>
+<td>none</td>
+<td>public bounded CPL3 endpoints, scalar M6A RPC, mode-19 request views, one exact four-byte Mode 24 composition, two Mode 25 Linux input views, and Mode 26&#39;s exact 9P2000 corpus</td>
+<td>broader personality RPC plus foreign memory views</td>
+<td>supervised personality RPC</td>
+</tr>
+<tr>
+<td>Loading</td>
+<td>kernel-linked code</td>
+<td>static native ELF plus one exact static Linux ELF from deterministic read-only OVFS; BSS, SysV stack, W^X, rejection corpus</td>
+<td>broader native and static Linux ELF corpora</td>
+<td>dynamic loaders per personality</td>
+</tr>
+<tr>
+<td>Filesystems</td>
+<td>none</td>
+<td>fixed-capacity immutable OVFS images, domain-relative root mounts, and one exact generation-bound <code>/srv/linux/status</code> 9P path; no general filesystem</td>
+<td>separate Alpine/Debian roots</td>
+<td>versioned overlays and services</td>
+</tr>
+<tr>
+<td>Live system</td>
+<td>none</td>
+<td>M5 package activation plus bounded M6A scalar, Mode 24 native, Mode 25 Linux, and Mode 26 9P service supervision/rebind slices</td>
+<td>package store, general supervision, reconstruction, richer user-space services</td>
+<td>native builds and richer interactive environments</td>
+</tr>
+<tr>
+<td>Crossings</td>
+<td>hosted OValue and broker only</td>
+<td>bounded scalar IPC/capability transfer plus request views, one exact four-byte native path, two exact Linux input views, and one bounded Linux-result-to-9P path; no native OValue codec or general foreign ABI</td>
+<td>OValue, capability, capsule channels</td>
+<td>common contract across all modes</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>no foreign OS ABI</td>
+<td>one pinned static Linux ELF with write, -ENOSYS, and exit_group only, reused by one exact 9P2000 composition</td>
+<td>the same broader pinned corpus across multiple Linux roots</td>
+<td>additional personalities by evidence</td>
+</tr>
+</tbody></table>
+<p>The first credible multi-domain O-Domain demonstration is therefore not either
+single-process bootstrap gate. It is the later evidence bundle that boots
+native, Alpine, and Debian domains together, runs a pinned unmodified static
+Linux binary in both Linux roots, exchanges one structural OValue, transfers
+one attenuated file or shared-memory capability, and contains a
+personality-service failure without stopping the native domain.</p>

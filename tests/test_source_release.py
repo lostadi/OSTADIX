@@ -37,6 +37,7 @@ WORLD_ATTESTATION_PATHS = (
     "evidence/world/g0-ostadix-alpha-branding-2026-08-09.toml",
     "evidence/world/g0-independent-engine-2026-08-17.toml",
     "evidence/world/g0-attribution-history-continuity-2026-09-03.toml",
+    "evidence/world/g0-attribution-history-continuity-2026-09-17.toml",
     "evidence/world/g2-aarch64-qemu.toml",
     "evidence/world/g2-aarch64-qemu-2026-08-03.toml",
 )
@@ -46,6 +47,7 @@ WORLD_EVIDENCE_EVENT_PATHS = {
     "evidence/world/g0-ostadix-alpha-branding-supersession-2026-08-09.toml",
     "evidence/world/g0-independent-engine-supersession-2026-08-17.toml",
     "evidence/world/g0-attribution-history-continuity-supersession-2026-09-03.toml",
+    "evidence/world/g0-attribution-history-continuity-supersession-2026-09-17.toml",
     "evidence/world/g0-schema-v3-supersession-2026-08-03.toml",
     "evidence/world/g2-derivation-rederive-2026-08-03.toml",
     "evidence/world/g2-counter-wording-supersession-2026-08-03.toml",
@@ -1752,6 +1754,8 @@ class SourceReleaseTests(unittest.TestCase):
                 "evidence/world/g0-independent-engine-supersession-2026-08-17.toml",
                 "evidence/world/g0-attribution-history-continuity-2026-09-03.toml",
                 "evidence/world/g0-attribution-history-continuity-supersession-2026-09-03.toml",
+                "evidence/world/g0-attribution-history-continuity-2026-09-17.toml",
+                "evidence/world/g0-attribution-history-continuity-supersession-2026-09-17.toml",
                 "evidence/world/g0-repository-conformance.toml",
                 "evidence/world/g0-repository-conformance-2026-08-03.toml",
                 "evidence/world/g0-repository-conformance-2026-08-03-v2.toml",
@@ -1766,6 +1770,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "evidence/world/transcripts/g0-ostadix-alpha-branding-2026-08-09.log",
                 "evidence/world/transcripts/g0-independent-engine-2026-08-17.log",
                 "evidence/world/transcripts/g0-attribution-history-continuity-2026-09-03.log",
+                "evidence/world/transcripts/g0-attribution-history-continuity-2026-09-17.log",
                 "evidence/world/transcripts/g2-aarch64-qemu.log",
                 "evidence/world/transcripts/g2-aarch64-qemu-2026-08-03.log",
                 "examples/manifest.json",
@@ -3057,7 +3062,7 @@ class SourceReleaseTests(unittest.TestCase):
     def test_world_validator_has_distinct_historical_and_current_seals(self) -> None:
         historical_path = "evidence/world/g0-independent-engine-2026-08-17.toml"
         current_path = (
-            "evidence/world/g0-attribution-history-continuity-2026-09-03.toml"
+            "evidence/world/g0-attribution-history-continuity-2026-09-17.toml"
         )
         historical_attestation = tomllib.loads(
             (PROJECT_ROOT / historical_path).read_text(encoding="utf-8")
@@ -3707,16 +3712,20 @@ class SourceReleaseTests(unittest.TestCase):
                 )
 
     def test_schema_v3_historical_attestation_retains_exact_byte_seal(self) -> None:
-        path = "evidence/world/g0-independent-engine-2026-08-17.toml"
-        files = {path: (PROJECT_ROOT / path).read_bytes() + b"\n"}
-        modes = {path: "100644"}
-        with self.assertRaisesRegex(
-            release.ReleaseError,
-            "historical attestation bytes differ from seal",
+        for path in (
+            "evidence/world/g0-independent-engine-2026-08-17.toml",
+            "evidence/world/g0-attribution-history-continuity-2026-09-03.toml",
         ):
-            release._validate_world_attestation_release_surface(
-                files, modes, path, "G0", "repository_conformance"
-            )
+            with self.subTest(path=path):
+                files = {path: (PROJECT_ROOT / path).read_bytes() + b"\n"}
+                modes = {path: "100644"}
+                with self.assertRaisesRegex(
+                    release.ReleaseError,
+                    "historical attestation bytes differ from seal",
+                ):
+                    release._validate_world_attestation_release_surface(
+                        files, modes, path, "G0", "repository_conformance"
+                    )
 
     def test_release_external_unverified_witness_is_status_inert(self) -> None:
         witness_path = "evidence/world/witness.toml"
@@ -3866,7 +3875,7 @@ class SourceReleaseTests(unittest.TestCase):
             release._validate_release_rederive_ledger([attestation], [])
 
     def test_fresh_attestation_cannot_couple_replace_the_trusted_validator(self) -> None:
-        path = "evidence/world/g0-attribution-history-continuity-2026-09-03.toml"
+        path = "evidence/world/g0-attribution-history-continuity-2026-09-17.toml"
         source_path = PROJECT_ROOT / path
         if not source_path.is_file():
             self.skipTest("fresh schema-v3 G0 attestation has not been minted yet")
@@ -3911,7 +3920,7 @@ class SourceReleaseTests(unittest.TestCase):
             )
 
     def test_fresh_attestation_seal_rejects_coupled_transcript_rewrite(self) -> None:
-        path = "evidence/world/g0-attribution-history-continuity-2026-09-03.toml"
+        path = "evidence/world/g0-attribution-history-continuity-2026-09-17.toml"
         source_path = PROJECT_ROOT / path
         if not source_path.is_file():
             self.skipTest("fresh schema-v3 G0 attestation has not been minted yet")

@@ -1227,4 +1227,1304 @@ WithdrawResource
 <li>capsule affinity;</li>
 <li>data-size estimates;</li>
 <li>checkpoint policy;</li>
-<li>idempotenc
+<li>idempotence and determinism classification;</li>
+<li>commit semantics; and</li>
+<li>acceptable failure domains.</li>
+</ul>
+<p>Opaque evaluators may remain opaque internally, but their boundary contract cannot be opaque about authority, declared resources, object inputs, outputs, and capsule ownership.</p>
+<h2>Placement</h2>
+<p>The initial placement objective should be explicit and explainable:</p>
+<pre><code class="language-text">minimize
+    transfer_bytes * topology_cost
+  + estimated_runtime
+  + queue_delay
+  + checkpoint_cost
+  + energy_cost
+  + failure_risk
+  + authority_crossing_penalty
+
+subject to
+    CPU and memory quotas
+    architecture and evaluator availability
+    device and accelerator requirements
+    capability rights
+    capsule affinity
+    object locality
+    replication policy
+    trust and attestation policy
+    deadline and priority
+</code></pre>
+<p>The scheduler should first use a deterministic heuristic that can explain every decision. More sophisticated optimization can follow only after the receipt format exposes its inputs.</p>
+<h2>Failure classes</h2>
+<p>Every operation or route declares one of:</p>
+<ul>
+<li><strong>ephemeral</strong> -- loss is final;</li>
+<li><strong>restartable</strong> -- immutable inputs permit replay;</li>
+<li><strong>checkpointable</strong> -- state can be resumed from a committed checkpoint;</li>
+<li><strong>replicated</strong> -- multiple attempts may execute, but one may commit;</li>
+<li><strong>affinity-bound</strong> -- loss of its capsule owner is reported rather than hidden;</li>
+<li><strong>transactional</strong> -- external effect requires a Governor commit token; or</li>
+<li><strong>compensatable</strong> -- failure invokes a declared compensating operation.</li>
+</ul>
+<p>Exactly-once execution is not assumed. OSTADIX provides exactly-one <strong>global commit</strong> where the operation contract permits it.</p>
+<h2>Native execution agents</h2>
+<p>Each O-core node runs a native executor that can:</p>
+<ul>
+<li>materialize a package or project bundle;</li>
+<li>verify all content hashes;</li>
+<li>resolve local personalities and services;</li>
+<li>acquire delegated capabilities;</li>
+<li>create isolated domains;</li>
+<li>stage object inputs;</li>
+<li>run a route or HGraph region;</li>
+<li>stream logs and observations;</li>
+<li>checkpoint;</li>
+<li>publish artifacts; and</li>
+<li>return a generation-bound terminal result.</li>
+</ul>
+<h2>Acceptance gate J</h2>
+<p>A heterogeneous project lowers to one logical HGraph, executes across at least three physical O-core nodes, invokes both native and Linux-personality operations, transfers artifacts explicitly, loses one execution node, restores a checkpoint on another compatible node, rejects the late stale result, and commits one receipt through the Governor quorum.</p>
+<hr>
+<h1>16. Workstream K -- distributed objects, storage, and aggregate capacity</h1>
+<h2>Objective</h2>
+<p>Make the World&#39;s aggregate RAM and storage useful through explicit objects whose locality, replication, and failure behavior are visible.</p>
+<h2>Object service</h2>
+<p>Build a native <code>objectd</code> service with:</p>
+<ul>
+<li>content-addressed immutable chunks;</li>
+<li>Merkle manifests for large objects;</li>
+<li>streaming upload and download;</li>
+<li>checksums at every boundary;</li>
+<li>deduplication;</li>
+<li>replica placement;</li>
+<li>quotas and accounting;</li>
+<li>object leases;</li>
+<li>garbage collection tied to committed references;</li>
+<li>snapshots;</li>
+<li>encryption-at-rest policy; and</li>
+<li>repair after node loss.</li>
+</ul>
+<p>Metadata is committed through the Governor. Bulk content moves directly between nodes.</p>
+<h2>Object kinds and semantics</h2>
+<h3>Immutable artifacts</h3>
+<p>Used for source bundles, packages, executable images, datasets, build products, and receipts. Replication is straightforward because content identity is immutable.</p>
+<h3>Mutable leased regions</h3>
+<p>A mutable region has one current owner generation and optional read replicas. Writes require the owner lease or a transactional service. Ownership transfer is an explicit state transition, not cache coherence by accident.</p>
+<h3>Streams</h3>
+<p>Streams provide bounded, backpressured communication. Their endpoints are capabilities. Loss, reconnection, truncation, and replay policies are explicit.</p>
+<h3>Sharded collections</h3>
+<p>A sharded collection records partitioning, placement, and reconstruction metadata. HGraph operations can be placed near shards and can produce new shard sets without assembling the full dataset on one node.</p>
+<h3>Checkpoints</h3>
+<p>A checkpoint contains process or evaluator state only when a versioned adapter can capture it. Otherwise the state remains a capsule and the task cannot claim checkpointability.</p>
+<h2>World filesystem storage</h2>
+<p>Implement an immutable base plus writable distributed overlay for the Debian personality:</p>
+<ul>
+<li>content-addressed lower layers;</li>
+<li>per-World or per-user writable upper layers;</li>
+<li>POSIX metadata service;</li>
+<li>journaled namespace changes;</li>
+<li>snapshot and rollback;</li>
+<li>replica policy for critical metadata and package state; and</li>
+<li>explicit degraded mode when replicas are unavailable.</li>
+</ul>
+<h2>Aggregate memory claims</h2>
+<p>The status interface may report:</p>
+<pre><code class="language-text">Memory capacity: 61.8 GiB aggregate
+Locally allocatable now: 7.6 GiB on node-a
+Distributed object capacity: 43.2 GiB free
+Pinned accelerator memory: 5.4 GiB
+</code></pre>
+<p>It must not print <code>RAM: 64 GiB</code> without qualification.</p>
+<h2>Acceptance gate K</h2>
+<p>Store an object larger than the memory of any one node as a sharded or streamed World object, execute a computation over its shards without assembling it centrally, remove a replica node, repair the object, and verify the final content and receipt. The Debian overlay survives loss of one storage member according to its declared replication policy.</p>
+<h1>17. Workstream L -- the governed accelerator fabric</h1>
+<h2>Objective</h2>
+<p>Expose physically separate GPUs and other accelerators as one schedulable World service without pretending they share one device-local memory.</p>
+<h2>OAccelerator contract</h2>
+<p>Define a substrate-neutral interface containing:</p>
+<pre><code class="language-text">AcceleratorDescriptor
+QueueCapability
+BufferCapability
+ProgramCapability
+DispatchDescriptor
+FenceCapability
+TransferDescriptor
+TopologyDescriptor
+HealthState
+ResetState
+</code></pre>
+<p>The descriptor records architecture, supported intermediate representations, memory classes, queue families, limits, synchronization features, driver-domain identity, device generation, and reset behavior.</p>
+<h2>Initial implementation path</h2>
+<p>Use a contained Linux driver domain to own the physical GPU and userspace driver stack. Export a bounded compute service through the OSTADIX guest agent.</p>
+<p>The first portable API should favor Vulkan compute and SPIR-V because they provide an explicit command, buffer, and synchronization model across vendors. Vendor-specific CUDA, ROCm, Metal translation, or OpenCL adapters can follow as additional personalities.</p>
+<p>The service must support:</p>
+<ul>
+<li>device enumeration;</li>
+<li>program or shader upload by content hash;</li>
+<li>local buffer allocation;</li>
+<li>explicit host-to-device, device-to-host, and device-to-device transfer;</li>
+<li>command submission;</li>
+<li>fences and timeouts;</li>
+<li>quotas;</li>
+<li>telemetry;</li>
+<li>domain failure and reset; and</li>
+<li>generation-bound invalidation of queues and buffers.</li>
+</ul>
+<p>A GPU buffer is a capsule or a capability to node-local state. It does not become an OValue merely because it has a name.</p>
+<h2>Distributed accelerator scheduling</h2>
+<p>Add HGraph support for:</p>
+<ul>
+<li>data-parallel batches;</li>
+<li>model or pipeline stages with explicit transfer edges;</li>
+<li>tiled rendering;</li>
+<li>replicated inference services;</li>
+<li>collective operations implemented through explicit streams;</li>
+<li>buffer reuse and locality scoring;</li>
+<li>checkpointable host-side state; and</li>
+<li>fallback to CPU or another accelerator when the operation contract permits it.</li>
+</ul>
+<p>The scheduler should model:</p>
+<ul>
+<li>program compatibility;</li>
+<li>device-local memory;</li>
+<li>transfer bandwidth;</li>
+<li>queue occupancy;</li>
+<li>topology;</li>
+<li>thermal and power policy;</li>
+<li>failure rate; and</li>
+<li>data residency.</li>
+</ul>
+<h2>Acceptance gate L</h2>
+<p>At least two physical accelerators on different nodes execute one HGraph workload. Their buffers remain explicitly located, work is partitioned by the Governor, one accelerator domain is reset during execution, recoverable work is resubmitted, and the final receipt records every program, buffer transfer, node, domain generation, and committed output.</p>
+<hr>
+<h1>18. Workstream M -- security, enrollment, attestation, and least authority</h1>
+<h2>Objective</h2>
+<p>Ensure that adding a machine to the World adds governed capability rather than an unauthenticated attack surface.</p>
+<h2>Node identity and enrollment</h2>
+<p>Each node receives or generates a hardware-bound or securely stored identity key. Enrollment is an explicit ceremony:</p>
+<ol>
+<li>a prospective node presents its public identity and boot measurements;</li>
+<li>an administrator or existing World policy approves it;</li>
+<li>the Governor records the identity and permitted roles;</li>
+<li>the node proves possession through a challenge;</li>
+<li>a node generation and short-lived session credentials are issued; and</li>
+<li>resource publication occurs only after health and policy checks.</li>
+</ol>
+<p>Support key rotation, revocation, recovery keys, and an offline World-owner root.</p>
+<h2>Cryptographic substrate</h2>
+<p>Use established, auditable primitives through a versioned crypto provider rather than inventing new cryptography. The initial profile should include:</p>
+<ul>
+<li>Ed25519 or another approved signature primitive for identities and packages;</li>
+<li>X25519 or an equivalent key-agreement primitive;</li>
+<li>an authenticated-encryption mode such as ChaCha20-Poly1305;</li>
+<li>HKDF-SHA-256 for key derivation;</li>
+<li>SHA-256 or BLAKE3-class content hashing under an algorithm-tagged format; and</li>
+<li>forward-secure session establishment.</li>
+</ul>
+<p>Algorithm identity is included in every signed object so migration is possible.</p>
+<h2>Network capability transport</h2>
+<p>Local capabilities remain unforgeable CSpace entries. Cross-node delegation uses a bounded delegation certificate or ticket referencing:</p>
+<ul>
+<li>issuer identity and generation;</li>
+<li>capability root or object identity;</li>
+<li>exact rights;</li>
+<li>recipient node or domain where appropriate;</li>
+<li>World epoch and revocation generation;</li>
+<li>expiry or use bound;</li>
+<li>nonce; and</li>
+<li>signature or authenticated session binding.</li>
+</ul>
+<p>The receiving node creates a local proxy capability only after checking the authoritative Governor state. Rights can only be attenuated.</p>
+<h2>Isolation and denial of service</h2>
+<p>Add quotas for:</p>
+<ul>
+<li>memory and pinned memory;</li>
+<li>capabilities and namespace fids;</li>
+<li>endpoints and queue depth;</li>
+<li>CPU time and priority;</li>
+<li>object storage and transfer bandwidth;</li>
+<li>guest vCPUs and memory;</li>
+<li>DMA windows and interrupts;</li>
+<li>accelerator memory and submissions; and</li>
+<li>logs and receipts.</li>
+</ul>
+<p>Every untrusted parser receives fuzzing and bounded-allocation gates. Every service supports cancellation and backpressure.</p>
+<h2>Secure boot and attestation</h2>
+<p>For hardware that supports it, add a measured-boot chain covering:</p>
+<ul>
+<li>bootloader;</li>
+<li>O-core image;</li>
+<li>configuration and policy package;</li>
+<li>Governor service package;</li>
+<li>foreign-kernel packages; and</li>
+<li>critical driver-domain packages.</li>
+</ul>
+<p>Attestation is a policy input, not universal truth. A World may admit unattested hobby nodes under a restricted trust class while reserving sensitive capabilities for measured nodes.</p>
+<h2>Acceptance gate M</h2>
+<p>An unauthorized node cannot join, a revoked node cannot reuse an old session, a delegated right cannot be amplified, a stale domain cannot invoke a replacement device, a replayed task result cannot commit, and a compromised low-trust node cannot access objects outside its declared policy. All denials produce structured receipts without leaking secrets.</p>
+<hr>
+<h1>19. Workstream N -- observability, command surface, and human usability</h1>
+<h2>Objective</h2>
+<p>Make the new unit of computation legible. The World should be understandable without forcing the user to become a distributed-systems operator.</p>
+<h2>Command surface</h2>
+<p>Build a coherent CLI rather than a collection of unrelated binaries:</p>
+<pre><code class="language-text">o world init &lt;name&gt;
+o world join &lt;name&gt;
+o world status [--watch]
+o world topology
+o world events
+o world doctor
+o world snapshot
+o world recover
+
+o node enroll
+o node status
+o node resources
+o node drain
+o node leave
+o node replace
+
+o plan &lt;project&gt; --world &lt;name&gt;
+o plan &lt;project&gt; --world &lt;name&gt; --why &lt;operation&gt;
+o plan &lt;project&gt; --effects --authority --locality --failure
+o run &lt;project&gt; --world &lt;name&gt;
+o task inspect &lt;task-id&gt;
+o task checkpoint &lt;task-id&gt;
+o task cancel &lt;task-id&gt;
+
+o shell --world &lt;name&gt; --personality debian
+o mount --world &lt;name&gt; &lt;service&gt; &lt;path&gt;
+o cap inspect &lt;cap-id&gt;
+o receipt show &lt;receipt-id&gt;
+</code></pre>
+<p><code>o plan</code> must provide layered output:</p>
+<ul>
+<li>concise human plan;</li>
+<li>logical HGraph;</li>
+<li>deployment plan;</li>
+<li>effects;</li>
+<li>authority;</li>
+<li>objects and transfers;</li>
+<li>capsule affinity;</li>
+<li>failure policy;</li>
+<li>alternative placements and reasons;</li>
+<li>JSON, DOT, and canonical receipt formats.</li>
+</ul>
+<h2>Live topology view</h2>
+<p>Provide a terminal interface and machine-readable event stream showing:</p>
+<ul>
+<li>Governor leadership and log health;</li>
+<li>nodes and generations;</li>
+<li>links and measured topology;</li>
+<li>resources and ownership;</li>
+<li>services and personalities;</li>
+<li>tasks and attempts;</li>
+<li>object replicas;</li>
+<li>capability delegations at a safe summary level;</li>
+<li>failures, fencing, recovery, and replacement; and</li>
+<li>evidence status.</li>
+</ul>
+<p>The mesh should be visible even while the Debian personality remains convenient.</p>
+<h2>Installation and node images</h2>
+<p>Create reproducible outputs:</p>
+<ul>
+<li>x86_64 UEFI boot image;</li>
+<li>AArch64 UEFI/U-Boot boot image;</li>
+<li>board-specific support package;</li>
+<li>recovery image;</li>
+<li>Governor replica package;</li>
+<li>Linux driver KernelWorld package;</li>
+<li>pinned Debian root package; and</li>
+<li>test-lab provisioning manifest.</li>
+</ul>
+<p>A node should be enrollable without hand-editing kernel source. Hardware-specific details belong in signed board-support manifests and drivers.</p>
+<h2>Developer SDK</h2>
+<p>Publish versioned interfaces for:</p>
+<ul>
+<li>OValue schemas;</li>
+<li>native O services;</li>
+<li>9P/WorldFS services;</li>
+<li>capability-aware RPC;</li>
+<li>object and stream APIs;</li>
+<li>HGraph operation adapters;</li>
+<li>Linux personality adapters;</li>
+<li>driver-domain service adapters;</li>
+<li>evidence gate manifests; and</li>
+<li>receipts.</li>
+</ul>
+<h2>Acceptance gate N</h2>
+<p>A new user can boot a prepared physical node, enroll it into an existing World, watch its resources appear, enter the Debian personality, run a distributed project, inspect why each operation was placed, remove the node, and read the recovery receipt without manually editing IP-address lists or service configuration files.</p>
+<hr>
+<h1>20. Workstream O -- evidence, formal models, and adversarial testing</h1>
+<h2>Objective</h2>
+<p>Scale the repository&#39;s existing claim discipline to the full distributed and hardware system.</p>
+<h2>Evidence taxonomy</h2>
+<p>Extend <code>evidence/gates.toml</code> or create a compatible World evidence manifest with explicit classes:</p>
+<pre><code class="language-text">hosted_reference
+qemu_tcg_x86_64
+qemu_tcg_aarch64
+qemu_virtualization
+hardware_x86_64
+hardware_x86_64_iommu
+hardware_aarch64
+hardware_aarch64_smmu
+multinode_virtual
+multinode_physical
+fault_injection
+security_adversarial
+performance_characterization
+</code></pre>
+<p>A QEMU-TCG result cannot satisfy a hardware virtualization claim. One physical board cannot satisfy a multinode claim. One architecture cannot satisfy a multi-architecture claim.</p>
+<h2>Observation, claim, and history separation</h2>
+<p>Kernel code and tests emit typed observations. The versioned validator
+normalizes those observations and derives the maximal supported claim set from
+central rules. Gate definitions contain evidence-class and claim floors; gate
+authors do not author claims in attestations. An attestation may record
+<code>derived_claims</code>, but validation recomputes the set and rejects any discrepancy.
+Absence from that set means <code>not_established</code>, not that the event was proven not
+to occur. Explicit nonclaims remain deliberate, centrally constrained scope
+boundaries.</p>
+<p>For normalized observations <code>O</code>, validated topology <code>T</code>, one coherent
+content-addressed source snapshot <code>S</code>, and retained or transcript-bound
+artifacts <code>A</code>, the rule is:</p>
+<pre><code class="language-text">C = D_version(O, T, S, A)
+</code></pre>
+<p>The derivation identity binds observation parsing, same-attestation matching,
+context normalization, and compound-claim predicates. The qualification-policy
+identity separately binds the gate&#39;s claim, class, one-of-class, and nonclaim
+floors. This prevents a transcript from assembling a G7/G8 lifecycle out of
+unrelated runs or acquiring a physical/isolation claim without the required
+topology and pinned artifacts.</p>
+<p>The evidence directory is an append-only ledger of immutable attestations and
+separate supersession, retraction, re-derivation, or witness events. Events link
+record IDs, never rewrite the subject. A schema-v3 attestation stores its exact
+<code>derivation_hash</code>. When <code>D</code> changes, a <code>rederive</code> edge names the prior and
+current hashes and the exact claims lost and gained; old recorded claims remain
+historical facts rather than being migrated in place. The validator rejects
+cycles, missing subjects, cross-gate replacement, competing successors,
+unreachable derivation edges, and inexact claim deltas, resolves the active
+evidence heads, and computes current gate status from claims, evidence classes,
+and dependency status. Historical passage remains inspectable even when current
+qualification changes.</p>
+<p>An external reviewer adds a separate witness record bound to the exact subject
+record and canonical payload; countersigning never edits the correction event.
+Until a trusted-key policy and real signature verifier are installed, the
+repository labels such envelopes <code>external_unverified</code> and keeps them
+status-inert. A Git hash or self-consistent payload digest is tamper binding,
+not an independent trust anchor.</p>
+<h2>Formal specifications</h2>
+<p>Write executable or model-checked specifications for the highest-risk invariants.</p>
+<h3>Governor model</h3>
+<p>Use TLA+, PlusCal, Alloy, or another suitable formalism to model:</p>
+<ul>
+<li>leader changes;</li>
+<li>node admission and generation;</li>
+<li>capability root publication and revocation;</li>
+<li>resource leases;</li>
+<li>task attempts and exactly-one commitment;</li>
+<li>object ownership transfer;</li>
+<li>island mode; and</li>
+<li>snapshot recovery.</li>
+</ul>
+<p>Check safety under message loss, duplication, delay, partition, and process restart.</p>
+<h3>Kernel concurrency model</h3>
+<p>Model or exhaustively test:</p>
+<ul>
+<li>endpoint rendezvous;</li>
+<li>capability transfer and attenuation;</li>
+<li>mapping publication and teardown;</li>
+<li>process and domain generation reuse;</li>
+<li>device assignment and revocation;</li>
+<li>KernelWorld replacement; and</li>
+<li>SMP linearization epochs.</li>
+</ul>
+<h3>Namespace model</h3>
+<p>Check fid generation, mount replacement, stale references, cache invalidation, and private namespace cloning.</p>
+<h2>Fault injection</h2>
+<p>Build deterministic fault controls for:</p>
+<ul>
+<li>packet loss, duplication, corruption, delay, and reordering;</li>
+<li>network partition;</li>
+<li>Governor pause, crash, restart, and stale leader;</li>
+<li>node power loss;</li>
+<li>executor crash before and after result publication;</li>
+<li>object corruption and replica loss;</li>
+<li>guest kernel crash;</li>
+<li>device timeout and reset failure;</li>
+<li>interrupt storm;</li>
+<li>DMA teardown race;</li>
+<li>memory allocation failure;</li>
+<li>storage exhaustion;</li>
+<li>clock skew; and</li>
+<li>stale credential replay.</li>
+</ul>
+<h2>Compatibility measurement</h2>
+<p>The Linux personality should publish a machine-readable compatibility matrix:</p>
+<ul>
+<li>syscall and flag coverage;</li>
+<li>ioctl families;</li>
+<li><code>/proc</code>, <code>/sys</code>, and netlink coverage;</li>
+<li>dynamic loader features;</li>
+<li>tested packages;</li>
+<li>known semantic differences; and</li>
+<li>evidence links.</li>
+</ul>
+<h2>Performance characterization</h2>
+<p>Performance evidence is descriptive, not the product definition. Measure:</p>
+<ul>
+<li>local and remote service latency;</li>
+<li>9P metadata and data throughput;</li>
+<li>object transfer and repair;</li>
+<li>placement overhead;</li>
+<li>Governor commit latency;</li>
+<li>checkpoint and recovery cost;</li>
+<li>Linux personality syscall overhead;</li>
+<li>driver-domain I/O overhead;</li>
+<li>accelerator submission and transfer; and</li>
+<li>scaling under membership changes.</li>
+</ul>
+<p>Report topology and locality rather than collapsing everything into one deceptive number.</p>
+<h2>Acceptance gate O</h2>
+<p>The flagship demo has a machine-readable evidence bundle containing build inputs, hardware inventory, topology, gate results, fault-injection traces, receipts, claims, and non-claims. An independent runner can reproduce all virtual gates and verify all physical transcripts and signatures.</p>
+<h1>21. Integration gate ladder</h1>
+<p>The workstreams proceed in parallel, but the following gates define convergence. A gate is passed only by one reproducible integrated scenario, not by adding together unrelated demonstrations.</p>
+<table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>Integrated result</th>
+<th>What it proves</th>
+<th>What cannot substitute for it</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>G0 -- constitutional baseline</strong></td>
+<td>World and O-Machine contracts, crossing kinds, identities, failure classes, consistency model, and claim taxonomy are versioned</td>
+<td>the project has one target rather than several homonymous “world” concepts</td>
+<td>prose without executable schemas</td>
+</tr>
+<tr>
+<td><strong>G1 -- semantic continuity</strong></td>
+<td>project routes lower into a logical HGraph; receipts use shared World identities; <code>HostWorld</code> is separated from governed World state</td>
+<td>language, project runtime, and kernel vocabulary can converge</td>
+<td>a local route runner beside the HGraph</td>
+</tr>
+<tr>
+<td><strong>G2 -- AArch64 native compiler</strong></td>
+<td>O-core keeps EL2 resident, enters host EL1, completes one validated HVC return, and executes AArch64 EL0 process, IPC, capability, lifecycle, reclamation, and bounded counter-progress checks under QEMU TCG</td>
+<td>the SBC target and EL2/EL1 architectural split are real in the toolchain</td>
+<td>cross-compiling a trivial assembly stub or dropping EL2 permanently</td>
+</tr>
+<tr>
+<td><strong>G3 -- multicore O-core</strong></td>
+<td>x86_64 and AArch64 physical targets execute SMP stress gates, with mapping teardown pending until every affected CPU completes invalidation and drain</td>
+<td>the single-CPU proof model and asynchronous completion ABI have survived concurrency</td>
+<td>multiple single-core VMs or a local-only generation bump</td>
+</tr>
+<tr>
+<td><strong>G4 -- native World transport</strong></td>
+<td>three physical O-core nodes communicate through authenticated native transport</td>
+<td>O-core can join a network without a Linux host</td>
+<td>Linux-hosted node daemons</td>
+</tr>
+<tr>
+<td><strong>G5 -- replicated authority</strong></td>
+<td>three native Governor replicas preserve one log across leader loss and partition</td>
+<td>the World is logically singular without one physical point of failure</td>
+<td>one Governor plus a backup process</td>
+</tr>
+<tr>
+<td><strong>G6 -- WorldFS</strong></td>
+<td>per-process namespaces mount live resources from multiple physical nodes and survive churn</td>
+<td>Plan 9-style composition has become the World interface</td>
+<td>a static directory tree or FUSE mount above Linux</td>
+</tr>
+<tr>
+<td><strong>G7 -- real KernelWorld</strong></td>
+<td>a pinned, fully virtualized Linux kernel boots without an OSTADIX-specific guest HVC/paravirtual control ABI, exports a healthy virtio-backed service, and consumes a protocol-native error from a class-specific asynchronous withdrawal; both guest consumption and host acknowledgment precede memory teardown, including guest and broker mappings/pins</td>
+<td>foreign-kernel containment and graceful virtual-device withdrawal are operational</td>
+<td>a synthetic guest, syscall emulator, published-but-unconsumed completion, unrestricted host direct map, or page removal presented as deterministic device failure</td>
+</tr>
+<tr>
+<td><strong>G8 -- real driver service</strong></td>
+<td>Linux controls a physical device and O-core consumes it through a revocable capability; one concrete class freezes and qualifies quiesce -&gt; DMA fence/unmap/drain -&gt; interrupt withdrawal/drain -&gt; reset -&gt; generation retirement -&gt; host acknowledgment, plus replacement and an explicit guest-interface decision with MAC/key evidence only when guest-presented handles exist</td>
+<td>the driver-reuse thesis has crossed into hardware</td>
+<td>virtio-only or kernel-internal fake devices, a generic revoke verb, an unresolved guest-interface decision, or missing key-lifecycle evidence when guest-presented handles are enabled</td>
+</tr>
+<tr>
+<td><strong>G9 -- native Debian personality</strong></td>
+<td>dynamically linked Debian userland, <code>dpkg</code>, networking, and <code>apt</code> run under O-core</td>
+<td>the familiar operating environment is a true personality</td>
+<td>a container or chroot on Linux</td>
+</tr>
+<tr>
+<td><strong>G10 -- distributed execution</strong></td>
+<td>logical HGraph placement, objects, checkpoints, and exactly-one commit work across physical nodes</td>
+<td>the Governor governs computation, not just names</td>
+<td>SSH fan-out or an external batch system</td>
+</tr>
+<tr>
+<td><strong>G11 -- accelerator fabric</strong></td>
+<td>at least two accelerators execute one governed workload with explicit buffer locality and recovery</td>
+<td>GPUs are resources in the World rather than separately administered devices</td>
+<td>independent scripts on each GPU</td>
+</tr>
+<tr>
+<td><strong>G12 -- three-node native World</strong></td>
+<td>all preceding core mechanisms coexist on three physical O-core nodes</td>
+<td>the architecture has converged into one computer</td>
+<td>separate demos on separate branches</td>
+</tr>
+<tr>
+<td><strong>G13 -- eight-node OSTADIX Alpha</strong></td>
+<td>eight SBC-class nodes form one elastic World, provide Debian, driver domains, objects, distributed execution, and visible failure recovery</td>
+<td>OSTADIX has constructed the intended new unit of computation</td>
+<td>any hosted or simulated aggregate</td>
+</tr>
+</tbody></table>
+<h2>Gate dependency structure</h2>
+<p>The gates are not a simple waterfall. The intended dependency graph is:</p>
+<pre><code class="language-text">G0 -&gt; G1
+ |
+ +-&gt; G2 -&gt; G3 -----------+
+ |                       |
+ +-&gt; G4 -&gt; G5 -&gt; G6 -----+----&gt; G12 -&gt; G13
+ |                       |
+ +-&gt; G7 -&gt; G8 -----------+
+ |                       |
+ +-&gt; G9 -----------------+
+ |                       |
+ +-&gt; G10 -&gt; G11 ---------+
+</code></pre>
+<p>G7 and G8 can begin on x86_64 while AArch64 matures. G9 can expand in QEMU while physical networking and SMP mature. G10 can use the hosted oracle for differential tests while its native executor is built. None of those hosted or virtual paths substitutes for G12 or G13.</p>
+<hr>
+<h1>22. Seventy concrete pull requests</h1>
+<p>This is a merge-order skeleton, not a prohibition on parallel branches. Each PR should be narrow enough to review, but its “done” condition must be executable.</p>
+<h2>Foundation and semantic convergence</h2>
+<h3>PR 1 -- replace the conservative World roadmap</h3>
+<p>Add this full-stack program to <code>docs/</code>, update <code>docs/CLAIMS.md</code>, the multikernel proposal, and the release evidence schema. Define G0 through G13 and mark hosted World as reference-only.</p>
+<p><strong>Repository status:</strong> the version-3 constitution is paired with
+<code>evidence/world_contract_v2.toml</code>, its frozen version-1 vocabulary import, and
+the schema-v4 definition-only
+<code>evidence/world_alpha_gates.toml</code>. The validator derives claims and current
+status from active append-only ledger heads. G0 and the dependent AArch64
+QEMU/TCG gate G2 currently pass; the other 12 gates remain defined. These two
+passages do not promote virtual evidence to physical, hardware-isolation, SMP,
+foreign-kernel, or multinode evidence.</p>
+<h3>PR 2 -- shared World identity types</h3>
+<p>Add the complete identity and generation vocabulary to Rust and <code>.oc</code>, with round-trip tests and invalid-generation cases.</p>
+<p><strong>Repository status:</strong> landed as the bounded Mode 27 identity slice. All 20
+identity atoms above have shared typed Rust and <code>.oc</code> definitions, and the
+strict <code>OWIDENT</code> v1 identity-only corpus is byte-identical between the Rust
+oracle and native O-core under QEMU TCG. Strict decode rejects malformed and
+zero-valued records; hierarchical current/reference checks reject stale
+generations and same-generation logical mismatches. Serialized capability IDs remain
+descriptive non-authority. <code>OWIDENT</code> itself remains an identity-only record and
+does not become the separate PR 3 protocol codec, a transport, an OValue
+envelope, or a receipt codec; it supplies no Governor or consensus and passes
+no G0--G13 gate.</p>
+<h3>PR 3 -- canonical World wire codec</h3>
+<p>Implement deterministic encoding, bounded decoding, schema version negotiation, and cross-language byte oracles.</p>
+<p><strong>Repository status:</strong> landed as the bounded Mode 28 <code>OWPROTO</code> v1 codec slice.
+The Rust oracle and native <code>.oc</code> implementation share deterministic big-endian
+records with a 16 KiB hard maximum, caller/negotiated record bounds, four fixed
+kinds, strict exact-length and reserved-field validation, and canonical nested
+<code>OWIDENT</code> descriptions. Their fixed 20-record, 1254-byte corpus--two offers, one
+canonical v1 selection, one disjoint rejection, and all 16 identity conformance
+records--is byte-identical under QEMU TCG. Offline negotiation selects the
+highest common schema version and the smaller record limit, or returns one
+exact contextual no-overlap rejection.
+This is a record codec and pure negotiation function, not a stream or network
+transport, live peer handshake, authenticated session, authority channel,
+OValue envelope, receipt codec, Governor, consensus implementation, or
+Workstream A acceptance. It passes no G0--G13 gate.</p>
+<h3>PR 4 -- freeze OValue core and extension envelope</h3>
+<p>Split portable core values from versioned extensions. Prove canonical hashing and reject authority-bearing values.</p>
+<p><strong>Repository status:</strong> landed as the bounded Mode 29 <code>OWVALUE</code> v1 value and
+hash oracle. The format is separate and self-framed rather than a new
+<code>OWPROTO</code> v1 record kind. It has a 4096-byte record maximum, depth-16 and
+128-node limits, an explicit portable-value allowlist, strictly ordered record
+fields and scalar-key maps, and a root-only inert versioned extension envelope
+whose payload must itself be portable. Rust and native <code>.oc</code> must emit the same
+fixed 19-record, 928-byte corpus--1856 lowercase hex digits with concatenated
+SHA-256 <code>264e00550bbbe7561412d9a43f89036667ffbcf27add522131f8e650abef19bc</code>--and
+the same SHA-256 over each complete record; strict
+decode/reencode rejects malformed and noncanonical values, while the hosted
+projection rejects capabilities, capsules, and effectful values.</p>
+<p>Mode 29 is an offline codec and hash oracle. It does not replace the richer
+hosted <code>OValue</code> or its canonical-CBOR shim wire format, transport values between
+domains, resolve descriptive references into authority, dispatch extensions,
+implement PR 5 receipts, or satisfy Acceptance gate A. It supplies no Governor,
+consensus, WorldFS, or G0--G13 passage, and QEMU TCG is not physical or
+hardware-isolation evidence.</p>
+<h3>PR 5 -- canonical execution receipt</h3>
+<p>Unify HGraph, project, live-system, KernelWorld, object, capability, and evidence data into one signed receipt schema.</p>
+<p><strong>Repository status:</strong> landed as the bounded Mode 30 <code>OWRECEIPT</code> v1 canonical
+receipt and signing-preimage oracle. The separate self-framed format binds a
+bounded descriptive subset of World identities and generations, SHA-256 content
+references, capability-right descriptions, terminal and commit fields,
+evidence-gate identity, and an algorithm-tagged signature envelope. Rust and
+native <code>.oc</code> converge on a fixed two-record, 3,239-byte corpus (6,478 lowercase
+hex digits; SHA-256
+<code>1edd90bf881cd42d08e2031482baae4e7c9a95bd78cfa65f0cbe14147c0a2604</code>) and
+its 1,575-byte current and 1,546-byte stale signing preimages. Hosted Rust
+performs Ed25519 sign/verify and tamper/wrong-key rejection
+with a pinned, explicitly non-secret conformance key. Native Mode 30 validates
+receipt and signature-envelope structure but does not claim a general
+freestanding Ed25519 verifier.</p>
+<p>This is an offline conformance corpus rather than an integrated execution
+receipt. HGraph, project, live-system, KernelWorld, object, capability, O-Git,
+and evidence paths do not yet emit or consume it in live operation. Descriptive
+capability identities and rights grant no authority, and a valid signature does
+not establish signer trust, authorization, current World state, or replay/commit
+fencing. Mode 30 supplies no production key lifecycle, transport, Governor,
+consensus, WorldFS, typed OSTADIX Alpha attestation, Acceptance gate A, or G0--G13
+passage. QEMU TCG is not physical or hardware-isolation evidence.</p>
+<h3>PR 6 -- governed <code>ResourceKey</code> expansion</h3>
+<p>Add World, node, domain, process, object, capability, namespace, device, and accelerator resources while retaining <code>HostWorld</code> only for ambient hosted effects.</p>
+<p><strong>Repository status (2026-08-02): bounded hosted slice implemented.</strong> The Rust
+effect model exposes typed World, Governor, node, domain, process, generic
+<code>GovernedResource</code> (the <code>ResourceState</code> role above), object, descriptive
+capability, namespace, task-attempt, artifact-publication, device, and
+accelerator keys. Device and accelerator views also touch the canonical generic
+resource dependency. All governed source spellings are rejected from
+user-authored <code>reads=</code>/<code>writes=</code> declarations, and ordinary opaque hosted work
+continues to use <code>HostWorld</code>. <code>scripts/smoke-world-resource-keys.sh</code> proves the
+bounded hosted vocabulary, underlying identity helpers&#39; caller-pair comparison,
+HGraph state chaining, alias-aware grounding partition, source-forgery
+rejection, and residual <code>HostWorld</code> CLI behavior. Grounding checks only the
+bound World epoch/membership.</p>
+<p>This status is repository-conformance, not O-core Mode 31, a ResourceKey wire
+format, production OIR/project/KernelWorld lowering, live Governor or snapshot
+authority, namespace service, device discovery/assignment/driver execution,
+PCI/DMA/IOMMU isolation, accelerator control, native/QEMU/hardware evidence,
+Acceptance gate A, or passage of G0, G1, or any G0--G13 gate. PR 7&#39;s bounded
+hosted logical-planning status is recorded below; PR 9 still owns the full
+grounding and locality views.</p>
+<h3>PR 7 -- project operations constructed in HGraph</h3>
+<p>Make <code>MaterializeProject</code>, <code>BuildRoute</code>, <code>RunRoute</code>, <code>SelectRoute</code>, and <code>CompareRouteResults</code> appear in real project plans.</p>
+<p><strong>Repository status (2026-08-02): complete at the bounded hosted logical-planning
+boundary.</strong> A real directory or lifted <code>ProjectBundle</code> now flows through the
+same typed route-selection resolver used by the hosted runtime, into an exact
+bundle-digest-bound <code>ProjectExecutionPlan</code>, and then into a validated HGraph.
+Each selected alternative receives its own materialization branch;
+prerequisites are constructed within that branch. The project plan records
+route guards, environment overlay key names, ambient environment-guard
+dependencies, inputs, outputs, declared effects, cancellation semantics,
+route-set policy, and equivalence policy; its HGraph projection records the
+operation, effect/resource-transition, dependency, and output topology. The
+repository-owned <code>olangc &lt;project&gt; --target ir|dot</code> inspection paths and
+<code>scripts/o-cli.sh plan</code> dispatcher are deterministic and nonexecuting.
+<code>setup.sh</code> installs the latter as <code>o plan</code>. Project-specific source and
+projection validation reject malformed route references, dependency cycles,
+bundle or policy substitution, and forged operation/effect/dependency
+projections.</p>
+<p><code>MaterializeProject</code> and <code>RunRoute</code> remain conservative, fallible hosted
+operations over <code>HostWorld</code>; a manifest&#39;s <code>pure=true</code> field remains untrusted
+metadata and cannot upgrade hosted command execution. <code>BuildRoute</code> denotes
+verified logical route preparation, not execution of a build command.
+<code>CompareRouteResults</code> is constructed only for <code>verify_equivalent</code>. Project
+script and compiled execution continue to use the existing hosted project
+runtime; this slice does <strong>not</strong> execute project commands through the HGraph
+coordinator.</p>
+<p>The alternative dependencies are logical branches, not independently mediated
+host worlds. Shared conservative ambient/resource state chains remain in the
+HGraph and may serialize or cross-couple branches; PR7 does not prove parallel
+branch execution. Lowercase <code>o</code> retains its evaluator behavior for arguments
+other than the repo-owned <code>plan</code> subcommand.</p>
+<p>This is not PR 8 graph-layer separation, PR 9 grounding/authority/locality,
+placement, deployment, recovery, Governor integration, live receipt emission,
+WorldFS, remote execution, native or QEMU evidence, Linux or Plan 9 boot, a
+general foreign ABI, KVM/SVM evidence, PCI or physical-device assignment,
+DMA/IOMMU isolation, Acceptance gate A, G1, or passage of any G0--G13 gate.</p>
+<h3>PR 8 -- graph-layer separation</h3>
+<p>Introduce <code>LogicalHGraph</code>, <code>DeploymentPlan</code>, <code>RuntimeGraph</code>, and <code>RecoveryPlan</code> data structures with validation and serialization.</p>
+<h3>PR 9 -- grounding and locality planner views</h3>
+<p>Implement <code>o plan --grounding --authority --locality --failure --why</code> and make every reported fact traceable to graph data.</p>
+<h2>Compiler and architecture work</h2>
+<h3>PR 10 -- split target-neutral code generation</h3>
+<p>Refactor <code>src/ocore/codegen.rs</code> into target interface, Machine IR, and x86_64 backend without changing current output.</p>
+<h3>PR 11 -- Machine IR legalization and liveness</h3>
+<p>Represent register classes, calls, atomics, memory order, stack objects, relocations, and control flow. Add verifier passes.</p>
+<h3>PR 12 -- deterministic register allocator</h3>
+<p>Implement linear-scan allocation with spilling, fixed-register constraints, callee-save handling, and comparison against the spill-only oracle.</p>
+<h3>PR 13 -- complete indirect calls and atomics</h3>
+<p>Add function pointers, indirect call validation, architecture-neutral atomics, memory barriers, volatile access, and litmus tests.</p>
+<h3>PR 14 -- floating-point and SIMD foundation</h3>
+<p>Add scalar floating-point and target vector classes sufficient for system libraries and accelerator command preparation.</p>
+<h3>PR 15 -- AArch64 ABI and ELF object writer</h3>
+<p>Emit valid AArch64 relocatable objects, stack frames, calls, branches, constants, and required relocations.</p>
+<h3>PR 16 -- AArch64 QEMU boot image</h3>
+<p>Add AArch64 boot assembly, linker script, PL011 output, generic timer, exception vectors, and a first QEMU smoke gate.</p>
+<h3>PR 17 -- architecture-neutral runtime extraction</h3>
+<p>Move process, IPC, capability, memory-object, package, personality, and KernelWorld logic out of <code>runtime/x86_64</code> while preserving x86 gates.</p>
+<h3>PR 18 -- AArch64 platform layer</h3>
+<p>Implement page tables, exception dispatch, GICv3, PSCI, device-tree parsing, and virtio-mmio discovery.</p>
+<h3>PR 19 -- physical AArch64 boot</h3>
+<p>Produce UEFI/U-Boot images and boot O-core on the selected reference board with serial recovery and signed hardware evidence.</p>
+<h2>Dynamic kernel and SMP</h2>
+<h3>PR 20 -- typed kernel allocators</h3>
+<p>Replace critical fixed tables with quota-accounted page, slab, and object allocators. Add exhaustive allocation-failure gates.</p>
+<h3>PR 21 -- per-CPU state and secondary-core startup</h3>
+<p>Bring up multiple cores on x86_64 and AArch64, but initially hold nonboot cores outside ordinary scheduling.</p>
+<h3>PR 22 -- global kernel linearization lock</h3>
+<p>Run ordinary kernel and user work on all cores under one explicit lock, preserving existing single-owner semantics.</p>
+<h3>PR 23 -- per-CPU scheduler and cross-core wakeup</h3>
+<p>Add run queues, interprocessor interrupts, preemption, and CPU-affinity policy.</p>
+<h3>PR 24 -- SMP-safe capabilities and IPC</h3>
+<p>Stress concurrent transfer, attenuation, endpoint rendezvous, revocation, cancellation, and process teardown.</p>
+<h3>PR 25 -- address-space generations and TLB shootdown</h3>
+<p>Make mapping publication, copy-on-write, unmap, and destruction safe across CPUs.</p>
+<h3>PR 26 -- virtualization and IOMMU abstraction</h3>
+<p>Unify x86 nested paging/IOMMU and AArch64 stage-2/SMMU contracts behind capability-governed interfaces.</p>
+<h2>Native transport and Governor</h2>
+<h3>PR 27 -- virtio-net service</h3>
+<p>Implement a native packet service under x86_64 and AArch64 QEMU with bounded descriptors and capability-owned buffers.</p>
+<h3>PR 28 -- physical bootstrap network driver</h3>
+<p>Support one reference Ethernet or USB Ethernet controller on physical hardware.</p>
+<h3>PR 29 -- native IPv4/IPv6 control stack</h3>
+<p>Implement addressing, neighbor discovery, UDP, TCP, DHCP/static configuration, DNS, and diagnostics.</p>
+<h3>PR 30 -- authenticated multiplexed World transport</h3>
+<p>Add node authentication, replay protection, streams, flow control, cancellation, reconnect, and resumable object transfer.</p>
+<h3>PR 31 -- Governor state-machine specification</h3>
+<p>Implement the authoritative state machine in Rust and <code>.oc</code> without consensus, with model-based differential tests.</p>
+<h3>PR 32 -- Raft log and durable term state</h3>
+<p>Add election, replication, persistence, and committed-state application to the reference implementation.</p>
+<h3>PR 33 -- native Governor replicas</h3>
+<p>Run the same log protocol as O-core user services and prove leader replacement on three QEMU nodes.</p>
+<h3>PR 34 -- snapshots and membership reconfiguration</h3>
+<p>Add log compaction, snapshot install, replica replacement, and crash recovery.</p>
+<h3>PR 35 -- leases, fencing, and island mode</h3>
+<p>Implement resource liveness, node generations, task attempt fencing, capability revocation epochs, and minority restrictions.</p>
+<h3>PR 36 -- physical three-replica Governor</h3>
+<p>Pass G5 on three physical O-core nodes under controlled partition and restart.</p>
+<h2>WorldFS and namespaces</h2>
+<h3>PR 37 -- reusable 9P codec</h3>
+<p>Promote the bounded Mode 26 codec into a library with adversarial length, mutation, and allocation tests.</p>
+<h3>PR 38 -- native 9P server core</h3>
+<p>Implement attach, walk, open, create, read, write, clunk, remove, stat, and wstat over local IPC and network transport.</p>
+<h3>PR 39 -- 9P2000.L compatibility layer</h3>
+<p>Add Linux-oriented metadata, directory, link, lock, and xattr operations needed by the Debian personality.</p>
+<h3>PR 40 -- per-process namespace service</h3>
+<p>Implement bind, mount, unmount, cloning, inheritance, and namespace policy templates.</p>
+<h3>PR 41 -- generation-bound WorldFS</h3>
+<p>Expose <code>/world</code>, bind fids to object generations, publish invalidation events, and reject stale references.</p>
+<h3>PR 42 -- WorldFS on physical multinode transport</h3>
+<p>Pass G6 with resources and services from at least three physical O-core nodes.</p>
+<h2>Real Linux KernelWorld and driver domains</h2>
+<h3>PR 43 -- foreign-kernel package format</h3>
+<p>Implement strict foreign-kernel package admission against the already-frozen
+image, initramfs, boot, quota, service, device, health, provenance, and
+resource-class-specific O-Machine withdrawal contracts.</p>
+<h3>PR 44 -- real x86_64 Linux boot</h3>
+<p>Replace the synthetic Mode 23 guest with a pinned, fully virtualized Linux
+kernel and initramfs under AMD SVM. Use trapped virtio MMIO/PCI doorbells and
+no OSTADIX-specific guest hypercall or paravirtual control ABI; add VMX after
+the interface stabilizes.</p>
+<h3>PR 45 -- AArch64 Linux guest boot</h3>
+<p>Boot the same guest-agent contract at guest EL1 under O-core at host EL1 and
+O-Machine at EL2 with stage-2 translation. Architecture platform calls carry
+no resource handles and do not create a guest authority ABI.</p>
+<h3>PR 46 -- OSTADIX guest agent and shared rings</h3>
+<p>Implement health negotiation, service discovery, bounded descriptors,
+cancellation, deadlines, and terminal-state reporting over standard virtio
+transport.</p>
+<h3>PR 47 -- hostile foreign-kernel lifecycle gates</h3>
+<p>Crash, hang, replace, and race the guest. Qualify the asynchronous two-phase
+host acknowledgment separately from the guest-visible result: withdraw a
+<code>MachineBlock</code> or <code>Machine9P</code> endpoint, observe the pinned guest&#39;s native
+terminal completion being consumed and returned as a device/protocol error,
+then tear down <code>MachineMemory</code> with the exact
+stop/unmap/TLBI/drain/generation/ack ordering. Reject stale completions.</p>
+<h3>PR 48 -- physical-device object and reset state machine</h3>
+<p>Model discovery, isolation group, DMA windows, interrupts, assignment,
+quiesce, reset, and generation replacement. Freeze the G8 decision on direct
+guest machine calls; add a MAC and complete key lifecycle only if the guest is
+made an untrusted handle presenter. Define the first physical device family&#39;s
+class-named withdrawal operation and exact quiesce/DMA/interrupt/reset order;
+do not introduce a generic device revoke verb.</p>
+<h3>PR 49 -- first physical Linux-driven device</h3>
+<p>Pass the complete class-specific device lifecycle on a resettable NIC, NVMe,
+USB controller, or equally bounded device, including the frozen withdrawal
+order and host acknowledgment.</p>
+<h3>PR 50 -- source-integrated Linux Driver Environment</h3>
+<p>Create the compatibility surface, one transplanted driver-family profile, and a typed service export for hardware that cannot be cleanly assigned.</p>
+<h2>Linux ABI and Debian</h2>
+<h3>PR 51 -- dynamic ELF, TLS, and <code>PT_INTERP</code></h3>
+<p>Run a dynamically linked hello-world under both x86_64 and AArch64 O-core Linux personalities.</p>
+<h3>PR 52 -- writable VFS and POSIX paths</h3>
+<p>Add openat-family semantics, metadata, directories, links, rename, locks, and WorldFS-backed files.</p>
+<h3>PR 53 -- process creation and copy-on-write</h3>
+<p>Implement exec, fork/clone, wait, thread-local state, copy-on-write, and process generations.</p>
+<h3>PR 54 -- signals, futexes, pipes, epoll, and ptys</h3>
+<p>Support glibc threading, shell job control, pipelines, event loops, and interactive terminals.</p>
+<h3>PR 55 -- sockets and network-facing Linux ABI</h3>
+<p>Map sockets, DNS, Unix sockets, eventing, and bounded netlink subsets onto OSTADIX network services.</p>
+<h3>PR 56 -- <code>/proc</code>, <code>/sys</code>, <code>/dev</code>, and ioctl families</h3>
+<p>Generate capability-filtered views and typed device adapters needed by ordinary userland.</p>
+<h3>PR 57 -- reproducible Debian root package</h3>
+<p>Build immutable base layers, writable overlay, users, groups, resolver state, WorldFS mount, shell, and core utilities.</p>
+<h3>PR 58 -- <code>dpkg</code> and local package installation</h3>
+<p>Install, remove, query, and verify signed local Debian packages inside the native personality.</p>
+<h3>PR 59 -- <code>apt</code> through World networking</h3>
+<p>Update from a pinned repository snapshot and install a package through the O-core network and storage services.</p>
+<h2>Distributed execution, objects, accelerators, and convergence</h2>
+<h3>PR 60 -- native content-addressed object service</h3>
+<p>Add chunking, Merkle manifests, replication, repair, quotas, garbage collection, and receipts.</p>
+<h3>PR 61 -- native distributed HGraph executor</h3>
+<p>Place HGraph regions on O-core nodes, acquire capabilities, stage objects, run attempts, and publish results.</p>
+<h3>PR 62 -- checkpoint and recovery adapters</h3>
+<p>Support native processes, selected evaluators, and route-level checkpoints while retaining capsule classification for unsupported state.</p>
+<h3>PR 63 -- exactly-one global commit</h3>
+<p>Fence duplicate attempts, external effects, and late results through the Governor.</p>
+<h3>PR 64 -- distributed Debian storage overlay</h3>
+<p>Replicate package and user state, snapshot it, and recover after a storage-node loss.</p>
+<h3>PR 65 -- OAccelerator service contract</h3>
+<p>Implement programs, queues, buffers, dispatch, fences, telemetry, reset, and capability rights.</p>
+<h3>PR 66 -- first Linux-driven GPU compute service</h3>
+<p>Run Vulkan compute or SPIR-V through a Linux driver domain and consume it from an O-core HGraph.</p>
+<h3>PR 67 -- multi-accelerator placement and recovery</h3>
+<p>Partition a workload across at least two nodes, reset one accelerator domain, and recover permitted work.</p>
+<h3>PR 68 -- three-node native convergence gate</h3>
+<p>Pass G12 with replicated Governor, WorldFS, Debian, a real Linux driver service, objects, and distributed HGraph execution in one scenario.</p>
+<h3>PR 69 -- eight-node provisioning and topology</h3>
+<p>Build reproducible images and enrollment manifests for the final SBC fabric.</p>
+<h3>PR 70 -- OSTADIX Alpha gate</h3>
+<p>Pass G13, publish the full signed evidence bundle, and cut the first release that may call itself the machine constructor.</p>
+<hr>
+<h1>23. The flagship eight-node demonstration</h1>
+<p>The flagship must show the ontology changing, not merely a benchmark number increasing.</p>
+<h2>Physical layout</h2>
+<pre><code class="language-text">Eight SBC-class AArch64 nodes
+    three Governor replicas
+    five additional execution/storage/accelerator members
+    Ethernet or another explicit fabric
+    O-core bare metal on every counted node
+    Linux KernelWorlds only as contained driver or compatibility domains
+</code></pre>
+<p>The nodes need not be identical. Heterogeneity strengthens the claim if architecture, memory, device, and capability differences are represented honestly.</p>
+<h2>Boot and formation</h2>
+<p>Each node boots O-core, verifies its packages, starts native services, authenticates to the World, and requests admission.</p>
+<p>The operator sees:</p>
+<pre><code class="language-text">$ o world status --watch
+
+World: desk
+Epoch: 184
+Governor: 3 replicas, quorum healthy
+Members: 8 healthy
+Architectures: aarch64
+CPU: 32 allocatable cores
+Memory: 61.8 GiB aggregate, node-local
+Object capacity: 412 GiB replicated
+Accelerators: 3 available, 1 degraded
+Driver worlds: 8 healthy
+Debian personality: ready
+</code></pre>
+<p>The status output explicitly labels aggregate capacity and locality.</p>
+<h2>Familiar environment</h2>
+<pre><code class="language-text">$ o shell --world desk --personality debian
+root@desk:/# uname -a
+root@desk:/# ls /world/members
+root@desk:/# apt update
+root@desk:/# apt install &lt;pinned-demo-package&gt;
+</code></pre>
+<p>The shell runs under the O-core Linux personality. Networking and at least one physical device are provided by contained Linux driver worlds.</p>
+<h2>Distributed workload</h2>
+<p>Run a project whose HGraph includes:</p>
+<ul>
+<li>a sharded input object larger than one node&#39;s chosen working-set budget;</li>
+<li>parallel preprocessing on multiple nodes;</li>
+<li>at least two accelerator operations;</li>
+<li>a checkpointable long-running stage;</li>
+<li>a route implemented by two personalities under <code>verify_equivalent</code>; and</li>
+<li>one final transactional artifact publication.</li>
+</ul>
+<p>Before execution:</p>
+<pre><code class="language-text">$ o plan demo.O --world desk --authority --locality --failure
+</code></pre>
+<p>The plan explains placement, transfers, capabilities, capsules, checkpoints, and fallbacks.</p>
+<h2>Failure sequence</h2>
+<ol>
+<li>Start the workload.</li>
+<li>Physically disconnect one ordinary worker node.</li>
+<li>Observe its lease expire and its resources leave <code>/world</code>.</li>
+<li>Verify that unrelated work continues.</li>
+<li>Restore checkpointable work on a compatible node.</li>
+<li>Verify that an affinity-bound operation reports loss rather than silently migrating.</li>
+<li>Reconnect the old node and confirm that it receives a new generation.</li>
+<li>Submit a delayed result from the old attempt and observe fencing.</li>
+<li>Kill one Governor replica and verify quorum continuation.</li>
+<li>Add a ninth previously unenrolled node, approve it, and watch new resources appear.</li>
+<li>Drain a node intentionally and verify graceful task relocation and service withdrawal.</li>
+</ol>
+<p>Expected event narrative:</p>
+<pre><code class="language-text">node-5 generation 12: lease expired
+resources withdrawn: cpu/4, memory/7.6GiB, accelerator/gpu0
+attempt 7 fenced
+checkpoint 44 selected
+replacement attempt 8 placed on node-2 generation 31
+affinity-bound camera stream reported LOST_ORIGIN
+late completion from attempt 7 rejected
+node-5 reenrolled as generation 13
+governor replica g2 unavailable; quorum remains 2/3
+node-9 generation 1 admitted; resources published
+</code></pre>
+<h2>Final evidence</h2>
+<p>The final receipt records:</p>
+<ul>
+<li>exact hardware and firmware inventory;</li>
+<li>O-core and package digests;</li>
+<li>World epoch and Governor terms;</li>
+<li>membership changes;</li>
+<li>every placement and transfer;</li>
+<li>delegated rights;</li>
+<li>Linux driver-domain generations;</li>
+<li>accelerator programs and buffers;</li>
+<li>checkpoints and recovery;</li>
+<li>stale-result denial;</li>
+<li>final artifact hashes; and</li>
+<li>claims and non-claims.</li>
+</ul>
+<p>The headline is not “eight boards beat a workstation.” It is:</p>
+<blockquote>
+<p>Eight independent machines entered one governed computational World, the World gained and lost organs while running, and the user continued to operate one coherent environment without manually programming the distribution.</p>
+</blockquote>
+<hr>
+<h1>24. Hardware development program</h1>
+<p>The final system is hardware-facing, so hardware cannot remain an undifferentiated future concern. Use a four-tier lab.</p>
+<h2>Tier 1 -- deterministic virtual platforms</h2>
+<p>Use QEMU x86_64 and AArch64 for:</p>
+<ul>
+<li>compiler and ELF gates;</li>
+<li>boot and exception gates;</li>
+<li>virtio networking and block devices;</li>
+<li>SMP stress;</li>
+<li>Governor partitions;</li>
+<li>WorldFS protocol mutation;</li>
+<li>Linux guest boot; and</li>
+<li>deterministic fault injection.</li>
+</ul>
+<p>Virtual platforms maximize observability. They do not establish physical-device or timing claims.</p>
+<h2>Tier 2 -- x86_64 virtualization and IOMMU reference machine</h2>
+<p>Use a machine with well-understood AMD-V or Intel VT-x, IOMMU, PCIe, and resettable devices to mature:</p>
+<ul>
+<li>nested paging;</li>
+<li>physical device assignment;</li>
+<li>DMA teardown;</li>
+<li>interrupt remapping;</li>
+<li>reset and replacement;</li>
+<li>Linux driver-domain service export; and</li>
+<li>hostile failure tests.</li>
+</ul>
+<p>This platform attacks the hardest driver-domain unknown with the richest debugging environment. It is not the final form factor.</p>
+<h2>Tier 3 -- one AArch64 reference SBC</h2>
+<p>Select one board using the qualification matrix from Workstream H. Prove:</p>
+<ul>
+<li>repeatable boot and recovery;</li>
+<li>multicore startup;</li>
+<li>physical memory and device-tree discovery;</li>
+<li>native control networking;</li>
+<li>EL2 guest execution;</li>
+<li>SMMU or an explicit alternative isolation strategy;</li>
+<li>one real driver service;</li>
+<li>thermal and power observability; and</li>
+<li>local Debian personality execution.</li>
+</ul>
+<p>Do not purchase eight showcase boards until one board passes this gate. This is not conservatism about the goal. It is protection against multiplying the wrong hardware assumption eightfold.</p>
+<h2>Tier 4 -- eight-node fabric</h2>
+<p>Only after the reference board passes its native gates should the eight-node lab be assembled. The lab needs:</p>
+<ul>
+<li>managed power control or remotely controllable outlets;</li>
+<li>switch ports capable of per-link fault injection;</li>
+<li>serial consoles or a serial concentrator;</li>
+<li>reproducible boot media;</li>
+<li>one independent management machine;</li>
+<li>measured link topology;</li>
+<li>at least one removable worker device;</li>
+<li>at least one accelerator-capable member; and</li>
+<li>sensors for temperature, power, and link state.</li>
+</ul>
+<p>The lab itself becomes an evidence instrument.</p>
+<h2>Board-support package contract</h2>
+<p>A board-support package should contain:</p>
+<pre><code class="language-text">board identity and revision
+supported boot path
+firmware and bootloader requirements
+device-tree digest and overlays
+CPU topology
+memory map
+interrupt controller
+timers
+serial console
+IOMMU or SMMU topology
+network bootstrap path
+assignable devices
+native drivers
+foreign-driver profiles
+known reset limitations
+power and thermal sensors
+claims and non-claims
+</code></pre>
+<p>The kernel must not accumulate board-specific conditionals without a corresponding signed support package and hardware gate.</p>
+<hr>
+<h1>25. Risk register with architectural responses</h1>
+<p>Ambition is useful only when the risks are named in the same resolution as the goals.</p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Why it is dangerous</th>
+<th>Required response</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Compiler refactor destabilizes the existing kernel</strong></td>
+<td>code generation is beneath every native gate</td>
+<td>preserve x86 output through differential tests, keep spill-only backend as oracle, merge target-neutral layers incrementally</td>
+</tr>
+<tr>
+<td><strong>AArch64 becomes a second ad hoc backend</strong></td>
+<td>architecture drift would duplicate the kernel</td>
+<td>force Machine IR and architecture-neutral runtime before broad AArch64 feature growth</td>
+</tr>
+<tr>
+<td><strong>SMP breaks generation and capability invariants</strong></td>
+<td>stale authority bugs become nondeterministic</td>
+<td>begin with one explicit linearization lock, model commit points, stress before lock partitioning</td>
+</tr>
+<tr>
+<td><strong>Target SBC lacks usable EL2 or SMMU behavior</strong></td>
+<td>binary-contained driver domains may be impossible or unsafe</td>
+<td>qualify hardware before scale-out, maintain source-integrated driver path, choose a different board when the architecture requires it</td>
+</tr>
+<tr>
+<td><strong>Physical devices cannot be reset or isolated</strong></td>
+<td>failed driver worlds could retain DMA or poison replacements</td>
+<td>select resettable reference devices, expose isolation groups, deny assignment when teardown cannot be proved</td>
+</tr>
+<tr>
+<td><strong>Linux guest boots but useful drivers remain inaccessible</strong></td>
+<td>“Linux as hardware organ” would stay ceremonial</td>
+<td>require a physical-device gate and a typed service consumed by an unrelated O-core process</td>
+</tr>
+<tr>
+<td><strong>Linux ABI expansion becomes an endless syscall list</strong></td>
+<td>broad compatibility can swallow the project</td>
+<td>drive coverage through dependency slices tied to concrete Debian packages, publish a machine-readable compatibility envelope</td>
+</tr>
+<tr>
+<td><strong>WorldFS becomes a slow universal data tunnel</strong></td>
+<td>control-plane elegance could strangle bulk workloads</td>
+<td>negotiate separate streams and object channels while retaining 9P naming and authority</td>
+</tr>
+<tr>
+<td><strong>Consensus infects every fast path</strong></td>
+<td>a global log on each operation would destroy locality</td>
+<td>commit identity, authority, metadata, and terminal decisions; keep ordinary local execution and bulk data off the log</td>
+</tr>
+<tr>
+<td><strong>Minority partitions create split-brain effects</strong></td>
+<td>two halves could both believe they own authority</td>
+<td>enforce island mode and fencing; local-only work must be labeled and cannot globally commit</td>
+</tr>
+<tr>
+<td><strong>Checkpoint claims exceed actual state capture</strong></td>
+<td>hidden actor or device state could make replay false</td>
+<td>unsupported state remains a capsule; checkpointability is adapter-specific and tested</td>
+</tr>
+<tr>
+<td><strong>GPU APIs expose raw foreign handles</strong></td>
+<td>driver-domain affinity and stale generations could escape</td>
+<td>export OAccelerator capabilities and explicit buffers, never vendor handles as portable OValues</td>
+</tr>
+<tr>
+<td><strong>OValue becomes a universal coupling sink</strong></td>
+<td>every subsystem could become dependent on every variant</td>
+<td>freeze a small core, use versioned extension envelopes, keep authority and capsules out of value serialization</td>
+</tr>
+<tr>
+<td><strong>Repository complexity overwhelms integration</strong></td>
+<td>many dissertation-sized branches can diverge</td>
+<td>organize by integration gates, require shared schemas, and stop counting isolated feature code as progress</td>
+</tr>
+<tr>
+<td><strong>Security is postponed until after the demo</strong></td>
+<td>networked capabilities would be unsafe by construction</td>
+<td>enrollment, authentication, replay protection, quotas, and revocation are part of the first native transport and Governor gates</td>
+</tr>
+<tr>
+<td><strong>A compelling demo encourages inflated claims</strong></td>
+<td>attention can outrun evidence</td>
+<td>preserve claim/non-claim manifests and publish the full topology, limitations, and evidence bundle with the demo</td>
+</tr>
+</tbody></table>
+<hr>
+<h1>26. Immediate implementation order</h1>
+<p>The first work should attack the architectural seams and the longest native poles simultaneously. The next twelve concrete moves are:</p>
+<h2>Move 1 -- land the constitutional document</h2>
+<p>Replace the prior World v0 roadmap with this program. Add G0 through G13 to the evidence vocabulary. Mark the hosted World as a reference implementation and prohibit it from satisfying native release gates.</p>
+<p><strong>Repository status:</strong> complete as a constitutional/schema change. The hosted
+profile remains reference material; only its separately bounded lifecycle
+oracle and partial libraries are currently executable. It carries no
+qualifying gate credit, and no G0--G13 status was promoted.</p>
+<h2>Move 2 -- create one shared World identity module</h2>
+<p>Implement Rust and <code>.oc</code> definitions for World, Governor, node, domain, resource, object, task, attempt, capability, and receipt identities. Add byte-level cross-language tests.</p>
+<p><strong>Repository status:</strong> complete at the PR 2 boundary through the shared
+20-atom Rust/<code>.oc</code> vocabulary and bounded <code>OWIDENT</code> v1 QEMU byte oracle.
+Capability IDs in the serialized corpus remain descriptive, never authority.
+The general PR 3 wire/transport/negotiation/receipt surface, Governor,
+consensus, and all G0--G13 qualification remain outside this move.</p>
+<h2>Move 3 -- unify <code>HostWorld@N</code> and KernelWorld semantics without renaming away opacity</h2>
+<p>Add precise governed <code>ResourceKey</code> variants. Bind native execution to real KernelWorld and World generations. Keep unknown hosted effects under <code>HostWorld</code> so the planner can measure the remaining gap.</p>
+<h2>Move 4 -- make project HGraphs real</h2>
+<p>Construct the currently declared project operations from <code>ProjectBundle</code> and route policy. Add logical HGraph output for <code>o plan &lt;project&gt;</code>.</p>
+<p><strong>Repository status:</strong> complete at the bounded hosted logical-planning
+boundary. Directory and lifted bundles construct exact-provenance project
+plans and real HGraphs for inspection without running their commands. Project
+execution through HGraph, graph-layer separation, placement, deployment,
+Governor authority, and qualifying native evidence remain future work.</p>
+<h2>Move 5 -- define <code>DeploymentPlan</code> and <code>RecoveryPlan</code></h2>
+<p>Before implementing network execution, freeze how logical operations become placements, transfers, delegated capabilities, capsules, checkpoints, and commit rules.</p>
+<h2>Move 6 -- split <code>src/ocore/codegen.rs</code></h2>
+<p>Create the target interface and Machine IR while proving unchanged x86_64 output. This opens the AArch64 path without immediately rewriting the kernel.</p>
+<p><strong>Repository status:</strong> the bounded G2 implementation adds a separate,
+fail-closed scalar AArch64 backend while preserving the existing x86_64
+backend. It does not yet provide the target-neutral Machine IR, general
+register allocator, atomics, floating point, vector types, or stable foreign
+ABI described by the full Workstream B design.</p>
+<h2>Move 7 -- implement the AArch64 object and boot minimum</h2>
+<p>Emit one freestanding AArch64 object, link it, print through PL011 under QEMU, and add the first AArch64 evidence gate.</p>
+<p><strong>Repository status:</strong> complete beyond the minimum at virtual-native G2. One
+deterministic AArch64 image installs <code>VBAR_EL2</code>, retains a private EL2 stack,
+enters O-core at host EL1, and completes one domain-separated HVC/ERET round
+trip with sentinel-register and stack integrity before running two compiled EL0
+principals. A forced one-vCPU QEMU/TCG <code>virt,virtualization=on</code> run also covers
+real SVC/ERET, endpoint request/reply, capability attenuation, contained EL0
+fault and exit, generation reuse with stale denial, reclamation, and bounded
+post-lifecycle architectural-counter progress. It does not yet install stage-2
+translation or boot a foreign kernel. This is not physical AArch64, SMP/G3,
+KVM/SVM, Linux or Plan 9 boot, a general foreign ABI, or PCI/DMA/IOMMU/device
+assignment evidence.</p>
+<h2>Move 8 -- write the Governor state-machine model now</h2>
+<p>Specify membership, generations, resources, capability roots, tasks, attempts, object ownership, and island mode before network code creates accidental semantics.</p>
+<h2>Move 9 -- promote the 9P codec out of the bounded corpus</h2>
+<p>Preserve the existing wire oracle, move the codec into a reusable library, and fuzz it. WorldFS work can then proceed in parallel with networking.</p>
+<h2>Move 10 -- define the real Linux KernelWorld package and guest-agent protocol</h2>
+<p>Freeze the image, initramfs, health, virtio queue, service-export, class-specific
+device withdrawal, and memory-teardown contracts before choosing the first
+Linux image. Keep the G7 guest outside the O-Machine caller set.</p>
+<h2>Move 11 -- create the hardware qualification worksheet</h2>
+<p>Evaluate candidate AArch64 boards for EL2, GIC, PSCI, SMMU, boot path, Ethernet, PCIe, GPU, reset, and documentation. Select one reference board based on the kernel architecture.</p>
+<h2>Move 12 -- establish a convergence CI matrix</h2>
+<p>Add jobs or lab scripts for:</p>
+<pre><code class="language-text">hosted semantic oracle
+x86_64 compiler and current QEMU gates
+AArch64 compiler gate
+AArch64 QEMU boot gate
+Governor model checker
+9P mutation tests
+foreign-kernel package verifier
+three-node network simulation
+</code></pre>
+<p>These twelve moves begin the hard paths immediately while preserving the verified ground already present.</p>
+<hr>
+<h1>27. Work to stop expanding until it serves the World</h1>
+<p>An ambitious roadmap still needs exclusion. The following work should not consume primary engineering attention unless it directly satisfies one of G0 through G13:</p>
+<ul>
+<li>additional hosted evaluator languages;</li>
+<li>unrelated syntax additions;</li>
+<li>more hardcoded O-Git demo fields;</li>
+<li>a second hosted orchestration framework;</li>
+<li>additional foreign personalities before Linux reaches a real device and Debian gate;</li>
+<li>generalized transparent distributed shared memory;</li>
+<li>arbitrary process migration before checkpoint adapters exist;</li>
+<li>rich graphical administration before the terminal event model is complete;</li>
+<li>performance tuning that does not expose placement and topology; and</li>
+<li>support for poorly documented boards chosen only for price or novelty.</li>
+</ul>
+<p>This is not a reduction in ambition. It concentrates ambition on the parts that change what a computer can be.</p>
+<hr>
+<h1>28. OSTADIX Alpha non-claims</h1>
+<p>Even OSTADIX Alpha must remain precise. Passing G13 would not yet prove:</p>
+<ul>
+<li>uniform coherent RAM across nodes;</li>
+<li>remote pointer transparency;</li>
+<li>arbitrary unmodified Linux kernel modules inside the O-core kernel;</li>
+<li>universal hardware support;</li>
+<li>arbitrary Linux binary compatibility;</li>
+<li>transparent migration of every Linux process;</li>
+<li>perfectly shared multi-GPU memory;</li>
+<li>production-grade Byzantine-fault tolerance;</li>
+<li>safety against malicious physical hardware;</li>
+<li>every systemd service or desktop environment;</li>
+<li>Windows, XNU, Android, or Plan 9 binary compatibility; or</li>
+<li>that eight inexpensive SBCs outperform a tightly integrated workstation on all workloads.</li>
+</ul>
+<p>It would prove something more structurally important:</p>
+<blockquote>
+<p>O-core can constitute multiple physical machines, foreign kernels, devices, namespaces, user environments, data objects, and execution attempts as one capability-governed World whose membership may change without destroying its identity.</p>
+</blockquote>
+<hr>
+<h1>29. Beyond OSTADIX Alpha: OSTADIX 1.0</h1>
+<p>After the eight-node OSTADIX Alpha, the road to 1.0 is not “add more nodes.” It is hardening the machine as an ecosystem.</p>
+<p>World 1.0 should add:</p>
+<ul>
+<li>rolling upgrade of Governor replicas and native services;</li>
+<li>stable wire-compatibility policy;</li>
+<li>multi-user identity, groups, quotas, and delegation;</li>
+<li>secure and measured boot profiles;</li>
+<li>encrypted object storage and backup;</li>
+<li>automatic replica repair and capacity rebalancing;</li>
+<li>service-level objectives and admission control;</li>
+<li>broader Debian package compatibility;</li>
+<li>fuller cgroup, namespace, seccomp, udev, D-Bus, and systemd behavior;</li>
+<li>explicit whole-process checkpoint and migration for supported process classes;</li>
+<li>high-speed transports such as 10/25 GbE or RDMA where hardware permits;</li>
+<li>topology-aware collective operations;</li>
+<li>additional accelerator personalities;</li>
+<li>a native Plan 9 user environment above the same WorldFS;</li>
+<li>Android/Binder, NT, and XNU personalities only after the Linux crossing machinery is reusable rather than special-cased;</li>
+<li>source-integrated driver profiles for common SBC device families;</li>
+<li>reproducible board-support kits; and</li>
+<li>a public conformance suite that third-party nodes and personalities can run.</li>
+</ul>
+<p>The long-term ecosystem goal is that a new node, driver world, evaluator, or operating-system personality can join through published contracts rather than through privileged edits to the center of OSTADIX.</p>
+<hr>
+<h1>30. Final definition of success</h1>
+<p>The project has crossed from research architecture into a new computing capability when all of the following are simultaneously true:</p>
+<ul>
+<li>the user can assemble a World from physically separate machines;</li>
+<li>O-core, not Linux, is the constitutional kernel on the counted nodes;</li>
+<li>Linux remains available as a governed driver and compatibility organ;</li>
+<li>resources are named globally but remain honest about locality;</li>
+<li>authority crosses only through attenuated capabilities;</li>
+<li>affinity remains explicit as capsules;</li>
+<li>a familiar Debian environment is available without hiding the World;</li>
+<li>computation can be planned, placed, recovered, and explained through the HGraph;</li>
+<li>nodes can appear and disappear without stale authority corrupting the World;</li>
+<li>the Governor survives a replica loss;</li>
+<li>data and accelerators are usable as explicit distributed resources;</li>
+<li>every result carries a receipt; and</li>
+<li>every public claim is bounded by executable evidence.</li>
+</ul>
+<p>At that point, OSTADIX is not a cluster manager wearing an operating-system costume. It is not a Linux distribution spread over several IP addresses. It is not Plan 9 with a different shell. It is not a hypervisor with a global dashboard.</p>
+<p>It is the operational form of the original proposition:</p>
+<blockquote>
+<p>The identity of a computer lies in the governed structure among its computational resources, not in the enclosure that happens to contain them.</p>
+</blockquote>
+<p>The eight-board machine is not the metaphor for that proposition. It is the experiment that makes the proposition material.</p>
+<hr>
+<h1>Source and verification note</h1>
+<p>This constitution was reconciled against canonical repository commit
+<code>7b9e91c</code> before its first in-repository revision. That baseline contains the
+HGraph, project runtime, effects, capability bridge, hosted lifecycle,
+KernelWorld identity and lifecycle code, x86_64 O-core runtime, bounded Linux
+personality, bounded Linux/9P composition, QEMU gate scripts, and the bounded
+<code>evidence/gates.toml</code> manifest. This revision adds the separate OSTADIX Alpha
+registry.</p>
+<p>The validator and repository suites run separately from this prose. A future
+gate is not implemented merely because it is defined here or in the registry.
+The bounded executable gates in <code>evidence/gates.toml</code> retain only the claims in
+<a href="CLAIMS.md"><code>CLAIMS.md</code></a>. Only active evidence-ledger heads whose
+validator-derived claims satisfy the schema-v4 class and claim floors can pass
+G0 or G2; unrelated bounded gate results remain non-qualifying for G0--G13.</p>

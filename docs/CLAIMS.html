@@ -960,4 +960,490 @@ stderr results are read at <code>/srv/linux/status</code> through exact bounded 
 version, attach, walk, open, read, and clunk exchanges across one contained
 server fault, namespace withdrawal, health-gated generation-2 replacement,
 stale generation-1 denial, complete reclamation, and a later timer. This is
-one exact
+one exact native client/server corpus, not Linux or Plan 9 boot, a Plan 9
+binary, general Linux ABI, general 9P or namespace environment, guest agent,
+KVM/SVM hardware proof, PCI/device assignment, DMA/IOMMU isolation, or
+physical-device evidence. Generation 2 is a replacement instance of the same
+server implementation and serves a later, different 20-byte snapshot after
+generation 1&#39;s read and clunk complete. Mode 26 therefore does not establish
+two independently admitted providers for one immutable object,
+requester-local route selection, recovery of one logical read on a second
+provider, fresh provider-B session/fid reconstruction, causal multi-attempt
+tracing, or live <code>OWRECEIPT</code> emission.</p>
+</li>
+<li><p>Mode 31 adds the bounded M7B-1 local mechanism gate in
+<code>ocore/kernel/smoke-m7b-logical-read-qemu.sh</code>. One deterministic provider ELF
+is instantiated as two distinct generation-bound CPL3 provider principals;
+a requester-local client/router and unrelated witness instantiate a second
+ELF. Distinct A/B identities, service bindings, endpoints, and call
+capabilities are admitted before the request for the same immutable,
+content-addressed 20-byte object. A completes fresh 9P setup, returns a valid
+<code>Rerror</code>, and faults; O-core withdraws A&#39;s local route and authority, the
+client proves its retained A handle stale, and only then does B complete a
+fresh provider-local setup/read/clunk with different fids and the pinned
+digest. A volatile causal state, separate A physical/process cleanup, B
+session/queue cleanup, full bounded reclamation, witness survival, and a
+later timer all pass under QEMU TCG.
+This is M7B-1, not complete M7B. The client and router are one principal, the
+two providers share one implementation artifact, and the route set is fixed
+local configuration. The causal state is non-persisted and unsigned, not a
+live <code>OWRECEIPT</code>; the offline Mode 30 corpus is not live routing evidence.
+The detailed milestone boundary and remaining work are in
+<a href="ODOMAIN_PLAN.md#m7b-two-provider-immutable-9p-read-fallback"><code>ODOMAIN_PLAN.md</code></a>.
+Mode 31 does not establish implementation diversity, general 9P/WorldFS,
+writes, fid migration, exactly-once effects, networking, Governor consensus,
+G7/G8, foreign-kernel boot, KVM/SVM, physical devices, DMA/IOMMU isolation,
+or physical-hardware evidence.</p>
+</li>
+<li><p>Mode 27 adds the shared World identity PR2 gate in
+<code>ocore/kernel/smoke-world-identity-qemu.sh</code>. All 20 identity atoms named by
+the constitution have typed Rust and <code>.oc</code> definitions. A strict bounded
+<code>OWIDENT</code> v1 identity-only record converges byte-for-byte between the Rust
+oracle and native O-core under QEMU TCG. Strict decoding rejects malformed
+records and zero generation/version/term/index fields; separate hierarchical
+current/reference checks reject stale generations and same-generation
+logical mismatches. A serialized <code>CapabilityId</code> is descriptive data,
+not bearer authority, a CSpace handle, or delegation. <code>OWIDENT</code> remains the
+identity-only nested format rather than a transport, OValue envelope, or
+receipt codec; it implements no Governor or consensus and passes no G0--G13
+gate.
+Native <code>.oc</code> nominal wrappers are validated by their initializers and by
+record encode/decode boundaries; directly constructed raw aggregates do not
+bypass those checks and are not accepted records.</p>
+</li>
+<li><p>Mode 28 adds the bounded canonical World wire-codec PR3 gate in
+<code>ocore/kernel/smoke-world-protocol-qemu.sh</code>. <code>OWPROTO</code> v1 has deterministic
+big-endian framing, four fixed record kinds, a 16 KiB hard maximum,
+caller/negotiated record limits, and strict rejection of truncated,
+overlong, mistagged, unknown-kind, unsupported-schema, nonzero-reserved, and
+noncanonical nested-identity records. The fixed 20-record, 1254-byte corpus
+contains two offers, one canonical v1 selection, one disjoint rejection, and
+all 16 <code>OWIDENT</code> conformance records and is byte-identical between Rust and
+native <code>.oc</code> under QEMU TCG. Its pure bounded negotiation function selects the
+highest common version and smaller record limit or one exact contextual
+no-overlap rejection; it rejects downgrade, inflated-limit, and
+false-rejection results.
+<code>OWPROTO</code> is not a stream or network transport, live handshake, authenticated
+session, encryption, replay protection, membership protocol, or authority
+channel. Identity and capability descriptions remain inert metadata: decode and negotiation grant no bearer,
+CSpace handle, delegation, or ambient identity. This slice does not implement
+PR4 OValues, PR5 receipts, a Governor,
+consensus, WorldFS, Workstream A acceptance, or any G0--G13 passage. QEMU TCG
+is not physical or hardware-isolation evidence.</p>
+</li>
+<li><p>Mode 29 adds the bounded canonical World-value PR4 gate in
+<code>ocore/kernel/smoke-world-value-qemu.sh</code>. Its separate self-framed <code>OWVALUE</code>
+v1 format has a 4096-byte record maximum, depth-16 and 128-node limits, and an
+explicit portable allowlist. Records use strictly ordered fields, maps admit
+only scalar keys in canonical encoded order, and a root-only inert versioned
+extension carries one recursively portable payload. The fixed 19-record,
+928-byte corpus is 1856 lowercase hex digits with concatenated SHA-256
+<code>264e00550bbbe7561412d9a43f89036667ffbcf27add522131f8e650abef19bc</code> and is
+byte-identical between Rust and native <code>.oc</code> under QEMU TCG. Canonical
+decode/reencode is stable, and both sides compute the same SHA-256 over each complete record.
+Strict decoding rejects malformed, over-limit, duplicate,
+out-of-order, or otherwise noncanonical values. The hosted conversion is an
+explicit allowlist and rejects capabilities, capsules, live references,
+requests, and other authority-bearing or effectful values.
+<code>OWVALUE</code> is an offline codec and hash oracle, not a new <code>OWPROTO</code> v1 kind,
+stream or network transport, live M9 crossing, authenticated authority path,
+extension-dispatch mechanism, or execution result. Code and object references
+remain descriptive, and versioned extensions neither run code nor resolve
+authority. Mode 29 does not make the full hosted <code>OValue</code> enum portable or
+replace its canonical-CBOR shim wire format. It implements neither PR5
+receipts nor Workstream A acceptance, supplies no Governor, consensus, or
+WorldFS, and passes no G0--G13 gate. QEMU TCG is not physical or
+hardware-isolation evidence.</p>
+</li>
+<li><p>Mode 30 adds the bounded canonical World-receipt PR5 gate in
+<code>ocore/kernel/smoke-world-receipt-qemu.sh</code>. Its separate self-framed
+<code>OWRECEIPT</code> v1 record binds bounded descriptive World identities and
+generations, SHA-256 content references, capability-right descriptions,
+terminal and commit fields, evidence-gate identity, and an algorithm-tagged
+signature envelope. Rust and native <code>.oc</code> produce the same fixed two-record,
+3,239-byte corpus (6,478 lowercase hex digits; SHA-256
+<code>1edd90bf881cd42d08e2031482baae4e7c9a95bd78cfa65f0cbe14147c0a2604</code>) and
+the same 1,575-byte current and 1,546-byte stale signing preimages. Both
+strictly reject malformed,
+over-limit, reserved, out-of-order, or otherwise noncanonical records.
+Hosted Rust uses a pinned, explicitly non-secret conformance key for real
+Ed25519 sign/verify, tamper, and wrong-key tests. Native Mode 30 structurally
+validates the signature envelope but does not implement or prove a general
+freestanding Ed25519 verifier.
+Receipt capability identities and rights remain descriptive data, not
+bearers, CSpace handles, delegation certificates, session tokens, or grants
+of authority. Signature validity does not establish authorization, trusted
+signer policy, or current World state. The Mode 30 corpus is constructed
+offline and is not evidence that another subsystem emitted a receipt. This
+slice supplies no production key generation or custody, enrollment, rotation,
+revocation, transport, authoritative replay/commit fencing, Governor,
+consensus, WorldFS, typed OSTADIX Alpha attestation, Workstream A acceptance,
+or G0--G13 passage. QEMU TCG is not physical or hardware-isolation evidence.</p>
+</li>
+<li><p>The separate World-project hosted-reference slice consumes an exact
+snapshot-derived <code>DeploymentPlanV1</code> through
+<code>ProjectCoordinator::new_world_bound</code>. Before schedule derivation, workspace
+materialization, or child-process launch, it re-derives the trusted logical,
+deployment, and snapshot records and fences caller-supplied current
+World/Governor identity; a dedicated coordinator observer
+node/domain/optional-process; a dedicated coordinator attempt; selected
+provider node/domain/optional-process/service generations and implementation
+digest; and every logical operation&#39;s exact task attempt. The coordinator
+attempt must use a task distinct from every operation attempt and becomes the
+trace execution-attempt identity. The launch profile is explicitly
+non-authorizing: these caller assertions are not authenticated membership,
+proof that the host owns the observer identity, Governor admission,
+capability or lease authority, provider reservation, or remote dispatch.
+A terminal <code>RuntimeGraphV1</code> is admitted only after plan-aware causal replay
+against the trusted <code>ProjectHGraph</code> and exact deployment. It binds the exact
+logical/deployment/launch/snapshot schemas and digests,
+World/observer/coordinator-attempt/provider/task-attempt context, normalized
+trace ordinals and outcomes, and per-operation residual <code>HostWorld</code>.
+Never-started operations have empty observations. Its neutral
+<code>RouteSettlement</code> terminal covers success, nonzero settlement, and guard skip;
+terminal residual <code>HostWorld</code> is aggregated across every actually observed
+started or terminal operation rather than copied from only the selected route.
+<code>execute_world_project_with_receipt</code> then uses a caller-supplied Ed25519 signer
+to emit canonical OWRECEIPT v1 with
+<code>ReceiptCommitFenceV1::Uncommitted</code>. The receipt context places the dedicated
+coordinator observer and attempt, not the proposed provider or a route
+attempt. Its subject leaves package absent instead of overloading that field
+with the provider implementation. Only route success yields receipt success;
+nonzero and guard-skipped settlements yield receipt failures. Signature
+integrity is neither Governor authority nor a governed commit.</p>
+</li>
+<li><p>Native Mode 32 consumes that caller-generated receipt as one bounded canonical
+lowercase-hex record. It performs full canonical decode, exact re-encoding,
+validated signing-preimage construction, requires the uncommitted fence, and
+compares a domain-separated SHA-256 over the complete unsigned canonical body
+with the hosted value. It then reuses the successful validation scratch with
+a malformed envelope and requires the old terminal/commit tags to be
+unavailable. The required no-argument end-to-end gate generates the hosted
+vector; the second command is the direct two-argument vector interface:</p>
+<pre><code class="language-bash">./ocore/kernel/smoke-world-project-runtime-qemu.sh
+./ocore/kernel/smoke-world-project-receipt-qemu.sh RECEIPT_HEX_FILE EXPECTED_SEMANTIC_SHA256
+</code></pre>
+<p>Mode 32 does not execute the project or verify Ed25519 natively. The complete
+hosted-reference slice supplies no Governor admission/commit,
+capability/lease issuance, reservation, remote dispatch, recovery, or
+exactly-once protocol. QEMU TCG is not physical hardware or hardware-isolation
+evidence, and this passes neither G1 nor Workstream A acceptance.</p>
+</li>
+</ul>
+<h2>OSTADIX Alpha native boundary</h2>
+<ul>
+<li><p><a href="OSTADIX_WORLD.md"><code>OSTADIX_WORLD.md</code></a> is the normative native constitution.
+It fixes the replicated-Governor model, OValue/capability/capsule crossings,
+explicit aggregate-memory model, fifteen workstreams, and G0--G13
+convergence ladder. Defining that target is not evidence that a gate passed.</p>
+</li>
+<li><p>A byte-sealed historical comment in that constitution still names 24
+component gates. The current unsealed <code>evidence/gates.toml</code> component
+manifest and generated README projection define 26 required portable QEMU
+gates. The old count is preserved as sealed history, not treated as current.</p>
+</li>
+<li><p><a href="../evidence/world_alpha_gates.toml"><code>world_alpha_gates.toml</code></a> defines 14
+entries--the G0 constitutional baseline plus 13 integration gates through
+G13--with their dependencies, qualifying evidence classes, and prohibited
+substitutes. <a href="../evidence/world_contract_v2.toml"><code>world_contract_v2.toml</code></a>
+composes the byte-frozen
+<a href="../evidence/world_contract_v1.toml"><code>world_contract_v1.toml</code></a> vocabulary and
+the separately versioned O-Machine schema. The frozen import retains the
+three crossing kinds, all 20 identity atoms, seven failure classes, eight
+consistency rules, and evidence-class taxonomy without rewriting historical
+attestations. <code>scripts/world_alpha_evidence.py</code> validates the composition and
+its exact Rust/native/document references. Schema v4 keeps the registry
+definition-only, resolves active append-only evidence heads, derives claims
+from typed observations, and computes status. Derivation identity is recorded
+separately from the claim cache: a policy change requires an immutable
+<code>rederive</code> event with the exact claims lost and gained, rather than rewriting
+or invalidating the old attestation. Only G0 and G2 currently derive <code>passed</code>;
+G13 and the other 11 gates remain <code>defined</code>.</p>
+</li>
+<li><p><a href="O_MACHINE_CONTRACT.md"><code>O_MACHINE_CONTRACT.md</code></a> settles the future G7/G8
+machine boundary as resource-class-specific and asynchronous. G7 gives no
+machine handle or OSTADIX HVC to the guest and carries no handle MAC/key
+lifecycle. <code>MachineMemory</code> revocation is terminal teardown; a graceful guest
+error must instead come from a device-native path such as virtio-blk <code>EIO</code> or
+a negotiated 9P error. This contract is not evidence that stage-2 teardown,
+TLB shootdown, those device errors, G7, or G8 are implemented.</p>
+</li>
+<li><p><a href="LOCAL_AUTHORITY_ROUTING_AMENDMENT.md"><code>LOCAL_AUTHORITY_ROUTING_AMENDMENT.md</code></a>
+records a proposed additive split between one local O-Machine authority per
+physical node, node-local O-core policy, requester-local route selection, and
+replicated Governor facts. It also separates local route exclusion, lease
+expiry, owner revocation, and physical reclamation. It does not alter the
+sealed contracts or establish the complete amendment as implemented or
+passed; those claims require versioned successor schemas and executable
+evidence. Mode 31 is only the bounded M7B-1 local mechanism described above.</p>
+</li>
+<li><p>G2 is one forced-QEMU-TCG, one-vCPU AArch64
+<code>virt,virtualization=on</code> run. It compiles native semantic <code>.oc</code> code to
+<code>EM_AARCH64</code>, installs a resident EL2 vector and stack, enters O-core at host
+EL1, and completes one domain-separated HVC/ERET round trip with checked
+register and stack integrity. The HVC is a host-EL1 probe, not a guest
+hypercall interface. It then enters two EL0 principals through a
+real exception-return path, handles their SVC calls at EL1, exercises endpoint
+request/reply and attenuated capability transfer, contains one EL0 fault,
+tears down and reclaims generation-tagged state, rejects stale use after slot
+reuse, and establishes bounded post-lifecycle architectural-counter progress.
+Assembly is limited to boot/vector/context/EL2 enforcement glue and is checked
+not to contain the semantic PASS strings.</p>
+</li>
+<li><p>G2 is not physical AArch64 or KVM/SVM evidence; it is single-core and does
+not pass G3. It does not install stage-2 translation, prove timer-interrupt
+delivery, boot Linux or Plan 9, provide a general foreign ABI,
+assign a PCI or physical device, isolate DMA through an IOMMU/SMMU, or pass
+any later native World gate.</p>
+</li>
+<li><p><a href="HOSTED_WORLD_REFERENCE_PROFILE.md"><code>HOSTED_WORLD_REFERENCE_PROFILE.md</code></a>
+retains the prior hosted design only as a simulator, differential oracle,
+fuzzer, and development console. A hosted deployment cannot satisfy a native
+release gate. The narrower hosted Live-World package/service oracle remains
+separately bounded.</p>
+</li>
+<li><p>The existing project runtime, HGraph executor, capability broker,
+KernelWorld lifecycle, and Modes 20--30 are reusable organs, not an integrated
+World. Mode 23&#39;s synthetic guest is not G7 or G8; Mode 25&#39;s static ELF is not
+G9; Mode 26&#39;s exact 9P2000 corpus is not G6; supplemental Mode 21 is not real
+Linux boot or physical-device isolation.</p>
+</li>
+<li><p>No replicated Governor, native membership transport, WorldFS, physical
+multinode HGraph execution, real Linux KernelWorld boot, physical-device
+assignment, DMA/IOMMU isolation, native Debian personality, or accelerator
+fabric is claimed. The shared Rust/<code>.oc</code> identity vocabulary and hosted
+identity/effect vocabulary are still foundations: descriptive names,
+inventory, snapshots, and serialized identities remain non-authority.</p>
+</li>
+<li><p>The grounding command labels a report with a caller-supplied World identity.
+It does not read a current World snapshot, enforce freshness, or bind
+execution. Hosted ResourceKey PR6 now supplies typed World, Governor, node,
+domain, process, generic resource, object, descriptive capability, namespace,
+task-attempt, artifact-publication, device, and accelerator state classes.
+Device and accelerator views share the generic resource dependency, and
+source effect declarations cannot mint governed state or authority. No
+production lowering emits governed <code>ResourceKey</code> effects yet; ordinary hosted
+operations retain their conservative <code>HostWorld</code> dependency.</p>
+</li>
+<li><p><code>scripts/smoke-world-resource-keys.sh</code> is bounded hosted
+repository-conformance evidence for vocabulary, underlying identity helpers&#39;
+caller-pair comparison, HGraph state chaining, alias-aware grounding
+projection, source-forgery rejection, and residual <code>HostWorld</code>. Grounding
+checks only the bound World epoch/membership, not authoritative nested
+freshness. This is not O-core Mode 31, a cross-language wire format,
+native/QEMU or hardware evidence, Governor authority, device assignment,
+DMA/IOMMU isolation, Acceptance gate A, or passage of G0, G1, or any G0--G13
+gate.</p>
+</li>
+<li><p>PR7 now provides a bounded hosted project logical planner. A directory or
+lifted <code>ProjectBundle</code> is resolved through the shared typed route selector,
+bound by an exact bundle digest and policy in <code>ProjectExecutionPlan</code>, and
+projected into a validated HGraph containing real <code>MaterializeProject</code>,
+<code>BuildRoute</code>, <code>RunRoute</code>, <code>SelectRoute</code>, and, for output-validating policies
+(<code>verify_equivalent</code> and <code>benchmark_validate_and_select</code>),
+<code>CompareRouteResults</code> operations. Alternative materialization branches and
+prerequisites are explicit in both layers. The project plan also records
+guards, environment overlay key names, ambient environment-guard
+dependencies, inputs/outputs, declared effects, cancellation, and
+equivalence policy, including each route&#39;s <code>failure-continuation</code> contract;
+its HGraph projection carries the corresponding
+operation, effect/resource-transition, dependency, and output topology.
+Project-bundle format v2 carries that safety contract. The v1 reader path
+migrates only bundles in which every route omits the v2 field, defaults those
+routes to <code>unproven</code>, and emits v2 thereafter; a v1 document carrying the new
+field and an in-memory bundle mislabeled as v1 are both rejected.
+Planning is deterministic and nonexecuting, and exact source/projection
+validation rejects malformed references, substitution, and graph forgery.</p>
+</li>
+<li><p>The compatibility project runtime and project mesh implement the bounded
+<code>benchmark_validate_and_select</code> policy. The first declared route is the
+reference; every candidate runs in an isolated workspace, settled failures
+and declared-output mismatches are ineligible, and the fastest eligible
+complete branch wins with declaration order as the tie break. The emitted
+unsigned v1 receipt binds the exact bundle, target, policy, reference,
+terminal and complete-branch timings, canonical JSON or complete stdout
+fingerprints, declared artifact manifests, rejection classifications, and
+selected route. Receipt failure details are reduced to closed non-sensitive
+kinds, while durable run logs remain potentially sensitive. This is
+same-invocation autotuning and differential artifact evidence—not proof of
+full semantic equivalence, a reusable cached winner, or a comparison with a
+different parallel runner.</p>
+</li>
+<li><p>World PR8-1 adds the bounded hosted project-profile <code>LogicalHGraphV1</code> schema.
+It canonically records the exact bundle/selection binding, operations, typed
+dependencies, route facts, declared input/output paths, raw effects, and
+scheduler-expanded resources while retaining residual <code>HostWorld</code> and rejecting fabricated
+governed resources or authority requirements. Its domain-separated digest is
+an exact-source-bound projection identity, not a whitespace-insensitive
+source-semantic hash: source bytes, file modes, and manifest formatting alter
+the bundle and therefore the graph identity; canonical decode/re-encode
+normalizes only the logical JSON record. <code>LogicalHGraphV1</code> itself does not
+supply deployment, runtime, recovery, World task identity, receipts, native
+parity, or G1 evidence.</p>
+</li>
+<li><p>World PR8-2 adds bounded canonical <code>PlacementSnapshotV1</code> and
+<code>DeploymentPlanV1</code> intention records. The exact hosted-unbound plan maps
+operations for all ten current policies to <code>AmbientHost</code> or
+<code>HostedCoordinator</code> and carries no World/task/provider identity. Its active derived requirements
+are the exact bundle plus bundle-scoped role/path declarations, runtime
+classes, executable/evaluator facts, platform and ambient-environment guards,
+authority absence, and residual <code>HostWorld</code> admission. Bundle environment
+overlays are recorded separately. Architecture, package, and failure-domain
+fields are schema vocabulary but are currently unconstrained or empty.</p>
+</li>
+<li><p>A snapshot-derived <code>ProposedProvider</code> requires a caller-supplied exact
+World-epoch <code>PlacementSnapshotV1</code> and one caller-supplied exact
+<code>TaskIdentity</code> per logical operation. Canonical provider selection is a
+deterministic descriptive proposal, not authenticated or current inventory,
+Governor admission, authority, dispatch, reservation, health, or execution.
+<code>require_current_world</code> checks only World identity/epoch. The ordinary configured
+executor does not consume this plan, but the
+explicit hosted-reference World entry point consumes it together with
+<code>HostedWorldLaunchV1</code> and a caller-supplied current view. The launch contains
+a coordinator observer and a coordinator attempt distinct from the proposed
+provider and every per-operation attempt. That bounded path produces a
+causally replayed terminal <code>RuntimeGraphV1</code>, a caller-signed uncommitted
+OWRECEIPT whose placement is the observer and whose package subject is absent,
+and Mode 32 native canonical/semantic comparison as described above. It does
+not implement
+authenticated placement, a <code>RecoveryPlan</code>, Governor admission/commit,
+capability or lease authority, reservation, remote dispatch, recovery,
+exactly-once execution, native project execution, native Ed25519 verification,
+physical-hardware evidence, G1, or Workstream A acceptance; G1 remains defined
+and unpassed.</p>
+</li>
+<li><p><code>scripts/smoke-project-hgraph.sh</code> is the composite Project HGraph hosted
+planning and generated-adapter gate. Its PR7 phase proves repository-owned
+<code>scripts/o-cli.sh plan</code> parity and deterministic, nonexecuting IR/DOT. Its
+PR8-1 phase exercises canonical/strict logical encoding and digesting,
+scheduler-expanded resources, <code>HostWorld</code> retention, governed-resource and
+authority forgery rejection, and trusted project-projection comparison. Its
+PR8-2 phase exercises canonical hosted-unbound and snapshot-derived
+deployment records, exact logical/bundle binding, bundle-scoped role/path
+compatibility, deterministic provider proposals, World/task hierarchy
+rejection, and trusted substitution rejection. It
+then compiles a project binary, checks route listing and option/policy
+rejection, and runs opt-in AnySuccess for immediate short-circuit plus
+explicitly admitted nonzero-to-success continuation in disposable
+workspaces. The continuation fixture declares its executed prerequisite and
+failed first route <code>failure_continuation = &quot;declared_idempotent&quot;</code>; omission
+defaults to <code>unproven</code> and stops before the second branch. Route
+materialization and commands retain
+conservative fallible <code>HostWorld</code> effects even when a manifest declares
+<code>pure=true</code>. Logical alternative branches may therefore be serialized and
+cross-coupled by the shared ambient/resource state chains; PR7 does not prove
+parallel branch execution or independent host mediation.</p>
+</li>
+<li><p><code>scripts/smoke-project-hgraph-exec.sh</code> retains strict ordered-alternative
+qualification. The broader <code>tests/project_hgraph_exec.rs</code> corpus exercises
+all ten Project HGraph policies, actual concurrent branch overlap, shared
+host-resource ordering, race cancellation/drain, comparison and validated
+reference selection, and policy-aware trace tamper rejection. Default
+configured execution uses a canonical <code>LegacyCompatibility</code> contract;
+<code>O_PROJECT_EXECUTOR=hgraph</code> retains strict idempotence-gated continuation and
+<code>legacy</code> is the explicit previous-runtime opt-out. Graph errors never trigger
+automatic legacy fallback; unsupported executor settings are rejected.
+Compatibility continuation
+records <code>legacy_unchecked</code>; it does not assert safe repetition. The contract
+is bound to logical/deployment identity and checked against the trusted
+constructor before materialization. The independent source scheduling
+contract encodes <code>concurrent_branches_v1</code> for new parallel graphs. An absent
+field means <code>serial_host_world_v1</code>, preserving historical graph bytes and
+digest, including earlier parallel-policy inspection records. Strict omits
+the continuation field; it retains earlier bytes when scheduling is unchanged.
+Parallel policies retain unknown/conservative ambient effects and explicitly
+authorize cross-branch overlap. Isolated workspace paths carry branch
+identity, while declared shared resources remain ordered. The marker still
+requires residual ambient-host admission in deployment and grounding. This is not
+independent host mediation or strict effect equivalence. Race workers are
+cancelled cooperatively and drained before final result publication; trace
+v7 binds cancellation to its earlier qualifying settlement and records
+candidate outcomes, timing observations, selected route, and validated
+receipt where applicable. Replay verifies causal readiness and selection
+against those observations; it does not attest clock accuracy or re-execute
+external commands. Infrastructure/prerequisite failure does not invent a
+successful route result. The execution-attempt
+identifier is diagnostic and is not a World <code>TaskIdentity</code>.
+Neither this path nor the explicit World-bound hosted-reference adapter
+establishes retries, authenticated remote placement, Governor commit,
+capability/lease enforcement, reservation, recovery, exactly-once effects,
+native project execution, physical-device assignment, G1, or G0--G13 passage.</p>
+</li>
+<li><p>Neither the present repository nor the OSTADIX Alpha target claims coherent
+cross-node RAM, transparent remote pointers, arbitrary Linux compatibility,
+universal hardware support, or transparent migration of every process.</p>
+</li>
+</ul>
+<h2>Implemented conservatively</h2>
+<ul>
+<li>Graph construction, multi-output validation, type/fidelity solving, explicit
+resource and completion lowering, scheduling, and readiness-driven dispatch
+are implemented in <code>crates/ostadix-api/src/hgraph/</code>, <code>crates/ostadix-api/src/effects.rs</code>, and <code>crates/ostadix-api/src/executor/</code>.</li>
+<li>Strict-equivalent parallel dispatch is correctness-first: compiler-verified
+O-scope reads and verified pure, deterministic, infallible, state-free inline
+renderers run on workers. Ordinary Eval/shim operations stay on the evaluator
+owner thread and are ordered by graph state. Separately, direct attribute-free
+ephemeral shim members of a group under effective <code>autonomous(...)</code> may run
+on bounded workers with evidence-labeled
+<code>explicit-autonomous-unordered</code> semantics. This preserves explicit dataflow,
+live capability checks, and deterministic outcome selection, but does not
+claim rollback or ordering of already-started hidden host effects. The
+default pool size is bounded by both live host parallelism and the widest
+admitted local-worker static wave, with a conservative host fallback of one
+if parallelism cannot be queried. An explicit runtime <code>O --workers N</code>
+override replaces that default and is pool capacity only: it is not clamped
+to the reported host count or wave width and does not override graph
+readiness or prove that <code>N</code> tasks can execute together. Coordinator-only
+graphs create no worker pool.</li>
+<li><code>olangc --target ir --explain-schedule</code> is non-executing inspection. Its
+advisory <code>oexec.realizability/v1</code> marker is outside the admission digest;
+<code>--workers N</code> there changes only the displayed capacity comparison, not any
+execution. The marker distinguishes the maximum total static-wave width from
+its local-worker subset. <code>worker-count-covers-static-wave=yes</code> means only
+that the selected count is at least that local subset; <code>no</code> means it is not,
+and <code>not-applicable</code> means there are no local-worker operations. Every case
+retains <code>execution-realizable=unknown</code>: no value proves simultaneous
+dispatch, CPU/memory fit, external-runtime readiness, placement, or observed
+overlap. Static widths are neither runtime batches nor dynamic-frontier
+bounds.</li>
+<li><code>olangc --target ir --execution-intent-json</code> emits the authority-free
+<code>oexec.execution-intent/v1</code> projection. It binds exact source bytes, lowered
+OIR, canonical plan, solved analyzed graph, the plan-specific backend-catalog
+projection, analyzer identity, and base policy. Supplying its source and
+intent digests with <code>O --require-source-sha256</code> and
+<code>--require-execution-intent-sha256</code> makes graph execution recompute and
+compare that projection before dispatch; a match still proceeds through a
+fresh Graph V2 analysis and process-local V6 <code>AdmittedExecution</code>. The stable
+intent deliberately excludes runtime discovery, backend artifacts,
+environment and PID state, capacity, authority, and live admission, so it is
+sameness evidence rather than a capability or reusable admission token. The
+gate adds no work to an ordinary <code>O</code> invocation when its two flags are absent.</li>
+<li>Ordinary source sequence is preserved by completion dependencies unless an
+explicit concurrent group or the narrow verified-inline rule removes it.</li>
+<li>Full N-language communication soundness is not established; native OValue
+crossings remain conservatively represented as <code>NativeCapsule</code>.</li>
+</ul>
+<h2>Research directions enabled by the architecture</h2>
+<ul>
+<li>Parallel read leases and verified path-, endpoint-, and service-specific
+resource models that safely reduce <code>HostWorld</code> serialization.</li>
+<li>Runtime plugin registration beyond the current static <code>BackendRegistry</code> table
+in <code>crates/ostadix-api/src/ir.rs</code>.</li>
+<li>Fingerprint-complete effect tracking, enforced sandboxes, and verified backend
+analyzers that could broaden strict-equivalent graph parallelism beyond the
+trusted inline/read-only set.</li>
+<li>More precise backend morphism proofs and fidelity accounting for OValue
+crossings, extending the current <code>Fidelity</code> and <code>BackendMorphism</code> vocabulary
+in <code>crates/ostadix-api/src/value.rs</code>.</li>
+<li>Deterministic cancellation and result-selection semantics for concurrent
+groups and future graph execution.</li>
+<li>O-Domain evolution beyond the current bounded Mode 24--26 gates: add pinned
+windows, streaming, signals, real mapping/resource events, post-reply
+lifecycle-race evidence, fuzzing, allocation-failure coverage, and concrete
+delegated services, then broaden the exact Mode 25 Linux corpus only behind
+equally explicit ABI and lifecycle evidence. Mode 26 adds only its exact
+bounded 9P2000 client/server corpus, not a general 9P namespace. Durable
+reboot reconstruction and a capability-bounded build service also remain
+future work. No general Linux ABI or root filesystem is claimed.
+The staged engineering plan is in <code>docs/ODOMAIN_PLAN.md</code>.</li>
+</ul>

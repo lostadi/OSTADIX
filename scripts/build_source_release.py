@@ -521,6 +521,8 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "evidence/world/g0-independent-engine-supersession-2026-08-17.toml",
         "evidence/world/g0-attribution-history-continuity-2026-09-03.toml",
         "evidence/world/g0-attribution-history-continuity-supersession-2026-09-03.toml",
+        "evidence/world/g0-attribution-history-continuity-2026-09-17.toml",
+        "evidence/world/g0-attribution-history-continuity-supersession-2026-09-17.toml",
         "evidence/world/g2-aarch64-qemu.toml",
         "evidence/world/g2-aarch64-qemu-2026-08-03.toml",
         "evidence/world/g2-derivation-rederive-2026-08-03.toml",
@@ -531,6 +533,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "evidence/world/transcripts/g0-ostadix-alpha-branding-2026-08-09.log",
         "evidence/world/transcripts/g0-independent-engine-2026-08-17.log",
         "evidence/world/transcripts/g0-attribution-history-continuity-2026-09-03.log",
+        "evidence/world/transcripts/g0-attribution-history-continuity-2026-09-17.log",
         "evidence/world/transcripts/g2-aarch64-qemu.log",
         "evidence/world/transcripts/g2-aarch64-qemu-2026-08-03.log",
         "examples/manifest.json",
@@ -1015,6 +1018,9 @@ WORLD_ATTRIBUTION_REWRITE_MAP_SHA256 = (
     "41e205ed45e01c4a719c669e2d1473d6b0f84bc1d925037279cf8ba553ff3f52"
 )
 WORLD_HISTORICAL_VALIDATOR_SHA256_BY_ATTESTATION = {
+    "evidence/world/g0-attribution-history-continuity-2026-09-03.toml": (
+        "1f68cdb6a1f4cf418836d768fe5b24855008a5b7cadd23d88090f5b05d741ff9"
+    ),
     "evidence/world/g0-independent-engine-2026-08-17.toml": (
         "e3a5adab37962db94ccda38db9ac62570f6ba06dbb9995d16af233af63c8295f"
     ),
@@ -1025,6 +1031,9 @@ WORLD_CURRENT_VALIDATOR_SHA256 = (
 WORLD_REDERIVE_PAYLOAD_DOMAIN = "ostadix.world.evidence.rederive.v1"
 WORLD_WITNESS_PAYLOAD_DOMAIN = "ostadix.world.evidence.witness.v1"
 WORLD_HISTORICAL_ATTESTATION_SHA256 = {
+    "evidence/world/g0-attribution-history-continuity-2026-09-03.toml": (
+        "262ff3db77adc827126e4edde4a3d38a344aecf1c5d881a1c786b82f95693dbd"
+    ),
     "evidence/world/g0-repository-conformance.toml": (
         "f1d1579e8cd7b65e4aa2ce641fe174ff185196c260b65efd4d7cdd1f52d43caa"
     ),
@@ -1048,14 +1057,17 @@ WORLD_HISTORICAL_ATTESTATION_SHA256 = {
     ),
 }
 WORLD_CURRENT_ATTESTATION_SHA256 = {
-    "evidence/world/g0-attribution-history-continuity-2026-09-03.toml": (
-        "262ff3db77adc827126e4edde4a3d38a344aecf1c5d881a1c786b82f95693dbd"
+    "evidence/world/g0-attribution-history-continuity-2026-09-17.toml": (
+        "ea52fca7f6c80682d9c04ebfdeaa0fa6924b71073a11be6d33438e188e5db8ba"
     ),
 }
 # Repository-authored lifecycle and derivation events are immutable ledger
 # records.  The release verifier seals their complete bytes independently of
 # the payload hash carried by a rederive event.
 WORLD_EVIDENCE_EVENT_SHA256 = {
+    "evidence/world/g0-attribution-history-continuity-supersession-2026-09-17.toml": (
+        "6e38c5995cd0fdc33402ee6ea1ec01d886d1f6909fb79d3aded0e18a504ae367"
+    ),
     "evidence/world/g0-attribution-history-continuity-supersession-2026-09-03.toml": (
         "5594d94cb9355bb50b5de6d2dccdc51b8fce649cb2bb6204444453426ba20d73"
     ),
