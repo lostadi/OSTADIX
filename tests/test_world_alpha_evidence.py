@@ -477,7 +477,7 @@ class WorldAlphaEvidenceTests(unittest.TestCase):
             world_alpha_evidence._resolve_source_snapshot(
                 ROOT, attestation["source_commit"], source_digests
             ),
-            "a5962984e97171cfd1897fccd2c2166e903c8a35",
+            "b19cb475426ff6d59ea77edf9d7e5c105fcb26ce",
         )
 
     def test_checked_in_attribution_rewrite_map_is_complete_and_tree_preserving(

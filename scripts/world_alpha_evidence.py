@@ -23,9 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "evidence/world_alpha_gates.toml"
 ATTRIBUTION_REWRITE_MAP_PATH = "evidence/attribution-rewrite-2026-09-03.commit-map"
 EXPECTED_ATTRIBUTION_REWRITE_MAP_SHA256 = (
-    "861abe06048f9e3fc25ce95ab0ceb65d9b31b0d44460a83cba5df2949ceeb383"
+    "41e205ed45e01c4a719c669e2d1473d6b0f84bc1d925037279cf8ba553ff3f52"
 )
-EXPECTED_ATTRIBUTION_REWRITE_MAP_ROWS = 598
+EXPECTED_ATTRIBUTION_REWRITE_MAP_ROWS = 599
 ATTRIBUTION_REWRITE_MAP_HEADER = "old                                      new"
 
 EXPECTED_SCHEMA_VERSION = 4
