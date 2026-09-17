@@ -1,0 +1,245 @@
+<h1>Ostadix project mesh V1</h1>
+<p>Project mesh V1 lets <code>o-link</code> place source-closed project routes on authenticated
+Ostadix nodes. It is a peer data and execution plane for whole heterogeneous
+codebases: the original files remain ordinary Rust, C, Python, shell, or other
+foreign-language sources and do not need to be rewritten as Ostadix-lang.</p>
+<p>This document describes the implemented boundary. The protocol is
+<code>ostadix.mesh-transport/v1</code>, negotiated over TLS 1.3 mutual authentication with
+the <code>ostadix-mesh/1</code> ALPN.</p>
+<h2>Quick start</h2>
+<p>On every participating Unix-like host (including WSL), build Ostadix and start
+a node:</p>
+<pre><code class="language-bash">./setup.sh -y --minimal
+source &quot;$HOME/.config/ostadix/env.sh&quot;
+o node start
+</code></pre>
+<p>Pair the machines once as described in <a href="ZERO_CONFIG_LAN.md">Zero-configuration LAN
+nodes</a>: run <code>o node pair</code> on the offering node, then run
+<code>o node pair NODE_ID</code> and enter the one-use passcode on the joining node.</p>
+<p>On the machine holding the codebase, inspect its routes and run one through the
+mesh:</p>
+<pre><code class="language-bash">o-link ./large-codebase --project --list-routes
+
+o-link ./large-codebase --project --run --route build \
+  --mesh \
+  --explain-mesh \
+  --mesh-trace-out mesh-attempt.json
+</code></pre>
+<p>Bare <code>--mesh</code> means <code>--mesh=prefer</code>. It selects an eligible authenticated peer
+when one is available and otherwise permits only the default fallback when
+actor execution is proven not to have started. To require a remote result and
+prohibit local execution:</p>
+<pre><code class="language-bash">o-link ./large-codebase --project --run --route build \
+  --mesh=required \
+  --mesh-local-fallback=never \
+  --mesh-trace-out mesh-required.json
+</code></pre>
+<p>The selected route must name commands and runtimes that exist on the target
+node. The bundle carries the codebase, route contracts, and files; it does not
+install arbitrary host toolchains.</p>
+<h2>Canonical execution unit</h2>
+<p>For foreign project bundles, the canonical mesh IR is the Project Logical
+HGraph (<code>LogicalHGraphV1</code>). <code>o-link</code> first resolves the ordinary project route
+selection. For each selected route it then treats that route and all transitive
+prerequisites as one source-closed actor island with one materialized workspace.</p>
+<p>Every actor request binds:</p>
+<ul>
+<li>the SHA-256 identity and byte length of the exact serialized <code>ProjectBundle</code>;</li>
+<li>the selected route ID and the exact route-contract digest;</li>
+<li>the canonical Project Logical HGraph digest for explicit execution of that
+route;</li>
+<li>the destination node ID and actor generation; and</li>
+<li>the portable execution limits used by the route.</li>
+</ul>
+<p>The destination independently loads the bundle, recomputes the route-contract
+and logical-graph digests, checks runtime availability and capacity, and rejects
+substitution before admission. The mesh does not translate the foreign sources
+into OIR or infer a new authority from file extensions. Hosted V1, durable
+Hosted V2, and mesh V1 are separate protocols; a frozen V2 one-shim placement
+record does not itself authorize a project-mesh actor.</p>
+<p>For multi-alternative policies, ready route actors can execute concurrently on
+different nodes. Target ordering is capacity first, then observed latency and
+stable tie-breakers. Advertised slots bound the initial assignment; each node
+still performs live admission against its own actor limit.</p>
+<h2>Discovery and peer trust</h2>
+<p>The resolver joins two local sources of routing information:</p>
+<ol>
+<li>live UDP LAN advertisements, used as endpoint hints; and</li>
+<li>the durable paired-peer registry, which owns the pinned server CA, server
+name, client certificate/key, and remembered address, and retains the
+peer&#39;s receipt-signing identity metadata.</li>
+</ol>
+<p>An advertisement may refresh the socket address, but it cannot replace the
+stored TLS identity. A pairing-required advertisement is ineligible until the
+user completes passcode pairing. Explicit legacy <code>--lan-open</code> nodes retain
+their existing bootstrap enrollment path. <code>--mesh-peer-root PATH</code> selects a
+different local paired-peer registry for one invocation.
+<code>--mesh-no-lan-discovery</code> makes that registry a closed discovery set: no UDP
+probe is sent and live advertisements cannot add or refresh endpoints.</p>
+<p>Mesh V1 authorization is transport-scoped: any client certificate accepted by
+the listener&#39;s configured client CA can submit project actors. Actor records
+bind the exact actor specification but do not bind a separate client principal
+or apply per-principal ACLs/quotas. Pair only machines that should receive this
+execution capability, or use manual listener credentials and <code>--no-mesh</code>.</p>
+<p>This is LAN and paired-record discovery, not Internet-wide peer discovery. A
+stored peer may name a directly reachable routed address, but mesh V1 provides
+no NAT traversal, hole punching, relay, DHT, Internet gossip, or federated/WAN
+registry. Both endpoints still need ordinary TCP reachability to the node
+listener.</p>
+<h2>Wire and durable execution flow</h2>
+<p>The client and selected node perform these bounded steps:</p>
+<ol>
+<li>Query the authenticated node profile and current free actor capacity.</li>
+<li>Split the exact bundle into content-addressed chunks, upload missing chunks,
+and commit the ordered artifact manifest. The default chunk size is 512 KiB;
+the protocol maximum is 1 MiB per chunk.</li>
+<li>Probe the exact route requirements. The node recomputes bundle, route, and
+Project Logical HGraph bindings and reports missing runtimes or capacity.</li>
+<li>Submit a digest-bound actor ID/generation targeted to that node. The
+portable <code>RunOptions</code> projection is part of the actor digest, and the node
+rejects it before admission if it exceeds the node&#39;s configured execution
+ceiling. Mesh admission then durably records <code>Running</code> before a bounded
+background worker executes.</li>
+<li>Poll status, request cancellation when needed, and fetch a terminal result
+through content-addressed result chunks. The client verifies the manifest,
+bytes, decoded result, exit status, and success summary.</li>
+</ol>
+<p>The node retains artifacts, actor records, fences, and result chunks beneath
+its mesh state root. Automatic <code>o node start</code> enables this runtime at
+<code>V2_STATE_DIR/mesh-v1</code>. <code>o-node serve --no-mesh</code> disables it; manual serving is
+mesh-off unless <code>--mesh-state-dir PATH</code> is supplied alongside durable V2 setup.</p>
+<h2>Retry, replay, and local fallback</h2>
+<p><code>--mesh-retries N</code> is the number of additional remote generations after the
+first attempt (default <code>2</code>, maximum <code>64</code>). A retry chooses from the ordered peer
+pool and creates a new actor generation. It never moves a running process.</p>
+<p>The scheduler classifies the preceding attempt as:</p>
+<ul>
+<li><strong>proven not started</strong>: no actor submission was delivered, the node rejected
+it before admission, or an atomic <code>FenceActorIfAbsent</code> durably proved and
+fenced that exact actor generation absent;</li>
+<li><strong>ambiguous</strong>: the actor may have started, but the authenticated destination
+could not be reconciled; or</li>
+<li><strong>executed</strong>: execution produced a terminal result or execution-stage
+failure.</li>
+</ul>
+<p>Remote replay is allowed after a proven-not-started outcome. Ambiguous delivery
+always fails closed because another generation could overlap the old actor.
+After a confirmed terminal execution failure, replay is allowed only when every
+member of the route and prerequisite island carries the bundle-bound
+<code>failure_continuation = &quot;declared_idempotent&quot;</code> contract. Omission defaults to
+fail-closed, unproven replay. <code>declared_idempotent</code> is an author declaration,
+not independently verified purity, sandboxing, or exactly-once effects.
+A nonzero route result is such a settled execution failure: it is retained in
+the trace and may advance to another generation only under that island-wide
+contract.</p>
+<p>Local fallback is additionally controlled by the mesh mode:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Local execution rule</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--mesh=prefer --mesh-local-fallback=pre-send</code></td>
+<td>Allowed only after proven-not-started delivery; this is the default.</td>
+</tr>
+<tr>
+<td><code>--mesh=prefer --mesh-local-fallback=idempotent</code></td>
+<td>Also allowed after a confirmed terminal execution failure when the entire island is declared idempotent; ambiguity still fails closed.</td>
+</tr>
+<tr>
+<td><code>--mesh=prefer --mesh-local-fallback=never</code></td>
+<td>Never execute locally.</td>
+</tr>
+<tr>
+<td><code>--mesh=required</code></td>
+<td>Never execute locally, regardless of the fallback flag.</td>
+</tr>
+</tbody></table>
+<p>The same island-wide replay rule governs continuing to another fallback route
+after a route settles unsuccessfully.</p>
+<h2>Migration boundary</h2>
+<p>Mesh V1 migration is settled-boundary actor replay: a new generation
+rematerializes the immutable bundle on a selected node and begins the route
+island again under its bound limits. It is not live process migration. The
+protocol does not capture or transfer process memory, threads, file
+descriptors, sockets, child processes, backend interpreter state, GPU/device
+state, or a mutable filesystem snapshot.</p>
+<p>If a node restarts while a durable actor record still says <code>Running</code>, reopening
+the state reports it as <code>Indeterminate</code>; the old worker is not silently resumed.
+The scheduler may replay only under the delivery and island-wide replay rules
+above. A durable absent fence prevents a delayed request for the same
+node/actor/generation from starting, but it does not make arbitrary effects
+exactly once across different generations or nodes.</p>
+<h2><code>o-link</code> mesh options</h2>
+<p>All tuning options require both <code>--mesh</code> and <code>--run</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>`--mesh[=prefer</td>
+<td>required]`</td>
+</tr>
+<tr>
+<td><code>--mesh-retries N</code></td>
+<td>Additional remote attempts after the first; <code>0..=64</code>, default <code>2</code>.</td>
+</tr>
+<tr>
+<td>`--mesh-local-fallback pre-send</td>
+<td>idempotent</td>
+</tr>
+<tr>
+<td><code>--mesh-discovery-timeout-ms N</code></td>
+<td>LAN discovery window; <code>1..=60000</code>, default <code>750</code>.</td>
+</tr>
+<tr>
+<td><code>--mesh-no-lan-discovery</code></td>
+<td>Use only the selected paired-peer registry and disable live UDP discovery.</td>
+</tr>
+<tr>
+<td><code>--mesh-peer-root PATH</code></td>
+<td>Override the local paired-peer registry root.</td>
+</tr>
+<tr>
+<td><code>--mesh-trace-out PATH</code></td>
+<td>Write the unsigned discovery/placement/retry/fallback trace as JSON.</td>
+</tr>
+<tr>
+<td><code>--explain-mesh</code></td>
+<td>Explain candidates and decisions on standard error.</td>
+</tr>
+</tbody></table>
+<p>Mesh execution is project-only. It conflicts with literal execution and
+<code>--project-trace-out</code>; the literal <code>--parallel</code> lane is not a project-mesh
+switch. Route policies remain the project policies selected by
+<code>--routes-policy</code>.</p>
+<h2>Explicit nonclaims</h2>
+<p>Project mesh V1 provides authenticated, content-addressed remote project
+execution with bounded concurrency, retry, and policy-controlled fallback. It
+does not by itself provide:</p>
+<ul>
+<li>NAT traversal, public-Internet discovery/gossip, relays, or a global peer
+registry;</li>
+<li>live process/checkpoint migration or a distributed shared filesystem;</li>
+<li>ordinary <code>OIrProgram</code> operation-level placement or automatic decomposition
+of one route across nodes; the schedulable unit is a Project Logical HGraph
+route/prerequisite island;</li>
+<li>weighted CPU, memory, or GPU reservations: V1 atomically reserves one actor
+slot, while nonzero memory/GPU requirements fail closed as unsupported;</li>
+<li>independent proof that declared-idempotent foreign commands really have
+those effects;</li>
+<li>exactly-once arbitrary host effects, compensation, or transaction rollback;</li>
+<li>automatic installation of foreign runtimes, containers, or device drivers;</li>
+<li>CAS garbage collection or eviction, and per-client authorization/quotas;</li>
+<li>a signed World receipt, World mutation, Governor admission, or conversion of
+the unsigned mesh trace into execution authority.</li>
+</ul>
+<p>The pairing and transport boundaries are detailed in
+<a href="ZERO_CONFIG_LAN.md">Zero-configuration LAN nodes</a>. Frozen V1/V2 placement
+contracts remain documented separately in <a href="HOSTED_PLACEMENT_V6.md">Hosted Placement
+V6</a>.</p>

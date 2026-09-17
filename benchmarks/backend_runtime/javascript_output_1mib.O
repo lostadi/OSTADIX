@@ -1,0 +1,5 @@
+# One hosted JavaScript operation returning exactly 1 MiB of UTF-8 text.
+# process.stdout.write avoids a trailing command-style newline.
+javascript[0]^(
+process.stdout.write("x".repeat(1048576));
+)_javascript[0]

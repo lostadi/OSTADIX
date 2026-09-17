@@ -48,6 +48,10 @@ const TRUSTED_INLINE_SOURCE_SET_V1: &[(&str, &[u8])] = &[
         include_bytes!("../../backend_morphism.rs") as &[u8],
     ),
     (
+        "src/cancellation.rs",
+        include_bytes!("../../cancellation.rs") as &[u8],
+    ),
+    (
         "src/canonical_cbor.rs",
         include_bytes!("../../canonical_cbor.rs") as &[u8],
     ),

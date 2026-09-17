@@ -1,0 +1,431 @@
+<h1>KernelWorld Contract and Bounded Native Object Slice</h1>
+<p>Status: Stage 0&#39;s strict host-side semantic contract, verified-package binding,
+and lifecycle oracle are implemented. A bounded native supervisor-admission
+follow-on now consumes a hash-pinned normal-form record, applies independent
+default-deny policy, and configures nonexecuting VM/vCPU/guest-page objects. No
+foreign kernel is executed by either stage.</p>
+<p><code>crates/ostadix-api/src/kernel_world.rs</code> defines the common public boundary for the two planned
+foreign-kernel integration tracks:</p>
+<table>
+<thead>
+<tr>
+<th>Track</th>
+<th>Image mechanism</th>
+<th>Required execution mechanism</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>source_integrated</code></td>
+<td>source-built kernel in an immutable package payload</td>
+<td><code>paravirtual</code> direct entry</td>
+</tr>
+<tr>
+<td><code>binary_contained</code></td>
+<td>package-payload or hash-pinned user-supplied image</td>
+<td><code>hardware_virtualized</code> machine</td>
+</tr>
+</tbody></table>
+<p>Both tracks use the same world identity, generation, health, export, quota,
+request, failure, replacement, and provenance rules. A client binds to a typed
+export such as <code>o.net-port/v1</code>; it does not receive provider-internal handles or
+infer authority from manifest metadata.</p>
+<p>The G7 qualifying profile selects <code>binary_contained</code>: a pinned, fully
+virtualized Linux guest with standard virtio devices and trapped MMIO/PCI
+doorbells. It exposes no Ostadix-specific guest HVC or paravirtual
+authority/control ABI. The <code>source_integrated</code> track remains a separate planned
+integration mechanism and does not redefine that G7 guest boundary. The
+host-EL1-to-EL2 handle and resource revocation rules are normative in
+<a href="O_MACHINE_CONTRACT.md"><code>O_MACHINE_CONTRACT.md</code></a>.
+That contract keeps virtio/9P commit points and error construction in the
+O-core broker; EL2 acknowledges only the composed mapping, DMA, interrupt,
+vCPU, generation, and ownership transitions.</p>
+<h2>Strict manifest</h2>
+<p>The accepted schema is <code>ocore.kernel-world/v1</code>. Unknown fields are rejected.
+Names, paths, digests, list lengths, vCPU and memory envelopes, request counts,
+shared-memory bytes, and device counts are bounded before a world instance is
+created. Declaration order is non-semantic and <code>canonical_toml()</code> produces a
+stable human-readable form.</p>
+<p><code>VerifiedKernelWorld::from_package()</code> binds that document to an already
+verified <code>ocore.package/v1</code> object. The package must use runtime kind
+<code>kernel-world</code> and ABI <code>ocore.kernel-world-control/v1</code>; its non-executable
+runtime entry supplies the world manifest. Package name, version, architecture,
+health contract, service names/protocols, and capability requests must exactly
+match the inner world declaration. For <code>package_payload</code> images, the referenced
+image must exist in the captured payload and its bytes must match the declared
+SHA-256. The resulting instance identity carries the verified package digest.</p>
+<p>An illustrative binary-contained driver world is:</p>
+<pre><code class="language-toml">schema = &quot;ocore.kernel-world/v1&quot;
+name = &quot;kernel/linux-driver&quot;
+version = &quot;1.0.0&quot;
+integration = &quot;binary_contained&quot;
+
+[image]
+kind = &quot;user_supplied&quot;
+expected_sha256 = &quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;
+
+[machine]
+guest_architecture = &quot;x86_64&quot;
+profile = &quot;o-machine-pc/v1&quot;
+execution = &quot;hardware_virtualized&quot;
+firmware = &quot;uefi&quot;
+min_vcpus = 1
+max_vcpus = 4
+min_memory_mib = 512
+max_memory_mib = 4096
+requirements = [&quot;iommu&quot;, &quot;vmx&quot;]
+
+[lifecycle]
+health_protocol = &quot;ocore.kernel-world-health/v1&quot;
+health_timeout_ms = 5000
+restart = &quot;on_failure&quot;
+
+[quotas]
+max_outstanding_requests = 64
+max_requests_per_generation = 100000
+max_shared_memory_bytes = 67108864
+max_devices = 1
+
+[[exports]]
+name = &quot;network.default&quot;
+plane = &quot;device&quot;
+protocol = &quot;o.net-port/v1&quot;
+authority_request = &quot;device.net&quot;
+
+[[exports]]
+name = &quot;linux.exec&quot;
+plane = &quot;abi&quot;
+protocol = &quot;linux.exec/v1&quot;
+
+[[capability_requests]]
+kind = &quot;vm.machine&quot;
+rights = [&quot;run&quot;, &quot;stop&quot;]
+purpose = &quot;contained guest execution&quot;
+
+[[capability_requests]]
+kind = &quot;device.net&quot;
+rights = [&quot;dma&quot;, &quot;reset&quot;]
+purpose = &quot;exclusive network provider&quot;
+
+[license]
+redistribution = &quot;user_supplied_only&quot;
+external_acceptance_required = true
+</code></pre>
+<p>This is a schema-only future illustration, not the current native fixture or
+evidence of an implemented driver service.</p>
+<p>A user-supplied image must carry an exact SHA-256 constraint, use
+<code>user_supplied_only</code>, and require external acceptance. Those fields record
+deployment constraints; they are not a legal determination. A
+binary-contained world must request <code>vm.machine</code> authority.</p>
+<p>Every <code>capability_requests.kind</code> is a unique manifest key. Every device-plane
+export must carry <code>authority_request</code> naming one exact existing <code>device.*</code>
+request; ABI and semantic exports must omit it. The field is explicit because
+neither an export name nor a protocol is authority-bearing, and neither can
+unambiguously select a request when a world declares several device requests
+or exports. Here <code>device.*</code> requires a non-empty suffix; the bare <code>device.</code>
+prefix is rejected. Multiple device exports may share one authority request.
+<code>quotas.max_devices</code> counts distinct bound authority-request kinds, not export
+rows, so that shared binding consumes one device slot.</p>
+<p>The reserved rights matrix is:</p>
+<table>
+<thead>
+<tr>
+<th>Request kind</th>
+<th>Permitted reserved rights</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>vm.machine</code></td>
+<td><code>run</code>, <code>stop</code></td>
+</tr>
+<tr>
+<td><code>device.*</code></td>
+<td><code>reset</code>, <code>dma</code></td>
+</tr>
+</tbody></table>
+<p>Other request kinds cannot use those four reserved rights. The bounded native
+V2 record accepts only this four-right pilot vocabulary. These declarations
+remain requests: the manifest and its <code>authority_request</code> strings never grant
+or synthesize a capability.</p>
+<h2>Lifecycle and request invariant</h2>
+<p>The reference instance follows this bounded state machine:</p>
+<pre><code class="language-text">Installed -&gt; Starting -&gt; Healthy -&gt; Failed
+                         |             |
+                         +-&gt; Stopped   +-&gt; Starting (policy permitting)
+                               |
+                               +-&gt; Starting (`always` only)
+</code></pre>
+<p>Exports are unavailable until the exact current generation is marked healthy.
+Each request ID contains that generation and a bounded sequence. Reply,
+cancellation, timeout, world failure, and world stop compete for one terminal
+record. A second completion is rejected with the first terminal disposition.
+World failure or stop drains every outstanding request once. Replacement
+increments the generation, clears the bounded prior-generation tombstones, and
+rejects every old request as stale.</p>
+<p>Resolved exports carry immutable provenance:</p>
+<pre><code class="language-text">package digest + world name + generation + integration mode
+    + export name + export plane + protocol
+</code></pre>
+<p>This metadata describes origin. It is not a capability and cannot recreate
+authority.</p>
+<p>Run the executable contract gate with:</p>
+<pre><code class="language-bash">cargo test --test kernel_world_contract --no-default-features
+</code></pre>
+<p>The gate covers strict/unknown-field parsing, canonicalization, hash pinning,
+exact content-addressed package binding, package-payload image verification,
+cross-track execution constraints, unique request kinds, the typed rights
+matrix, exact device-export authority binding, distinct-authority device-quota
+accounting, quota exhaustion, health-gated publication, one-terminal-result
+behavior, failure fan-out, restart policy, and stale-generation denial.</p>
+<h2>Native normal form, admission, and objects</h2>
+<p><code>VerifiedKernelWorld::encode_native_record()</code> is the only host API that can
+encode a verified world into record-version V2 of the bounded <code>OKWORLD1</code> binary
+normal form. The magic remains <code>OKWORLD1</code>; the version field is 2. V2 carries
+each export&#39;s exact authority-request key, the verified package digest
+separately from the canonical world manifest digest, and fixed bounds of 16
+KiB, four exports, and eight capability requests. Untrusted bytes decode only
+as the distinct descriptive <code>InspectedNativeKernelWorldRecord</code>; its
+<code>from_bytes()</code> rejects malformed, noncanonical, V1 or other wrong-version,
+all-zero-package, and over-limit encodings and cannot be substituted for an
+authority-bearing record. The
+<code>ocore-kernel-world-record</code> tool produces the embedded mode-20 artifact from an
+exact package manifest and captured payload; the build produces it twice and
+requires byte identity.</p>
+<p>The native <code>kernel_world_record.oc</code> parser first verifies the exact record
+SHA-256 and then validates its complete bounded structure, retains each exact
+authority-request key, and enforces bytewise canonical ordering for
+requirements, exports, requests, and rights. It rejects duplicate request
+kinds, missing or nonexact device-export bindings, cross-kind reserved rights,
+and device-authority use beyond the distinct-authority quota. Mode 20 also
+presents an independently hash-pinned record whose final rights are reversed
+and proves native rejection. The parser does not parse TOML or turn serialized
+metadata into authority. The
+kernel-resident supervisor
+admission state in <code>kernel_world_admission.oc</code> stages at most two
+generation-tagged worlds and admits one only when every
+declared request has an independently registered policy rule keyed by exact
+package digest plus copied, byte-for-byte request kind and purpose, with no
+rights overgrant. A 64-bit string summary may reject a nonmatch early but can
+never grant authority without the exact-byte comparison. Missing policy is
+denial. Package and manifest digests remain distinct through admission.</p>
+<p><code>vm_object.oc</code> supplies at most two VM identities, four vCPU identities, and
+eight aligned guest-page attachments backed by real anonymous 4 KiB memory
+objects. Every child is bound to the exact admitted-world generation; duplicate
+or sparse vCPU ordinals, unaligned or overlapping guest addresses, and quota
+excess fail closed. Sealing is local to this bounded pilot graph: package
+admission remains <code>ADMITTED</code> until revocation, and there is no public
+<code>mark_configured</code> admission transition. Exact-world revocation reclaims its
+vCPUs, page objects, and frames without disturbing an unrelated admitted VM.</p>
+<p>Mode 20&#39;s <code>smoke-kernel-world-qemu.sh</code> gate parses the actual embedded 459-byte
+V2 fixture record (SHA-256
+<code>0ece5f7f37ebe203d03cc7e5213dc8f9257a9a225a73e52d37d1f718424b9232</code>).
+The fixture declares exactly the canonical requirements <code>[&quot;npt&quot;, &quot;svm&quot;]</code>.
+Native semantics compare both retained strings byte for byte, require
+<code>hardware_virtualized</code>, and reject a missing, extra, reordered, or <code>vmx</code>
+requirement before either Mode 20 object configuration or Mode 21 SVM entry.
+The gate rejects a wrong record digest, proves package/manifest identity and
+default-deny grants, exact export/request binding, typed rights, and
+distinct-authority accounting, locally seals a binary-contained pilot graph
+without entering it, checks VM/vCPU/guest-page generation and quotas, revokes
+and reclaims that exact world while an unrelated VM survives, and reaches a
+later timer. The native parser consumes one embedded verified fixture record;
+the second admitted identity is a bounded synthetic peer used only for
+isolation and reclamation testing. Neither is provider start or full
+manifest-resource fulfillment.</p>
+<p>The exact-policy negatives include a device export forged to name
+<code>device.audio</code> instead of its admitted <code>device.net</code> request and a same-package,
+same-kind, same-length VM rule whose purpose differs by one byte. Sealing is
+denied until the exact device authority and exact VM-purpose bytes are
+registered.</p>
+<h2>Mode 22 native administrative lifecycle</h2>
+<p>Mode 22 adds <code>runtime::kernel_world_boot</code> as a fixed-capacity native
+boot-service control plane and runs its separate
+<code>smoke-kernel-world-live-qemu.sh</code> gate under QEMU TCG. It supports at most two
+administrative boot instances and four published exports. A staged instance is
+bound to one exact admitted-world generation, one configured VM generation,
+and one retained consumer CSpace. Its <code>start</code> transition requires the
+independently granted <code>vm.machine:run</code> request. This is an administrative
+transition only; it does not enter a vCPU, load an image, or execute a provider.</p>
+<p><code>record_health</code> accepts only the exact protocol ID retained from the admitted
+record. Until that observation, publication and lookup fail. Publication
+installs a new nontransferable <code>OBJECT_KERNEL_WORLD_EXPORT</code> capability directly
+into the exact consumer CSpace. The client receives a status right and, for a
+device-plane export only, a reset-request right derived from the byte-exact
+sealed authority request and its independently materialized <code>device.*:reset</code>
+grant. The provider&#39;s device grant is never transferred. Lookup returns only
+the already-installed exact capability. Resolution compares retained
+name/protocol IDs plus the exact consumer CSpace and required-right set; the
+native record does not retain the original name/protocol bytes for byte-exact
+lookup. Those IDs therefore do not grant authority. Status reports the native
+boot generation. A successful reset request records accepted O-core broker
+intent; there is no provider request transport or hardware reset behind it. A
+second live export with the same consumer-CSpace/name/protocol ID tuple is
+denied, so lookup cannot become ambiguous inside one consumer namespace.</p>
+<p><code>SYS_CAP_CLOSE</code> routes <code>OBJECT_KERNEL_WORLD_EXPORT</code> through the lifecycle
+registry instead of closing only the raw capability slot. Registry liveness,
+capability closure, and service-generation retirement therefore advance in one
+transition. When the last export for a boot closes, the boot returns from
+<code>ACTIVE</code> to <code>HEALTHY</code>; a later publish or orderly teardown does not inherit an
+orphaned live binding.</p>
+<p>Failure first makes the boot unavailable, then withdraws every binding, closes
+each issued client capability, and advances its generation. Only after that
+withdrawal does it revoke the exact VM graph. It deliberately retains the
+admitted world and a bounded failure ticket so the record&#39;s declared
+<code>on_failure</code> policy can authorize a replacement configured VM with fresh
+boot/service generations. Old capabilities remain stale, an unrelated active
+instance survives, and explicit stop leaves a terminal tombstone. Only
+<code>always</code> policy may consume a stop tombstone as a restart. Otherwise
+<code>uninstall</code> first proves that neither an active boot nor an exact local VM graph
+remains, then atomically revokes admission before consuming the tombstone. A
+configured but un-staged replacement therefore makes uninstall fail without
+changing its graph, ticket, or admission. There is no public abandon operation,
+and a failed admission revoke leaves the tombstone intact so ordinary staging
+cannot reopen that generation.</p>
+<p>Every externally callable lifecycle and broker transition acquires one
+single-CPU operation owner and releases it through a monotonically advancing
+linearization epoch. Re-entry is denied while an operation owns the state. This
+is sufficient only for the current single-CPU gate; an SMP port requires an
+atomic kernel lock that preserves these linearization boundaries.</p>
+<p>The Mode 22 semantics gate invokes health and failure transitions directly. It
+does not yet enforce <code>health_timeout_ms</code>, receive a process/trap/scheduler or
+vCPU-exit death notification, or start and monitor an executable provider.
+Those boundaries are deliberately outside this mechanism claim.</p>
+<h2>Mode 23 bounded execution-and-device composition</h2>
+<p>Mode 23 composes the Mode 21 architectural executor with Mode 22&#39;s lifecycle
+and publication machinery under QEMU TCG. QEMU emulates an x86-64 CPU exposing
+AMD SVM and NPT; this gate therefore exercises guest entry and VMEXIT through
+that architectural interface without claiming KVM, physical AMD execution, or
+hardware isolation. It retains the same exact 459-byte V2 record and SHA-256
+<code>0ece5f7f37ebe203d03cc7e5213dc8f9257a9a225a73e52d37d1f718424b9232</code>.
+The portable evidence command is
+<code>./ocore/kernel/smoke-kernel-world-execution-device-qemu.sh</code>.</p>
+<p><code>kernel_world_execution.oc</code> owns one generation-tagged execution session
+because the current backend has one boot-CPU VMCB/NPT region. Start requires an
+exact live boot in <code>STARTED</code>, the boot&#39;s admitted-world generation and
+configured VM, one current vCPU, and code and mailbox pages belonging to that
+same VM. It also binds the device-plane export ordinal to the exact sealed,
+fully granted authority request. A cross-world vCPU is denied before device
+assignment or SVM activation. <code>vm_object.oc</code> gives the executor one pin on the
+configured VM; graph teardown remains unavailable until SVM has stopped and
+released both retained page mappings and that pin.</p>
+<p>The first validated <code>VMMCALL</code> VMEXIT is the health event. No guest-supplied
+protocol value is trusted: the coordinator derives the immutable health
+protocol ID from the exact admitted world and advances the bound boot before
+publication. The fixed guest then executes a 32-bit, non-string, non-<code>REP</code>
+<code>OUT</code> to port <code>0xE0</code> with one scalar value. <code>svm_execution.oc</code> verifies the
+IOIO exit code, direction, width, port, and value. Only then does the
+coordinator dispatch to the exact generation-tagged kernel-internal virtual
+endpoint. Its one operation computes <code>input XOR 0xA5A55A5A</code>, records the
+transaction, and returns a 32-bit broker disposition in guest RAX before the
+guest RIP advances.</p>
+<p>The Mode 22 reset-request capability remains status/reset-request authority,
+not the provider&#39;s device grant. In Mode 23 its exact boot/world/export binding
+also dispatches to the live virtual endpoint and clears only that endpoint&#39;s
+scalar transaction state. The assignment remains live for exact session-owned
+revocation. Mode 22 retains its earlier behavior because its stub dispatcher
+records accepted reset intent only. Neither path resets hardware.</p>
+<p>An exact NPF for the deliberately unmapped GPA is Mode 23&#39;s one synchronous
+provider-failure notification. The coordinator orders:</p>
+<ol>
+<li>observe and classify the NPF;</li>
+<li>disable SVM, restore the saved host interrupt mask, clear NPT, release both
+mappings, and drop the VM execution pin;</li>
+<li>revoke and generation-retire the kernel-internal virtual endpoint; and</li>
+<li>invoke the boot failure transition, which withdraws the published client
+capability before revoking the exact VM graph.</li>
+</ol>
+<p>The unrelated boot, VM graph, binding, capability, and service remain live
+through that failure. The admitted <code>on_failure</code> policy authorizes a new
+configured VM and generation-2 boot, execution session, endpoint, and client
+capability. Generation-1 session operations and status authority are denied;
+the replacement repeats VMEXIT-derived health and the virtual operation.
+Orderly replacement stop performs the same SVM/NPT quiesce and endpoint
+revocation before the boot terminal transition, followed by complete
+uninstallation and a later timer.</p>
+<p>This is still a fixed synthetic two-page guest. Mode 23 does not load or boot
+Linux, Plan 9, firmware, or a supplied user image. It implements no general
+guest agent, shared queue or ring, asynchronous request protocol, concurrent
+VMEXIT handling, or SMP lock. The port-<code>0xE0</code> endpoint is kernel-internal
+virtual PIO, not PCI or physical-device assignment, DMA, IOMMU isolation,
+interrupt remapping, or hardware reset. QEMU-TCG evidence must not be cited as
+KVM or physical-hardware isolation evidence.</p>
+<p>Mode 21/23&#39;s controlled <code>VMMCALL</code> is a bounded synthetic-test exit. It is not
+the G7 guest ABI and does not authorize carrying <code>MachineHandle</code> values from a
+guest. G7 health, service, and error transport instead use standard virtio
+queues whose doorbells trap as MMIO/PCI device activity.</p>
+<h2>Next native slices</h2>
+<p>The remaining dependency order is:</p>
+<ol>
+<li>extend Mode 24&#39;s exact four-byte CPL3 bounded-RPC integration with pinned
+windows, streaming, signals, actual mapping/resource events, broader request
+shapes, fuzzing, and allocation-failure/race gates;</li>
+<li>replace Mode 23&#39;s fixed synthetic program and scalar endpoint with a pinned,
+fully virtualized foreign-kernel image, boot protocol, timed health contract,
+and bounded virtio guest-agent transport, without an Ostadix-specific guest
+HVC or paravirtual authority/control ABI;</li>
+<li>carry request and export contracts over generation-tagged shared queues
+with cancellation, quotas, and hostile descriptor tests; distinguish the
+composite two-phase host withdrawal acknowledgment from the guest&#39;s later
+consumption of a protocol-native error;</li>
+<li>withdraw a virtual <code>MachineBlock</code> or <code>Machine9P</code> endpoint under in-flight I/O,
+require both the composite host acknowledgment and the pinned guest
+consuming the terminal completion and returning its <code>EIO</code>/9P error, in
+either order, before tearing down <code>MachineMemory</code> with
+stop/unmap/TLBI/drain/generation/ack ordering, followed by EL2-controlled
+or independently verified quarantine scrubbing before reassignment; and</li>
+<li>add physical-device assignment only after separate IOMMU isolation,
+interrupt revocation, DMA-window teardown, device-reset, and hostile-failure
+gates. The first concrete device family must use a class-named withdrawal
+operation and freeze quiesce, new-DMA fencing, DMA unmap/drain, interrupt
+withdrawal/drain, class-defined reset, generation retirement, and host
+acknowledgment in order; there is no generic device revoke verb. G8 must
+also explicitly decide whether a direct guest machine ABI exists; only that
+decision can activate a handle MAC and its key lifecycle.</li>
+</ol>
+<p>The first driver-compatibility proof should use a bounded resettable device
+class and must show that O-core has no native driver for it, a foreign kernel
+exports the service, unrelated worlds survive provider failure, old generation
+handles fail closed, DMA and interrupts are revoked, and a health-gated
+replacement can be rebound.</p>
+<h2>Explicit non-claims</h2>
+<p>The current native slices do not:</p>
+<ul>
+<li>load executable provider artifacts, enforce a health deadline, or detect
+provider failure from a process, trap, scheduler, or asynchronous vCPU-exit
+path; Mode 23 executes only its fixed synthetic guest and synchronously
+classifies one exact VMMCALL and one exact NPF;</li>
+<li>install a foreign-provider device capability or general device data plane;
+Mode 23 backs the existing status/reset-request export only with one
+kernel-internal scalar virtual endpoint;</li>
+<li>boot Linux, Plan 9, BSD, Windows, macOS, or another foreign kernel;</li>
+<li>implement firmware execution, a guest agent, shared queue or shared ring,
+UEFI, ACPI, 9P, or another foreign ABI or filesystem protocol;</li>
+<li>assign PCI or another physical device, configure an IOMMU, map DMA, remap
+device interrupts, or reset hardware;</li>
+<li>establish asynchronous or SMP-safe execution/device coordination, or prove
+KVM-backed or physical-hardware isolation;</li>
+<li>implement <code>MachineMemory</code>, <code>MachineBlock</code>, or <code>Machine9P</code> class-specific
+two-phase withdrawal, produce a machine acknowledgment, or observe a
+protocol-native error in a real guest;</li>
+<li>quarantine and scrub a retired frame under EL2 control or independent
+hardware/cryptographic verification before cross-World reassignment;</li>
+<li>expose an Ostadix-specific guest hypercall/paravirtual authority ABI, mint a
+guest-presentable machine handle, or implement a handle MAC/key lifecycle;</li>
+<li>install a public <code>vm.machine</code> run capability or convert manifest identifiers
+into ambient authority; or</li>
+<li>establish source-integrated or binary-contained isolation.</li>
+</ul>
+<p><code>KernelWorldInstance</code> is an executable semantic oracle for later native state
+machines. Mode 20 establishes the bounded native record, admission, and
+nonexecuting object claims. Hardware-only Mode 21 enters a real AMD SVM vCPU
+with NPT, executes a two-page synthetic guest, injects one vector, handles a
+controlled hypercall, denies an unmapped GPA, and tears down the exact NPT
+context while another VM survives. Mode 21 executes only that synthetic guest;
+it does not boot or supervise Linux, Plan 9, or any other foreign kernel, and
+it publishes no service. Mode 22 separately proves bounded administrative
+start/health/publication/failure/restart/stop algebra, client capability
+withdrawal before VM-graph revoke, and stale-generation denial without entering
+a guest. Mode 23 composes those mechanisms with QEMU-TCG-emulated SVM/NPT
+guest execution, VMEXIT-derived health and failure, and one exact kernel-owned
+virtual PIO endpoint. Separate source, artifact, foreign-provider,
+timed-health, guest-agent, shared-queue, 9P, physical-device, DMA/IOMMU, and
+hardware-isolation gates remain necessary for broader claims.</p>

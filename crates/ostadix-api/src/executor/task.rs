@@ -81,11 +81,24 @@ pub(crate) trait PreparedTask: Send + 'static {
 pub(crate) struct TaskContext {
     token: TaskToken,
     events: Sender<WorkerEvent>,
+    cancellation: Option<super::CancellationToken>,
 }
 
 impl TaskContext {
-    pub(crate) fn new(token: TaskToken, events: Sender<WorkerEvent>) -> Self {
-        Self { token, events }
+    pub(crate) fn new(
+        token: TaskToken,
+        events: Sender<WorkerEvent>,
+        cancellation: Option<super::CancellationToken>,
+    ) -> Self {
+        Self {
+            token,
+            events,
+            cancellation,
+        }
+    }
+
+    pub(crate) fn cancellation_token(&self) -> Option<&super::CancellationToken> {
+        self.cancellation.as_ref()
     }
 
     #[cfg(test)]
@@ -160,6 +173,7 @@ pub(crate) struct TaskSubmission {
     /// worker never interprets this neutral coordinate; its driver retains the
     /// coordinate-to-`TaskToken` map privately.
     physical_attempt: Option<PhysicalAttemptCoordinateV1>,
+    cancellation: Option<super::CancellationToken>,
 }
 
 impl TaskSubmission {
@@ -168,6 +182,7 @@ impl TaskSubmission {
             token,
             task,
             physical_attempt: None,
+            cancellation: None,
         }
     }
 
@@ -180,7 +195,16 @@ impl TaskSubmission {
             token,
             task,
             physical_attempt: Some(attempt),
+            cancellation: None,
         }
+    }
+
+    pub(crate) fn with_cancellation(
+        mut self,
+        cancellation: Option<super::CancellationToken>,
+    ) -> Self {
+        self.cancellation = cancellation;
+        self
     }
 
     pub(crate) fn token(&self) -> TaskToken {
@@ -197,8 +221,14 @@ impl TaskSubmission {
         TaskToken,
         Option<PhysicalAttemptCoordinateV1>,
         Box<dyn PreparedTask>,
+        Option<super::CancellationToken>,
     ) {
-        (self.token, self.physical_attempt, self.task)
+        (
+            self.token,
+            self.physical_attempt,
+            self.task,
+            self.cancellation,
+        )
     }
 }
 

@@ -1,0 +1,240 @@
+<h1>Personality Foreign-Process Memory-View Protocol</h1>
+<p>Status: design contract plus bounded native mechanism and live-composition
+slices. Mode 19 QEMU-tests the staging, capability, terminal-revocation, and
+delegated-lease core described below. Mode 24 routes one exact four-byte
+<code>INOUT</code> request shape through four packaged CPL3 principals. Mode 25 admits two
+exact 20-byte Linux <code>write</code> inputs from one pinned static ELF through bounded
+<code>IN</code> views. The broader acceptance matrix remains required before that exact
+foreign corpus or pointer-bearing syscall surface can expand.</p>
+<h2>1. Security invariant</h2>
+<p>A personality service never receives, stores, or dereferences a raw pointer
+from a foreign process. The kernel interprets every foreign address in the
+target process&#39;s current, generation-tagged address space and exposes only a
+bounded, request-scoped memory-view capability.</p>
+<pre><code class="language-text">foreign syscall
+    -&gt; validate process, address space, ranges, directions, and quotas
+    -&gt; copy or pin the approved bytes
+    -&gt; issue a temporary memory-view capability
+    -&gt; personality operates on that view
+    -&gt; kernel validates and commits declared output
+    -&gt; revoke the view and release pins or copies
+</code></pre>
+<p>A service-local mapping address is only an address in the service&#39;s own address
+space. It never becomes a reusable alias for the foreign virtual address.</p>
+<h2>2. Request identity</h2>
+<p>Every forwarded syscall has a kernel-generated request ID and records:</p>
+<ul>
+<li>generation-tagged process, thread, and address-space handles;</li>
+<li>personality service generation and protocol version;</li>
+<li>syscall number and immutable scalar arguments;</li>
+<li>one or more checked memory segments;</li>
+<li>deadline, cancellation state, and resource charges;</li>
+<li>restart class and side-effect commit state; and</li>
+<li>the endpoint generation that owns the reply.</li>
+</ul>
+<p>A segment records foreign address, byte length, direction (<code>in</code>, <code>out</code>, or
+<code>inout</code>), transfer mode, maximum committed length, and required mapping rights.
+Range addition is checked for overflow. A nonempty segment must fit mapped user
+pages with the required permissions. Overlapping output segments are rejected
+unless the ABI adapter defines and tests an explicit ordering rule.</p>
+<p>Request IDs prevent reply confusion. They do not by themselves make a syscall
+safe to repeat.</p>
+<h2>3. Transfer modes</h2>
+<h3>Bounded copy</h3>
+<p>Bounded copy is the default. Input bytes are copied into kernel-owned staging
+storage and then into a service-owned view. Output remains staged until commit.
+This provides snapshot semantics and avoids holding target pages across a
+blocking service operation. Per-request and per-domain byte quotas are hard
+limits.</p>
+<h3>Pinned window</h3>
+<p>Pinned windows are an optimization for large, shared, or explicitly streaming
+operations. The kernel pins the exact page set and maps an attenuated view into
+the service. The service receives only the requested direction and interval.
+Unmap, protection change, process teardown, and capability revocation join the
+same pin state machine instead of racing the mapping.</p>
+<p>Pinned output that can become visible before reply must be explicitly declared
+as streaming. Ordinary output uses staged commit even if the backing pages are
+pinned.</p>
+<p>The initial Linux proof should use bounded copies wherever the pinned semantics
+are not required by its pinned syscall corpus.</p>
+<h2>4. Memory-view capability</h2>
+<p>A memory-view handle is generation-tagged and scoped to exactly one request.
+Its object records owner endpoint generation, target address-space generation,
+segments, rights, expiry, pin or staging references, and lifecycle state.</p>
+<p>Possible rights are:</p>
+<ul>
+<li><code>read_input</code>: read staged or pinned input;</li>
+<li><code>write_output</code>: write no more than a segment&#39;s output bound;</li>
+<li><code>commit_output</code>: propose a completed byte count and segment status; and</li>
+<li><code>stream_output</code>: modify explicitly shared output before final reply.</li>
+</ul>
+<p>Rights are not implied by the foreign process&#39;s mapping. They are independently
+attenuated for the personality operation. The service cannot transfer a view,
+extend it, change its target, or retain it after terminal request disposition.</p>
+<h2>5. Lifecycle and terminal results</h2>
+<p>The kernel owns this state machine:</p>
+<pre><code class="language-text">created -&gt; dispatched -&gt; running -&gt; reply_pending -&gt; committed
+                         |    |            |
+                         |    +-&gt; cancelled+
+                         +------&gt; failed---+
+</code></pre>
+<p>Exactly one terminal disposition is recorded: <code>committed</code>, <code>cancelled</code>, or
+<code>failed</code>. Recording a terminal disposition revokes the view before waking the
+foreign thread. Late and duplicate replies fail with a stale-request error.</p>
+<p>For staged output, commit validates segment identity and byte counts, copies
+only the declared prefix back through fault-aware kernel copy routines, and
+reports a defined partial-result error if a destination became invalid. The
+ABI adapter maps that result to the personality&#39;s return and error convention.
+No unwritten staging bytes are exposed.</p>
+<h2>6. Failure and concurrency rules</h2>
+<h3>Personality crash or restart</h3>
+<p>Service death revokes all views owned by that service generation. Requests with
+no external side effect may be redispatched only when their adapter marks them
+restart-safe. A request that may have performed an external effect becomes
+<code>failed_indeterminate</code> unless its operation protocol supplies an idempotency
+token and durable commit receipt. A restarted service cannot reply to the prior
+generation&#39;s request IDs.</p>
+<h3>Foreign process or thread exit</h3>
+<p>Exit marks every owned request cancelled, revokes its views, releases pins, and
+discards staged output. Teardown waits only for kernel-held references, not for
+service cooperation. The service observes cancellation through its endpoint
+and any later reply is rejected.</p>
+<h3>Unmap and protection change</h3>
+<p>Bounded-copy input is unaffected after the snapshot. Staged output is checked
+again at commit. A pinned window makes unmap or incompatible protection change
+wait for, cancel, or explicitly detach the request according to the adapter&#39;s
+declared blocking policy. It may never free a pinned frame underneath the
+service.</p>
+<h3>Blocking syscalls and cancellation</h3>
+<p>A blocking request parks the foreign thread with a recorded wake reason. Timer,
+signal, explicit cancellation, service death, and normal reply race through one
+atomic terminal transition, so the thread wakes exactly once. Cancellation
+does not promise that an external side effect was undone.</p>
+<h3>Signals and restart</h3>
+<p>Signal delivery records whether the ABI adapter returns an interrupt error,
+restarts the call, or delivers after completion. Restart creates a new request
+unless the original never reached <code>running</code>. The Linux adapter must compare
+this behavior with a pinned native Linux oracle.</p>
+<h3>Capability revocation</h3>
+<p>Revoking a delegated filesystem, network, timer, device, endpoint, or memory
+authority prevents new use immediately and moves affected requests through the
+same cancellation transition. Revocation never falls back to ambient access.</p>
+<h3>Shared buffers and partial writes</h3>
+<p>Shared buffers require an explicit shared-memory capability and concurrency
+contract. They are not smuggled through ordinary pointer arguments. Partial
+writes return a committed byte count only for bytes the kernel verified and
+made visible. The remaining range stays unchanged unless the foreign ABI
+explicitly specifies otherwise.</p>
+<h2>7. Resource controls</h2>
+<p>The kernel charges staging bytes, pinned pages, view objects, queued requests,
+and service CPU time to both the caller domain and personality service. Hard
+limits bound segment count, total bytes, pin duration, nesting, and outstanding
+requests. Exceeding a limit returns a defined resource error before dispatch.</p>
+<p>Personality services cannot ask the kernel to log arbitrary foreign memory.
+Diagnostics use bounded, redacted metadata unless a separately authorized
+debug capability is present.</p>
+<h2>8. Implemented bounded native slice</h2>
+<p><code>runtime/x86_64/personality_memory_view.oc</code> implements four generation-tagged,
+request-scoped views, at most 128 bytes per view and 256 charged bytes in
+aggregate. All payload bytes live in kernel-owned bounded staging. Input is an
+immutable snapshot; output uses a byte-written bitmap and copies only the
+declared written prefix back after exact process, address-space, and foreign
+address revalidation. Service capabilities carry only the direction-appropriate
+<code>read</code>, <code>write</code>, and <code>commit</code> rights and are nontransferable.</p>
+<p>The same fixed-capacity mechanism makes reply, explicit cancellation, timeout,
+service-death, process-exit, unmap, and delegated-resource revocation terminal
+hooks. It closes the service capability before recording the terminal result
+and publishes one wake event afterward; stale and duplicate use fails closed.
+If a process-exit or unmap hook follows a reply before exact caller re-entry,
+the undeliverable terminal view is released without a second result or wake.
+<code>runtime/x86_64/delegated_resource.oc</code> adds independently revocable,
+generation-tagged lease objects for the memory, filesystem, timer, network, and
+device classes. A lease carries a nonzero request identity and can bind only to
+a view with that same identity; request-wide revocation removes all matching
+leases and their bound live views without disturbing another request. Creation
+and binding form one transaction; the gate injects a bind failure after
+capability publication and requires rollback to close the capability and
+destroy the unbound resource generation. These are
+typed authority/revocation skeletons, not filesystem, network, timer, or device
+implementations, and revocation never falls back to ambient access.</p>
+<p>The mode-19 <code>smoke-m6b-qemu.sh</code> gate proves pre-dispatch range, generation,
+mapping-rights, and quota denial; bounded input snapshot; attenuated view
+rights; staged-prefix commit; revoke-before-terminal ordering; wake-once paths;
+all five lease classes; same-request bulk revocation; stale authority denial;
+injected create-bind rollback; unrelated-request survival; post-reply teardown
+cleanup; CSpace-drain close;
+complete bounded cleanup; and a later timer. The scenario invokes the native
+mechanism against a real kernel process and address space, but directly calls
+the lifecycle and wake-publication hooks. It does not prove live process/unmap/
+scheduler integration or run through the M6A CPL3 personality daemon or public
+pointer-bearing personality RPC.</p>
+<h2>9. Implemented live four-byte composition</h2>
+<p>Mode 24&#39;s <code>smoke-live-bounded-personality-qemu.sh</code> packages a client,
+personality daemon, supervisor, and unrelated observer as four independently
+linked CPL3 ELFs. The client issues each request once through the public
+bounded-call syscall. The live corpus fixes the request to one four-byte
+<code>INOUT</code> view; the daemon can discover only the view correlated with the request
+received from its endpoint, access its bytes through attenuated view syscalls,
+and submit one bounded reply. The gate contains one generation-1 daemon fault,
+keeps the observer live, rejects late/stale/duplicate authority, and
+health-gates a generation-2 rebind.</p>
+<p>Generation 2 also drives supervisor-triggered pre-terminal unmap,
+request-revoke, delegated-device-resource-revoke, and caller-exit dispositions
+while each request remains waiting. These operations reuse the terminalization
+mechanism; they do not mutate a mapping or observe an external resource event.
+The delegated device resource is one internal typed lease, not a physical
+device. The caller-exit case terminates and stops the test client, leaving its
+process reapable and its thread exited. The gate does not exercise a
+post-reply/pre-consume process-exit or unmap race.</p>
+<p>Mode 25&#39;s <code>smoke-live-linux-personality-qemu.sh</code> is a separate bounded-copy
+foreign-ABI slice. One exact static Linux x86-64 ELF issues stdout and stderr
+<code>write</code> calls through 20-byte <code>IN</code> views; a successful generation-1 terminal
+remains charged and consumable across daemon fault/replacement after its view
+authority closes. Before that terminal publication, the gate injects seven
+Linux-adapter and four bounded-bridge preparation failures against the same
+request and requires unchanged observable accounting plus a still-<code>WAITING</code>
+request after each failure; the subsequent retry must succeed exactly once.
+The gate also covers exact <code>-ENOSYS</code>, <code>exit_group(42)</code>, stale generation-1
+lookup denial, unrelated-observer survival, cleanup, and a later timer. It does
+not exercise output views, partial effects, mapping mutation, signals,
+streaming, or an arbitrary executable/syscall corpus.</p>
+<h2>10. Complete acceptance gate</h2>
+<p>Before pointer-bearing Linux syscalls broaden beyond Mode 25&#39;s exact pinned
+two-write corpus, executable tests must show:</p>
+<ul>
+<li>range overflow, kernel addresses, stale process/address-space generations,
+wrong mapping rights, excessive segments, and excessive bytes fail before
+dispatch;</li>
+<li>a service cannot read an output-only view, write an input-only view, extend a
+segment, transfer the handle, or use it after reply;</li>
+<li>unmap, process exit, signal, timeout, explicit cancellation, service crash,
+reply, and capability revocation races produce one terminal result and one
+wakeup;</li>
+<li>staged output never exposes uncommitted or unwritten bytes;</li>
+<li>pinned frames are neither freed nor remapped while a view is live and are
+reclaimed after every terminal path;</li>
+<li>duplicate and prior-generation replies are rejected;</li>
+<li>partial copy and partial external-effect cases map to the pinned ABI oracle;
+and</li>
+<li>unrelated native processes continue through service crashes and hostile
+request corpora.</li>
+</ul>
+<p>Fuzzing must cover the serialized request/reply schema and state transitions.
+Fault injection must cover allocation failure at every staging, pinning,
+dispatch, reply, and commit step.</p>
+<h2>11. Explicit non-claims</h2>
+<p>This protocol does not make arbitrary device DMA safe, make every syscall
+restartable, provide distributed exactly-once execution, or turn serialized
+capability metadata into authority. Direct device passthrough requires an
+IOMMU-backed isolation design and separate acceptance evidence.</p>
+<p>The current evidence does not implement pinned windows, streaming output,
+signal delivery/restart integration, an authoritative native x86-64 Linux
+oracle replay, schema fuzzing, allocation-failure injection, or every
+concurrent teardown race. Mode 24
+supplies one exact four-byte pointer-bearing native test path, and Mode 25 adds
+only two exact 20-byte input writes for one pinned Linux ELF. Neither supplies
+a general foreign ABI, Linux or Plan 9 boot, foreign root filesystem, or
+concrete delegated filesystem, network, timer, or device service. They also do
+not prove actual mapping mutation, an external resource event, the
+post-reply/pre-consume process-exit or unmap race, KVM, PCI/DMA/IOMMU, or
+physical-device isolation.</p>

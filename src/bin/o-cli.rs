@@ -258,6 +258,10 @@ struct RunArgs {
     #[arg(long)]
     json: bool,
 
+    /// Include the retained decoded value or project route results in JSON output.
+    #[arg(long, requires = "json")]
+    include_result: bool,
+
     /// Do not retain this invocation as a run record.
     #[arg(long, conflicts_with = "require_record")]
     no_record: bool,
@@ -435,6 +439,7 @@ impl OptimizeArgs {
             legacy_backends: None,
             parallel: None,
             json: self.json,
+            include_result: false,
             no_record: false,
             require_record: true,
             selection_run: None,
@@ -1056,7 +1061,7 @@ fn emit_preflight_failure_summary(detail: &str, presentation: RunPresentation) -
         .validate()
         .map_err(anyhow::Error::msg)
         .context("front door produced an invalid preflight-failure run summary")?;
-    emit_run_json(&summary, presentation, None, None)?;
+    emit_run_json(&summary, presentation, None, None, None)?;
     Ok(())
 }
 
@@ -1065,9 +1070,25 @@ fn emit_run_json(
     presentation: RunPresentation,
     receipt: Option<&ValidatedSelectionReceiptV1>,
     receipt_export_path: Option<&Path>,
+    result: Option<RunResultOutputV1<'_>>,
 ) -> Result<()> {
     match presentation {
-        RunPresentation::Ordinary => println!("{}", serde_json::to_string(summary)?),
+        RunPresentation::Ordinary => {
+            if let Some(result) = result {
+                #[derive(serde::Serialize)]
+                struct RunOutputV1<'a> {
+                    #[serde(flatten)]
+                    summary: &'a RunSummaryV1,
+                    result: RunResultOutputV1<'a>,
+                }
+                println!(
+                    "{}",
+                    serde_json::to_string(&RunOutputV1 { summary, result })?
+                );
+            } else {
+                println!("{}", serde_json::to_string(summary)?);
+            }
+        }
         RunPresentation::Optimize => {
             let receipt_sha256 = receipt
                 .map(ValidatedSelectionReceiptV1::sha256)
@@ -1085,6 +1106,12 @@ fn emit_run_json(
         }
     }
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct RunResultOutputV1<'a> {
+    decoded_value: Option<&'a serde_json::Value>,
+    route_results: &'a [RecordedRouteResultV1],
 }
 
 fn json_safe_receipt_export_path(path: Option<&Path>) -> Option<&str> {
@@ -5116,7 +5143,7 @@ fn required_recording_begin_failure(
         .validate()
         .map_err(anyhow::Error::msg)
         .context("front door produced an invalid pre-execution run summary")?;
-    emit_run_json(&summary, presentation, None, None)?;
+    emit_run_json(&summary, presentation, None, None, None)?;
     eprintln!("error: {detail}");
     Ok(1)
 }
@@ -5154,7 +5181,7 @@ fn stream_observation_begin_failure(
         .validate()
         .map_err(anyhow::Error::msg)
         .context("front door produced an invalid stream-observation summary")?;
-    emit_run_json(&summary, presentation, None, None)?;
+    emit_run_json(&summary, presentation, None, None, None)?;
     eprintln!("error: {detail}");
     Ok(1)
 }
@@ -5418,6 +5445,10 @@ fn run_intent(args: &RunArgs, presentation: RunPresentation) -> Result<i32> {
             presentation,
             report.validated_selection_receipt.as_ref(),
             receipt_export_path,
+            args.include_result.then_some(RunResultOutputV1 {
+                decoded_value: report.decoded_value.as_ref(),
+                route_results: &report.route_results,
+            }),
         )?;
         io::stderr().write_all(&report.stderr)?;
         io::stderr().flush()?;
@@ -7379,6 +7410,16 @@ mod tests {
         assert_eq!(before.target, after.target);
         assert_eq!(before.parallel, after.parallel);
         assert_eq!(before.route, after.route);
+    }
+
+    #[test]
+    fn run_include_result_requires_json() {
+        let run = parse_run(&["o", "run", "program.O", "--json", "--include-result"]);
+        assert!(run.json);
+        assert!(run.include_result);
+
+        let error = Cli::try_parse_from(["o", "run", "program.O", "--include-result"]).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::MissingRequiredArgument);
     }
 
     #[test]

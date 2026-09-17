@@ -4,17 +4,26 @@
 //! executing a binary copied into writable app storage. Android 10 and newer
 //! intentionally disallow that writable-code pattern.
 
-use jni::objects::{JClass, JString};
-use jni::sys::{jlong, jstring};
+use jni::objects::{JClass, JIntArray, JString};
+use jni::sys::{jboolean, jint, jlong, jstring};
 use jni::JNIEnv;
-use ostadix_api::{OValue, Runtime};
+use ostadix_api::executor::CancellationToken;
+use ostadix_api::{OValue, Runtime, RuntimeRequest, RuntimeRequestLimits};
 use serde_json::json;
+use std::collections::HashMap;
 use std::ptr;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 struct AndroidRuntime {
     inner: Mutex<Runtime>,
+    /// Request-private cancellation tokens. Entries exist only from bounded
+    /// call registration through completion and never survive runtime drop.
+    active_cancellations: Mutex<HashMap<(String, String), CancellationToken>>,
 }
+
+const AICORE_REPLY_POSTPROCESS: &str =
+    include_str!("../../../../tests/fixtures/aicore_llm_reply_postprocess_bash.O");
 
 fn java_string(env: JNIEnv<'_>, value: String) -> jstring {
     match env.new_string(value) {
@@ -39,8 +48,18 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeCreate(
     mut env: JNIEnv<'_>,
     _class: JClass<'_>,
     shim_dir: JString<'_>,
+    runtime_executable: JString<'_>,
+    bash_executable: JString<'_>,
 ) -> jlong {
     let shim_dir: String = match env.get_string(&shim_dir) {
+        Ok(value) => value.into(),
+        Err(_) => return 0,
+    };
+    let runtime_executable: String = match env.get_string(&runtime_executable) {
+        Ok(value) => value.into(),
+        Err(_) => return 0,
+    };
+    let bash_executable: String = match env.get_string(&bash_executable) {
         Ok(value) => value.into(),
         Err(_) => return 0,
     };
@@ -48,9 +67,111 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeCreate(
         // This private executor thread never changes Landlock/seccomp
         // authority between evaluations. Reuse is therefore safe here; the
         // core still rebuilds workers whenever Android affinity changes.
-        inner: Mutex::new(Runtime::new(shim_dir).with_reusable_local_workers()),
+        inner: Mutex::new(
+            Runtime::new(shim_dir)
+                .with_runtime_executable(runtime_executable)
+                .with_backend_executable("bash", bash_executable)
+                .with_reusable_local_workers(),
+        ),
+        active_cancellations: Mutex::new(HashMap::new()),
     };
     Box::into_raw(Box::new(runtime)) as jlong
+}
+
+fn execute_bounded(
+    runtime: &AndroidRuntime,
+    source: String,
+    caller_id: String,
+    request_id: String,
+    bindings: HashMap<String, OValue>,
+    timeout_ms: jlong,
+) -> String {
+    if timeout_ms <= 0 {
+        return error_json("request", "timeout must be positive");
+    }
+    let timeout = Duration::from_millis(timeout_ms as u64);
+    let Some(deadline) = Instant::now().checked_add(timeout) else {
+        return error_json("request", "timeout overflowed");
+    };
+    let cancellation = CancellationToken::new();
+    let cancellation_key = (caller_id.clone(), request_id.clone());
+    {
+        let mut active = match runtime.active_cancellations.lock() {
+            Ok(active) => active,
+            Err(_) => return error_json("runtime", "cancellation registry is poisoned"),
+        };
+        if active.contains_key(&cancellation_key) {
+            return error_json(
+                "request",
+                "caller/request identity already has an active evaluation",
+            );
+        }
+        active.insert(cancellation_key.clone(), cancellation.clone());
+    }
+    let response = match runtime.inner.lock() {
+        Ok(mut inner) => {
+            let request = RuntimeRequest {
+                caller_id,
+                request_id,
+                source,
+                bindings,
+                limits: RuntimeRequestLimits {
+                    deadline: Some(deadline),
+                    ..RuntimeRequestLimits::default()
+                },
+                cancellation,
+            };
+            match inner
+                .prepare_request(request)
+                .and_then(|request| inner.execute_request(request))
+            {
+                Ok(result) => {
+                    let selected = match &result.value {
+                        OValue::Map { v } => (
+                            v.get("source_index").and_then(|value| value.as_int().ok()),
+                            v.get("score_milli").and_then(|value| value.as_int().ok()),
+                        ),
+                        _ => (None, None),
+                    };
+                    json!({
+                        "ok": true,
+                        "stage": "complete",
+                        "callerId": result.caller_id,
+                        "requestId": result.request_id,
+                        "type": result.value.type_name(),
+                        "output": match &result.value {
+                            OValue::Text { v } => v.utf8.clone(),
+                            OValue::Html { v } => v.clone(),
+                            other => other.to_string(),
+                        },
+                        "selectedSourceIndex": selected.0,
+                        "selectedScoreMilli": selected.1,
+                        "planNodes": result.plan_nodes,
+                        "hgraphNodes": result.hgraph_nodes,
+                        "hgraphExecEdges": result.hgraph_exec_edges,
+                        "sourceSha256": result.evidence.source_sha256,
+                        "executionIntentSha256": result.evidence.execution_intent_sha256,
+                        "requestScopeContentIdentity": result.evidence.request_scope_content_identity,
+                        "evidenceSha256": result.evidence.evidence_sha256,
+                        "admittedGraphSha256": result.evidence.admitted_graph_sha256,
+                        "admissionSha256": result.evidence.admission_sha256,
+                        "resultContentIdentity": result.evidence.result_content_identity,
+                        "elapsedMs": result.elapsed.as_millis(),
+                    })
+                    .to_string()
+                }
+                Err(error) => error_json(&error.stage().to_string(), error.message()),
+            }
+        }
+        Err(_) => error_json("runtime", "runtime lock is poisoned"),
+    };
+    match runtime.active_cancellations.lock() {
+        Ok(mut active) => {
+            active.remove(&cancellation_key);
+        }
+        Err(_) => return error_json("runtime", "cancellation registry is poisoned"),
+    }
+    response
 }
 
 /// Evaluate a complete O document and return a small JSON envelope. JNI is
@@ -99,6 +220,183 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluate(
         Err(error) => error_json(&error.stage().to_string(), error.message()),
     };
     java_string(env, response)
+}
+
+/// Execute one explicitly identified, bounded Android request through the
+/// canonical request preflight and graph evaluator.
+#[no_mangle]
+pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluateBounded(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    handle: jlong,
+    source: JString<'_>,
+    caller_id: JString<'_>,
+    request_id: JString<'_>,
+    timeout_ms: jlong,
+) -> jstring {
+    if handle == 0 {
+        return java_string(env, error_json("runtime", "runtime is closed"));
+    }
+    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
+        env.get_string(value)
+            .map(String::from)
+            .map_err(|error| format!("invalid {name}: {error}"))
+    };
+    let source = match read(&mut env, &source, "source") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let caller_id = match read(&mut env, &caller_id, "caller id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let request_id = match read(&mut env, &request_id, "request id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+    // released exactly once by nativeDestroy.
+    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+    let response = execute_bounded(
+        runtime,
+        source,
+        caller_id,
+        request_id,
+        HashMap::new(),
+        timeout_ms,
+    );
+    java_string(env, response)
+}
+
+/// Select one policy-safe completed AICore reply from bounded scalar metadata.
+/// Model-owned text, sessions, FDs, and buffers deliberately stay outside O.
+#[no_mangle]
+pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostprocessAicoreReplies(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    handle: jlong,
+    scores: JIntArray<'_>,
+    stop_reasons: JIntArray<'_>,
+    max_policy_scores: JIntArray<'_>,
+    policy_limit: jint,
+    caller_id: JString<'_>,
+    request_id: JString<'_>,
+    timeout_ms: jlong,
+) -> jstring {
+    if handle == 0 {
+        return java_string(env, error_json("runtime", "runtime is closed"));
+    }
+    let lengths = [
+        env.get_array_length(&scores),
+        env.get_array_length(&stop_reasons),
+        env.get_array_length(&max_policy_scores),
+    ];
+    let lengths = match lengths {
+        [Ok(a), Ok(b), Ok(c)] if a == b && b == c && (1..=3).contains(&a) => a as usize,
+        [Ok(_), Ok(_), Ok(_)] => {
+            return java_string(
+                env,
+                error_json(
+                    "request",
+                    "reply arrays must have equal length from 1 through 3",
+                ),
+            )
+        }
+        _ => return java_string(env, error_json("jni", "could not read reply arrays")),
+    };
+    let mut score_values = vec![0; lengths];
+    let mut stop_values = vec![0; lengths];
+    let mut policy_values = vec![0; lengths];
+    if env
+        .get_int_array_region(&scores, 0, &mut score_values)
+        .is_err()
+        || env
+            .get_int_array_region(&stop_reasons, 0, &mut stop_values)
+            .is_err()
+        || env
+            .get_int_array_region(&max_policy_scores, 0, &mut policy_values)
+            .is_err()
+    {
+        return java_string(env, error_json("jni", "could not copy reply arrays"));
+    }
+    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
+        env.get_string(value)
+            .map(String::from)
+            .map_err(|error| format!("invalid {name}: {error}"))
+    };
+    let caller_id = match read(&mut env, &caller_id, "caller id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let request_id = match read(&mut env, &request_id, "request id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let mut bindings =
+        HashMap::from([("policy_limit".into(), OValue::int(i64::from(policy_limit)))]);
+    for index in 0..3 {
+        let present = usize::from(index < lengths);
+        bindings.insert(format!("present_{index}"), OValue::int(present as i64));
+        bindings.insert(
+            format!("score_{index}"),
+            OValue::int(score_values.get(index).copied().unwrap_or(0).into()),
+        );
+        bindings.insert(
+            format!("stop_reason_{index}"),
+            OValue::int(stop_values.get(index).copied().unwrap_or(0).into()),
+        );
+        bindings.insert(
+            format!("max_policy_score_{index}"),
+            OValue::int(policy_values.get(index).copied().unwrap_or(0).into()),
+        );
+    }
+    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+    // released exactly once by nativeDestroy.
+    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+    let response = execute_bounded(
+        runtime,
+        AICORE_REPLY_POSTPROCESS.into(),
+        caller_id,
+        request_id,
+        bindings,
+        timeout_ms,
+    );
+    java_string(env, response)
+}
+
+/// Propagate an owning request's cancellation signal to one active evaluation.
+/// Returns false if the request has not started or has already completed.
+#[no_mangle]
+pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeCancelRequest(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    handle: jlong,
+    caller_id: JString<'_>,
+    request_id: JString<'_>,
+) -> jboolean {
+    if handle == 0 {
+        return 0;
+    }
+    let caller_id = match env.get_string(&caller_id) {
+        Ok(value) => String::from(value),
+        Err(_) => return 0,
+    };
+    let request_id = match env.get_string(&request_id) {
+        Ok(value) => String::from(value),
+        Err(_) => return 0,
+    };
+    // SAFETY: the Java lifecycle read lock permits cancellation concurrently
+    // with evaluation while its write lock excludes nativeDestroy.
+    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+    let active = match runtime.active_cancellations.lock() {
+        Ok(active) => active,
+        Err(_) => return 0,
+    };
+    let Some(cancellation) = active.get(&(caller_id, request_id)) else {
+        return 0;
+    };
+    cancellation.cancel();
+    1
 }
 
 #[no_mangle]

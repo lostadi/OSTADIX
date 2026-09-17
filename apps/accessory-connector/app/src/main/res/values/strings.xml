@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ostadix Accessory Connector</string>
+    <string name="title">Accessory connector</string>
+    <string name="intro">Reconnect one accessory through Android’s supported Bluetooth profiles. Android owns discovery, association, pairing, authentication, and each profile connection.</string>
+    <string name="choose_accessory">Choose or change accessory</string>
+    <string name="connect_accessory">Connect supported profiles</string>
+    <string name="open_bluetooth_settings">Open Bluetooth settings</string>
+    <string name="limits">Android 17 or newer is required for the all-profile connection request. This app cannot add unsupported profiles or codecs, and it does not provide MFi, AirPlay, CarPlay, or iPhone parity.</string>
+    <string name="status_initial">Checking accessory readiness.</string>
+</resources>

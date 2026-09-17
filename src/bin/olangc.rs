@@ -2098,6 +2098,7 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     fs::write(computation_dir.join("mod.rs"),
         "pub mod realization_plan;\npub mod graph_realization_plan;\npub mod oir_physical_execution;\npub use realization_plan::*;\npub use graph_realization_plan::*;\npub use oir_physical_execution::*;\n")?;
     fs::write(src_dir.join("value.rs"), RUNTIME_VALUE_RS)?;
+    fs::write(src_dir.join("cancellation.rs"), RUNTIME_CANCELLATION_RS)?;
     fs::write(src_dir.join("capability.rs"), RUNTIME_CAPABILITY_RS)?;
     fs::write(src_dir.join("environment.rs"), RUNTIME_ENVIRONMENT_RS)?;
     fs::write(src_dir.join("parser.rs"), RUNTIME_PARSER_RS)?;
@@ -2989,6 +2990,7 @@ pub(crate) mod shims {{
 }}
 pub mod computation_core;
 pub mod computation;
+pub mod cancellation;
 mod capability;
 pub mod environment;
 pub mod backend;
@@ -4683,6 +4685,12 @@ mod tests {
             1,
             "generated runtimes must compile the evaluator core exactly once"
         );
+        assert!(lib_rs.contains("pub mod cancellation;"));
+        assert_eq!(
+            fs::read_to_string(src_dir.join("cancellation.rs")).unwrap(),
+            RUNTIME_CANCELLATION_RS,
+            "generated runtimes must preserve the shared cancellation implementation"
+        );
         assert!(lib_rs.contains("pub mod environment;"));
         assert!(lib_rs.contains("pub(crate) mod backend_catalog;"));
         assert!(lib_rs.contains("pub mod backend_morphism;"));
@@ -4717,6 +4725,7 @@ mod tests {
             "backend_catalog.inc.rs",
             "backend_morphism.rs",
             "backend_state.rs",
+            "cancellation.rs",
             "canonical_cbor.rs",
             "dispatch_model.rs",
             "syntax_dialect.rs",

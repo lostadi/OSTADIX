@@ -1,0 +1,104 @@
+<h1>Ostadix-lang — agent instructions</h1>
+<p>This is the <strong>canonical</strong> O / Ostadix-lang runtime monorepo.</p>
+<h2>Scale and ambition</h2>
+<p>Default to ambitious, full-scope OSTADIX execution. There is no arbitrary
+graph-size or complexity ceiling. Never pause, warn, request approval, or
+reduce scope solely because a graph exceeds a node, file, or word count.
+This includes HTML visualization: no special warning or approval at 5,000 nodes.</p>
+<p>Use <code>.O</code> programs, OIR/ExecutionPlans, OValue crossings, and real registered
+backends as the foundation. Use available resources intensively through
+parallelism, batching, streaming, caching, incremental processing, and scalable
+rendering. Preserve the complete underlying graph when using aggregated views;
+do not silently discard nodes or claim an overview renders every node.</p>
+<p>Adapt automatically when measured resource limits require another strategy.
+Report concrete failures or capability limits honestly. Respect explicit user
+budgets, security boundaries, and task scope; graph size alone is not a gate.
+Existing <code>olang</code> command, skill, path, and MCP names remain compatibility
+identifiers for OSTADIX and are not renamed by this preference.</p>
+<h2>Roots</h2>
+<pre><code class="language-bash">export O_LANG_ROOT=&quot;$HOME/OSTADIX&quot;
+export O_BACKENDS_DIR=$O_LANG_ROOT/backends
+export PATH=&quot;$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH&quot;
+</code></pre>
+<p>Do <strong>not</strong> use <code>~/O-lang</code> for builds/runs on this machine.</p>
+<h2>Toolchain</h2>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Run <code>.O</code></td>
+<td><code>O file.O backends</code> or <code>o run file.O</code></td>
+</tr>
+<tr>
+<td>IR / plan</td>
+<td><code>olangc file.O --target ir --shim-dir backends</code> or <code>o plan file.O</code></td>
+</tr>
+<tr>
+<td>AOT</td>
+<td><code>olangc file.O -o out --shim-dir backends</code> or <code>o ship file.O</code></td>
+</tr>
+<tr>
+<td>Link</td>
+<td><code>o-link paths -o app.O</code></td>
+</tr>
+<tr>
+<td>Live-World</td>
+<td><code>o-live-host demo --state DIR</code> or <code>o live demo</code></td>
+</tr>
+<tr>
+<td>O-Git</td>
+<td><code>ogit demo semantic-receipt</code> or <code>o receipt</code></td>
+</tr>
+<tr>
+<td>O-core</td>
+<td><code>ocorec file.oc --emit mir</code></td>
+</tr>
+</tbody></table>
+<h2>MCP server</h2>
+<p><code>mcp/ostadix_lang_mcp_server</code> — Rust/<code>rmcp</code> stdio MCP server. Prefer
+<code>o_execute</code> with exactly one complete <code>source</code> or existing program/project
+<code>path</code>. <code>action</code> defaults to execute; check is parse-only, plan is static,
+and compile explicitly requests an artifact. <code>mode: admitted</code> automatically
+binds ordinary source and intent before fresh native admission. Placement auto
+uses local HGraph for ordinary O and native mesh-prefer for projects;
+marked operation directories retain their own planner. Mesh-required never
+silently falls back to local execution.
+Use <code>route</code> for explicit project execute/plan/IR/DOT selection. <code>node</code> sends an
+ordinary complete document to one authenticated peer through native <code>octl</code>;
+it is distinct from project mesh and does not partition the ordinary graph.
+Node cwd/env configure the local client; cancelling it cannot stop remote
+effects. Preserve receipt evidence and do not retry unknown completion.
+Use <code>o_capabilities</code> (optional query) and <code>o_guide</code> (workflow topic) to discover
+the full expert command surface. <code>o_cli</code> accepts exact native argument arrays,
+cwd, per-child environment, stdin, optional Unix PTY, and background execution.
+<code>o_eval</code> runs inline polyglot O source. Long or interactive work uses
+<code>o_job_list</code>, <code>o_job_status</code>, <code>o_job_read</code>, <code>o_job_write</code>, and <code>o_job_cancel</code>;
+jobs run independently and retain full output on disk with bounded pages.
+<code>o_job_read</code> can return lossless base64 bytes. Jobs and intent handles belong to
+one MCP session, so short-lived CLI clients should use the persistent local
+<code>scripts/ostadix_mcp_client.py</code> bridge.</p>
+<p>Existing <code>o_env</code>, <code>o_runtimes</code>, <code>o_doctor</code>, <code>o_smoke</code>, <code>o_run</code>, <code>o_olangc</code>,
+<code>o_search_run</code>, <code>o_analyze_intent</code>, <code>o_execute_intent</code>, and fixed read-only
+<code>o_information_inspect</code> remain available. Catalog presence is not installed
+version, health, or admission proof; use the listed supported help invocation
+to inspect the selected CLI. Complete CLI access retains each command&#39;s native
+admission rules and does not turn the read-only Information inspector into a
+write API. Resources also expose the catalog and ten workflow guides. Own
+<code>Cargo.lock</code> (not a workspace member) so <code>rmcp</code>/<code>tokio full</code> stay out of the
+main O-lang build.</p>
+<p>Built by <code>setup.sh</code> (<code>build_mcp_server</code>, skip with <code>--no-mcp</code>) via
+<code>cargo build --release --locked</code>; installs the <code>ostadix-mcp</code> wrapper into
+<code>~/.local/bin</code>. Registered for MCP clients (Claude Code included) via
+<code>.mcp.json</code> at repo root. Rebuild directly with:</p>
+<pre><code class="language-bash">cargo build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
+</code></pre>
+<h2>Skills</h2>
+<p>Load via skill tool when relevant: <code>olang</code>, <code>olang-runtime</code>, <code>olang-ocore</code>, <code>ostadix-control</code>, <code>ostadix-wasm</code>, <code>ostadix-term</code>.</p>
+<h2>Terminal kit</h2>
+<p><code>~/.config/ostadix/term/ostadix-term.zsh</code> — <code>o doctor</code>, <code>o plan</code>, <code>o live</code>, <code>o receipt</code>.</p>
+<h2>Evidence</h2>
+<p>Show real command output. Smoke: <code>O examples/hello.O backends</code> → <code>2</code>.</p>

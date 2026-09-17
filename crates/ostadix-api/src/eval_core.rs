@@ -187,6 +187,16 @@ pub(crate) trait GraphEvaluationHost {
 
     fn verify_admitted_runtime_context(&self, admitted: &AdmittedExecution<'_>) -> Result<()>;
 
+    /// Observe request-private cancellation/deadline state at coordinator safe
+    /// points. Hosts without an external request owner keep the default.
+    fn check_request_control(&self) -> Result<()> {
+        Ok(())
+    }
+
+    fn request_cancellation_token(&self) -> Option<crate::cancellation::CancellationToken> {
+        None
+    }
+
     fn local_worker_parallelism_override(&self) -> Option<usize>;
 
     fn shim_path(&self, language: &str) -> PathBuf;

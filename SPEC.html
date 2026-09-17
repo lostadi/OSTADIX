@@ -1,0 +1,1293 @@
+<h1>Ostadix-lang Specification (v0.4.0, Unreleased)</h1>
+<p>Ostadix-lang is a meta-language whose syntactic unit ( the <em>typed expression</em> ) carries
+its own interpreter as part of its syntax. Every expression declares which
+language it is written in; the runtime dispatches evaluation to a backend for
+that language; the resulting value is a language-neutral <code>OValue</code> that can be
+consumed as an atom inside expressions written in any other language.</p>
+<p>The guiding thesis: <strong>evaluator choice is a structural property of the
+expression, not a global setting.</strong> This is Lisp&#39;s homoiconicity (code and data
+share syntactic form) generalized across multiple languages.</p>
+<hr>
+<h2>1. Grammar</h2>
+<pre><code>document     ::= body_part*
+body_part    ::= text | expression
+expression   ::= OPENER body_part* CLOSER           -- matching CLOSER required
+OPENER       ::= IDENT (&quot;[&quot; DIGITS &quot;]&quot;)? &quot;^(&quot;
+CLOSER       ::= &quot;)_&quot; IDENT (&quot;[&quot; DIGITS &quot;]&quot;)?       -- must match OPENER&#39;s IDENT
+                                                    --   and env marker exactly
+IDENT        ::= [A-Za-z_][A-Za-z0-9_]*            -- AND registered as a language
+text         ::= (any char | backslash-escape)+     -- everything not OPENER/CLOSER
+backslash-escape
+             ::= &quot;\&quot; OPENER          -- literal opener, no expression
+               | &quot;\&quot; CLOSER          -- literal closer, not a termination
+               | &quot;\&quot; &quot;$&quot; IDENT       -- literal $IDENT, not a VarRef splice
+</code></pre>
+<p>The <code>\$IDENT</code> escape is important when writing real target-language code inside block
+bodies. Ostadix-lang parses <code>$IDENT</code> everywhere (including inside <code>bash^</code>, <code>python^</code>, etc.)
+as a binding reference (VarRef). To write a bare shell variable like <code>$PATH</code> in a
+<code>bash{cap=runner}^(...)_bash{cap=runner}</code> block without triggering an
+&quot;Undefined variable&quot; error, write <code>\$PATH</code>.
+Ostadix-lang strips the backslash and passes <code>$PATH</code> verbatim to the bash backend.</p>
+<p>An <code>IDENT</code> that is <strong>not in the registered-language set</strong> is NOT treated as an
+opener, even if followed by <code>^(</code>. This keeps inner-language code safe -
+<code>2 ^ (x+1)</code> in a Python body does not parse as a <code>2^(…)_2</code> expression.</p>
+<p>Aliases: <code>py → python</code>, <code>md → markdown</code>, <code>tex → latex</code>, <code>plain → text</code>, <code>o → O</code>.
+Aliases are resolved to their canonical tag before backend dispatch.</p>
+<h3>1.1 Environment markers</h3>
+<p><code>python[0]^(...)_python[0]</code> and <code>python[1]^(...)_python[1]</code> are two <strong>separate
+persistent environments</strong> for the same language. State (imports, bindings,
+function definitions) lives inside the env and survives across every
+expression that references that env in the document.</p>
+<p><code>python^(...)_python</code> without brackets is ephemeral. It receives a fresh
+backend process for that expression and is cleaned up afterward. Persistent
+state is always explicit through <code>[n]</code>.</p>
+<p><code>python[*]^(...)_python[*]</code> is the explicit linker-isolated fresh form. It has
+the same single-attempt process lifetime as a bare block, but preserves the
+linker&#39;s placement intent in source, OIR, fingerprints, and diagnostics. <code>*</code>
+is not an environment identity and two <code>[*]</code> blocks do not denote the same
+actor. The two high <code>u32</code> wire values used for bare and <code>[*]</code> environments are
+reserved and MUST be rejected when spelled as numeric persistent IDs.</p>
+<p>The Rust runtime, Python reference, and C17 edition support <code>LANG[*]</code> parsing
+and its fresh-per-occurrence semantics under sequential evaluation. This
+portable environment form does not imply portable autonomous-call grammar.</p>
+<p>The parser requires the opener and closer to match textually. If you opened
+with <code>python^(</code> you must close with <code>)_python</code>; <code>python[0]^(</code> closes with
+<code>)_python[0]</code>, and <code>python[*]^(</code> closes with <code>)_python[*]</code>.</p>
+<hr>
+<h2>2. Evaluation semantics</h2>
+<p>The evaluator is <strong>applicative order, leaves-up</strong> (standard Lisp eval order).
+<code>ONode</code> is syntax only. Before any document executes, the Rust runtime lowers
+the parsed forest to executable OIR and builds a validated <code>ExecutionPlan</code>.</p>
+<h3>2.1 Default flow (splice + evaluate)</h3>
+<p>For each OIR <code>Exec</code> instruction <code>E</code> with language <code>L</code>, an environment reference
+that is bare, <code>[*]</code>, or persistent <code>[n]</code>, embedded <code>BackendInterface</code>, and body
+<code>B = [c₁, c₂, …]</code>:</p>
+<ol>
+<li>For each child <code>cᵢ</code>:<ul>
+<li>if <code>cᵢ</code> is text, emit <code>cᵢ</code> verbatim into a splice buffer.</li>
+<li>if <code>cᵢ</code> is an ExpressionNode, recursively evaluate it to get OValue <code>vᵢ</code>,
+then emit <code>E.backend.renderer(vᵢ)</code> into the splice buffer.</li>
+</ul>
+</li>
+<li>Concatenate the splice buffer → final source string <code>B*</code>.</li>
+<li>Return <code>backend(L).evaluate(B*, env(L, n))</code>.</li>
+</ol>
+<p>Persistent environments: <code>env(L, n)</code> is created exactly once for an explicit
+numeric environment marker and memoized in the process registry. Subsequent
+references to the same <code>(L, n)</code> pair reuse the same process. A bare or <code>[*]</code>
+expression uses fresh physical execution and is destroyed after dispatch.</p>
+<h3>2.2 Structural backends (<code>eval_ast</code> hook)</h3>
+<p>Some backends need control over how their children are evaluated because the
+default splice-then-evaluate flow is wrong for them. Their OIR
+<code>BackendInterface</code> uses <code>inline_ast</code>, and the OIR evaluator hands the entire
+region to its structural executor.</p>
+<p>Two backends currently use this:</p>
+<ul>
+<li><p><strong><code>O^(...)_O</code></strong> is the host and sequencing backend. It evaluates each OIR
+child exactly once in planned source order and returns the last non-null
+value. Whitespace-only text between children is formatting and does not
+replace the result. <code>let</code> bindings inside the region extend its lexical
+child scope.</p>
+</li>
+<li><p><strong><code>quote^(...)_quote</code></strong> captures its OIR body as parseable O source without
+evaluating any child. The resulting OExpr can be passed to <code>O.eval(expr)</code>
+inside Python blocks.</p>
+</li>
+</ul>
+<h3>2.3 Homoiconicity: <code>quote^</code> + <code>O.eval</code></h3>
+<p>The <code>quote^</code> / <code>O.eval</code> pair gives O Lisp-style code-as-data,
+generalized across target languages:</p>
+<pre><code>O^(
+  python[0]^(
+    q = quote^(python^(6 * 7)_python)_quote      # q : OExpr
+  )_python[0]
+  python[0]^(
+    O.eval(q)                                    # -&gt; 42 (Number/ONumber::Int)
+  )_python[0]
+)_O
+</code></pre>
+<p>An <code>OExpr</code> value spliced into a Python body is bound as a live object
+(not <code>repr()</code>&#39;d), so user code can <code>O.eval(expr)</code> against the <em>live</em>
+<code>EvalContext</code> - any env bindings the quoted expression references see
+current state. <code>O.quote(src_str)</code> parses a source fragment and returns
+it as an unevaluated <code>OExpr</code>, so Python code can build up O source
+programmatically and eval it.</p>
+<p><code>O.eval(...)</code> receives a lexical snapshot of the O scope visible at the
+backend call site. The fragment can read caller <code>let</code> bindings, including
+bindings established earlier in the current typed expression. The fragment
+evaluates through OIR with a cloned root scope, so <code>let</code> bindings created by
+the callback do not mutate the caller.</p>
+<p>The explicit form is:</p>
+<pre><code>let snapshot = scope()
+python^(O.eval(expr, $snapshot))_python
+</code></pre>
+<p><code>scope()</code> returns an <code>OScope</code> containing a detached copy of the current O-level
+bindings. <code>O.eval(expr, snapshot)</code> MUST reject values that are not OScope and
+MUST use the supplied bindings instead of the callback-site snapshot. Python&#39;s
+<code>O.scope()</code> captures the current O bindings; <code>O.scope(dict)</code> constructs a
+restricted OScope from the supplied entries. Scope writes during evaluation
+never mutate either the snapshot or its source scope.</p>
+<h3>2.4 Environment lifetime and forcing contract</h3>
+<p>Environment lifetime and request forcing are part of the stable language core:</p>
+<ul>
+<li>A persistent environment is keyed by <code>(language, env_id)</code> and lives until the
+evaluator drops it or explicitly cleans it up.</li>
+<li>Bare <code>lang^(...)_lang</code> blocks are ephemeral. Explicit <code>lang[n]</code> blocks are
+persistent. Explicit <code>lang[*]</code> blocks are linker-isolated fresh attempts, not
+persistent identities.</li>
+<li><code>now(request)</code> forces exactly the named deferred computation.</li>
+<li><code>now(group)</code> resolves the group according to its <code>GroupMode</code>.</li>
+<li>Under <code>Policy::Autonomous</code>, schedulable Nix requests and dry activation are
+buffered first and forced at explicit force points (<code>now(...)</code>,
+<code>autonomous(...)</code> exit, document end). Eval and real activation stay on the
+evaluator thread because they require live process state or mutate the host
+profile.</li>
+<li>A backend counts as <strong>pure</strong> only when the runtime may safely reuse a cached
+result for identical <code>(body, deps, env)</code> input. Unknown backends are
+conservatively impure.</li>
+</ul>
+<h3>2.5 Executable OIR and plan contract</h3>
+<p>Every authoritative Rust execution entry point follows this path:</p>
+<pre><code class="language-text">.O source -&gt; ONode -&gt; OIrProgram -&gt; validated ExecutionPlan -&gt; solved HGraph
+          -&gt; EvidenceBundleV6 -&gt; AdmittedExecutionV6 -&gt; graph coordinator | serial oracle
+</code></pre>
+<p>This includes the <code>O</code> interpreter, REPL entries, notebook cells,
+<code>olangc --target script</code>, bare-directory <code>o-link</code>, explicit <code>o-link --run</code>,
+compiled hosted binaries, and source fragments received through <code>O.eval</code>.</p>
+<p>OIR instructions are <code>Text</code>, <code>Load</code>, <code>Store</code>, <code>Invoke</code>, and <code>Exec</code>. Each Exec
+owns a <code>BackendInterface</code> containing its canonical backend name, purity,
+splice renderer, and execution mode. Each Invoke owns an <code>InvokeMode</code> that is
+eager, lazy, autonomous, or one of the four group modes. Runtime dispatch,
+policy regions, and <code>{lazy}</code> cache validation use this embedded metadata rather
+than reconstructing policy from independent name tables after lowering.</p>
+<p>ExecutionPlan contains structural, sequence, and data edges. Before execution
+it MUST validate node identities, edge bounds, root coverage, root uniqueness,
+and graph acyclicity. The evaluator MUST obtain both top-level and direct-child
+execution order from the plan. Policy-changing Invoke instructions such as
+<code>lazy</code>, <code>autonomous</code>, <code>batch</code>, <code>all</code>, <code>any</code>, and <code>race</code> retain control over how
+their planned child regions are evaluated.</p>
+<p>The Rust execution engine MUST project executable OIR into a directed HGraph
+and solve its type, representation, and fidelity constraints before admission.
+Ordinary OValues, successful-completion tokens, resource-state versions, and
+persistent actor-state versions are draft graph nodes; an admitted graph
+additionally contains pre-materialized admission facts. Each evaluator
+invocation is a directed hyperedge consuming all of its ordinary and
+state/control inputs, plus its admission-evidence inputs after admission, and
+producing one distinguished ordinary result, one completion token, and each
+required successor resource state. An operation is graph-ready exactly when
+every input node is materialized. Physical dispatch additionally requires its
+admitted adapter, local-pool capacity, and the settlement boundary required by
+its admitted dispatch semantics. Failure produces none of its graph output
+tokens.</p>
+<p>Resource lowering MUST preserve access mode. A read MUST consume the current
+writer state, MUST NOT advance the resource version, and MUST place its
+completion token in the resource&#39;s open-reader frontier. A write MUST consume
+the current writer state and every completion in that frontier, MUST produce
+exactly the next writer-state version, and MUST clear the frontier. Thus reads
+of one version are legally concurrent, while a later writer waits for all of
+them. These rules apply after scheduler-visible alias expansion. An explicit or
+unknown <code>HostWorld</code> access remains exclusive and therefore fail-closed.</p>
+<p>Before either the graph coordinator or the serial differential oracle executes
+the plan, the runtime MUST produce an <code>EvidenceBundleV6</code> and compile it into an
+<code>AdmittedExecutionV6</code>. The unversioned aliases name those V6 types. The bundle
+MUST be bound to the canonical lowered OIR,
+validated plan, solved analyzed graph, analyzer identity, backend artifacts,
+the plan-projected canonical backend specifications, a direct-executable
+manifest, environment, and descriptive ambient-World snapshot. An execution
+manifest selects the plan-used shim backends&#39; direct launch entrypoints once,
+records absolute invocation paths plus SHA-256 digests and file identity for
+their canonical targets, and retains the opened targets as process-local launch
+authority. Unix launch rechecks stable path/handle identity; non-Unix launch
+uses a portable immediate content rehash instead of disabling execution. On
+Linux, an ELF O backend proxy SHOULD execute through its retained open object
+when procfs exposes it; failure to obtain that compatible route MUST fall back
+to a freshly revalidated invocation path rather than disable execution. The
+manifest includes the current O proxy and, when consumed, the macOS sandbox
+wrapper. Inspection
+manifests remain explicitly non-probing and do not assert runtime readiness.
+The catalog projection binds specification identity only; it does not assert
+health, authorization, capacity, or readiness. This V6 binding uses the current
+Catalog V6 projection and does not claim
+the original source-byte digest when the entry point receives an already
+lowered <code>OIrProgram</code>, nor does it bind caller initial-scope shape/values. Before
+issuing evidence, analysis
+MUST validate that every lowered backend interface matches the registered
+language policy and that special invocation metadata has canonical
+name/mode/arity. Each executable operation MUST consume admitted type,
+effect-footprint, dispatch, capability-policy, placement, failure-policy, and
+resource-budget facts. Stale or mismatched evidence MUST fail before execution
+starts. The ordinary graph <code>Coordinator</code> MUST accept only an
+<code>AdmittedExecutionV6</code>, never a raw HGraph or archival V5 admission, and MUST
+revalidate the runtime binding
+before dispatch. Both the coordinator and serial oracle MUST recheck immediately
+before opaque/deferred execution. Direct backend launch MUST consume the
+admitted absolute invocation path and MUST NOT reselect an alternative through
+<code>PATH</code>. Immediately before spawn, the retained-handle and canonical-path
+identities MUST still match the admission. Linux MAY instead execute the
+admitted ELF O proxy through the retained open object while preserving the
+admitted <code>argv[0]</code>; this is not applied to scripts or foreign direct launchers.
+All path-executed launchers retain a final same-principal
+verification-to-exec micro-window. macOS has no general public handle-exec
+primitive. V6 MUST NOT stage or copy arbitrary runtimes merely to close that
+window because doing so can change script, multicall, self-location,
+dynamic-loader, and toolchain behavior. The retained-object proxy route closes
+pathname substitution, not in-place mutation, interpreter, dynamic-library,
+compiler-subtool, or descendant execution.</p>
+<p>Hard pre-execution evidence MAY determine legality and graph blockers. Cost or
+historical measurements MAY rank operations only within an already-legal
+frontier; they MUST NOT remove a dependency, close an unknown effect footprint,
+or grant authority. Post-execution runtime graphs and execution receipts are
+observations, not certificates or admission decisions, and MUST NOT authorize a
+later execution.</p>
+<p>Hosted operations whose complete effect footprint is not verified MUST report
+reads and writes of <code>HostWorld</code> in their effect evidence. Persistent <code>LANG[n]</code>
+shim operations MUST additionally read and write
+<code>ActorState(canonical-LANG[n])</code>. Inline renderers and fresh <code>LANG[*]</code> shim
+attempts MUST NOT acquire a persistent actor-state identity merely because an
+environment marker is present. Those effects MUST produce conservative
+resource-state topology except for the explicit non-strict exception below.
+Ordinary sequence MUST consume the predecessor&#39;s completion token unless the
+operations are direct members of an explicit concurrent group; are two
+compiler-verified, read-only O-level loads; or are both verified,
+deterministic, infallible, resource-free trusted inline renderers whose complete
+structural subtrees contain only literal text and recursively trusted renderers.
+Both automatic cases are forbidden inside a structural left-to-right <code>O</code>
+sequencing region. Outside the explicit autonomous contract below, any unknown
+fact preserves sequence. Conflicting resource frontiers still constrain
+explicit group members unless that group member has the following contract.</p>
+<p>The V6 <code>LocalWorker</code> lane MAY also accept an unknown hosted operation only when
+it is an attribute-free ephemeral shim, is a direct typed-expression member of
+a coordination group, and the nearest enclosing <code>lazy</code> or <code>autonomous</code> policy
+schedule is <code>autonomous</code>. Its complete body MUST be preparable from literal Text
+and already-settled Store children without forcing a Request. Evidence MUST keep
+its effect footprint open and unknown, MUST classify failure as
+<code>MayFailUnorderedExternalEffects</code>, MUST name the
+<code>autonomous-ephemeral-shim/v1</code> adapter, and MUST record
+<code>explicit-autonomous-unordered</code> dispatch semantics. For only those operations,
+lowering MAY omit implicit <code>HostWorld</code> and <code>EvaluatorState</code> resource-frontier
+ports so direct members of the same group can overlap. This is a source-level
+semantic opt-in, not an effect-independence proof: deterministic result and
+failure selection MUST be preserved, but external effects from already-started
+members MAY race and need not be rolled back.</p>
+<p>All other V6 <code>LocalWorker</code> operations MUST be compiler-verified O-scope <code>Load</code>
+operations or attribute-free trusted inline-value renderers named <code>html</code>,
+<code>markdown</code>, <code>text</code>, or <code>latex</code> whose body is source-proven preparable: literal
+text, already-settled Store children, and recursively trusted renderers only.
+Every dispatch contract MUST name the stable adapter selected by evidence:
+<code>o-scope-load/v1</code>, <code>trusted-inline-renderer/v1</code>,
+<code>autonomous-ephemeral-shim/v1</code>, or <code>coordinator/v1</code>, and MUST record either
+<code>strict-equivalent</code> or <code>explicit-autonomous-unordered</code> semantics. Runtime
+preparation MAY validate that exact adapter against the admitted OIR, but MUST
+NOT reclassify the operation or choose a different adapter. Preparation MUST
+freeze materialized scope or splice inputs into an owned <code>Send + &#39;static</code>
+<code>PreparedTask</code> before submission. Before an autonomous shim task is submitted,
+the coordinator MUST revalidate the bound runtime artifacts, resolve the same
+live backend capability required by coordinator-owned execution, and freeze the
+resulting sandbox policy into the task. Persistent language environments and
+arbitrary user-declared reads MUST remain coordinator-owned.</p>
+<p>One fixed-size local-worker pool MUST be created for each graph-coordinator run
+that contains local-worker operations and MUST reuse its workers across changing
+ready frontiers. Let <code>W</code> be the maximum count of <code>LocalWorker</code> operations in
+any admitted static Kahn wave. Unless the caller supplies a positive explicit
+override, pool capacity MUST be
+<code>min(std::thread::available_parallelism(), W).max(1)</code>. If
+<code>std::thread::available_parallelism()</code> cannot report a value, the implementation
+MUST substitute one before applying that formula. An explicit override MUST
+replace the derived value without an additional host- or wave-width clamp. A
+graph with no <code>LocalWorker</code> operations MUST NOT create a pool, even though the
+shared count resolver returns its minimum value of one. The resulting
+task-count cap is execution
+policy, not evidence-backed CPU or memory admission; <code>W</code> is a conservative
+capacity heuristic, not a bound on the completion-driven dynamic frontier.
+Each physical completion MUST wake the coordinator independently; the runtime
+MUST NOT wait for an entire previously ready set before considering newly
+exposed work. A physically successful worker
+whose hard contract is both compiler-verified pure and <code>Infallible</code> MAY publish
+its outputs provisionally to unlock only other safe local-worker tasks before
+the deterministic semantic frontier reaches it. Such outputs MUST be revoked,
+their frame values cleared, and their tasks traced as discarded if an earlier
+semantic or infrastructure failure wins. Every other physical completion MUST
+remain unpublished until semantic settlement. Because <code>NodeFinished</code> records
+durable settlement, a provisionally unlocked dependent <code>NodeStarted</code> MAY
+precede its producer&#39;s <code>NodeFinished</code> in the trace.
+The admission explanation MUST disclose this ordering rule. Loads are pure but
+may fail; their ordinal MUST be the serial topological execution rank, not
+preorder plan identity. The coordinator MAY dispatch fallible workers only
+when they form the contiguous
+unfinished semantic prefix. It MUST buffer out-of-order outcomes, settle them
+in semantic-ordinal order, select the lowest-ordinal failure, drain every
+started task, and discard every later provisional outcome. Infallible
+effect-free workers MAY be dispatched outside that prefix. Coordinator-owned
+operations MUST remain single-owner; this bounded V6 implementation does not
+run them while local-worker tasks are outstanding. Pool channel loss or
+submission failure MUST be treated as an infrastructure abort rather than a
+semantic program failure; the coordinator MUST stop new dispatch, drain every
+started task to one terminal trace event, and publish no later effect. In an
+unwind-capable build, a caught worker panic follows that same infrastructure
+path. An <code>Err</code> returned by an admitted-<code>Infallible</code> adapter is likewise an
+infrastructure contract violation, never a semantic <code>NodeFailed</code>. The release
+profile currently uses <code>panic = &quot;abort&quot;</code>; such a panic
+terminates the process and is explicitly outside the in-process recovery and
+terminal-trace guarantee.</p>
+<p>Effect block attributes MAY add conservative constraints:</p>
+<pre><code class="language-text">effects=pure | effects=unknown
+reads=RESOURCE[+RESOURCE...]
+writes=RESOURCE[+RESOURCE...]
+serial=host
+</code></pre>
+<p>Modeled resources are <code>host:*</code>/<code>host:PATH</code>, <code>project:PATH</code>, <code>env:NAME</code>,
+<code>stdio</code>, <code>network:*</code>/<code>network:ENDPOINT</code>, <code>service:NAME</code>, <code>scope:NAME</code>,
+<code>evaluator</code>, and <code>actor:LANG[n]</code>. A user declaration MUST NOT upgrade an
+unverified hosted operation to pure. Resource declarations add dependencies;
+they MUST NOT erase the conservative <code>HostWorld</code> fallback. Authority attributes
+describe permission, not an exact effect footprint.</p>
+<p><code>olangc FILE --target ir --explain-schedule</code> MUST perform the type solve,
+analysis, and admission steps and print the digest bindings, per-operation
+evidence provenance, blockers, retained sequence reasons, and legal static
+waves without executing any operation. In V6 this inspection surface applies
+only to ordinary <code>.O</code> HGraphs and MUST identify its runtime snapshot as
+<code>inspection-only</code>, not as a dispatch-compatible execution context. A reported
+wave is evidence of legal readiness,
+not proof that every member used a worker, ran together, or fit the pool. Static
+waves MUST NOT be presented as dynamic dispatch batches or observed completion
+order. The explanation MUST include an advisory realizability marker with
+schema ID <code>oexec.realizability/v1</code>, headed by
+<code>; ScheduleRealizability oexec.realizability/v1</code>. Its single <code>realizability</code>
+record MUST have the following fields and meanings:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required value or meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>status</code></td>
+<td><code>inspection-only</code>; this is not a dispatch snapshot.</td>
+</tr>
+<tr>
+<td><code>execution-realizable</code></td>
+<td><code>unknown</code>; the record MUST NOT assert execution feasibility.</td>
+</tr>
+<tr>
+<td><code>dispatch</code></td>
+<td><code>not-run</code>; inspection dispatches no operation.</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td><code>local-worker-static-wave</code>; only the worker subset of static Kahn waves is compared with capacity.</td>
+</tr>
+<tr>
+<td><code>worker-count-covers-static-wave</code></td>
+<td><code>not-applicable</code> when <code>W=0</code>; otherwise <code>yes</code> exactly when <code>selected-workers &gt;= W</code>, and <code>no</code> otherwise.</td>
+</tr>
+<tr>
+<td><code>runtime-readiness</code></td>
+<td><code>unknown</code>; external runtime availability is not established.</td>
+</tr>
+<tr>
+<td><code>placement-lease</code></td>
+<td><code>none</code>; no current placement authority is minted.</td>
+</tr>
+<tr>
+<td><code>observed-overlap</code></td>
+<td><code>not-run</code>; inspection provides no overlap observation.</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>machine-default</code> for the derived count or <code>cli-override</code> for the inspection-only <code>--workers N</code> value.</td>
+</tr>
+<tr>
+<td><code>available-parallelism</code></td>
+<td>The inspection host&#39;s reported value, or <code>1</code> when that platform query fails.</td>
+</tr>
+<tr>
+<td><code>admitted-static-max-wave-width</code></td>
+<td>Maximum total operation count in an admitted static wave, including coordinator-owned operations; it is not a worker-slot demand.</td>
+</tr>
+<tr>
+<td><code>admitted-max-local-worker-wave-width</code></td>
+<td><code>W</code>, the maximum <code>LocalWorker</code> subset of an admitted static wave; it is a sizing heuristic, not a dynamic-frontier bound.</td>
+</tr>
+<tr>
+<td><code>selected-workers</code></td>
+<td>The positive derived or explicit pool-capacity value. If <code>W=0</code>, it is still reported as at least one although execution creates no pool.</td>
+</tr>
+</tbody></table>
+<p>That marker MUST remain outside the admission digest. Neither
+<code>worker-count-covers-static-wave=yes</code> nor any width/count field proves
+simultaneous dispatch, CPU or memory fit, device or I/O capacity, backend
+readiness, placement, overlap, or execution realizability. An explicit
+inspection override MUST NOT be presented as a host-capacity fact.</p>
+<p>The complete JSON explanation MUST use <code>oexec.schedule-explanation/v2</code>; its
+focused per-operation Why view MUST use <code>oexec.admission-why/v2</code>. Archival V1
+views remain inspectable only and MUST NOT carry V6 identities.</p>
+<p>The explanation MUST also include the nonexecuting hosted-topology prediction
+schema <code>oexec.schedule-prediction/v1</code>, headed by
+<code>; SchedulePrediction oexec.schedule-prediction/v1</code>. This record is derived
+after admission and remains outside the admission digest; its
+<code>admission-sha256</code> field MUST equal the digest on the enclosing V6 admission&#39;s
+canonical digest-binding line. Its single <code>schedule-prediction</code> record has the
+following fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required value or meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>schema</code></td>
+<td><code>oexec.schedule-prediction/v1</code>.</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>admitted-static</code>; no execution was performed.</td>
+</tr>
+<tr>
+<td><code>provenance</code></td>
+<td><code>evidence-bound-admission</code>; the topology comes from the admitted plan and blockers.</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td><code>unit-cost-shim-hosted-tasks</code>.</td>
+</tr>
+<tr>
+<td><code>admission-sha256</code></td>
+<td>Lowercase SHA-256 reference to the enclosing <code>oexec.admission/v6</code> record.</td>
+</tr>
+<tr>
+<td><code>task-count</code></td>
+<td>Number of admitted shim-backed hosted <code>Exec</code> operations, regardless of execution lane.</td>
+</tr>
+<tr>
+<td><code>predicted-width</code></td>
+<td>Maximum hosted-operation cardinality of any weighted-depth layer, or zero when <code>task-count=0</code>.</td>
+</tr>
+<tr>
+<td><code>predicted-span</code></td>
+<td>Number of nonempty hosted-task layers, or zero when <code>task-count=0</code>.</td>
+</tr>
+<tr>
+<td><code>span-unit</code></td>
+<td><code>hosted-task-layers</code>; this is not time.</td>
+</tr>
+</tbody></table>
+<p>Each admitted shim-backed hosted <code>Exec</code> operation MUST have unit weight and
+every other admitted operation MUST have zero weight. An operation&#39;s depth is
+its own weight plus the maximum depth of its admitted blockers; roots begin at
+their own weight. Operations with unit weight MUST be grouped by positive depth.
+For each nonempty group, the explanation MUST emit exactly one
+<code>schedule-prediction-layer index=N operations=[P...]</code> record. Layer indices
+MUST be contiguous and one-based, every listed Plan ID MUST be unique, and the
+union of the layers MUST equal the hosted-task inventory. A zero-task
+prediction MUST emit width and span zero and no layer records.</p>
+<p>The prediction models static dependency geometry only. It MUST NOT be treated
+as a duration estimate, resource-capacity proof, dispatch decision, runtime or
+placement readiness fact, observed overlap, or execution-realizability claim.</p>
+<p>Admitted O-scope loads, source-proven-preparable trees of the four trusted
+inline renderers, and explicitly autonomous ephemeral group members execute
+through the per-run persistent pool. Enforced strict hosted footprints,
+actor-owned persistent environments, renewable-capacity allocation, and
+unification with the Request and project schedulers are not V6 behavior.
+Legacy compatibility shims remain separately content-bound. The V6
+direct-executable manifest additionally opens and hashes each unique selected
+canonical launcher target once, retains the handle through execution, and checks
+its admitted identity immediately before spawn. Backend-scoped manifests carry
+the selected absolute invocation paths into the O proxy, so a later <code>PATH</code>
+candidate is never substituted and multicall symlink names remain intact. A
+persistent actor is keyed by a backend launch-generation digest over its
+backend-scoped executable set, matching legacy shim artifacts, and the
+plan-independent child launch context; it MUST be retired before work under a
+different admitted generation. An unrelated backend alone MUST NOT restart it.</p>
+<p>This is a direct-launcher guarantee, not a frozen execution closure. A consumed
+legacy Python adapter support file is bound only when the selected shim imports
+it; adapter-owned tools such as <code>multipass</code> and <code>nix</code> consume the admitted
+backend-scoped absolute paths without restricting subprocesses created by user
+Python code. It excludes interpreters selected by shebangs, compiler-driver
+subtools, dynamic libraries, and descendants launched by hosted code. Because
+the current plan omits
+WebAssembly body shape, V6 conservatively requires and binds a complete
+text-converter plus runtime catalog alternative (<code>wat2wasm</code> or <code>wasm-tools parse</code>) even for an already-binary body. It
+also excludes caller initial-scope shape/values, opaque live-actor
+state/generation, frozen child environment, Request/project admission authority,
+placement-lease freshness, and the final same-principal metadata-check-to-exec
+window for path-executed launchers. When a Nix <code>Request</code> is actually performed,
+its separate Request authority captures one command lease after a cache miss and
+shares it across that operation or autonomous batch. Unforced, cached, and
+non-Nix Request members MUST NOT require Nix, and inability to capture Nix MUST
+remain the affected member&#39;s result rather than suppress independent members.
+Actor identity in V6 is a serialization constraint only and MUST NOT close an
+unknown hosted footprint.</p>
+<p>Graph V2 and Evidence/Admission V6 bind the complete canonical
+<code>FidelityAssessmentV2</code>, including absence versus an explicit unsupported
+assessment. A present Graph V2 <code>fidelity_assessment</code> requires legacy
+<code>fidelity</code> to equal its conservative possible-loss projection. Graph V1,
+Evidence/Admission V5, Schedule Explanation/Why V1, and Placement Fragment V1
+are archival inspection coordinates. Package 0.3 and
+later MUST NOT convert, relabel, reconstruct, dispatch, or authorize them as
+current V2/V6 authority. <code>ExecutionIntentV1</code> remains deliberately bound to
+Graph V1 and the current Catalog V6 projection; matching intent still requires
+fresh V6 analysis and admission before dispatch.</p>
+<hr>
+<h2>3. OValue: the canonical intermediate value</h2>
+<p>OValue is a tagged union. Every typed expression evaluates to one. All
+inter-language data passing goes through this type - it is the runtime
+embodiment of the canonical intermediate form any lossless polyglot system
+must have.</p>
+<p>Using the Rust enum&#39;s variant names and public payload types, its schematic
+shape is:</p>
+<pre><code>OValue  ::= Null
+          | Bool       { v: bool }
+          | Number     { v: ONumber }
+          | Text       { v: OText }
+          | Char       { scalar: char }
+          | Html       { v: str }                -- trusted HTML fragment
+          | StorePath  { path: str }             -- Nix store path
+          | Expr       { src: str }              -- quoted O source
+          | List       { v: [OValue] }
+          | Map        { v: {str: OValue} }
+          | Seq        { kind: List | Tuple | Vector, items: [OValue] }
+          | Object     { fields: {str: OValue} }
+          | EntriesMap { entries: [(OValue, OValue)] }
+          | Set        { kind: Ordered | Unordered, items: [OValue] }
+          | Symbol     { v: OSymbol }
+          | Keyword    { v: OKeyword }
+          | Scope      { bindings: {str: OValue} } -- detached lexical snapshot
+          | Blob       { v: base64-str, mime: str }
+          | Bytes      { v: OBytes }
+          | Graph      { root: node_id, nodes: [GraphNode] }
+          | Native     { v: ONative }
+          | NixExpr    { body: str, deps: [OValue], fingerprint: str }
+          | Derivation { drv_path: str, outputs: [str], deps: [OValue] }
+          | Request    { kind: RequestKind, source: OValue, fingerprint: str }
+          | System     { profile_path: str }
+          | Capability { kind: CapabilityKind, identity: str,
+                         metadata: {str: OValue} }
+          | Snapshot   { kind: SnapshotKind, identity: str,
+                         state: {str: OValue} }
+          | Thunk      { body: str, deps: [OValue], fingerprint: str }
+          | Group      { mode: GroupMode, members: [OValue], fingerprint: str }
+          | Error      { msg: str }
+
+ONumber ::= Int         { v: bigint }
+          | Rational    { num: bigint, den: bigint }
+          | Decimal     { coeff: bigint, exp10: i64, special: option(DecimalSpecial) }
+          | BinaryFloat { format: F32 | F64, bits: bytes }
+          | BigFloat    { mantissa: bigint, exp2: i64,
+                          precision: option(u64), special: option(FloatSpecial) }
+          | Complex     { re: ONumber, im: ONumber }
+
+OText    ::= { utf8: str, encoding: option(str) }
+OBytes   ::= { bytes: bytes, media_type: option(str) }
+OSymbol  ::= { namespace: option(str), name: str }
+OKeyword ::= { namespace: option(str), name: str }
+GraphNode ::= Value { value: OValue } | Ref { target: node_id }
+</code></pre>
+<p><code>GroupMode</code> is one of <code>batch</code>, <code>all</code>, <code>any</code>, <code>race</code> - the execution topology
+of an <code>OGroup</code> (see §3.1).</p>
+<ul>
+<li><code>OCapability</code> is an authority-bearing handle to a privileged resource (file,
+memory region, device, clock, network endpoint, process, service, or system
+activation). A live capability identity is an opaque bearer resolved through
+a private session table. Metadata is descriptive and grants no authority.</li>
+<li><code>OSnapshot</code> is an inert observation of world state captured at a boundary
+(for example a system generation, service state, or filesystem view), rather
+than a live reference such as <code>OSystem</code>. Inertness alone does not establish
+cache, replay, or boot-persistence eligibility: each predicate also requires
+every nested state value to satisfy that predicate.</li>
+</ul>
+<p>The Rust runtime uses length-prefixed canonical CBOR on the wire; the logical
+message shape uses a <code>&quot;t&quot;</code> discriminant (shown below in JSON notation):</p>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Representative logical JSON form</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>null</code>, <code>bool</code></td>
+<td><code>{&quot;t&quot;:&quot;null&quot;}</code>, <code>{&quot;t&quot;:&quot;bool&quot;,&quot;v&quot;:true}</code></td>
+</tr>
+<tr>
+<td><code>number</code></td>
+<td><code>{&quot;t&quot;:&quot;number&quot;,&quot;v&quot;:{&quot;kind&quot;:&quot;int&quot;,&quot;v&quot;:&quot;42&quot;}}</code></td>
+</tr>
+<tr>
+<td><code>text</code>, <code>char</code></td>
+<td><code>{&quot;t&quot;:&quot;text&quot;,&quot;v&quot;:{&quot;utf8&quot;:&quot;hello&quot;,&quot;encoding&quot;:&quot;utf-8&quot;}}</code>, <code>{&quot;t&quot;:&quot;char&quot;,&quot;scalar&quot;:&quot;λ&quot;}</code></td>
+</tr>
+<tr>
+<td><code>html</code>, <code>store_path</code>, <code>expr</code></td>
+<td>Tagged trusted HTML, store path, or quoted O source</td>
+</tr>
+<tr>
+<td><code>list</code>, <code>map</code></td>
+<td>Compatibility sequence and string-keyed map projections</td>
+</tr>
+<tr>
+<td><code>seq</code>, <code>object</code>, <code>entries_map</code>, <code>set</code></td>
+<td>Shape-preserving structural collections</td>
+</tr>
+<tr>
+<td><code>symbol</code>, <code>keyword</code></td>
+<td>Namespace/name symbolic values</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td><code>{&quot;t&quot;:&quot;scope&quot;,&quot;bindings&quot;:{...}}</code></td>
+</tr>
+<tr>
+<td><code>blob</code>, <code>bytes</code></td>
+<td>MIME-bearing base64 blob or structural byte record</td>
+</tr>
+<tr>
+<td><code>graph</code>, <code>native</code></td>
+<td>Shared-identity graph frame or native capsule</td>
+</tr>
+<tr>
+<td><code>nix_expr</code>, <code>derivation</code>, <code>request</code></td>
+<td>Deferred Nix source, derivation, or computation request</td>
+</tr>
+<tr>
+<td><code>system</code>, <code>capability</code>, <code>snapshot</code></td>
+<td>Live reference, authority-bearing handle, or captured state</td>
+</tr>
+<tr>
+<td><code>thunk</code>, <code>group</code>, <code>error</code></td>
+<td>Deferred shim body, coordination topology, or captured failure</td>
+</tr>
+</tbody></table>
+<p>Legacy <code>int</code>, <code>float</code>, and <code>str</code> tags remain accepted at the hosted IPC
+boundary and normalize to canonical <code>number</code> and <code>text</code> values. Rust OValue
+serialization emits the canonical tags; compatibility adapters may still send
+accepted legacy forms.</p>
+<h3>3.0 Runtime-boundary contract</h3>
+<p>The language/runtime contract distinguishes three classes of values:</p>
+<ul>
+<li><strong>Pure values</strong> - inert scalar data and composites whose children are all
+pure. Dependency-bearing values such as <code>ONixExpr</code>, <code>ODerivation</code>, and
+<code>OThunk</code>, and state-bearing <code>OSnapshot</code>, inherit the strongest boundary of
+their contents. <code>ONative</code> uses its declared native boundary.</li>
+<li><strong>Referential values</strong> - live handles into the world whose identity is stable
+as a reference but whose observed state may change (<code>OSystem</code>, referential
+native values, and composites containing either).</li>
+<li><strong>Effectful values</strong> - authority-bearing, scope, request, orchestration, or
+failure values whose meaning depends on execution context (<code>OCapability</code>,
+<code>OScope</code>, every <code>ORequest</code>, <code>OGroup</code>, <code>OError</code>, effectful native values, and
+composites containing them).</li>
+</ul>
+<p><code>RuntimeBoundary</code> is not the cache/replay/persistence order. Those admissibility
+questions are decided separately by <code>is_cache_safe</code>, <code>is_replay_safe</code>, and
+<code>is_boot_persistable</code>; an effectful request may satisfy a bounded replay rule,
+while a snapshot containing a live reference is not automatically persistable.</p>
+<p>The runtime MUST preserve these invariants:</p>
+<ol>
+<li>Every <code>OValue</code> is wire-serializable.</li>
+<li>Cache, replay, and persistence eligibility MUST be decided by their
+dedicated predicates, never inferred from <code>RuntimeBoundary</code> alone.</li>
+<li>Referential values are hashable by handle identity, not by live state.</li>
+<li>Values that encode authority or world mutation MUST NOT be treated as
+boot-persistable system facts merely because they serialize.</li>
+<li>A future OS/runtime layer may add richer kinds, but must classify them into
+this same boundary model.</li>
+</ol>
+<h3>3.0.1 System activation authority</h3>
+<p>System activation has separate mutating and dry forms:</p>
+<pre><code>activate(store_path [, profile])
+dry_activate(store_path [, profile])
+activate(system_activation_capability, store_path [, profile])
+</code></pre>
+<p><code>activate(path[, profile])</code> requests a real switch and uses the ambient host
+authority of the current process, matching what the same user could do from
+Bash. <code>dry_activate(path[, profile])</code> runs <code>switch-to-configuration dry-activate</code>. If the first argument is a live <code>system_activation</code> capability
+issued by the current Evaluator, it is an embedding-specific profile guard. The
+evaluator checks that private authority table when constructing the guarded
+request and again when forcing it. A serialized, forged, revoked,
+cross-evaluator, or wrong-profile explicit capability MUST be rejected before
+the perform boundary.</p>
+<h3>3.0.2 Hosted backend authority</h3>
+<p>Hosted backend effects are ambient host-language effects by default. The source
+form is:</p>
+<pre><code>LANG^(body)_LANG
+</code></pre>
+<p>The evaluator MUST make all grantable backend rights available to shim
+backends: <code>fs_read</code>, <code>fs_write</code>, <code>network</code>, and <code>process</code>. This is the normal
+Ostadix-lang execution substrate, not a privilege exception. The older
+<code>LANG{cap=NAME,RIGHT,...}^</code> spelling remains accepted for compatibility and
+embedding experiments, but ordinary source MUST NOT require a host-injected
+backend grant to access backend capacities.</p>
+<p>Deferred Eval requests MUST carry a backend authority identity and right set
+and MUST revalidate them immediately before force. In the default evaluator that
+identity is the process-local wildcard authority minted at Evaluator startup.</p>
+<p>A persistent backend process MUST be keyed by its complete authority policy in
+addition to language and environment number. Process reuse MUST NOT cross
+authority policies.</p>
+<p>Python has no adapter-required source authority. Bash and shell require
+<code>process</code>. Adapters that compile or launch a target program require
+<code>fs_write</code> and <code>process</code>. Nix evaluators require <code>fs_read</code>, <code>fs_write</code>,
+<code>network</code>, and <code>process</code>. These requirements are part of <code>BackendInterface</code>
+and therefore part of executable OIR rather than an evaluator-side name table.
+An unregistered shim MUST default to the full authority set. A public or
+deserialized OIR program MUST NOT weaken registered adapter requirements;
+execution MUST reject an embedded interface that differs from registry policy.</p>
+<p>The Rust runtime applies backend policy through Python audit hooks. On macOS it
+also installs an operating-system sandbox profile around shim processes. The
+default policy is intentionally permissive; these layers are policy plumbing,
+not a claim that ordinary O execution contains host-language effects.</p>
+<h3>3.1 Coordination groups</h3>
+<p>An <code>OGroup</code> makes the <strong>execution topology</strong> of several computations explicit
+in the value model. Where an <code>ORequest</code> names a single deferred computation, a
+group names a collection of them plus a <code>mode</code> that says how they relate:</p>
+<table>
+<thead>
+<tr>
+<th>Builtin</th>
+<th>Mode</th>
+<th>Resolution</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>batch(a, b, …)</code></td>
+<td><code>batch</code></td>
+<td>Run all members; collect every outcome including failures</td>
+</tr>
+<tr>
+<td><code>all(a, b, …)</code></td>
+<td><code>all</code></td>
+<td>Every member must succeed; any failure aborts the group</td>
+</tr>
+<tr>
+<td><code>any(a, b, …)</code></td>
+<td><code>any</code></td>
+<td>Redundancy/fallback; yields the first member to succeed</td>
+</tr>
+<tr>
+<td><code>race(a, b, …)</code></td>
+<td><code>race</code></td>
+<td>Latency competition; yields the first member to settle</td>
+</tr>
+</tbody></table>
+<p>A group performs no work on its own - it is a control value. It is forced by
+<code>now(group)</code>, by <code>autonomous(group)</code>, or at document end under Autonomous
+policy.</p>
+<h3>3.2 Group Semantics</h3>
+<h4>Construction</h4>
+<p><code>batch</code>, <code>all</code>, <code>any</code>, and <code>race</code> are <strong>special forms</strong>, not ordinary
+functions. Their arguments are evaluated under a capture policy:</p>
+<ul>
+<li>under <code>Policy::Eager</code>, members are evaluated as <code>Policy::Lazy</code> so request
+chains are captured instead of forced;</li>
+<li>under <code>Policy::Lazy</code>, members remain lazy;</li>
+<li>under <code>Policy::Autonomous</code>, members remain autonomous, so request chains are
+captured and buffered for the scheduler.</li>
+</ul>
+<p>This means that:</p>
+<pre><code>batch(realise(instantiate($e1)), realise(instantiate($e2)))
+</code></pre>
+<p>always builds:</p>
+<pre><code>Group(Batch, [Request[Realise(Request[Instantiate(e1)])], ...])
+</code></pre>
+<p>even when the surrounding policy is Eager. Inside <code>autonomous(...)</code>, the same
+captured <code>ORequest</code> chains are also recorded in the autonomous buffer before
+the scheduler flushes.</p>
+<h4>Member evaluation policy</h4>
+<p>Group members may be already-resolved values, deferred <code>ORequest</code>s captured
+under the constructor&#39;s active capture policy, or nested groups. The group&#39;s
+<code>fingerprint</code> composes from the mode and the <strong>ordered</strong> member content
+identities - member order is semantically significant and is never sorted.</p>
+<h4>Empty group behavior</h4>
+<p>A group with no members is rejected at construction time; calling
+<code>batch()</code>/<code>all()</code>/<code>any()</code>/<code>race()</code> with zero arguments is a hard error.</p>
+<h4>Batch result shape</h4>
+<p><code>batch(a, b, …)</code> returns an <code>OList</code> with exactly one element per input member,
+in declaration order, for ordinary Fresh-mode resolution. Failures are NOT
+fatal in that path: a member that fails is wrapped as an <code>OValue::Error</code> in the
+list so every input slot has a corresponding output slot. Callers can
+distinguish success from failure by testing <code>is_error()</code> on each element.</p>
+<p>Under <code>CacheMode::Strict</code>, used after an autonomous scheduler flush, a cache
+miss is not an ordinary member failure. It is a scheduler invariant failure and
+remains a hard error even for <code>batch</code>.</p>
+<h4>All failure behavior</h4>
+<p><code>all(a, b, …)</code> is a hard all-or-nothing barrier. If <strong>any</strong> member fails, the
+entire group fails immediately and propagates the first error. Unlike <code>batch</code>,
+there is no error wrapping - <code>all</code> either returns a full <code>OList</code> of successes,
+or returns an error.</p>
+<h4>Any failure behavior</h4>
+<p><code>any(a, b, …)</code> returns the <strong>first member to succeed</strong>. Members are tried in
+source order; a failing member is skipped and the next is tried. <code>any</code> fails
+only when every member has failed, in which case the last error is propagated
+with an aggregate message noting how many members failed.</p>
+<h4>Race settlement behavior</h4>
+<p><code>race(a, b, …)</code> returns the <strong>first result to settle</strong>, whether it is a success
+or a failure. In sequential mode, the first member always settles first;
+remaining members are not consulted. In concurrent mode (when members are
+threadable Nix-family Requests), the first channel message wins and remaining
+threads run to completion but their results are discarded.</p>
+<blockquote>
+<p><strong>Note:</strong> Race does not yet cancel remaining work. After the winner is
+selected, other threads continue executing and are silently dropped. Full
+cancellation (via cooperative tokens or subprocess kill) is a future feature.</p>
+</blockquote>
+<h4>Nested group behavior</h4>
+<p>Group members may themselves be groups. <code>resolve_member</code> recurses into nested
+groups with the same <code>CacheMode</code>, so:</p>
+<pre><code>all(any(a, b), batch(c))
+</code></pre>
+<p>resolves as <code>[first_success_of(a,b), [c]]</code> - inner topologies are respected.</p>
+<h4>Cancellation status</h4>
+<p>Race does not cancel losers. Any and Race over concurrent members may leave
+background threads running after the winner is selected. Cooperative
+cancellation is planned for a future release.</p>
+<h4>Cache behavior</h4>
+<p>Two resolution modes are used internally:</p>
+<ul>
+<li><code>CacheMode::Fresh</code> - force each member via the active executor; used by
+<code>now(group)</code>. This is the standard &quot;resolve right now&quot; path.</li>
+<li><code>CacheMode::Strict</code> - read each member from the scheduler/eval cache; a
+cache miss is a hard error. Used after <code>autonomous(...)</code> flush to verify the
+scheduler materialized every buffered request.</li>
+</ul>
+<h4>Scheduler guarantees</h4>
+<p>The <code>autonomous(batch(...))</code> call-expression grammar and the guarantees in this
+subsection apply to the authoritative Rust edition. The C17 edition executes
+<code>LANG[*]</code> operations serially, and the Python reference does not implement the
+call-expression grammar needed to parse this wrapper. Consequently,
+<code>o-link --parallel</code> output currently requires the Rust edition even though
+ordinary sequential <code>LANG[*]</code> source is supported by all three hosted editions.</p>
+<p>Under <code>autonomous(batch(…))</code>:</p>
+<ol>
+<li>The inner requests are buffered (not executed) while evaluating the body.</li>
+<li>At block exit, the autonomous scheduler flushes the buffer concurrently,
+up to <code>scheduler.parallelism</code> threads at a time.</li>
+<li>Results are written to the L1 memory cache and the L2 disk cache.</li>
+<li>The batch group is resolved from the cache using <code>CacheMode::Strict</code> - a
+cache miss after flush is a hard error, not a silent fallback.</li>
+</ol>
+<p><code>now(group)</code> uses the same <code>resolve_group</code> path but with <code>CacheMode::Fresh</code>,
+dispatching threadable members in batches capped at <code>scheduler.parallelism</code>.</p>
+<p>Design principles:</p>
+<ul>
+<li><strong>Structurally rich, semantically minimal.</strong> Values carry data and
+self-description (the tag), but no methods and no behavior.</li>
+<li><strong><code>OBlob</code> carries its own mime type.</strong> This is how a matplotlib figure
+becomes an <code>&lt;img&gt;</code> in HTML without either side understanding the other&#39;s
+type system - <code>image/png</code> is the contract.</li>
+<li><strong><code>OExpr</code> gives meta-level homoiconicity.</strong> An O program can produce an
+O AST as a value and have it evaluated. Lisp&#39;s <code>quote</code>/<code>eval</code> generalized
+across multiple target languages.</li>
+</ul>
+<hr>
+<h2>4. Backend protocol</h2>
+<p>Every language backend implements:</p>
+<pre><code class="language-python">class Backend:
+    name: str                                            # canonical language tag
+    def make_env(self) -&gt; Env: ...                       # fresh persistent env
+    def render_child(self, v: OValue) -&gt; str: ...       # embed as my source
+    def evaluate(self, body: str, env, ctx=None) -&gt; OValue: ...
+    # OPTIONAL structural hook (see 2.2):
+    def eval_ast(self, node, ctx) -&gt; OValue: ...         # take over child eval
+</code></pre>
+<ul>
+<li><code>make_env()</code>: called once per unique <code>(L, n)</code> pair.</li>
+<li><code>render_child(v)</code>: decide how a foreign value looks <em>as source code of my
+language</em>. HTML&#39;s <code>render_child(OBlob(png, &quot;image/png&quot;))</code> returns
+<code>&lt;img src=&quot;data:image/png;base64,…&quot;&gt;</code>. Python&#39;s <code>render_child(v)</code> returns
+<code>repr(to_python(v))</code> so the spliced value is a valid Python literal.</li>
+<li><code>evaluate(body, env, ctx=None)</code>: run / render / transform the body string
+into an OValue. The optional <code>ctx</code> parameter gives access to the live
+<code>EvalContext</code> (env registry, backend lookup) for backends that need to
+re-enter the evaluator at runtime - e.g. Python uses it to power
+<code>O.eval(expr)</code>.</li>
+<li><code>eval_ast(node, ctx)</code> <em>(optional)</em>: take full control of child
+evaluation, skipping the default splice flow. Required for <code>O</code> (which
+sequences) and <code>quote</code> (which captures without evaluating).</li>
+</ul>
+<p><code>render_child</code> is a consumer projection, not the OValue lifting map. Its
+fidelity is classified as typed (<code>T</code>), structural (<code>S</code>), human presentation
+(<code>P</code>), or opaque marker (<code>O</code>). Scalar rows enumerate every possible result; a
+slash marks a payload-dependent classification. Container rows give the
+starting classification before recursive child folding:</p>
+<table>
+<thead>
+<tr>
+<th>OValue family</th>
+<th>Python</th>
+<th>Nix</th>
+<th>HTML</th>
+<th>LaTeX</th>
+<th>Markdown</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Null, bool</td>
+<td>T</td>
+<td>T</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Integer</td>
+<td>T</td>
+<td>T/S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Decimal, binary float F64</td>
+<td>T/S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Rational, binary float F32, BigFloat, complex</td>
+<td>S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Text</td>
+<td>S</td>
+<td>T/S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Char, symbol, keyword</td>
+<td>S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Bytes with media type</td>
+<td>S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Bytes without media type</td>
+<td>S</td>
+<td>O</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>O</td>
+</tr>
+<tr>
+<td>HTML, store path, expr, derivation, system</td>
+<td>T</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Blob</td>
+<td>S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>NixExpr, thunk</td>
+<td>T</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>List, map</td>
+<td>T</td>
+<td>T/S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Tuple sequence</td>
+<td>T</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>List/vector sequence, set, object</td>
+<td>S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>EntriesMap</td>
+<td>S</td>
+<td>S</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>S</td>
+</tr>
+<tr>
+<td>Scope, graph, native</td>
+<td>T</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+</tr>
+<tr>
+<td>Error</td>
+<td>T</td>
+<td>O</td>
+<td>P</td>
+<td>P</td>
+<td>P</td>
+<td>O</td>
+</tr>
+<tr>
+<td>Request, capability, snapshot, group</td>
+<td>T</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+<td>O</td>
+</tr>
+</tbody></table>
+<p><code>T</code> retains the value and its O-level type. For <code>S</code>, portable payload or
+structure survives, but O-level tags or auxiliary metadata may be erased. <code>P</code>
+is an intentional human-facing presentation, and <code>O</code> retains only an
+identifying marker or summary. Python Decimal is <code>T</code> only for a
+renderer-admitted exact Decimal shape within its portable bounds, and F64 is
+<code>T</code> only for an eight-byte payload; otherwise those forms are <code>S</code>. Nix integer
+is <code>T</code> only in the signed 64-bit range, and Nix Text is <code>T</code> only with explicit
+<code>utf-8</code> encoding metadata and no NUL; otherwise each is <code>S</code>. A Nix map starts
+at <code>S</code>, rather than <code>T</code>, when any key contains NUL; such keyed containers use
+an entries list with domain-separated Unicode code-point keys so
+otherwise-colliding payloads remain reconstructible.</p>
+<p>Every recursive container MUST then fold all child classifications, so its
+result is no stronger than its least faithfully rendered child; <code>EntriesMap</code>
+MUST fold both keys and values. Implementations MUST classify every OValue
+variant for every registered renderer. An opaque value MUST render an
+identifying marker rather than silently disappearing.</p>
+<p><code>RenderFidelity</code> can be recomputed on demand as a renderer-local description of
+source projection. It is not stored in OIR, evidence, or admission records.
+Within a single renderer, nested values use the weaker reachable
+classification; the specification does not impose a global order between
+<code>Structural</code> and <code>Presentation</code>, which are not jointly reachable for any
+current renderer.</p>
+<p>This rendering vocabulary is distinct from <code>Fidelity</code> and
+<code>FidelityAssessmentV2</code>, which describe backend value crossings. No conversion,
+common <code>Crossing</code> carrier, or Galois connection between those domains is
+implemented. In particular, <code>RenderFidelity::Opaque</code> carries neither an exact
+<code>AnnotationKind</code> loss set nor an independent presentation intent, so deriving
+either would invent information that the renderer did not report.</p>
+<p>The Python renderer uses <code>OOpaqueValue</code> for O-specific tagged values with no
+native Python form. That handle MUST retain the complete wire object and MUST
+round-trip it unchanged. Deserializing such a handle MUST NOT create a private
+capability broker binding.</p>
+<hr>
+<h2>5. Output rendering</h2>
+<p>An O document evaluates to a single root OValue. The CLI&#39;s final rendering
+step converts that OValue to the user-requested target format:</p>
+<ul>
+<li><code>--as auto</code> (default): target format is determined by the root expression&#39;s
+own language - an <code>html^(…)_html</code> root prints HTML, a <code>markdown^(…)_markdown</code>
+root prints Markdown. When the root is <code>O^(...)_O</code>, the format is
+inherited from the <strong>first substantive inner expression</strong>.</li>
+<li><code>--as html | markdown | latex | text</code>: force that backend&#39;s <code>render_child</code> as
+the final rendering step, regardless of root language.</li>
+<li><code>--as json</code>: dump the OValue JSON - useful for debugging.</li>
+</ul>
+<h3>5.1 <code>O^</code> root: sequence rendering</h3>
+<p>When the root expression is <code>O^(...)_O</code> and it evaluates to an
+<code>OList</code> (multiple children), each item is rendered independently via
+the target backend&#39;s <code>render_child</code> and then concatenated with <code>\n</code>.
+This is the difference between a document that happens to be a list
+of HTML fragments (which should become a single HTML document) versus
+a list literal being rendered (which should become <code>&lt;ul&gt;...&lt;/ul&gt;</code>).</p>
+<p>This decouples source format from output format: the same <code>.O</code> file can render
+to multiple targets by invocation. The source is the expression tree; the
+output is one rendering of that tree.</p>
+<hr>
+<h2>6. Currently-registered languages</h2>
+<h3>Rust runtime (<code>src/main.rs</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Aliases</th>
+<th>Backend behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>python</code></td>
+<td><code>py</code></td>
+<td>Real execution via <code>backends/python_shim.py</code>. Persistent globals per env. Returns last expr. Supports <code>O.eval</code>/<code>O.quote</code>.</td>
+</tr>
+<tr>
+<td><code>html</code></td>
+<td></td>
+<td>Inline: body returned as <code>OHtml</code>. <code>render_child</code> makes blobs into data URLs.</td>
+</tr>
+<tr>
+<td><code>markdown</code></td>
+<td><code>md</code></td>
+<td>Inline: body returned as <code>OText</code>. Markup passthrough with value splicing.</td>
+</tr>
+<tr>
+<td><code>latex</code></td>
+<td><code>tex</code></td>
+<td>Inline: body returned as <code>OText</code>. Passthrough with value splicing.</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td><code>plain</code></td>
+<td>Inline: body returned as <code>OText</code>. Passthrough.</td>
+</tr>
+<tr>
+<td><code>O</code></td>
+<td><code>o</code></td>
+<td>Inline: sequences children left-to-right; returns last non-null value.</td>
+</tr>
+<tr>
+<td><code>quote</code></td>
+<td></td>
+<td>Inline: captures body as <code>OExpr</code> without evaluating. No subprocess.</td>
+</tr>
+<tr>
+<td><code>nix</code></td>
+<td></td>
+<td><code>backends/nix_shim.py</code>. Evaluates Nix expressions.</td>
+</tr>
+<tr>
+<td><code>nix_expr</code></td>
+<td></td>
+<td>Inline: captures body as lazy <code>ONixExpr</code> (deferred Nix eval).</td>
+</tr>
+<tr>
+<td><code>nix_store</code></td>
+<td></td>
+<td><code>backends/nix_store_shim.py</code>. Materialises a store path.</td>
+</tr>
+<tr>
+<td><code>nixos_test</code></td>
+<td></td>
+<td><code>backends/nixos_test_shim.py</code>. NixOS integration test runner.</td>
+</tr>
+<tr>
+<td><code>bash</code></td>
+<td></td>
+<td><code>backends/bash_shim.py</code>. Executes Bash and returns stdout.</td>
+</tr>
+<tr>
+<td><code>shell</code></td>
+<td></td>
+<td><code>backends/shell_shim.py</code>. Executes POSIX sh and returns stdout.</td>
+</tr>
+<tr>
+<td><code>rust</code></td>
+<td></td>
+<td><code>backends/rust_shim.py</code>. Compiles with rustc, runs, and returns stdout.</td>
+</tr>
+<tr>
+<td><code>racket</code></td>
+<td></td>
+<td><code>backends/racket_shim.py</code>. Executes Racket and returns stdout.</td>
+</tr>
+<tr>
+<td><code>cpp</code></td>
+<td></td>
+<td>Compiles C++17 with g++, runs, and returns stdout.</td>
+</tr>
+<tr>
+<td><code>csharp</code></td>
+<td></td>
+<td>Compiles and runs through .NET or Mono.</td>
+</tr>
+<tr>
+<td><code>haskell</code></td>
+<td></td>
+<td>Executes through runghc or ghc.</td>
+</tr>
+<tr>
+<td><code>lisp</code></td>
+<td></td>
+<td>Executes through Guile, Chicken, or Chez Scheme.</td>
+</tr>
+<tr>
+<td><code>common_lisp</code></td>
+<td></td>
+<td>Executes through SBCL, ECL, CLISP, or CCL.</td>
+</tr>
+<tr>
+<td><code>sql</code></td>
+<td></td>
+<td>Executes against persistent in-memory SQLite per environment.</td>
+</tr>
+<tr>
+<td><code>ruby</code></td>
+<td></td>
+<td>Executes with Ruby.</td>
+</tr>
+<tr>
+<td><code>matlab</code></td>
+<td></td>
+<td>Executes with Octave or MATLAB.</td>
+</tr>
+<tr>
+<td><code>mathematica</code></td>
+<td></td>
+<td>Executes with WolframScript.</td>
+</tr>
+<tr>
+<td><code>webassembly</code></td>
+<td></td>
+<td>Converts WAT when needed and runs with Wasmtime or Wasmer.</td>
+</tr>
+<tr>
+<td><code>java</code></td>
+<td></td>
+<td>Compiles with javac and runs with java.</td>
+</tr>
+<tr>
+<td><code>javascript</code></td>
+<td></td>
+<td>Executes with Node.js.</td>
+</tr>
+<tr>
+<td><code>ocaml</code></td>
+<td></td>
+<td>Interprets or compiles with the OCaml toolchain.</td>
+</tr>
+</tbody></t

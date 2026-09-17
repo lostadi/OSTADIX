@@ -1,0 +1,126 @@
+<h1>Zero-configuration LAN verification record</h1>
+<h2>Reciprocal passcode-pairing validation — August 23, 2026</h2>
+<p>The reciprocal-pairing change was validated from a detached worktree rooted at
+<code>f2ef9efd99f57ac9f5dcc93b3b95c64ba9c618bf</code>, with the exact working-tree Rust
+and lockfile patch applied there. No Cargo command ran in the live development
+checkout.</p>
+<p>The isolated Rust gates completed successfully:</p>
+<pre><code class="language-bash">cargo check --workspace --all-targets --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --all-targets --locked
+</code></pre>
+<p>The full workspace test command passed, including the pairing protocol&#39;s
+correct-code, wrong-code, transcript-tampering, secret-redaction, and passcode-
+shape tests; paired-store conflict, replacement, rollback, permission, legacy-
+downgrade, and symlink-boundary tests; the real emitted-Cargo fixture; and all
+other workspace targets. The changed Rust files also passed direct
+<code>rustfmt --check</code>. Repository-wide <code>cargo fmt --all -- --check</code> remains blocked
+by pre-existing formatting drift in <code>crates/ostadix-api/src/hosted_remote/v2/auth.rs</code>
+and <code>tests/hosted_remote_cli.rs</code>, neither changed by this pairing work.</p>
+<p>The local non-Cargo gates completed successfully:</p>
+<pre><code class="language-bash">bash -n scripts/o-cli.sh scripts/smoke-zero-config-lan-netns.sh o-node-quickstart.sh
+python3 -m unittest -v tests.test_o_cli_dispatch tests.test_contract_surfaces
+</code></pre>
+<p>Those 24 Python tests verify exact dispatcher forwarding, the no-positional-
+passcode boundary, the explicit <code>--replace</code> and routed-pairing flags, and the
+required Linux smoke markers.</p>
+<p>A two-process acceptance run then used separate HOME/XDG configuration and
+state roots for two node identities. It proved initial direct pairing over
+<code>--address</code>, bidirectional TLS 1.3 mutual-X.509 profiles with discovery
+disabled, route-only <code>--node ... --address ...</code> reuse of stored identity, a
+restart using remembered state, and explicit <code>--replace</code> recovery after one
+side&#39;s peer directory was moved aside. Both directions succeeded after that
+one-sided recovery. This is process and loopback evidence on macOS, not a
+physical two-host or router/NAT claim.</p>
+<p>The Linux non-loopback gate remains
+<code>scripts/smoke-zero-config-lan-netns.sh</code>. It now checks wrong-code/no-state,
+directly routed pairing on a veth address, reciprocal public material with
+distinct locally retained private keys, one-use listener consumption, closed
+legacy bootstrap ports in both directions, bidirectional restart reconnect,
+explicit one-sided <code>--replace</code> recovery with key rotation, and a severed-link
+failure. The script passed shell syntax validation but was
+not executed on this macOS host: Docker was not running and was not restarted,
+and the designated Multipass VM did not complete startup. Linux CI remains the
+execution substrate for that gate.</p>
+<h2>Historical zero-configuration integration record</h2>
+<p>This record applies to the two source snapshots used during this repair:</p>
+<ul>
+<li><code>bca0667d724c12b4c36ea8919608ceeba1e1b097</code>, the snapshot on which the
+zero-configuration implementation was first integrated and compiled by the
+user;</li>
+<li><code>24dd07fbd44581379cb913ee274f3e5b485ea06b</code>, the newly uploaded source
+archive used for the clean corrected integration.</li>
+</ul>
+<p>A complete source comparison established that the hosted-node Rust sources and
+all patched pre-existing files are byte-identical between these baselines. The
+<code>24dd07f</code> archive lacks <code>o-node-quickstart.sh</code>; the corrected integration adds
+it as the ordinary zero-configuration entry point and includes it in the
+deterministic source-release closure.</p>
+<h2>Compiler evidence from the user host</h2>
+<p>On macOS with the pinned Rust toolchain available, <code>./setup.sh --minimal</code>
+compiled the dependency graph and reached the <code>o-lang</code> binaries. The compiler
+reported two <code>E0382</code> ownership errors in <code>src/bin/octl.rs</code>: each expression moved
+<code>resolved.address</code> and then tried to borrow the partially moved <code>resolved</code> value
+to construct the TLS identity.</p>
+<p>Both faults are corrected here by deriving <code>tls_identity</code> before moving the
+owned address into the client constructor. This preserves the same transport,
+identity, key, and timeout values and changes only evaluation order and
+ownership lifetime.</p>
+<p>On August 23, 2026, the corrected tree completed a clean
+<code>./setup.sh -y --minimal</code> release build and
+<code>cargo check --workspace --all-targets</code> on the user&#39;s macOS host. The
+post-build checks confirmed that the rebuilt <code>o-node</code>, <code>octl</code>, repository
+dispatcher, and installed <code>o</code> wrapper exposed the zero-configuration runtime
+surfaces.</p>
+<h2>Executed successfully after the correction</h2>
+<ul>
+<li><code>bash -n scripts/o-cli.sh</code></li>
+<li><code>bash -n o-node-quickstart.sh</code></li>
+<li><code>bash -n setup.sh</code></li>
+<li><code>python3 -m unittest tests.test_o_cli_dispatch -v</code> -- 10 tests passed</li>
+<li><code>python3 -m unittest tests.test_setup -v</code> -- 16 tests passed</li>
+<li><code>python3 -m unittest tests.test_source_release -v</code> -- 75 tests passed</li>
+<li>exact full-patch application against fresh <code>bca0667d</code> and <code>24dd07f</code>
+extractions -- passed</li>
+<li>exact minimal hotfix application against the earlier patched tree -- passed</li>
+<li>post-application source-tree comparisons -- exact</li>
+<li><code>git diff --check</code> on every generated patch -- passed</li>
+</ul>
+<p>The 101 focused Python tests cover ordinary and manual node command routing,
+quickstart intent projection, setup behavior, and the deterministic public
+source-release closure.</p>
+<h2>Required Rust gate</h2>
+<p>Run from the corrected source directory:</p>
+<pre><code class="language-bash">cargo fmt --all -- --check
+cargo check --workspace --all-targets
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+</code></pre>
+<p>Then run the two-host acceptance path:</p>
+<pre><code class="language-bash"># Capacity host
+./setup.sh -y --minimal
+source &quot;$HOME/.config/ostadix/env.sh&quot;
+o node start
+o node status
+
+# Client on the same LAN
+./setup.sh -y --minimal
+source &quot;$HOME/.config/ostadix/env.sh&quot;
+o node list
+o node profile
+o node doctor
+o node run examples/hello.O
+o node session run examples/hello.O
+</code></pre>
+<p>The required <code>rust-hosted</code> CI lane also runs
+<code>scripts/smoke-zero-config-lan-netns.sh</code>. That gate gives a multi-homed client
+a silent decoy network as its default and multicast route while the real node
+is reachable only through a non-default <code>192.0.2.0/30</code> veth. It exercises the
+passcode-paired default, direct veth pairing, reciprocal stored identities,
+closed plaintext bootstrap ports, bidirectional reconnect after restart, and
+a severed-link failure. This is Linux veth evidence; it does not replace the
+physical two-host acceptance path for Wi-Fi, router, firewall, macOS, IPv6,
+NAT, or cross-subnet behavior.</p>
+<p>Acceptance requires that ordinary client commands request no address, port,
+hostname, CA, certificate, key, receipt key, capability, lease, operation ID,
+task digest, or attempt generation.</p>

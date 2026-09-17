@@ -15,6 +15,7 @@
 pub const RUNTIME_VALUE_RS: &str = include_str!("../value.rs");
 /// Exact shared-helper names used by adapter admission in generated runtimes.
 pub const RUNTIME_SHIM_SUPPORT_NAMES: &[&str] = crate::shims::BUNDLED_SHIM_SUPPORT_NAMES;
+pub const RUNTIME_CANCELLATION_RS: &str = include_str!("../cancellation.rs");
 pub const RUNTIME_CAPABILITY_RS: &str = include_str!("../capability.rs");
 pub const RUNTIME_ENVIRONMENT_RS: &str = include_str!("../environment.rs");
 pub const RUNTIME_PARSER_RS: &str = include_str!("../parser.rs");

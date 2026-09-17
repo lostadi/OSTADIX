@@ -1,0 +1,359 @@
+<h1>Changelog</h1>
+<p>This file records user-facing changes from the point at which changelog
+governance was introduced. It does not reconstruct every historical commit.
+Package SemVer is only one of the independent coordinates documented in
+<a href="docs/VERSIONING.md">docs/VERSIONING.md</a>.</p>
+<h2><a href="https://github.com/lostadi/Ostadix-lang/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD">Unreleased</a></h2>
+<h3>Added</h3>
+<ul>
+<li><p>The primary MCP <code>o_run</code> operation now accepts a complete source document or
+compatible path, offers a non-executing unified <code>mode=check</code>, and can require
+existing authenticated project-mesh placement without local fallback. Mesh
+responses attach the engine-produced placement trace; selected-node execution
+remains whole-document submission. Neither lane claims general distributed
+execution of ordinary OIR graphs. MCP cancellation now kills the complete
+child process group so descendants cannot commit late side effects.</p>
+</li>
+<li><p>Experimental <code>OperationContractV1</code>, <code>OperationInterfaceV1</code>,
+<code>RealizationDescriptorV1</code>, and <code>RealizationSetV1</code> records add four bounded,
+canonical, independently domain-separated descriptions of one logical
+operation and its declared realizations. <code>o operation inspect</code> validates one
+explicitly typed JSON or canonical-CBOR record; <code>o operation verify</code> checks
+one exact supplied referential closure. This surface is descriptive and
+authority-free: it does not plan, select, prove behavioral equivalence,
+authenticate evidence, determine placement, execute, recover, or authorize
+work. <code>docs/OPERATION_REALIZATION_V1.md</code> defines the complete boundary and is
+a required source-release member.</p>
+</li>
+<li><p><code>apps/browser-chat-pdf</code> adds a dependency-free browser extension that
+captures a rendered AI conversation from the tab&#39;s local DOM and creates a
+print-focused preview with selectable, searchable text and retained document
+structure. PDF creation remains an explicit handoff to the browser&#39;s native
+print dialog, where the user selects <strong>Save as PDF</strong> and the destination; the
+extension does not silently write files.</p>
+</li>
+<li><p>Chatprint Mobile adds a deterministic, self-contained Android Chrome
+bookmarklet build and offline installer. It provides live-DOM capture on
+browsers that cannot load the desktop extension, while keeping bookmark
+creation and the final Save as PDF confirmation under browser control.</p>
+</li>
+<li><p><code>o routes TARGET [--json] [--route-decl DECL]...</code> provides a read-only
+route-discovery UI for project directories and lifted project bundles. It
+reports ordered route IDs, kinds, result codecs, explicitly declared route
+sets, reference routes,
+structural optimization readiness, and later-winner declared-effect
+readiness as either human text or one
+<code>ostadix.route-catalog/v1</code> object. It never executes a route, creates a run
+record, infers equivalence from shared <code>provides</code>, or exposes commands,
+environment values, guards, labels, or source bytes.</p>
+</li>
+<li><p><code>o optimize TARGET --route ROUTE_SET [--receipt PATH] [--progress auto|always|never] [--json]</code>
+provides the initial evidence-gated optimization UI. It requires an explicit
+route set and durable run record, runs and validates every candidate against
+the first declared reference, reports the fastest eligible route as a human
+summary or <code>ostadix.optimize-summary/v1</code> JSON, and can export the canonical
+receipt outside the project. <code>--progress auto|always|never</code> adds a
+credential-minimized candidate-settlement view on terminal stderr without
+contaminating captured outputs or JSON stdout. The evidence-gathering
+invocation itself is not accelerated and does not claim universal semantic
+equivalence.</p>
+</li>
+<li><p><code>o run TARGET --selection-run RUN_ID</code> and the corresponding typed Rust API
+execute the explicit winner from one exact verified local optimization run.
+Admission binds the unchanged bundle, benchmark plans, route declarations,
+ordered alternatives, reference, winner, and expected declared output;
+requires transitive <code>pure = true</code> declarations; seals the in-process token;
+pins the preflighted compatibility executor; dispatches no other top-level
+candidate branch; and produces a fresh typed postcondition. The CLI front
+door durably records it; the library API returns it to the embedder, which
+must persist it itself when durable audit evidence is required. Failure or
+output drift is terminal with no replay or fallback. This is an opt-in,
+non-transactional declared-effect boundary, not proof against undeclared side
+effects.</p>
+</li>
+<li><p>Project route policy <code>benchmark_validate_and_select</code> runs the first declared
+alternative as a reference and measures every candidate in an isolated
+workspace. It rejects unsuccessful or declared-output-divergent candidates,
+selects the fastest eligible complete branch, and binds canonical result,
+artifact-manifest, timing, and decision evidence into a content-addressed
+<code>ostadix.project-validated-selection/v1</code> receipt and durable run record. The
+accompanying FFmpeg, ImageMagick, and CPython benchmark suite checks outputs
+independently and reports paired whole-process measurements without claiming
+universal speedup, fixed-rate ceiling capture, or acceleration of the
+evidence-gathering invocation itself.</p>
+</li>
+<li><p>Backend Catalog V6 admits <code>wasm-tools+wasmtime</code> and
+<code>wasm-tools+wasmer</code> as complete WebAssembly alternatives while preserving
+every published V3, V4, and V5 whole-catalog, source, and per-backend
+identity. Current version, MCP, generated-runtime, evidence, and placement
+surfaces bind V6; archival V5 records remain inspectable but cannot authorize
+current execution.</p>
+</li>
+<li><p><code>o kernel hosted-live-release</code> turns the exact staged Git index into a
+tree-addressed x86_64 hosted-live ISO from a run-owned native path inside
+<code>moral-gaur</code>, then requires strict inspection and bounded OVMF/QEMU readiness
+markers before publication. It prints the exact artifact and receipt paths;
+the staged-tree suffix prevents a later default release from colliding with a
+different tree. The exact seven-entry image boots the hosted Alpine O
+workstation by default, provides direct O-core and direct Alpine entries, and
+provides explicitly labeled nested QEMU/TCG entries for Guix, OpenBSD,
+9front, and Redox. Its 14 typed artifacts cover the four Hosted components,
+direct O-core, the capacity-host kernel/initramfs, direct Alpine initramfs,
+Guix kernel/initramfs/ISO, OpenBSD ISO, 9front qcow2, and Redox ISO.
+Rootfs and modloop are hosted kernel arguments and never GRUB initrds. Stage
+one verifies the SquashFS identity before a tmpfs-overlay <code>switch_root</code>,
+avoiding multi-gigabyte initramfs expansion while retaining the 4 GiB QEMU
+regression bound. Its Ventoy 1.1.17 Alpine hook contract supplies the exact
+<code>ebegin</code>/<code>eend</code> insertion marker, a minimal <code>dm-mod.ko</code> SquashFS, a bounded
+media retry, and full-token BusyBox <code>blkid &quot;$device&quot;</code> label parsing without
+unsupported <code>-s</code>/<code>-o</code> options. Release receipt v6 and boot-gates v6 require
+hosted serial v4, graphical v7, and direct O-core evidence to bind the exact
+inspected ISO before publication or later same-tree adoption. Pinned foreign
+guest bytes are fetched, verified, embedded, and receipt-bound, but those
+three publication gates do not execute direct Alpine or the four nested guest
+routes and do not prove guest GUI/package-manager execution, Ventoy routing,
+or physical boot.</p>
+</li>
+<li><p>The workstation treats <code>examples/wasm_hello.O</code> as a source-bound rootfs
+object.
+Release construction uses the admitted <code>olangc</code> to materialize its exact
+generated Cargo project, builds it once with the pinned native Rust
+toolchain, and records the source tree, input, compiler, generated-project
+closure, build profile, and module identity in a read-only descriptor. Every
+hosted boot regenerates that project through MCP without invoking Cargo,
+verifies the packaged descriptor and module, and separately compiles a small
+<code>wasm32-wasip1</code> Rust probe. Exact Alpine <code>wasm-tools=1.236.0-r0</code> and
+<code>wasmtime=44.0.1-r0</code> packages now convert and execute
+<code>examples/webassembly_hello.O</code> through the installed <code>webassembly^</code> route,
+and Wasmtime executes the packaged Olangc module before readiness. This replaces the
+nested-TCG cold compile while preserving distinct evidence for Olangc, the
+packaged module, MCP, the WebAssembly backend, the runtime, and the installed
+Rust/WASI target. Aggregate re-smoke evidence is now v2.</p>
+</li>
+<li><p><code>o kernel prepare-ventoy</code>, <code>install-ventoy</code>, and <code>verify-ventoy</code> provide a
+separate confirmation-bound ISO copy path for an explicitly identified
+Ventoy volume. They re-identify the removable USB target and verify the copied
+digest; they do not weaken or reuse the raw GPT media-writer contract. When
+ExFAT lacks atomic no-replace rename, installation falls back to a second
+verified <code>O_EXCL</code> copy that still cannot overwrite an existing destination.</p>
+</li>
+<li><p>M3 Authenticated Pure Remote Execution Fabric V1 can authenticate and
+execute the admitted frozen M2 pure renderer profile on an explicitly
+selected <code>o-node</code>, returning only a bounded provisional candidate. The
+coordinator remains the sole graph-commit authority and sole linearization
+locus for graph transitions; candidate validation, publication, and
+settlement remain coordinator-owned.</p>
+</li>
+<li><p>A same-host integration proof launches two real <code>o-node</code> processes with
+separate transport/node identities, ports, generations, state roots, ledgers,
+and Fabric authority enrollment. It checks local-result equivalence,
+cross-node authority and result rejection, infrastructure failure without
+local fallback, and preservation of Hosted and Mesh ALPN routes. It makes no
+physical-multinode, distinct-kernel, or heterogeneous-architecture claim.</p>
+</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Fresh automatic <code>o node start</code> PKI can explicitly use ECDSA P-256 while
+retaining RSA-3072 as the default. The hosted-live cross-architecture gate
+uses P-256 so it still proves fresh CA, node, client, and pairing identity
+creation without conflating TCG prime-generation cost with node readiness.
+Its one-time provisioning, complete Hosted boot, and post-provisioning
+listener-readiness deadlines are separate bounded stages. The public Hosted
+re-smoke now composes serial, graphical/input, and direct O-core results over
+one private ISO snapshot, and graphical monitor operations share one absolute
+deadline. Aggregate re-smoke v2 does not select or execute the remaining five
+menu entries.</li>
+<li>Project authorship metadata and new commit attribution now reject Claude and
+Codex identities; contribution credit remains assigned to the responsible
+human contributors.</li>
+<li>Information Provenance V2 adds an authority-free, content-addressed sidecar
+over frozen Information Atom V1 identities plus a higher-layer execution
+analyzer that admits only its recomputed image. Acquisition origin is
+projected from typed witnesses, enforcement is an orthogonal assurance, and
+contradiction/invalidation remain separate claim-standing records. Recovery
+is contextual and reports intrinsic loss, typed discharges, and unresolved
+obligations; the first execution adapter deliberately reports
+<code>Unestablished</code> until producer authentication, procedure resolution, signer
+authorization, receipt currentness, exact plan-node attribution,
+execution/effect fidelity, and morphism fidelity are established.</li>
+<li>The architecture now names predicate, full-image, and projected-image
+admission and states the Codomain Slack Theorem. Current Evidence V5/V6 is
+precisely hard-projection image admission: analyzer-derived legality fields
+are pinned, while historical cost estimates remain explicitly soft.</li>
+<li><code>ostadix-api</code> is now the independent runtime engine rather than a wrapper
+around <code>o-lang</code>. It owns the parser, IR, evaluator, HGraph,
+evidence/admission, scheduler, hosted/project/World implementations, runtime
+dependencies, bundled shims, package-local test assets, and AOT source
+bundle. The root <code>o-lang</code> crate is a compatibility and CLI shell with a
+one-way exact-version dependency on the engine.</li>
+<li>Historical <code>o_lang::&lt;module&gt;</code> imports are explicit reexports of the engine&#39;s
+exact nominal types, so callers do not get duplicate evaluator or value
+implementations. Reflected defining paths such as <code>type_name</code> may now name
+<code>ostadix_api</code>, and direct engine users may use the full advanced module
+surface as well as the concise owned <code>Runtime</code> entry point.</li>
+<li>Generated-runtime dependency and source closure now originate from the
+packaged engine rather than workspace-relative root sources. Registry
+publication order is reversed: publish and verify <code>ostadix-api</code> first, then
+publish its exact-version <code>o-lang</code> shell dependent.</li>
+<li><code>FidelityAssessmentV2</code> now exposes interval validation and allocation-free
+concrete-membership checks. Generated laws bind its exact <code>Fidelity</code> point
+embedding, sequential composition, conservative upper projection, and the
+lossless/structural path hull. Invalid directly assembled bounds can no
+longer be serialized; graph and solver boundaries also reject invalid bounds
+or a mismatched conservative V1 projection. Render fidelity remains a
+separate descriptive domain;
+no conversion, common carrier, or Galois connection to <code>Fidelity</code> or
+<code>FidelityAssessmentV2</code> is introduced. The render classifier&#39;s complete
+six-renderer matrix now asserts classifications for one
+representative of all 30 <code>OValue</code> variants. Targeted cases cover
+payload-sensitive Python Decimal/F64 and Nix integer/text rendering,
+collection subtype collapse, recursive child propagation, map-key rendering,
+and media-less bytes, rather than only checking that each renderer emits
+output.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Splice renderers and diagnostics now abbreviate public or deserialized
+fingerprints without panicking on short or non-ASCII input. The renderer
+classifier now limits Nix typed integers to the signed 64-bit range and typed
+text to explicit UTF-8 metadata without NUL, and limits Python typed
+Decimal/F64 values to renderer-admitted exact shapes. It classifies values
+whose portable payload survives the default renderer as structural, while
+retaining opaque classifications for Nix <code>Graph</code>/<code>Native</code>, media-less
+<code>Bytes</code> under Nix and the default renderer, and explicit marker-only values.
+Nix NUL-bearing strings now use a tagged code-point structure, and keyed
+containers with such keys use entries form, avoiding source collisions.
+Python checkpoint integers and rational parts now share the chunked decimal
+codec used at the execution boundary, including values above CPython&#39;s
+configurable decimal-digit ceiling.
+Scheduler cache keys preserve canonical lowercase SHA-256 filenames while
+mapping every noncanonical input to a bounded domain-separated hash inside
+the cache directory.</li>
+</ul>
+<h3>Release boundary</h3>
+<p>This post-v0.3 extraction is a next-release source-contract change. Both Rust
+packages now use the synchronized <code>0.4.0</code> development coordinate; the immutable
+<code>v0.3.0</code> tag and its historical narrow-facade contract must not be moved or
+relabeled.</p>
+<h2><a href="https://github.com/lostadi/Ostadix-lang/tree/v0.3.0">0.3.0</a> - 2026-08-17</h2>
+<p>Release notes: <a href="docs/releases/v0.3.0.md">docs/releases/v0.3.0.md</a>.</p>
+<h3>Added</h3>
+<ul>
+<li>A two-member Cargo workspace retains the root <code>o-lang</code> package and adds the
+publishable <code>ostadix-api</code> crate: an owned explicit-shim <code>Runtime</code>, facade-owned
+parse/evaluate errors, and the complete public <code>OValue</code> payload vocabulary.</li>
+<li>Source-release, Dependabot, Docker, CI, and lock-projection contracts now
+distinguish the workspace facade from the independently locked fuzz and MCP
+roots.</li>
+<li>Explicit, source-additive Graph V2, Evidence/Admission V6, placement-admission
+V2 digest, and Why V2 APIs preserve complete typed fidelity assessments.
+Package 0.3 atomically makes those coordinates current for unversioned APIs,
+coordinator/evaluator/CLI/MCP execution, and new placement fragments.
+Execution Intent V1 remains bound to Graph V1 plus Catalog V5, while explicit
+Admission V5, Graph V1, Why V1, and prepared-fragment V1 surfaces are
+archival inspection APIs only: there is no silent V5-to-V6 uplift or hosted
+placement-fragment conversion.</li>
+<li>Durable Hosted V2 state roots carry an exact package-0.3 execution-authority
+marker. Pre-0.3 roots, V1 prepared fragments, and V1 placement-admission
+digests are rejected by current execution rather than migrated or relabeled.</li>
+<li>Experimental Information Bridge V1 adds eight explicit, bounded,
+authority-free native metadata projections plus a lock-free existing-root
+reader, <code>o-info head</code>, and fixed local MCP head inspection. HGraph/Evidence
+metadata digests intentionally omit source/value/runtime identity; raw
+registry and Hosted locators/tokens are domain-projected equality oracles,
+not confidentiality primitives.</li>
+<li>A manifest-governed production-library root DAG now closes source geometry,
+compiled fragments, physical overrides, facade projections, allowed edges,
+layer descent, and multi-root cycles under fail-closed CI validation.</li>
+<li>O-core personality smoke failures now capture bounded QMP scheduler, thread,
+frame, and RPC state only after the failure verdict is frozen; successful
+runs remain byte- and behavior-compatible with the prior guest artifacts.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Root and MCP package coordinates advance to <code>0.3.0</code>; generated-runtime stays
+frozen at <code>0.1.0</code>. Publication, when separately authorized, must publish
+<code>o-lang</code> before its exact-version <code>ostadix-api</code> dependent.</li>
+<li>Backend catalog V5 now binds the explicit optional BackendMorphism V1 profile
+assignment for all 30 canonical backends. Archival V4 hashes remain frozen;
+the three profiled crossings remain shadow-only and do not change
+<code>BackendInterface</code>, HGraph solving, graph hashing, evidence/admission schemas,
+or execution behavior.</li>
+<li><code>ParsedDocumentV1.nodes</code> is private before the 0.3 tag. Use <code>nodes()</code> or
+<code>into_nodes()</code>; parsed-document equality now also binds parser-captured exact
+source SHA-256 and length. The stable <code>ostadix-api</code> facade remains unchanged.</li>
+<li>Canonical placement, backend catalog/state, execution-contract, and graph
+evaluation seams remove wrong-way module dependencies without changing the
+corresponding execution semantics or archived identity formulas.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>O-core x86-64 asynchronous user-frame returns preserve arithmetic status
+flags while clearing hazardous control flags, and the mode-0 proof binds the
+syscall FMASK entry behavior without charging capacity-tight probe modes.</li>
+<li>The hosted durable-state lock explicitly unlocks its final file descriptor
+before drop; a duplicated-descriptor regression proves immediate reopen after
+the final store clone is released.</li>
+<li>Mode-25 crash monitoring preserves the armed lifecycle state across the
+crash transition, and ArtifactId ownership no longer depends on the World
+facade.</li>
+</ul>
+<h3>Release boundary</h3>
+<p>The v0.3.0 tag identifies an advanced systems-research release, not OSTADIX
+Alpha qualification or a production-readiness claim. The exact included
+claims, explicit nonclaims, independent version coordinates, and source-asset
+verification procedure are recorded in
+<a href="docs/releases/v0.3.0.md">docs/releases/v0.3.0.md</a>.</p>
+<h2><a href="https://github.com/lostadi/Ostadix-lang/tree/v0.2.0">0.2.0</a> - 2026-08-16</h2>
+<p>Release notes: <a href="docs/releases/v0.2.0.md">docs/releases/v0.2.0.md</a>.</p>
+<h3>Added</h3>
+<ul>
+<li>Contribution, private security-reporting, conduct, and review-ownership
+policies.</li>
+<li>Structured public bug and feature requests plus a pull-request checklist.</li>
+<li>Deterministic governance validation for required repository surfaces and
+version-coordinate documentation.</li>
+<li>Experimental, authority-free Information Kernel V1 records, immutable local
+roots, projection/lift receipts, signed offline delta packs, and the local
+<code>o info</code> workflow.</li>
+<li>Experimental BackendMorphism V1 shadow profiles for bounded Python,
+JavaScript, and Rust crossings. These profiles do not change backend catalog
+V4, admission, placement, or dispatch.</li>
+<li>Versioned JSON schedule explanations for machine consumers while retaining
+the existing human-readable explanation by default.</li>
+<li>A non-cloneable Hosted V2 lifetime owner and cloneable request-only handle,
+plus graceful first-signal draining and second-signal forced termination for
+<code>o-node</code>.</li>
+<li>Local CI-posture and architectural dependency-boundary validators.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>The hosted benchmark consumes typed schedule JSON instead of parsing the
+human explanation line.</li>
+<li>Parser syntax classification, dispatch classification, shared resource
+identities, and placement/catalog compatibility now have lower-level module
+boundaries that remove the first wrong-way dependency edges.</li>
+<li>Generated AOT projects include the canonical CBOR, syntax-dialect,
+dispatch-model, and backend-morphism source closure required by their embedded
+runtime.</li>
+<li>GitHub Actions remain SHA-pinned and now use Node-24-compatible action
+releases; Dependabot covers the fuzz Cargo root and Dockerfile.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Hosted restart tests now use the deterministic shutdown barrier before
+immediately reopening a durable state root.</li>
+<li>The hosted semantic smoke accepts and verifies the current five-digest V5
+admission binding, including the placement-admission digest.</li>
+</ul>
+<h3>Release boundary</h3>
+<p>The <code>0.2.0</code> value recorded for this historical release is a package coordinate.
+Its presence here or in archived source does not itself assert a tag,
+publication, production readiness, hardware results, remote placement results,
+or a live World.
+Release entries must be dated and linked to the exact released commit or tag
+when a release is cut.</p>
+<p>After the 2026-09-03 attribution-only history rewrite, the immutable <code>v0.3.0</code>
+tag remains on its archival lineage. The Unreleased comparison therefore starts
+from its tree-identical rewritten commit recorded in the sealed provenance map.</p>

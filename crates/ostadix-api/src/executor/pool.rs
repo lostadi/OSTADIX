@@ -211,9 +211,9 @@ fn worker_loop(
         let Ok(submission) = submission else {
             return;
         };
-        let (token, physical_attempt, task) = submission.into_parts();
+        let (token, physical_attempt, task, cancellation) = submission.into_parts();
         crate::process::lifecycle_trace("worker.task_received", format!("token={}", token.0));
-        let context = TaskContext::new(token, events.clone());
+        let context = TaskContext::new(token, events.clone(), cancellation);
         // This converts panics only in unwind-capable profiles. A panic-abort
         // build terminates the process before Rust can produce a completion.
         let outcome =

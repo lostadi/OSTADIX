@@ -1,0 +1,65 @@
+<h1>Hosted actor migration</h1>
+<p>Hosted V2 transfers supported, idle actor state between two authenticated nodes through <code>HostedNodeClientV2::migrate_session</code>. Both endpoints must already be admitted <code>CheckpointRestore</code> sessions with established actor generations. The implementation uses real evaluator checkpoints and backend restore acknowledgements, signed node journals, and the existing placement authority. It does not replay accepted operations to reconstruct state.</p>
+<p>The current checkpoint codecs cover the supported Python globals graph and SQLite main database state. Live native handles, in-flight evaluator work, open external resources, unsupported checkpoint values, and runtime implementation changes are not transferable by this protocol. A checkpoint refusal preserves the source. The destination initially needs its own settled checkpoint, retained for rollback if installation fails or the source cancels before fencing.</p>
+<h2>Exact authority and identity</h2>
+<p><code>MigrationPlanV2</code> binds a transaction identifier, both state-session identities, node signing keys, client principal digests, initial actor generations, initial journal heads, and the source checkpoint digest. Both sessions must belong to the same authenticated principal and have equal logical-environment, backend-implementation, sandbox-policy, and launch-context identities. Node and session identities remain distinct.</p>
+<p>Each phase uses a fresh <code>MigrationWarrantV2</code> and signed placement lease with purpose <code>Migrate</code>. The warrant binds the plan, action, current local journal head, and any required peer receipt digest. The existing state-control authority verifies the exact established target, backend, sandbox, session, principal, actor generation, reservation, command digest, nonce, and bounded validity. Authentication and capability possession alone do not authorize migration. Restoration is authorized again after the backend responds; an expired or changed authorization cannot publish a successful acknowledgement.</p>
+<h2>Transfer phases</h2>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Node</th>
+<th>Required evidence</th>
+<th>Durable result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Prepare</code></td>
+<td>Source</td>
+<td>Exact settled checkpoint and idle actor</td>
+<td>A fresh checkpoint is validated and stored; signed <code>Prepared</code> freezes execution and exports the snapshot.</td>
+</tr>
+<tr>
+<td><code>Install</code></td>
+<td>Destination</td>
+<td>Source <code>Prepared</code> receipt and matching snapshot</td>
+<td><code>Installing</code> consumes a new physical generation before restore; a real backend restore ACK produces signed <code>Installed</code>. The restored actor remains a standby.</td>
+</tr>
+<tr>
+<td><code>Fence</code></td>
+<td>Source</td>
+<td>Exact destination <code>Installed</code> receipt referencing this preparation</td>
+<td>Signed <code>Fenced</code> permanently changes the source to <code>Migrated</code> before actor teardown.</td>
+</tr>
+<tr>
+<td><code>Activate</code></td>
+<td>Destination</td>
+<td>Exact source <code>Fenced</code> receipt referencing this installation</td>
+<td>The acknowledged standby becomes <code>Ready</code>. If restart lost the standby, durable <code>Activating</code> allocates a new generation and requires a fresh backend restore ACK first.</td>
+</tr>
+<tr>
+<td><code>Abort</code></td>
+<td>Source</td>
+<td>This source is still <code>Prepared</code></td>
+<td>Signed <code>Aborted</code> resumes the original live actor, or requires the existing recovery warrant if restart lost that actor. Fencing is no longer admissible.</td>
+</tr>
+<tr>
+<td><code>Cancel</code></td>
+<td>Destination</td>
+<td>Exact signed source <code>Aborted</code> receipt</td>
+<td>Signed <code>Cancelled</code> discards standby ownership, restores the previous destination checkpoint pointer, and requires recovery or close. Activation is no longer admissible.</td>
+</tr>
+</tbody></table>
+<p>The destination cannot execute while installing or standing by. The source cannot execute, reset, or recover after fencing. An authenticated close of the terminal migrated source releases its session reservation while retaining the existing closed-session tombstone. An aborted destination can likewise be closed to release capacity, or recovered from its previous checkpoint under the normal exact recovery warrant.</p>
+<h2>Durability, retries, and recovery</h2>
+<p>Snapshot storage precedes a journal reference. The existing durable quota checks reserve terminal journal headroom before allocating a restore attempt. Signed journal transitions record request and warrant digests, placement lease identity and nonce, the attempted generation, peer acknowledgement identity, and rollback checkpoint metadata. Successful replies follow the durable terminal append.</p>
+<p>An exact duplicate request returns the original signed terminal receipt rather than repeating physical restoration or advancing ownership again. A request with stale journal evidence, altered scope, reused authority, a conflicting client sequence, an invalid peer signature, or a failed restore receipt cannot advance the transfer.</p>
+<p>On node restart, <code>Prepared</code>, <code>Installed</code>, and <code>Fenced</code> retain their execution restrictions. An interrupted <code>Installing</code> becomes signed <code>InstallFailed</code>; its previous destination checkpoint remains available. An interrupted <code>Activating</code> becomes signed <code>ActivationFailed</code>; the source remains permanently fenced and the destination remains blocked. A newly authorized <code>Activate</code> can retry restoration using a new physical generation and the same exact source fence. Restart never invents a restore acknowledgement and never automatically replays a user operation.</p>
+<p>The protocol chooses exclusive ownership over automatic failover during a network partition: a destination without signed source fencing stays a standby. If the source has durably fenced, it cannot be resumed merely because the destination or client is unreachable. Completion requires the retained signed evidence and an available authorized destination.</p>
+<h2>Executable evidence</h2>
+<p><code>tests/hosted_actor_migration.rs</code> starts two real <code>o-node</code> processes with distinct node signing keys, mutual TLS, a pinned placement authority, and actual Python or SQLite shims. It exercises state preservation and Python alias identity, phase retries, node restarts, permanent source fencing, actual backend restore refusal, exact-warrant recovery of the destination&#39;s previous state, signed standby cancellation, reservation release, and process termination while a physical restore is in progress. The tests use an instrumented fixture shim only to make the restore interruption deterministic; both nodes and the authority bind the same fixture implementation.</p>
+<p>Run the focused suite from an isolated build checkout:</p>
+<pre><code class="language-sh">cargo test --locked --all-features --test hosted_actor_migration
+</code></pre>
+<p>These are separate local TLS node processes. They demonstrate the network protocol and process crash behavior, not a cross-host network qualification, operating-system memory migration, or migration of arbitrary native resources.</p>

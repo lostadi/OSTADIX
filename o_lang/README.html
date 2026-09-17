@@ -1,0 +1,52 @@
+<h1>o_lang (Legacy Python Implementation)</h1>
+<p>This directory contains the <strong>original Python implementation</strong> of the O language.
+It served as the prototype and reference for the current <strong>Rust edition</strong> in <code>src/</code>.</p>
+<h2>Status: Reference Only</h2>
+<p>The active, maintained implementation is the Rust crate (<code>src/</code>). This Python
+code is preserved for:</p>
+<ul>
+<li><strong>Historical reference</strong> — understanding the original design decisions</li>
+<li><strong>Algorithm comparison</strong> — verifying the Rust port against the prototype</li>
+<li><strong>Backend testing</strong> — the Python evaluator can still run <code>.O</code> files independently</li>
+</ul>
+<h2>Structure</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>__main__.py</code></td>
+<td>CLI entry point (<code>python -m o_lang</code>)</td>
+</tr>
+<tr>
+<td><code>cli.py</code></td>
+<td>Argument parsing and runner</td>
+</tr>
+<tr>
+<td><code>parser.py</code></td>
+<td>Tokenizer and expression parser</td>
+</tr>
+<tr>
+<td><code>evaluator.py</code></td>
+<td>Recursive evaluator with backend dispatch</td>
+</tr>
+<tr>
+<td><code>ovalue.py</code></td>
+<td>OValue type system (Python dataclasses)</td>
+</tr>
+<tr>
+<td><code>backends/</code></td>
+<td>Language-specific shim scripts</td>
+</tr>
+</tbody></table>
+<h2>Running (if needed)</h2>
+<pre><code class="language-bash">python -m o_lang examples/hello.O
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> For production use, prefer the Rust edition:</p>
+<pre><code class="language-bash">cargo run -- examples/hello.O backends
+</code></pre>
+</blockquote>

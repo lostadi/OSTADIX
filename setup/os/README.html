@@ -1,0 +1,35 @@
+<h1>Per-OS Setup Scripts for O-lang</h1>
+<p>These compatibility entrypoints delegate to the repository-root <code>setup.sh</code>.
+Keeping one implementation prevents platform scripts from silently omitting new
+binaries, verification gates, or safety fixes.</p>
+<p>Existing commands may continue using the platform-named entrypoint; every option
+is forwarded unchanged to the canonical setup.</p>
+<h2>Available scripts</h2>
+<ul>
+<li><code>setup-macos.sh</code> — macOS (Homebrew + Xcode CLT)</li>
+<li><code>setup-debian.sh</code> — Debian, Ubuntu, Linux Mint, Pop!_OS, etc. (apt)</li>
+<li><code>setup-arch.sh</code> — Arch, CachyOS, Manjaro, EndeavourOS, etc. (pacman)</li>
+<li><code>setup-fedora.sh</code> — Fedora, CentOS Stream, RHEL, Rocky, AlmaLinux, etc. (dnf)</li>
+<li><code>setup-gentoo.sh</code> — Gentoo (emerge)</li>
+<li><code>setup-nixos.sh</code> — NixOS (nix-env + guidance for declarative)</li>
+<li><code>setup-tinycore.sh</code> — TinyCore Linux (tce-load, minimal)</li>
+<li><code>setup-alpine.sh</code> — Alpine Linux (apk)</li>
+<li><code>setup-opensuse.sh</code> — openSUSE, SLE (zypper)</li>
+<li><code>setup-void.sh</code> — Void Linux (xbps)</li>
+<li><code>setup-freebsd.sh</code> — FreeBSD and similar BSDs (pkg)</li>
+<li><code>setup-windows.sh</code> — Windows bash environments (Git Bash, MSYS, Cygwin, WSL) — strongly recommends WSL + debian script</li>
+</ul>
+<h2>Usage</h2>
+<pre><code class="language-bash"># From a repository checkout on a Debian-based system (or in Docker)
+./setup/os/setup-debian.sh --minimal --verify
+</code></pre>
+<p>After running, follow the printed &quot;Runnable forms&quot; at the end.</p>
+<p>The root setup detects the platform, installs the selected dependency profile,
+builds every public binary, and prints the runnable forms. Optional Python
+packages such as matplotlib are reported but never installed implicitly.</p>
+<p>For Docker testing (as originally suggested):</p>
+<pre><code class="language-bash">docker run -it -v &quot;$PWD:/workspace&quot; -w /workspace debian bash -c \
+  &#39;apt-get update &amp;&amp; apt-get install -y sudo curl &amp;&amp; ./setup/os/setup-debian.sh&#39;
+</code></pre>
+<p>The platform entrypoints require the surrounding repository because they invoke
+<code>../../setup.sh</code>; use a source checkout or source release, not a copied script.</p>

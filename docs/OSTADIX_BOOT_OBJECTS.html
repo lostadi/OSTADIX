@@ -1,0 +1,88 @@
+<h1>OSTADIX boot object contract</h1>
+<p>The OSTADIX workstation ISO admits the exact staged Git tree as a read-only,
+content-addressed boot object set. This is the release boundary for the phrase
+&quot;all of Ostadix-lang is available in the boot&quot;: it does not mean that generated
+<code>target/</code> files, <code>.git</code>, caches, or untracked workstation files are copied into
+the image.</p>
+<h2>Exact inclusion boundary</h2>
+<p>The release orchestrator runs <code>git write-tree</code>, creates a deterministic archive
+of that tree, and rejects tracked worktree drift before the Linux guest builds
+anything. Every regular blob in that archive is present in both forms:</p>
+<ul>
+<li>at its original path below <code>/usr/src/ostadix</code>, for normal source-oriented
+tools; and</li>
+<li>once by raw SHA-256 below
+<code>/usr/share/ostadix/boot-objects/v1/objects/sha256</code>, with every Git path and
+executable mode bound through <code>index.bin</code>.</li>
+</ul>
+<p>The index binds the staged tree and base commit, both Git blob SHA-1 and raw
+SHA-256 identities, logical and deduplicated byte counts, and a domain-separated
+root digest. Paths, records, and bindings are canonically ordered. The builder
+rejects symbolic links, hard links, special files, unsafe paths, unsupported Git
+modes, oversized blobs, and count or byte-limit violations.</p>
+<p>The copy below <code>/usr/src/ostadix</code> is verified against the same bindings during
+the boot gate. Thus the convenient source view cannot silently diverge from the
+content-addressed object view.</p>
+<p>Both views reside in the digest-bound read-only workstation SquashFS. The small
+bootstrap initramfs verifies that root by byte count and SHA-256, mounts it
+through a read-only loop device, and creates a volatile tmpfs overlay before
+<code>switch_root</code>. Before readiness, stage-two init self-bind-mounts both
+<code>/usr/src/ostadix</code> and <code>/usr/share/ostadix/boot-objects/v1</code>, remounts each bind
+read-only, checks the live mount flags, and proves direct writes fail. Runtime
+work belongs below <code>/workspace</code>, volatile <code>/tmp</code>, or the overlay. This
+establishes the default live-system posture; it is not an adversarial guarantee
+against privileged root deliberately changing mounts.</p>
+<h2>First-class operations</h2>
+<p>The released lowercase CLI exposes the store without granting it execution
+authority:</p>
+<pre><code class="language-text">o object root
+o object list [PREFIX]
+o object stat PATH
+o object get PATH [OUTPUT]
+o object verify
+</code></pre>
+<p><code>root</code>, <code>list</code>, and <code>stat</code> are typed inspection operations. <code>get</code> materializes
+one admitted blob after identity verification. <code>verify</code> checks the complete
+index and object closure. Version 1 deliberately has no execute operation:
+being present in the Git tree is not itself permission to run a file.</p>
+<h2>Runnable and bootable roles</h2>
+<p>Runnable products are separately built from the same staged tree and installed
+under <code>/usr/local/bin</code>; their exact size and SHA-256 identities are recorded in
+the release receipt. The combined ISO has 14 separately typed artifacts: four
+Hosted components, direct O-core, the capacity-host kernel/initramfs, direct
+Alpine initramfs, Guix kernel/initramfs/ISO, OpenBSD ISO, 9front qcow2, and Redox
+ISO. Hosted, O-core, and Alpine are direct routes; the four foreign systems are
+explicit nested QEMU/TCG routes. The hosted entry names the rootfs and modloop
+as kernel arguments; neither is another GRUB initrd.
+Rust, Cargo, <code>rust-wasm</code>, the <code>wasm32-wasip1</code> standard library, the Alpine
+package manager, build tools, <code>wasm-tools</code>, Wasmtime, and the offline Cargo
+source closure are workstation capabilities, not evidence that every source
+blob is executable.
+The separately admitted <code>/usr/share/ostadix/wasm/hello.wasm</code> is paired with a
+read-only release descriptor. That descriptor binds the exact staged
+<code>examples/wasm_hello.O</code> input,
+installed <code>olangc</code>, generated Cargo-project closure, fixed offline build
+profile, and final module identity. Boot regenerates the project through MCP
+without Cargo, verifies the descriptor/module, and independently compiles a
+small Rust/WASI probe. It then executes the admitted module under Wasmtime and
+runs a <code>webassembly^</code> O object through WAT conversion and Wasmtime. These are
+derived-object, runtime, and toolchain proofs; they do not grant execution
+authority to arbitrary source objects.</p>
+<p>O-core remains a freestanding kernel with its own implemented boundary. Its menu
+entry does not turn the hosted Linux userspace, Cargo, APK, or graphical desktop
+into native O-core facilities.</p>
+<p>The foreign guest images are typed combined-ISO artifacts, not blobs from the
+staged-tree CAS. Their independent pinned-download provenance is receipt-bound.
+Embedding and menu routing do not turn them into native O-core facilities.</p>
+<h2>Evidence boundary</h2>
+<p>The automated release proves exact staged-tree inclusion, object-store closure,
+the verified SquashFS handoff, seven-entry/14-artifact structural admission,
+x86_64 Hosted binary and APK execution, Rust/Cargo operation, graphical QEMU
+input, and direct O-core selection under OVMF/QEMU TCG with a 4 GiB regression
+bound. Those gates do not by themselves prove execution of direct Alpine or the
+four nested foreign routes, their package managers or GUIs, Secure Boot,
+persistence, Ventoy 1.1.17 boot, or arbitrary physical hardware support.
+The hook-compatible marker, minimal <code>dm-mod.ko</code> SquashFS, and bounded
+BusyBox-label discovery are implementation properties, not hardware evidence.
+Physical boot is recorded separately because only a real machine can establish
+it.</p>

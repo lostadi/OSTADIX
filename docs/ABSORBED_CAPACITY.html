@@ -1,0 +1,266 @@
+<h1>Absorbed-capacity package manager</h1>
+<p><code>scripts/ostadix_capacity.py</code> is the host-side package manager for exact OS,
+kernel, userspace, firmware, and bundle artifacts. It turns verified artifact
+bytes into installed capacity and commits exact package closures into a
+revisioned active generation.</p>
+<p>The manager is Python standard-library only. It does not invoke Cargo, QEMU,
+GRUB, an ISO builder, a decompressor, a signature verifier, or a foreign guest.</p>
+<h2>Meaning of absorbed capacity</h2>
+<p>The manager keeps three states separate:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Installed</td>
+<td>Exact bytes and their immutable package record exist in the local stores.</td>
+</tr>
+<tr>
+<td>Active</td>
+<td>An exact dependency closure is named by the current revisioned generation.</td>
+</tr>
+<tr>
+<td>Qualified</td>
+<td>A separate exact-package observation established a named evidence contract.</td>
+</tr>
+</tbody></table>
+<p>Version 1 installs and activates. It does not produce qualification records.
+Every generated activation therefore has an empty <code>qualified_packages</code> set.
+Foreign-kernel-lab observations and catalog integrity notes are not silently
+promoted into package qualification.</p>
+<p>An active package is descriptive capacity. It is not an O capability bearer,
+an authority grant, a successful boot, or proof of O-core governance.</p>
+<h2>Package kinds</h2>
+<p>The catalog schema admits exactly five kinds:</p>
+<ul>
+<li><code>kernel</code>: a kernel image or kernel artifact set.</li>
+<li><code>userspace</code>: an initramfs, root filesystem, or userspace artifact set.</li>
+<li><code>firmware</code>: firmware bytes; firmware packages cannot depend on other kinds in v1.</li>
+<li><code>os</code>: a boot-oriented system or an exact composition of kernel, userspace,
+firmware, and bundle packages.</li>
+<li><code>bundle</code>: a metadata composition that can collect packages of any kind.</li>
+</ul>
+<p>Every dependency states its expected kind. Catalog admission and activation
+both reject kind mismatches, incompatible architectures, cycles, and an OS
+loader that disagrees with its kernel dependency. Architectures are exact
+except for the explicit <code>any</code> value.</p>
+<p>Supported loader labels are <code>none</code>, <code>linux</code>, <code>multiboot2</code>, <code>uefi</code>, <code>bios</code>,
+<code>plan9</code>, <code>redox</code>, and <code>chainload</code>. A loader label describes compatibility. It
+does not assert that this manager has built or tested a boot path.</p>
+<h2>Strict catalog contract</h2>
+<p>The catalog schema is <code>ostadix.absorbed-capacity-catalog/v1</code>. Unknown fields,
+missing fields, duplicate identifiers, alias collisions, invalid tokens, and
+unsupported enum values are rejected. Important v1 bounds include:</p>
+<ul>
+<li>catalog bytes: 1 MiB;</li>
+<li>packages per catalog: 512;</li>
+<li>artifacts per package: 64;</li>
+<li>dependencies per package: 64;</li>
+<li>aliases per package: 32;</li>
+<li>packages per activation closure: 1,024;</li>
+<li>bytes per artifact: 64 GiB;</li>
+<li>persisted record or plan bytes: 2 MiB.</li>
+</ul>
+<p>Each artifact binds:</p>
+<pre><code class="language-toml">[[packages.artifacts]]
+id = &quot;media&quot;
+role = &quot;install-media&quot;
+filename = &quot;install79.iso&quot;
+source = &quot;https://cdn.openbsd.org/pub/OpenBSD/7.9/amd64/install79.iso&quot;
+size_bytes = 798625792
+sha256 = &quot;7a4a92e953618035097c796a90b54424a0f3ae775552e1e7d102cf8a5130449f&quot;
+integrity = &quot;Official published artifact identity.&quot;
+</code></pre>
+<p><code>source</code> may be a local path, a local <code>file:</code> URL, or an HTTPS URL. Source
+location and human-readable integrity text are provenance, not package
+identity. Artifact role, filename, exact size, and SHA-256 are part of package
+identity.</p>
+<h2>Identities and immutable storage</h2>
+<p>Package, plan, and generation identities use separate domain strings and
+canonical sorted JSON encodings. A package identity binds:</p>
+<ul>
+<li>schema, semantic name, version, kind, architecture, and loader;</li>
+<li>license and redistribution policy;</li>
+<li>exact artifact hashes, lengths, roles, and filenames;</li>
+<li>exact dependency package digests and expected kinds.</li>
+</ul>
+<p>Aliases and download URLs are excluded. Changing an alias or mirror therefore
+cannot change an already planned or active package.</p>
+<p>The state root contains:</p>
+<pre><code class="language-text">absorbed-capacity/
+├── capacity-blobs/sha256/&lt;raw-sha256&gt;
+├── capacity-packages/sha256/&lt;package-digest&gt;.json
+├── capacity-generations/sha256/&lt;generation-digest&gt;.json
+├── aliases.json
+├── head.json
+└── state.lock
+</code></pre>
+<p>Local sources are opened as descriptor-pinned, non-symlink regular files.
+HTTPS redirects must remain HTTPS. Data is read in bounded chunks while SHA-256
+and byte length are checked. Candidates are staged in the destination
+directory, fsynced, changed to mode <code>0444</code>, and published using an atomic
+same-filesystem no-clobber hard link. Existing objects are accepted only after
+full identity verification.</p>
+<p>Package and generation records use the same no-clobber immutable publication
+rule. Mutable aliases and the activation head use same-directory temporary
+files, fsync, and atomic replacement.</p>
+<h2>Aliases are not authority</h2>
+<p>An exact reference has the form:</p>
+<pre><code class="language-text">sha256:&lt;64 lowercase hexadecimal digits&gt;
+</code></pre>
+<p>Anything else is treated as an alias. Alias resolution occurs while creating a
+plan, and the plan stores only exact package digests. <code>apply</code> never resolves an
+alias again. Moving <code>kernel/current</code> after a plan is created cannot change that
+plan&#39;s closure.</p>
+<p>Package ids and catalog aliases are installed automatically. Repointing an
+existing alias requires <code>install --replace-alias</code>. Alias records do not grant a
+capability and are not activation records.</p>
+<h2>Transaction model</h2>
+<p><code>plan</code> performs these steps:</p>
+<ol>
+<li>Resolve roots and any license acceptances to exact installed package digests.</li>
+<li>Read the current activation revision.</li>
+<li>Rebuild and validate the dependency DAG from immutable package records.</li>
+<li>Produce a lexicographically sorted exact closure and a deterministic
+dependency-first activation order.</li>
+<li>Bind the plan to <code>base_revision</code> with its own domain-separated digest.</li>
+</ol>
+<p><code>apply</code> revalidates the plan, closure, licenses, immutable package records, and
+every artifact blob. It then creates an immutable generation and commits it
+only if <code>head.revision == plan.base_revision</code>. A stale writer fails without
+changing the head.</p>
+<p>The commit increments the revision, makes the new generation current, and
+retains the old current generation as previous. <code>rollback</code> atomically swaps
+current and previous and increments the revision again. Repeated rollback can
+therefore toggle between the two retained generations.</p>
+<h2>License checks</h2>
+<p>Every package names a bounded license identifier and one redistribution policy:</p>
+<ul>
+<li><code>permitted</code>;</li>
+<li><code>restricted</code>;</li>
+<li><code>user-supplied</code>.</li>
+</ul>
+<p>Restricted and user-supplied packages must set <code>requires_acceptance = true</code>.
+They can be installed, but a plan containing them requires explicit acceptance
+of the exact package reference:</p>
+<pre><code class="language-sh">python3 scripts/ostadix_capacity.py \
+  --state /path/to/state \
+  plan os/private \
+  --accept-license sha256:EXACT_PACKAGE_DIGEST \
+  --output /tmp/private-plan.json
+</code></pre>
+<p>Acceptance is transaction input. It is not qualification and does not grant
+runtime authority.</p>
+<h2>Commands</h2>
+<p>The central <code>o</code> dispatcher routes this tool. The direct Python entrypoint
+remains useful when selecting an isolated test state:</p>
+<pre><code class="language-sh">CAPACITY_STATE=&quot;$PWD/.local-capacity&quot;
+CATALOG=&quot;$PWD/evidence/absorbed_capacity_catalog.toml&quot;
+
+python3 scripts/ostadix_capacity.py \
+  --state &quot;$CAPACITY_STATE&quot; --catalog &quot;$CATALOG&quot; \
+  inspect openbsd-7.9-amd64-install
+
+# Equivalent default-state front door:
+o capacity inspect openbsd-7.9-amd64-install
+</code></pre>
+<p>Install from the catalog&#39;s pinned HTTPS sources:</p>
+<pre><code class="language-sh">python3 scripts/ostadix_capacity.py \
+  --state &quot;$CAPACITY_STATE&quot; --catalog &quot;$CATALOG&quot; \
+  install openbsd-7.9-amd64-install
+</code></pre>
+<p>Install the same package from an already downloaded local file without changing
+its package identity:</p>
+<pre><code class="language-sh">python3 scripts/ostadix_capacity.py \
+  --state &quot;$CAPACITY_STATE&quot; --catalog &quot;$CATALOG&quot; \
+  install openbsd-7.9-amd64-install \
+  --source media=/path/to/install79.iso
+</code></pre>
+<p>For dependency closures with repeated artifact ids, qualify an override as
+<code>PACKAGE/ARTIFACT=SOURCE</code>.</p>
+<p>Create and apply a revision-bound plan:</p>
+<pre><code class="language-sh">python3 scripts/ostadix_capacity.py \
+  --state &quot;$CAPACITY_STATE&quot; --catalog &quot;$CATALOG&quot; \
+  plan os/openbsd-7.9-amd64 --output /tmp/openbsd-plan.json
+
+python3 scripts/ostadix_capacity.py \
+  --state &quot;$CAPACITY_STATE&quot; \
+  apply /tmp/openbsd-plan.json
+</code></pre>
+<p>Inspect local state:</p>
+<pre><code class="language-sh">python3 scripts/ostadix_capacity.py --state &quot;$CAPACITY_STATE&quot; list
+python3 scripts/ostadix_capacity.py --state &quot;$CAPACITY_STATE&quot; show os/openbsd-7.9-amd64
+python3 scripts/ostadix_capacity.py --state &quot;$CAPACITY_STATE&quot; status
+python3 scripts/ostadix_capacity.py --state &quot;$CAPACITY_STATE&quot; verify
+python3 scripts/ostadix_capacity.py --state &quot;$CAPACITY_STATE&quot; rollback
+python3 scripts/ostadix_capacity.py --state &quot;$CAPACITY_STATE&quot; gc --dry-run
+</code></pre>
+<p>All command results are JSON. Errors are written to stderr and return status 2.</p>
+<p><code>gc</code> is deliberately report-only in v1. It lists orphan blobs and generations
+outside current/previous retention, but never deletes them. Every installed
+package remains retained even when inactive.</p>
+<h2>Initial catalog</h2>
+<p><code>evidence/absorbed_capacity_catalog.toml</code> binds repository-pinned artifacts
+already used by the foreign-kernel lab where a direct source is available:</p>
+<ul>
+<li>Alpine Linux 3.24.1 aarch64 kernel, initramfs, and their OS composition;</li>
+<li>Alpine Linux 3.24.1 x86_64 kernel plus matching virt modloop, initramfs,
+and their OS composition;</li>
+<li>FreeBSD 15.1-RELEASE aarch64 compressed boot-only installer;</li>
+<li>9front build 11983 amd64 compressed qcow2;</li>
+<li>GNU Guix System 1.5.0 x86_64 ISO and detached-signature bytes;</li>
+<li>Redox OS 0.9.0 x86_64 compressed livedisk;</li>
+<li>OpenBSD 7.9 amd64 <code>install79.iso</code>;</li>
+<li>a metadata-only bundle of the x86_64 foreign systems.</li>
+</ul>
+<p>The OpenBSD record uses the official release artifact:</p>
+<pre><code class="language-text">source: https://cdn.openbsd.org/pub/OpenBSD/7.9/amd64/install79.iso
+size:   798625792 bytes
+sha256: 7a4a92e953618035097c796a90b54424a0f3ae775552e1e7d102cf8a5130449f
+</code></pre>
+<p>Guix is described precisely: the system is Guile-defined and
+Guile-orchestrated, while Linux-libre is its kernel. It is not described as a
+Lisp-implemented kernel.</p>
+<h3>Generated capacity-host initramfs</h3>
+<p>The capacity-host initramfs is derived output rather than an upstream immutable
+release artifact. The committed catalog therefore does not bind a transient
+build hash. V1 still supports installing it locally once the exact derived
+bytes have been admitted:</p>
+<ol>
+<li>Build the initramfs from the pinned base inputs and the QEMU package closure
+resolved from the configured Alpine v3.24 repositories. The resolved package
+list is retained inside the initramfs, but v1 does not pre-pin every APK in
+that closure.</li>
+<li>Compute its exact byte length and SHA-256.</li>
+<li>Create a private strict catalog entry with <code>kind = &quot;userspace&quot;</code>, those exact
+values, and a local source path.</li>
+<li>Install it directly or use <code>--source ARTIFACT=/path/to/initramfs</code> to override
+only the source location of that exact record.</li>
+</ol>
+<p>The source override never overrides size or digest. A rebuilt capacity-host
+initramfs with different bytes is a new package identity and must receive a new
+catalog record. This keeps derived local capacity usable without pretending
+that today&#39;s build output is a reproducible release pin.</p>
+<h2>Verification and nonclaims</h2>
+<p>Run the focused offline suite with:</p>
+<pre><code class="language-sh">python3 -m unittest -v tests.test_ostadix_capacity
+</code></pre>
+<p>The suite uses temporary state roots and local files. HTTPS behavior is tested
+through a mocked byte stream, with no network or media download. It covers
+tampering, immutable idempotence, bounded streaming, stale plans, rollback,
+alias movement, cycle/type/architecture/loader rejection, license acceptance,
+schema limits, and non-destructive GC.</p>
+<p>This v1 does not:</p>
+<ul>
+<li>decompress compressed media;</li>
+<li>verify detached cryptographic signatures itself;</li>
+<li>build or modify a bootable ISO;</li>
+<li>boot any package under QEMU, O-core, or physical hardware;</li>
+<li>import foreign-kernel observations as qualification;</li>
+<li>mint capabilities or grant authority;</li>
+<li>delete objects during garbage collection;</li>
+<li>resolve versions or fetch a mutable remote package index.</li>
+</ul>

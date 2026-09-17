@@ -73,6 +73,10 @@ pub(crate) fn encode_message<T: Serialize>(message: &T) -> Result<Vec<u8>> {
     crate::canonical_cbor::encode(message)
 }
 
+pub(crate) fn encoded_message_len<T: Serialize>(message: &T) -> Result<usize> {
+    crate::canonical_cbor::encoded_len(message)
+}
+
 pub(crate) fn decode_message<T: DeserializeOwned>(payload: &[u8]) -> Result<T> {
     crate::canonical_cbor::decode(payload)
 }

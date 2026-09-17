@@ -1,0 +1,14 @@
+# Ten dependency-ordered JavaScript operations in one O evaluator and one
+# persistent native `O --o-backend javascript` proxy. That proxy still launches
+# a fresh Node.js subprocess for each operation; the benchmark makes that cost
+# visible instead of claiming a persistent JavaScript isolate.
+let n0 = javascript[0]^(console.log(1);)_javascript[0]
+let n1 = javascript[0]^(console.log(n0 + 1);)_javascript[0]
+let n2 = javascript[0]^(console.log(n1 + 1);)_javascript[0]
+let n3 = javascript[0]^(console.log(n2 + 1);)_javascript[0]
+let n4 = javascript[0]^(console.log(n3 + 1);)_javascript[0]
+let n5 = javascript[0]^(console.log(n4 + 1);)_javascript[0]
+let n6 = javascript[0]^(console.log(n5 + 1);)_javascript[0]
+let n7 = javascript[0]^(console.log(n6 + 1);)_javascript[0]
+let n8 = javascript[0]^(console.log(n7 + 1);)_javascript[0]
+javascript[0]^(console.log(n8 + 1);)_javascript[0]

@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run tests
+        run: npm test
+
+      - name: Audit runtime dependency surface
+        run: npm audit --omit=dev --offline --audit-level=high --no-fund
+
+      - name: Validate manifest and runtime allowlist
+        run: node scripts/validate.mjs
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            case "$file" in
+              ""|\#*) continue ;;
+              *.js) node --check "$file" ;;
+            esac
+          done < scripts/runtime-files.txt
+          node --check scripts/validate.mjs
+
+      - name: Check shell syntax
+        if: runner.os != 'Windows'
+        run: bash -n scripts/setup.sh scripts/package-extension.sh
+
+      - name: Exercise Unix installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_path="$RUNNER_TEMP/chatprint/extension"
+          scripts/setup.sh --install-dir "$install_path" --no-open
+          scripts/setup.sh --install-dir "$install_path" --no-open
+          node scripts/validate.mjs --root "$install_path"
+          printf '\n// force a managed update in CI\n' >> "$install_path/shared.js"
+          scripts/setup.sh --install-dir "$install_path" --no-open
+          find "$RUNNER_TEMP/chatprint" -maxdepth 1 -type d -name 'extension.backup-*' -print -quit | grep -q .
+          foreign_path="$RUNNER_TEMP/foreign/extension"
+          mkdir -p "$foreign_path"
+          if scripts/setup.sh --install-dir "$foreign_path" --no-open; then
+            echo "installer replaced a foreign directory" >&2
+            exit 1
+          fi
+
+      - name: Exercise Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $InstallPath = Join-Path $env:RUNNER_TEMP "chatprint\extension"
+          ./scripts/setup.ps1 -InstallDir $InstallPath -NoOpen
+          ./scripts/setup.ps1 -InstallDir $InstallPath -NoOpen
+          node ./scripts/validate.mjs --root $InstallPath
+          Add-Content -LiteralPath (Join-Path $InstallPath "shared.js") -Value "`n// force a managed update in CI"
+          ./scripts/setup.ps1 -InstallDir $InstallPath -NoOpen
+          $Backups = @(Get-ChildItem -LiteralPath (Split-Path -Parent $InstallPath) -Directory -Filter "extension.backup-*")
+          if ($Backups.Count -lt 1) { throw "Managed install was not backed up" }
+          $ForeignPath = Join-Path $env:RUNNER_TEMP "foreign\extension"
+          New-Item -ItemType Directory -Path $ForeignPath -Force | Out-Null
+          try {
+            ./scripts/setup.ps1 -InstallDir $ForeignPath -NoOpen
+            throw "Installer replaced a foreign directory"
+          }
+          catch {
+            if ($_.Exception.Message -eq "Installer replaced a foreign directory") { throw }
+          }
+
+      - name: Confirm checks leave the repository clean
+        shell: bash
+        run: git diff --check && test -z "$(git status --short)"
+
+  package:
+    name: Package extension
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Build and inspect extension archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/inspect
+          scripts/package-extension.sh --output dist/chatprint-extension.zip
+          (cd dist && sha256sum -c chatprint-extension.zip.sha256)
+          unzip -q dist/chatprint-extension.zip -d dist/inspect
+          node scripts/validate.mjs --root dist/inspect
+          test -f dist/chatprint-extension.zip.sha256
+          test ! -e dist/inspect/node_modules
+          test ! -e dist/inspect/tests
+          test ! -e dist/inspect/.git
+
+      - name: Upload extension archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: chatprint-extension-${{ github.sha }}
+          path: |
+            dist/chatprint-extension.zip
+            dist/chatprint-extension.zip.sha256
+          if-no-files-found: error
+          retention-days: 14

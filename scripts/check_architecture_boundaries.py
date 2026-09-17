@@ -62,6 +62,12 @@ DEFAULT_MANIFEST_RELATIVE = Path("ci/architecture-roots.toml")
 
 RULES = (
     Rule(
+        ("src/cancellation.rs",),
+        (),
+        "cooperative cancellation must remain independent of runtime consumers",
+        allowed_modules=(),
+    ),
+    Rule(
         ("src/parser.rs",),
         ("execution_contract", "ir", "registry"),
         "syntax must depend only on its narrow dialect projection, not the execution contract, IR, or the executable registry",
@@ -208,7 +214,7 @@ RULES = (
             "world",
         ),
         "the graph-evaluation contract must remain independent of evaluator and executor realizations",
-        ("backend_catalog", "backend_morphism", "capability", "evidence", "execution_contract", "ir", "value"),
+        ("backend_catalog", "backend_morphism", "cancellation", "capability", "evidence", "execution_contract", "ir", "value"),
     ),
     Rule(
         EXECUTOR_RUNTIME_PATHS,

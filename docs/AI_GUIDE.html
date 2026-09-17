@@ -1,0 +1,230 @@
+<h1>Ostadix-lang for AI Agents</h1>
+<p>This guide is written for AI coding agents (LLMs, autonomous agents, and
+tooling that generates or executes code) that want to use Ostadix-lang as a
+primary language for solving tasks. It is intentionally concise, exact, and
+machine-oriented. The authoritative semantics live in <a href="../SPEC.md">SPEC.md</a>.</p>
+<h2>Why O is a good agent language</h2>
+<ul>
+<li><strong>One program, many runtimes.</strong> Each <code>LANG^( ... )_LANG</code> block is executed by
+that language&#39;s real backend (CPython, Bash, SQLite, rustc, Node.js, ...).
+An agent can pick the best tool per subtask without glue scripts.</li>
+<li><strong>Deterministic value boundary.</strong> Every block returns an OValue, a typed,
+JSON-serializable canonical value. No stringly-typed parsing between steps.</li>
+<li><strong>Machine-readable CLI.</strong> <code>--json</code>, <code>--check</code>, and <code>--eval</code> give agents
+structured results, structured errors, and a no-execution validation path.</li>
+<li><strong>Homoiconicity.</strong> <code>quote^</code> captures code as data; <code>O.eval</code> evaluates it,
+so agents can generate, inspect, and run O programs from within O.</li>
+</ul>
+<h2>The agent workflow</h2>
+<h3>Through MCP</h3>
+<p>Write one complete <code>.O</code> computation and call <code>o_execute</code>:</p>
+<pre><code class="language-json">{&quot;source&quot;:&quot;python^( __oval_result__ = sum(x*x for x in range(10)) )_python&quot;}
+</code></pre>
+<p>Supply exactly one <code>source</code> or <code>path</code>. Existing <code>.O</code> files, project directories,
+and linked project bundles use <code>path</code>; <code>cwd</code> supplies the working directory for
+relative filesystem access. Source text is passed literally and uses the same
+O syntax and registered backends as a file.</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>action: &quot;execute&quot;</code> (default)</td>
+<td>Execute using the native interpreter or project runtime</td>
+</tr>
+<tr>
+<td><code>action: &quot;check&quot;</code></td>
+<td>Parse ordinary O without executing; this does not check backend health or establish admission</td>
+</tr>
+<tr>
+<td><code>action: &quot;plan&quot;</code></td>
+<td>Inspect the static program/project plan</td>
+</tr>
+<tr>
+<td><code>action: &quot;compile&quot;, target: &quot;dot&quot;</code></td>
+<td>Return the native compiler&#39;s graph output in the retained stdout log</td>
+</tr>
+<tr>
+<td><code>action: &quot;compile&quot;, target: &quot;binary&quot;, output: &quot;app&quot;</code></td>
+<td>Produce the requested executable relative to <code>cwd</code></td>
+</tr>
+<tr>
+<td><code>mode: &quot;admitted&quot;</code> with ordinary execution</td>
+<td>Analyze and bind the source/intent internally, then require fresh native admission</td>
+</tr>
+<tr>
+<td><code>route: &quot;secondary&quot;</code> with a project</td>
+<td>Select a native route or route-set for execute, plan, or IR/DOT; marked operations select their own routes</td>
+</tr>
+<tr>
+<td><code>node: &quot;my-node&quot;</code> with ordinary execution</td>
+<td>Send the complete document to one authenticated node through native <code>octl</code>; no local fallback</td>
+</tr>
+</tbody></table>
+<p><code>placement: &quot;auto&quot;</code> uses local HGraph for ordinary O and the existing
+mesh-prefer policy for projects. <code>placement: &quot;local&quot;</code> requests local dispatch.
+<code>placement: &quot;mesh-required&quot;</code> requires a supported project and successful native
+remote placement; it never silently becomes local success. Arbitrary ordinary
+O graph distribution is not implemented by this MCP projection.</p>
+<p>Selected-node execution is distinct from project mesh. <code>node</code> accepts ordinary
+execution in direct mode and rejects explicit placement, workers, stdin, and
+project routes. <code>cwd</code>/<code>env</code> configure the local client only. Its response
+preserves the native hosted V1 receipt and typed value; background receipts
+remain in job output. Cancelling the client does not cancel remote effects.
+Unknown completion must not be retried automatically. Native hosted protocol
+source/output and IO/publication deadlines still apply; see the
+<a href="../mcp/ostadix_lang_mcp_server/README.md#complete-document-execution-on-a-selected-node">MCP guide</a>.</p>
+<p>The result preserves the runtime&#39;s JSON value/error object and managed job
+evidence. Project execution returns its native summary and run references;
+foreground calls also retrieve the exact run record and decoded value when
+available. Marked operation directories retain their own planner under auto.
+Large output remains complete in paged logs when it exceeds the inline result
+budget; follow <code>result_retrieval</code> with <code>o_job_read</code>.
+Read the returned status and errors: a plan or job ID does not prove execution.
+Use <code>background: true</code> for long work and the existing <code>o_job_*</code> tools to follow
+it. Compiler and admitted inline operations use server-owned source snapshots
+retained through job completion; callers do not manage temporary source files.</p>
+<p>Use <code>o_capabilities</code> and <code>o_guide</code> when additional capabilities are needed.
+<code>o_cli</code> retains full native arguments for route policies, compiler options, placement
+administration and other expert operations. <code>o_eval</code>, <code>o_run</code>, <code>o_olangc</code>, and
+the explicit intent tools keep their existing contracts.</p>
+<h3>Through the CLI</h3>
+<ol>
+<li><strong>Generate</strong> a <code>.O</code> program (or an inline expression).</li>
+<li><strong>Validate</strong> it without executing: <code>O --check --json program.O</code>.<ul>
+<li>Success: exit 0, stdout <code>{&quot;ok&quot;:true,&quot;stage&quot;:&quot;parse&quot;,...}</code>.</li>
+<li>Failure: exit 1, stdout <code>{&quot;ok&quot;:false,&quot;stage&quot;:&quot;parse&quot;,&quot;error&quot;:&quot;Line N: ...&quot;}</code>.</li>
+<li>Error messages include line numbers; fix and re-check.</li>
+</ul>
+</li>
+<li><strong>Run</strong> it with structured output: <code>O --json program.O</code>.<ul>
+<li>Success: exit 0, stdout <code>{&quot;ok&quot;:true,&quot;value&quot;:&lt;OValue&gt;,&quot;type&quot;:&quot;&lt;type&gt;&quot;,&quot;elapsed_ms&quot;:N}</code>.</li>
+<li>Failure: exit 1, stdout <code>{&quot;ok&quot;:false,&quot;stage&quot;:&quot;eval&quot;,&quot;error&quot;:&quot;...&quot;}</code>
+(a human-readable copy also goes to stderr).</li>
+</ul>
+</li>
+<li>For quick one-shot computations, skip the file: <code>O --json -e &#39;&lt;source&gt;&#39;</code>.</li>
+</ol>
+<p>The JSON object is always a single line on stdout, so it can be parsed with
+any JSON parser without scraping logs. Program-level prints from blocks (for
+example Bash stdout) become the block&#39;s <em>value</em>, not loose terminal noise.</p>
+<h2>Core syntax rules (the parts agents get wrong)</h2>
+<ol>
+<li><strong>Opener and closer must match exactly.</strong>
+<code>python^( ... )_python</code>, <code>python[0]^( ... )_python[0]</code>,
+<code>bash^( ... )_bash</code>. A mismatched or missing closer is a parse error.</li>
+<li><strong>Python blocks return via <code>__oval_result__</code>.</strong><pre><code class="language-O">python^(
+__oval_result__ = sum(x*x for x in range(10))
+)_python
+</code></pre>
+</li>
+<li><strong><code>$name</code> is an O binding reference everywhere</strong>, including inside Python
+and Bash bodies. Declare with <code>let</code>:<pre><code class="language-O">let answer = python^(
+__oval_result__ = 40 + 2
+)_python
+
+bash^(
+echo &quot;the answer is $answer&quot;
+)_bash
+</code></pre>
+To pass a literal <code>$</code> to the target language (for example shell <code>$PATH</code>),
+escape it: <code>\$PATH</code>.</li>
+<li><strong>Persistent environments are explicit.</strong> <code>python[0]^</code> blocks share one
+long-lived interpreter (imports and variables survive across blocks);
+bare <code>python^</code> blocks each get a fresh process.</li>
+<li><strong>Only registered language tags open a block.</strong> <code>2 ^ (x+1)</code> inside a
+Python body is ordinary Python, not an O expression. See SPEC.md section 6
+for the full tag table (<code>python</code>/<code>py</code>, <code>bash</code>, <code>shell</code>, <code>sql</code>, <code>rust</code>,
+<code>javascript</code>, <code>java</code>, <code>cpp</code>, <code>csharp</code>, <code>haskell</code>, <code>ruby</code>, <code>ocaml</code>, <code>racket</code>,
+<code>lisp</code>, <code>common_lisp</code>, <code>matlab</code>, <code>mathematica</code>, <code>webassembly</code>, <code>nix</code>,
+<code>html</code>, <code>markdown</code>/<code>md</code>, <code>latex</code>/<code>tex</code>, <code>text</code>/<code>plain</code>, <code>O</code>, <code>quote</code>).</li>
+<li><strong>Sequencing:</strong> wrap multiple steps in <code>O^( ... )_O</code>; it evaluates children
+in order and returns the last non-null value.</li>
+<li><strong>Escapes:</strong> <code>\LANG^(</code> and <code>\)_LANG</code> produce literal text instead of
+opening/closing an expression.</li>
+</ol>
+<h2>Recipes</h2>
+<p>Compute in Python, format in Markdown:</p>
+<pre><code class="language-O">let total = python^(
+__oval_result__ = 6 * 7
+)_python
+
+markdown^(The **total** is $total.)_markdown
+</code></pre>
+<p>Persistent SQL session across blocks:</p>
+<pre><code class="language-O">O^(
+sql[0]^(CREATE TABLE t(x INTEGER); INSERT INTO t VALUES (1),(2),(3);)_sql[0]
+sql[0]^(SELECT SUM(x) FROM t;)_sql[0]
+)_O
+</code></pre>
+<p>Generate code as data, then evaluate it (use a persistent <code>[n]</code> Python
+environment for <code>O.eval</code>):</p>
+<pre><code class="language-O">let q = quote^(python^(2 + 2)_python)_quote
+
+python[0]^(
+__oval_result__ = O.eval($q)
+)_python[0]
+</code></pre>
+<h2>CLI reference for agents</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+<th>Exit code</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>O program.O</code></td>
+<td>Run; human-readable result on stdout</td>
+<td>0 / non-zero</td>
+</tr>
+<tr>
+<td><code>O --json program.O</code></td>
+<td>Run; one-line JSON result or error on stdout</td>
+<td>0 / 1</td>
+</tr>
+<tr>
+<td><code>O --check program.O</code></td>
+<td>Parse-only validation; prints <code>ok</code></td>
+<td>0 / non-zero</td>
+</tr>
+<tr>
+<td><code>O --json --check program.O</code></td>
+<td>Parse-only validation with JSON verdict</td>
+<td>0 / 1</td>
+</tr>
+<tr>
+<td><code>O --eval &#39;&lt;src&gt;&#39;</code> / <code>O -e &#39;&lt;src&gt;&#39;</code></td>
+<td>Evaluate inline source (combinable with <code>--json</code>)</td>
+<td>0 / 1</td>
+</tr>
+<tr>
+<td><code>O --executor serial|graph program.O</code></td>
+<td>Select execution engine (default: graph)</td>
+<td>0 / non-zero</td>
+</tr>
+</tbody></table>
+<p>Flags may be combined and must precede the input file or inline source.</p>
+<h2>OValue in JSON output</h2>
+<p><code>--json</code> serializes the result using the OValue wire format, a tagged object
+under the <code>&quot;value&quot;</code> key, e.g. <code>{&quot;t&quot;:&quot;number&quot;,&quot;v&quot;:{&quot;kind&quot;:&quot;int&quot;,&quot;v&quot;:&quot;4&quot;}}</code>,
+<code>{&quot;t&quot;:&quot;text&quot;,&quot;v&quot;:{...}}</code>, <code>{&quot;t&quot;:&quot;bool&quot;,&quot;v&quot;:true}</code>, or <code>null</code>. The top-level
+<code>&quot;type&quot;</code> field carries the short type name (<code>number</code>, <code>text</code>, <code>list</code>, <code>map</code>,
+<code>html</code>, ...). See SPEC.md section 3 for the complete OValue catalogue.</p>
+<h2>Failure handling guidance</h2>
+<ul>
+<li>Treat <code>&quot;stage&quot;:&quot;parse&quot;</code> errors as syntax bugs in the generated program:
+the message includes a line number; regenerate or patch and re-run
+<code>--check</code> before executing.</li>
+<li>Treat <code>&quot;stage&quot;:&quot;eval&quot;</code> errors as runtime failures (backend missing, target
+language exception, non-zero exit). The error string embeds the backend&#39;s
+diagnostic output.</li>
+<li>Missing toolchains: hosted backends shell out to real interpreters and
+compilers. If <code>rust^</code> fails because <code>rustc</code> is absent, either install the
+toolchain or solve the subtask in an available language such as <code>python^</code>
+or <code>bash^</code>.</li>
+</ul>

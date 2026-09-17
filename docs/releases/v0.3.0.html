@@ -1,0 +1,130 @@
+<h1>Ostadix-lang v0.3.0</h1>
+<ul>
+<li>Release date: 2026-08-17</li>
+<li>Release tag: <code>v0.3.0</code></li>
+<li>Release-preparation base: <code>81af8fae988d3ba80546aa43b585736b3b85b03a</code></li>
+</ul>
+<p>The annotated tag, rather than the preparation-base commit above, identifies
+the final release revision.</p>
+<p>Ostadix-lang v0.3.0 is an advanced systems-research release of the hosted
+polyglot runtime, typed evidence/admission pipeline, local Information
+substrate, bounded native O-core implementation, and compatibility-preserving
+public workspace facade. It is not a production release and does not qualify
+the separate OSTADIX Alpha system release.</p>
+<h2>Included claims</h2>
+<ul>
+<li>The root <code>o-lang</code> package remains the authoritative runtime and command
+package. The new <code>ostadix-api</code> workspace member is a narrow, explicit public
+facade with an owned runtime and a closed <code>OValue</code> payload vocabulary.</li>
+<li>Backend Catalog V5 binds optional Backend Morphism V1 profiles for all 30
+canonical backends. Python, JavaScript, and Rust retain shadow-only profiles;
+the other 27 entries explicitly have none. Archival Catalog V4 identities
+remain frozen.</li>
+<li>Graph V2 binds the complete typed fidelity assessment. Evidence and
+Admission V6 are current for unversioned analysis, coordinator/evaluator
+execution, CLI/MCP inspection, and Placement Admission V2.</li>
+<li>Execution Intent V1 remains explicitly bound to Graph V1 plus Catalog V5.
+Graph V1, Evidence/Admission V5, Schedule Why V1, and prepared-fragment V1
+remain archival inspection surfaces; there is no silent V5-to-V6 uplift.</li>
+<li>Durable Hosted V2 roots carry the package-0.3 execution-authority marker.
+Markerless pre-0.3 roots, V1 prepared fragments, and signed leases carrying
+V1 placement-admission digests are rejected before current dispatch rather
+than migrated or relabeled.</li>
+<li>Information Bridge V1 exposes eight explicit, lossy, bounded native metadata
+projections. Its records use private canonical-CBOR wire mirrors, have no
+generic Serde/JSON wire surface, and do not mint evidence, admission,
+capability, dispatch, trust, freshness, or resolver authority.</li>
+<li><code>o-info head</code> uses an existing-root, lock-free reader. MCP
+<code>o_information_inspect</code> invokes only the fixed local command with bounded
+argv, timeout, concurrent pipe limits, a cleared environment, strict
+sanitized output, and no logical state mutation.</li>
+<li>The manifest-governed production root DAG validates 149 production files,
+40 roots, and 174 explicit cross-root edges, including physical source
+overrides, compiled fragments, facade projections, layer descent, and
+multi-root cycle rejection.</li>
+<li>O-core x86-64 asynchronous returns preserve arithmetic status flags while
+projecting away hazardous user control flags. The mode-0 evidence binds
+syscall FMASK entry behavior while leaving capacity-tight probe modes free of
+that diagnostic cost.</li>
+<li>O-core M6A smoke failures can capture bounded QMP scheduler/thread/frame/RPC
+diagnostics only after a failure verdict is frozen. This does not change the
+guest runtime or convert the QEMU gate into hardware evidence.</li>
+<li>The release source builder produces a deterministic, allowlisted ZIP from an
+exact Git revision with a canonical manifest, checksums, link closure, and
+archive self-verification.</li>
+<li>Publication requires the tag-triggered Required CI aggregate, including all
+required portable QEMU gates declared by <code>evidence/gates.toml</code>, to succeed.</li>
+</ul>
+<h2>Explicit nonclaims</h2>
+<ul>
+<li>This release is not production-ready and does not stabilize every public
+item exposed by the root research crate. The narrower <code>ostadix-api</code> facade is
+the intended public workspace surface.</li>
+<li>It is not OSTADIX Alpha qualification. The separate G0-G13 registry and its
+dependency rules remain authoritative for that name.</li>
+<li>It does not establish a live distributed World, replicated Governor,
+WorldFS, network discovery, scheduler-selected placement, or physical
+multinode HGraph execution.</li>
+<li>Hosted Placement V6 remains a bounded direct-node preview, not World
+membership, general graph migration, production enrollment/key management,
+or global exactly-once execution.</li>
+<li>Information bridge records are descriptive metadata. Supplier-decoded
+records are untrusted; HGraph/Evidence metadata projection digests are not
+native graph/bundle identities; Hosted self-signature consistency is not
+signer trust, chain continuity, or currentness.</li>
+<li>The Information reader&#39;s tested no-mutation boundary covers logical content,
+inode, mode, and mtime. Atime and concurrent hostile ancestor replacement
+are outside Information Reader V1.</li>
+<li>Backend Morphism V1 profiles remain inspection-only shadow records, not
+enforced universal semantic-preservation proofs.</li>
+<li>The C17 and Python editions implement documented subsets and are not
+feature-identical to the authoritative Rust runtime.</li>
+<li>QEMU TCG and OVMF evidence is not physical-machine, KVM, physical-device,
+DMA/IOMMU, hardware-isolation, or arbitrary-topology evidence.</li>
+<li>Supplemental hardware-dependent gates remain outside the required portable
+release aggregate.</li>
+</ul>
+<h2>Version coordinates</h2>
+<ul>
+<li>Package: <code>0.3.0</code></li>
+<li>Minimum Rust: <code>1.93.1</code></li>
+<li>Release toolchain: <code>1.97.1</code></li>
+<li>Execution intent: <code>oexec.execution-intent/v1</code> (Graph V1, Catalog V5)</li>
+<li>Solved executable graph: <code>ostadix-solved-executable-hgraph/v2</code></li>
+<li>Evidence: <code>oexec.evidence/v6</code></li>
+<li>Admission: <code>oexec.admission/v6</code></li>
+<li>Schedule explanation: <code>oexec.schedule-explanation/v2</code>;
+<code>oexec.admission-why/v2</code></li>
+<li>Placement-admission digest: <code>ostadix/placement-admission/v2</code></li>
+<li>Backend catalog: <code>ostadix.backend-catalog/v5</code></li>
+<li>Backend morphism: <code>ostadix.backend-morphism/v1</code>, shadow-only</li>
+<li>Hosted transport: <code>ostadix.hosted-transport/v1</code> and
+<code>ostadix.hosted-transport/v2</code>; package-0.3 durable-state authority:
+<code>ostadix.hosted-state-authority/v1</code></li>
+<li>Information kernel: <code>ostadix.information/v1</code></li>
+<li>Information native bridge: <code>ostadix.information-bridge/v1</code></li>
+<li>World wire family: V1 offline records</li>
+</ul>
+<p>Matching version numbers across these axes do not imply compatibility or
+authority.</p>
+<h2>Source asset and verification</h2>
+<p>The canonical source asset is generated from the annotated tag:</p>
+<pre><code class="language-bash">mkdir -p dist
+python3 scripts/build_source_release.py \
+  --ref v0.3.0 \
+  --output dist/Ostadix-lang-source-v0.3.0.zip
+python3 scripts/build_source_release.py \
+  --verify dist/Ostadix-lang-source-v0.3.0.zip
+shasum -a 256 dist/Ostadix-lang-source-v0.3.0.zip
+</code></pre>
+<p>The GitHub release must record:</p>
+<ul>
+<li>the exact peeled tag commit;</li>
+<li>the successful tag-triggered Required CI run;</li>
+<li>the source-archive SHA-256 printed by the builder;</li>
+<li>the verified source ZIP generated by the tag workflow.</li>
+</ul>
+<p>The existing DOI <code>10.5281/zenodo.21544345</code> remains the preferred citation for
+the preprint/package. No top-level source-release DOI is claimed here. A
+separate version-specific DOI may be added only after Zenodo archives the
+published tagged release.</p>

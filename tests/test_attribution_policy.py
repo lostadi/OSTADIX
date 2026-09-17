@@ -65,6 +65,17 @@ class AttributionPolicyTests(unittest.TestCase):
     def test_project_author_metadata_is_clean(self) -> None:
         self.assertEqual(project_metadata_violations(), [])
 
+    def test_agent_session_trailers_are_rejected(self) -> None:
+        violations = commit_violations(
+            commit(message="Fix runtime\n\nAgent-Logs-Url: https://example.invalid/session\n")
+        )
+        self.assertEqual([item.field for item in violations], ["agent-logs-url trailer"])
+
+    def test_copilot_identity_is_rejected_but_tool_documentation_is_allowed(self) -> None:
+        self.assertTrue(contains_forbidden_identity("GitHub Copilot <copilot@github.com>"))
+        self.assertTrue(contains_forbidden_identity("copilot[bot]"))
+        self.assertEqual(commit_violations(commit(message="Document Copilot integration")), [])
+
     def test_revision_spec_uses_policy_boundary_for_missing_or_zero_base(self) -> None:
         self.assertEqual(
             revision_spec(None, "HEAD", fallback_base=LEGACY_POLICY_BASELINE),

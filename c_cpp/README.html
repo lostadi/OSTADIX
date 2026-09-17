@@ -1,0 +1,120 @@
+<h1>O-lang — C edition (easy native build)</h1>
+<p>Pure C17 implementation of the O-lang meta-language runtime and <code>olangc</code> AOT compiler.</p>
+<blockquote>
+<p><strong>Every expression carries its own interpreter as part of its syntax.</strong></p>
+</blockquote>
+<p>This edition requires only a C compiler (<code>cc</code> / <code>clang</code> / <code>gcc</code>) and <code>make</code>. No Rust, no CMake for the common path.</p>
+<h2>Quickstart</h2>
+<pre><code class="language-bash">cd c_cpp
+
+# Build interpreter + compiler (one command)
+make
+
+# Run a program (python^ blocks use the shared ../backends/*.py shims)
+./O ../examples/hello.O ../backends
+# → 2
+
+./O ../examples/html_basic.O ../backends
+# output contains: &lt;p&gt;The answer is 42.&lt;/p&gt;
+
+# AOT compile to an application bundle (hello + hello.shims/)
+mkdir -p /tmp/hello-c17
+./olangc ../examples/hello.O -o /tmp/hello-c17/hello
+/tmp/hello-c17/hello
+# → 2
+
+# The produced binary is native C code; it still needs python3 (and nix if your
+# .O program uses nix^) on the machine where you *run* it — exactly like a
+# program that calls out to Python.
+</code></pre>
+<h2>Easy compile</h2>
+<ul>
+<li><code>make</code> — builds <code>O</code> and <code>olangc</code></li>
+<li><code>make clean</code></li>
+<li><code>make test</code> — runs the manifest-selected C17 interpreter examples</li>
+<li><code>make olangc-test</code> — runs the manifest-selected C17 AOT examples</li>
+<li><code>make path-test</code> — proves AOT paths and <code>CC</code> are passed literally, without a shell</li>
+<li><code>make warnings-as-errors</code> — clean-builds and tests native plus generated C with <code>-Werror</code></li>
+<li><code>make run EX=html_basic</code> — quick run of an example</li>
+</ul>
+<p>The active implementation is built from the C17 <code>.c</code> files in <code>src/</code> plus <code>.h</code> headers in <code>include/</code>. The Makefile is deliberately simple (no subdirs, no generated build system); CMake builds the same C17 implementation for users who prefer it.</p>
+<h2>What works</h2>
+<ul>
+<li>Full typed-paren grammar (<code>LANG^( ... )_LANG</code>, <code>[n]</code> envs, <code>{lazy}/{defer}</code>, <code>let</code>, <code>$var</code>, calls)</li>
+<li><code>html^</code>, <code>markdown^</code>/<code>latex^</code>/<code>text^</code> structural rendering</li>
+<li><code>python^</code> via the real <code>python_shim.py</code> (persistent envs, <code>__oval_result__</code>, trailing expressions, stdout capture)</li>
+<li>Basic builtins: <code>now()</code>, <code>lazy()</code>, <code>instantiate()</code>, <code>realise()</code>, <code>activate()</code>, <code>current_system()</code>, <code>autonomous()</code></li>
+<li>Nix rung (when <code>nix</code> is in PATH)</li>
+<li>Shebang stripping</li>
+<li><code>olangc</code> AOT that produces a native executable plus a required per-executable <code>&lt;name&gt;.shims/</code> directory</li>
+</ul>
+<p>See <code>SPEC.md</code> (in repo root) for the language specification.</p>
+<h2>Requirements</h2>
+<ul>
+<li>C17 compiler + make (macOS: Xcode Command Line Tools; Linux: gcc/clang + make)</li>
+<li><code>python3</code> (for any <code>python^</code> / <code>py^</code> blocks)</li>
+<li>Optional: <code>nix</code> (for <code>nix*</code> examples and the four-rung lattice)</li>
+</ul>
+<h2>olangc (AOT)</h2>
+<p><code>olangc</code> turns a <code>.O</code> file into an application bundle containing:</p>
+<ul>
+<li>a native executable with the O-lang C evaluator and your program source compiled in</li>
+<li>a required sibling <code>&lt;executable&gt;.shims/</code> directory containing the backend scripts</li>
+</ul>
+<pre><code class="language-bash">mkdir -p build/myprog
+./olangc myprog.O -o build/myprog/myprog
+build/myprog/myprog
+</code></pre>
+<p><code>olangc</code> launches the compiler directly with a POSIX argv vector. <code>CC</code> may be
+an executable name or path (including spaces and shell metacharacters), but is
+not parsed as shell text and must not contain command-line flags. Use
+<code>OLANGC_WARNINGS_AS_ERRORS=1</code> to compile the generated runtime with <code>-Werror</code>.</p>
+<p>The bundle has <strong>no dependency on the <code>olangc</code> tool or source tree</strong> at runtime,
+but copying the executable without its matching <code>&lt;executable&gt;.shims/</code> directory
+is unsupported and backend execution exits nonzero. The shim directory name is
+derived from the executable&#39;s resolved path, so separately named binaries in one
+directory retain independent backend assets.</p>
+<h2>Layout</h2>
+<pre><code>c_cpp/
+├── Makefile          # the easy build
+├── include/          # public + internal C headers
+│   ├── value.h
+│   ├── parser.h
+│   ├── process.h
+│   ├── eval.h
+│   ├── scheduler.h
+│   └── nix_ops.h
+├── src/
+│   ├── value.c       # OValue + 4-byte length-prefixed canonical CBOR wire (core)
+│   ├── parser.c      # typed-paren parser + AST
+│   ├── process.c     # shim subprocess mgmt + 4-byte length-prefixed canonical CBOR IPC
+│   ├── eval.c        # leaves-up evaluator, splice, structural backends, render_child
+│   ├── scheduler.c   # (serial for MVP) autonomous + disk cache
+│   ├── nix_ops.c     # instantiate / realise / activate
+│   ├── nixos_ops.c   # NixOS-related operations
+│   ├── main.c        # the `O` interpreter
+│   └── olangc.c      # the AOT compiler
+├── legacy_cpp/       # historical obsolete C++ prototype (not built)
+└── README.md         # this file
+</code></pre>
+<h2>Adding a language (for hackers)</h2>
+<ol>
+<li>Add the tag to the registered list in <code>main.c</code> / <code>olangc</code> generated mains.</li>
+<li>Implement a <code>_shim.py</code> (or native executable) speaking the 4-byte length-prefixed canonical CBOR protocol.</li>
+<li>Add a <code>render_*</code> case in <code>eval.c</code> if the language needs special <code>render_child</code> rules.</li>
+<li>For structural behaviour (like <code>O</code> / <code>quote</code>), handle in <code>eval_typed_expr</code>.</li>
+</ol>
+<p>See the Python reference implementation and <code>backends/</code> for examples.</p>
+<h2>Status &amp; limitations</h2>
+<ul>
+<li>Matches the core of the Rust edition for the documented examples.</li>
+<li>Basic quote values and scalar <code>O.eval</code> callbacks may work, but explicit
+<code>OScope</code> callback transport is not implemented. The full <code>meta_eval.O</code>
+round-trip is therefore not a supported C17 example and is excluded from
+the C17 manifest corpus.</li>
+<li>Stub shims (bash, rust, racket, shell) return the code text as a string (same as other editions).</li>
+<li>Some advanced scheduler / concurrent Nix behaviour is serial in this port.</li>
+<li>See root <code>SPEC.md</code> and <code>README.md</code> for the full feature set and known limitations.</li>
+</ul>
+<h2>License</h2>
+<p>Research scaffolding. Use it, extend it, break it.</p>

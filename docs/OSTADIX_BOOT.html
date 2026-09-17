@@ -1,0 +1,988 @@
+<h1>OSTADIX Alpha x86_64 UEFI boot media</h1>
+<p>This guide covers the implemented OSTADIX Alpha boot containers. Every path is
+<strong>x86_64 UEFI only</strong>:</p>
+<ul>
+<li>a deterministic raw GPT disk image with one EFI System Partition for the
+freestanding O-core kernel;</li>
+<li>a deterministic ISO9660 image with an El Torito UEFI no-emulation boot
+image for the freestanding O-core kernel; and</li>
+<li>a staged-tree-addressed combined OSTADIX ISO with Hosted Linux as its
+default, direct O-core and Alpine entries, and explicit nested QEMU/TCG
+entries for Guix, OpenBSD, 9front, and Redox.</li>
+</ul>
+<p>Each path validates its own bounded structure. The raw O-core and ordinary ISO
+paths boot their admitted artifact through OVMF/QEMU TCG. The combined ISO
+strictly admits all 14 artifacts, while its current automated gates execute
+Hosted and O-core only. Only the raw GPT image participates in
+the capacity-bound external-device writer on macOS or Linux. For a larger raw
+target, the planner relocates the backup GPT to the target&#39;s final LBA without
+enlarging or moving the admitted ESP. Both ISO forms remain read-only optical
+artifacts and are not accepted by the raw removable-media writer. The combined
+ISO uses the separate guarded Ventoy file-copy workflow.</p>
+<p>The current automated evidence is virtual. Building an image, passing an
+OVMF/QEMU smoke, or writing/copying bytes to removable media does <strong>not</strong>
+establish that those exact bytes booted a physical machine. Mode 34 establishes
+one bounded four-vCPU SMP bring-up under QEMU/TCG; it does not make the general
+kernel SMP safe and does not establish physical SMP. One earlier CLI-only
+Hosted Live artifact has an operator-observed physical boot, but that result
+does not transfer to the newer workstation bytes.</p>
+<h2>Implemented raw disk image</h2>
+<p>The media builder produces:</p>
+<ul>
+<li>a protective MBR and mirrored primary/backup GPT;</li>
+<li>exactly one EFI System Partition, beginning at LBA 2048 and labeled
+<code>OSTADIX</code>;</li>
+<li>the removable-media fallback executable <code>/EFI/BOOT/BOOTX64.EFI</code>;</li>
+<li><code>/boot/kernel.elf</code>, built with <code>OCORE_PROBE_MODE=0</code>;</li>
+<li>an embedded GRUB configuration that selects the ESP by its deterministic
+FAT UUID and loads the kernel through Multiboot2; and</li>
+<li>deterministic disk and partition GUIDs derived from the ESP SHA-256 digest.</li>
+</ul>
+<p>The default output is:</p>
+<pre><code class="language-text">target/ostadix-media/x86_64/ostadix-x86_64-uefi.img
+</code></pre>
+<p>The default ESP is 64 MiB. The builder fixes FAT staging timestamps, retains
+<code>OSTADIX</code> as a descriptive FAT label, derives the FAT serial from the kernel
+and boot configuration, and defaults <code>SOURCE_DATE_EPOCH</code> to <code>315532800</code>.
+Determinism is claimed only for repeated builds under the same source,
+toolchain, inputs, and relevant environment. The smoke command tests two such
+local rebuilds byte for byte; it is not a cross-version GRUB or mtools
+reproducibility claim.</p>
+<h3>FAT boot-selection identity</h3>
+<p>The FAT serial is derived before the EFI executable is built. Let <code>K</code> be the
+exact <code>kernel.elf</code> bytes and <code>C</code> be the exact canonical <code>grub.cfg</code> template,
+including its single <code>@OSTADIX_FAT_UUID@</code> marker. The builder computes:</p>
+<pre><code class="language-text">H = SHA256(
+      &quot;OSTADIX/FAT-IDENTITY/V1\0&quot; ||
+      u64be(len(K)) || K ||
+      u64be(len(C)) || C
+    )
+</code></pre>
+<p>The first four bytes of <code>H</code>, interpreted as a big-endian integer, are the FAT
+volume serial; the otherwise possible zero value is mapped to one. GRUB&#39;s FAT
+UUID spelling renders the high and low 16-bit words, so serial <code>0x12345678</code> is
+rendered as <code>1234-5678</code>. The builder replaces the marker with that exact
+uppercase UUID, embeds the rendered configuration in <code>BOOTX64.EFI</code>, formats
+the ESP with the same serial, and checks the on-media FAT32 volume-ID field
+before packing GPT. The GRUB command is an exact
+<code>search --no-floppy --fs-uuid --set=root</code>; the common <code>OSTADIX</code> label no longer
+selects the boot filesystem.</p>
+<p>The template rather than the completed ESP is in the derivation because the
+completed ESP contains <code>BOOTX64.EFI</code>, which itself contains the derived UUID.
+Hashing the completed ESP would create a circular fixed-point requirement.
+The FAT serial is only a 32-bit locator, so it is deterministic but neither a
+cryptographic authenticator nor globally collision-free. Firmware with another
+attached FAT filesystem carrying the same serial may remain ambiguous; the
+automated smoke attaches one OSTADIX data disk. The image SHA-256 and
+digest-derived GPT GUIDs remain the stronger complete-image identities.</p>
+<h3>BootInfoV1 boundary</h3>
+<p><code>crates/ostadix-api/src/ocore/boot_info.rs</code> defines the architecture-neutral <code>BootInfoV1</code>
+contract and a strict, bounded Multiboot2 normalizer. It validates memory-map,
+module, ACPI RSDP, EFI, framebuffer, command-line, bootloader, serial, kernel
+span, CPU, and artifact-digest inputs; it reserves kernel, module, and
+framebuffer intersections before exposing usable memory.</p>
+<p>The x86_64 Multiboot2 entry now implements the corresponding bounded
+freestanding handoff. It copies admitted facts into kernel storage and chooses
+one largest fully covered, page-aligned allocator subwindow of at least 4 MiB
+inside 4--16 MiB. This is one bootstrap allocator window, not a general
+firmware-discovered physical-memory allocator or arbitrary-platform contract.</p>
+<h2>Prerequisites and setup</h2>
+<p>Run from the canonical repository:</p>
+<pre><code class="language-bash">export O_LANG_ROOT=/Users/ustad/Ostadix-lang
+export O_BACKENDS_DIR=&quot;$O_LANG_ROOT/backends&quot;
+export PATH=&quot;$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH&quot;
+cd &quot;$O_LANG_ROOT&quot;
+</code></pre>
+<p>The media setup profile includes the O-core profile and adds x86_64 EFI GRUB
+standalone and rescue-image builders, mtools, xorriso, and OVMF/edk2 firmware:</p>
+<pre><code class="language-bash">./setup.sh --with-ocore-media -y
+./setup.sh --with-ocore-media --check
+o kernel doctor-media
+</code></pre>
+<p>To install only dependencies and the managed environment, without building
+OSTADIX Alpha:</p>
+<pre><code class="language-bash">./setup.sh --with-ocore-media --deps-only -y
+</code></pre>
+<p>Automatic installation of this profile is currently validated only for
+macOS/Homebrew and Debian-family Linux. On another host, install the tools
+manually and use the non-installing <code>--check</code> command.</p>
+<p>The checked media prerequisites are:</p>
+<ul>
+<li>the ordinary O-core compiler/linker tools, including Clang, an
+LLD-compatible linker, ELF inspection tools, Python 3, and
+<code>qemu-system-x86_64</code>;</li>
+<li><code>x86_64-elf-grub-mkstandalone</code> or <code>grub-mkstandalone</code>;</li>
+<li><code>x86_64-elf-grub-mkrescue</code> or <code>grub-mkrescue</code>, plus its x86_64-efi platform
+directory;</li>
+<li><code>mformat</code> and <code>mcopy</code>;</li>
+<li><code>xorriso</code>;</li>
+<li><code>tar</code> for challenged committed-source snapshots; and</li>
+<li>an x86_64 OVMF/edk2 code image.</li>
+</ul>
+<p>The scripts search these firmware paths:</p>
+<pre><code class="language-text">/opt/homebrew/opt/qemu/share/qemu/edk2-x86_64-code.fd
+/usr/local/opt/qemu/share/qemu/edk2-x86_64-code.fd
+/usr/share/OVMF/OVMF_CODE.fd
+/usr/share/edk2/x64/OVMF_CODE.fd
+</code></pre>
+<p>If firmware is elsewhere, bind the exact file explicitly:</p>
+<pre><code class="language-bash">export OSTADIX_OVMF_CODE=/absolute/path/to/OVMF_CODE.fd
+</code></pre>
+<h2>Build and inspect</h2>
+<p>Build the default image:</p>
+<pre><code class="language-bash">o kernel media
+</code></pre>
+<p>Or choose one output path:</p>
+<pre><code class="language-bash">IMAGE=&quot;$O_LANG_ROOT/target/ostadix-media/x86_64/ostadix-alpha.img&quot;
+o kernel media &quot;$IMAGE&quot;
+</code></pre>
+<p>The command rejects more than one path. A successful build prints the resolved
+image path, total byte count, full-image SHA-256, ESP SHA-256, disk GUID,
+derived FAT UUID, and complete FAT-identity preimage SHA-256.
+Before reporting success, the builder invokes the strict inspector and requires
+its metadata to match the pack metadata.</p>
+<p>Inspect the default image:</p>
+<pre><code class="language-bash">o kernel inspect-media
+</code></pre>
+<p>Inspect an explicit image:</p>
+<pre><code class="language-bash">o kernel inspect-media &quot;$IMAGE&quot;
+</code></pre>
+<p>The inspector emits canonical JSON with schema <code>ostadix.boot-media/v1</code>. It
+checks the protective MBR, both GPT headers and CRCs, partition-table CRCs,
+fixed bounded geometry, exactly one ESP, the FAT-compatible boot signature,
+and digest-derived disk and partition GUIDs. It also reports:</p>
+<pre><code class="language-text">schema, bytes, sha256, disk_guid, partition_guid, esp_sha256,
+esp_bytes, esp_first_lba, esp_last_lba, sector_size
+</code></pre>
+<p>Inspection validates and hashes the bounded outer image. It does not provide a
+signature, Secure Boot chain, measured boot, or independent authentication of
+the producer.</p>
+<h2>Boot the exact disk and ISO under OVMF/QEMU</h2>
+<h3>Raw GPT disk</h3>
+<p>Interactive boot rebuilds the default image, attaches it read-only as a
+virtio block device, and starts x86_64 OVMF under QEMU/TCG:</p>
+<pre><code class="language-bash">o kernel boot-media
+</code></pre>
+<p>Exit the multiplexed serial monitor with <code>Ctrl-A X</code>.</p>
+<p>To select an explicit image path or firmware file:</p>
+<pre><code class="language-bash">OSTADIX_MEDIA_IMAGE=&quot;$IMAGE&quot; \
+OSTADIX_OVMF_CODE=/absolute/path/to/OVMF_CODE.fd \
+o kernel boot-media
+</code></pre>
+<p><code>boot-media</code> accepts no positional arguments. The image path is selected by
+<code>OSTADIX_MEDIA_IMAGE</code>; the command rebuilds that path before booting it.</p>
+<p>The interactive VM is deliberately narrow: QEMU TCG, <code>q35</code>, 128 MiB RAM,
+read-only pflash firmware, read-only disk media, <code>-nodefaults</code>, <code>-nic none</code>, no
+display, and the serial/monitor multiplexer on standard I/O. It does not use
+QEMU&#39;s <code>-kernel</code> shortcut.</p>
+<p>Run the automated media smoke with:</p>
+<pre><code class="language-bash">o kernel smoke-media
+</code></pre>
+<p>The smoke command:</p>
+<ol>
+<li>builds two images in separate build directories;</li>
+<li>requires the complete image bytes to be identical;</li>
+<li>strictly inspects the first image;</li>
+<li>requires both derivations to match and independently reads the exact ESP&#39;s
+FAT volume ID back from the built disk;</li>
+<li>boots it as a read-only disk through x86_64 OVMF and QEMU/TCG, thereby
+exercising the embedded <code>--fs-uuid</code> search; and</li>
+<li>requires these serial markers:</li>
+</ol>
+<pre><code class="language-text">O-core kernel: serial online
+page protections: W^X online
+CPL3 native[0]: online
+timer CPL3 return: online
+CPL3 heartbeat: online
+</code></pre>
+<p>The kernel is expected to remain alive, so the harness treats its bounded QEMU
+timeout as part of success after all markers appear. The default timeout is 12
+seconds and can be changed for a slow local TCG host:</p>
+<pre><code class="language-bash">OSTADIX_MEDIA_TIMEOUT_SECONDS=30 o kernel smoke-media
+</code></pre>
+<h3>Build, inspect, and boot the UEFI ISO</h3>
+<p>The ISO builder packages the mode-0 x86_64 kernel at <code>/boot/kernel.elf</code>, the
+exact committed ISO-specific GRUB configuration at <code>/boot/grub/grub.cfg</code>, and
+an embedded FAT EFI image containing <code>/EFI/BOOT/BOOTX64.EFI</code>. Unlike the raw
+disk configuration, the ISO configuration performs no FAT UUID search; GRUB
+loads the kernel directly from the mounted ISO filesystem.</p>
+<p>Build the default ISO:</p>
+<pre><code class="language-bash">o kernel iso
+</code></pre>
+<p>The default output is:</p>
+<pre><code class="language-text">target/ostadix-iso/x86_64/ostadix-x86_64-uefi.iso
+</code></pre>
+<p>Or build and inspect one explicit output path:</p>
+<pre><code class="language-bash">ISO=&quot;$O_LANG_ROOT/target/ostadix-iso/x86_64/ostadix-alpha.iso&quot;
+o kernel iso &quot;$ISO&quot;
+o kernel inspect-iso &quot;$ISO&quot;
+</code></pre>
+<p>The builder uses <code>grub-mkrescue</code> with an explicit x86_64-efi GRUB platform
+directory and a repository-owned xorriso canonicalization wrapper. It builds a
+private candidate, strictly inspects it, and only then atomically publishes the
+requested regular-file output. Source, build-directory, and output symlinks
+are rejected rather than followed. As with the raw disk, deterministic rebuild
+claims are limited to the same source, toolchain, inputs, and relevant
+environment; they are not a cross-version GRUB or xorriso guarantee.</p>
+<p>The wrapper replaces GRUB&#39;s wall-clock token exactly once in <code>efi.img</code>, the
+private <code>efi/boot/bootx64.efi</code>, and exactly one admitted auxiliary EFI layout:
+<code>boot.efi</code> or <code>System/Library/CoreServices/boot.efi</code>. It rejects both or neither
+layout and never scans or rewrites <code>/boot/kernel.elf</code> or arbitrary rescue-tree
+payloads.</p>
+<p><code>inspect-iso</code> emits canonical JSON with schema <code>ostadix.boot-iso/v1</code>. The
+strict inspector independently validates the ISO9660 volume, El Torito catalog
+checksum, exactly one UEFI platform <code>0xef</code> entry using no-emulation media, the
+embedded FAT EFI image, and <code>/EFI/BOOT/BOOTX64.EFI</code>. The EFI executable must
+have a PE signature, x86_64 COFF machine <code>0x8664</code>, PE32+ optional-header magic
+<code>0x20b</code>, EFI application subsystem <code>10</code>, and a nonzero entry point in a
+file-backed executable section. It also requires an executable x86_64 ELF at
+<code>/boot/kernel.elf</code>, at least one valid <code>PT_LOAD</code> segment, a file-backed
+executable entry point, and exactly one valid Multiboot2 header in the admitted
+header window. The exact committed ISO GRUB configuration is required, and the
+inspector reports hashes for the complete ISO, EFI boot image, EFI bootloader,
+kernel, and GRUB configuration. Structural admission and hashing do not
+authenticate the producer or establish a signing, Secure Boot, or measured
+boot chain.</p>
+<p>Interactive boot rebuilds and strictly inspects the selected ISO, then attaches
+those exact bytes as a read-only IDE CD-ROM behind read-only OVMF firmware:</p>
+<pre><code class="language-bash">o kernel boot-iso
+
+# Select a non-default output; boot-iso accepts no positional arguments.
+OSTADIX_ISO_IMAGE=&quot;$ISO&quot; o kernel boot-iso
+</code></pre>
+<p>Exit the multiplexed serial monitor with <code>Ctrl-A X</code>. The VM uses QEMU TCG,
+<code>q35</code>, 128 MiB RAM, firmware boot order <code>d</code>, <code>-nodefaults</code>, <code>-nic none</code>, and no
+QEMU <code>-kernel</code> shortcut.</p>
+<p>Run the automated ISO gate with:</p>
+<pre><code class="language-bash">o kernel smoke-iso
+</code></pre>
+<p>The gate builds two complete ISOs in separate kernel and container build
+directories, requires full byte identity, strictly inspects both, and requires
+the exact first ISO to be published with all write-permission bits cleared. It
+opens that ISO once without following links, hashes and validates the held
+descriptor, and gives QEMU an inherited descriptor for the same bytes as
+read-only CD media. It likewise descriptor-pins OVMF firmware as read-only
+media. The streamed validator requires the ordered kernel, W^X, CPL3, timer, and
+heartbeat markers, rejects fatal output, and then requires continued process
+liveness after the heartbeat for
+<code>min(1 second, timeout / 4)</code>. The configured timeout is the total deadline: the
+ordered markers and the complete post-heartbeat window must both finish before
+it. A positive deadline override must be supplied as:</p>
+<pre><code class="language-bash">OSTADIX_ISO_TIMEOUT_SECONDS=30 o kernel smoke-iso
+</code></pre>
+<p>This is deterministic-container and firmware-mediated boot evidence for one
+exact ISO under QEMU q35/OVMF/TCG. It is not physical-machine, KVM, SMP,
+Secure Boot, measured-boot, PCI, DMA, IOMMU, hardware-driver, installer,
+external-media-write, or release-qualification evidence.</p>
+<h3>Firmware handoff and challenged lifecycle gate</h3>
+<p>Run the stricter BootInfo gate with:</p>
+<pre><code class="language-bash">o kernel smoke-boot-info
+</code></pre>
+<p>This gate builds a challenged mode-33 image twice, requires byte-identical
+media, and boots it through GRUB and OVMF. The freestanding kernel accepts only
+a bounded Multiboot2 record (at most 64 KiB and 64 tags), validates a sorted
+non-overlapping memory map, records bounded ACPI/EFI status, selects one fully
+covered page-aligned allocator subwindow inside 4--16 MiB, and rejects modules.
+It copies the admitted facts into kernel storage and removes the temporary
+boot-information mapping before W^X and page-allocation checks.</p>
+<p>The same gate then boots a challenged ordinary mode-0 image. It requires the
+exact random challenge and clean Git commit to be echoed once and proves that
+the admitted allocator continues through CPL3 entry, timer return, and the
+CPL3 heartbeat. Its final positive and wrong-challenge negative checks use the
+same exact transcript grammar as the authority-free physical-observation
+tool.</p>
+<p>This is a bounded x86_64 OVMF/QEMU TCG handoff proof. It is not a general
+firmware allocator, ACPI table consumer, initrd loader, Secure Boot chain,
+physical-machine observation, or hardware trust result.</p>
+<h3>Bounded SMP bring-up gate</h3>
+<p>Run the exact four-vCPU positive and one-vCPU negative controls with:</p>
+<pre><code class="language-bash">o kernel smoke-smp
+</code></pre>
+<p>Mode 34 revalidates one exact four-CPU ACPI/MADT topology, validates PIT
+progress before startup, copies the admitted 0x8000 trampoline while it is
+RW/NX, changes it to R/X, and sends x2APIC INIT/SIPI to three APs. Once all APs
+have entered kernel RX text on distinct stacks, the BSP erases and unmaps the
+trampoline. Four unique APIC identities then cross one atomic release/progress
+barrier before a later PIT transition and heartbeat. The same challenged image
+under one vCPU must emit one rejection and none of the topology, startup, CPU,
+barrier, or heartbeat success markers.</p>
+<p>This gate is exactly QEMU q35/TCG + OVMF with four type-0, 8-bit APIC IDs. APs
+park after the barrier. It is not physical-machine evidence, arbitrary CPU
+topology, a general SMP scheduler, interrupt balancing, per-CPU allocation, or
+proof that existing process/IPC/syscall subsystems are SMP safe.</p>
+<h2>Combined staged-tree OSTADIX ISO</h2>
+<p>The Hosted Workstation release is a separate staged-index product. Its default
+name is:</p>
+<pre><code class="language-text">target/ostadix-hosted-live/x86_64/ostadix-hosted-live-x86_64-uefi-&lt;tree12&gt;_VTGRUB2.iso
+</code></pre>
+<p><code>&lt;tree12&gt;</code> identifies the first 12 hexadecimal characters of the exact staged
+Git tree. <code>_VTGRUB2.iso</code> selects Ventoy&#39;s GRUB2 handling path. The release is
+built in the Linux Multipass guest named <code>moral-gaur</code>, under a run-owned path,
+rather than compiling in the mounted macOS checkout.</p>
+<p>Review and stage only the intended source changes, then build and inspect the
+tree-addressed result:</p>
+<pre><code class="language-bash">git status --short
+git add -- &lt;reviewed-source-paths&gt;
+o kernel hosted-live-release
+
+HOSTED_LIVE_ISO=&#39;&lt;exact hosted-live-output path&gt;&#39;
+o kernel smoke-hosted-live &quot;$HOSTED_LIVE_ISO&quot;
+</code></pre>
+<p>Staging is neither committing nor pushing. The release orchestrator snapshots
+the index with <code>git write-tree</code>, rejects source drift, and uses that snapshot as
+the common identity for three different roles:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Boot representation</th>
+<th>Authority boundary</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Inspectable source</td>
+<td>Complete staged tree at <code>/usr/src/ostadix</code></td>
+<td>Excludes <code>.git</code>, <code>target/</code>, caches, and untracked files; boot self-bind-remounts this tree read-only and proves a write fails.</td>
+</tr>
+<tr>
+<td>First-class objects</td>
+<td>Read-only CAS at <code>/usr/share/ostadix/boot-objects/v1</code></td>
+<td><code>o object root/list/stat/get/verify</code> inspect or materialize verified bytes; boot remounts the tree read-only and v1 does not execute objects.</td>
+</tr>
+<tr>
+<td>Runnable products</td>
+<td>Admitted x86_64 executables at <code>/usr/local/bin</code></td>
+<td>Built separately from the same tree and individually receipt-bound by size and SHA-256.</td>
+</tr>
+<tr>
+<td>Derived O artifact</td>
+<td><code>/usr/share/ostadix/wasm/hello.wasm</code> plus <code>hello.release.json</code></td>
+<td>The descriptor binds the staged tree, O input, installed <code>olangc</code>, generated Cargo-project closure, fixed offline build profile, and module identity.</td>
+</tr>
+</tbody></table>
+<p>The 15 declared root products are <code>O</code>, <code>o-cli</code>, <code>olangc</code>, <code>ocorec</code>, <code>o-link</code>,
+<code>o-unlink</code>, <code>o-notebook</code>, <code>ogit</code>, <code>o-live-host</code>, <code>o-node</code>, <code>octl</code>,
+<code>o-registry</code>, <code>o-info</code>, <code>ostadix-device</code>, and <code>ocore-kernel-world-record</code>.
+<code>ostadix-mcp</code> is a sixteenth executable built from its separately locked MCP
+crate. The hosted workstation also contains <code>apk</code>, Rust, Cargo, rustfmt, Clippy, <code>rust-wasm</code>, the
+<code>wasm32-wasip1</code> standard library and WASI libc, Git, OpenSSL, Firefox ESR,
+xdg-open, and the C/C++ build tools. The zero-argument
+<code>o-notebook</code> honors the installed <code>O_BACKENDS_DIR</code>; the boot gate evaluates a
+Python-backed cell, and the graphical gate requires a real Firefox notebook
+window before declaring the Openbox desktop ready. A fresh isolated
+<code>o node start</code> must provision its OpenSSL PKI, publish listener readiness,
+report running status, and stop cleanly. The cross-architecture gate selects
+the explicit <code>--fresh-pki-key-algorithm ec-p256</code> profile, which avoids RSA
+prime-generation latency under TCG while retaining comparable classical
+security. Ordinary <code>o node start</code> remains RSA-3072 by default.</p>
+<p>The cross-architecture release harness bounds that one-time fresh provisioning
+to 900 seconds while preserving the node CLI&#39;s separate 30-second
+post-provisioning listener-readiness deadline. The full Hosted serial and
+graphical gates each remain fail-closed under a 1,800-second deadline; direct
+O-core keeps its independent 900-second maximum. The Hosted deadline can be
+lowered, but not raised beyond that ceiling, with
+<code>OSTADIX_HOSTED_LIVE_SMOKE_TIMEOUT</code>. Direct O-core uses the separate
+<code>OSTADIX_HOSTED_LIVE_OCORE_SMOKE_TIMEOUT</code> override. The host release
+orchestrator validates finite values and forwards both assignments explicitly
+through the Multipass boundary; ambient guest values cannot silently select the
+release policy.</p>
+<p>Before those products are built, the worker runs <code>cargo vendor --locked --versioned-dirs</code> for the root manifest and synchronizes
+<code>mcp/ostadix_lang_mcp_server/Cargo.toml</code>. Its canonical
+<code>ostadix.cargo-vendor-manifest/v1</code> binds both staged <code>Cargo.lock</code> files and a
+sorted <code>{path,bytes,sha256}</code> record for every vendored file. The currently
+observed closure has 285 package directories, 17,593 files, and 376,759,069
+payload bytes. Root, MCP, and O-core release builds use that source replacement
+with Cargo network access forced offline.</p>
+<p>The verified vendor tree is available in the boot at
+<code>/usr/share/ostadix/cargo/vendor</code>; its manifest is
+<code>/usr/share/ostadix/cargo/cargo-vendor-manifest.json</code>. The installed
+<code>/root/.cargo/config.toml</code> replaces crates.io with that absolute directory and
+sets Cargo offline. These counts bind the current pair of lockfiles rather than
+establishing a permanent count for future releases.</p>
+<p>The strict ISO closure has 14 artifacts: the Hosted LTS kernel, bootstrap
+initramfs, digest-bound <code>/boot/hosted/rootfs.squashfs</code>, and exact
+<code>/boot/modloop-lts</code>; the direct O-core kernel; the shared capacity-host kernel
+and initramfs; the direct Alpine initramfs; the Guix kernel, initramfs, and ISO;
+the OpenBSD ISO; the 9front qcow2; and the Redox ISO. The hosted entry pins both
+<code>rootfs_path</code> and <code>modloop_path</code>; GRUB passes
+them as <code>ostadix.rootfs=</code> and <code>modloop=</code> kernel arguments. Neither artifact is
+on GRUB&#39;s <code>initrd</code> line, which contains only the bootstrap cpio. Stage one
+discovers media with the <code>OSTADIX_CAPACITY</code> volume label, checks the independently
+embedded SquashFS byte count and SHA-256, attaches it read-only through loop,
+mounts it as SquashFS, constructs a volatile tmpfs overlay, moves the retained
+mounts under the new root, and invokes <code>switch_root</code>. It cannot enter the hosted
+gate script before those steps succeed. The package database, Rust/Cargo
+toolchain, Firefox/Openbox GUI, complete staged source, offline Cargo vendor
+closure, boot-object CAS, and installed Ostadix executables are all first-class
+contents of that verified root.</p>
+<p>For the Ventoy 1.1.17 Alpine hook contract, bootstrap init exposes the exact
+<code>ebegin &#39;Mounting boot media&#39;</code> / <code>eend 0</code> insertion marker. The separate minimal
+gzip SquashFS modloop contains the pinned LTS <code>dm-mod.ko</code>, and stage one requires
+<code>dm_mod</code> after the hook point. Media discovery is bounded to 30 one-second
+attempts. It invokes BusyBox-compatible <code>blkid &quot;$device&quot;</code> and parses the full
+output for an exact <code>LABEL=&quot;OSTADIX_CAPACITY&quot;</code> token; it expressly avoids the
+unsupported <code>blkid -s</code> and <code>blkid -o</code> forms.</p>
+<p>The boot gate separately checks the exact Rust/Cargo package versions, runs
+rustfmt and Clippy with warnings denied, and compiles and executes a
+dependency-free Rust program with <code>cargo run --offline</code>. It then launches the
+installed MCP server from <code>/workspace</code> and requires <code>o_olangc</code> to regenerate
+the exact no-build <code>wasm32-wasip1</code> Cargo project. The project closure must match
+the release descriptor, and the descriptor must bind the packaged
+<code>/usr/share/ostadix/wasm/hello.wasm</code> to the staged source and installed
+compiler. A separate live <code>rustc --target wasm32-wasip1</code> probe validates the
+installed Rust/WASI target and the resulting core-WASM envelope. The gate then
+executes the packaged Olangc module with Wasmtime and runs the installed
+<code>webassembly^</code> route through <code>wasm-tools parse</code> and Wasmtime. The expensive
+Olangc-generated WASI entrypoint retains OIR projection, evidence analysis, V6
+admission, schedule validation, and executable-lease checks, then selects the
+serial reference executor because WASI Preview 1 cannot create native worker
+threads. Native generated binaries remain graph-first. The module is compiled
+once during native release construction with Cargo offline, LTO disabled, and
+16 codegen units; it is not cold-compiled under nested x86 TCG at every boot.
+The MCP exchange also proves installed-root
+discovery, bundled search execution, and search-path rejection. Alpine v3.24 currently ships these
+commands from Rust 1.96.1 packages, while the staged
+<code>rust-toolchain.toml</code> pins 1.97.1 for canonical repository development. The
+complete pinned source and dual-lock vendor closure remain available, but the
+in-image gate is not a second full root-plus-MCP rebuild and does not claim the
+packaged compiler is byte-identical to the pinned 1.97.1 toolchain.</p>
+<p>The object index binds staged-tree and base-commit identities, path modes, Git
+blob SHA-1 values, raw SHA-256 values, logical and deduplicated byte counts, and
+a domain-separated root. The convenient source view is checked against the same
+bindings. See <a href="OSTADIX_BOOT_OBJECTS.md">OSTADIX_BOOT_OBJECTS.md</a> for the exact
+format and limits.</p>
+<h3>Combined ISO boot entries and gates</h3>
+<p>The strict ISO profile has exactly seven entries:</p>
+<ol>
+<li>Hosted Linux is first and default. Its small Alpine LTS bootstrap initramfs
+verifies and mounts the read-only SquashFS workstation root before launching
+the Openbox/Xterm desktop and local Firefox O-notebook. The resulting system
+exposes the staged source/object store, admitted Ostadix tools, Cargo, and
+<code>apk</code>.</li>
+<li>O-core loads <code>/boot/ocore/kernel.elf</code> directly with GRUB Multiboot2. It is a
+freestanding, serial-only kernel. It does not inherit Linux, X11, Cargo,
+<code>apk</code>, or the hosted source filesystem.</li>
+<li>Alpine Linux 3.24.1 loads its virt kernel and initramfs directly.</li>
+<li>GNU Guix System 1.5.0 launches through the shared Alpine capacity host under
+nested QEMU/TCG with its Linux-libre kernel, initramfs, and ISO.</li>
+<li>OpenBSD 7.9 launches its offline installer ISO through nested QEMU/TCG.</li>
+<li>9front build 11983 launches its qcow2 through nested QEMU/TCG.</li>
+<li>Redox OS 0.9.0 launches its server livedisk through nested QEMU/TCG.</li>
+</ol>
+<p>The release keeps their evidence independent. The hosted serial gate verifies
+the digest-bound SquashFS/tmpfs-overlay handoff, read-only source/CAS mounts,
+APK presence, O execution, Bash, SQLite, OIR generation,
+CLI/link operations, Rust, Cargo, rustfmt, Clippy, an offline Cargo hello,
+MCP-mediated exact Olangc project materialization, the source-bound packaged
+Olangc WASM module, its execution under Wasmtime, the O <code>webassembly^</code> backend,
+a live Rust/WASI compile, a fresh <code>o-node</code> lifecycle, a Python-backed O-notebook
+cell, all declared binaries, the complete staged source view, the MCP
+executable, and the boot object closure before <code>OSTADIX HOSTED LIVE READY</code>. A
+second OVMF/QEMU TCG boot starts Openbox, Firefox,
+O-notebook, and Xterm; requires the Firefox notebook window; rejects a black,
+unchanged, or insufficiently chromatic framebuffer; injects USB-keyboard input;
+and verifies the typed command over serial. A third gate selects the O-core
+entry and requires its ordered serial liveness markers. Passing one route does
+not stand in for another. These gates bind the whole ISO identity but do not
+select direct Alpine or the four nested guest routes. Release receipt v6 and
+boot-gates v6 require the exact 14-artifact closure. Serial result v4 and VGA
+result v7 repeat the exact inspected ISO byte count and SHA-256; O-core remains
+independently bound to those same bytes.
+Serial obtains its identity from the same pinned descriptor passed to QEMU;
+graphical and O-core hash their own held descriptors. A stale or mixed gate
+record therefore cannot be adopted as evidence for another ISO.</p>
+<p>The public <code>o kernel smoke-hosted-live</code> command is the corresponding aggregate
+re-smoke. It copies the selected regular non-symlink ISO into one private,
+read-only snapshot, then runs the serial, graphical, and direct O-core gates in
+that order against those same bytes. It rejects a failed child, malformed or
+unexpected result schema, changed snapshot, or any ISO/firmware identity
+disagreement and emits one <code>ostadix.hosted-live-qemu-smoke-all/v2</code> result. Its
+graphical monitor connect, command, response, keyboard, capture, quit, and
+success-exit operations all consume one absolute Hosted deadline rather than
+receiving a fresh relative socket timeout per operation.</p>
+<p>These are QEMU gates, not physical or Secure Boot proof. The ISO is unsigned,
+and its intended development path has Secure Boot disabled. The live root is a
+read-only SquashFS with a volatile tmpfs overlay; the release does not claim an
+installer, durable home directory, or durable package installation.</p>
+<p>The hosted QEMU gates deliberately retain 4 GiB of guest RAM as a regression
+bound for the split-root design. The large immutable filesystem stays on
+SquashFS media and is paged on demand rather than expanded into the initial
+rootfs; only writable overlay and build state consume tmpfs memory. This does
+not establish a physical RAM minimum.</p>
+<p>Guix, OpenBSD, 9front, and Redox are embedded as exact, typed guest artifacts
+with explicit menu routes. The shared Alpine capacity host launches them under
+nested QEMU/TCG; they are not direct GRUB kernels or personalities running
+inside O-core. Current combined-release gates do not execute those menu routes
+and therefore do not prove their package managers, GUIs, or Ventoy routing.</p>
+<h3>Physical-artifact distinction</h3>
+<p>The earlier CLI-only artifact remains a distinct operator-observed physical
+success:</p>
+<pre><code class="language-text">path:   target/ostadix-hosted-live/x86_64/ostadix-hosted-live-x86_64-uefi-12037d21a394_VTGRUB2.iso
+bytes:  80306176
+sha256: f25622d0e562ec5c95230653a1ab0e9edf65bb33b44750602b0d41237c44481b
+scope:  physical boot observed; CLI-only payload
+</code></pre>
+<p>That observation does not prove a later, larger workstation artifact. The
+workstation receipt remains <code>physical_hardware_proof:false</code> after its virtual
+gates and until the exact copied bytes are separately observed on the target
+machine.</p>
+<p>The previously retained 3,227,592,704-byte seven-entry attempt with SHA-256
+<code>247a51f296e8b07238df32870a44c2a582ff802daafab631be822ea0f4539c6e</code>
+passed an older serial gate but reproduced a black VGA screen. It remains a
+failure record, not boot evidence for the workstation or its individual menu
+entries.</p>
+<h3>Guarded Ventoy copy</h3>
+<p>The combined OSTADIX ISO uses a guarded file copy, not the raw GPT writer.
+Resolve the currently connected external whole disk and mounted Ventoy data
+volume immediately before preparing the operation:</p>
+<pre><code class="language-bash">VENTOY_DEVICE=/dev/diskN       # example only; replace with the live external disk
+VENTOY_VOLUME=/Volumes/Ventoy
+VENTOY_NAME=OSTADIX-Hosted-Workstation-x86_64-UEFI_VTGRUB2.iso
+
+o kernel prepare-ventoy \
+  --iso &quot;$HOSTED_LIVE_ISO&quot; --device &quot;$VENTOY_DEVICE&quot; \
+  --volume &quot;$VENTOY_VOLUME&quot; --name &quot;$VENTOY_NAME&quot;
+
+TOKEN=&#39;&lt;exact prepare-ventoy token&gt;&#39;
+o kernel install-ventoy \
+  --iso &quot;$HOSTED_LIVE_ISO&quot; --device &quot;$VENTOY_DEVICE&quot; \
+  --volume &quot;$VENTOY_VOLUME&quot; --name &quot;$VENTOY_NAME&quot; \
+  --confirm &quot;$TOKEN&quot;
+
+o kernel verify-ventoy \
+  --iso &quot;$HOSTED_LIVE_ISO&quot; --device &quot;$VENTOY_DEVICE&quot; \
+  --volume &quot;$VENTOY_VOLUME&quot; --name &quot;$VENTOY_NAME&quot;
+</code></pre>
+<p>Preparation is read-only. Installation re-identifies the same removable,
+writable target, copies through a private <code>.part</code> file or a guarded ExFAT
+fallback, synchronizes it, and verifies the complete ISO identity and structure.
+It never overwrites a divergent destination. Re-resolve the device after every
+disconnect; an old <code>/dev/diskN</code> value is not persistent device identity.
+Successful copy and digest verification, hook-compatible markers, and the
+minimal modloop do not prove that Ventoy or a physical firmware path can
+rediscover the ISO and mount its SquashFS root. That boot substrate remains
+unproven until the exact copied bytes are observed separately on hardware.</p>
+<h2>Prepare and write raw O-core removable media</h2>
+<p><strong>Writing is destructive. It replaces the target&#39;s partition-table authority,
+writes the admitted image body, retires the source backup GPT, and writes a new
+backup GPT at the selected whole device&#39;s end. There is no automatic backup or
+rollback. Keep the image on a different disk, verify the device identity
+yourself, and never use an internal or active system disk.</strong></p>
+<p>The public workflow is intentionally two-step. <code>prepare-write</code> does not write
+the device. It captures and validates one private image snapshot, probes one
+whole device, and derives an <code>ostadix.boot-media-target-plan/v2</code> document for
+that exact reported capacity. The target must be 512-byte aligned, at least as
+large as the canonical image, and no larger than the bounded 16 TiB v2 limit.</p>
+<p>The plan keeps the partition and ESP geometry fixed, updates the protective
+MBR and primary GPT for the target capacity, zeros the canonical image&#39;s now
+stale backup-GPT location, and places the replacement backup partition table
+and header at the target&#39;s final LBAs. Every range OSTADIX will mutate appears
+as an ordered, sector-aligned extent with its own SHA-256. Every gap appears in
+<code>unwritten_ranges</code> under the policy
+<code>preserve-unhashed-unverified-may-be-recoverable</code>.</p>
+<p><code>target_plan_sha256</code> is the authority for the proposed mutation: it binds the
+canonical source identity, exact target capacity and geometry, ordered extent
+descriptors and hashes, and explicit unwritten ranges. It is <strong>not</strong> a hash of
+the complete target device. <code>target_image_sha256</code> is populated only when every
+target byte is determined by the plan. It is therefore <code>null</code> for an ordinary
+larger sparse target. Bytes in <code>unwritten_ranges</code> are not erased, read-back
+verified, or authenticated; prior data there may remain recoverable. Treat the
+entire device as sensitive even after a successful write.</p>
+<p>Set an image and a deliberately incomplete placeholder device, then replace
+the placeholder only after checking the operating-system inventory:</p>
+<pre><code class="language-bash">IMAGE=&quot;$O_LANG_ROOT/target/ostadix-media/x86_64/ostadix-x86_64-uefi.img&quot;
+DEVICE=/dev/diskN  # macOS: replace N with the verified external whole disk
+</code></pre>
+<p>On Linux, use the verified removable or USB whole-disk path, such as a
+confirmed <code>/dev/sdX</code>; do not use a partition path. An internal NVMe device is
+rejected even when it is not the active root disk.</p>
+<p>Inspect the image again, then prepare the exact pairing:</p>
+<pre><code class="language-bash">o kernel inspect-media &quot;$IMAGE&quot;
+o kernel prepare-write --image &quot;$IMAGE&quot; --device &quot;$DEVICE&quot;
+</code></pre>
+<p>Review every returned field, especially <code>device</code>, <code>target_bytes</code>,
+<code>target_plan_sha256</code>, <code>target_extents</code>, and <code>unwritten_ranges</code>. Copy the exact
+<code>confirmation</code> value from that output; it has the form <code>OSTADIX-WRITE-</code>
+followed by 32 uppercase hexadecimal characters. Then run:</p>
+<pre><code class="language-bash">TOKEN=OSTADIX-WRITE-COPY_THE_EXACT_PREPARE_TOKEN
+o kernel write-media \
+  --image &quot;$IMAGE&quot; \
+  --device &quot;$DEVICE&quot; \
+  --confirm &quot;$TOKEN&quot;
+</code></pre>
+<p>The placeholder token above is intentionally invalid. Do not turn this into a
+one-step command that skips human review.</p>
+<h3>macOS guards</h3>
+<p>The writer accepts only a whole <code>/dev/diskN</code> or <code>/dev/rdiskN</code>. It requires
+<code>diskutil</code> to report the device as external, writable, and not read-only, and
+rejects the whole disk containing the active root filesystem. A stable device
+serial or media UUID is mandatory; a <code>DeviceTreePath</code> or USB-port topology is
+not accepted as device identity. Immediately before writing,
+it repeats image/device validation, unmounts the external disk, and writes
+through its raw <code>/dev/rdiskN</code> path.</p>
+<h3>Linux guards</h3>
+<p>The writer obtains inventory from <code>lsblk</code> and the active root source from
+<code>findmnt</code>. It requires one exact writable whole-disk record, rejects any
+mountpoint on the target or any direct or nested descendant, and rejects the
+detected root disk. It additionally requires <code>lsblk</code> to report either <code>RM=true</code>
+or USB transport. Internal NVMe, internal SATA, and unknown non-removable
+transports fail closed. A stable <code>SERIAL</code> or <code>WWN</code> identity is mandatory.
+There is no dangerous-device override in writer v2.</p>
+<h3>Confirmation and post-write verification</h3>
+<p>The v2 token is bound to:</p>
+<ul>
+<li>operating system;</li>
+<li>canonical device path and operating-system-reported device identity;</li>
+<li>device byte capacity;</li>
+<li>the complete canonical <code>ostadix.boot-media-target-plan/v2</code>, including source
+and ESP identities, target capacity, GPT geometry, extent hashes, and
+unwritten ranges.</li>
+</ul>
+<p><code>write-media</code> validates the image and device again before mutation. A changed
+path, reported identity, capacity, image, or stale token fails closed. A
+replacement device that the operating system reports with exactly the same
+path, stable identity, device number, and capacity cannot be distinguished by
+this interface, so the operator must still keep physical custody between
+prepare and write.</p>
+<p>For the destructive invocation, the writer opens the source without following
+symbolic links, copies exactly its admitted length into a private temporary
+file, validates that snapshot, and retains one read-only descriptor through
+the device write. It rejects source growth, truncation, replacement, trailing
+bytes, or content/identity change before opening the raw target. The original
+source pathname is never reopened as the source of device bytes. Ensure the
+host&#39;s temporary filesystem has free space for one complete image snapshot.</p>
+<p>The raw mutation target is opened once. The writer validates that held device
+descriptor&#39;s kernel identity and capacity, re-probes the public path while the
+descriptor remains held, and then uses only that descriptor for mutation and
+verification. It writes exactly the admitted extents, calls <code>fsync</code>, and reads
+each extent back through the same held descriptor. Each read-back SHA-256 must
+match the extent declared in <code>target_plan_sha256</code>. It deliberately does not
+read, hash, zero, or verify an <code>unwritten_range</code>. Success emits schema
+<code>ostadix.media-write/v2</code> with <code>written:true</code>.</p>
+<p>If opening the device is denied, re-run the exact already-reviewed command only
+with the minimum local privilege appropriate for that host. Do not weaken the
+confirmation step or change the target while adding privilege.</p>
+<h2>Physical serial-console checklist</h2>
+<p>This workflow records an operator observation; it does not authenticate the
+machine or make physical boot a passed OSTADIX Alpha gate. Use a non-production
+x86_64 test machine whose firmware can boot an unsigned UEFI removable-media
+fallback executable and which exposes a 16550-compatible COM1 serial port at
+I/O base <code>0x3f8</code>.</p>
+<p>First work from a clean committed tree and create a private operator-artifact
+directory <strong>outside</strong> the repository. Every image, build directory, writer
+record, machine profile, intent, transcript, and observation below stays under
+that directory so creating the evidence does not make the source tree dirty:</p>
+<pre><code class="language-bash">git status --short                 # must be empty
+EVIDENCE_DIR=&quot;$HOME/ostadix-physical-$(date -u +%Y%m%dT%H%M%SZ)&quot;
+umask 077
+mkdir -m 700 &quot;$EVIDENCE_DIR&quot;       # must be a new path outside O_LANG_ROOT
+MACHINE_JSON=&quot;$EVIDENCE_DIR/machine.json&quot;
+</code></pre>
+<p>For challenged media, the builder exports the exact named Git commit to a
+private source snapshot and compiles from that export, then rechecks that the
+canonical checkout still names the same clean commit before publishing the
+image. This closes the mutable-worktree build race; it does not authenticate
+the compiler, linker, firmware tools, host, or resulting artifact.</p>
+<p>Create an exact machine profile. <code>serial_identity_sha256</code> is the SHA-256 of a
+stable inventory identity retained by the operator; do not publish the raw
+serial if it is sensitive. The profile has no optional or additional keys:</p>
+<pre><code class="language-json">{
+  &quot;schema&quot;: &quot;ostadix.physical-machine-profile/v1&quot;,
+  &quot;architecture&quot;: &quot;x86_64&quot;,
+  &quot;manufacturer&quot;: &quot;REPLACE_WITH_MANUFACTURER&quot;,
+  &quot;model&quot;: &quot;REPLACE_WITH_MODEL&quot;,
+  &quot;board&quot;: &quot;REPLACE_WITH_BOARD&quot;,
+  &quot;cpu_model&quot;: &quot;REPLACE_WITH_CPU_MODEL&quot;,
+  &quot;firmware&quot;: &quot;REPLACE_WITH_VENDOR_VERSION_AND_RELEVANT_SETTINGS&quot;,
+  &quot;serial_identity_sha256&quot;: &quot;REPLACE_WITH_64_LOWERCASE_HEX_DIGITS&quot;
+}
+</code></pre>
+<p>Save that completed record as <code>$MACHINE_JSON</code>; replace every <code>REPLACE_...</code>
+value, including the digest placeholder, with real bounded inventory data.</p>
+<h3>Mode 0 physical-attempt flow</h3>
+<p>This is the complete Mode 0 chain. The prepare and write records are generated
+only after the challenged Mode 0 image exists, and every output remains outside
+the repository:</p>
+<pre><code class="language-bash">MODE0_CHALLENGE=&quot;$(o kernel boot-challenge)&quot;
+MODE0_IMAGE=&quot;$EVIDENCE_DIR/mode0-$MODE0_CHALLENGE.img&quot;
+MODE0_PREPARE_JSON=&quot;$EVIDENCE_DIR/mode0-write-prepare.json&quot;
+MODE0_WRITE_JSON=&quot;$EVIDENCE_DIR/mode0-write-result.json&quot;
+MODE0_INTENT_JSON=&quot;$EVIDENCE_DIR/mode0-intent.json&quot;
+MODE0_TRANSCRIPT=&quot;$EVIDENCE_DIR/mode0.serial&quot;
+MODE0_OBSERVATION_JSON=&quot;$EVIDENCE_DIR/mode0-observation.json&quot;
+
+OCORE_MEDIA_PROBE_MODE=0 \
+OSTADIX_BOOT_CHALLENGE=&quot;$MODE0_CHALLENGE&quot; \
+OSTADIX_MEDIA_ROOT=&quot;$EVIDENCE_DIR/mode0-media-build&quot; \
+OCORE_MEDIA_KERNEL_BUILD_DIR=&quot;$EVIDENCE_DIR/mode0-kernel-build&quot; \
+  o kernel media &quot;$MODE0_IMAGE&quot;
+o kernel inspect-media &quot;$MODE0_IMAGE&quot;
+
+o kernel prepare-write --image &quot;$MODE0_IMAGE&quot; --device &quot;$DEVICE&quot; \
+  | tee &quot;$MODE0_PREPARE_JSON&quot;
+MODE0_TOKEN=&quot;$(python3 -c &#39;import json,sys; print(json.load(open(sys.argv[1]))[&quot;confirmation&quot;])&#39; &quot;$MODE0_PREPARE_JSON&quot;)&quot;
+
+# Destructive: recheck DEVICE before running this command.
+o kernel write-media --image &quot;$MODE0_IMAGE&quot; --device &quot;$DEVICE&quot; \
+  --confirm &quot;$MODE0_TOKEN&quot; | tee &quot;$MODE0_WRITE_JSON&quot;
+
+o kernel prepare-physical \
+  --image &quot;$MODE0_IMAGE&quot; \
+  --media-write &quot;$MODE0_WRITE_JSON&quot; \
+  --machine &quot;$MACHINE_JSON&quot; \
+  --profile mode0 \
+  --expected-cpus 1 \
+  --output &quot;$MODE0_INTENT_JSON&quot;
+</code></pre>
+<p><code>prepare-physical</code> emits <code>ostadix.physical-boot-intent/v1</code> with
+<code>authority:&quot;none&quot;</code>. It refuses to replace an existing output. The only
+accepted transcript contracts are <code>--profile mode0 --expected-cpus 1</code> and
+<code>--profile smp4 --expected-cpus 4</code>; omitting <code>--profile</code> infers it from that
+exact count. The <code>smp4</code> grammar is shared with the QEMU gate, but selecting it
+does not promote an operator transcript into independent physical evidence.</p>
+<h3>Mode 34 physical-attempt flow</h3>
+<p>Mode 34 is a separate complete chain with its own challenge, image, fresh
+prepare record, completed write record, and intent. Never reuse the Mode 0
+writer record after rebuilding different bytes:</p>
+<pre><code class="language-bash">MODE34_CHALLENGE=&quot;$(o kernel boot-challenge)&quot;
+MODE34_IMAGE=&quot;$EVIDENCE_DIR/smp4-$MODE34_CHALLENGE.img&quot;
+MODE34_PREPARE_JSON=&quot;$EVIDENCE_DIR/smp4-write-prepare.json&quot;
+MODE34_WRITE_JSON=&quot;$EVIDENCE_DIR/smp4-write-result.json&quot;
+MODE34_INTENT_JSON=&quot;$EVIDENCE_DIR/smp4-intent.json&quot;
+MODE34_TRANSCRIPT=&quot;$EVIDENCE_DIR/smp4.serial&quot;
+MODE34_OBSERVATION_JSON=&quot;$EVIDENCE_DIR/smp4-observation.json&quot;
+
+OCORE_MEDIA_PROBE_MODE=34 \
+OSTADIX_BOOT_CHALLENGE=&quot;$MODE34_CHALLENGE&quot; \
+OSTADIX_MEDIA_ROOT=&quot;$EVIDENCE_DIR/smp4-media-build&quot; \
+OCORE_MEDIA_KERNEL_BUILD_DIR=&quot;$EVIDENCE_DIR/smp4-kernel-build&quot; \
+  o kernel media &quot;$MODE34_IMAGE&quot;
+o kernel inspect-media &quot;$MODE34_IMAGE&quot;
+
+o kernel prepare-write --image &quot;$MODE34_IMAGE&quot; --device &quot;$DEVICE&quot; \
+  | tee &quot;$MODE34_PREPARE_JSON&quot;
+MODE34_TOKEN=&quot;$(python3 -c &#39;import json,sys; print(json.load(open(sys.argv[1]))[&quot;confirmation&quot;])&#39; &quot;$MODE34_PREPARE_JSON&quot;)&quot;
+
+# Destructive: recheck DEVICE before running this command.
+o kernel write-media --image &quot;$MODE34_IMAGE&quot; --device &quot;$DEVICE&quot; \
+  --confirm &quot;$MODE34_TOKEN&quot; | tee &quot;$MODE34_WRITE_JSON&quot;
+
+o kernel prepare-physical \
+  --image &quot;$MODE34_IMAGE&quot; \
+  --media-write &quot;$MODE34_WRITE_JSON&quot; \
+  --machine &quot;$MACHINE_JSON&quot; \
+  --profile smp4 \
+  --expected-cpus 4 \
+  --output &quot;$MODE34_INTENT_JSON&quot;
+</code></pre>
+<p>This remains an operator workflow, not a physical qualification claim. No
+physical observation is bundled or claimed by this release.</p>
+<p>Then perform the observation:</p>
+<ol>
+<li>Wait for the verified write to finish before removing or ejecting the
+device.</li>
+<li>Connect the first serial port at <strong>38400 baud, 8 data bits, no parity, 1
+stop bit</strong>. GRUB and the kernel both use serial output.</li>
+<li>Enter x86_64 UEFI firmware and select the external device. The fallback file
+is <code>EFI/BOOT/BOOTX64.EFI</code>. If firmware enforcement rejects the unsigned
+image, use only an explicitly authorized development setting.</li>
+<li>Capture the complete ASCII serial transcript. The challenged kernel must
+emit exactly one <code>OSTADIX boot challenge: &lt;challenge&gt;</code> line, exactly one
+<code>OSTADIX source commit: &lt;commit&gt;</code> line, and every marker in the selected
+profile in causal order, with no BootInfo or SMP rejection marker. The
+<code>smp4</code> profile additionally requires four ordered, unique APIC and aligned
+stack identity lines between stack admission and barrier completion.</li>
+<li>Preserve the media, machine inventory, firmware settings, cold/warm boot
+context, timestamps, and raw transcript under operator custody.</li>
+</ol>
+<p>Finally, save the complete serial capture to the matching external transcript
+path and make the deliberate operator assertion. Use exactly one of these
+profile-matched commands:</p>
+<pre><code class="language-bash"># Mode 0
+o kernel record-physical \
+  --intent &quot;$MODE0_INTENT_JSON&quot; \
+  --transcript &quot;$MODE0_TRANSCRIPT&quot; \
+  --image &quot;$MODE0_IMAGE&quot; \
+  --assert-physical I-OBSERVED-OSTADIX-ON-PHYSICAL-X86_64 \
+  --output &quot;$MODE0_OBSERVATION_JSON&quot;
+
+# Mode 34
+o kernel record-physical \
+  --intent &quot;$MODE34_INTENT_JSON&quot; \
+  --transcript &quot;$MODE34_TRANSCRIPT&quot; \
+  --image &quot;$MODE34_IMAGE&quot; \
+  --assert-physical I-OBSERVED-OSTADIX-ON-PHYSICAL-X86_64 \
+  --output &quot;$MODE34_OBSERVATION_JSON&quot;
+</code></pre>
+<p>The literal <code>--assert-physical</code> phrase prevents accidental record creation; it
+does not authenticate the operator or substrate. The resulting
+<code>ostadix.physical-boot-observation/v1</code> record has <code>authority:&quot;none&quot;</code> and
+<code>admission:&quot;not-performed&quot;</code>. Its canonical <code>record_sha256</code> is an unkeyed
+integrity seal. The challenge has no trusted clock or one-shot registry, so
+copied images, transcripts, intents, and observations can be replayed. The
+machine profile, writer output, assertion, and transcript are all
+self-reported; together they still do not independently prove physical
+execution, trusted firmware, a trusted source build, or a completed write.</p>
+<h2>Evidence boundary</h2>
+<table>
+<thead>
+<tr>
+<th>Result</th>
+<th>What it establishes</th>
+<th>What it does not establish</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>o kernel media</code> succeeds</td>
+<td>A mode-0 x86_64 kernel was packed into a bounded GPT/ESP image and the resulting container passed strict structural inspection.</td>
+<td>A second reproducible build, any boot, physical hardware, SMP, or authenticity.</td>
+</tr>
+<tr>
+<td><code>o kernel inspect-media</code> succeeds</td>
+<td>The supplied bytes conform to <code>ostadix.boot-media/v1</code> and produce the reported hashes and GUIDs.</td>
+<td>That the image was produced by a trusted party, that its EFI/kernel payloads execute, or that it is safe to write to an arbitrary device.</td>
+</tr>
+<tr>
+<td><code>o kernel smoke-media</code> succeeds</td>
+<td>Two local rebuilds are byte-identical and one exact disk boots under x86_64 OVMF/QEMU TCG far enough to emit the five required kernel/CPL3/timer markers and remain alive to timeout.</td>
+<td>Physical boot, KVM, SMP, secure/measured boot, hardware driver support, PCI/DMA/IOMMU isolation, or a release qualification gate.</td>
+</tr>
+<tr>
+<td><code>o kernel iso</code> succeeds</td>
+<td>A mode-0 x86_64 kernel was packed into a strictly admitted ISO9660/El Torito UEFI no-emulation container and atomically published.</td>
+<td>A second reproducible build, any boot, physical hardware, SMP, authenticity, or suitability for the raw-media writer.</td>
+</tr>
+<tr>
+<td><code>o kernel inspect-iso</code> succeeds</td>
+<td>The supplied bytes conform to <code>ostadix.boot-iso/v1</code>, including the admitted UEFI PE32+ application, x86_64 kernel ELF, exact GRUB configuration, and reported component hashes.</td>
+<td>That the ISO was produced by a trusted party, that its payloads execute, or that it is signed, measured, or authenticated.</td>
+</tr>
+<tr>
+<td><code>o kernel smoke-iso</code> succeeds</td>
+<td>Two local ISO rebuilds are byte-identical and the descriptor-pinned first ISO boots as read-only CD media under x86_64 OVMF/QEMU TCG, emits the five required markers in order without fatal output, and remains live for the bounded post-heartbeat window without changing identity.</td>
+<td>Physical boot, KVM, SMP, secure/measured boot, hardware driver support, PCI/DMA/IOMMU isolation, external-media writing, or a release qualification gate.</td>
+</tr>
+<tr>
+<td><code>o kernel hosted-live-release</code> succeeds</td>
+<td>One exact staged Git tree was embedded as both <code>/usr/src/ostadix</code> and a verified read-only boot-object CAS; the declared x86_64 root/MCP executables and Hosted package closure were admitted with exact direct Hosted/O-core/Alpine and nested Guix/OpenBSD/9front/Redox entries, 14 typed artifacts, and pinned foreign-media verification.</td>
+<td>A commit, push, physical boot, persistence, Secure Boot, execution of every source file or backend runtime, selection of the other five menu routes, guest GUI/package-manager execution, or Ventoy foreign-route behavior.</td>
+</tr>
+<tr>
+<td><code>o kernel smoke-hosted-live</code> succeeds</td>
+<td>The exact combined ISO passes the Hosted serial/object/toolchain/node/notebook gate, Openbox/Firefox/Xterm framebuffer and USB-input gate, and separate direct-selection O-core serial gate under OVMF/QEMU TCG.</td>
+<td>Physical hardware, Secure Boot, KVM/SVM, a persistent desktop, direct Alpine or nested guest execution, an O-core GUI or Linux userspace, the canonical Rust 1.97.1 toolchain, or guest package-manager/GUI execution.</td>
+</tr>
+<tr>
+<td><code>install-ventoy</code> and <code>verify-ventoy</code> succeed</td>
+<td>The same currently identified external Ventoy target contains a synchronized, hash-identical, structurally inspected copy under the requested new basename.</td>
+<td>Firmware acceptance, a boot, persistence, authenticity, or a safe basis for reusing the device path after disconnection.</td>
+</tr>
+<tr>
+<td><code>o kernel smoke-boot-info</code> succeeds</td>
+<td>A bounded challenged Multiboot2 handoff derives the page allocator&#39;s admitted subwindow, closes its temporary mapping before W^X, and a challenged mode-0 boot reaches CPL3/timer/heartbeat while the shared transcript parser rejects a wrong challenge.</td>
+<td>Physical execution, general firmware/ACPI support, initrd loading, KVM, secure/measured boot, or hardware trust.</td>
+</tr>
+<tr>
+<td><code>o kernel smoke-smp</code> succeeds</td>
+<td>One challenged four-vCPU QEMU/TCG image performs bounded ACPI/MADT admission, PIT-timed x2APIC INIT/SIPI, unique-stack AP entry, trampoline retirement, and one atomic barrier; the same image rejects under one vCPU.</td>
+<td>Physical SMP, KVM, arbitrary topologies, a general SMP scheduler, interrupt balancing, per-CPU allocation, or SMP safety of other kernel subsystems.</td>
+</tr>
+<tr>
+<td><code>prepare-write</code> succeeds</td>
+<td>One privately snapshotted and validated source image, one stable external/removable device identity and capacity, and one canonical sparse target plan are bound by <code>target_plan_sha256</code> and a confirmation token.</td>
+<td>A device write, the contents of <code>unwritten_ranges</code>, or a boot.</td>
+</tr>
+<tr>
+<td><code>write-media</code> returns <code>written:true</code></td>
+<td>Every admitted v2 extent was written and individually read-back verified through one held target descriptor after identity and capacity rechecks.</td>
+<td>Erasure, authentication, or verification of unwritten ranges; firmware acceptance; physical execution; or SMP.</td>
+</tr>
+<tr>
+<td><code>prepare-physical</code> succeeds</td>
+<td>A clean source commit, challenged image, successful writer-v2 record and target plan, declared x86_64 machine profile, expected CPU count, and marker set were sealed into an authority-free intent.</td>
+<td>A boot, trusted build, machine authenticity, freshness, or admission.</td>
+</tr>
+<tr>
+<td><code>record-physical</code> succeeds</td>
+<td>The current challenged image and target plan still match the intent, the operator supplied the exact assertion, and one bounded ASCII transcript satisfies the selected causal <code>mode0</code> or <code>smp4</code> grammar without a rejection marker.</td>
+<td>Independent proof of physical execution, authenticated hardware or operator identity, replay prevention, physical SMP qualification, release-gate credit, or authority.</td>
+</tr>
+</tbody></table>
+<p>Additional current nonclaims:</p>
+<ul>
+<li>No AArch64, Apple Silicon, BIOS/CSM, PXE, or network-boot image is
+implemented. The ISO path is x86_64 UEFI El Torito only.</li>
+<li>The default mode-0 media path remains single-CPU. Mode 34 is a bounded
+four-vCPU QEMU proof; the observation schema cannot turn it into physical SMP
+evidence.</li>
+<li>The generated EFI executable and kernel have no implemented signing,
+measured-boot, or TPM evidence chain.</li>
+<li>The image is not an installer and does not authorize writing an internal
+disk.</li>
+<li>The O-core-only raw disk and ISO do not boot Linux, Plan 9, or another
+foreign kernel. The combined ISO separately contains three direct and four
+nested QEMU/TCG routes; this does not turn any guest into an O-core
+personality.</li>
+<li>The workstation&#39;s complete staged-tree/object closure does not install every
+declared backend runtime. Foreign guest media bytes are included, but current
+combined-release gates do not execute or qualify their package managers or
+GUIs.</li>
+<li>The workstation is RAM-backed and has no claimed persistence or installer.</li>
+<li>QEMU/TCG observation cannot be promoted into physical-hardware evidence.</li>
+<li>Physical intent and observation records are unkeyed, authority-free,
+operator-asserted records. They are neither attestations nor authenticators.</li>
+</ul>
+<h2>Recovery and troubleshooting</h2>
+<h3>Missing build tools</h3>
+<p>Run:</p>
+<pre><code class="language-bash">./setup.sh --with-ocore-media --check
+</code></pre>
+<p>The builder also permits explicit tool paths through
+<code>OSTADIX_GRUB_MKSTANDALONE</code>, <code>OSTADIX_MFORMAT</code>, <code>OSTADIX_MCOPY</code>, and
+<code>OSTADIX_PYTHON</code>. The ISO builder additionally accepts
+<code>OSTADIX_GRUB_MKRESCUE</code>, <code>OSTADIX_GRUB_EFI_DIRECTORY</code>, and
+<code>OSTADIX_XORRISO</code>. Use them only for the exact executables or platform
+directory you inspected.</p>
+<h3>Missing OVMF firmware</h3>
+<p>Set the code image and retry:</p>
+<pre><code class="language-bash">OSTADIX_OVMF_CODE=/absolute/path/to/OVMF_CODE.fd o kernel boot-media
+OSTADIX_OVMF_CODE=/absolute/path/to/OVMF_CODE.fd o kernel smoke-media
+OSTADIX_OVMF_CODE=/absolute/path/to/OVMF_CODE.fd o kernel boot-iso
+OSTADIX_OVMF_CODE=/absolute/path/to/OVMF_CODE.fd o kernel smoke-iso
+</code></pre>
+<h3>Inspection or determinism failure</h3>
+<p>Do not write the image. Remove only the known generated output, rebuild it with
+<code>o kernel media</code>, and inspect it again. A malformed GPT, CRC mismatch, geometry
+change, digest/GUID mismatch, or non-identical smoke rebuild is a hard failure,
+not a warning to bypass.</p>
+<p>For an ISO failure, remove only the known generated <code>.iso</code>, rebuild it with
+<code>o kernel iso</code>, and inspect it again. An invalid ISO9660/El Torito/FAT/PE/ELF
+structure, changed committed GRUB configuration, component-hash mismatch, or
+non-identical smoke rebuild is likewise a hard failure.</p>
+<h3>QEMU boot failure</h3>
+<p>Use <code>Ctrl-A X</code> to leave an interactive boot. For the smoke, require both PASS
+lines; a timeout without every required marker is a failure. Retain QEMU stdout
+and stderr, confirm the exact OVMF path, rebuild, and inspect before retrying.</p>
+<h3>Prepare or confirmation failure</h3>
+<p>Do not reuse the old token. Recheck the image, whole-device path, device
+stable identity, capacity, removable/USB classification, mount state, and
+root-disk relationship, then run <code>prepare-write</code> again. Hot-plug replacement
+and image changes are intentionally expected to invalidate confirmation. A
+target smaller than the canonical image, above 16 TiB, not 512-byte aligned, or
+lacking the required stable device identity is rejected rather than overridden.</p>
+<h3>Write or read-back failure</h3>
+<p>Treat the target media as incomplete and do not boot it. The writer has no
+rollback. Unwritten ranges may still contain recoverable prior bytes, but that
+does not restore the old GPT or make the medium safe to use. Reinspect the
+source image, replace suspect removable media if necessary, obtain a new
+confirmation token, and repeat the complete planned-extent write and read-back
+process.</p>
+<h3>No physical serial output</h3>
+<p>Return to the QEMU smoke first. If it passes, verify x86_64 UEFI mode, external
+media selection, firmware policy for unsigned EFI executables, and the first
+16550-compatible serial port at COM1 base <code>0x3f8</code>. Use 38400 8N1 for both GRUB
+and kernel entry. Preserve the failed attempt as an observation; do not report
+a physical pass.</p>
+<p>To recover the test machine, power it down, remove the external OSTADIX Alpha
+media, and restore its prior firmware boot order. Never troubleshoot by writing
+the host&#39;s internal system disk.</p>

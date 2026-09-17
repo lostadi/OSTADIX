@@ -1,0 +1,164 @@
+<h1>Hosted Live-World Reference (Stage 1)</h1>
+<p>Status: executable hosted semantic oracle. This is deliberately <strong>not</strong> the
+O-core native live-system milestone.</p>
+<p>The reference closes the control-plane loop before O-core gains a public
+blocking IPC ABI, a native ELF loader, and a VFS. It lets the package, service,
+activation, rollback, restart, and cross-world value semantics be exercised in
+ordinary local processes without pretending those processes already run inside
+booted O-core.</p>
+<h2>Implemented boundary</h2>
+<p>The hosted reference provides:</p>
+<ul>
+<li>strict <code>ocore.package/v1</code> manifests with unknown-field rejection and bounded
+metadata;</li>
+<li>deterministic SHA-256 identities over a canonical manifest and the complete
+regular-file payload tree;</li>
+<li>a local content-addressed store with verification on read, atomic object
+publication, read-only objects, and policy-controlled aliases that are never
+authority;</li>
+<li>default-deny validation of declared capability requests before a runtime is
+spawned or published;</li>
+<li>one fixed-protocol local child process per service;</li>
+<li>bounded health checks before an activation becomes discoverable;</li>
+<li>generation-bound, CSPRNG-backed service capabilities whose descriptive
+metadata cannot recreate authority;</li>
+<li>retained healthy rollback roots, stale-bearer denial, targeted service
+restart, and active-set reconstruction from immutable package digests; and</li>
+<li>sequential composition of packaged runtime worlds through structural,
+boot-persistable <code>OValue</code>s.</li>
+</ul>
+<p>Package runtime entries use package-internal absolute notation. For example,
+<code>/bin/live.toml</code> means <code>bin/live.toml</code> beneath the verified immutable payload
+root. It never means <code>/bin/live.toml</code> on the host. The one resolver shared by
+manifest validation and worker launch rejects <code>..</code>, empty components,
+backslashes, NUL bytes, symlinks, and escapes from the package object.</p>
+<p>On macOS, package publication requires a filesystem supporting atomic
+<code>clonefile(2)</code> directory cloning, such as the APFS volume used by the regression
+tests. macOS rejects renaming the already read-only staging directory. The
+store therefore clones the bounded, frozen package tree without overwriting
+an existing object, synchronizes the cloned files and directories, and removes
+only the staging tree. Other platforms retain the rename path. Unsupported
+filesystems fail closed; there is no writable-publication or recursive-copy
+fallback. macOS object trees and their publication parent must have no extended
+ACL entries, so inherited ACL grants cannot bypass the read-only mode checks.
+Apple discourages general-purpose directory cloning; this use is restricted
+to the verified regular-file package trees and limits below. See Apple&#39;s
+<a href="https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/clonefile.2"><code>clonefile(2)</code> contract</a>.</p>
+<p>Admission is quantitatively bounded before large reads or process launches:</p>
+<ul>
+<li>manifests and activation-policy files are at most 64 KiB;</li>
+<li>one payload has at most 4,096 files, 8,192 total directory entries, 64 MiB
+per file, and 256 MiB total bytes;</li>
+<li>one manifest has at most 32 services, 64 capability requests, and 16 rights
+per request;</li>
+<li>one runtime program and each protocol frame are at most 1 MiB, with at most
+256 declared operations;</li>
+<li>the hosted active set has at most 64 active packages, 64 rollback roots, and
+256 active services; and</li>
+<li>one supervisor session has at most 4,096 live bearers and 256 composition
+steps. Its default structural-value ceiling is 64 KiB.</li>
+</ul>
+<h2>Authority and isolation</h2>
+<p>The private service-bearer table is authority; the serialized
+<code>OValue::Capability</code> metadata is not. Lookup binds a random bearer to one
+supervisor session, service, protocol, rights set, and generation. Activation,
+rollback, and restart rotate generations and revoke affected bearers. Runtime
+arguments must have a pure runtime boundary and be safe to persist across a
+boot; capabilities, scopes, requests, systems, and other live references are
+rejected as data. Live authority must cross through an explicit broker
+operation instead.</p>
+<p>The reference starts separate local host processes and limits their
+control-plane grants. It does <strong>not</strong> yet provide processor-enforced O-core
+address spaces or CSpaces for those workers, and it does not claim complete
+containment of arbitrary host syscalls. Host syscall containment remains
+best-effort and operating-system dependent until the same state machines run
+over O-core process, IPC, and capability mechanisms.</p>
+<p>The state directory is same-user trusted control-plane authority. Immutable
+objects are verified when opened, aliases never grant authority, and the
+active-set file is strict, bounded metadata containing digests rather than live
+tokens. A principal that can replace the state directory itself is nevertheless
+inside the hosted control-plane trust boundary; use a directory that is not
+writable by another account.</p>
+<p>On Unix, every stateful <code>o-live-host</code> command takes a process-shared advisory
+lock in that authority directory before any reconstruction or mutation and
+holds it through the complete command. Cooperating CLI processes therefore
+cannot commit competing stale snapshots. Direct <code>HostedSupervisor</code> users have
+an additional checked boundary: the persisted active set carries a monotonic
+revision (legacy files enter at revision zero), and read-only reconstruction
+records that revision without changing service generations. Each publishing
+activation, rollback, or service restart takes an active-set-specific
+process-shared lock, rereads the durable revision, and commits only the exact
+observed-to-next transition. A stale instance gets an explicit revision
+conflict and must reconstruct before retrying.</p>
+<p>These are cooperative same-host transaction boundaries, not a general storage
+consensus protocol. A non-cooperating writer inside the same-user trust boundary
+is not contained by either advisory lock. The public-boundary integration test
+constructs two supervisors at the same revision, commits through one, and
+proves the stale second instance cannot overwrite it:</p>
+<pre><code class="language-bash">cargo test --test hosted_supervisor_transactions --no-default-features
+</code></pre>
+<h2>CLI and acceptance gate</h2>
+<p><code>o-live-host</code> exposes the hosted lifecycle surface:</p>
+<pre><code class="language-bash">cargo run --bin o-live-host -- pack --manifest package.toml --payload payload/
+cargo run --bin o-live-host -- install --state .o-live \
+  --manifest package.toml --payload payload/ --alias runtime/example
+cargo run --bin o-live-host -- activate --state .o-live sha256:&lt;digest&gt;
+cargo run --bin o-live-host -- upgrade --state .o-live sha256:&lt;digest&gt;
+cargo run --bin o-live-host -- invoke --state .o-live \
+  service.example ocore.runtime-service/v1 compute value.json
+cargo run --bin o-live-host -- compose --state .o-live \
+  --plan composition.json --input value.json
+cargo run --bin o-live-host -- rollback --state .o-live runtime/example
+cargo run --bin o-live-host -- restart --state .o-live service.example
+cargo run --bin o-live-host -- status --state .o-live
+</code></pre>
+<p>Activation is default-deny when a manifest requests authority. An operator can
+provide an exact-match policy with the global <code>--policy policy.toml</code> option:</p>
+<pre><code class="language-toml">schema = &quot;ocore.hosted-activation-policy/v1&quot;
+
+[[grants]]
+package = &quot;runtime/example&quot;
+kind = &quot;endpoint&quot;
+purpose = &quot;request channel&quot;
+rights = [&quot;send&quot;, &quot;receive&quot;]
+</code></pre>
+<p>There are no wildcard grants. The policy must be supplied again when a later
+command reconstructs packages that require it. A composition plan is a bounded
+JSON array of <code>{service, protocol, operation}</code> records; its input and every
+intermediate result must remain pure, boot-persistable OValue data.</p>
+<p>The self-contained demonstration installs two fixed hosted test-runtime
+packages. A source world produces the structural object <code>{lhs: 20, rhs: 22}</code>
+and a second world consumes it to produce <code>42</code>. The same run denies an
+over-broad capability request, keeps version 1 active after an unhealthy
+version 2 is staged, rejects
+stale bearers after publication and rollback, restarts one crashed service
+without rotating an unrelated service, and reconstructs the active set with
+fresh session authority:</p>
+<pre><code class="language-bash">./scripts/smoke-hosted-live-reference.sh
+</code></pre>
+<p>All success markers begin <code>HOSTED live reference:</code> so they cannot be confused
+with evidence from a booted kernel.</p>
+<h2>Native handoff</h2>
+<p>This oracle fixes semantics; it does not waive the native dependency order or
+stand in for native evidence. Bounded native Milestone 3, 4, and 5 slices now
+have separate QEMU gates for public endpoint IPC and lifecycle cleanup, strict
+static ELF/package loading, and package activation, health-gated publication,
+crash withdrawal, restart, and teardown. The remaining handoff is:</p>
+<ol>
+<li>move the privileged Milestone 5 state machines into independently operating
+endpoint-RPC daemons and supervise personality services through that path;</li>
+<li>carry native structural OValues and capsule composition across those
+service boundaries, including durable reboot reconstruction; and</li>
+<li>only after those substrate properties hold, begin a Linux personality as a
+package-managed runtime rather than as a kernel-wide compatibility mode.</li>
+</ol>
+<p>The hosted reference therefore supports one precise claim:</p>
+<blockquote>
+<p>Package-addressed runtime services can be supervised as local child
+processes, published only after health checks, addressed through revocable
+service bearers, rolled back by generation, reconstructed from immutable
+digests, and composed through structural OValues. This is an executable
+semantic oracle for the native control plane. The hosted oracle itself is not
+evidence for any native milestone; the bounded Milestone 3, 4, and 5 claims
+are established by their separate source, artifact, and QEMU gates.</p>
+</blockquote>

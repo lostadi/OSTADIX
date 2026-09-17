@@ -1,0 +1,69 @@
+<h1>Local CI posture audit</h1>
+<p><code>scripts/local_ci_posture.py</code> provides a deterministic, local-first audit of
+the repository&#39;s CI and release posture. The baseline profile uses only the
+Python standard library, does not build Ostadix, and is the posture check run by
+the required <code>Contract surfaces</code> CI lane.</p>
+<p>Run the same baseline locally with either human-readable or machine-readable
+output:</p>
+<pre><code class="language-bash">python3 scripts/local_ci_posture.py --profile baseline --format text
+python3 scripts/local_ci_posture.py --profile baseline --format json
+</code></pre>
+<p>The baseline checks:</p>
+<ul>
+<li>immutable full-SHA pins for external Actions, and SHA-256 image digests for
+any <code>docker://</code> action;</li>
+<li>high-risk workflow triggers, explicit permissions, and self-hosted or
+dynamically selected runners;</li>
+<li>exact agreement among <code>ci/required-jobs.toml</code>, <code>ci/test-suites.toml</code>, the
+<code>required-ci</code> aggregate, and its stable <code>Required CI</code> check name;</li>
+<li>Dependabot coverage for every checked-in Cargo root, Dockerfile directory,
+and GitHub Actions workflow;</li>
+<li>agreement among release metadata, the release-claim/package jobs, the
+contracts lane, and the required source-release surfaces.</li>
+</ul>
+<h2>Full local audit</h2>
+<p>The full profile first runs the baseline, then detects these optional tools on
+<code>PATH</code>: <code>actionlint</code>, <code>zizmor</code>, <code>gitleaks</code>, <code>cargo-audit</code>, <code>cargo-deny</code>, and
+<code>git-sizer</code>.</p>
+<pre><code class="language-bash">python3 scripts/local_ci_posture.py --profile full --format text
+</code></pre>
+<p>The script never installs a tool and never launches <code>cargo</code> in the live
+checkout. It invokes the two Cargo ecosystem analyzers by their direct
+<code>cargo-audit</code> and <code>cargo-deny</code> binaries, with fetching disabled, a temporary
+<code>CARGO_TARGET_DIR</code>, and locked, offline inputs where supported. Because
+<code>cargo-deny</code> can internally request Cargo metadata, it runs only against an
+isolated temporary mirror that excludes <code>.git</code>, build outputs, caches, and
+nested checkouts. <code>cargo-audit</code> disables advisory fetching and yanked-index
+lookups, so it needs an already available local RustSec advisory database.
+<code>cargo-deny</code> is not run until the repository has an explicitly reviewed
+<code>deny.toml</code>; the script does not invent license, source, or dependency-ban
+policy. Workflow and secret scanners use offline/redacted modes. A before/after
+Git status guard detects visible repository mutations.</p>
+<p>Missing full-profile tools, Git metadata, the local advisory database, or
+required policy configuration make the audit incomplete rather than silently
+skipped.</p>
+<h2>Optional GitHub inspection</h2>
+<p>Add <code>--github</code> to either profile to inspect remote policy through authenticated
+read-only <code>gh api --method GET</code> requests:</p>
+<pre><code class="language-bash">python3 scripts/local_ci_posture.py --profile baseline --format json --github
+</code></pre>
+<p>This checks that GitHub Actions defaults to read-only permissions without pull
+request approval and that the default branch&#39;s effective rulesets or legacy
+branch protection require pull requests plus the stable <code>Required CI</code> status.
+Branch names are URL-encoded before inspection. It does not edit repository
+settings, rulesets, branch protection, secrets, Actions, Dependabot, or pull
+requests. Missing <code>gh</code> authentication or permission is reported explicitly.</p>
+<h2>Exit and report contract</h2>
+<p>Both text and JSON contain all checks in deterministic ID/path/line order. JSON
+uses schema <code>ostadix.local-ci-posture/v1</code>.</p>
+<ul>
+<li>exit <code>0</code>: every requested check passed;</li>
+<li>exit <code>1</code>: one or more posture findings were found (or an optional GitHub
+inspection was unavailable in the baseline profile);</li>
+<li>exit <code>2</code>: the full profile is incomplete because a required optional tool or
+configuration is missing.</li>
+</ul>
+<p>This is a static and tool-backed posture audit, not proof that a workflow is
+secure or that remote branch policy cannot change after inspection. It never
+replaces the independent semantic, Hosted, release, Docker, MCP, or O-core
+evidence lanes.</p>

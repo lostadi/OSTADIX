@@ -58,7 +58,8 @@ public final class OReplController implements AutoCloseable {
         this.pinCpu7 = pinCpu7;
         this.listener = listener;
         this.backendDirectory = files.backends().getAbsolutePath();
-        this.runtime = new OstadixRuntime(backendDirectory);
+        this.runtime = new OstadixRuntime(backendDirectory,
+                files.cliCommand().getAbsolutePath(), files.bashCommand().getAbsolutePath());
     }
 
     public void start() {
@@ -179,7 +180,9 @@ public final class OReplController implements AutoCloseable {
                     if (runtimeResetRequested.getAndSet(false)) {
                         runtime.close();
                         try {
-                            runtime = new OstadixRuntime(backendDirectory);
+                            runtime = new OstadixRuntime(backendDirectory,
+                                    files.cliCommand().getAbsolutePath(),
+                                    files.bashCommand().getAbsolutePath());
                         } catch (RuntimeException error) {
                             runtimeResetRequested.set(true);
                             throw error;

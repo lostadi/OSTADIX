@@ -20,6 +20,10 @@ Termux app or Termux private storage.
   hardware-key input, and an extra-key row.
 - Long-press text selection with draggable endpoints, theme-visible
   highlighting, Copy, and Select all actions.
+- Binder-safe clipboard export: small selections remain ordinary inline text;
+  larger selections are encoded off the UI thread and exposed as a private,
+  read-only content URI with a strict 600 MiB UTF-8 limit. Large pastes require
+  a receiving app that accepts content URIs or text streams.
 - Obsidian, Solarized, Graphite, and Light palettes; adjustable text size,
   cursor shape, scrollback, haptics, wake behavior, startup mode, and O-session
   CPU policy.

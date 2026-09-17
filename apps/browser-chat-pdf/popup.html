@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chatprint</title>
+    <link rel="stylesheet" href="popup.css">
+    <script defer src="shared.js"></script>
+    <script defer src="popup.js"></script>
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="brand">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M7.5 3.5h11l6 6v19h-17z" />
+          <path d="M18.5 3.5v6h6M11.5 15h9M11.5 20h9M11.5 25h6" />
+        </svg>
+        <h1>Chatprint</h1>
+      </header>
+
+      <p id="status" class="status" role="status" aria-live="polite">Ready to capture this page</p>
+
+      <form id="captureForm">
+        <fieldset class="mode-fieldset">
+          <legend>Mode</legend>
+          <div class="segmented">
+            <label class="segmented__option">
+              <input type="radio" name="mode" value="conversation" checked>
+              <span>Conversation</span>
+            </label>
+            <label class="segmented__option">
+              <input type="radio" name="mode" value="page">
+              <span>Whole page</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="toggle-list">
+          <label class="toggle-row">
+            <span>Include images</span>
+            <input id="includeImages" type="checkbox" checked>
+            <span class="switch" aria-hidden="true"></span>
+          </label>
+          <label class="toggle-row">
+            <span>Include page header</span>
+            <input id="includeHeader" type="checkbox" checked>
+            <span class="switch" aria-hidden="true"></span>
+          </label>
+          <label class="toggle-row">
+            <span>Open print dialog automatically</span>
+            <input id="autoPrint" type="checkbox">
+            <span class="switch" aria-hidden="true"></span>
+          </label>
+        </div>
+
+        <div id="advancedSettings" class="advanced" hidden>
+          <label>
+            <span>Document theme</span>
+            <select id="theme">
+              <option value="classic">Classic</option>
+              <option value="clean">Clean</option>
+              <option value="compact">Compact</option>
+            </select>
+          </label>
+          <label>
+            <span>Paper size</span>
+            <select id="paper">
+              <option value="a4">A4</option>
+              <option value="letter">Letter</option>
+            </select>
+          </label>
+        </div>
+
+        <button id="captureButton" class="primary-button" type="submit">
+          <span>Create PDF preview</span>
+        </button>
+      </form>
+
+      <footer class="privacy-footer">
+        <span>Processed locally <span aria-hidden="true">•</span> Nothing uploaded</span>
+        <button id="settingsButton" type="button" aria-controls="advancedSettings" aria-expanded="false">Settings</button>
+      </footer>
+    </main>
+  </body>
+</html>

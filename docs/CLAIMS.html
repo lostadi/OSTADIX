@@ -1,0 +1,963 @@
+<h1>Claim-accuracy inventory</h1>
+<h2>Implemented and tested now</h2>
+<ul>
+<li><p>Expression-granular recursive evaluator composition is implemented by typed
+expression syntax described in <code>README.md</code>, lowered from parser nodes to OIR in
+<code>crates/ostadix-api/src/ir.rs</code>, and executed by the Rust evaluator in <code>crates/ostadix-api/src/eval.rs</code>.</p>
+</li>
+<li><p>The accepted evaluator tags are registry-extensible at compile time through
+the declarative catalog in <code>crates/ostadix-api/src/backend_catalog.inc.rs</code>. <code>BackendRegistry</code>,
+native-adapter dispatch, generated-runtime source emission, and MCP runtime
+discovery are compile-time projections of that one catalog; no runtime source
+parser or independently maintained MCP backend table is involved. The catalog
+records canonical tags, aliases, purity metadata, splice rendering, execution
+mode, adapter ownership, backend authority requirements, typed integer/rich-
+number preservation capabilities, and descriptive executable alternatives.
+Executable presence and declared value capability are not health,
+authorization, capacity, or operation admission.</p>
+</li>
+<li><p><code>OValue</code> is the language-neutral value boundary (<code>crates/ostadix-api/src/value.rs</code>) used by the
+Rust hosted runtime, the C17 edition in <code>c_cpp/</code>, and the Python reference in
+<code>o_lang/</code>.</p>
+</li>
+<li><p>The independent engine&#39;s experimental operation-realization V1 surface
+defines four bounded, canonical, authority-free records in
+<code>crates/ostadix-api/src/computation_core.rs</code>:
+<code>OperationContractV1</code>, <code>OperationInterfaceV1</code>,
+<code>RealizationDescriptorV1</code>, and <code>RealizationSetV1</code>. Strict canonical-CBOR
+decoding and bounded unknown-field-denying JSON decoding assign independent
+domain-separated content identities. <code>o operation inspect</code> validates one
+explicitly typed record without resolving its references; <code>o operation verify</code> checks only exact contract/interface/descriptor/set referential
+closure, port coverage, and unique stable realization names. A pass is not a
+plan, selection, behavioral-equivalence result, proof, authenticated evidence,
+target-eligibility or placement decision, execution or recovery event, or
+grant of evidence, admission, capability, lease, or World authority. Empty
+validation evidence is explicitly declaration-only. The complete boundary is
+specified in <code>docs/OPERATION_REALIZATION_V1.md</code>.</p>
+</li>
+<li><p>The additive operation-planning surface in
+<code>crates/ostadix-api/src/computation/realization_plan.rs</code> defines bounded,
+canonical physical-representation, transfer, cost-profile, objective,
+Logical-HGraph V2, DeploymentPlan V2, RuntimeGraph V2, RecoveryPlan V1, and
+planning-request records with independent domain-separated identities. Its
+first planner profile accepts exactly one logical operation and explicitly
+supplied complete candidate tuples; it performs no Cartesian expansion. It
+checks the exact semantic-record closure, fidelity and target-footprint
+content references, complete static target facts, port/value/representation
+coverage, and cost-profile binding. Dynamic environment, effect, and resource
+requirements are rejected. The only score is the checked sum of six integer
+cost components plus <code>uncertainty_ns</code>; equal scores use the canonical
+candidate tuple. <code>StaticallyCompatibleForRanking</code> is not live target
+eligibility.</p>
+</li>
+<li><p>A marked operation project binds every declared descriptor/target offer to one
+exact checked-in project route through a complete
+<code>(descriptor, target, cost profile)</code> key. The descriptor&#39;s implementation
+digest must equal the bytes of the manifest-named captured regular file, and
+its execution-pipeline reference must equal the
+<code>ostadix.project-route-pipeline/v1</code> projection of the bound route. These are
+separate exact identity joins: they do not prove that the route loads the
+named implementation, behavioral equivalence, or execution on the target
+described by the tuple. <code>o operation</code> and <code>o realizations</code> inspect that
+captured closure without selecting; <code>o plan --explain</code> selects without
+dispatch; and <code>o run</code> repeats preflight, pins the selected route plus its
+project HGraph/deployment identities, executes it through the existing project
+admission/executor path, and requires durable recording.</p>
+</li>
+<li><p><code>o observe</code> reads and content-verifies an exact terminal record. Current
+marked-project runs durably retain the original operation decision and full
+planner snapshot before dispatch. Observation verifies those records against
+the unchanged project bundle and persisted execution/scheduling contracts;
+it does not rerank the historical choice. <code>RuntimeGraphV2</code> binds the retained
+original decision and execution observation through
+<code>ostadix.operation-runtime-binding/v2</code>. Only legacy records without an
+original decision use explicitly labeled current-binary reconstruction;
+they cannot be upgraded into a persisted original choice. An interrupted run
+may retain its original planner snapshot without any execution observation.</p>
+</li>
+<li><p><code>o replan --without-target</code> filters caller-named offers and emits a recomputed
+<code>DeploymentPlanV2</code> without dispatch. It emits a descriptive <code>RecoveryPlanV1</code>
+only for a failed exact source observation when selection changes. A
+successful source run is not a recovery event.
+Recovery planning is not recovery execution. The normalize example&#39;s two
+ambient-Python target offers are static descriptions. They are not distinct
+observed machines or failure domains; alternate selection is not a
+fallback-success or independence claim.</p>
+</li>
+<li><p><code>RuntimeGraphV2::verify_against</code> closes observations over candidates selected
+by an exact deployment, while <code>RecoveryPlanV1::verify_against</code> additionally
+requires the selected candidate to have a failed observation and every
+ordered alternative to be a distinct non-rejected deployment candidate.
+These are internally consistent caller-supplied records, not authenticated
+runtime evidence or mechanisms that dispatch, retry, restore checkpoints,
+migrate state, or fence effects. State and actor requirements, objective
+ruleset content, cost/validation evidence, and physical residency feasibility
+remain unresolved. Planning and record validation grant no admission,
+capability, warrant, reservation, lease, dispatch, recovery, or World
+authority. The exact boundary is specified in
+<code>docs/OPERATION_PLANNING_V1.md</code>.</p>
+</li>
+<li><p>The hosted process protocol uses a 4-byte big-endian length prefix followed
+by canonical CBOR encoding in <code>crates/ostadix-api/src/wire.rs</code>; maps are sorted by encoded key
+length and bytes before transmission.</p>
+</li>
+<li><p>The experimental Information V1 bridge implements exactly eight typed,
+bounded, read-only native metadata projections. Tests cover real fixtures,
+pinned canonical/T2 vectors, exact source provenance, caller-public scalar
+preflight, semantic/canonical decoder rejection, admitted-HGraph denial,
+intentional HGraph/Evidence metadata collisions, raw locator/token absence,
+and the lack of native reverse/authority edges. Its metadata digests are
+deliberately lossy and are not native identity, confidentiality, freshness,
+trust, continuity, admission, or authority. <code>InformationStoreReaderV1</code> and
+fixed MCP <code>o_information_inspect</code> provide bounded existing-root head
+inspection without directory/lock creation, mode repair, head mutation,
+cloud, or network access. The tested no-mutation surface covers entries,
+content, inode, mode, and mtime, not atime or concurrent hostile ancestor
+replacement. The independent <code>ostadix-api</code> engine exposes this advanced
+bridge, while generated AOT runtimes intentionally do not embed it.</p>
+</li>
+<li><p>The repository contains three hosted implementations: the authoritative Rust
+engine (<code>crates/ostadix-api/</code>) with its root CLI/compatibility shell
+(<code>src/</code>), the C17 interpreter and AOT <code>olangc</code> (<code>c_cpp/Makefile</code> and
+<code>c_cpp/CMakeLists.txt</code>, both using C17), and the Python reference edition
+(<code>o_lang/</code>). It also contains O-core freestanding x86_64 ELF object emission
+through <code>ocorec</code> (<code>README.md</code>, <code>src/bin/ocorec.rs</code>, <code>crates/ostadix-api/src/ocore/driver.rs</code>).
+<code>ocorec</code> now also emits a conservative freestanding AArch64 scalar subset
+through <code>crates/ostadix-api/src/ocore/codegen_aarch64.rs</code>; unsupported atomics, inline assembly,
+interrupt/naked functions, floating point, and calls exceeding eight integer
+arguments fail closed.</p>
+</li>
+<li><p><code>examples/manifest.json</code> completely classifies the checked-in <code>.O</code> example
+tree by supported edition, unit/integration/manual status, runtime and
+authority requirements, timeout, and edition-specific oracle. The Rust,
+Python, and C17 test entrypoints consume it. In particular, an unsupported
+backend producing literal text or a zero-exit run containing a fatal shim
+diagnostic is not accepted as example conformance, and an all-skipped sweep
+fails. Rust/C17 oracles are observable output patterns; exact OValue JSON is
+supported only by the Python semantic runner. Manifest authorities describe
+ambient host requirements and do not mint a capability.</p>
+</li>
+<li><p>The source-release builder in <code>scripts/build_source_release.py</code> reads only
+allowlisted blobs from a resolved Git commit, rejects dirty worktrees by
+default, emits a deterministic ZIP with a canonical manifest and checksums,
+and self-verifies before atomic publication. It accepts only regular
+non-executable or executable Git blobs, so a symlink cannot become an escaping
+archive member. Relative Markdown links outside code/comments must resolve to
+files, directories, or the root inside that archive. Verification also checks
+canonical ZIP metadata/layout and inertly validates the MCP configuration,
+crate license, example/evidence manifest schemas, sealed OSTADIX Alpha
+constitution-v3/profile/composed-contract/registry-v4 bytes, exact historical
+attestation and ledger-event bytes, current released-source digests, and
+archive-local references; it never imports or executes archive payloads.
+Schema-v2 historical source sets are one coherent snapshot at commit
+<code>c25d38c00283f2873eed1aa84dd89b437777e356</code>; reconstructing those bytes
+requires full Git history and is explicitly not archive-only proof. The supported local
+MCP crate, its lockfile, LGPL-2.1 license, repository config, and stdio smoke
+regressions are required release members. The regression suite covers debris
+exclusion, link closure, reproducibility, committed-byte behavior, required
+release surfaces, metadata/schema tampering, and symlink denial.</p>
+</li>
+<li><p>The hosted Live-World reference in <code>crates/ostadix-api/src/live_system/</code> and
+<code>src/bin/o-live-host.rs</code> implements strict bounded package ingestion, an
+immutable verified SHA-256 store, exact default-deny activation policy,
+per-service child supervision, health-gated transactional publication,
+generation-bound private service bearers, rollback, targeted restart,
+active-set reconstruction, and sequential cross-world composition through
+pure, boot-persistable OValues. <code>scripts/smoke-hosted-live-reference.sh</code>
+exercises the complete hosted scenario. On Unix, each stateful CLI command
+holds a process-shared advisory lock from before any reconstruction or
+mutation through its complete operation. Direct supervisor mutations also
+use a persisted monotonic revision and an active-set-specific process lock:
+publishing activation, rollback, and service restart compare and advance the
+observed revision, while a stale API instance is rejected and must
+reconstruct. <code>tests/hosted_supervisor_transactions.rs</code> exercises that
+two-writer conflict as well as read-only, generation-preserving
+reconstruction.</p>
+</li>
+<li><p>The hosted Live-World reference is not a native O-core service manager. Its
+workers use host processes and pipes, its state directory is same-user
+trusted control-plane authority, and arbitrary host syscalls are not fully
+contained. It is a differential semantic oracle, not evidence for any native
+QEMU claim below; those claims have their own gates.</p>
+</li>
+<li><p><code>crates/ostadix-api/src/kernel_world.rs</code> implements a strict, bounded
+<code>ocore.kernel-world/v1</code> manifest and a host-side lifecycle oracle shared by
+source-integrated and binary-contained foreign-kernel provider designs.
+<code>tests/kernel_world_contract.rs</code> proves unknown-field rejection, canonical
+parsing, exact binding to verified package metadata, byte verification for
+package-payload images, expected-digest constraints for user-supplied images,
+execution-mode constraints, unique request kinds, exact
+device-export-to-<code>device.*</code> authority binding, and distinct-bound-authority
+<code>max_devices</code> accounting. Multiple exports may share one authority request.
+Reserved rights are kind-typed: <code>vm.machine</code> accepts <code>run|stop</code>, while
+<code>device.*</code> accepts <code>reset|dma</code>. The gate also proves health-gated export
+resolution, bounded request admission, one-terminal-result behavior, failure
+fan-out, restart policy, provenance, and stale-generation denial. Its
+<code>OKWORLD1</code> V2 encoder produces a bounded, deterministic native normal form
+only from a <code>VerifiedKernelWorld</code>; the decoder returns a distinct
+inspection-only type and rejects malformed, noncanonical, V1,
+all-zero-package, or over-limit records. Decoding cannot recreate
+verified-package authority.</p>
+</li>
+<li><p>Mode 20 carries that contract into a bounded native supervisor-admission/
+object gate. Its V2 fixture record is exactly 459 bytes with SHA-256
+<code>0ece5f7f37ebe203d03cc7e5213dc8f9257a9a225a73e52d37d1f718424b9232</code>
+and exact canonical requirements <code>[&quot;npt&quot;, &quot;svm&quot;]</code>.
+<code>kernel_world_record.oc</code> verifies the embedded record&#39;s exact SHA-256 before
+strict parsing, including exact export-authority keys, unique request kinds,
+typed rights, distinct-authority quota accounting, and byte-exact backend
+requirements. <code>kernel_world_admission.oc</code> preserves separate package and
+manifest digests and applies independently registered default-deny policy
+keyed by exact package digest and copied byte-exact request kind/purpose;
+hashes cannot authorize. <code>vm_object.oc</code>
+creates generation-bound, nonexecuting VM/vCPU identities and aligned guest
+pages backed by anonymous 4 KiB memory objects. The gate proves quota,
+overlap, stale-generation, exact-world revoke/reclaim, unrelated-VM survival,
+and a later timer. It does not execute a foreign kernel, enter VMX/SVM,
+construct EPT/NPT, run firmware, inject interrupts, publish a provider export,
+assign a device, map DMA, or provide IOMMU isolation.</p>
+</li>
+<li><p>Mode 21 is an AMD-only executable substrate gate. The host requires KVM plus
+<code>svm</code> and <code>npt</code>, and the kernel compares every retained requirement byte
+against exactly <code>[&quot;npt&quot;, &quot;svm&quot;]</code> before SVM initialization. It executes only
+a two-page real-mode synthetic guest through a private NPT, with bounded
+interrupt injection, a controlled hypercall, an unmapped-GPA denial, exact
+teardown, stop/restart, and unrelated-VM survival. Modes 20 and 21 provide no
+live device service or device capability, guest agent, shared queue or shared
+ring, Linux or Plan 9 boot, virtual device, PCI assignment, IOMMU isolation,
+DMA mapping, device reset, or 9P implementation.</p>
+</li>
+<li><p>Mode 22 is a separate QEMU-TCG native administrative lifecycle gate.
+<code>kernel_world_boot.oc</code> binds at most two admitted worlds to configured VM
+identities and exact consumer CSpaces, requires the independently granted
+<code>vm.machine:run</code> authority for administrative start, and health-gates at most
+four generation-tagged export capabilities by exact protocol ID. Client
+status returns the native boot generation. A device-plane reset right accepts
+broker intent only when derived from its exact independently granted
+<code>device.*:reset</code> request; it neither transfers the provider grant nor resets
+hardware. Failure withdraws bindings and closes capabilities before exact
+VM-graph revoke, then the declared <code>on_failure</code> policy may authorize a fresh
+VM/boot/service generation while unrelated state survives and stale handles
+fail. Duplicate consumer-CSpace/name/protocol ID tuples are denied.
+<code>SYS_CAP_CLOSE</code> retires the registry binding with the capability, and closing
+the last export returns the boot to <code>HEALTHY</code>. Terminal uninstall revokes
+admission before consuming the tombstone only after proving the exact local
+VM graph is absent; an un-staged replacement makes uninstall fail unchanged.
+It exposes no separate abandon operation. Lifecycle/broker transitions use
+single-CPU operation ownership and linearization epochs; future SMP requires
+an atomic lock. The gate calls health and failure directly, does not enforce
+the declared health timeout, and starts no process, guest, or foreign
+provider. It supplies no guest agent, shared ring/queue, 9P, PCI/device
+assignment, IOMMU/DMA isolation, physical reset, Linux boot, or Plan 9 boot.</p>
+</li>
+<li><p>Mode 23 is the bounded execution-and-device composition gate. QEMU TCG
+emulates an x86-64 CPU exposing AMD SVM/NPT; the result is architectural
+guest entry and VMEXIT under emulation, not KVM, physical AMD execution, or
+hardware isolation. One generation-tagged session binds the exact boot,
+admitted-world generation, configured VM, current vCPU, code/mailbox pages,
+device export, and independently granted request. A cross-world vCPU is
+denied before activation, and an execution pin blocks VM-graph teardown
+while SVM owns retained mappings.
+An exact <code>VMMCALL</code> supplies health, while the coordinator derives the health
+protocol from the admitted world rather than guest data. The fixed synthetic
+guest then executes one validated 32-bit <code>OUT</code> to port <code>0xE0</code>; only its
+generation-bound kernel-internal endpoint receives the scalar and returns
+<code>input XOR 0xA5A55A5A</code>. The published reset-request capability dispatches to
+that exact endpoint and clears software transaction state only.
+A deliberate NPF synchronously orders SVM/NPT stop and mapping/pin release,
+virtual-endpoint revocation, client withdrawal, and exact VM-graph
+revocation. An unrelated published service survives. The <code>on_failure</code>
+replacement uses fresh generation-2 VM, boot, session, endpoint, and client
+identities; generation-1 authority remains stale.
+Mode 23 does not boot Linux, Plan 9, firmware, or a supplied user image. It
+has no general guest agent, shared queue/ring, asynchronous or SMP guarantee,
+physical PCI/device assignment, DMA/IOMMU isolation, interrupt remapping, or
+hardware reset. Its TCG result is not KVM or physical-hardware evidence.</p>
+</li>
+<li><p>Hosted evaluation lowers to OIR, builds and validates an <code>ExecutionPlan</code>, and
+projects it into a directed state-complete HGraph. The graph coordinator is
+the default executor; <code>O_EXECUTOR=serial</code> retains the topological OIR
+interpreter as a differential oracle.</p>
+</li>
+<li><p><code>oexec.execution-intent/v1</code> is a process-stable, authority-free identity over
+exact source bytes, lowered OIR, plan, solved graph, the referenced canonical
+backend specifications, analyzer, and base policy. The MCP server can retain
+a bounded, expiring, one-use opaque handle and require <code>O</code> to recompute that
+same intent before dispatch. This is a local same-intent gate, not a
+capability, runtime-health result, retained admission, or authorization; <code>O</code>
+still freshly analyzes Graph V2 and constructs and rechecks a process-local
+V6 admission, and direct <code>o_run</code> remains an explicitly ungated compatibility
+surface.</p>
+</li>
+<li><p>Package 0.3&#39;s supported current local execution contract is Graph V2 with
+<code>oexec.evidence/v6</code> and <code>oexec.admission/v6</code>. The coordinator, evaluator,
+CLI, and MCP execution paths accept fresh <code>AdmittedExecutionV6</code> authority and
+expose Schedule Explanation/Why V2. Graph V1, Evidence/Admission V5, and
+Schedule Explanation/Why V1 remain explicit archival inspection and
+compatibility-verification surfaces only; they are never uplifted,
+relabeled, authorized, or dispatched as V2/V6 authority.</p>
+</li>
+<li><p>Hosted Placement V6 is a separate placement milestone, not the local
+<code>oexec.admission/v6</code> coordinate. Its direct-node channel is exposed through
+<code>o-node</code> and <code>octl node ...</code>; it freshly prepares a
+<code>PreparedPlacementFragmentV2</code> from local Graph V2/V6 authority. It does not
+treat an <code>AdmittedExecutionV6</code> as portable authority or upgrade an archival
+V5 admission or <code>PreparedPlacementFragmentV1</code> into an executable fragment.</p>
+</li>
+<li><p>The V6 placement core models a <code>RequirementFootprintV1</code> over operation
+capability, value, effect, environment, and resource constraints and compares
+it with a full <code>TargetDescriptorV1</code>. Eligibility never factors through an ISA
+or language display name. Complete, conservatively unknown, and unsatisfiable
+footprints remain distinct, and unknown requirements cannot join away.</p>
+</li>
+<li><p><code>o why FILE.O P&lt;N&gt;</code> appends the compiler-derived V6 footprint for the exact
+selected plan node. Hosted shim effects without explicit autonomous consent,
+coordinator-local control, and unpackaged scope state remain
+<code>ConservativeUnknown</code>; the report is descriptive and grants no placement
+authority or lease.</p>
+</li>
+<li><p>Every positive V6 placement decision carries exact requirement-to-warrant
+discharge. Compiler-static requirements and fresh runtime-discovered or
+enforced target facts are the strict default. Provider declarations and
+historical observations may authorize missing positive facts only under an
+explicit trust policy, cannot override a fresh discovered negative, and are
+bound into the transport-independent discharge record. Frozen direct-node V1
+does not consume that proof. Durable hosted V2 carries the complete profile,
+capacity observation, requirement footprint, warrants, discharge, trust
+policy, and compute reservation under one signed envelope; the node
+re-evaluates candidate eligibility against its current catalog and exact
+locally prepared fragment before accepting execution authority.</p>
+</li>
+<li><p>Local admission schema, Hosted Placement V6, and backend-catalog generation
+are independent version axes.
+The current authorizing catalog is <code>ostadix.backend-catalog/v6</code>, and its
+schema string participates in the whole-catalog and per-specification hash
+domains. <code>NodeProfileV1::validate_at</code> invokes
+<code>TargetDescriptorV1::validate_current_backend_catalog</code> before candidate
+authorization. A profile containing a V5, V4, V3, or otherwise unknown backend
+specification therefore fails with <code>NonCurrentBackendCatalog</code>, even if its
+old digest, detached signature, requirements, and warrants agree with one
+another. Decoding or independently verifying an archived signed record is
+not current placement authorization, and no archival digest is relabeled as
+V6. V4 remains frozen with the explicit backend-state support and snapshot-
+compatibility declaration used by persistent-session placement. V5 extends
+that exact prefix with an explicitly absent or named bounded
+backend-morphism profile.
+A descriptor with no backend implementations may remain structurally valid,
+but cannot discharge a backend-specification or backend-implementation
+requirement.</p>
+</li>
+<li><p>Current backend implementation identity uses the path-independent
+<code>ostadix/backend-executable-set/v2</code> projection and
+<code>ostadix.local-realization/v2</code> hash material. The semantic executable set
+binds the selected catalog alternative, selection kind, logical command,
+executable role, and immutable artifact bytes; physical paths and retained
+file handles stay in process-local admission authority. Current profile
+validation reconstructs the realization through <code>BackendRegistry</code>, rejects a
+foreign protocol ABI, and rejects legacy local-realization V1 material with
+<code>NonCurrentBackendImplementation</code>. Archival V1 bytes remain inspectable and
+are never relabeled as V2.</p>
+</li>
+<li><p>Registry v1 is a transport-independent, canonical-CBOR, Ed25519-signed
+append-only store for namespace-scoped <code>placement::NodeProfileV1</code> records.
+It verifies pinned roots, strict-descendant namespace delegation, sequence
+and previous-event chains, rejects future-dated events, contains each profile
+validity interval within one signer authority, checks profile freshness and
+monotonic generation, and rejects rollback, forks, equivocation, or untrusted
+imports before atomic replacement. Cooperating publish/import writers hold a
+persistent sibling advisory lock for the complete transaction. <code>o-registry</code>
+provides local <code>init</code>, <code>profile-local</code>,
+<code>publish-profile</code>, <code>verify</code>, <code>list</code>, <code>export</code>, and <code>import</code> operations; it is
+not a network daemon, discovery service, health oracle, lease issuer, or
+execution authority, and the direct node path does not consume it.</p>
+</li>
+<li><p>HGraph represents ordinary results, successful completion, evaluator state,
+host-resource state, and persistent actor state as nodes. Executable
+operations are directed, multi-output hyperedges. Readiness follows only from
+materialized inputs and their producers.</p>
+</li>
+<li><p>Unknown hosted operations are conservatively serialized through a shared
+<code>HostWorld</code> state chain. Persistent environments also use typed actor-state
+chains. The implementation does not claim exact effect inference from
+arbitrary Python, Bash, JavaScript, Rust, or other hosted source.</p>
+</li>
+<li><p>The current scheduler&#39;s <code>ActorResourceId</code> remains the canonical backend
+name plus persistent numeric environment; the process registry additionally
+keys sandbox and admitted launch generation. Hosted V2 does not substitute
+that smaller local scheduling key. It uses <code>ActorGenerationIdV1</code> as its
+physical state coordinate, binding the logical environment, exact backend
+implementation, target descriptor, sandbox policy, launch context, and
+generation. <code>StateSessionIdV2</code> is the separate logical durable-session
+identity, so a replacement generation cannot alias the actor it replaced.</p>
+</li>
+<li><p>Conservative <code>{lazy}</code> cache safety is enforced from backend metadata in
+<code>crates/ostadix-api/src/ir.rs</code> and validation in <code>crates/ostadix-api/src/eval.rs</code>: inline <code>html</code>, <code>markdown</code>,
+<code>latex</code>, and <code>text</code> are cache-safe; unrestricted shim backends including
+<code>nix</code>, <code>sql</code>, <code>haskell</code>, <code>ocaml</code>, and <code>webassembly</code> are rejected before shim
+execution when <code>{lazy}</code> is requested.</p>
+</li>
+<li><p>Capability and authority checks exist for hosted backend execution and system
+activation (<code>crates/ostadix-api/src/capability.rs</code>, <code>crates/ostadix-api/src/eval.rs</code>). Backend processes are keyed
+by sandbox policy in <code>crates/ostadix-api/src/process.rs</code>, and backend dispatch checks requested
+authorities before execution.</p>
+</li>
+<li><p>Supported concurrent request classes are the scheduler&#39;s threadable Nix-family
+request kinds: instantiate, realise, and dry activation. Group modes
+<code>batch</code>, <code>all</code>, <code>any</code>, and <code>race</code> are represented in <code>crates/ostadix-api/src/value.rs</code>, lowered
+through <code>crates/ostadix-api/src/ir.rs</code>, and resolved by evaluator/scheduler code; Eval requests
+remain serial.</p>
+</li>
+<li><p>Literal <code>o-link</code> wrappers use linker-isolated <code>[*]</code> environments rather than
+synthesized persistent numeric indices. Authored numeric environments remain
+persistent logical affinity. Sequential <code>LANG[*]</code> syntax and fresh semantics
+are implemented by Rust, the Python reference, and C17. Ordered <code>LANG[*]</code>
+wrapping remains the cross-edition form;
+<code>o-link --parallel</code> is explicit autonomous consent, each admitted parallel
+run returns input-ordered results, and sequential structural/inlined <code>.O</code>
+boundaries split those runs. Its emitted <code>autonomous(batch(...))</code> call
+expression currently requires the Rust edition: C17 schedules serially and
+the Python reference lacks call-expression grammar. Parallel linking does not
+by itself establish remote eligibility or rollback already-started hidden
+effects. Detected import/include dependencies form topological barrier waves;
+only same-wave antichains overlap, and dependency cycles are serialized in
+stable source order.</p>
+</li>
+<li><p>The bounded direct-node transport uses synchronous TCP with TLS 1.3-only
+mutual X.509 authentication, a pinned CA and server name, required client
+certificate/key, and version-specific ALPN. It has no plaintext, 0-RTT, or
+post-negotiation downgrade path. Canonical-CBOR frames are limited to 2 MiB;
+operation source to 1 MiB; result payload to 768 KiB; connect/handshake to 10
+seconds; and I/O to 60 seconds by default.
+The embedding <code>o-node</code> process is not treated as the O backend proxy: doctor
+and serve resolve a native <code>ostadix-evaluator</code>/sibling O or an explicit
+<code>--runtime-binary</code>, reject script dispatchers, and bind that exact executable
+into each operation&#39;s retained executable manifest admitted under V6.
+Doctor&#39;s native-image check is a format preflight, not an ABI or
+backend-protocol probe; the
+default/sibling O path is exercised end-to-end, while an arbitrary explicit
+image proves protocol compatibility only on an admitted hosted-backend
+launch. Registry
+<code>profile-local</code> records default to 45 seconds and accept integer lifetimes
+from 1 through 60 seconds.</p>
+</li>
+<li><p>The ordinary node projection is pairing-required by default. On Unix-like
+hosts (including WSL), both machines run <code>o node start</code>; one runs
+<code>o node pair</code>, and the other runs <code>o node pair NODE_ID</code> and enters the hidden
+ten-digit passcode. An offer is one-use and expires after five minutes.
+<code>--passcode-stdin</code> provides noninteractive input, while
+<code>--address HOST:7340</code> permits a known routed pairing endpoint only when it is
+directly TCP-reachable; there is no router-crossing discovery, NAT traversal,
+relay, or hole punching.</p>
+</li>
+<li><p>Pairing uses SPAKE2 plus explicit directional confirmation to bind both node
+identities, public bundles, SPAKE2 messages, CSRs, and destination-issued
+certificates. Only public CA, CSR, certificate, and Hosted V2 receipt-key
+material crosses the channel; each side&#39;s fresh per-peer private key remains
+local. Later ordinary commands reuse the reciprocal pinned server CA,
+expected server name, and receipt public key. Discovery remains
+unauthenticated routing metadata and cannot rotate those pins. Duplicate or
+spoofed advertisements can impair route availability but cannot replace the
+paired identity.</p>
+</li>
+<li><p>Destination-issued pairing client certificates are valid for 397 days.
+Renewal, or recovery when only one side retained pairing state, requires a
+fresh offer using <code>o node pair --replace</code> on the offerer and
+<code>o node pair NODE_ID --replace</code> on the joiner. Ordinary pairing refuses
+changed pins; only the explicit replacement path can replace an existing
+record, while a missing side performs its ordinary first store.</p>
+</li>
+<li><p>For an existing paired record,
+<code>octl ... --node NODE_ID --address HOST:PORT</code> overrides only the route for
+that invocation. It retains the stored paired CA, expected server name,
+client credential, and receipt-key pin and does not persist a new identity.</p>
+</li>
+<li><p>Pairing is not a production membership or authorization system. Ostadix has
+not independently audited the <code>spake2</code> dependency. Inbound client trust is
+pairing-CA-wide, not limited to a stored leaf; pairing v1 has no leaf
+allowlist, unpair operation, or revocation mechanism, so replacement does not
+revoke an already issued certificate before expiry. The automatic Hosted V2
+placement authorizer remains permissive after transport pairing. Pairing
+creates no persistent node mesh. Plaintext shared-key bootstrap is disabled
+by default and survives only behind the explicit legacy <code>--lan-open</code>
+compatibility switch.</p>
+</li>
+<li><p>Frozen transport V1, exposed as <code>octl node run</code>, sends one operator-selected node a
+<code>RemotePreparedOperationV1</code> binding exact source SHA-256, task/attempt
+identities, the full descriptive backend-catalog digest, deadline, and output
+ceiling. The node creates a fresh evaluator for the operation; it exposes no
+generic shell-command RPC, project-bundle dispatch, or persistent remote
+actor. It returns a canonical-CBOR, SHA-256 self-digested
+<code>HostedOperationReceiptV1</code>. The deadline suppresses a late result but cannot
+cancel evaluator effects that were already running.</p>
+</li>
+<li><p>V1 compares the exact whole-catalog digest and therefore
+rejects peers built from different catalog generations. That is a protocol-
+compatibility binding only: V1 still does not consume a placement
+profile, warrant discharge, or lease.</p>
+</li>
+<li><p>Durable transport V2 is an explicit, non-upgraded ALPN path. Open and recover
+commands require a signed <code>StateControlLeaseV2</code>; execute requires a signed,
+one-use <code>PlacementLeaseV2</code>. <code>SignedPlacementLeaseV2</code> authenticates the
+canonical authority, exact hosted command, full placement evidence, and the
+open-session state-capacity observation when present. A manual node pins one
+Ed25519 placement-authority key and requires the profile, capacity, warrants,
+and state-capacity record to name that issuer. The automatic paired mode does
+not inherit that restriction: its automatic authorizer accepts any signer
+whose self-consistent, unexpired lease matches the exact live command. Pairing
+therefore authenticates transport identity without becoming placement
+authority. Neither mode is production enrollment, rotation, revocation, a
+multi-key chain, discovery, or scheduler-selected placement.</p>
+</li>
+<li><p>Before V2 execution authorization, the node parses, lowers, solves, admits,
+and seals the exact submitted source as one non-cloneable
+<code>PreparedPlacementFragmentV2</code>. The admissible shape has one non-whitespace
+semantic root and exactly one shim <code>Exec</code>; text children are allowed, while a second <code>Exec</code>, <code>Load</code>,
+<code>Store</code>, <code>Call</code>, <code>Request</code>, <code>Group</code>, <code>Schedule</code>, text-only input, a nonempty
+coordinator scope, or recursive <code>O.eval</code> authority is refused. The execution
+lease binds the resulting OIR, footprint, portable placement admission, task attempt, backend
+implementation, realization pipeline, trust policy, compute reservation,
+state session, and the applicable actor generation. Persistent opaque shim work requires
+the explicit <code>execution/session-serialized-opaque-effects@1</code> target
+capability; this supplies per-session serialization, not purity,
+replayability, or global effect isolation.</p>
+</li>
+<li><p>Session open fixes <code>HostedPlacementIdentityV2</code>: target, exact requirement
+footprint, backend implementation and realization pipeline, logical
+environment, trust policy, and compute reservation. Open has no physical
+actor generation. A stateful first execute carries no pre-established actor;
+after exact local preparation the node derives and signs
+<code>ActorGenerationIdV1</code>, including exact sandbox and launch context, and later
+executes must match it. Open does not freeze one source/OIR for the complete
+session lifetime: every execute separately binds exact source-derived OIR,
+task attempt, portable placement admission, deadline, operation, and one-use
+lease, permitting multiple commands only while those fixed coordinates remain
+equal. The full V6 admission still binds process-local runtime freshness and
+is rechecked at dispatch; it is not used as a cross-process proof coordinate.
+<code>PreparedPlacementFragmentV1</code> remains available for archival inspection only
+and is never accepted, converted, or executed by the package-0.3 path.</p>
+</li>
+<li><p>V2 session access requires both the authenticated TLS client-certificate
+leaf fingerprint fixed at open and a separate random 256-bit bearer. The
+client creates and fsyncs its mode-0600 capability file before network send,
+and the signed Open request commits to the exact capability. The durable store
+keeps only its commitment, a random salt, and a salted hash. A durably
+committed Open whose response was lost can be recovered by resending the
+byte-identical full signed request and capability, including after restart or
+proof expiry; conflicting request bytes are rejected. Session
+directories/files are owner-only on Unix,
+symlinks and non-regular files are rejected at trust boundaries, and journal,
+operation, checkpoint, and directory updates are synchronized before
+acknowledgement. A new session plus its first receipt is atomically published,
+and immutable operation/checkpoint blobs use private same-filesystem staging
+plus no-clobber publication. Source, results, and checkpoint material are not
+encrypted at rest.</p>
+</li>
+<li><p>Every V2 mutation is represented in a node-Ed25519-signed, hash-chained
+canonical journal. Exact duplicate client sequence/request/digest triples
+return their prior commit receipt; conflicting reuse is rejected. Startup
+verifies session and authority journals, reconstructs accepted and refused
+placement-lease nonces, and reconstructs the terminal record&#39;s signed
+<code>state_durable</code> and <code>actor_state_touched</code> disposition without guessing. An
+accepted operation whose backend command never started remains <code>NotStarted</code>,
+while its allocated physical generation is either retired when state is empty
+or fenced as lost when prior state existed. Started-without-terminal work is
+<code>Ambiguous</code>. These records support reconnect status and replay detection; they
+do not establish exactly-once execution or external-effect publication.</p>
+</li>
+<li><p>Explicit closed-session GC retains the complete signed terminal session
+journal by a same-filesystem atomic rename into the permanent tombstone
+archive. The signed GC authorization binds its exact raw digest, byte length,
+and terminal head, so retired session identity and every consumed lease nonce
+survive payload deletion and restart. The retained journal is excluded from
+reclaimed-byte claims. A fixed 16 KiB authority-control debit funds signed
+tail-repair and GC frames without exceeding the hard total-state quota;
+completed GC credits only its verified reclaimed bytes. Reclaiming cycles can
+therefore recycle the reserve, while a zero-reclaim history can exhaust it
+and is refused rather than evicting state.</p>
+</li>
+<li><p>Under exclusive store ownership, each journal is signature/hash-chain scanned
+once at startup and subsequent appends advance a cached exact head; an
+out-of-band length change is rejected. Startup truncates only an incomplete
+final frame and appends signed repair evidence to the authority journal; a
+complete invalid frame is never repaired. There remains a narrow crash window
+after the truncation fsync and before that audit append in which the retained
+prefix is sound but the repair event can be absent. If a filesystem barrier
+cannot be reconciled to exact durable bytes, the store returns
+<code>store-reopen-required</code> and refuses mutations plus current-head views until a
+fresh open revalidates the journals.</p>
+</li>
+<li><p>Every root containing durable Hosted V2 state must carry the exact
+package-0.3 <code>.execution-authority-v1</code> marker for Graph V2, Evidence/Admission
+V6, and placement-admission V2. A durable root with no marker or a different
+authority coordinate is rejected without mutation; archival journals are
+never uplifted, resumed, relabeled, or executed. A root without existing
+durable sessions or an authority journal may be initialized with the marker.</p>
+</li>
+<li><p><code>Status</code> and <code>Actors</code> responses verify a node-signed receipt for the exact
+session journal head and correlate it to the requested session. Their
+projected convenience fields are carried over authenticated mTLS but are not
+individually covered by that receipt; callers requiring offline proof must
+consume the signed journal itself.</p>
+</li>
+<li><p><code>StateQuotaLimitsV2</code> has five canonical hard dimensions: open sessions,
+actors per session, snapshot bytes per actor, state bytes per session, and
+total state bytes. Open carries a fresh signed state-capacity observation and
+exact reservation. Exhaustion refuses new state or work and never retires an
+existing actor to make room; this initial runtime realizes exactly one actor
+per session. Closing releases the reservation and stops the actor but retains
+journal files. Only the explicit offline <code>o-node admin gc-closed</code> path, under
+the cooperating exclusive advisory state-root lock, removes a durably closed
+session after writing signed GC-authorized and GC-completed authority-journal
+records. That lock coordinates the shipped node/admin processes; filesystem
+ownership is not a hostile-same-UID security boundary.</p>
+</li>
+<li><p>V2 exposes four state-tier labels but authorizes only three mappings:
+<code>Stateless</code> requires a fresh fragment and current <code>Stateless</code> catalog support;
+<code>CheckpointRestore</code> requires a persistent environment and current
+<code>SemanticSnapshot</code> support with its exact codec/compatibility identity; and
+<code>LiveActorOnly</code> requires current <code>ExternalPinned</code> support and remains tied to
+the node process. <code>ReplayReconstructible</code> is rejected because no current
+catalog tier or automatic replay/publication adapter discharges it. Restart
+validates an eligible checkpoint, durably fences the lost physical
+generation, and enters <code>RecoveryRequired</code>; it does not lazily restore during a
+user operation. Authenticated Python/SQL recovery writes a signed
+<code>RecoveryAttemptStarted</code> before replacement launch, forcing a unique actor
+generation and nonce consumption, then publishes <code>RecoveryCommitted</code> only
+after the backend acknowledges the exact staged snapshot. Startup converts an
+unterminated recovery attempt into a signed refusal before exposing the
+session. Lost live-only state remains <code>RecoveryRequired</code>, and unreviewed
+codecs fail closed.</p>
+</li>
+<li><p>V2 checks an absolute deadline before admission, before evaluator entry, and
+in the prepared evaluator wait. Expiry before
+dispatch has a typed no-command-sent result. In-flight timeout or process
+loss can remain ambiguous: the runtime cannot cancel, compensate, or roll
+back external effects already performed, and a late value is suppressed.
+Output encoding, actor checkpointing, journal fsync, and terminal response
+publication occur after value acceptance and are not covered by an end-to-end
+publication-deadline claim.</p>
+</li>
+<li><p>V1&#39;s self-digested <code>HostedOperationReceiptV1</code> has no detached node signature:
+it is tamper-evident after capture but not independently attributable or
+offline-verifiable. V2 responses instead carry node-signed journal receipts
+checked against an explicitly pinned node receipt key. Neither transport
+protocol performs automatic registry discovery, target selection, retry,
+alternate-node selection, or local fallback. The separate ordinary CLI
+projection can discover a route or reuse a remembered paired address; it does
+not turn that routing behavior into scheduler policy.</p>
+</li>
+<li><p>The co-located <code>authority dev-mint</code> bridge derives current self-attested proof
+bundles for open, execute, and the bounded checkpoint-recovery path. Each can
+optionally mint and submit in one invocation so the four-second development
+capacity evidence is not exposed to a manual delay. It is not discovery,
+independent runtime observation, production enrollment, or automatic recovery
+policy.</p>
+</li>
+<li><p>The deterministic source-release allowlist requires
+<code>crates/ostadix-api/src/hosted_remote/v2/dev.rs</code> together with the V2 protocol, cryptography,
+authorizer, client, server, runtime, and store modules, so the documented
+development bridge is not omitted from the source archive.</p>
+</li>
+<li><p>Fabric V1 can authenticate and execute the admitted M2 pure renderer profile on an explicitly selected <code>o-node</code>, returning a bounded provisional candidate whose graph publication and settlement remain coordinator-controlled. The
+remote may authenticate, validate its exact signed lease, reconstruct and
+compute the admitted operation, persist provider-local attempt status, and
+return the candidate. It cannot mutate or publish HGraph state, name an
+authoritative HGraph node, choose a winner, settle trace order, advance a
+resource version, commit an external effect, or initiate retry. Candidate
+validation, candidate publication, and deterministic settlement remain
+distinct transitions owned by the coordinator, which is the sole
+graph-commit authority and sole linearization locus for graph transitions.</p>
+</li>
+<li><p>The executable Fabric evidence in <code>tests/execution_fabric_two_node.rs</code> starts
+two real <code>o-node</code> processes on one host with separate ports, TLS identities,
+node identities, state directories, ledgers, node generations, and explicit
+Fabric authority enrollment. Both nodes produce provisional results matching
+local execution. The test rejects a node-A lease at node B, prevents a
+wrong-node result from entering coordinator acceptance, reports a stopped
+selected node as infrastructure failure without local-renderer fallback, and
+preserves the Hosted and Mesh ALPN routes. It proves process separation on
+one host, not distinct kernels, physical multinode operation, or
+heterogeneous hardware.</p>
+</li>
+<li><p>M3 makes these exact nonclaims:</p>
+<ul>
+<li>no arbitrary OIR region execution;</li>
+<li>no general <code>.O</code> distribution;</li>
+<li>no automatic placement;</li>
+<li>no capacity scheduler;</li>
+<li>no scope transport;</li>
+<li>no object plane;</li>
+<li>no bulk node-to-node data transfer;</li>
+<li>no actors;</li>
+<li>no external effects;</li>
+<li>no automatic retry;</li>
+<li>no coordinator crash recovery;</li>
+<li>no hardware-resource execution;</li>
+<li>no GPU or camera driver mediation;</li>
+<li>no process migration;</li>
+<li>no shared address space;</li>
+<li>no physical multinode claim;</li>
+<li>no distinct-kernel claim;</li>
+<li>no heterogeneous-architecture claim;</li>
+<li>no exactly-once external effect claim.</li>
+</ul>
+</li>
+<li><p>Hosted Placement V6 is not World membership, Governor admission/commit,
+WorldFS, G1 or G10 evidence, a physical-machine or hardware-isolation proof,
+a global exactly-once protocol, arbitrary project/HGraph-island placement,
+cross-session global-effect isolation, persistent-actor migration, safepoint
+migration, cancellation, or rematerialization. The Hosted Placement core
+contains no network registry/discovery service, automatic scheduler,
+production authority enrollment, multi-key placement chain, automatic GC,
+retry, or fallback. The separate pairing/discovery projection is routing and
+reciprocal transport identity, not those missing services. Its exact
+boundary is documented in
+<a href="HOSTED_PLACEMENT_V6.md"><code>HOSTED_PLACEMENT_V6.md</code></a>.</p>
+</li>
+<li><p>Native value crossings are conservative: <code>Fidelity::NativeCapsule</code> in
+<code>crates/ostadix-api/src/value.rs</code> and <code>crates/ostadix-api/src/hgraph/solve.rs</code> prevents claiming general
+cross-runtime native value soundness.</p>
+</li>
+<li><p>Hosted crossing fidelity is derived from typed <code>BackendValueCapabilities</code>
+embedded in the canonical backend specification, not from a language-name
+allowlist. Aliases resolve through the same specification. Unknown integer or
+rich-number capability yields <code>Unsupported</code>; an abstract <code>I64</code> crossing to a
+53-bit float-only backend records structural numeric loss rather than an
+optimistic <code>Lossless</code> result.</p>
+</li>
+<li><p>Integer exactness is an explicit interval guarantee. <code>ExactMagnitudeBits(b)</code>
+denotes <code>[-2^b, 2^b]</code>, <code>TwosComplementBits(b)</code> denotes
+<code>[-2^b, 2^b - 1]</code>, and <code>ExactRange { min, max }</code> stores an inclusive
+arbitrary-precision interval. JavaScript/Matlab-style consecutive floating
+integers retain the symmetric 53-bit form; signed fixed-width catalog
+entries use <code>TwosComplementBits(63)</code>. Boundary tests cover both signs at
+2^63 and preserve the JavaScript 2^53 behavior.</p>
+</li>
+<li><p>The stratified solver stores <code>FidelityAssessmentV2</code>, separating losses that
+occur for every represented value (<code>definite</code>) from losses possible for at
+least one represented value (<code>possible</code>). Sequential crossings used by the
+solver union both bounds. The currently uncalled <code>join_paths</code> operation is a
+tested conservative hull for lossless/structural alternatives: it intersects
+definite losses and unions possible losses, but it is not evidence that the
+production solver currently merges alternative paths. The compatibility
+<code>Fidelity</code> projection reports all possible losses, so a V1 consumer cannot
+receive an optimistic answer.</p>
+</li>
+<li><p>Structural fidelity loss is non-empty by construction. A legacy serialized
+empty structural set normalizes to <code>Lossless</code>, so semantically identical
+states cannot retain two evidence encodings. The concrete <code>Fidelity</code> point
+embedding into <code>FidelityAssessmentV2</code>, sequential composition, interval
+concretization membership, conservative upper projection, and the
+lossless/structural path hull are covered by generated algebraic checks.</p>
+</li>
+<li><p><code>RenderFidelity</code> is a separate, on-demand description of source-splice
+projection, not crossing evidence or an admission result. Its matrix binds a
+representative of all 30 current <code>OValue</code> variants to all six renderers;
+targeted cases cover payload-conditional Python Decimal/F64 and Nix
+integer/text behavior, collection subtypes, recursive child propagation,
+map-key rendering, and media-less bytes. There is no implemented conversion,
+common carrier, or Galois connection between <code>RenderFidelity</code>, <code>Fidelity</code>,
+and <code>FidelityAssessmentV2</code>.</p>
+</li>
+<li><p><code>BackendMorphismV1</code> is an additive shadow kernel, not an admission claim. Its
+Python profile is bounded to recursive acyclic plain data; it rejects
+cycles/shared references, non-string or duplicate map keys, excessive depth,
+and unsupported native objects. Its JavaScript profile has executable
+evidence for recursive profiled-JSON stdout and scalar bindings, not native
+recursive container bindings. Its Rust profile has executable evidence for
+bounded scalar source constants plus profiled stdout, not arbitrary Rust
+program, type, ABI, or binding equivalence. <code>inject</code> names conversion of an
+already acquired profiled backend output into O; it is not an assertion that
+the backend can accept that value as input. Both legs carry explicit
+compositional fidelity and their exact boundary descriptions appear in each
+shadow assessment.</p>
+</li>
+<li><p>Catalog V5 introduced the optional shadow profile assignment for all 30
+canonical backends, and Catalog V6 retains it while expanding only the
+WebAssembly runtime alternatives; archival V4 and V5 digests stay unchanged. This makes profile selection
+part of the current catalog projection and placement identity, but does not
+add the profile to <code>BackendInterface</code>, change HGraph solver facts or graph
+hashing, add fields to evidence/admission protocols, or enforce a crossing
+during dispatch. Enforcing the shadow assessment itself later requires an
+explicit graph/evidence version rollover. <code>tests/backend_morphism_v1.rs</code>
+exercises a real nested
+Python input binding, a real JavaScript scalar input binding, and the exact
+emitted Rust scalar program through Python, Node.js, and rustc; kernel unit
+tests cover negative values and numeric bounds.</p>
+</li>
+<li><p>O-core Milestones 0.1 through 0.3 are complete for their bounded, single-CPU
+QEMU bootstrap gates. They prove CPL3 <code>SYSCALL</code> and IRQ return, page-granular
+kernel and user protection, normalized faults, fault-aware bounded user copy,
+and a reclaiming typed registry for all 3,072 frames in the fixed 4..16 MiB
+window. The default gate also proves generation-safe memory-object reuse,
+zero-before-reuse, rollback, per-CSpace quotas, and capability-returning
+anonymous/shared <code>page_alloc</code>. The fresh-boot fault matrix remains evidence
+about the one-process Milestone 0.2 scenario, not the current upper bound.</p>
+</li>
+<li><p>Milestone 1 is complete for two bounded native processes on one CPU.
+<code>smoke-processes-qemu.sh</code> runs independent exit and fault scenarios and proves
+separate CR3s, the same private virtual address backed by different frames,
+atomic PCB/domain/address-space/CSpace switching, split teardown, stale handle
+denial, sibling survival, complete dynamic-frame reclamation, and a later
+timer marker.</p>
+</li>
+<li><p>Milestone 2 is complete for four TCBs across two processes on one CPU.
+<code>smoke-scheduler-qemu.sh</code> proves one million forced identity transactions, FIFO
+runnable and blocked queues, two CPU-bound and two sleeping CPL3 threads,
+cooperative yield, timer preemption, wake-once sleep, bounded priority
+accounting, an idle path, cross-thread hostile-RFLAGS sanitization, hostile
+saved-RSP TCB containment, exit during preemption, sibling progress, stale
+TCB denial, frame reclamation, and post-lifecycle timer survival. The million
+transactions do not enter CPL3; real frame save/restore and IRETQ switching
+are proved separately by the bounded IRQ/SYSCALL phase.</p>
+</li>
+<li><p>Milestone 3 now has a bounded native IPC gate in
+<code>ocore/kernel/smoke-ipc-qemu.sh</code>. Four CPL3 processes exercise public endpoint
+create/send/receive/cancel syscalls, cross-domain request/reply, a full
+four-message FIFO with real TCB blocking and wake-once retry, exact
+attenuation during capability transfer, automatic dead-sender cleanup, and
+exception-driven personality crash containment while an unrelated world
+continues. A ticket is bound to its exact creating process generation and
+the destination CSpace derived from the authorized endpoint, not to the
+endpoint object. The gate fills all 16 ticket slots, denies abort by another
+process, lets the owner unwind them exactly once, rejects the stale ticket,
+and proves allocation recovers. It also requires transactional teardown,
+complete resource reclamation, one later timer interrupt, and one second of
+QEMU survival. The earlier <code>smoke-ipc-foundation-qemu.sh</code> remains a narrower
+regression gate; <code>cap_copy</code> is now the attenuation-only transfer-ticket
+operation, while its legacy all-zero capability probe still returns
+<code>ERR_NOT_IMPLEMENTED</code>.</p>
+</li>
+<li><p>Milestone 4 has a bounded native loader/VFS gate in
+<code>ocore/kernel/smoke-loader-qemu.sh</code>. <code>build-m4-artifacts.sh</code> rebuilds two
+independently linked static O-core ELF personalities and a deterministic
+read-only <code>OVFSIMG1</code> image, checks deterministic repacking and SHA-256 on the
+host, and includes malformed, overlapping, and W+X ELF corpus entries. A
+fresh QEMU boot imports the image as data, rejects that corpus before start,
+and loads both personalities into separate W^X address spaces at the same
+preferred user window, resolves a service to an attenuated capability, tears down the
+namespace transactionally, reclaims every dynamic frame, and reaches a later
+timer. The kernel runs NIST-vector-tested SHA-256 over the complete embedded
+bytes before import and rejects any mismatch with the canonical artifact
+identity; the host independently verifies reproducibility and the same digest.</p>
+</li>
+<li><p>Milestone 5 has a bounded native live-system gate in
+<code>ocore/kernel/smoke-live-qemu.sh</code>. <code>build-m5-artifacts.sh</code> deterministically
+builds separate static <code>init</code>, supervisor, package-daemon, and REPL ELF files
+into a 62,056-byte content-addressed read-only OVFS image whose pinned SHA-256
+is <code>388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a</code>.
+The host verifies that identity and the kernel recomputes it before import.
+The fresh-QEMU gate proves four isolated loaded CSpaces and a real CPL3 serial
+loop whose only serial-read and control-submit authority is a typed control
+capability. The host sends a malformed command, an exact immutable-digest
+install, and activation in that order; the malformed command cannot publish
+state, while activation publishes all four service records only after exact
+capability grants and concrete process health tokens. The package daemon then
+deliberately faults in CPL3. The gate contains that one generation, preserves
+the three unrelated services, withdraws the stale service while the control
+state is <code>CONTROL_RECOVERING</code>, rejects stale process/thread/CSpace/address-space/
+capability/service generations, and runs a freshly loaded package-daemon
+generation. Only its exact restart health token permits republication. The
+gate then deactivates the control plane, revokes the control capability, tears
+down its namespace and processes, reclaims all frames, observes a later timer,
+and requires another second of QEMU survival.</p>
+</li>
+<li><p>The independent mode-17 gate in <code>smoke-live-semantics-qemu.sh</code> executes the
+bounded package/supervisor state corpus: two immutable roots, overgrant and
+incomplete-set denial, failed-health nonpublication, complete-set rollback,
+stale references, abstract crash/restart with unaffected state, and strict
+serial parsing. Neither native gate establishes a general or unbounded retry
+or backoff policy. A mode-16 replacement that fails before publishing its exact
+health token remains withdrawn and fails closed; recovery from that second
+fault is not claimed.</p>
+</li>
+<li><p>M6A has a bounded package-loaded scalar personality-supervision gate in
+<code>ocore/kernel/smoke-personality-qemu.sh</code>. <code>build-m6-artifacts.sh</code> rebuilds
+four static ELFs at <code>/sbin/m6-client.elf</code>,
+<code>/sbin/m6-personalityd.elf</code>, <code>/sbin/m6-supervisord.elf</code>, and
+<code>/sbin/m6-observer.elf</code>, requires byte identity, and packs exactly those paths
+into a 62,104-byte read-only OVFS image with SHA-256
+<code>f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417</code>.
+The host gate checks that identity and proves the user modules are not linked
+as kernel code; the kernel verifies the complete image before import. Mode 18
+loads all four into isolated W^X address spaces and CSpaces. The unprivileged
+supervisor health-gates generations 1 and 2, requests publication, selects
+cancellation, requests one crash-driven restart, and requests cooperative
+stop. O-core installs and rotates the client call capability. The
+endpoint-backed scalar router proves the
+ping/add-one/unsupported corpus plus deterministic cancellation, timeout, and
+service-death results with one terminal wake. It rejects late, duplicate,
+prior-generation, and stale-capability use while retaining all nine consumed
+terminals in a 16-record exact-handle history with zero eviction. Its fault
+watch is FIFO-queued before cancellation releases the client. An unrelated
+observer keeps progressing, then the gate reclaims every dynamic resource
+and reaches a later timer.
+This is M6A rather than full Milestone 6: pointer-bearing calls and foreign
+memory views remain disabled, and it establishes no Linux or other foreign
+ABI.</p>
+</li>
+<li><p>M6B has a separate first native mechanism gate in
+<code>ocore/kernel/smoke-m6b-qemu.sh</code>. Mode 19 implements four
+generation-tagged, request-scoped bounded-copy views with kernel-owned
+staging, direction-attenuated nontransferable capabilities, a 128-byte
+per-view and 256-byte aggregate quota, snapshot input, and written-prefix-only
+output commit after exact process/address-space revalidation. Reply,
+cancellation, timeout, service-death, process-exit, unmap, and delegated
+revocation hooks close capability authority before one terminal disposition
+and one wake publication. Post-reply process-exit/unmap cleanup releases an
+undeliverable terminal view without a second disposition or wake. Typed
+generation-tagged leases carry nonzero request identities, cover memory,
+filesystem, timer, network, and device classes, and support request-wide
+revocation without ambient fallback while unrelated requests survive.
+Create-plus-bind is transactional, with an injected post-publication bind
+failure proving capability revocation and exact-generation destruction. These
+are directly exercised terminal hooks, not yet integration with live process
+teardown, mapping mutation, or scheduler wake. This is not complete M6B: the
+gate is not wired
+through the CPL3 personality daemon or public pointer-bearing RPC, and it has
+no pinned windows, streaming mode, signal/restart integration, Linux oracle,
+schema fuzzing, allocation-failure matrix, or concrete filesystem, network,
+timer, or device implementation.</p>
+</li>
+<li><p>Mode 24 adds a bounded live M6B composition gate in
+<code>ocore/kernel/smoke-live-bounded-personality-qemu.sh</code>. Four independently
+linked CPL3 principals are rebuilt into a 65,152-byte OVFS image with
+SHA-256
+<code>5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887</code>.
+One exact four-byte <code>INOUT</code> request shape crosses the public bounded-call,
+view lookup/read/write, and bounded-reply syscalls without client reissue.
+The gate contains a generation-1 daemon fault, preserves the unrelated
+observer, health-gates a generation-2 rebind, and covers cancellation,
+timeout, service death, plus supervisor-triggered pre-terminal unmap,
+request-revoke, delegated-device-resource-revoke, and caller-exit
+dispositions. The latter are policy-triggered while requests are waiting:
+this is not evidence of actual mapping mutation, an external resource event,
+or the post-reply/pre-consume process-exit or unmap race. The delegated
+device authority is one internal typed lease, not a physical device. Mode 24
+is not a Linux or Plan 9 boot, general foreign ABI, general guest agent, KVM,
+PCI/DMA/IOMMU, or physical-device isolation gate.</p>
+</li>
+<li><p>Mode 25 adds the first bounded live foreign-ABI composition gate in
+<code>ocore/kernel/smoke-live-linux-personality-qemu.sh</code>. One exact 8,520-byte
+static Linux x86-64 ELF and three native service principals are rebuilt into
+a 60,104-byte OVFS image, pinned independently by SHA-256, loaded as data,
+and entered at CPL3. The foreign corpus performs exact stdout/stderr writes
+through request-scoped bounded <code>IN</code> views, observes Linux <code>-ENOSYS</code>, and
+exits with status 42. The gate contains one personality-daemon fault,
+health-publishes generation 2, rejects generation-1 authority as stale,
+preserves an unrelated observer, reclaims the complete bounded lifecycle,
+and reaches a later timer. It does not boot Linux or Plan 9 and is not a
+distribution, root filesystem, dynamic linker, general foreign ABI,
+KVM/SVM hardware proof, PCI/device assignment, DMA/IOMMU isolation, or
+physical-device evidence.</p>
+</li>
+<li><p>Mode 26 adds a bounded live Linux-to-9P2000 service composition gate in
+<code>ocore/kernel/smoke-live-linux-plan9-qemu.sh</code>. The exact Mode 25 Linux ELF,
+an unprivileged native 9P2000 server, a native supervisor, and an independently
+linked native Plan-9-style client are rebuilt into a 92,872-byte immutable
+OVFS image and loaded into isolated CPL3 address spaces. The Linux stdout and
+stderr results are read at <code>/srv/linux/status</code> through exact bounded 9P2000
+version, attach, walk, open, read, and clunk exchanges across one contained
+server fault, namespace withdrawal, health-gated generation-2 replacement,
+stale generation-1 denial, complete reclamation, and a later timer. This is
+one exact

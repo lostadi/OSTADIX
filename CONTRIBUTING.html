@@ -1,0 +1,64 @@
+<h1>Contributing to Ostadix</h1>
+<p>Ostadix is a research-stage language and systems repository. Contributions are
+welcome when they preserve executable capability, make compatibility explicit,
+and attach evidence no broader than the substrate actually tested.</p>
+<h2>Before opening work</h2>
+<ul>
+<li>Search existing issues and keep one change logically focused.</li>
+<li>Report suspected vulnerabilities through the private process in
+<a href="SECURITY.md">SECURITY.md</a>, never in a public issue or pull request.</li>
+<li>Do not submit secrets, credentials, private keys, proprietary fixtures, or
+generated artifacts you do not have the right to contribute.</li>
+<li>Attribute authorship and contribution credit only to the human contributors
+responsible for the change. Claude and Codex, including Anthropic or OpenAI
+tool identities, are tools—not authors, committers, co-authors, signers, or
+contributors; do not name them in Git identities, attribution trailers,
+Cargo <code>authors</code>, or citation author lists.</li>
+<li>Discuss large public-API, protocol, catalog, or file-format changes before
+implementation. These surfaces have independent version axes described in
+<a href="docs/VERSIONING.md">docs/VERSIONING.md</a>.</li>
+</ul>
+<h2>Local-first development</h2>
+<p>Use a local clone and the smallest relevant gate. The baseline governance and
+contract checks require only Python&#39;s standard library:</p>
+<pre><code class="language-sh">python3 scripts/local_ci_posture.py --profile baseline
+python3 scripts/contract_surfaces.py validate
+python3 -m unittest -v tests.test_governance_surfaces
+</code></pre>
+<p>For O-language behavior, use the checked-in backends explicitly:</p>
+<pre><code class="language-sh">O examples/hello.O backends
+</code></pre>
+<p>That smoke currently reports <code>[number] 2</code>. It proves only that example on the
+local hosted substrate. It is not evidence of every backend, native O-core
+hardware, remote placement, or a live World.</p>
+<p>Rust changes should run the repository&#39;s relevant format, lint, and test gates
+with the pinned toolchain. Run broad suites only when their prerequisites are
+available; record skipped tools and environments instead of treating them as
+passes. The CI suite map in <code>ci/test-suites.toml</code> is the machine-readable test
+contract.</p>
+<h2>Change expectations</h2>
+<ul>
+<li>Preserve existing execution backends and ordinary capacity unless the change
+explicitly deprecates a surface and documents the migration.</li>
+<li>Keep wire, evidence, admission, catalog, placement, World, and information
+schema changes explicit. Do not silently relabel or uplift old records.</li>
+<li>Add positive and negative tests at the boundary being changed.</li>
+<li>Use typed errors at public boundaries; avoid exposing incidental internal
+error strings as a compatibility contract.</li>
+<li>Update user-facing documentation and the <code>[Unreleased]</code> changelog entry when
+behavior or a supported contract changes.</li>
+<li>Keep generated/AOT source closure synchronized when runtime code embedded by
+generated projects changes.</li>
+</ul>
+<h2>Pull requests</h2>
+<p>Complete the pull-request template with:</p>
+<ol>
+<li>the problem and resulting behavior;</li>
+<li>compatibility and execution-capacity impact;</li>
+<li>exact commands run and their outcomes; and</li>
+<li>explicit environments, backends, or claims not tested.</li>
+</ol>
+<p>Small commits are appreciated, but no particular commit shape is required.
+Only submit work you have the right to license under the repository&#39;s
+<code>LGPL-2.1-only</code> license. Maintainers may ask for a narrower patch or stronger
+evidence before merge.</p>

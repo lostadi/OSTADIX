@@ -1,0 +1,318 @@
+<h1>Ostadix-lang Developer Guide</h1>
+<p>Practical notes for contributors to <a href="https://github.com/lostadi/Ostadix-lang">Ostadix-lang</a>, short name <strong>O-lang</strong>. The project is a polyglot language system where typed expressions choose their evaluator with <code>LANG^(...)_LANG</code>, and O-core is the separate freestanding native systems language.</p>
+<h2>Implementations in this repository</h2>
+<p>There are three active, supported hosted <code>.O</code> implementations plus O-core:</p>
+<ul>
+<li><strong>Rust hosted engine</strong> (<code>crates/ostadix-api/</code>) is authoritative for the
+parser, OIR planner/evaluator, backend registry, scheduler, runtime assets,
+and advanced APIs. The root <code>src/</code> package is its compatibility/CLI shell and
+provides <code>O</code>, the compiled <code>o-cli</code> intent orchestrator, linker tools,
+notebook server, <code>olangc</code>, and <code>ocorec</code>.</li>
+<li><strong>C17 hosted implementation</strong> (<code>c_cpp/</code>) is active and supported. <code>make</code> or CMake build the interpreter <code>O</code> and AOT compiler <code>olangc</code> from C sources.</li>
+<li><strong>Python hosted implementation</strong> (<code>o_lang/</code>) is active and supported as a readable semantic reference and cross-check target.</li>
+<li><strong>O-core</strong> (<code>crates/ostadix-api/src/ocore/</code>, <code>docs/OCORE.md</code>) is a freestanding native systems
+language. It compiles <code>.oc</code> source through AST, typed HIR, and SSA MIR to
+ELF64 object files for its primary x86_64 target and bounded, conservative
+AArch64 G2 subset. Those native target boundaries do not apply to hosted <code>.O</code>
+execution.</li>
+</ul>
+<p><code>c_cpp/legacy_cpp/</code> is the historical C++ prototype only. It used an obsolete line-oriented JSON protocol and is not built by the active C17 Makefile or CMake paths.</p>
+<h2>Build and run</h2>
+<pre><code class="language-bash"># Rust interpreter (Cargo default-run is O)
+cargo run -- examples/hello.O
+cargo run -- examples/hello.O backends
+
+# Rust binaries
+cargo build --all-targets --all-features
+cargo run --bin o-cli -- run examples/hello.O --no-record
+cargo run --bin olangc -- examples/hello.O -o build/hello_rust_aot
+cargo run --bin ocorec -- --help
+
+# Python reference CLI
+python3 -m o_lang examples/hello.O
+python3 -m o_lang examples/hello.O --dump-ast
+python3 -m o_lang examples/hello.O --as json
+
+# C17 implementation
+make -C c_cpp
+c_cpp/O examples/hello.O backends
+</code></pre>
+<h2>Rust architecture map</h2>
+<ul>
+<li><code>crates/ostadix-api/src/parser.rs</code> parses typed parentheses into <code>ONode</code> trees. An identifier is an opener only if the registry accepts that language tag or alias.</li>
+<li><code>crates/ostadix-api/src/ir.rs</code> lowers syntax to OIR and contains <code>BackendSpec</code> / <code>BackendRegistry</code>, the single source of truth for accepted evaluator tags, aliases, cache-safety, splice renderers, execution mode, required authorities, and shim path resolution.</li>
+<li><code>crates/ostadix-api/src/eval.rs</code> executes validated OIR plans. It projects OIR to the directed HGraph and uses the state-complete graph coordinator by default. <code>O_EXECUTOR=serial</code> selects <code>execute_plan_serial</code> as the semantic differential oracle.</li>
+<li><code>crates/ostadix-api/src/effects.rs</code> defines shared effect confidence, fallibility, typed resources, checked source declarations, and conservative backend classification. Unknown hosted operations use <code>HostWorld</code>.</li>
+<li><code>crates/ostadix-api/src/executor/</code> contains the readiness coordinator and the worker path for verified pure inline renderers. The coordinator owns evaluator-local mutable state; it never sends the process registry across worker threads.</li>
+<li><code>crates/ostadix-api/src/value.rs</code> defines <code>OValue</code>, the shared value vocabulary crossing language boundaries.</li>
+<li><code>crates/ostadix-api/src/wire.rs</code> implements the hosted evaluator protocol: <strong>4-byte length-prefixed canonical CBOR</strong> frames.</li>
+<li><code>crates/ostadix-api/src/hgraph/</code> builds and validates the directed execution HGraph. OValue, completion, resource-state, and actor-state values are nodes; evaluator invocations are multi-output hyperedges. <code>ReadySchedule</code> derives blockers only from input producers.</li>
+<li><code>crates/ostadix-api/src/scheduler.rs</code> schedules autonomous request forcing and cache interaction.</li>
+<li><code>crates/ostadix-api/src/capability.rs</code> models runtime authority-bearing capabilities and snapshots.</li>
+<li><code>crates/ostadix-api/src/process.rs</code> manages backend shim subprocess lifetimes and requests.</li>
+<li><code>crates/ostadix-api/src/backend.rs</code> contains backend protocol types shared with shims.</li>
+<li><code>crates/ostadix-api/src/shims.rs</code> supports embedded/extracted shim assets for compiled hosted programs.</li>
+<li><code>crates/ostadix-api/src/nix_ops.rs</code> and <code>crates/ostadix-api/src/nixos_ops.rs</code> implement Nix and NixOS operations used by builtins.</li>
+<li><code>crates/ostadix-api/src/ocore/</code> contains the O-core lexer, parser, AST, HIR, type checker, MIR, codegen, driver, and capability bridge.</li>
+<li>Binaries: <code>src/main.rs</code> is <code>O</code>; <code>src/bin/o-cli.rs</code> owns validated intent
+<code>run</code>, <code>routes</code>, <code>optimize</code>, <code>plan</code>, <code>explain</code>, <code>inspect</code>, <code>object</code>, and
+<code>operation</code>; <code>olangc.rs</code>, <code>ocorec.rs</code>, <code>olink.rs</code> (<code>o-link</code>), <code>ounlink.rs</code>
+(<code>o-unlink</code>), <code>ogit.rs</code>, and <code>o-notebook.rs</code> provide compiler, native,
+linker, Git, and notebook entry points. The Bash <code>scripts/o-cli.sh</code>
+dispatcher remains the installed lowercase <code>o</code> front door so macOS
+case-insensitivity cannot collapse <code>O</code> and <code>o</code>.</li>
+</ul>
+<h2>Environment semantics</h2>
+<p>Bare hosted blocks are ephemeral: <code>lang^(...)_lang</code> gets a fresh evaluator instance and it is discarded after the block. Persistent state is explicit only with environment-indexed tags such as <code>lang[0]^(...)_lang[0]</code> or <code>lang[7]^(...)_lang[7]</code>. The Rust evaluator represents ephemeral dispatch with <code>env_id == u32::MAX</code> and cleans that environment after execution; <code>SPEC.md</code> documents the same rule.</p>
+<h2>Backend registry and shims</h2>
+<p>To add a Rust-hosted language backend:</p>
+<ol>
+<li>Add a static <code>BackendSpec</code> entry to <code>BACKEND_SPECS</code> in <code>crates/ostadix-api/src/ir.rs</code>: canonical name, aliases, cache-safety flag, splice renderer, execution mode, and required authorities.</li>
+<li>Add the authoritative shim under <code>crates/ostadix-api/backends/</code> when the
+backend is <code>ExecutionMode::Shim</code>, then update the root <code>backends/</code>
+compatibility mirror byte-for-byte. Shims speak the 4-byte length-prefixed
+canonical CBOR command/response protocol; the mirror-drift test rejects a
+mismatch.</li>
+<li>Rebuild. Registration is compile-time/static and registry-extensible; it is not a runtime plugin system.</li>
+<li>Add tests or examples that exercise parsing, rendering, execution, environment lifetime, and any authority requirements.</li>
+</ol>
+<p>Do not add per-binary backend lists or ad hoc evaluator dispatch tables. Binaries call <code>BackendRegistry::global().registered_backend_tags()</code>.</p>
+<p>Cache-safe <code>{lazy}</code> backends are <code>html</code>, <code>markdown</code>, <code>latex</code>, and <code>text</code>; impure or host-effecting backends should use <code>{defer}</code> for explicit forcing. Nix-family evaluation is not cache-safe under generic lazy memoization.</p>
+<p>Effect attributes are semantic constraints, not authority grants. <code>effects=unknown</code>
+downgrades a trusted renderer, while <code>effects=pure</code> is accepted only when the
+derived backend classification is already verified pure. <code>reads=</code>, <code>writes=</code>,
+and <code>serial=host</code> add typed resource dependencies. Declarations do not prove a
+complete arbitrary host footprint, so host declarations keep the <code>HostWorld</code>
+umbrella unless a future verified analyzer supplies a precise model.
+Governed World/namespace epochs, Governor positions, node/domain/process and
+resource generations, object versions, descriptive capability identities,
+task attempts, artifact publications, devices, and accelerators are
+trusted-lowering vocabulary only. Source declarations cannot mint them. Device
+and accelerator keys expand to the same canonical generic governed-resource
+dependency.</p>
+<h2>Test and validation commands</h2>
+<p>CI (<code>.github/workflows/ci.yml</code>) runs all of these paths:</p>
+<pre><code class="language-bash"># Rust authoritative runtime
+cargo test --all-targets --all-features
+cargo test --test parser_proptest
+cargo test --package ostadix-api --lib ocore::driver::tests::ocore_object_is_byte_reproducible_across_source_directories -- --exact
+cargo check --manifest-path fuzz/Cargo.toml
+cargo fmt -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+
+# O-core executable milestone evidence (requires Clang, LLD, Python, and QEMU x86_64)
+./scripts/o-cli.sh kernel doctor
+./scripts/o-cli.sh kernel build
+./scripts/o-cli.sh kernel smoke
+./scripts/o-cli.sh kernel smoke-live
+python3 scripts/release_evidence.py validate
+cargo test --test world_identity_wire
+./ocore/kernel/smoke-world-identity-qemu.sh
+cargo test --test world_receipt
+./ocore/kernel/smoke-world-receipt-qemu.sh
+./ocore/kernel/smoke-world-project-runtime-qemu.sh
+./ocore/kernel/smoke-m7b-logical-read-qemu.sh
+./scripts/smoke-world-resource-keys.sh
+./scripts/smoke-project-hgraph.sh
+./scripts/smoke-project-hgraph-exec.sh
+./boot-and-test.sh smoke
+
+# Python reference runtime
+python3 -m tests.test_parser
+python3 tests/example_manifest.py validate
+python3 -m tests.test_evaluator
+python3 -m compileall -q o_lang backends tests
+
+# C17 interpreter and AOT compiler
+make -C c_cpp test
+make -C c_cpp olangc-test
+make -C c_cpp warnings-as-errors
+cmake -S c_cpp -B build/c_cpp-cmake
+cmake --build build/c_cpp-cmake
+ctest --test-dir build/c_cpp-cmake
+
+# Documentation/release-claim guard
+bash scripts/check_release_claims.sh
+python3 -m unittest -v tests.test_source_release
+python3 -m unittest -v tests.test_offline_kit
+python3 -m unittest -v tests.test_olang_browser_bundle
+node apps/olang-browser-wasi/test-host.mjs
+</code></pre>
+<p>The source-release gate covers the browser host assets embedded by <code>olangc</code>.
+The offline-kit suite uses fixture toolchains and vendor trees to test archive
+closure, determinism, host rejection, no-clobber extraction, and tamper
+detection without downloading dependencies. A real per-host kit additionally
+requires the union-vendor procedure in <code>docs/OFFLINE_AI_BUILD_KIT.md</code>.</p>
+<p><code>smoke-project-hgraph.sh</code> is the composite hosted PR7 planning and generated
+project-adapter gate. Its planning phase uses a real fixture to prove exact
+bundle/policy provenance, all five project operation kinds, logical
+alternative/prerequisite topology, stable nonexecuting IR/DOT output,
+malformed/substitution rejection, conservative <code>HostWorld</code>, and ordinary <code>.O</code>
+IR compatibility. Its World PR8-2 phase checks canonical hosted-unbound and
+snapshot-derived <code>DeploymentPlanV1</code> records, exact logical/bundle binding,
+bundle-scoped role/path compatibility, deterministic provider proposals, and
+fail-closed unresolved cases. It also proves <code>scripts/o-cli.sh plan</code> is
+byte-identical to the direct <code>olangc --target ir</code> result. After those
+nonexecution checks, the smoke compiles a project binary and runs bounded
+opt-in AnySuccess cases for immediate short-circuit and nonzero-to-success
+continuation in disposable workspaces. The continuation fixture explicitly
+declares both its executed
+prerequisite and first route <code>failure_continuation = &quot;declared_idempotent&quot;</code>;
+omitting that contract now fails closed before the second branch. <code>setup.sh</code>
+installs lowercase <code>o</code> as a wrapper over the dispatcher
+while preserving evaluator fallback for non-subcommand input.</p>
+<p><code>smoke-project-hgraph-exec.sh</code> is the separate
+ProjectExec-A/ProjectExec-B ordered hosted execution gate. It proves that the
+opt-in HGraph coordinator owns isolated
+materialization, typed prerequisite ordering, route settlement, and unsigned
+lifecycle tracing for one <code>Explicit</code>/<code>Default</code> alternative plus serial
+<code>Fallback</code>/<code>AnySuccess</code>. The latter use a first-class ordered-prefix input
+policy and retain each attempted result. When the terminal alternative settles
+unsuccessfully, the next branch starts only if no route child executed
+(guard-only skips) or every route that executed in that branch, including
+successful prerequisites, explicitly declares
+<code>failure_continuation = &quot;declared_idempotent&quot;</code>; the default <code>unproven</code> class
+fails closed. A failed prerequisite remains a hard stop regardless of that
+declaration because this slice has no synthesized branch-failure result. Bundle
+format v2 carries the contract; a v1 bundle migrates only when all routes omit
+the new field and therefore default to <code>unproven</code>. Trace v5 records the assessed
+prefix, evidence class, next route, allow/deny result, and canonical
+<code>LogicalHGraphV1</code> schema/digest. It also binds the exact canonical
+hosted-unbound <code>DeploymentPlanV1</code> schema/digest; plan-aware replay reconstructs
+that artifact and rejects its substitution. Complete traces pass
+plan-aware semantic replay against the trusted HGraph, including complete
+causally ordered lifecycle coverage for transitive route prerequisites;
+structural replay alone does not prove bundle-bound evidence. Infrastructure
+abort stops without publishing a route result. This is an HGraph-only
+author-declaration gate, not
+verified idempotency, a sandbox/fence/effect log, parallel race/cancellation,
+retry,
+snapshot-plan execution, actual placement, runtime/recovery graphs,
+Governor/receipt integration, exactly-once effects, native or QEMU evidence,
+hardware isolation, G1, or G0--G13 passage.</p>
+<p><code>crates/ostadix-api/src/project/logical.rs</code> is the World PR8-1 project profile. It derives
+<code>LogicalHGraphV1</code> after validating the exact plan-to-HGraph projection,
+preserves residual <code>HostWorld</code>, rejects unknown schema data, offers a separate
+strict canonical decoder, and supplies the logical digest used by trace v5.
+The digest binds exact bundle bytes and metadata; it normalizes logical-record
+JSON encoding, not source or manifest formatting. It does not itself define
+placement, runtime, recovery, World task identity, authority grants, receipts,
+or G1 evidence.</p>
+<p><code>crates/ostadix-api/src/project/deployment.rs</code> is the bounded World PR8-2 intention layer. Its
+ordinary hosted constructor binds supported coordinator operations only to
+<code>HostedCoordinator</code> or <code>AmbientHost</code>, carries no World/task/provider identity,
+and leaves unsupported hosted policies <code>Unresolved</code>. Requirements actively
+derive the exact project bundle and bundle-scoped role/path declarations,
+runtime classes, executable/evaluator facts, platform and ambient-environment
+guards, authority absence, and residual <code>HostWorld</code> admission. Bundle
+environment overlays are recorded separately; architecture, package, and
+failure-domain fields are currently unconstrained or empty schema vocabulary.</p>
+<p>The snapshot constructor requires an exact caller-supplied
+<code>PlacementSnapshotV1</code> and exact caller-supplied <code>TaskIdentity</code> map, then derives
+a deterministic single-provider <code>ProposedProvider</code> or <code>Unresolved</code> record.
+Snapshot/provider facts are descriptive and do not prove current inventory,
+Governor admission, authority, dispatch, reservation, health, or execution.
+<code>require_current_world</code> checks only World identity/epoch. The ordinary opt-in
+executor binds the canonical hosted-unbound plan into unsigned trace v5. The
+separate hosted-reference World path instead consumes the exact
+snapshot-derived plan through <code>ProjectCoordinator::new_world_bound</code>.</p>
+<p><code>crates/ostadix-api/src/project/launch.rs</code> defines the non-authorizing <code>HostedWorldLaunchV1</code> and
+caller-supplied <code>HostedWorldCurrentV1</code> boundary. It re-derives the logical,
+deployment, snapshot, provider, and operation task bindings and fences the exact
+World/Governor; caller-supplied coordinator observer
+node/domain/optional-process; dedicated coordinator attempt; provider
+node/domain/optional-process/service generations and implementation digest; and
+every operation task attempt before schedule derivation, workspace
+materialization, or child launch. The coordinator attempt must use a task
+identity distinct from all per-operation attempts and is the World-bound trace
+execution-attempt identity. These identity comparisons do not authenticate
+membership, prove the host process owns the observer identity, grant a
+capability or lease, reserve a provider, or record Governor admission.</p>
+<p><code>crates/ostadix-api/src/project/runtime_graph.rs</code> builds terminal <code>RuntimeGraphV1</code> from the exact
+launch artifacts only after plan-aware causal replay of the normalized
+<code>ProjectAttemptTrace</code> against the trusted HGraph and exact deployment. It
+retains empty observations for never-started operations and records lifecycle
+ordinals, settlement/output hashes, and per-operation residual <code>HostWorld</code>.
+The neutral <code>RouteSettlement</code> terminal covers success, nonzero settlement, and
+guard skip; aggregate terminal residual <code>HostWorld</code> is true when any actually
+observed started/terminal operation retains it. The
+<code>crates/ostadix-api/src/project/world_execution.rs</code> adapter emits one canonical OWRECEIPT using the
+caller&#39;s Ed25519 signer and always sets
+<code>ReceiptCommitFenceV1::Uncommitted</code>. Receipt placement is the coordinator
+observer and the receipt context uses the dedicated coordinator attempt, not the
+proposed provider or a per-operation attempt. The subject leaves package absent
+instead of overloading it with the provider implementation. Only a successful
+route produces receipt success; nonzero and guard-skipped settlements produce
+receipt failures. Signature integrity is not Governor authority or a governed
+commit.</p>
+<p>Mode 32 performs full native canonical receipt decode, exact re-encoding,
+validated signing-preimage construction, uncommitted-fence checking, and a
+domain-separated unsigned-body semantic SHA-256 comparison. The required
+no-argument wrapper generates a receipt through the hosted test and passes it
+to the direct two-argument vector interface. The native probe also reuses its
+successful validation scratch on a malformed envelope and requires prior
+terminal/commit tags to have been reset:</p>
+<pre><code class="language-bash">./ocore/kernel/smoke-world-project-runtime-qemu.sh
+./ocore/kernel/smoke-world-project-receipt-qemu.sh RECEIPT_HEX_FILE EXPECTED_SEMANTIC_SHA256
+</code></pre>
+<p>This slice has no Governor admission/commit, capability/lease issuance,
+reservation, remote dispatch, recovery, or exactly-once protocol. Mode 32 does
+not execute the project or verify Ed25519 natively; QEMU TCG is not physical
+hardware. It passes neither G1 nor Workstream A acceptance, and G1 remains
+defined and unpassed.</p>
+<p>Keep the installed-wrapper directories before <code>target/release</code> in <code>PATH</code>; on a
+case-insensitive host the raw <code>O</code> release binary is otherwise also found as
+lowercase <code>o</code> and shadows the dispatcher.</p>
+<!-- BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_DEVELOPMENT -->
+<p>The aggregate executes all 26 required portable QEMU gates in the
+order declared by <code>evidence/gates.toml</code>, streams their output, and requires
+every declared marker exactly once in each captured live transcript. The
+manifest also records each gate&#39;s milestone, tools, evidence class, positive
+claims, and explicit non-claims. <code>kernel-world-mode21-svm-kvm</code> is validated as
+supplemental hardware evidence rather than part of this portable release set.</p>
+<!-- END GENERATED: REQUIRED_QEMU_EVIDENCE_DEVELOPMENT --><p>The byte-reproducible O-core object test protects deterministic native object
+output across source directories. <code>cargo test --test parser_proptest</code> runs parser
+proptest properties, and <code>cargo check --manifest-path fuzz/Cargo.toml</code> ensures
+the parser fuzz target still compiles.
+The source-release tests protect the committed-ref allowlist, deterministic ZIP
+bytes and canonical metadata, dirty-worktree boundary, symlink denial, relative
+documentation-link closure, inert example/evidence/MCP schema and reference
+validation, required release surfaces, and tamper detection.</p>
+<h2>Conventions</h2>
+<ul>
+<li>Keep the Rust implementation authoritative for hosted <code>.O</code> semantics; keep Python readable and C17 active rather than treating either as abandoned.</li>
+<li>Keep wire-protocol claims precise: hosted shims use 4-byte length-prefixed canonical CBOR.</li>
+<li>Keep <code>OWIDENT</code> v1 claims precise: it is the bounded cross-language identity
+oracle only, and serialized capability IDs are descriptive non-authority.</li>
+<li>Keep <code>OWPROTO</code> v1 claims precise: PR 3 provides deterministic bounded records
+and an offline negotiation function, not a transport, live handshake,
+authenticated authority path, OValue/extension envelope, or receipt codec.
+Mode 29&#39;s <code>OWVALUE</code> is a separate self-framed format, not a fifth protocol-v1
+kind.</li>
+<li>Keep <code>OWVALUE</code> v1 claims precise: PR 4 freezes only the bounded portable
+allowlist and root-only inert extension envelope, with canonical full-record
+SHA-256. It does not make the full hosted <code>OValue</code> portable, change hosted
+canonical-CBOR shims, create authority or transport, satisfy Workstream A, or
+implement the PR 5 receipt.</li>
+<li>Keep <code>OWRECEIPT</code> v1 claims precise: PR 5/Mode 30 remains the bounded offline
+canonical corpus and hosted pinned-key conformance oracle. The separate
+World-project hosted-reference path accepts a caller signer and emits a live
+canonical receipt, but its commit fence is always <code>Uncommitted</code>. Mode 32 fully
+decodes/re-encodes that record, reconstructs its signing preimage, and proves
+stale terminal/commit tags are cleared when validation scratch is reused;
+it does not verify Ed25519 or execute the project. Receipt placement names
+the caller-supplied coordinator observer, while the proposed provider remains
+descriptive and the package subject stays absent. None of these paths
+supplies production key custody, trusted signer policy, Governor
+admission/commit, authoritative fencing, Workstream A acceptance, G1, or
+G0--G13 passage.</li>
+<li>Keep hosted ResourceKey PR6 claims precise: its smoke proves typed planner
+vocabulary, underlying identity helpers&#39; caller-pair comparison, HGraph state
+chaining, alias-aware grounding projection, source-forgery rejection, and
+residual <code>HostWorld</code>. Grounding only checks the bound World epoch/membership.
+This is not Mode 31, a wire ABI, production governed lowering, native/QEMU
+evidence, Governor authority, device assignment, DMA/IOMMU isolation,
+Acceptance A, or G0--G13 passage.</li>
+<li>Keep HGraph wording precise: graph dispatch is implemented, but worker-pool execution is limited to verified pure inline renderers. Unknown shims are serialized through <code>HostWorld</code>, and exact arbitrary-source filesystem/network inference is not implemented.</li>
+<li>Prefer registry metadata over duplicated backend-name, purity, renderer, or authority tables.</li>
+</ul>

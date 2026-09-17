@@ -1,0 +1,742 @@
+<h1>Ostadix versioning and compatibility</h1>
+<p>Ostadix deliberately has more than one version axis. A package release, Rust
+compiler floor, wire protocol, admission schema, backend catalog, and
+information record answer different compatibility questions and may advance
+independently. Matching numbers across axes are coincidence, not compatibility.</p>
+<p>Run <code>O version --json</code> to inspect the runtime coordinates compiled into the
+current interpreter. The source constants named below remain authoritative for
+axes not present in that report. Every version report is descriptive: it does
+not prove that an external runtime is installed, that a placement is
+authorized, that an information projection is fresh, or that a World is live.</p>
+<h2>Version axes</h2>
+<table>
+<thead>
+<tr>
+<th>Axis</th>
+<th>Current coordinate</th>
+<th>Source authority</th>
+<th>Compatibility meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Rust packages</td>
+<td><code>0.4.0</code> in the current manifests</td>
+<td>root and <code>crates/ostadix-api/Cargo.toml</code> <code>package.version</code></td>
+<td>Package coordinate only. The immutable v0.3.0 tag has the historical narrow façade; the post-tag Unreleased 0.4 line makes <code>ostadix-api</code> the full engine.</td>
+</tr>
+<tr>
+<td>Minimum Rust</td>
+<td><code>1.93.1</code></td>
+<td><code>Cargo.toml</code> <code>package.rust-version</code></td>
+<td>Lowest compiler supported by the MSRV contract. This is not the package version or release compiler.</td>
+</tr>
+<tr>
+<td>Release toolchain</td>
+<td><code>1.97.1</code></td>
+<td><code>rust-toolchain.toml</code> <code>toolchain.channel</code></td>
+<td>Pinned compiler for release, formatting, Clippy, and generated-runtime evidence. This may advance without changing the MSRV.</td>
+</tr>
+<tr>
+<td>Execution intent</td>
+<td><code>oexec.execution-intent/v1</code></td>
+<td><code>crates/ostadix-api/src/evidence/intent.rs</code> <code>EXECUTION_INTENT_SCHEMA_V1</code></td>
+<td>Stable, authority-free identity of exact source and analyzed semantics.</td>
+</tr>
+<tr>
+<td>Operation and realization descriptions</td>
+<td><code>ostadix.operation-contract/v1</code>, <code>ostadix.operation-interface/v1</code>, <code>ostadix.realization-descriptor/v1</code>, <code>ostadix.realization-set/v1</code></td>
+<td>the four <code>*_SCHEMA_V1</code> constants in <code>crates/ostadix-api/src/computation_core.rs</code></td>
+<td>Experimental canonical descriptive records. Their cross-check establishes referential consistency only, never planning, selection, equivalence, placement, execution, recovery, or authority.</td>
+</tr>
+<tr>
+<td>Operation planning and observation</td>
+<td>planning records V1; logical, deployment, and runtime graphs V2; marked-project bridge V1</td>
+<td>the nine record constants in <code>crates/ostadix-api/src/computation/realization_plan.rs</code> and three <code>OPERATION_*_SCHEMA_V1</code> bridge constants in <code>src/bin/o-cli.rs</code></td>
+<td>Experimental canonical records, deterministic single-operation static ranking, exact marked-project joins, and current-binary observation reconstruction. Selection is not live eligibility, placement, execution authority, or recovery.</td>
+</tr>
+<tr>
+<td>Solved executable graph</td>
+<td><code>ostadix-solved-executable-hgraph/v2</code></td>
+<td><code>crates/ostadix-api/src/evidence/analyze.rs</code> <code>SOLVED_EXECUTABLE_HGRAPH_DIGEST_DOMAIN_V2</code>; <code>graph_sha256_v2</code></td>
+<td>Current Graph V2 identity binds the complete canonical <code>FidelityAssessmentV2</code>. Graph V1 remains frozen for intent and archival V5 inspection.</td>
+</tr>
+<tr>
+<td>Evidence</td>
+<td><code>oexec.evidence/v6</code></td>
+<td><code>crates/ostadix-api/src/evidence/fact.rs</code> <code>EVIDENCE_SCHEMA_V6</code>; <code>ANALYZER_ID_V6</code> = <code>ostadix-oir-evidence-compiler/v6</code></td>
+<td>Current typed pre-execution evidence vocabulary; evidence is not admission.</td>
+</tr>
+<tr>
+<td>Admission</td>
+<td><code>oexec.admission/v6</code></td>
+<td><code>crates/ostadix-api/src/evidence/fact.rs</code> <code>ADMISSION_SCHEMA_V6</code></td>
+<td>Current process-local admitted-execution contract accepted by coordinator/evaluator.</td>
+</tr>
+<tr>
+<td>Schedule explanation</td>
+<td><code>oexec.schedule-explanation/v2</code>; <code>oexec.admission-why/v2</code></td>
+<td><code>SCHEDULE_EXPLANATION_SCHEMA_V2</code>; <code>SCHEDULE_WHY_SCHEMA_V2</code></td>
+<td>Current whole-admission and focused typed V6 inspection projections. V1 forms are archival.</td>
+</tr>
+<tr>
+<td>Placement admission</td>
+<td><code>ostadix/placement-admission/v2</code></td>
+<td><code>crates/ostadix-api/src/evidence/admit.rs</code> <code>PLACEMENT_ADMISSION_DIGEST_DOMAIN_V2</code></td>
+<td>Current process-portable V6/Graph V2 semantic coordinate consumed by freshly prepared placement V2 authority.</td>
+</tr>
+<tr>
+<td>Backend catalog</td>
+<td><code>ostadix.backend-catalog/v6</code></td>
+<td><code>crates/ostadix-api/src/backend_catalog.inc.rs</code> <code>current_schema</code></td>
+<td>Canonical backend specification and implementation-identity projection. V6 retains frozen V5 fields and adds two ordered <code>wasm-tools</code> WebAssembly runtime alternatives.</td>
+</tr>
+<tr>
+<td>Backend morphism</td>
+<td><code>ostadix.backend-morphism/v1</code></td>
+<td><code>crates/ostadix-api/src/backend_morphism.rs</code> <code>BACKEND_MORPHISM_SCHEMA_V1</code></td>
+<td>Experimental shadow-only crossing kernel. Catalog V5 introduced the profile assignment and Catalog V6 retains it, but does not enforce its assessment through evidence, admission, placement, or dispatch.</td>
+</tr>
+<tr>
+<td>Hosted transport</td>
+<td><code>ostadix.hosted-transport/v1</code>, <code>ostadix.hosted-transport/v2</code></td>
+<td><code>crates/ostadix-api/src/hosted_remote/protocol.rs</code> <code>HOSTED_PROTOCOL_V1</code>; <code>crates/ostadix-api/src/hosted_remote/v2/protocol.rs</code> <code>HOSTED_PROTOCOL_V2</code>; <code>crates/ostadix-api/src/hosted_remote/v2/store.rs</code> <code>HOSTED_STATE_AUTHORITY_SCHEMA_V1</code> = <code>ostadix.hosted-state-authority/v1</code></td>
+<td>Frozen single-operation V1 and opt-in durable-session V2 wire contracts. Package 0.3 and later roots bind their durable state to current Graph V2/V6/placement V2 and reject older journals without migration.</td>
+</tr>
+<tr>
+<td>Pure execution records</td>
+<td><code>ostadix.oir-execution-capsule/v1</code>, <code>ostadix.oir-execution-candidate/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric/protocol.rs</code> <code>EXECUTION_CAPSULE_SCHEMA_V1</code>, <code>EXECUTION_CANDIDATE_SCHEMA_V1</code></td>
+<td>Frozen M2 authority-free capsule and provisional-candidate records. M3 nests their exact canonical bytes and does not add node, transport, placement, TLS, or HGraph fields.</td>
+</tr>
+<tr>
+<td>Authenticated execution Fabric</td>
+<td>ALPN <code>ostadix-execution-fabric/1</code>; request/response/submission/source-closure V1; placement lease V3; terminal receipt V1</td>
+<td><code>crates/ostadix-api/src/hosted_remote/tls.rs</code> <code>EXECUTION_FABRIC_TLS_ALPN_V1</code>; <code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code> <code>FABRIC_*</code> constants</td>
+<td>Opt-in M3 transport and authority envelopes for the frozen pure profile. They authorize one exact provider attempt and return a provisional result; they confer no graph mutation, publication, or settlement authority.</td>
+</tr>
+<tr>
+<td>Placement milestone</td>
+<td>Hosted Placement V6</td>
+<td><code>docs/HOSTED_PLACEMENT_V6.md</code></td>
+<td>A placement/evidence milestone name, not a source-level schema constant and not an automatic conversion from archival Admission V5.</td>
+</tr>
+<tr>
+<td>World wire family</td>
+<td>V1</td>
+<td><code>crates/ostadix-api/src/world/protocol.rs</code> <code>WORLD_SCHEMA_V1</code>; codec constants under <code>crates/ostadix-api/src/world/</code></td>
+<td>Offline World record, identity, value, and receipt codecs. These coordinates do not establish a live World.</td>
+</tr>
+<tr>
+<td>Information kernel family</td>
+<td>V1</td>
+<td><code>INFORMATION_SCHEMA_V1</code> and record constants under <code>crates/ostadix-api/src/information/</code></td>
+<td>Authority-free, immutable information identities, deltas, projections, and receipts. Each record validates its own exact schema.</td>
+</tr>
+<tr>
+<td>Information native bridge</td>
+<td>V1</td>
+<td><code>INFORMATION_BRIDGE_SCHEMA_V1</code> and record constants under <code>crates/ostadix-api/src/information_bridge/mod.rs</code></td>
+<td>Eight explicit, lossy, authority-free native metadata projections. This leaf family is independent of native record versions and does not replace their identities.</td>
+</tr>
+</tbody></table>
+<p>“V6” in Hosted Placement V6 names the placement milestone and placement-evidence
+model; it is not a promise that every schema or transport is numerically version
+6. It is also not the same coordinate as the current local
+<code>oexec.evidence/v6</code> and <code>oexec.admission/v6</code> APIs below.</p>
+<h3>Current and archival local admission coordinates</h3>
+<p>Package <code>0.4.0</code> retains the fidelity-preserving path through the current
+runtime and its explicit archival entry points while changing crate ownership.
+At the v0.3.0 tag,
+<code>ostadix-api</code> was an owned narrow <code>Runtime</code> wrapper over the root package. The
+post-tag 0.4 tree reverses that ownership: <code>ostadix-api</code> owns the complete
+runtime graph and the root <code>o-lang</code> crate explicitly reexports its historical
+module paths. Future package publication must therefore publish and verify the
+engine first, then publish the exact-version CLI/compatibility shell.</p>
+<p>The preceding <code>0.2.0</code> package exposed the V6 path additively without changing
+dispatch. Package <code>0.3.0</code> atomically makes these coordinates current:</p>
+<table>
+<thead>
+<tr>
+<th>Explicit coordinate</th>
+<th>Source authority</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Graph V2 / <code>ostadix-solved-executable-hgraph/v2</code></td>
+<td><code>crates/ostadix-api/src/evidence/analyze.rs</code> <code>graph_sha256_v2</code></td>
+<td>Frozen Graph V1 fields plus the complete canonical <code>FidelityAssessmentV2</code>; absent and present assessments are distinct.</td>
+</tr>
+<tr>
+<td><code>oexec.evidence/v6</code> / <code>ostadix-evidence-bundle/v6</code></td>
+<td><code>EVIDENCE_SCHEMA_V6</code>; <code>evidence_bundle_sha256_v6</code></td>
+<td>Typed per-operation fidelity assessment bound to Graph V2 and the current Catalog V6 projection.</td>
+</tr>
+<tr>
+<td><code>oexec.admission/v6</code> / <code>ostadix-execution-admission/v6</code></td>
+<td><code>ADMISSION_SCHEMA_V6</code>; <code>admit_execution_v6</code></td>
+<td>Revalidated local V6 admission accepted by the current coordinator and evaluator.</td>
+</tr>
+<tr>
+<td><code>oexec.admission-why/v2</code></td>
+<td><code>SCHEDULE_WHY_SCHEMA_V2</code></td>
+<td>Inspection-only V6 why-view retaining typed fidelity evidence.</td>
+</tr>
+<tr>
+<td><code>oexec.schedule-explanation/v2</code></td>
+<td><code>SCHEDULE_EXPLANATION_SCHEMA_V2</code></td>
+<td>Whole-admission JSON projection whose embedded admission is V6; V1 bytes remain archival.</td>
+</tr>
+<tr>
+<td><code>ostadix/placement-admission/v2</code></td>
+<td><code>PLACEMENT_ADMISSION_DIGEST_DOMAIN_V2</code></td>
+<td>Process-portable semantic digest over V6 schemas/analyzer, Graph V2 identities, current Catalog V6 projection, and policy. Fresh <code>PlacementFragmentBindingsV2</code> binds this digest.</td>
+</tr>
+</tbody></table>
+<p>The unversioned <code>analyze_execution</code> and <code>admit_execution</code>, <code>AdmittedExecution</code>,
+uppercase <code>O</code>, evaluator/coordinator, CLI JSON, version report, and MCP behavior
+now mean V6/Graph V2. Current prepared execution uses
+<code>PlacementFragmentBindingsV2</code> and <code>PreparedPlacementFragmentV2</code>. The public V1
+fragment/binding vocabulary and <code>AdmittedExecutionV5</code> are inspection-only and
+cannot enter current execution or authorization. <code>ExecutionIntentV1</code> remains
+Graph V1 while binding the current Catalog V6 projection, and execution of a
+matching intent always performs fresh V6 analysis/admission. There is no
+V5-to-V6 conversion, relabel, prepared-fragment uplift, lease migration, or
+journal migration.</p>
+<p>The frozen archival coordinates remain explicit: <code>EVIDENCE_SCHEMA_V5</code>
+(<code>oexec.evidence/v5</code>), <code>ADMISSION_SCHEMA_V5</code> (<code>oexec.admission/v5</code>),
+<code>ANALYZER_ID_V5</code>,
+<code>SOLVED_EXECUTABLE_HGRAPH_DIGEST_DOMAIN_V1</code>/<code>graph_sha256_v1</code>,
+<code>EVIDENCE_BUNDLE_DIGEST_DOMAIN_V5</code>,
+<code>EXECUTION_ADMISSION_DIGEST_DOMAIN_V5</code>,
+<code>PLACEMENT_ADMISSION_DIGEST_DOMAIN_V1</code> (<code>ostadix/placement-admission/v1</code>),
+<code>SCHEDULE_EXPLANATION_SCHEMA_V1</code> (<code>oexec.schedule-explanation/v1</code>), and
+<code>SCHEDULE_WHY_SCHEMA_V1</code> (<code>oexec.admission-why/v1</code>). They support compatibility
+inspection and golden verification only.</p>
+<h3>Operation-realization and planning coordinates</h3>
+<p>The four source coordinates are independent records, not one interchangeable
+bundle version:</p>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Coordinate</th>
+<th>Source constant</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Contract</td>
+<td><code>ostadix.operation-contract/v1</code></td>
+<td><code>OPERATION_CONTRACT_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Interface</td>
+<td><code>ostadix.operation-interface/v1</code></td>
+<td><code>OPERATION_INTERFACE_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Realization descriptor</td>
+<td><code>ostadix.realization-descriptor/v1</code></td>
+<td><code>REALIZATION_DESCRIPTOR_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Realization set</td>
+<td><code>ostadix.realization-set/v1</code></td>
+<td><code>REALIZATION_SET_SCHEMA_V1</code></td>
+</tr>
+</tbody></table>
+<p>All four constants and their canonical encoders live in
+<code>crates/ostadix-api/src/computation_core.rs</code>. Each record has its own digest
+domain. Changing the serialized or validation meaning of one requires a new
+coordinate for that record; matching <code>v1</code> suffixes do not permit the others to
+be silently changed or uplifted.</p>
+<p>The additive authority-free planning family has these independent coordinates:</p>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Coordinate</th>
+<th>Source constant</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Physical representation</td>
+<td><code>ostadix.physical-representation/v1</code></td>
+<td><code>PHYSICAL_REPRESENTATION_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Transfer plan</td>
+<td><code>ostadix.transfer-plan/v1</code></td>
+<td><code>TRANSFER_PLAN_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Cost profile</td>
+<td><code>ostadix.cost-profile/v1</code></td>
+<td><code>COST_PROFILE_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Objective</td>
+<td><code>ostadix.objective/v1</code></td>
+<td><code>OBJECTIVE_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Logical operation HGraph</td>
+<td><code>ostadix.logical-hgraph/v2</code></td>
+<td><code>LOGICAL_HGRAPH_SCHEMA_V2</code></td>
+</tr>
+<tr>
+<td>Descriptive deployment plan</td>
+<td><code>ostadix.deployment-plan/v2</code></td>
+<td><code>DEPLOYMENT_PLAN_SCHEMA_V2</code></td>
+</tr>
+<tr>
+<td>Runtime observation graph</td>
+<td><code>ostadix.runtime-graph/v2</code></td>
+<td><code>RUNTIME_GRAPH_SCHEMA_V2</code></td>
+</tr>
+<tr>
+<td>Recovery plan</td>
+<td><code>ostadix.recovery-plan/v1</code></td>
+<td><code>RECOVERY_PLAN_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Operation-planning request</td>
+<td><code>ostadix.operation-planning-request/v1</code></td>
+<td><code>OPERATION_PLANNING_REQUEST_SCHEMA_V1</code></td>
+</tr>
+</tbody></table>
+<p>All nine constants, canonical encoders, and record-specific digest domains live
+in <code>crates/ostadix-api/src/computation/realization_plan.rs</code>. The V2 suffixes on
+<code>LogicalHGraphV2</code>, <code>DeploymentPlanV2</code>, and <code>RuntimeGraphV2</code> distinguish these
+general operation-schema shapes from project-specific V1 records and from the
+separate solved-executable-HGraph coordinate. Numerical agreement across those
+families conveys no conversion or compatibility.</p>
+<p>The marked-project CLI adds three independent bridge/report coordinates:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Coordinate</th>
+<th>Source constant</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Manifest route-pipeline projection</td>
+<td><code>ostadix.project-route-pipeline/v1</code></td>
+<td><code>OPERATION_ROUTE_PIPELINE_SCHEMA_V1</code> in <code>src/bin/o-cli.rs</code></td>
+</tr>
+<tr>
+<td>Runtime observation binding</td>
+<td><code>ostadix.operation-runtime-binding/v1</code></td>
+<td><code>OPERATION_RUNTIME_BINDING_SCHEMA_V1</code> in <code>src/bin/o-cli.rs</code></td>
+</tr>
+<tr>
+<td>Operation command error envelope</td>
+<td><code>ostadix.operation-command-error/v1</code></td>
+<td><code>OPERATION_COMMAND_ERROR_SCHEMA_V1</code> in <code>src/bin/o-cli.rs</code></td>
+</tr>
+</tbody></table>
+<p>The route-pipeline coordinate identifies the deterministic serialized projection
+of the exact manifest route fields; the descriptor&#39;s execution-pipeline content
+reference must match it. The descriptor&#39;s implementation digest independently
+binds a captured regular non-symlink file, and the manifest tuple key binds the
+exact cost-profile ID. These joins do not prove that the route loads the named
+implementation, behavioral equivalence, or physical target execution.</p>
+<p>The runtime-binding coordinate identifies content that includes an exact
+<code>RunContentRefV1</code>, unchanged bundle digest, current recomputed
+<code>OperationPlanningRequestV1</code>/<code>DeploymentPlanV2</code> IDs and selected tuple, exact
+route-pipeline identity, and recorded-versus-recomputed project-route
+logical-HGraph/deployment identities. <code>RunRecordV1</code> persisted the bundle, route,
+route result, and project-route plan identities, but it did not persist the
+operation planning-request ID, operation DeploymentPlan V2 ID, or selected
+candidate tuple. The runtime binding is therefore current-binary consistency
+evidence, not historical persistence of those operation-plan coordinates.</p>
+<p><code>REQUIREMENT_FOOTPRINT_CONTENT_SCHEMA_V1</code> is
+<code>ostadix.placement.requirement-footprint/v1</code>. It labels a raw canonical-content
+join to the existing placement footprint; it is not a typed planning-record ID
+or an authority coordinate.</p>
+<p><code>OComputationManifestV1</code> and <code>FacetKindV1</code> were first introduced after v0.3.0
+on the unreleased 0.4 line. The facet-kind spellings <code>operation_contract</code>,
+<code>operation_interface</code>, <code>realization_descriptor</code>, <code>realization_set</code>,
+<code>physical_representation</code>, <code>transfer_plan</code>, <code>cost_profile</code>, <code>objective</code>, and
+<code>recovery_plan</code> are part of that manifest&#39;s initial V1 freeze before its first
+package release. Existing pinned <code>OComputationManifestV1</code> byte vectors remain
+unchanged. Older unreleased binaries may reject newly authored manifests that
+carry these spellings; this is not a claim of backwards reader compatibility.</p>
+<p><code>ostadix.operation-inspection/v1</code>, <code>ostadix.operation-verification/v1</code>,
+<code>ostadix.operation-project-description/v1</code>,
+<code>ostadix.operation-realization-catalog/v1</code>,
+<code>ostadix.operation-plan-summary/v1</code>, <code>ostadix.operation-observation/v1</code>, and
+<code>ostadix.operation-replan/v1</code> version successful CLI output envelopes, not the
+input records or an authority protocol. <code>ostadix.operation-command-error/v1</code>
+separately versions their JSON error envelope. Inspection and verification
+retain their referential-only meaning. Planning envelopes report deterministic
+static selection. The observation envelope carries a <code>RuntimeGraphV2</code> bound to
+a content-verified retained record plus the current recomputed operation and
+project-route plans; it is not a historical operation-plan receipt. The
+replanning envelope carries a recomputed <code>DeploymentPlanV2</code> and carries a
+<code>RecoveryPlanV1</code> only for a failed source observation whose replacement
+selection changes. Its ambient target alternatives are descriptive/static, not
+distinct observed failure domains. Recovery planning and recovery execution are
+separate; the command does not dispatch the alternative. These envelopes create
+no World state, recovery action, or dispatch authority. The package version
+report does not currently add these experimental coordinates; the source
+constants, <code>docs/OPERATION_REALIZATION_V1.md</code>, and
+<code>docs/OPERATION_PLANNING_V1.md</code> are authoritative.</p>
+<h3>Attribution-rewrite provenance map</h3>
+<p><code>evidence/attribution-rewrite-2026-09-03.commit-map</code> is the exact
+<code>git-filter-repo</code> commit map generated by the 2026-09-03 attribution-only
+rewrite of <code>master</code>. Its 598 rows cover the old commits reachable from the
+pre-feature <code>master</code> lineage and their corresponding commits on rewritten
+<code>master</code>; every mapped pair was verified to have the same Git tree. The map is
+SHA-256 sealed by both the World evidence validator and source-release builder.</p>
+<p>The annotated <code>v0.2.0</code> and <code>v0.3.0</code> tags remain immutable and were not moved
+onto the rewritten lineage, so their histories are intentionally disconnected
+from rewritten <code>master</code>. This artifact is a bounded provenance bridge, not a
+universal repository-history map: it does not claim to cover every older
+side-lineage or narrative commit coordinate, nor commits reachable only from a
+remaining remote branch.</p>
+<h3>World V1 coordinates</h3>
+<p>The World row is a family, not one interchangeable integer. Its current source
+constants are <code>WORLD_SCHEMA_V1</code> in <code>crates/ostadix-api/src/world/protocol.rs</code>,
+<code>WORLD_WIRE_CODEC_VERSION</code> in <code>crates/ostadix-api/src/world/codec.rs</code>, <code>IDENTITY_WIRE_VERSION</code> in
+<code>crates/ostadix-api/src/world/identity_wire.rs</code>, <code>OVALUE_WIRE_SCHEMA_V1</code> in
+<code>crates/ostadix-api/src/world/value_codec.rs</code>, and <code>WORLD_RECEIPT_SCHEMA_V1</code> in
+<code>crates/ostadix-api/src/world/receipt_codec.rs</code>. All currently carry coordinate <code>1</code>, but a future
+change to one does not silently change the others.</p>
+<h3>Information-kernel V1 coordinates</h3>
+<p><code>INFORMATION_SCHEMA_V1</code> in <code>crates/ostadix-api/src/information/mod.rs</code> names the family. Individual
+records retain their own coordinates:</p>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Coordinate</th>
+<th>Source constant</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Family</td>
+<td><code>ostadix.information/v1</code></td>
+<td><code>crates/ostadix-api/src/information/mod.rs</code> <code>INFORMATION_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Atom</td>
+<td><code>ostadix.info-atom/v1</code></td>
+<td><code>crates/ostadix-api/src/information/model.rs</code> <code>INFORMATION_ATOM_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Entity</td>
+<td><code>ostadix.info-entity/v1</code></td>
+<td><code>crates/ostadix-api/src/information/model.rs</code> <code>ENTITY_DESCRIPTOR_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Snapshot</td>
+<td><code>ostadix.info-snapshot/v1</code></td>
+<td><code>crates/ostadix-api/src/information/root.rs</code> <code>INFORMATION_SNAPSHOT_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Revision</td>
+<td><code>ostadix.info-revision/v1</code></td>
+<td><code>crates/ostadix-api/src/information/root.rs</code> <code>INFORMATION_REVISION_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Delta</td>
+<td><code>ostadix.info-delta/v1</code></td>
+<td><code>crates/ostadix-api/src/information/delta.rs</code> <code>INFORMATION_DELTA_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Projection receipt</td>
+<td><code>ostadix.projection-receipt/v1</code></td>
+<td><code>crates/ostadix-api/src/information/projection.rs</code> <code>PROJECTION_RECEIPT_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Offline delta pack</td>
+<td><code>ostadix.info-delta-pack/v1</code></td>
+<td><code>crates/ostadix-api/src/information/exchange.rs</code> <code>INFORMATION_DELTA_PACK_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Signed offline delta pack</td>
+<td><code>ostadix.signed-info-delta-pack/v1</code></td>
+<td><code>crates/ostadix-api/src/information/exchange.rs</code> <code>SIGNED_INFORMATION_DELTA_PACK_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Decision receipt</td>
+<td><code>ostadix.info-decision/v1</code></td>
+<td><code>crates/ostadix-api/src/information/decision.rs</code> <code>DECISION_RECEIPT_SCHEMA_V1</code></td>
+</tr>
+<tr>
+<td>Observation</td>
+<td><code>ostadix.info-observation/v1</code></td>
+<td><code>crates/ostadix-api/src/information/decision.rs</code> <code>OBSERVATION_RECORD_SCHEMA_V1</code></td>
+</tr>
+</tbody></table>
+<p><code>LossContractV1</code> is a typed component of the projection receipt rather than an
+independently labeled wire schema. Changing its serialized meaning therefore
+requires advancing the containing receipt coordinate.</p>
+<h3>Information-bridge V1 coordinates</h3>
+<p>The bridge family is <code>ostadix.information-bridge/v1</code> with media type
+<code>application/cbor</code>. Its eight exact record coordinates are:</p>
+<table>
+<thead>
+<tr>
+<th>Record</th>
+<th>Coordinate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Parsed document</td>
+<td><code>ostadix.info-bridge-parsed-document/v1</code></td>
+</tr>
+<tr>
+<td>Caller-public scalar</td>
+<td><code>ostadix.info-bridge-public-value/v1</code></td>
+</tr>
+<tr>
+<td>HGraph metadata</td>
+<td><code>ostadix.info-bridge-hgraph/v1</code></td>
+</tr>
+<tr>
+<td>Evidence metadata</td>
+<td><code>ostadix.info-bridge-evidence/v1</code></td>
+</tr>
+<tr>
+<td>Registry profile metadata</td>
+<td><code>ostadix.info-bridge-registry-profile/v1</code></td>
+</tr>
+<tr>
+<td>World receipt metadata</td>
+<td><code>ostadix.info-bridge-world-receipt/v1</code></td>
+</tr>
+<tr>
+<td>Project graph metadata</td>
+<td><code>ostadix.info-bridge-project-graph/v1</code></td>
+</tr>
+<tr>
+<td>Hosted journal metadata</td>
+<td><code>ostadix.info-bridge-hosted-journal/v1</code></td>
+</tr>
+</tbody></table>
+<p>HGraph and Evidence use separate
+<code>HGRAPH_METADATA_PROJECTION_DIGEST_DOMAIN_V1</code> and
+<code>EVIDENCE_METADATA_PROJECTION_DIGEST_DOMAIN_V1</code> domains over only their
+exported allowlists. Registry node, Hosted session, and Hosted entry/link
+identities use their separate bridge domains. These are lossy projection or
+equality coordinates, not the Graph V2/Evidence V6/native journal identities,
+privacy primitives, or authority. The package version report remains unchanged:
+these experimental source constants are authoritative, and adding a report
+field would require a separately versioned report-schema change. The advanced
+independent <code>ostadix_api::api</code> exports the bridge; generated AOT runtimes do
+not. The <code>o_lang::api</code> path is a compatibility reexport of that same module.</p>
+<p>These V1 records describe canonical, provenance-bearing facts and certified
+projections. A matching root or receipt is not execution authority, placement
+admission, runtime availability, freshness beyond its declared preconditions,
+or World membership. Physical compression, replication, and object location
+are outside the logical schema identity unless an individual record explicitly
+commits to them.</p>
+<h2>Compatibility rules</h2>
+<ol>
+<li>Wire and signed-evidence decoders validate their exact schema. No version is
+silently relabeled or uplifted.</li>
+<li>A stable execution intent proves sameness of modeled input, not authority,
+current runtime availability, or reusable admission.</li>
+<li>Backend-catalog generation changes invalidate identities derived from the
+older catalog. Regenerate profiles, warrants, and short-lived evidence.</li>
+<li>Hosted V1 and V2 are separate protocols. Supporting V2 does not mutate the
+frozen V1 contract.</li>
+<li>World wire versions cover canonical offline records; they do not claim a
+live World transport or Governor service.</li>
+<li>Information-kernel schemas version logical facts, roots, deltas, loss
+contracts, and receipts. They do not version a storage engine and do not
+mint or replace evidence, admission, placement, or World authority.</li>
+<li>Backend-morphism V1 remains an inspection-only profile family. Catalog V5
+introduced the selected optional profile and Catalog V6 retains it. The explicit Graph V2/Evidence V6 path
+preserves typed solver assessments, but does not itself enforce morphism
+profiles or silently strengthen or narrow current V6 semantics.</li>
+<li>At v0.3.0, <code>ostadix-api</code> was the narrow stable embedding facade. In the
+post-tag Unreleased tree it is the full runtime engine and owns the advanced
+modules. Root <code>o_lang::&lt;module&gt;</code> paths are explicit compatibility reexports
+of those same nominal types, not separately compiled implementations.</li>
+<li>Package-0.3-and-later hosted state roots carry
+<code>HOSTED_STATE_AUTHORITY_SCHEMA_V1</code>. A root containing earlier journals but
+no exact marker is rejected without mutation; there is no journal uplift.</li>
+<li>Information Atom V1 canonical bytes and IDs remain frozen. Information
+Provenance V2 is an additive sidecar keyed by <code>AtomIdV1</code>; a raw sidecar is
+descriptive, while verified provenance requires an opaque admitted handle
+returned after trusted contextual reanalysis.</li>
+<li>The M2 execution capsule and candidate remain frozen, and Hosted
+<code>PlacementLeaseV2</code> retains its signed Hosted V2 meaning. Fabric
+<code>PlacementLeaseV3</code> is additive and authorizes only the exact M3 pure
+attempt. Fabric uses the exact opt-in <code>ostadix-execution-fabric/1</code> ALPN;
+unknown or malformed traffic is never sniffed, uplifted, or routed to
+Hosted or Mesh fallback. The provider&#39;s node-local <code>FabricAttemptLedgerV1</code>
+is replay/fencing state, not the deferred M4 coordinator journal. The M3
+delivery label is neither a wire-schema version nor the separate O-core M3
+IPC milestone.</li>
+<li>Operation-realization V1 records are canonical declarations. A successful
+decode or exact cross-record verification cannot be reinterpreted as a
+plan, winner selection, behavioral-equivalence proof, authenticated
+evidence, target eligibility, placement, execution, recovery, admission,
+capability, lease, or World authority.</li>
+<li>Operation-planning records use independent coordinates and typed identities.
+Static rankability is not live eligibility. A deployment selection, runtime
+observation, or verified recovery closure cannot be uplifted into admission,
+reservation, lease, dispatch, checkpoint restoration, effect fencing, or
+World authority. A current-binary observation does not retrospectively add
+an operation plan or selected tuple to <code>RunRecordV1</code>; descriptive target
+alternatives do not establish distinct failure domains; and recovery
+planning does not execute recovery. Replanning a successful retained run is
+not recovery.</li>
+</ol>
+<p>The frozen M2 records, additive Fabric authority, and exact ALPN routes use
+these exported coordinates:</p>
+<table>
+<thead>
+<tr>
+<th>Constant</th>
+<th>Literal value</th>
+<th>Defining source</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>EXECUTION_CAPSULE_SCHEMA_V1</code></td>
+<td><code>ostadix.oir-execution-capsule/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>EXECUTION_CANDIDATE_SCHEMA_V1</code></td>
+<td><code>ostadix.oir-execution-candidate/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_REQUEST_SCHEMA_V1</code></td>
+<td><code>ostadix.execution-fabric-request/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_RESPONSE_SCHEMA_V1</code></td>
+<td><code>ostadix.execution-fabric-response/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_SUBMISSION_SCHEMA_V1</code></td>
+<td><code>ostadix.execution-fabric-submission/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_SOURCE_CLOSURE_SCHEMA_V1</code></td>
+<td><code>ostadix.execution-source-closure/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_SOURCE_CLOSURE_DIALECT_V1</code></td>
+<td><code>ostadix-source-closure/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_PLACEMENT_LEASE_SCHEMA_V3</code></td>
+<td><code>ostadix.execution-placement-lease/v3</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_SIGNED_LEASE_SCHEMA_V3</code></td>
+<td><code>ostadix.signed-execution-lease/v3</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_TERMINAL_RECEIPT_SCHEMA_V1</code></td>
+<td><code>ostadix.execution-fabric-terminal-receipt/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>FABRIC_SIGNED_TERMINAL_RECEIPT_SCHEMA_V1</code></td>
+<td><code>ostadix.signed-execution-fabric-terminal-receipt/v1</code></td>
+<td><code>crates/ostadix-api/src/execution_fabric_authority/protocol.rs</code></td>
+</tr>
+<tr>
+<td><code>HOSTED_TLS_ALPN_V1</code></td>
+<td><code>ostadix-hosted/1</code></td>
+<td><code>crates/ostadix-api/src/hosted_remote/tls.rs</code></td>
+</tr>
+<tr>
+<td><code>HOSTED_TLS_ALPN_V2</code></td>
+<td><code>ostadix-hosted/2</code></td>
+<td><code>crates/ostadix-api/src/hosted_remote/tls.rs</code></td>
+</tr>
+<tr>
+<td><code>HOSTED_TLS_ALPN_MESH_V1</code></td>
+<td><code>ostadix-mesh/1</code></td>
+<td><code>crates/ostadix-api/src/hosted_remote/tls.rs</code></td>
+</tr>
+<tr>
+<td><code>EXECUTION_FABRIC_TLS_ALPN_V1</code></td>
+<td><code>ostadix-execution-fabric/1</code></td>
+<td><code>crates/ostadix-api/src/hosted_remote/tls.rs</code></td>
+</tr>
+</tbody></table>
+<p>Execution Intent V1 continues to bind the solved graph V1 identity and the
+process&#39;s current backend-catalog projection. The V6 catalog rollover therefore
+changes that catalog binding without changing the graph algorithm or schema.
+Archival V5 and V4 whole/per-specification helpers remain available for inspection but
+never authorize a current Catalog V6-backed placement V2.</p>
+<h2>Package 0.3 source breaks</h2>
+<ul>
+<li>Unversioned analysis/admission and <code>AdmittedExecution</code> now use
+<code>EvidenceBundleV6</code>/<code>AdmittedExecutionV6</code>; <code>NodeEvidence</code> now aliases
+<code>NodeEvidenceV2</code>.</li>
+<li>Coordinator, evaluator, CLI explanation, and <code>last_execution_admission()</code>
+expose V6/Why V2 rather than V5/Why V1.</li>
+<li><code>prepare_placement_fragment()</code> returns <code>PreparedPlacementFragmentV2</code>, and
+current execution accepts only that type. <code>PlacementFragmentBindingsV1</code> and
+<code>PreparedPlacementFragmentV1</code> are inspection-only.</li>
+<li><code>PlacementAuthorizationContextV2::prepared_fragment</code> now contains
+<code>PlacementFragmentBindingsV2</code>. This deliberately breaks source compatibility
+for exhaustive Hosted V2 literals while retaining the hosted wire protocol
+coordinate; old signed V1 placement admission digests fail current lease
+validation.</li>
+<li>The root manifest is now a two-member workspace. Commands targeting a root
+binary must select <code>--package o-lang</code>; ordinary unscoped workspace gates
+compile both default members.</li>
+<li>The new publishable <code>ostadix-api = 0.3.0</code> facade depends exactly on
+<code>o-lang = 0.3.0</code>, so releases publish the root crate before the facade.</li>
+<li><code>ParsedDocumentV1.nodes</code> is now private before the 0.3 tag. Use <code>nodes()</code> for
+borrowed access or <code>into_nodes()</code> for owned extraction. Its derived equality
+also includes parser-captured source SHA-256 and length. The stable
+<code>ostadix-api</code> facade did not expose this type and remains source-unchanged.</li>
+</ul>
+<h2>Information Provenance V2</h2>
+<p><code>ostadix.info-provenance/v2</code> separates acquisition origin, assurance, claim
+standing, and recoverability instead of storing them as one caller-selected
+modality. Its recovery result is relative to an explicit question, equivalence
+contract, domain, and trusted context. A digest reference names bytes; it does
+not by itself discharge execution fidelity or freshness.</p>
+<p>The initial execution adapter image-produces only <code>Derivation</code>
+classifications from an opaque V6 admission and a signature-verified World
+receipt. It binds the admission digest and terminal T2 output, but
+conservatively leaves unresolved
+producer authentication, signer authorization, receipt currentness, exact
+plan-node attribution, execution/effect fidelity, and morphism fidelity. The
+signature proof is cryptographic verification under a caller-supplied resolver,
+not proof that the signer was authorized for this claim. This is a new V2
+coordinate and never silently upgrades, relabels, or rewrites V1 atoms.</p>
+<h2>Unreleased engine-ownership boundary</h2>
+<p>After the immutable v0.3.0 tag, runtime ownership moves atomically into
+<code>ostadix-api</code>. The engine package owns the implementation sources, direct
+runtime dependencies, embedded shim assets, benchmark/native test assets, and
+the AOT source bundle. The root <code>o-lang</code> package owns the binaries and explicitly
+reexports the historical public module set through one exact-version dependency.</p>
+<p>This preserves nominal type identity and source imports such as
+<code>o_lang::value::OValue</code>, but it changes the defining crate visible in reflected
+diagnostics such as <code>std::any::type_name</code> and rustdoc links. It also reverses
+registry publication order to <code>ostadix-api</code> first and <code>o-lang</code> second. These
+source-contract changes use the synchronized Unreleased <code>0.4.0</code> package
+coordinate and must never be published by moving or replacing the v0.3.0 tag.</p>
+<h2>Changing a coordinate</h2>
+<p>Any version change must update its canonical constant, compatibility tests,
+machine-readable version report where that axis is represented, release
+documentation, generated/AOT source closure where applicable, and
+mutation/rejection tests for the prior identity. Package, MSRV, toolchain, and
+citation metadata are validated separately so a toolchain upgrade does not
+masquerade as a package or protocol release. A new information record schema
+must also state its canonical identity inputs, loss or invalidation behavior,
+and whether older records remain inspectable, projectable, or admissible.</p>

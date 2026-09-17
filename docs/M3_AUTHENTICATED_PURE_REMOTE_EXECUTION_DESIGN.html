@@ -1,0 +1,292 @@
+<h1>M3 authenticated pure remote execution: internal design note</h1>
+<p>Status: implementation boundary for M3. This note is not a protocol
+specification and does not advance any M4 or later claim.</p>
+<h2>Authority invariant</h2>
+<p>An M3 provider authenticates, authorizes, reconstructs, and computes one
+already admitted pure operation. It returns a provisional candidate. It has no
+HGraph coordinate and no graph mutation, publication, winner-selection,
+settlement, retry, resource-version, or effect-commit authority.</p>
+<p>The coordinator remains the sole graph-commit authority and the sole
+linearization locus for graph transitions. Candidate validation, provisional
+publication, and deterministic settlement remain distinct coordinator-owned
+transitions.</p>
+<h2>Existing M2 records retained unchanged</h2>
+<table>
+<thead>
+<tr>
+<th>Existing record or seam</th>
+<th>Unchanged M3 role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ExecutionIdV1</code>, <code>LogicalTaskIdV1</code>, <code>AttemptIdV1</code></td>
+<td>Stable wire attempt coordinates. They are never replaced with <code>TaskToken</code>, a graph node, an operation index, or a PID.</td>
+</tr>
+<tr>
+<td><code>SourceClosedRendererV1</code> and <code>RendererPartV1</code></td>
+<td>Exact source closure for <code>TrustedInlineRendererV1</code>, preserving verbatim and spliced roles. Narrow read-only accessors may be added; canonical fields do not change.</td>
+</tr>
+<tr>
+<td><code>PortableValueV1</code></td>
+<td>The sole portable input representation: exact canonical OWVALUE bytes plus the existing digest and allowlist checks.</td>
+</tr>
+<tr>
+<td><code>InputManifestV1</code>, <code>OutputContractV1</code>, <code>ExecutionLimitsV1</code></td>
+<td>Frozen admission bindings for input, output kind/fidelity, absolute capsule deadline, and maximum runtime.</td>
+</tr>
+<tr>
+<td><code>ExecutionCapsuleV1</code></td>
+<td>Frozen semantic payload. Its known-answer bytes remain authoritative and contain no transport, placement, TLS, graph, or node state.</td>
+</tr>
+<tr>
+<td><code>ExecutionCandidateV1</code></td>
+<td>Frozen authority-free provisional computation record nested inside an authenticated terminal receipt.</td>
+</tr>
+<tr>
+<td>M2 canonical CBOR codecs</td>
+<td>Exact bounded capsule/candidate codecs. M3 calls them and does not create another OWVALUE or capsule encoding.</td>
+</tr>
+<tr>
+<td>M2 loopback adapter</td>
+<td>Test oracle only. Production realization is introduced outside the M2 protocol module.</td>
+</tr>
+<tr>
+<td><code>AttemptDriver</code> five-method seam</td>
+<td>Coordinator-facing execution seam. M3 preserves its method count and uses private queues and transport workers.</td>
+</tr>
+<tr>
+<td><code>TaskToken</code></td>
+<td>Process-local coordinator key. It is retained only in a private remote-attempt map and never crosses the wire.</td>
+</tr>
+<tr>
+<td>Hosted V1/V2 and Mesh V1 ALPN routes</td>
+<td>Existing routes and decoders remain exact and independent.</td>
+</tr>
+<tr>
+<td><code>NodeProfileV1</code>, <code>CapacityObservationV1</code>, <code>PlacementReservationV1</code>, <code>TargetDescriptorV1</code>, eligibility, footprint, warrant, trust, admission, and backend identities</td>
+<td>Reused placement facts and digests. M3 does not duplicate their meanings.</td>
+</tr>
+<tr>
+<td><code>PlacementLeaseV2</code> and Hosted signed envelopes</td>
+<td>Frozen Hosted/state authority. They remain valid for Hosted V2 and are never reinterpreted as Fabric authority.</td>
+</tr>
+<tr>
+<td>Existing canonical signing preimage and Ed25519 key utilities</td>
+<td>Shared cryptographic substrate after extraction to a lower reusable helper; existing Hosted V2 signed bytes remain unchanged.</td>
+</tr>
+<tr>
+<td>Hosted V2 durable-store primitives</td>
+<td>Filesystem safety pattern to reuse: private roots, no-follow opens, exclusive root lock, canonical records, atomic rename, file and directory sync, and poison-on-corruption. Hosted schemas are not reused.</td>
+</tr>
+</tbody></table>
+<h2>New M3 records and why they are distinct</h2>
+<table>
+<thead>
+<tr>
+<th>New record or component</th>
+<th>Why no existing record represents it</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Additive <code>PlacementLeaseV3</code></td>
+<td>V2 authorizes a Hosted command and optional state session. Fabric authority instead binds the exact M2 attempt, capsule/source/input/output/backend identities, runtime, provider incarnation, and TLS principal. Mutating V2 would change its signed meaning.</td>
+</tr>
+<tr>
+<td><code>SignedExecutionLeaseV3</code></td>
+<td>Carries the V3 canonical lease under a Fabric-only signing domain and trusted issuer key. A paired TLS certificate alone is not execution authority.</td>
+</tr>
+<tr>
+<td><code>FabricSourceClosureV1</code></td>
+<td>Binds the exact UTF-8 source, the <code>ostadix-source-closure/v1</code> dialect, the single root operation, base policy, and independently recomputed intent, OIR, plan, and closure digests. M2&#39;s renderer record alone does not retain the source needed for re-lowering on another node.</td>
+</tr>
+<tr>
+<td><code>FabricSubmissionV1</code></td>
+<td>Authenticated outer envelope containing exact <code>ExecutionCapsuleV1</code> bytes, the bounded source closure, and the signed lease without adding remote fields to M2.</td>
+</tr>
+<tr>
+<td><code>FabricRequestV1</code></td>
+<td>Narrow tagged request family: <code>SubmitPureAttempt</code> and <code>QueryAttempt</code> only.</td>
+</tr>
+<tr>
+<td><code>FabricResponseV1</code></td>
+<td>Narrow tagged result family: <code>Accepted</code>, <code>Running</code>, <code>TerminalCandidate</code>, <code>Rejected</code>, and <code>Abandoned</code> only.</td>
+</tr>
+<tr>
+<td><code>TerminalCandidateReceiptV1</code> and <code>SignedTerminalCandidateReceiptV1</code></td>
+<td>Binds an inert M2 candidate to the producing node, both generations, attempt, nonce, capsule/input/output contracts, output digest, runtime evidence, and terminal status under a Fabric-result signature domain. Hosted receipts have different authority and semantics.</td>
+</tr>
+<tr>
+<td><code>ExecutionCellIncarnationV1</code></td>
+<td>Existing node generation is a durable deployment/state epoch and is stable across ordinary restart. M3 needs a second durably incremented provider-start coordinate to fence incomplete pre-restart work truthfully.</td>
+</tr>
+<tr>
+<td><code>FabricAttemptLedgerV1</code></td>
+<td>Provider-only replay/fencing state. It is neither the Hosted V2 session store nor the deferred M4 coordinator journal.</td>
+</tr>
+<tr>
+<td><code>TrustedInlineRealizerV1</code></td>
+<td>Production reconstruction and rendering after authentication and binding checks. It lives in the provider layer because the authority-free M2 protocol is not an evaluator.</td>
+</tr>
+<tr>
+<td><code>RemotePureAttemptDriver</code></td>
+<td>Explicitly selected transport-backed implementation of the existing driver seam. It privately maps the remote attempt to <code>TaskToken</code> and never publishes or settles a graph result.</td>
+</tr>
+</tbody></table>
+<h2>Frozen and additive schema boundary</h2>
+<p><code>ExecutionCapsuleV1</code>, <code>ExecutionCandidateV1</code>, <code>PlacementLeaseV1</code>, and
+<code>PlacementLeaseV2</code> remain byte-for-byte compatible. M3 adds V3 placement
+authority; it does not add a field to a frozen record. The existing known-answer
+vectors remain pinned.</p>
+<p>The new Fabric ALPN is exactly <code>ostadix-execution-fabric/1</code>, following the
+existing <code>ostadix-&lt;protocol&gt;/&lt;version&gt;</code> convention. Fabric is opt-in on both
+ends. A Fabric client advertises only this ALPN. The ordinary Hosted V1,
+Hosted V1/V2, and Hosted V1/V2 plus Mesh server builders do not advertise it.
+Only the additive Fabric-enabled builders add it to the exact Hosted route set
+that was otherwise requested. The selected ALPN chooses exactly one decoder
+before any application byte is read. Missing or unknown ALPN, malformed
+framing, wrong schema, or decode failure closes that route without sniffing or
+fallback.</p>
+<h2>Wire shape and canonicality</h2>
+<p>Fabric application traffic uses one bounded canonical-CBOR header frame plus,
+where required, one separately length-prefixed exact payload frame. The header
+binds payload length and SHA-256. Capsule and candidate payloads are then passed
+unchanged to their frozen M2 bounded decoders. This prevents a generic CBOR
+<code>Vec&lt;u8&gt;</code> from becoming a second, integer-array representation of opaque bytes.</p>
+<p>Every header is decoded with explicit depth, item, string, and allocation
+limits, re-encoded canonically, and required to equal the received bytes.
+Fabric V1 carries exactly one frame in each TLS write direction. After writing
+that frame, the sender emits TLS <code>close_notify</code>; the receiver requires that
+authenticated end-of-stream before using the decoded message. A trailing byte,
+a second frame, a peer that does not finish its write direction before the
+bounded timeout, and raw TCP EOF without TLS closure all fail closed, as do
+duplicate map keys, noncanonical integers/maps, unknown fields, unknown tags,
+oversized declarations, truncation, and digest mismatches. No Fabric suffix is
+treated as fallback Hosted or Mesh traffic. OWVALUE remains nested only through
+<code>PortableValueV1</code>, which validates,
+decodes, canonically re-encodes, compares exact bytes, verifies its digest, and
+applies the frozen M2 value allowlist.</p>
+<h2>Authority and currentness</h2>
+<p>A valid submission must establish two independent facts:</p>
+<ol>
+<li>the TLS connection presents the pinned client principal bound by the lease;</li>
+<li>a configured trusted Fabric issuer signed the exact V3 lease.</li>
+</ol>
+<p>The V3 lease binds protocol and issuer, a one-use nonce, the complete M2
+attempt coordinate, target node and stable node generation, execution-cell
+incarnation, target descriptor, profile/capacity facts and generations, source,
+OIR, plan, input, output, the plan-referenced backend-catalog projection,
+backend implementation, realization, admission, trust/reservation bindings,
+maximum runtime, issue/expiry window, and one-use requirement. The provider
+checks absolute wall-clock lease validity, with the fixed two-second skew
+tolerance, before reconstruction, immediately before durable acceptance, and
+after the durable <code>Running</code> transition immediately before realization. A
+trusted exact duplicate may retrieve its principal-bound durable status or
+terminal bytes after expiry, but expiry can never authorize new work. Runtime
+is measured only with the provider&#39;s local monotonic clock,
+both around direct rendering and around the complete realizer call. The M3
+trusted-inline renderer is a bounded, infallible direct renderer, so this
+delivery rejects an over-budget result after the call returns; it does not
+claim hard preemption, cancellation, or isolation. Provider completion wall
+time and monotonic duration are signed evidence. They are not compared as
+cross-machine monotonic time, and neither proves final timeliness. Coordinator
+receipt time decides that question.</p>
+<p>The provider can fence durable nonce and binding reuse. It cannot learn that a
+coordinator has superseded an otherwise valid attempt without a revocation
+oracle, which M3 deliberately does not add. The coordinator therefore rejects
+stale, duplicate, fenced, already committed, and superseded candidates against
+its private active-attempt state.</p>
+<p>Direct trusted rendering is not a <code>KernelWorld</code>. M3 neither binds nor claims a
+KernelWorld execution region.</p>
+<h2>Source reconstruction and implementation identity</h2>
+<p><code>FabricSourceClosureV1</code> retains the exact source bytes, raw-source digest,
+<code>ostadix-source-closure/v1</code> dialect token, one root operation
+(<code>root_operation == 0</code>), a canonical existing <code>Policy</code> spelling, and the
+admitted intent, OIR, plan, and closure digests. After authentication and lease
+checks, the provider parses that exact source and independently reconstructs
+one <code>Exec</code> operation. Its body may contain only text literals and exact direct
+<code>$slot</code> lexical placeholders. The parser transiently represents such a
+placeholder as <code>OIr::Load(slot)</code>, but the realizer never executes it as a scope
+or environment load. It converts that direct child only into the frozen
+<code>RendererPartV1::Input</code> role and requires exact role, order, slot, and literal
+equality. A root <code>Load</code>, a nested <code>Load</code>, a computed lookup, and every arbitrary
+OIR subgraph remain rejected.</p>
+<p>The provider then re-lowers through the current OIR/planner path. The frozen M2
+decoder independently validates the exact capsule bytes, canonical OWVALUE
+records, input manifest, output contract, and capsule digest. The source
+realizer independently recomputes the source, intent, OIR, plan,
+plan-referenced backend-catalog projection, current backend specification,
+backend implementation, realization pipeline, and exact renderer region. The
+source closure does not carry the complete V6 evidence needed to reproduce the
+admission compiler. Therefore the provider does not claim to recompute the
+admission digest: it requires the trusted issuer&#39;s signed V3 lease to bind the
+exact admission digest already present in the frozen capsule. Any reproducible
+binding mismatch precedes execution.</p>
+<p>The trusted-inline backend implementation identity is truthful: its adapter
+artifact digest covers the exact embedded realizer source set; its executable
+set digest identifies the explicit empty external-executable set; its protocol
+ABI and realization-pipeline domain name the in-process trusted-inline V1
+implementation. It is not relabeled as a shim, proxy, shell executable, or
+KernelWorld implementation.</p>
+<h2>Provider ledger and restart fencing</h2>
+<p>The provider owns a distinct private <code>fabric-v1</code> state root and exclusive lock.
+At provider startup it atomically increments and syncs
+<code>ExecutionCellIncarnationV1</code>. Attempt records are canonically encoded and move
+through:</p>
+<pre><code class="language-text">Received -&gt; Validated -&gt; Accepted -&gt; Running -&gt; TerminalCandidate
+    \-----------&gt; Rejected &lt;-------------/
+incomplete state from an older incarnation -&gt; Abandoned
+</code></pre>
+<p>The critical durable transition atomically consumes the issuer/attempt/nonce
+and stores the exact accepted binding before realizer invocation. Identical
+duplicates return current state or exact stored terminal bytes and never invoke
+the realizer twice. Reusing a nonce or attempt coordinate with a different
+binding is replay/tamper rejection. An incomplete record from an older provider
+incarnation becomes <code>Abandoned</code>; it is never resumed. A terminal record remains
+attributable to its original stable node generation and provider incarnation.</p>
+<p>The ledger is explicitly not coordinator crash recovery. M3 performs no
+automatic retry. A future M4 policy may retry admitted deterministic pure work
+under a fresh attempt generation and nonce.</p>
+<h2>Coordinator bridge and failure semantics</h2>
+<p>Remote execution is opt-in. <code>RemotePureAttemptDriver</code> owns bounded worker
+queues, keeps <code>TaskToken</code> local, submits to one exact configured provider,
+queries when needed, validates the authenticated response, and emits an inert
+internal candidate event. The coordinator admits that event to its existing
+provisional-candidate path only after the ordered nineteen checks required by
+the M3 delivery: canonicality, node/channel, receipt key, execution/task/attempt,
+both generations, signed lease/issuer/nonce, capsule/source/input/catalog/
+backend/output-contract bindings, output kind/fidelity/content, coordinator
+deadline, and current unsuperseded state.</p>
+<p>Connection, TLS, authority, currentness, framing, digest, deadline, and output
+contract failures map to infrastructure/authority aborts, not O-language
+semantic errors. A selected remote failure never invokes the local renderer.</p>
+<h2>Delivered claim and proof boundary</h2>
+<p>Fabric V1 can authenticate and execute the admitted M2 pure renderer profile on
+an explicitly selected <code>o-node</code>, returning a bounded provisional candidate
+whose graph publication and settlement remain coordinator-controlled.</p>
+<p>The same-host proof in <code>tests/execution_fabric_two_node.rs</code> launches two real
+<code>o-node</code> processes with separate ports, TLS and node identities, state
+directories, ledgers, node generations, and Fabric authority enrollment. It
+checks local-result equivalence on both nodes, cross-node lease rejection,
+wrong-node candidate rejection, infrastructure failure without local-renderer
+fallback when a selected node stops, and continued Hosted and Mesh ALPN
+operation. Process separation is the evidence boundary: M3 does not claim
+physical multinode, distinct-kernel, or heterogeneous-architecture execution.</p>
+<h2>Module and commit split</h2>
+<ul>
+<li>M3a: narrow M2 accessors; reusable signing helper; additive placement V3;
+<code>execution_fabric_authority</code> records, codecs, signatures, and known answers.</li>
+<li>M3b: Fabric ALPN/framing; <code>hosted_remote::fabric</code> realizer, provider, and
+durable ledger; explicit <code>o-node</code> configuration.</li>
+<li>M3c: <code>RemotePureAttemptDriver</code>, private token mapping, ordered coordinator
+validation bridge, and no-fallback failure mapping.</li>
+<li>M3d: same-host two-process proof, equivalence/tamper/replay/restart/ALPN
+regression coverage, claims and version surfaces,
+architecture/AOT/source-release inventories, and executable evidence.</li>
+</ul>
+<p>No layer in this split introduces arbitrary OIR region execution, general <code>.O</code>
+distribution, automatic placement, a capacity scheduler, scope transport, an
+object plane, bulk node-to-node data transfer, actors, external effects,
+automatic retry, coordinator crash recovery, hardware-resource execution, GPU
+or camera driver mediation, cancellation, process migration, a shared address
+space, physical-multinode, distinct-kernel, heterogeneous-architecture, or
+exactly-once-external-effect authority. The provider has no graph authority.</p>

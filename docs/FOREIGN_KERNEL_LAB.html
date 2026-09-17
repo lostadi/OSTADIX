@@ -1,0 +1,309 @@
+<h1>Foreign-kernel QEMU lab</h1>
+<p>The foreign-kernel lab boots seven checksum-pinned, unmodified upstream
+profiles: Alpine Linux 3.24.1 on both AArch64 and x86_64, FreeBSD
+15.1-RELEASE on AArch64, and OpenBSD 7.9, 9front 11983, GNU Guix System 1.5.0,
+and Redox OS 0.9.0 on x86_64. It is an opt-in host-side substrate test. It is
+deliberately separate from O-core&#39;s portable evidence aggregate and from the
+World G7 real-KernelWorld gate.</p>
+<h2>What the lab establishes</h2>
+<p>For each run, the harness verifies every guest artifact before QEMU starts,
+reopens admitted artifacts and firmware as descriptor-pinned inputs, forces
+QEMU TCG with networking disabled, captures bounded serial output, and requires
+exact ordered markers. The harness copies QEMU from its verified open descriptor
+into a mode-0500 file inside a mode-0500 private launch directory and uses that
+same snapshot for version inspection and boot. Linux executes the inherited
+snapshot descriptor through <code>/proc/self/fd</code>; macOS, which cannot execute
+<code>/dev/fd</code>, uses the protected snapshot path with inode checks before and after
+launch. The observation JSON binds the manifest, artifacts, QEMU executable and
+version, UEFI firmware, complete argv, raw and normalized transcript, QEMU
+stderr, timeout result, and process-group cleanup action. Git checkouts bind the
+commit and dirty state. Extracted source releases instead verify every declared
+file and mode against canonical <code>SOURCE-MANIFEST.json</code> and <code>SHA256SUMS</code>, record
+that provenance kind, and state that files outside the release manifest were
+not audited.</p>
+<p>The manifest-named QEMU executable discovered through the caller&#39;s host <code>PATH</code> and
+any host UEFI firmware are explicit local trust anchors, not repository-signed
+dependencies. A claim-admissible run requires a numeric QEMU version banner and
+records the exact copied executable&#39;s digest, size, origin, banner, and
+post-run identity. An explicit <code>run --qemu PATH</code> override remains useful for
+diagnostics, but even successful mechanics are labeled <code>synthetic-passed</code> with
+<code>claim_admissible: false</code>; an arbitrary override cannot mint a QEMU/TCG pass.</p>
+<p>Both Alpine profiles reach the upstream initramfs <code>/bin/sh</code>, emit
+architecture-specific readiness markers, answer <code>busybox uname -srm</code>, and
+power down. The x86_64 profile therefore proves the exact x86_64 upstream
+kernel and initramfs independently of the existing AArch64 evidence. FreeBSD
+follows UEFI, its arm64 loader, the 15.1-RELEASE kernel, and rc startup into the
+installer userland&#39;s terminal prompt.</p>
+<p>OpenBSD boots the complete, unmodified <code>install79.iso</code> through its upstream
+<code>OpenBSD/amd64 BOOTX64 3.71</code> loader. Its loader initially selects <code>pc0</code>, so the
+manifest uses two counted actions on the same prompt: occurrence one sends
+<code>set tty com0</code>, then occurrence two sends <code>boot</code> only after the loader has
+reinitialized and emitted a second <code>boot&gt;</code>. The proof requires the OpenBSD 7.9
+<code>RAMDISK_CD</code> kernel, the <code>rd0</code> root, and the real installer question. The host
+OVMF image is descriptor-pinned and recorded as an external local trust anchor;
+it is not presented as an OpenBSD artifact.</p>
+<p>9front boots its <code>pc64</code> Plan 9 kernel from the official read-only snapshot,
+answers the root-device and user prompts as two ordered console actions, mounts
+HJFS, starts rc, and reaches <code>term%</code>.</p>
+<p>GNU Guix System is the Guile-based Linux target. The profile proves three
+different layers instead of collapsing them into one claim: Linux-libre
+6.17.12 is the kernel, GNU&#39;s early-boot Guile runs <code>/init</code>, and GNU Shepherd
+1.0.9 runs with Guile 3.0.9. Guile defines and orchestrates the system; the
+kernel itself is not implemented in Lisp. Because the upstream ISO&#39;s GRUB menu
+selects graphical output, the deterministic serial profile extracts the exact
+checksum-pinned kernel and initrd from that ISO, loads them directly, and keeps
+the unmodified ISO attached read-only as the Guix store.</p>
+<p>Redox boots from the expanded official livedisk, starts its kernel, mounts the
+live RedoxFS, starts <code>ptyd</code>, and reaches <code>redox login:</code>. Its strict no-monitor
+profile uses <code>-nodefaults</code> to avoid a hidden keyboard-injection control channel.
+That intentionally excludes VGA, input, and networking, so their user-service
+panics are recorded nonclaims rather than graphical or network readiness.</p>
+<p>This proves those exact foreign kernels boot along the declared host-QEMU paths.
+It does not prove that O-core admits, contains, supervises, or governs any of
+them. It does not pass G7, export a KernelWorld service, exercise governed
+withdrawal, or establish KVM, physical-hardware, PCI assignment, DMA, IOMMU,
+Secure Boot, measured boot, or production-device evidence.</p>
+<p>The runner gives QEMU a private working directory, private <code>HOME</code>/temporary
+directories, a minimal fixed environment, no emulated NIC, and bounded admitted
+devices. This is hygiene, not host containment: QEMU still runs with the
+invoking VM user&#39;s uid and could access paths that uid can access. Use a
+dedicated VM without unrelated sensitive mounts for adversarial-media work. On
+<code>moral-gaur</code>, place <code>--output-dir</code> on native <code>/home/ubuntu</code> storage; do not treat
+the SSHFS-mounted host checkout as a QEMU sandbox.</p>
+<h2>Prepare the opt-in tools</h2>
+<p>The default setup still downloads no operating-system media. Automatic
+<code>--with-guest-tools</code> installation is limited to the validated Debian/Ubuntu
+package map and macOS/Homebrew. On Debian or Ubuntu, the guest profile installs
+AArch64 and x86_64 emulators, AArch64 UEFI firmware, image tools,
+<code>gzip</code>/XZ/Zstandard decompressors, and <code>xorriso</code> for checksum-verified Guix
+ISO-member extraction:</p>
+<pre><code class="language-bash">./setup.sh --with-guest-tools --deps-only
+</code></pre>
+<p>The OpenBSD x86_64 profile additionally requires one complete OVMF image that
+QEMU accepts through <code>-bios</code>. On Debian or Ubuntu, install <code>ovmf</code>; the proven
+<code>moral-gaur</code> path is <code>/usr/share/ovmf/OVMF.fd</code>. Split code and variable-store
+files such as <code>OVMF_CODE_4M.fd</code> are not interchangeable with that complete
+image for this launch shape.</p>
+<p>On Lee&#39;s macOS system, run the actual boots inside the existing Linux VM. The
+<code>/home/ubuntu/Ostadix-host</code> path is the SSHFS-mounted host checkout, not a
+disposable VM copy, so do not copy a repository over it or treat it as scratch.
+Guest media stays in the VM&#39;s external data directory:</p>
+<pre><code class="language-bash">multipass exec moral-gaur -- bash -lc \
+  &#39;cd /home/ubuntu/Ostadix-host &amp;&amp; python3 scripts/foreign_kernel_lab.py list&#39;
+</code></pre>
+<p><code>OSTADIX_GUESTS_DIR</code> selects the external cache. Its default is
+<code>${XDG_DATA_HOME:-$HOME/.local/share}/ostadix/guests</code>. Large kernels, initramfs,
+and media images never belong in Git.</p>
+<p>No Cargo build is needed for this lab. The runner uses Python&#39;s standard
+library plus the host&#39;s QEMU, extraction tools, and firmware; it neither
+compiles nor links O-core. Python 3.14 can expand Zstandard frames directly;
+older Python versions use the checked <code>zstd</code> executable. On other operating
+systems or Linux distributions, install <code>qemu-system-aarch64</code>,
+<code>qemu-system-x86_64</code>, <code>qemu-img</code>, <code>gzip</code>, XZ, Zstandard, <code>xorriso</code>, and AArch64
+UEFI firmware manually, then run:</p>
+<pre><code class="language-bash">./setup.sh --with-guest-tools --check
+</code></pre>
+<p>Firmware discovery checks the manifest&#39;s known Debian/Ubuntu, edk2, and
+Homebrew locations. If the runner&#39;s manifest candidates do not include the
+installed path, pass it explicitly:</p>
+<pre><code class="language-bash">python3 scripts/foreign_kernel_lab.py run freebsd-15.1-release-aarch64 \
+  --firmware aarch64_uefi=/absolute/path/to/QEMU_EFI.fd
+
+python3 scripts/foreign_kernel_lab.py run openbsd-7.9-amd64 \
+  --firmware x86_64_uefi=/absolute/path/to/complete/OVMF.fd
+</code></pre>
+<h2>Fetch, verify, and run</h2>
+<p>Fetching is explicit and is the only networked phase:</p>
+<pre><code class="language-bash">python3 scripts/foreign_kernel_lab.py fetch
+</code></pre>
+<p>Re-verify the complete cache without network access:</p>
+<pre><code class="language-bash">python3 scripts/foreign_kernel_lab.py verify
+</code></pre>
+<p>Run one profile or the complete matrix:</p>
+<pre><code class="language-bash">python3 scripts/foreign_kernel_lab.py run linux-alpine-3.24.1-aarch64
+python3 scripts/foreign_kernel_lab.py run linux-alpine-3.24.1-x86_64
+python3 scripts/foreign_kernel_lab.py run freebsd-15.1-release-aarch64
+python3 scripts/foreign_kernel_lab.py run openbsd-7.9-amd64
+python3 scripts/foreign_kernel_lab.py run plan9-9front-11983-amd64
+python3 scripts/foreign_kernel_lab.py run guix-system-1.5.0-x86_64
+python3 scripts/foreign_kernel_lab.py run redox-0.9.0-server-x86_64
+python3 scripts/foreign_kernel_lab.py run-all
+</code></pre>
+<p>Results are written beneath <code>target/foreign-kernel-lab/</code> by default. A
+claim-admissible run has <code>status: passed</code>, <code>claim_admissible: true</code>,
+<code>serial.raw</code>, <code>serial.normalized.txt</code>, <code>qemu.stderr</code>, and <code>observation.json</code>.
+The observation records identities for stdout and stderr,
+the source commit plus dirty-state evidence, and whether the isolated QEMU
+process group exited, was terminated, or required a kill. A controlled harness
+termination after the final marker is recorded as cleanup, not disguised as a
+guest-initiated exit. Dirty source state is retained as provenance rather than
+silently presented as a clean release run. In an extracted source release, the
+same command works without <code>.git</code> only after the canonical source manifest,
+checksums, all declared payload identities, and executable modes verify.</p>
+<p>Use <code>--guest-dir PATH</code>, <code>--output-dir PATH</code>, or
+<code>--firmware aarch64_uefi=/absolute/path</code> when those defaults do not match the
+host. <code>run --qemu PATH</code> is only a diagnostic/test override: the exact override
+and its digest are retained, but the command exits unsuccessfully with
+<code>synthetic-passed</code> and <code>claim_admissible: false</code> even when every boot marker is
+seen. For a claim-admissible nonstandard QEMU installation, put the reviewed
+manifest-named <code>qemu-system-aarch64</code> or <code>qemu-system-x86_64</code> executable on the
+caller <code>PATH</code>. <code>run-all</code> resolves that architecture-specific manifest name for
+each profile and deliberately has no single <code>--qemu</code> override.</p>
+<h2>Fail-closed conditions</h2>
+<p>The run fails before launch when a manifest field is unknown, an input is not a
+regular non-symlink file, an artifact size or digest differs, an admitted file
+changes while it is hashed, required firmware or QEMU is missing, or the QEMU
+argv violates the TCG/no-network safety profile. A manifest-named executor
+without the admitted numeric QEMU banner cannot establish the claim. During
+execution the harness fails on a
+timeout, capture overflow, forbidden marker, missing or out-of-order required
+marker, duplicated marker declared unique, or an interactive profile that does
+not complete every ordered prompt-triggered console action. Counted actions
+fire only after the declared positive, bounded occurrence of their trigger;
+occurrences for a repeated trigger must be strictly increasing. A nonzero
+pre-cleanup exit, pre-cleanup QEMU
+stderr, input mutation, unresolved process group, or incomplete pipe drain also
+fails the run. Failure observations retain the bounded output and cleanup facts
+for diagnosis; they do not establish the profile&#39;s boot claim.</p>
+<h2>Pinned upstream artifacts</h2>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Artifact</th>
+<th align="right">Bytes</th>
+<th>SHA-256</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Alpine Linux AArch64</td>
+<td><code>vmlinuz-virt</code></td>
+<td align="right">10,351,104</td>
+<td><code>47970e0ee0478fe5c60824a89f162d5a353fa29466e5d3bddb0f9c506f1ed756</code></td>
+</tr>
+<tr>
+<td>Alpine Linux AArch64</td>
+<td><code>initramfs-virt</code></td>
+<td align="right">9,385,851</td>
+<td><code>e47d38bc88509a3db11affc09f9762f9643b026bd29441724a4729ad8e97add6</code></td>
+</tr>
+<tr>
+<td>Alpine Linux x86_64</td>
+<td><code>vmlinuz-virt</code></td>
+<td align="right">12,575,744</td>
+<td><code>1e6bf9027720c75c3ed0d79171f21b5791ee40ca9795d07c7c6e04dc5ea2ae90</code></td>
+</tr>
+<tr>
+<td>Alpine Linux x86_64</td>
+<td><code>initramfs-virt</code></td>
+<td align="right">9,637,032</td>
+<td><code>6d80a739fedeeb6cd63e24dd208845e22199c41a5fb2054941ef61ec30264fa9</code></td>
+</tr>
+<tr>
+<td>FreeBSD</td>
+<td><code>bootonly.iso.xz</code></td>
+<td align="right">96,421,460</td>
+<td><code>33e2dc303b5dce5a374727ba12c41c303db70fe0676e76333e09e0ea8cb2fbd0</code></td>
+</tr>
+<tr>
+<td>FreeBSD</td>
+<td>expanded <code>bootonly.iso</code></td>
+<td align="right">460,095,488</td>
+<td><code>359136c2af73e03da6f15ad59f0c67bc561ca8b69631d78bfb8f2225e2c9a5ef</code></td>
+</tr>
+<tr>
+<td>OpenBSD</td>
+<td><code>install79.iso</code></td>
+<td align="right">798,625,792</td>
+<td><code>7a4a92e953618035097c796a90b54424a0f3ae775552e1e7d102cf8a5130449f</code></td>
+</tr>
+<tr>
+<td>9front</td>
+<td><code>9front-11983.amd64.qcow2.gz</code></td>
+<td align="right">257,961,445</td>
+<td><code>b96617b6eebcec8621a4c176e7acc29a1835ed09d4b61f9fe2e3e64c18d20867</code></td>
+</tr>
+<tr>
+<td>9front</td>
+<td>expanded qcow2</td>
+<td align="right">550,240,256</td>
+<td><code>0326632e2d90f4038069edbadd2918f7662397ad879a97d91cdac474d31a9746</code></td>
+</tr>
+<tr>
+<td>GNU Guix System</td>
+<td>installer ISO</td>
+<td align="right">1,188,261,888</td>
+<td><code>107e0a8082f03a10b15c1fb9383d2d752c1cdeda41b8db575a15550e1c2d8b4a</code></td>
+</tr>
+<tr>
+<td>GNU Guix System</td>
+<td>detached ISO signature</td>
+<td align="right">566</td>
+<td><code>fac1d7af22f7dd6598f7599295544061202002617d2aee23cf56bd0a40a67d60</code></td>
+</tr>
+<tr>
+<td>GNU Guix System</td>
+<td>extracted Linux-libre <code>bzImage</code></td>
+<td align="right">16,688,128</td>
+<td><code>eba328fc22572bf8f6523fdec52e1f1ceeb8817f2d7caea3b312067f831f6e48</code></td>
+</tr>
+<tr>
+<td>GNU Guix System</td>
+<td>extracted raw initrd</td>
+<td align="right">14,104,469</td>
+<td><code>bd3d4323d77e4ad94289c512bcccf4c712c3c401d707cb538364808d08287994</code></td>
+</tr>
+<tr>
+<td>Redox OS</td>
+<td>server livedisk ISO.zst</td>
+<td align="right">70,108,737</td>
+<td><code>a73c3783a72a15eba8dd85dee941298cdd34e125a37008a3bcc7227b5f073e93</code></td>
+</tr>
+<tr>
+<td>Redox OS</td>
+<td>expanded livedisk ISO</td>
+<td align="right">536,870,912</td>
+<td><code>33e85a8f9fc9207a6e075a170207a18bccd53ad00781e58d12b466a61958c994</code></td>
+</tr>
+</tbody></table>
+<p>Alpine publishes signatures and sidecar hashes for its complete release images
+and netboot archive, but not separate sidecars for the two extracted netboot
+members used here. Their versioned member digests are therefore labeled as
+repository-observed pins rather than as separately signed upstream digests.
+FreeBSD&#39;s manifest records the values published in its clearsigned release
+checksum document. The 9front digest is a repository-observed pin for official
+build 11983, which the build index ties to source commit
+<code>50aefa0743c8cfd83fdc7f568d24e1bba8b9848e</code>.</p>
+<p>During this audit, GPG reported <code>GOODSIG</code> and <code>VALIDSIG</code> for the Guix ISO from
+Efraim Flashner&#39;s key fingerprint
+<code>A28B F40C 3E55 1372 662D 14F7 41AA E7DC CA3D 8351</code>; it also reported an
+expired historical subkey and undefined local owner trust. The committed lab
+pins the ISO and detached-signature identities, but the runtime harness does not
+invoke GPG or promote that one audit into a permanent trust decision. Redox&#39;s
+compressed digest is from its published <code>SHA256SUM</code>; the expanded digest is a
+repository pin verified after bounded Zstandard expansion. At runtime the
+harness verifies every compressed, expanded, and extracted identity against the
+committed manifest without refetching upstream checksum or signature documents.</p>
+<p>Upstream references:</p>
+<ul>
+<li><a href="https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot-3.24.1/">Alpine 3.24.1 AArch64 netboot members</a></li>
+<li><a href="https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/netboot-3.24.1/">Alpine 3.24.1 x86_64 netboot members</a></li>
+<li><a href="https://www.alpinelinux.org/downloads/">Alpine download and signing information</a></li>
+<li><a href="https://download.freebsd.org/releases/ISO-IMAGES/15.1/">FreeBSD 15.1-RELEASE image index</a></li>
+<li><a href="https://www.freebsd.org/releases/15.1R/checksums/CHECKSUM.SHA256-FreeBSD-15.1-RELEASE-arm64-aarch64.asc">FreeBSD 15.1 AArch64 signed checksums</a></li>
+<li><a href="https://cdn.openbsd.org/pub/OpenBSD/7.9/amd64/">OpenBSD 7.9 amd64 release artifacts</a></li>
+<li><a href="https://cdn.openbsd.org/pub/OpenBSD/7.9/amd64/SHA256.sig">OpenBSD 7.9 amd64 signed checksums</a></li>
+<li><a href="https://build.9front.org/">9front official builds</a></li>
+<li><a href="https://git.9front.org/plan9front/plan9front/50aefa0743c8cfd83fdc7f568d24e1bba8b9848e/commit.html">9front build 11983 source commit</a></li>
+<li><a href="https://ftp.gnu.org/gnu/guix/">GNU Guix 1.5.0 downloads</a></li>
+<li><a href="https://guix.gnu.org/manual/en/guix.pdf">GNU Guix manual</a></li>
+<li><a href="https://static.redox-os.org/releases/0.9.0/x86_64/">Redox OS 0.9.0 x86_64 releases</a></li>
+<li><a href="https://qemu.readthedocs.io/en/master/system/arm/virt.html">QEMU Arm <code>virt</code> machine</a></li>
+<li><a href="https://qemu.readthedocs.io/en/master/system/target-i386.html">QEMU x86 system emulator</a></li>
+</ul>
+<h2>Evidence separation</h2>
+<p><code>evidence/foreign_kernel_lab.toml</code> has its own schema and claim class. Do not
+add these observations to <code>evidence/gates.toml</code>, rename them as <code>world-g7</code>, or
+use them to relax the G7 acceptance contract. They are executable preparation
+for later foreign-kernel integration, not evidence that the integration already
+exists.</p>

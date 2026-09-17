@@ -1,0 +1,1191 @@
+<p align="center">
+  <img src="./assets/olang-logo.png" alt="Ostadix-lang" width="900" />
+</p><h1>Ostadix-lang</h1>
+<p><em>By Lee Daghlar Ostadi</em></p>
+<p><a href="https://github.com/lostadi/Ostadix-lang/actions/workflows/ci.yml"><img src="https://github.com/lostadi/Ostadix-lang/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/lostadi/Ostadix-lang/actions/workflows/fuzz.yml"><img src="https://github.com/lostadi/Ostadix-lang/actions/workflows/fuzz.yml/badge.svg" alt="Parser fuzz campaign"></a></p>
+<blockquote>
+<p><strong>Every expression carries its evaluator as part of its syntax.</strong></p>
+</blockquote>
+<p>I created Ostadix-lang to make a whole polyglot program one typed expression
+tree. A language boundary appears where computation changes language, and the
+result crosses that boundary as an <code>OValue</code>. The same source can become an
+admitted operation graph, execute through persistent evaluators or native
+machinery, and leave evidence that can be inspected independently of the prose
+describing it.</p>
+<p>An experimental operation-project layer now keeps one logical operation
+invariant while comparing explicitly supplied realization, target,
+representation, and residency tuples. Its authority-free planner selects a
+statically compatible tuple deterministically; the marked-project bridge binds
+the descriptor to exact captured implementation bytes and a deterministic,
+versioned serialized route-pipeline projection before <code>o run</code> enters the existing admission
+and executor path. Those separate joins do not prove that the route loads the
+named artifact, behavioral equivalence, live target eligibility, placement
+authority, or execution on the described physical target.</p>
+<pre><code class="language-O">html^(
+  &lt;p&gt;The answer is python^(
+__oval_result__ = sum(x*x for x in range(10))
+)_python.&lt;/p&gt;
+)_html
+</code></pre>
+<p><code>LANG^( body )_LANG</code> is an expression form. The parser records the evaluator
+tag and nested source in one tree. The evaluator runs the inner Python block,
+lifts its result into <code>OValue</code>, and renders that value according to the
+receiving HTML expression. The nesting itself is the interface.</p>
+<p>The system has two computational languages:</p>
+<ol>
+<li><strong>O orchestration</strong>, written in <code>.O</code>, composes hosted languages, persistent
+evaluator environments, deferred work, project routes, operating-system
+values, and distributed placement through typed parentheses and <code>OValue</code>.</li>
+<li><strong>O-core</strong>, written in <code>.oc</code>, compiles statically typed machine computation
+through resolved HIR and SSA MIR into freestanding x86_64 and bounded
+AArch64 objects. OKernel is built through this pipeline.</li>
+</ol>
+<p>OIR models orchestration among evaluators. O-core MIR models control flow,
+memory, ABI, atomics, hardware operations, and native execution. That division
+lets Python, Rust, Nix, SQL, HTML, and the other hosted evaluators remain rich
+user-space participants while the native target remains freestanding.</p>
+<p><strong>OSTADIX</strong> names the integrated system. <strong>Ostadix-lang</strong> is its hosted
+language and evidence-bound HGraph runtime. <strong>O-core</strong> is its native systems
+language. <strong>OKernel</strong> is the capability-oriented kernel. <strong>O-Machine</strong> names
+the architecture-specific resource and virtualization substrate. A governed
+<strong>World</strong> names the distributed identity, resource, namespace, and execution
+ontology. The first integrated-system release that satisfies the G0 through
+G13 qualification gates is named <strong>OSTADIX Alpha</strong>.</p>
+<h3>Read the technical artifact set</h3>
+<ul>
+<li><a href="Ostadix-lang_Technical_Whitepaper.pdf">Technical whitepaper PDF</a></li>
+<li><a href="docs/Ostadix-lang_Technical_Whitepaper.tex">Technical whitepaper TeX source</a></li>
+<li><a href="docs/figures/o-linked-codebase-hgraph.dot">Compiler-emitted O-linked HGraph as DOT</a></li>
+<li><a href="docs/figures/o-linked-codebase-hgraph.svg">Rendered O-linked HGraph as SVG</a></li>
+<li><a href="SPEC.md">Hosted language specification</a></li>
+<li><a href="tools/syntax/README.md">Syntax highlighting for VS Code, bat, Nano, and cat</a></li>
+<li><a href="docs/OCORE.md">O-core language and ABI specification</a></li>
+<li><a href="ARCHITECTURE.md">Architecture</a></li>
+<li><a href="docs/CLAIMS.md">Claim and evidence index</a></li>
+</ul>
+<p>The artifact set is pinned to master commit
+<code>36787b16476bc0c8c4ddf665c7228b314d04e716</code>. At that snapshot,
+<code>ostadix-api</code> owns 42 engine modules. Its 36 public module identities are
+reexported by the root compatibility library. The root Cargo package declares
+14 binaries, including <code>ogit</code> and <code>ocore-kernel-world-record</code>. The backend
+catalog contains 30 canonical backends and six aliases, including canonical
+<code>ubuntu_vm</code> with the <code>ubuntu</code> alias. Current master tracks 44 recursively
+discovered <code>.O</code> examples. The in-checkout MCP server exposes 10 tools. Native
+release evidence contains 26 required portable QEMU gates and one supplemental
+hardware gate.</p>
+<p>The isolated audit of that pinned snapshot recorded 1,351 passing tests and
+three ignored tests. Its portable native aggregate recorded 26 of 26 required
+gates passing. The exact historical validation scope and the then-observed G0
+evidence continuity defect are recorded in
+<a href="#validation-at-the-audited-master">Validation at the audited master</a> and
+<a href="#exact-implementation-boundaries">Exact implementation boundaries</a>.</p>
+<p>The current M3 boundary is specified separately by <a href="docs/OIR_EXECUTION_FABRIC_V1.md">OIR Execution Fabric
+V1</a> and the <a href="docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md">authenticated pure
+remote-execution design note</a>.</p>
+<h2>How to read Ostadix-lang</h2>
+<p>Read the system from left to right:</p>
+<p><strong>source → admitted graph → placement → execution → evidence</strong></p>
+<pre><code class="language-mermaid">flowchart LR
+    S[&quot;Source&lt;br/&gt;.O document or lifted project&quot;]
+    P[&quot;Parse and close source&lt;br/&gt;ONode or ProjectBundle&quot;]
+    G[&quot;Construct graph&lt;br/&gt;OIR and Logical HGraph&quot;]
+    A[&quot;Admit graph&lt;br/&gt;Evidence V6 and Admission V6&quot;]
+    L{&quot;Place admitted work&quot;}
+    X[&quot;Execute&lt;br/&gt;local workers, Hosted V2, Fabric V1, or mesh peer&quot;]
+    R[&quot;Observe&lt;br/&gt;OValue and RuntimeGraph&quot;]
+    E[&quot;Prove&lt;br/&gt;trace, receipt, DOT, and release gates&quot;]
+
+    S --&gt; P --&gt; G --&gt; A --&gt; L --&gt; X --&gt; R --&gt; E
+</code></pre>
+<p>The arrows represent custody of one exact computation. Each stage adds a
+stronger artifact while retaining the identities required to connect it to the
+source that created it.</p>
+<h3>1. Source is executable structure</h3>
+<p>A <code>.O</code> document is a recursive evaluator tree. Each typed parenthesis chooses
+the evaluator for that expression. Bindings, environment indices, lazy
+requests, coordination groups, and nested expressions are parsed into one
+structural document. A directory can enter the system through <code>o-link</code> as a
+literal linked program or as a lossless route-preserving <code>ProjectBundle</code>.</p>
+<p>The novelty is structural evaluator composition. The unit of composition is
+the expression itself, so language selection, nesting, value transfer, and
+source location remain visible to the parser and compiler.</p>
+<h3>2. The source becomes an admitted graph</h3>
+<p>The compiler lowers ordinary <code>.O</code> source into OIR, an <code>ExecutionPlan</code>, and an
+executable HGraph. Project input becomes a canonical Project Logical HGraph
+whose operations carry route, prerequisite, input, output, environment, and
+effect declarations. Evidence V6 binds the exact source, backend catalog,
+adapter identities, graph, and policy. Admission V6 checks that evidence and
+produces the authority-bearing <code>AdmittedExecution</code> consumed by dispatch.</p>
+<p>This makes graph construction and execution two observable phases. The graph
+can be rendered, explained, hashed, and rejected before an operation starts.</p>
+<h3>3. Placement is a decision over admitted work</h3>
+<p>The unified lowercase <code>o</code> front door accepts a <code>.O</code> file, a directory, or an
+already lifted project. It resolves the intended route, constructs the graph,
+performs fresh admission, and selects local workers, a directly addressed
+Hosted V2 session, or a paired Project Mesh V1 peer. The narrower Fabric V1
+path is selected explicitly for an admitted M2 pure renderer attempt; it does
+not perform automatic placement or local fallback. Placement profiles bind
+backend requirements to exact executable realizations and short-lived capacity
+proofs.</p>
+<p>The placement unit for a project is a source-closed route and prerequisite
+island bound to the canonical project graph. A retry creates a new actor
+generation with fresh authority and evidence.</p>
+<h3>4. Execution preserves evaluator and resource identity</h3>
+<p>Inline evaluators execute structural forms. Hosted evaluators run through
+persistent length-prefixed canonical-CBOR processes, preserving explicitly
+indexed environments across calls. The readiness-driven HGraph executor starts
+operations as their value, completion, and resource-state dependencies become
+available. Project execution records the dynamic <code>RuntimeGraphV1</code> that actually
+occurred.</p>
+<p>O-core follows its own native pipeline from AST to HIR to SSA MIR to object
+code. OKernel then exercises process isolation, scheduling, IPC, loader and
+OVFS, native services, personality RPC, World codecs, and KernelWorld objects
+through booted gates.</p>
+<h3>5. Evidence is part of the execution model</h3>
+<p>Ostadix-lang records exact source and graph identities, backend and adapter
+digests, admission decisions, placement leases, normalized outcomes, resource
+transitions, and terminal receipts. <code>olangc --target ir</code> exposes the plan.
+<code>olangc --target dot</code> exposes the HGraph. <code>o explain</code> exposes why an operation
+was admitted and placed. Hosted V2 journals and World receipt formats bind
+longer-lived execution facts. The native gate manifest binds positive claims
+to exact transcript markers.</p>
+<p><code>O --crossing-evidence</code> also records direct admitted backend operations: the
+prepared binding hashes, bounded directional input-profile assessments,
+and returned OValue hashes, with publication and discarded completion reported
+separately. These opt-in diagnostics bind the admission and adapter launch
+generation; they do not infer native egress fidelity from an already lifted
+result. See <a href="docs/SEMANTIC_CUSTODY.md">bounded semantic custody</a>.</p>
+<p>The evidence layer turns an implementation claim into a reproducible route
+from source bytes to observed execution.</p>
+<p><strong>Continue:</strong> <a href="#quickstart">Quickstart</a> ·
+<a href="#getting-started-full-setup-guide">Full setup</a> ·
+<a href="#hosted-placement-v6">Hosted Placement V6</a> ·
+<a href="#compiler-and-composition-tools">Compiler and composition tools</a> ·
+<a href="#o-core-native-systems-language">O-core</a> ·
+<a href="#running-the-tests">Tests</a></p>
+<h2>Quickstart</h2>
+<p>For a fresh checkout, build the minimal hosted profile before invoking the
+installed tools. <code>setup.sh</code> also refreshes the local wrappers, so the commands
+below exercise the source revision you just checked out rather than an older
+binary already on <code>PATH</code>:</p>
+<pre><code class="language-bash">git clone https://github.com/lostadi/Ostadix-lang.git Ostadix-lang
+cd Ostadix-lang
+./setup.sh -y --minimal
+source &quot;$HOME/.config/ostadix/env.sh&quot;
+
+O examples/hello.O &quot;$PWD/backends&quot;
+# expected: [number] 2
+
+O version --json
+</code></pre>
+<p><code>O version --json</code> reports the package, toolchain, admission, catalog, Hosted,
+and World schema coordinates compiled into that executable.</p>
+<h3>Offline AI build ZIPs</h3>
+<p>The normal source archive pins source and Cargo resolution, but deliberately
+does not pretend that one native Rust compiler can run on every host. For an AI
+or another offline recipient, build a <strong>per-host offline kit</strong> instead. That ZIP
+contains the allowlisted repository source, Cargo, <code>rustc</code>, the complete pinned
+Cargo registry closure from all four released lockfiles, and the
+<code>wasm32-wasip1</code> standard library. After extraction, the recipient runs:</p>
+<pre><code class="language-bash">./bootstrap-offline.sh check
+./bootstrap-offline.sh all-supported
+./bootstrap-offline.sh wasm-std-check
+</code></pre>
+<p>The archive verifies its exact member hashes, rejects the wrong OS/architecture,
+uses a sealed kit-local Cargo home and target directory, and forces Cargo
+offline with <code>--frozen --locked</code>. <code>all-supported</code> builds the authoritative
+hosted Rust binaries and the separately locked MCP server. Android APKs,
+nightly fuzzing, O-core/QEMU media, the C17 edition, system linkers/SDKs, and
+hosted language runtimes have separate toolchain requirements and are not
+misrepresented as part of that profile. Build and redistribution instructions
+are in <a href="docs/OFFLINE_AI_BUILD_KIT.md">Per-host offline AI build kit</a>.</p>
+<h3>Zero-configuration LAN execution</h3>
+<p>Ordinary LAN use keeps transport and proof coordinates internal. On Unix-like
+hosts (including WSL), start a node on both machines:</p>
+<pre><code class="language-bash">o node start
+</code></pre>
+<p>For a newly launched node, <code>start</code> returns success only after the hosted TCP
+listener is bound. Configuration and spawn errors are returned directly. If
+the launched child fails or times out, the command prints diagnostics from that
+launch and retains the complete private log path. Durable recovery is allowed
+120 seconds by default; use <code>--startup-timeout-seconds N</code> for an unusually
+large state root. If a managed PID already exists, <code>start</code> reports it without
+re-probing listener readiness.
+Fresh automatic TLS material remains RSA-3072 by default. The explicit
+<code>--fresh-pki-key-algorithm ec-p256</code> profile is available when key-generation
+latency under cross-architecture emulation matters; it still creates and
+verifies fresh CA, node, client, and pairing identities. The hosted-live
+release gives that one-time nested-TCG provisioning a bounded 900-second budget
+while retaining the separate 30-second post-provisioning listener-readiness
+deadline.</p>
+<p>On the first machine, open a one-use five-minute pairing offer:</p>
+<pre><code class="language-bash">o node pair
+</code></pre>
+<p>On the second machine, use the printed node ID and type the ten-digit passcode
+at the hidden prompt:</p>
+<pre><code class="language-bash">o node pair NODE_ID
+</code></pre>
+<p><code>--passcode-stdin</code> is available for noninteractive input. When ordinary LAN
+discovery does not cross the route, keep the same authenticated exchange and
+name the directly TCP-reachable pairing endpoint with <code>--address HOST:7340</code>.
+Later commands use the paired identity over a reachable hosted-service route.</p>
+<p>Later ordinary commands reuse the reciprocal pinned identities without another
+passcode, address, certificate, key, capability, lease, operation ID, or proof
+file:</p>
+<pre><code class="language-bash">o node profile --node NODE_ID
+o node run --node NODE_ID examples/hello.O
+o node session run --node NODE_ID examples/hello.O
+</code></pre>
+<p>To test a known service route without changing the stored identity, use, for
+example, <code>octl node profile --node NODE_ID --address HOST:7337</code>. That combination
+overrides only the socket for that invocation and retains the paired CA, server
+name, client credential, and receipt-key pins.</p>
+<p>Destination-issued pairing client certificates are valid for 397 days. To
+renew them, or to repair a pairing that persisted on only one side, create and
+join a fresh offer with explicit replacement enabled on both machines:</p>
+<pre><code class="language-bash"># offering machine
+o node pair --replace
+# joining machine
+o node pair NODE_ID --replace
+</code></pre>
+<p>Ordinary pairing remains fail-closed when material differs from an existing
+pin; only <code>--replace</code> authorizes that staged replacement.</p>
+<p>Use <code>o node list</code> to inspect reachable nodes and <code>o node use NODE_ID</code> only when
+you need to choose among several semantic nodes. Explicit transport and trust
+configuration remains available through <code>--manual</code> and <code>o node-host</code> for
+operators who deliberately need it.</p>
+<p>The default is pairing-required. UDP discovery supplies a routing hint. SPAKE2
+plus explicit confirmation binds the server CA, server name, and receipt-key
+pins. Public CA, CSR, certificate, and receipt material crosses the pairing
+channel; fresh per-peer private keys stay local. The explicit <code>--lan-open</code>
+switch retains the former shared-key bootstrap for compatibility. A discovery
+reply can select a route, while the persisted pairing pins decide identity.
+The full transport and trust contract is documented in
+<a href="docs/ZERO_CONFIG_LAN.md">Zero-configuration LAN nodes</a>.</p>
+<h3>Peer-mesh execution for whole projects</h3>
+<p>After the nodes are running and paired, the unified intent front door can place
+a source-closed project route on an authenticated peer:</p>
+<pre><code class="language-bash">o run ./large-codebase --parallel auto --route build \
+  --explain-mesh --mesh-trace-out mesh-attempt.json
+</code></pre>
+<p>The default <code>prefer</code> policy permits two additional remote attempts and allows
+local fallback while the evidence proves execution has not started. The
+transferred actor is the exact project bundle plus a route and prerequisite
+island bound to its canonical Project Logical HGraph. Every retry receives a
+fresh actor generation. <code>--mesh=required</code> makes peer placement mandatory. LAN
+advertisements and the paired-peer registry supply the candidate set. The
+protocol, replay matrix, and CLI flags are in <a href="docs/PROJECT_MESH_V1.md">Project mesh
+V1</a>.</p>
+<pre><code class="language-mermaid">flowchart LR
+    D[&quot;UDP discovery&lt;br/&gt;routing hint&quot;]
+    P[&quot;SPAKE2 pairing&lt;br/&gt;explicit confirmation&quot;]
+    K[&quot;Pinned peer identity&lt;br/&gt;CA, name, receipt key&quot;]
+    C[&quot;Source closure&lt;br/&gt;ProjectBundle&quot;]
+    H[&quot;Logical HGraph&lt;br/&gt;selected route island&quot;]
+    A[&quot;Fresh admission&lt;br/&gt;actor generation&quot;]
+    M{&quot;Mesh placement&quot;}
+    R[&quot;Authenticated peer execution&quot;]
+    F[&quot;Eligible local fallback&quot;]
+    E[&quot;Trace and receipt&quot;]
+
+    D --&gt; P --&gt; K
+    C --&gt; H --&gt; A --&gt; M
+    K --&gt; M
+    M --&gt; R --&gt; E
+    M --&gt; F --&gt; E
+</code></pre>
+<p>Read the upper path as identity establishment and the lower path as project
+custody. They meet at placement, where a paired identity and an admitted graph
+are both required for remote execution.</p>
+<p>The same front door accepts ordinary <code>.O</code> files and lifted project bundles.
+For an ordinary <code>.O</code>, <code>--parallel auto</code> uses the local HGraph worker pool.
+Planning is static by default; use
+<code>o plan INPUT --parallel auto --live</code> only for bounded readiness/discovery
+observations. Node lifecycle remains an explicit <code>o node</code> operation. See the complete
+<a href="docs/UNIFIED_INTENT_FRONT_DOOR_V1.md">Unified Intent Front Door V1 contract</a>.</p>
+<h3>Authenticated pure Fabric execution</h3>
+<p>Fabric V1 can authenticate and execute the admitted M2 pure renderer profile on
+an explicitly selected <code>o-node</code>, returning a bounded provisional candidate
+whose graph publication and settlement remain coordinator-controlled.</p>
+<p>The remote node may authenticate and authorize the request, reconstruct the
+source-closed operation, compute it, durably fence replay, and return a
+candidate. It may not mutate or publish HGraph state, identify an authoritative
+HGraph node, select the winning attempt, settle the trace, advance resource
+versions, commit effects, or initiate retry. Candidate validation, provisional
+publication, and deterministic settlement remain separate coordinator-owned
+transitions. The coordinator is the sole graph-commit authority and the sole
+linearization locus for graph transitions.</p>
+<p>The focused proof in <code>tests/execution_fabric_two_node.rs</code> runs two real
+<code>o-node</code> processes on the same host with separate ports, TLS identities, node
+identities, state directories, ledgers, node generations, and explicit Fabric
+authority enrollment. Both nodes match local execution. Cross-node leases and
+wrong-node candidates are rejected; stopping the selected node produces an
+infrastructure failure without invoking the local renderer; Hosted and Mesh
+ALPN routes remain operational. This is process-boundary evidence, not a
+physical-multinode, distinct-kernel, or heterogeneous-hardware claim.</p>
+<p>M3 makes these exact nonclaims:</p>
+<ul>
+<li>no arbitrary OIR region execution;</li>
+<li>no general <code>.O</code> distribution;</li>
+<li>no automatic placement;</li>
+<li>no capacity scheduler;</li>
+<li>no scope transport;</li>
+<li>no object plane;</li>
+<li>no bulk node-to-node data transfer;</li>
+<li>no actors;</li>
+<li>no external effects;</li>
+<li>no automatic retry;</li>
+<li>no coordinator crash recovery;</li>
+<li>no hardware-resource execution;</li>
+<li>no GPU or camera driver mediation;</li>
+<li>no process migration;</li>
+<li>no shared address space;</li>
+<li>no physical multinode claim;</li>
+<li>no distinct-kernel claim;</li>
+<li>no heterogeneous-architecture claim;</li>
+<li>no exactly-once external effect claim.</li>
+</ul>
+<p>The frozen records, authority envelope, transport constraints, and complete
+evidence boundary are documented in <a href="docs/OIR_EXECUTION_FABRIC_V1.md">OIR Execution Fabric
+V1</a> and the <a href="docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md">M3 internal design
+note</a>.</p>
+<h3>Independent Rust runtime engine</h3>
+<p>The current development tree makes <code>ostadix-api</code> the independently packageable
+runtime engine. It owns the parser, IR, evaluator, HGraph, evidence/admission,
+scheduler, hosted/project/World machinery, bundled backend shims, and generated
+runtime source bundle. The root <code>o-lang</code> package is now a compatibility and CLI
+shell with a one-way exact-version dependency on that engine.</p>
+<p>The concise owned entry point requires an explicit backend-shim directory and
+has an engine-owned parse/evaluate error surface:</p>
+<pre><code class="language-rust">use ostadix_api::{OValue, Runtime};
+
+let mut runtime = Runtime::new(&quot;/absolute/path/to/backends&quot;);
+let value: OValue = runtime.evaluate(&quot;text^(hello)_text&quot;)?;
+</code></pre>
+<p>Direct engine users may import the 42 public runtime modules from
+<code>ostadix_api</code>, including <code>parser</code>, <code>ir</code>, <code>hgraph</code>, <code>evidence</code>, <code>eval</code>,
+<code>execution_fabric</code>, <code>execution_fabric_authority</code>, <code>executor</code>, <code>hosted_remote</code>,
+<code>project</code>, and <code>world</code>. Historical
+<code>o_lang::&lt;module&gt;</code> paths explicitly reexport the same nominal types. Reflected
+diagnostic paths such as <code>type_name</code> name the defining <code>ostadix_api</code> crate even
+when code imports the compatibility path. Six additional engine modules remain
+crate-private implementation structure.</p>
+<p>Registry publication order is now <code>ostadix-api</code> first, verify that exact version
+is available, then publish its <code>o-lang</code> shell dependent. This dependency
+inversion is an unreleased source-contract change and must not be published by
+moving or replacing the immutable <code>v0.3.0</code> tag. Ordinary workspace checks
+include both packages; fuzz and MCP keep their independent roots and lockfiles.</p>
+<p>Choose the next path according to what you want to inspect:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Continue with</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Learn typed-parenthesis syntax</td>
+<td><a href="#gentle-introduction">Gentle introduction</a></td>
+</tr>
+<tr>
+<td>Build all supported local tools</td>
+<td><a href="#getting-started-full-setup-guide">Full setup guide</a></td>
+</tr>
+<tr>
+<td>Inspect source -&gt; OIR -&gt; HGraph -&gt; observed-result custody</td>
+<td><a href="docs/SEMANTIC_CUSTODY.md">Bounded semantic custody</a></td>
+</tr>
+<tr>
+<td>Inspect or plan an operation&#39;s realization declarations</td>
+<td><a href="docs/OPERATION_PLANNING_V1.md">Operation planning and observation V1</a></td>
+</tr>
+<tr>
+<td>Run durable signed sessions</td>
+<td><a href="#hosted-v2-development-quickstart">Hosted V2 development quickstart</a></td>
+</tr>
+<tr>
+<td>Compile freestanding native code</td>
+<td><a href="#o-core-native-systems-language">O-core native systems language</a></td>
+</tr>
+<tr>
+<td>Run the repository gates</td>
+<td><a href="#running-the-tests">Running the tests</a></td>
+</tr>
+</tbody></table>
+<h3>Maturity at a glance</h3>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Current status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Typed-parenthesis hosted language and OValue crossing</td>
+<td>Supported core</td>
+</tr>
+<tr>
+<td>OIR, ExecutionPlan, Graph V2, Evidence/Admission V6, local executor</td>
+<td>Supported core under hardening</td>
+</tr>
+<tr>
+<td>Explicit Graph V1 / Evidence and Admission V5 / Why V1</td>
+<td>Archival inspection and compatibility verification only</td>
+</tr>
+<tr>
+<td>Information Kernel V1 and backend-morphism V1</td>
+<td>Experimental local shadow surfaces; non-authorizing</td>
+</tr>
+<tr>
+<td>Operation semantics and realization planning V1/V2</td>
+<td>Experimental canonical records, deterministic single-operation static ranking, and exact project-route binding; non-authorizing</td>
+</tr>
+<tr>
+<td>Hosted V2 durable sessions and direct-node placement</td>
+<td>Experimental integration with dedicated lifecycle and recovery tests</td>
+</tr>
+<tr>
+<td>Authenticated pure Execution Fabric M3</td>
+<td>Experimental same-host, two-real-process proof; coordinator-only graph authority</td>
+</tr>
+<tr>
+<td>Project lifting, route execution, and live supervision</td>
+<td>Experimental integration</td>
+</tr>
+<tr>
+<td>O-core compiler and OKernel gates</td>
+<td>Bounded research implementation; see exact QEMU nonclaims</td>
+</tr>
+<tr>
+<td>O-Machine and elastic governed World</td>
+<td>Research direction with bounded offline records and milestone proofs</td>
+</tr>
+</tbody></table>
+<p>Experimental surfaces have executable implementations and tests. Their
+compatibility, operational, and distributed guarantees are still being
+hardened around the supported hosted core. See
+<a href="docs/CLAIMS.md">claims and evidence</a> for the exact qualification boundary.</p>
+<h3>Experimental operation and realization planning</h3>
+<p>The independent engine defines four canonical, authority-free semantic records:
+<code>OperationContractV1</code>, <code>OperationInterfaceV1</code>,
+<code>RealizationDescriptorV1</code>, and <code>RealizationSetV1</code>. They give stable content
+identities to one declared logical operation, its named ports, and declarations
+of possible realizations without turning those declarations into executable
+objects.</p>
+<p>The lowercase front door can validate one record or check one exact supplied
+reference closure:</p>
+<pre><code class="language-bash">o operation inspect contract contract.json
+o operation inspect interface interface.cbor --json
+o operation inspect descriptor descriptor.cbor
+o operation inspect set realization-set.cbor --json
+
+o operation verify \
+  --contract contract.cbor \
+  --interface interface.cbor \
+  --descriptor realization-a.cbor \
+  --descriptor realization-b.json \
+  --set realization-set.cbor
+</code></pre>
+<p><code>inspect</code> performs single-record validation and leaves references unresolved.
+<code>verify</code> checks only exact contract/interface/descriptor/set referential
+consistency. Neither command plans or selects a realization. See the
+<a href="docs/OPERATION_REALIZATION_V1.md">four-record V1 contract</a> for canonical
+encoding, identity, exit status, and its exact boundary.</p>
+<p>The additive planner accepts one bounded, explicit list of complete
+realization/target/representation/residency tuples for exactly one logical
+operation. It checks the semantic closure, exact fidelity and target-footprint
+references, static target facts, port representations, and complete cost-profile
+binding. It rejects dynamic environment, effect, and capacity requirements,
+then selects the lowest checked component-plus-uncertainty cost with a canonical
+tie break. It does not construct a Cartesian product.</p>
+<p>The bundled normalize operation exercises the marked-project front door:</p>
+<pre><code class="language-bash">cd examples
+o operation normalize
+o realizations normalize
+o plan normalize --explain
+o run normalize
+o observe normalize
+o replan normalize --without-target gpu-1
+</code></pre>
+<p><code>operation</code> and <code>realizations</code> validate the descriptor&#39;s implementation digest
+against one captured regular file, its execution-pipeline reference against the
+<code>ostadix.project-route-pipeline/v1</code> projection of one manifest route, and the
+complete candidate&#39;s cost-profile binding. They do not select or execute.
+<code>plan</code> ranks and selects without dispatch. <code>run</code> repeats exact preflight, pins
+the selected project route and its project HGraph/deployment identities,
+executes through the existing project path, and requires a durable run record.</p>
+<p><code>run</code> freezes the original operation decision before dispatch and retains the
+original planning request, operation <code>DeploymentPlanV2</code>, and selected candidate
+in its content-addressed terminal record. <code>observe</code> verifies these retained
+records against the frozen decision and unchanged bundle, checks the recorded
+project-route identities, and emits a <code>RuntimeGraphV2</code> without reranking the
+historical selection. Older records without the optional operation fields use
+explicitly labeled current-planner reconstruction. <code>replan</code> applies caller-supplied
+exclusions and emits a recomputed, non-executing <code>DeploymentPlanV2</code>. It emits a
+descriptive <code>RecoveryPlanV1</code> only when the exact source observation failed and
+selection changed; a successful source run is not a recovery event. Recovery
+planning is not recovery execution, and no alternative is dispatched.
+In the displayed successful flow, <code>gpu-1</code> is declared unavailable but has no
+offer, so the exclusion is a no-op and emits no recovery plan.</p>
+<p>Static rankability is not live target eligibility. State and actor requirements,
+objective ruleset content, cost and validation evidence, and physical residency
+feasibility remain unresolved. Local execution observations distinguish a
+captured artifact submitted as a direct entrypoint from an indirect route whose
+artifact use is not established. They compare the local process platform with
+declared target facts, without claiming authenticated physical target identity.
+A manifest route binding still does not prove behavioral equivalence or that an
+interpreter loaded the submitted artifact. The example&#39;s two ambient
+Python targets are descriptive static alternatives, not distinct observed
+machines or failure domains. None of these records or inspection/planning
+commands grants admission, capability, reservation, lease, dispatch, retry,
+checkpoint, effect-fencing, or World authority. See the
+<a href="docs/OPERATION_PLANNING_V1.md">operation planning and observation contract</a>
+for the complete schema, runtime/recovery-record, execution, and nonclaim
+boundaries.</p>
+<h2>Hosted Placement V6</h2>
+<p>The current execution path uses Graph V2, <code>oexec.evidence/v6</code>, and
+<code>oexec.admission/v6</code> across uppercase <code>O</code>, the evaluator and coordinator, the
+CLI, and MCP intent execution. Evidence V6 preserves typed fidelity and Why V2,
+then prepares placement V2 fragments. Hosted Placement V6 adds
+transport-independent target descriptors, requirements, warrants, capacity
+proofs, and leases. The direct-node V1 compatibility path executes one fresh
+source document. The V2 path combines a locally prepared single-shim fragment,
+a complete signed placement proof, and a durable explicitly closed session.</p>
+<pre><code class="language-mermaid">flowchart TD
+    I[&quot;User intent&lt;br/&gt;o run, o plan, or MCP handle&quot;]
+    S[&quot;Exact source closure&quot;]
+    G[&quot;Graph V2&lt;br/&gt;OIR or Project Logical HGraph&quot;]
+    E[&quot;Evidence V6&lt;br/&gt;digests, types, provenance, policy&quot;]
+    A[&quot;Admission V6&lt;br/&gt;AdmittedExecution&quot;]
+    P[&quot;Placement V2&lt;br/&gt;descriptor, warrant, capacity, lease&quot;]
+    D{&quot;Dispatch target&quot;}
+    L[&quot;Local HGraph workers&quot;]
+    N[&quot;Direct Hosted V2 node&quot;]
+    M[&quot;Paired Project Mesh peer&quot;]
+    T[&quot;RuntimeGraph and terminal evidence&quot;]
+
+    I --&gt; S --&gt; G --&gt; E --&gt; A --&gt; P --&gt; D
+    D --&gt; L --&gt; T
+    D --&gt; N --&gt; T
+    D --&gt; M --&gt; T
+</code></pre>
+<p>Read downward until the dispatch diamond. Every path above that diamond is a
+fresh source-bound authority decision. The three branches below it are
+placement choices over the same admitted computation.</p>
+<p>Current durable Hosted V2 state roots carry an exact package-0.3 execution
+authority marker for Graph V2, Evidence/Admission V6, and placement-admission
+V2. A pre-0.3 root containing archival journals but no marker is rejected
+without mutation; old journals and signed V1 placement-admission leases are not
+migrated, relabeled, or executed.</p>
+<p>Admission version and backend-catalog generation are separate version axes.
+<code>O version --json</code> reports the independent coordinates compiled into the
+interpreter; <a href="docs/VERSIONING.md">VERSIONING.md</a> defines their compatibility
+rules.
+The current authorizing catalog is <code>ostadix.backend-catalog/v6</code>; its schema is
+part of both the whole-catalog digest and every backend-specification digest.
+A placement profile that advertises any V5 or older backend identity remains decodable
+and independently auditable, but fails current profile validation before it can
+authorize candidate selection or warrant discharge. There is no digest
+relabeling or silent V5-to-V6 uplift. V4 remains the archival generation that
+added each backend&#39;s state-support tier and snapshot-compatibility identity.
+V5 extends that frozen projection with one explicit optional bounded
+backend-morphism profile. Python, JavaScript, and Rust carry that profile; the
+field is absent for the other 27 canonical backends. The Catalog V5 rollover
+itself changed catalog identity without changing <code>BackendInterface</code> or
+execution behavior at that rollover. V6 retains the V5 projection shape and
+adds ordered <code>wasm-tools+wasmtime</code> and <code>wasm-tools+wasmer</code> WebAssembly runtime
+alternatives after the two frozen WABT alternatives. Package 0.3 separately makes Graph
+V2/Evidence V6 current; morphism profiles remain shadow metadata on that path.
+An explicit <a href="docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md">Python plain-data crossing contract</a>
+now enforces supported conversions at actual dispatch boundaries. It does not
+change those catalog profiles into universal proofs.
+Rebuild the runtime and MCP server, then regenerate
+short-lived profiles and all derived placement evidence after this rollover. The
+exact boundary and regeneration sequence are in <a href="docs/HOSTED_PLACEMENT_V6.md#backend-catalog-v6-hard-rollover">Hosted Placement
+V6</a>.</p>
+<p>Current implementation identity also uses the path-independent
+<code>ostadix/backend-executable-set/v2</code> projection and
+<code>ostadix.local-realization/v2</code> hash material. Physical paths and retained file
+handles remain process-local launch authority, while selected executable roles,
+catalog-alternative coordinates, and immutable content identify the realization.
+A legacy local-realization V1 record remains inspectable but cannot authorize a
+current profile; it is never relabeled as V2.</p>
+<p>The ordinary LAN surface keeps protocol coordinates internal:</p>
+<pre><code class="language-text">o node start|stop|status|restart
+o node pair [NODE_ID]
+o node list|use
+o node profile|doctor|run
+o node session start|run|send|info|stop
+</code></pre>
+<p>The expert surface remains available without becoming the default contract:</p>
+<pre><code class="language-text">o node-host pki|identity|profile|doctor|serve|admin ...
+octl node ... --manual --address ... --server-name ... --ca ... --cert ... --key ...
+octl node authority init|issue ...
+octl node authority dev-mint open|execute|recover ...
+octl node session principal|open|exec|status|actors|reset|recover|close ...
+</code></pre>
+<p>After normal setup, the lowercase wrapper routes node lifecycle and pairing
+commands to <code>o-node</code>, ordinary node use to <code>octl</code>, and <code>o node-host ...</code> to the
+raw expert server CLI. <code>o run FILE.O</code> is local; <code>o run PROJECT --parallel auto</code>
+uses already-running authenticated peers in mesh-prefer mode with safe local
+fallback. No form starts a node implicitly. See <a href="docs/ZERO_CONFIG_LAN.md">Zero-configuration LAN
+nodes</a>.</p>
+<h3>Hosted V2 development quickstart</h3>
+<blockquote>
+<p><strong>Expert/manual path.</strong> Ordinary users should use <code>o node start</code>,
+<code>o node pair</code>, <code>o node list</code>, and <code>o node session run FILE.O</code>, or the
+compatibility <code>./o-node-quickstart.sh</code> front door. Pairing establishes the
+reciprocal transport identities once; later ordinary commands derive routing,
+credentials, capabilities, leases, and operation identities automatically.
+The walkthrough below deliberately exposes those internals for protocol
+development and fault diagnosis.</p>
+</blockquote>
+<p>This loopback walkthrough exercises the opt-in durable V2 path with the
+co-located, self-attested development authority. Production deployments supply
+their discovery, enrollment, scheduling, and key-management systems through
+the corresponding explicit interfaces. Paste each code block separately. If
+zsh displays <code>heredoc&gt;</code>, press <code>Ctrl-C</code> before continuing; the commands below
+intentionally avoid heredocs.</p>
+<p>First refresh the installed tools and prove ordinary local execution:</p>
+<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/Ostadix-lang}&quot;
+git switch master
+git pull --ff-only origin master
+./setup.sh -y --minimal
+export O_LANG_ROOT=&quot;$PWD&quot;
+export PATH=&quot;$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH&quot;
+O examples/hello.O &quot;$O_LANG_ROOT/backends&quot;
+# expected: [number] 2
+</code></pre>
+<p>In Terminal 1, create a fresh private demo root, one persistent Python
+fragment, the development PKI, the node receipt identity, and the placement
+authority. <code>o-node pki init</code> and both identity initializers refuse to overwrite
+existing keys, so use a new demo root for each walkthrough:</p>
+<pre><code class="language-bash">export DEMO=&quot;$(mktemp -d &quot;${TMPDIR:-/tmp}/ostadix-v2-demo.XXXXXX&quot;)&quot;
+export PKI=&quot;$DEMO/pki&quot;
+export STATE=&quot;$DEMO/state&quot;
+export AUTH=&quot;$DEMO/authority&quot;
+printf &#39;%s\n&#39; &#39;python[7]^(&#39; &#39;__oval_result__ = 1 + 1&#39; &#39;)_python[7]&#39; &gt;&quot;$DEMO/demo.O&quot;
+o-node pki init --directory &quot;$PKI&quot; --server-name localhost
+o-node identity init --state-dir &quot;$STATE&quot;
+octl node authority init --directory &quot;$AUTH&quot;
+printf &#39;export DEMO=%q\n&#39; &quot;$DEMO&quot;
+</code></pre>
+<p>Keep Terminal 1 open and start the node. V2 is enabled only because the state
+root and pinned placement-authority key are explicit:</p>
+<pre><code class="language-bash">o-node serve \
+  --node-id demo-node \
+  --shim-dir &quot;$O_LANG_ROOT/backends&quot; \
+  --runtime-binary &quot;$O_LANG_ROOT/target/release/O&quot; \
+  --bind 127.0.0.1:7337 \
+  --cert &quot;$PKI/node-cert.pem&quot; \
+  --key &quot;$PKI/node-key.pem&quot; \
+  --client-ca &quot;$PKI/ca.pem&quot; \
+  --v2-state-dir &quot;$STATE&quot; \
+  --v2-authority-public-key &quot;$AUTH/placement-public-key.v2&quot;
+</code></pre>
+<p>In Terminal 2, paste the exact <code>export DEMO=...</code> line printed by Terminal 1,
+then paste this block to reconstruct the remaining paths and check the TLS
+endpoint:</p>
+<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/Ostadix-lang}&quot;
+export O_LANG_ROOT=&quot;$PWD&quot;
+export PATH=&quot;$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH&quot;
+export PKI=&quot;$DEMO/pki&quot;
+export STATE=&quot;$DEMO/state&quot;
+export AUTH=&quot;$DEMO/authority&quot;
+octl node profile \
+  --address 127.0.0.1:7337 \
+  --server-name localhost \
+  --ca &quot;$PKI/ca.pem&quot; \
+  --cert &quot;$PKI/client-cert.pem&quot; \
+  --key &quot;$PKI/client-key.pem&quot;
+</code></pre>
+<p>Mint and immediately submit Open. The integrated <code>--submit</code> path matters:
+development capacity observations expire after four seconds and are not meant
+to survive a delayed handoff between separate manual commands.</p>
+<pre><code class="language-bash">octl node authority dev-mint open \
+  --signing-key &quot;$AUTH/placement-signing-key.v2&quot; \
+  --shim-dir &quot;$O_LANG_ROOT/backends&quot; \
+  --runtime-binary &quot;$O_LANG_ROOT/target/release/O&quot; \
+  --source &quot;$DEMO/demo.O&quot; \
+  --node-id demo-node \
+  --state-tier checkpoint-restore \
+  --client-cert &quot;$PKI/client-cert.pem&quot; \
+  --capability-out &quot;$DEMO/capability.json&quot; \
+  --out &quot;$DEMO/open-lease.json&quot; \
+  --submit \
+  --address 127.0.0.1:7337 \
+  --server-name localhost \
+  --ca &quot;$PKI/ca.pem&quot; \
+  --key &quot;$PKI/client-key.pem&quot; \
+  --node-receipt-public-key &quot;$STATE/node-signing-public.v2&quot;
+</code></pre>
+<p>The response contains a signed <code>session_opened</code> event. Mint and submit the
+first operation; the node, rather than the client, establishes its physical
+actor generation:</p>
+<pre><code class="language-bash">octl node authority dev-mint execute \
+  --signing-key &quot;$AUTH/placement-signing-key.v2&quot; \
+  --shim-dir &quot;$O_LANG_ROOT/backends&quot; \
+  --runtime-binary &quot;$O_LANG_ROOT/target/release/O&quot; \
+  --open-lease &quot;$DEMO/open-lease.json&quot; \
+  --source &quot;$DEMO/demo.O&quot; \
+  --operation-id demo-operation \
+  --task-sha256 1111111111111111111111111111111111111111111111111111111111111111 \
+  --capability &quot;$DEMO/capability.json&quot; \
+  --operation-out &quot;$DEMO/operation.json&quot; \
+  --out &quot;$DEMO/execute-lease.json&quot; \
+  --submit \
+  --address 127.0.0.1:7337 \
+  --server-name localhost \
+  --ca &quot;$PKI/ca.pem&quot; \
+  --cert &quot;$PKI/client-cert.pem&quot; \
+  --key &quot;$PKI/client-key.pem&quot; \
+  --node-receipt-public-key &quot;$STATE/node-signing-public.v2&quot;
+</code></pre>
+<p>Execute admission returns a signed <code>operation_accepted</code> event. Status is
+asynchronous, so repeat the first command until <code>demo-operation</code> reaches
+<code>succeeded</code>; the actor view then contains the established generation and
+checkpoint:</p>
+<pre><code class="language-bash">octl node session status \
+  --address 127.0.0.1:7337 \
+  --server-name localhost \
+  --ca &quot;$PKI/ca.pem&quot; \
+  --cert &quot;$PKI/client-cert.pem&quot; \
+  --key &quot;$PKI/client-key.pem&quot; \
+  --node-receipt-public-key &quot;$STATE/node-signing-public.v2&quot; \
+  --capability &quot;$DEMO/capability.json&quot; \
+  --operation-id demo-operation
+
+octl node session actors \
+  --address 127.0.0.1:7337 \
+  --server-name localhost \
+  --ca &quot;$PKI/ca.pem&quot; \
+  --cert &quot;$PKI/client-cert.pem&quot; \
+  --key &quot;$PKI/client-key.pem&quot; \
+  --node-receipt-public-key &quot;$STATE/node-signing-public.v2&quot; \
+  --capability &quot;$DEMO/capability.json&quot;
+</code></pre>
+<p>Close explicitly when finished. Closing preserves the signed journal; offline
+<code>o-node admin gc-closed</code> removes active payloads while retaining the permanent
+replay tombstone.</p>
+<pre><code class="language-bash">octl node session close \
+  --address 127.0.0.1:7337 \
+  --server-name localhost \
+  --ca &quot;$PKI/ca.pem&quot; \
+  --cert &quot;$PKI/client-cert.pem&quot; \
+  --key &quot;$PKI/client-key.pem&quot; \
+  --node-receipt-public-key &quot;$STATE/node-signing-public.v2&quot; \
+  --capability &quot;$DEMO/capability.json&quot;
+</code></pre>
+<p>Return to Terminal 1 and press <code>Ctrl-C</code> to stop the node.</p>
+<p>The automated recovery gate below additionally kills and restarts the node,
+proves that the old physical actor generation is fenced, and submits an exact
+checkpoint recovery before any replacement evaluator runs user work. See the
+full authority, quota, failure, and non-claim boundaries in
+<a href="docs/HOSTED_PLACEMENT_V6.md">Hosted Placement V6</a>.</p>
+<p>Eligibility is keyed by <code>TargetDescriptorV1</code>, not an ISA or language display
+name. <code>RequirementFootprintV1</code> collects the operation&#39;s capability, value,
+effect, environment, and resource constraints; <code>PlacementWarrantV1</code> records
+the exact evidence discharging each atom. Strict placement trusts compiler-
+static requirements and fresh discovered/enforced target facts. Provider-
+declared or historical positive evidence requires an explicit non-default
+<code>PlacementTrustPolicyV1</code>. The eligibility proof and any resulting lease bind
+the selected trust policy and warrant discharge by digest.</p>
+<p>Both paths use TLS 1.3 mutual authentication with pinned trust inputs. V1 binds
+exact source, task and attempt identities, the backend-catalog digest, deadline,
+and output limit and returns a self-digested <code>HostedOperationReceiptV1</code>; each
+request gets a fresh evaluator. V2 additionally binds the exact locally derived
+OIR, requirement footprint, portable placement admission, backend
+implementation, realization pipeline, trust policy, capacity observations and
+reservations, hosted command, state session, and the applicable actor-generation
+state under one Ed25519-signed authority envelope. A first stateful execute
+carries no invented physical actor identity: the node derives and signs that
+generation after exact local preparation, and every later execute must pin it.
+The node locally prepares the submitted bytes and re-evaluates the full proof
+against the current catalog before consuming the non-cloneable fragment.
+Preparation accepts one non-whitespace semantic root containing exactly one
+shim <code>Exec</code>, no coordinator scope, and no nested evaluator authority. The
+complete process-local V6 admission remains a separate dispatch-freshness
+check; ambient process identity is deliberately excluded from the signed
+portable coordinate.</p>
+<p>Open fixes the target, exact requirement footprint, backend implementation and
+pipeline, logical environment, trust policy, and compute reservation, not one
+source document for the session lifetime. For a stateful session, the first
+execute additionally fixes the physical <code>ActorGenerationIdV1</code>, including exact
+sandbox and launch context; later executes must match it. Each execute lease
+separately binds its exact source-derived OIR, task attempt, portable placement
+admission, deadline, and operation. A persistent environment can therefore
+receive multiple separately authorized commands only while those fixed
+coordinates remain equal.</p>
+<p>V2 binds the TLS client-certificate fingerprint and a separate random 256-bit
+session bearer. <code>octl</code> creates and fsyncs the mode-0600 capability file before
+the first network write; the signed Open request commits to those exact bytes,
+while the node persists only a salt, salted hash, and commitment. A response
+loss can therefore be retried with the byte-identical signed request and bearer,
+even after restart or proof expiry, without allocating a second session. The
+node-signed session hash chain and separate signed authority journal reconstruct
+accepted/refused lease nonces and distinguish an exact full-request retry from
+conflicting reuse. Offline GC atomically relocates the already-signed closed
+session journal into a permanent tombstone archive before deleting operation
+and checkpoint payloads; the archive preserves the retired session identity and
+every spent lease nonce without duplicating the journal under quota pressure.
+The five hard state quotas cover open sessions, actors per session, snapshot bytes
+per actor, state bytes per session, and total state bytes; pressure refuses work
+without evicting an actor. On Unix, state uses owner-only directories/files and
+durable writes, but source, results, journals, and checkpoints are not encrypted
+at rest. Only an explicit close followed by the offline audited GC command
+removes active session payloads; the signed journal tombstone remains
+permanent. Absolute deadlines bound backend dispatch/wait and value acceptance;
+result encoding, checkpointing, journal fsync, and terminal response publication
+may finish later. They do not cancel or roll back effects already performed by
+a backend.</p>
+<p>For direct Rust embedders, the preferred lifecycle API is a non-cloneable
+<code>HostedV2RuntimeOwner</code> plus cloneable <code>HostedV2RuntimeHandle</code> values. The owner
+alone carries deterministic shutdown authority and durable-store/worker
+lifetime; handles can submit and query but cannot shut the runtime down.
+<code>HostedV2RuntimeOwner::shutdown()</code> stops admission, waits for in-flight API
+calls, queues actor close behind already accepted mailbox work, joins every
+actor thread, and releases durable-store/root-lock ownership before returning.
+Dropping the owner runs that same barrier, while an explicit call is required
+to observe a worker failure. Operation terminality or a session-level Close
+alone does not prove runtime quiescence. Concurrent and repeated shutdown calls
+observe the same result; surviving handles receive <code>HostedV2RuntimeClosedV2</code>,
+while wire requests receive non-retryable <code>runtime-closed</code>. A worker panic
+produces <code>HostedV2RuntimeShutdownErrorV2</code> only after the root lock is released,
+allowing an immediate same-directory reopen even while old handles remain.</p>
+<p>The cloneable <code>HostedV2Runtime</code> remains source-compatible through the 0.2 line
+for existing embedders and <code>serve_node_dual</code> callers. It combines request and
+shutdown authority and its final <code>Drop</code> remains bounded best-effort cleanup.
+New code should use the owner/handle API and <code>serve_owned_node_dual</code>; this is a
+documentation-level compatibility transition, not a Rust <code>#[deprecated]</code>
+warning that would break downstream warnings-as-errors builds.</p>
+<p>On Unix, <code>o-node serve</code> installs SIGINT/SIGTERM handling before it opens an
+enabled V2 state root. The first termination signal stops TCP admission, runs
+the same deterministic V2 shutdown barrier, and joins every already-accepted
+V1/V2 connection before returning. A second termination signal restores the
+signal&#39;s default action and forces process termination; work interrupted by
+that escape hatch is classified by the existing restart rules. Graceful node
+shutdown does not close a durable session, delete its payloads, or perform GC.</p>
+<p>The current state tiers have exact recovery contracts. <code>Stateless</code> requires a
+fresh fragment and a catalogued stateless backend. <code>CheckpointRestore</code> requires
+a persistent environment and the exact catalogued semantic-snapshot codec.
+<code>LiveActorOnly</code> requires catalogued external-pinned state and ends with actor
+loss. <code>ReplayReconstructible</code> is represented on the wire and reserved for a
+future implementation. Automatic registry discovery, scheduler-driven target
+selection, retry, local fallback, and project-bundle dispatch belong to the
+source-closed Project Mesh path exposed by <code>o-link</code> and <code>o run PROJECT</code>. Mesh
+retry creates a policy-checked new actor generation. For a
+development-only loopback setup, <code>o-node pki init</code>,
+<code>o-node identity init</code>, and the clearly labeled co-located authority helper
+provision the necessary identities and full proof bundle without being a
+production enrollment, discovery, or scheduling service. The helper mints open
+and execute authority and can derive the bounded checkpoint-recovery authority;
+each command can optionally submit immediately so its short-lived capacity
+evidence is not exposed to a manual multi-process delay. Recovery succeeds only
+after the current Python or SQL adapter acknowledges restoration of the exact
+durable snapshot. Restart or loss of a stateful worker first durably fences the
+old physical generation and enters <code>RecoveryRequired</code>; no user command runs on
+a replacement evaluator before that acknowledgement. A signed
+<code>RecoveryAttemptStarted</code> consumes the one-use nonce and the replacement
+generation before launch, and restart deterministically refuses an unfinished
+attempt so that generation cannot be reused. Unsupported future codecs and
+live-only state remain fail-closed.</p>
+<p>The separate <code>o-registry</code> CLI manages a local, durable, signed namespace
+registry: <code>init</code>, <code>profile-local</code>, <code>publish-profile</code>, <code>verify</code>, <code>list</code>,
+<code>export</code>, and <code>import</code>. Its canonical snapshots support pinned roots and
+prefix-scoped delegation for offline federation. Explicit export and import
+connect this local store to other systems; <code>octl</code> and scheduler dispatch use
+their own live inputs. Normal setup also exposes it as <code>o registry ...</code> and
+installs the native <code>ostadix-evaluator</code> alias used for exact runtime
+fingerprinting without treating the case-insensitive <code>O</code>/<code>o</code> dispatcher as the
+evaluator artifact. <code>o-node doctor</code> and <code>serve</code> use that same native alias as
+the admitted <code>O --o-backend</code> proxy (or a sibling native <code>O</code> development build);
+<code>--runtime-binary</code> selects an explicit native image, and shell dispatchers are
+rejected. The default/sibling O path is covered by the hosted execution gate;
+an arbitrary explicit image receives a format preflight and proves protocol
+compatibility only when an admitted hosted block launches. Registry <code>profile-local</code>
+records default to 45 seconds and accept <code>--valid-for-seconds</code> from 1 through
+the placement-core maximum of 60.</p>
+<p>For a laptop-only information workflow, the installed <code>o info</code> route (backed
+by <code>o-info</code>) creates a deterministic local
+head, keeps the Ed25519 private key separate from its public-only trust file,
+records one declared public scalar, and emits a canonical signed offline pack:</p>
+<pre><code class="language-bash">o info init --state .ostadix-information
+o info keygen --key .ostadix-keys/info-private.json \
+    --trust .ostadix-keys/info-trust.json
+o info record --state .ostadix-information \
+    --key .ostadix-keys/info-private.json --pack result.info.cbor \
+    --namespace local --kind research-result --coordinate name=demo \
+    --predicate ostadix.local/public-scalar-v1 --scalar text --value &quot;ready&quot; \
+    --acknowledge-public
+o info verify --pack result.info.cbor --trust .ostadix-keys/info-trust.json
+o info head --state .ostadix-information
+</code></pre>
+<p>This workflow is local and offline.
+<code>o info import</code> advances a local head only when the signed pack has the exact
+current base and every bounded object proves its canonical type and expected
+base-plus-addition revision. Otherwise it retains the verified pack under
+<code>historical-packs/</code>, reports <code>historical-only</code>, and leaves the head unchanged.
+Execution authority enters through a separate admitted-execution artifact. See
+<a href="docs/INFORMATION_KERNEL_V1.md">Information Kernel V1</a> for the exact boundary.</p>
+<p>The Unreleased 0.4 engine adds <code>ostadix_api::information_provenance</code> as a
+higher, authority-bearing adapter over a byte-stable V1 information substrate.
+It derives a V2 sidecar from an opaque V6 execution admission and a verified
+World receipt, then admits only an exact recomputation of that sidecar. Raw V2
+records remain descriptive. Recovery is relative to an explicit equivalence
+contract and domain, and the current adapter deliberately returns
+<code>Unestablished</code> while producer authentication, signer authorization, execution
+fidelity, receipt currentness, exact plan-node attribution, effect closure, and
+morphism fidelity remain unproved. Receipt verification proves a signature
+against the caller-supplied resolver; it does not establish that the signer was
+authorized for the provenance claim. The opaque handle therefore exposes the
+analyzer classification but no established origin. See
+<a href="docs/IMAGE_ADMISSION.md">Image admission and codomain slack</a>.</p>
+<p>Package 0.3 also exposes eight explicit <code>o_lang::information_bridge</code> metadata
+projections for parsed documents, caller-public scalars, unadmitted HGraphs,
+Evidence V6, verified registry/World inputs, logical project graphs, and
+self-signature-consistent Hosted journals. They are bounded, lossy, and
+non-authorizing; there is no generic native serializer or reverse conversion.
+<code>o info head</code> uses a separate existing-root reader that creates no lock or
+directory and performs no head update. The independent <code>ostadix-api</code> engine
+exports these advanced records, and <code>o_lang::api</code> reexports that same module;
+generated AOT projects intentionally do not embed the Information roots.</p>
+<p>Its complete contract, trust rules, user commands, and exact boundary are in
+<a href="docs/HOSTED_PLACEMENT_V6.md">Hosted Placement V6</a>.</p>
+<hr>
+<h2>Using Ostadix-lang with AI agents</h2>
+<p>Ostadix-lang is designed to work well as a <em>primary</em> language for AI coding
+agents: one <code>.O</code> program can delegate each subtask to the best hosted language
+while every result flows through the typed OValue boundary. The <code>O</code> CLI has an
+agent-oriented surface:</p>
+<ul>
+<li><code>O --json program.O</code>: run and emit a single-line JSON result or structured
+error (<code>{&quot;ok&quot;:false,&quot;stage&quot;:&quot;parse&quot;|&quot;eval&quot;,&quot;error&quot;:...}</code>) on stdout.</li>
+<li><code>O --check program.O</code>: parse-only validation without executing anything
+(combine with <code>--json</code> for a machine-readable verdict).</li>
+<li><code>O --eval &#39;&lt;source&gt;&#39;</code> / <code>O -e &#39;&lt;source&gt;&#39;</code>: evaluate an inline expression
+without a file.</li>
+</ul>
+<p>See <a href="docs/AI_GUIDE.md">docs/AI_GUIDE.md</a> for the full agent workflow, syntax
+pitfalls, and recipes, and <a href="llms.txt">llms.txt</a> for an LLM-oriented index of
+this repository.</p>
+<h3>Local MCP server for AI-agent tools</h3>
+<p>The repository includes <code>ostadix-mcp</code>, a local stdio
+<a href="https://modelcontextprotocol.io/">Model Context Protocol</a> server under
+<code>mcp/ostadix_lang_mcp_server/</code>. Its 20 typed tools include <code>o_execute</code>, the
+primary source-first computation interface. Supply exactly one complete O
+<code>source</code> or existing program/project <code>path</code>; use an explicit <code>cwd</code> for relative
+filesystem context. Execution, parse-only checking, static planning, compiler
+outputs, project placement, and optional same-intent gating use the existing
+native runtime. Expert discovery, full command arguments, and managed jobs
+remain available. See the <a href="mcp/ostadix_lang_mcp_server/README.md">MCP guide</a>
+for the complete contract and native placement boundaries.</p>
+<table>
+<thead>
+<tr>
+<th>MCP tool</th>
+<th>Current behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>o_execute</code></td>
+<td>Execute source or an existing program/project; <code>action</code> also supports <code>check</code>, <code>plan</code>, and <code>compile</code>. <code>mode: admitted</code> adds automatic source/intent binding for ordinary O. <code>placement</code> preserves local/project mesh semantics, <code>route</code> selects project work, and <code>node</code> submits a complete ordinary document to an authenticated peer.</td>
+</tr>
+<tr>
+<td><code>o_capabilities</code>, <code>o_guide</code></td>
+<td>Discover the source-backed command catalog and embedded workflow guides.</td>
+</tr>
+<tr>
+<td><code>o_cli</code>, <code>o_eval</code></td>
+<td>Full literal CLI arguments or inline O, with cwd/env/stdin, PTY, timeout and background jobs.</td>
+</tr>
+<tr>
+<td><code>o_job_list</code>, <code>o_job_status</code>, <code>o_job_read</code>, <code>o_job_write</code>, <code>o_job_cancel</code></td>
+<td>Follow independent session jobs, read retained logs, send input and cancel owned execution.</td>
+</tr>
+<tr>
+<td><code>o_env</code></td>
+<td>Reports the resolved Ostadix root, backend directory, <code>O</code> and <code>olangc</code> paths, Python shim status, and a 30-backend runtime summary.</td>
+</tr>
+<tr>
+<td><code>o_runtimes</code></td>
+<td>Discovers executable requirements and projects typed value capabilities from the canonical backend catalog compiled into that MCP binary, including alternative runtime sets, without failing because an optional runtime is absent. Rebuild MCP with O after catalog changes.</td>
+</tr>
+<tr>
+<td><code>o_doctor</code></td>
+<td>Checks the local toolchain and inventories compatibility shims plus the complete backend runtime report.</td>
+</tr>
+<tr>
+<td><code>o_smoke</code></td>
+<td>Runs <code>examples/hello.O</code> with an absolute backend path and expects <code>2</code>.</td>
+</tr>
+<tr>
+<td><code>o_analyze_intent</code></td>
+<td>Analyzes exact source and a stable graph intent, then creates a bounded one-use handle.</td>
+</tr>
+<tr>
+<td><code>o_execute_intent</code></td>
+<td>Consumes that handle, requires O to recompute the same Intent V1, then performs a fresh V6 admission before dispatch.</td>
+</tr>
+<tr>
+<td><code>o_run</code></td>
+<td>Accepts exactly one complete <code>.O</code> <code>source</code> or existing <code>path</code>; local runs use the unified project-aware front door and return decoded results as MCP structured content. <code>placement=node</code> submits the complete document to one selected hosted node without claiming graph splitting.</td>
+</tr>
+<tr>
+<td><code>o_olangc</code></td>
+<td>Runs <code>olangc</code> with the resolved shim directory; <code>ir</code>/<code>dot</code> inspect, <code>script</code> executes, and <code>wasm</code>/<code>binary</code> build artifacts. Omitting the target builds a binary.</td>
+</tr>
+<tr>
+<td><code>o_search_run</code></td>
+<td>Runs one strictly named <code>.O</code> search program from <code>&lt;work&gt;/search</code> when an external <code>a18re</code> tree exists, otherwise from the installed bundled <code>examples/</code> corpus; path traversal and symlink escape are rejected.</td>
+</tr>
+<tr>
+<td><code>o_information_inspect</code></td>
+<td>Runs fixed local <code>o-info head</code> against one existing non-symlink state root with bounded input, output, and timeout. It returns sanitized object IDs and counts while preserving entries, content, inode, mode, and mtime.</td>
+</tr>
+</tbody></table>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant Agent as MCP agent
+    participant MCP as ostadix-mcp
+    participant Analyzer as O intent analyzer
+    participant Runtime as O runtime
+
+    Agent-&gt;&gt;MCP: o_execute(source, mode=admitted)
+    MCP-&gt;&gt;Analyzer: parse, lower, solve, fingerprint
+    Analyzer--&gt;&gt;MCP: source and Intent V1 digests
+    MCP-&gt;&gt;Runtime: recompute Intent V1
+    Runtime-&gt;&gt;Runtime: fresh Evidence V6 and Admission V6
+    Runtime--&gt;&gt;MCP: terminal OValue or structured failure
+    MCP--&gt;&gt;Agent: native result and job evidence
+</code></pre>
+<p>The single call owns analysis and execution. The runtime recomputes the same
+source and intent before fresh admission, so earlier analysis never substitutes
+for dispatch-time validation. The separate <code>o_analyze_intent</code> and
+<code>o_execute_intent</code> tools retain their original one-use handle contract.</p>
+<p>The normal setup builds this separate, lockfile-pinned Rust crate and, unless
+wrappers are disabled, copies the executable to
+<code>~/.local/bin/ostadix-mcp</code>:</p>
+<pre><code class="language-bash">./setup.sh --minimal --yes
+</code></pre>
+<p>When an existing <code>~/.gemini</code> profile is present, setup also idempotently
+registers that absolute executable path as the <code>ostadix</code> server in its
+<code>settings.json</code>. Existing Gemini authentication, servers, and unrelated
+preferences are preserved. Machines without a Gemini profile skip this step,
+and a local Gemini configuration error is reported without failing Ostadix
+setup. The checked-in <code>GEMINI.md</code> makes Ostadix the required default for code
+creation, build, run, test, benchmark, and validation work in this repository.
+Re-running setup after an update refreshes both the installed server and, on a
+Gemini-enabled machine, its registration.</p>
+<p>For a build without the rest of setup, build the Ostadix commands used by
+the server and then the server itself:</p>
+<pre><code class="language-bash">cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link --bin o-node --bin octl
+cargo build --release --locked \
+  --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
+</code></pre>
+<p>The second command writes
+<code>mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp</code>. The server crate is
+deliberately separate from the root Cargo package, so a root <code>cargo build</code> or
+<code>cargo test</code> does not build or test it. Its dedicated CI job uses the crate&#39;s
+own lockfile, rejects Clippy warnings, and exercises initialization, exact tool
+and object-schema discovery, <code>o_env</code>, <code>o_runtimes</code>, and <code>o_smoke</code> over the real
+stdio transport with <code>scripts/smoke_ostadix_mcp.py</code>. The smoke launches the
+server with a system-only <code>PATH</code>, then calls <code>o_run</code> with fresh inline source and both forms of relative
+path, executes the bundled <code>o_search_run</code>, rejects search-path escape, calls
+<code>o_olangc</code>, and inspects a temporary local Information V1 head
+without mutating its entries/content/inode/mode/mtime; transport discovery
+alone therefore cannot mask a broken runtime-path recovery, execution tool, or
+inspection boundary. Use <code>./setup.sh --no-mcp</code> when
+the MCP server is not wanted. The deterministic source release includes <code>mcp/</code>,
+<code>.mcp.json</code>, and the smoke client, and its link/schema/metadata verifier rejects
+an incomplete MCP release surface without executing archive payloads. The
+separate crate uses the repository&#39;s LGPL-2.1-only license. The required hosted-
+placement closure also includes every V2 module, including the co-located
+development authority implementation in <code>crates/ostadix-api/src/hosted_remote/v2/dev.rs</code>; release
+validation rejects an archive that omits it.</p>
+<p>The checked-in <code>.mcp.json</code> registers the server as <code>ostadix</code> using the
+<code>ostadix-mcp</code> wrapper. MCP clients that support repository-local stdio server
+configuration can load that file after <code>~/.local/bin</code> is visible in the
+client&#39;s <code>PATH</code>. It deliberately contains no shell-expanded environment values:
+the server discovers a valid Ostadix root from its working directory (or its
+ancestors), then checks <code>O_LANG_ROOT</code>, the installed <code>/usr/src/ostadix</code> source
+root, and conventional home-directory checkouts when needed. For clients that
+launch outside the repository or need an explicit configuration, use absolute
+paths rather than relying on shell expansion inside JSON:</p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;ostadix&quot;: {
+      &quot;command&quot;: &quot;/absolute/path/to/Ostadix-lang/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp&quot;,
+      &quot;args&quot;: [],
+      &quot;env&quot;: {
+        &quot;O_LANG_ROOT&quot;: &quot;/absolute/path/to/Ostadix-lang&quot;,
+        &quot;O_BACKENDS_DIR&quot;: &quot;/absolute/path/to/Ostadix-lang/backends&quot;
+      }
+    }
+  }
+}
+</code></pre>
+<p>After adding the configuration, reload the client&#39;s MCP servers and use a
+source-first workflow such as:</p>
+<pre><code class="language-text">o_execute {&quot;source&quot;:&quot;python^( __oval_result__ = 2 )_python&quot;}
+o_execute {&quot;source&quot;:&quot;python^( __oval_result__ = 2 )_python&quot;,&quot;action&quot;:&quot;check&quot;}
+o_execute {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;,&quot;action&quot;:&quot;plan&quot;}
+o_capabilities {&quot;query&quot;:&quot;mesh&quot;}
+o_guide {&quot;topic&quot;:&quot;projects&quot;}
+o_env {}
+o_runtimes {}
+o_smoke {}
+o_run {&quot;source&quot;:&quot;python^(\n__oval_result__ = 1 + 1\n)_python&quot;}
+o_run {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;}
+o_olangc {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;,&quot;target&quot;:&quot;ir&quot;}
+o_information_inspect {&quot;state&quot;:&quot;/absolute/path/to/existing-information-state&quot;,&quot;head&quot;:&quot;main&quot;}
+</code></pre>
+<p>Enter these names and argument objects through the MCP client&#39;s tool-call
+interface. <code>o_smoke</code> should return <code>SMOKE_OK</code> and show the program result <code>2</code>.</p>
+<p><code>ostadix-mcp</code> runs as a local child process over stdio and executes local
+programs with the authority inherited from the MCP client. It preserves the client&#39;s <code>PATH</code>,
+then appends existing local Homebrew, Nix, language-manager, and per-runtime
+locations so GUI-launched clients can see the same runtimes as terminal tools.
+Set <code>OSTADIX_RUNTIME_PATH</code> to add explicit search directories. Discovery checks
+executable presence; the selected backend adapter remains the execution
+authority and reports launch or runtime failures. A <code>.O</code> program run locally
+through <code>o_run</code> can invoke any configured backend, including shell backends.
+The structured <code>o_run</code> response limits stdout to 4 MiB and stderr to 256 KiB;
+overflow terminates its process group and reports incomplete output. The
+<code>o_execute</code>, <code>o_cli</code>, and <code>o_eval</code> job APIs retain full disk logs and bound only
+response previews. Node
+placement is whole-document execution, not automatic graph-operation distribution.</p>
+<hr>
+<h2>Getting Started: Full Setup Guide</h2>
+<p>There are three implementations of the hosted <code>.O</code> language and one native
+compiler path in this repository:</p>
+<ul>
+<li>The <strong>Rust edition</strong> is the authoritative hosted runtime and contains the
+interpreter, REPL, OIR, scheduler, linker tools, notebook, <code>olangc</code>, and
+<code>ocorec</code>.</li>
+<li>The <strong>C17 edition</strong> is the small standalone hosted runtime and AOT compiler.</li>
+<li>The <strong>Python edition</strong> is the readable reference implementation used for
+semantic cross-checking.</li>
+<li><strong>O-core</strong> is compiled by the Rust <code>ocorec</code> binary, but the code it produces
+is freestanding and has no Rust runtime dependency.</li>
+</ul>
+<p>You only need the Rust edition for the full current feature set. The C17 and
+Python editions remain useful when you want a smaller substrate or a direct
+comparison of the evaluator semantics.</p>
+<h3>Prerequisites</h3>
+<p>The base Rust build needs:</p>
+<ul>
+<li>Rust and Cargo</li>
+<li>A C compiler and system linker</li>
+<li>Python 3 for the <code>python^</code> compatibility bridge and Python-backed legacy adapters</li>
+<li>Git and standard POSIX command-line tools</li>
+</ul>
+<p>The pinned <code>rust-toolchain.toml</code> also names <code>wasm32-wasip1</code>. A connected rustup
+checkout installs that target with Rust 1.97.1; an offline AI kit carries the
+same target&#39;s standard library and Cargo directly inside its host-specific ZIP.</p>
+<p>Each hosted backend uses the real local runtime named in the backend table.
+You only install the runtimes your <code>.O</code> program actually uses. Nix is needed
+for the Nix lattice and NixOS tests. Node.js is needed for <code>javascript^</code>.
+Racket is needed for <code>racket^</code>. Rust is needed for <code>rust^</code>. The same rule
+applies to the other language backends. The automatic installer keeps Nix and
+native/kernel tooling behind explicit profiles so a normal hosted setup does
+not install t

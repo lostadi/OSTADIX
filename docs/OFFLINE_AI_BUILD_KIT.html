@@ -1,0 +1,113 @@
+<h1>Per-host offline AI build kit</h1>
+<p>The deterministic source ZIP is a source and evidence artifact. It pins Cargo
+resolution but does not contain Cargo&#39;s registry sources or a native Rust
+compiler. <code>build_offline_kit.py</code> can wrap that allowlisted source closure with
+one caller-supplied Rust sysroot and one caller-supplied Cargo directory source
+for a named POSIX host.</p>
+<p>This format is intentionally per-host. Cargo and <code>rustc</code> are native programs,
+and Rust compilation still uses platform facilities that are not safely or
+legally portable inside one repository ZIP. In particular, the kit assumes a
+compatible host linker and C development substrate; macOS builds require a
+locally installed Apple SDK/toolchain. Python and any hosted languages used by
+a <code>.O</code> program remain external runtimes. Recipient verification and extraction
+require Python 3.10 or newer; constructing a new kit requires Python 3.11 or
+newer for the standard-library TOML parser.</p>
+<p>Required CI builds a native fixture and runs its Python 3.10 verifier and
+idempotent extractor on <code>x86_64-unknown-linux-gnu</code>,
+<code>aarch64-unknown-linux-gnu</code>, <code>x86_64-apple-darwin</code>, and
+<code>aarch64-apple-darwin</code>. A distributable full kit must still be built separately
+on, and for, each native host.</p>
+<h2>Maintainer build</h2>
+<p>Create a single union vendor directory for the ordinary workspace, MCP,
+Android-runtime, and fuzz lockfiles while online:</p>
+<pre><code class="language-sh">offline_vendor=$(mktemp -d &quot;${TMPDIR:-/tmp}/ostadix-vendor.XXXXXX&quot;)
+offline_vendor_config=$(mktemp &quot;${TMPDIR:-/tmp}/ostadix-vendor-config.XXXXXX&quot;)
+offline_kit=&quot;${TMPDIR:-/tmp}/Ostadix-lang-offline-$(rustc -vV | sed -n &#39;s/^host: //p&#39;).zip&quot;
+cargo vendor --locked --versioned-dirs \
+  --sync mcp/ostadix_lang_mcp_server/Cargo.toml \
+  --sync apps/android-terminal/runtime/Cargo.toml \
+  --sync fuzz/Cargo.toml \
+  &quot;$offline_vendor&quot; &gt;&quot;$offline_vendor_config&quot;
+
+python3 scripts/build_offline_kit.py build \
+  --repo . \
+  --ref HEAD \
+  --toolchain &quot;$(rustc --print sysroot)&quot; \
+  --vendor &quot;$offline_vendor&quot; \
+  --output &quot;$offline_kit&quot;
+
+python3 scripts/build_offline_kit.py verify &quot;$offline_kit&quot;
+</code></pre>
+<p>The supplied sysroot must contain executable <code>cargo</code> and <code>rustc</code>, the
+<code>wasm32-wasip1</code> standard library, Cargo&#39;s MIT and Apache-2.0 license texts, and
+Rust&#39;s generated <code>COPYRIGHT.html</code>. The builder rejects symlinks and special
+files in both payload trees. It normalizes tar ownership, timestamps, modes,
+ordering, gzip metadata, ZIP metadata, and manifest JSON before self-verifying
+the completed artifact. Byte-for-byte reproduction assumes the same Python and
+zlib builder versions in addition to identical source, toolchain, and vendor
+inputs; the manifest&#39;s unpacked-tree seals remain independent of compression
+library output.</p>
+<p><code>cargo vendor</code> preserves registry package files and writes a
+<code>.cargo-checksum.json</code> for each crate directory. Those checksums are useful for
+Cargo source replacement but are not an authenticity root. The offline kit
+therefore also hashes the complete vendor tar payload, every source member, the
+toolchain payload, and the canonical manifest. Publish the outer ZIP SHA-256
+through a separate authenticated release channel. The internal manifest and
+<code>SHA256SUMS</code> detect inconsistency only after the archive is trusted; they cannot
+authenticate an archive whose payload and embedded verifier were replaced
+together. Preserve all license files from the Rust distribution and vendored
+crates, and perform a dependency-license review before public redistribution.</p>
+<h2>Recipient use</h2>
+<p>Before extracting or executing any archive member, obtain the expected outer
+ZIP SHA-256 from the authenticated release channel and compare it to the ZIP.
+The comparison is mandatory; substitute the published digest below:</p>
+<pre><code class="language-sh">kit_zip=Ostadix-lang-offline-EXACT-HOST.zip
+expected_sha256=&#39;PUBLISHED_64_HEX_SHA256&#39;
+actual_sha256=$(shasum -a 256 &quot;$kit_zip&quot; | awk &#39;{print $1}&#39;) # macOS
+# Linux: actual_sha256=$(sha256sum &quot;$kit_zip&quot; | awk &#39;{print $1}&#39;)
+[ &quot;$actual_sha256&quot; = &quot;$expected_sha256&quot; ] || {
+  printf &#39;%s\n&#39; &#39;offline kit authenticity check failed&#39; &gt;&amp;2
+  exit 1
+}
+</code></pre>
+<p>Only after that succeeds, extract the ZIP with a tool that preserves POSIX
+executable modes, enter its single top-level directory, and run one bounded
+profile:</p>
+<pre><code class="language-sh">./bootstrap-offline.sh check
+./bootstrap-offline.sh hosted-rust
+./bootstrap-offline.sh mcp
+./bootstrap-offline.sh all-supported
+./bootstrap-offline.sh wasm-std-check
+</code></pre>
+<p>The bootstrap asks the included Python verifier to hash every declared file,
+preflight both tar payloads, compare the current host to the manifest, and
+refuse any unsealed <code>.offline</code> destination. A previously extracted copy is
+reused only after its receipt, Cargo configuration, toolchain tree, and vendor
+tree all reproduce this kit&#39;s cryptographic seals. The bootstrap then invokes
+the unpacked Cargo, rustc, and rustdoc by absolute path, creates a kit-local
+Cargo home whose crates.io source is replaced by the sealed vendor directory,
+puts build artifacts under <code>.offline/target</code>, clears inherited compiler
+wrappers and flags, disables incremental compilation, forces Cargo dependency
+resolution/fetching offline, and invokes Cargo with <code>--frozen</code> from a fresh
+environment containing only the kit&#39;s Cargo/Rust settings plus <code>HOME</code>, <code>PATH</code>,
+<code>TMPDIR</code>, and <code>LANG</code> for host-tool discovery. Build scripts and other
+subprocesses are not placed in an operating-system network sandbox.
+Cargo runs from <code>/</code> with an absolute manifest path so configuration below the
+recipient&#39;s extraction parent (including <code>~/.cargo/config.toml</code>) is not
+discovered. The bootstrap fails closed if the filesystem root itself contains
+an ambient Cargo configuration or if a legacy <code>$CARGO_HOME/config</code> appears
+alongside the sealed <code>$CARGO_HOME/config.toml</code>.</p>
+<p>The same extracted kit can therefore run <code>check</code> and then <code>all-supported</code>
+without unpacking again. A different or modified kit cannot silently overwrite
+an earlier toolchain or Cargo home.</p>
+<h2>Exact scope</h2>
+<p>The manifest names <code>check</code>, <code>hosted-rust</code>, <code>mcp</code>, <code>all-supported</code>, and
+<code>wasm-std-check</code>. The build profiles cover all root-package Rust binaries with
+all Cargo features (including <code>o-notebook</code>) and the separately locked MCP
+crate. The <code>check</code> profile also resolves metadata under <code>--frozen --locked</code> for
+the Android-runtime and fuzz manifests, proving the sealed vendor directory
+covers all four committed lockfiles. The profiles do not claim to build Android
+APKs, the nightly fuzz target, O-core/QEMU media, the C17 edition, every test,
+or every hosted language backend. The presence of <code>wasm32-wasip1</code> standard
+library files is a target-availability check; it is not by itself evidence that
+arbitrary <code>.O</code> programs execute in browsers.</p>

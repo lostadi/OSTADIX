@@ -70,7 +70,7 @@ target = "resource_identity"
 [[root]]
 name = "api"
 layer = 14
-allowed_dependencies = ["backend_morphism", "eval", "evidence", "execution_contract", "hosted_remote", "information_bridge", "ir", "parser", "shims", "value", "version", "world"]
+allowed_dependencies = ["backend_morphism", "cancellation", "eval", "evidence", "execution_contract", "hgraph", "hosted_remote", "information_bridge", "ir", "parser", "shims", "value", "version", "wire", "world"]
 
 [[root]]
 name = "backend"
@@ -96,6 +96,11 @@ allowed_dependencies = ["environment", "value", "wire"]
 name = "boot_objects"
 layer = 8
 allowed_dependencies = ["value", "world"]
+
+[[root]]
+name = "cancellation"
+layer = 0
+allowed_dependencies = []
 
 [[root]]
 name = "canonical_cbor"
@@ -140,7 +145,7 @@ allowed_dependencies = ["backend_catalog", "backend_morphism", "backend_state", 
 [[root]]
 name = "eval_core"
 layer = 9
-allowed_dependencies = ["backend_catalog", "backend_morphism", "capability", "evidence", "execution_contract", "ir", "value"]
+allowed_dependencies = ["backend_catalog", "backend_morphism", "cancellation", "capability", "evidence", "execution_contract", "ir", "value"]
 
 [[root]]
 name = "evidence"
@@ -165,7 +170,7 @@ allowed_dependencies = ["canonical_cbor", "execution_contract", "execution_fabri
 [[root]]
 name = "executor"
 layer = 10
-allowed_dependencies = ["backend_catalog", "backend_morphism", "capability", "dispatch_model", "effects", "environment", "eval_core", "evidence", "execution_contract", "hgraph", "ir", "process", "runtime_exec", "value"]
+allowed_dependencies = ["backend_catalog", "backend_morphism", "cancellation", "capability", "dispatch_model", "effects", "environment", "eval_core", "evidence", "execution_contract", "hgraph", "ir", "process", "runtime_exec", "value"]
 
 [[root]]
 name = "hgraph"
@@ -245,7 +250,7 @@ allowed_dependencies = ["resource_identity"]
 [[root]]
 name = "process"
 layer = 8
-allowed_dependencies = ["backend_morphism", "backend_state", "capability", "environment", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "runtime_exec", "value", "wire"]
 
 [[root]]
 name = "project"

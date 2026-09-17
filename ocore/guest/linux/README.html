@@ -1,0 +1,55 @@
+<h1>Pinned Linux virtio block probe</h1>
+<p>This initramfs runs a real Linux kernel as the guest. Its static <code>/init</code> uses
+Linux&#39;s built-in <code>virtio-mmio</code> and <code>virtio-blk</code> drivers through <code>/dev/vda</code>, checks
+an uncached read, then requires a later uncached read to return <code>EIO</code> after the
+O-core broker withdraws its accepted request. Console output reports guest
+observations; it grants no O-core or O-Machine authority.</p>
+<p>Build on an AArch64 Linux machine with a static libc development package:</p>
+<pre><code class="language-sh">OCORE_LINUX_GUEST_CC=gcc bash ocore/guest/linux/build-initramfs.sh
+</code></pre>
+<p>Or use <code>aarch64-linux-gnu-gcc</code> (the default) or an explicit musl cross compiler.
+The script rejects a non-AArch64 or dynamically linked executable and writes
+an uncompressed, deterministic <code>newc</code> archive without requiring root. Its
+output directory is selected by <code>OCORE_LINUX_GUEST_BUILD_DIR</code>.</p>
+<p>Pin the exact Linux source release, configuration, <code>Image</code> digest, compiler,
+<code>init</code> and archive digests in the run manifest. Required built-in configuration:</p>
+<pre><code class="language-text">CONFIG_ARM64=y
+CONFIG_OF=y
+CONFIG_BLOCK=y
+CONFIG_BLK_DEV=y
+CONFIG_VIRTIO=y
+CONFIG_VIRTIO_MMIO=y
+CONFIG_VIRTIO_BLK=y
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_SERIAL_AMBA_PL011=y
+CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
+CONFIG_BINFMT_ELF=y
+CONFIG_BLK_DEV_INITRD=y
+</code></pre>
+<p>The uncompressed archive does not require <code>CONFIG_RD_GZIP</code>. Use the monitor&#39;s
+generated device tree with guest RAM, PL011, timer, GICv2 and one standard
+<code>virtio,mmio</code> block endpoint at <code>0x0a000000</code>, size <code>0x200</code>, SPI 48
+(<code>interrupts = &lt;0 16 4&gt;</code>). Example command line:</p>
+<pre><code class="language-text">console=ttyAMA0 earlycon=pl011,0x09000000 rdinit=/init panic=-1 maxcpus=1
+</code></pre>
+<p>The endpoint implements modern virtio 1.x MMIO and one split virtqueue with
+32 direct descriptors, 4 KiB segments, read-only media, and 512-byte sectors.
+Its 1 MiB immutable content is defined by <code>byte(offset) = (offset XOR 0x5a) &amp; 255</code>.
+It negotiates neither indirect descriptors nor packed rings or event indices.
+The Linux driver receives ordinary GIC interrupts. The host can poll for queued
+work, but the guest is not a custom polling <code>/dev/mem</code> driver. The transport
+follows the <a href="https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html">Virtio 1.2 specification</a>.</p>
+<p>The monitor must arm the broker only after the complete <code>KW LINUX SERVICE HEALTHY</code> line. A return of <code>2</code> from <code>poll()</code> proves an actual descriptor was
+captured without being committed. The monitor calls <code>begin_withdraw(1)</code>, retains
+its returned completion handle, and calls <code>poll()</code> to publish <code>IOERR</code>. It must
+keep guest execution and queue memory alive until Linux reports <code>KW LINUX IOERR CONSUMED</code>, call <code>note_guest_consumed</code> for the current generation, and
+verify <code>query_completion(handle) == 1</code> before separate memory teardown. The
+post-withdrawal liveness line proves that the guest continued after its error.</p>
+<p>Malformed chains, queue overruns, unsupported feature negotiation and invalid
+RAM ranges fail closed. A queue reset cannot resurrect a withdrawn generation.
+The completion represents this broker&#39;s drained synchronous backing work and
+retained guest observation; it is not a physical DMA acknowledgment, an
+O-Machine <code>HostResourceAck</code>, or a durable completion journal. This probe alone
+does not qualify G7 or G8, a governed service capability, physical-device reset,
+IOMMU isolation, or independent host-EL1 memory mediation.</p>

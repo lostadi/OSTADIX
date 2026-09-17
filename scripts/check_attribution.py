@@ -30,6 +30,9 @@ CLAUDE_NOREPLY_IDENTITY = re.compile(r"(?i)\bnoreply@anthropic\.com\b")
 VENDOR_TOOL_IDENTITY = re.compile(
     r"(?i)^\s*(?:anthropic|openai)(?:\s*<[^>]+>)?\s*$"
 )
+COPILOT_IDENTITY = re.compile(
+    r"(?i)(?<![a-z0-9])(?:github[- ]+)?copilot(?:\[bot\])?(?![a-z0-9])"
+)
 ATTRIBUTION_TRAILER = re.compile(
     r"(?im)^(?P<key>[a-z][a-z0-9-]*):[ \t]*(?P<value>[^\n]+)$"
 )
@@ -89,6 +92,7 @@ def contains_forbidden_identity(value: str) -> bool:
             CLAUDE_ACCOUNT_IDENTITY,
             CLAUDE_NOREPLY_IDENTITY,
             VENDOR_TOOL_IDENTITY,
+            COPILOT_IDENTITY,
         )
     )
 
@@ -108,7 +112,9 @@ def commit_violations(commit: CommitMetadata) -> list[Violation]:
     for match in ATTRIBUTION_TRAILER.finditer(commit.message):
         key = match.group("key").lower()
         value = match.group("value").strip()
-        if key in ATTRIBUTION_TRAILER_KEYS and contains_forbidden_identity(value):
+        if key == "agent-logs-url" or (
+            key in ATTRIBUTION_TRAILER_KEYS and contains_forbidden_identity(value)
+        ):
             violations.append(Violation(commit.oid, f"{key} trailer", value))
     return violations
 

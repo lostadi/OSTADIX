@@ -290,6 +290,17 @@ class SetupScriptTests(unittest.TestCase):
             self.assertFalse(guests_dir.exists())
             self.assertEqual(list(home.iterdir()), [])
 
+    def test_dry_run_makes_gemini_registration_device_conditional(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = self.run_setup(
+                "--minimal", "--yes", "--dry-run", "--no-env",
+                home=Path(temp_dir),
+            )
+
+        output = self.combined_output(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("/.gemini exists, register ostadix", output)
+
     def test_guest_plan_states_explicit_nonclaim(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = self.run_setup(

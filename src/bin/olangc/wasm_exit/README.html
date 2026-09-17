@@ -1,0 +1,190 @@
+<h1>Embedded Linux exit-status channel</h1>
+<p>This overlay keeps the workload, Linux guest, emulator, and exit-status path
+inside one core WASI module. It is not a stdout parser or an external wrapper.
+It applies only to the compiler&#39;s amd64 Bochs profile, not TinyEMU or Emscripten.</p>
+<p>The vendored Dockerfile derives from container2wasm v0.8.4, commit
+<code>6ed3d98882a2b22eafc1334f574c364a5b2b8c47</code>, under its Apache-2.0 license
+(included as <code>LICENSE.container2wasm</code>). Its upstream SHA-256 is
+<code>b3b85664e7a1f37ac7d4e7ca03b2f9f2e34941576b929e1f0705cbbbccba3e87</code>.
+The paired Bochs source is commit
+<code>a88d1f687ec83ff82b5318f59dcecb8dab44fc83</code> of <code>ktock/Bochs</code>.
+The patches retain upstream source headers and licenses. The patch script
+checks the exact SHA-256 of each original target before applying any change.
+The source fetch uses the official <code>container2wasm/container2wasm</code> repository
+and verifies the full commit, because the old <code>ktock/container2wasm</code> fork does
+not publish the v0.8.4 tag referenced by the upstream recipe.</p>
+<p>Upstream init discards a workload failure when it powers off the guest, and
+Bochs&#39;s simulator quit path can exit WASI with status zero. This overlay instead
+returns the runc result to guest init&#39;s main function. Init drains pending tty
+output, verifies the exit port signature, and writes the status byte to guest
+I/O port <code>0xf4</code> through <code>/dev/port</code>. The paired Bochs handler calls libc <code>exit</code>
+directly, preserving the byte in WASI <code>proc_exit</code>. No new host import is added.</p>
+<p>For the sealed profile, successful completion reports zero; ordinary child exits retain their 0–255
+status; signals are represented numerically as 128 plus the signal number;
+init/setup errors report 125. This does not reproduce native signal delivery.
+Port or drain failure does not fall back to successful poweroff. Kernel crashes
+and a broken exit channel can still require the host&#39;s execution timeout.</p>
+<p>The pinned Linux configuration already enables <code>CONFIG_DEVPORT</code>,
+<code>CONFIG_DEVTMPFS</code>, and <code>CONFIG_DEVTMPFS_MOUNT</code>. Guest init retains the guest
+<code>CAP_SYS_RAWIO</code> needed for <code>/dev/port</code>; this does not grant host I/O access or
+change the runtime image&#39;s configured workload user.</p>
+<p>The emulator also treats an empty optional MSR configuration filename as
+disabled, before attempting to open it. With root preopens, WASI libc can resolve
+an empty filename to the root directory; the upstream MSR reader then retries
+directory-read errors indefinitely. The configuration and MSR readers now stop
+at EOF before inspecting stale buffers, and report actual read errors as startup
+failure 125 under WASI. This preserves filesystem descriptor handling rather
+than removing or renumbering host preopens. Qualification includes an empty-root
+preopen regression in addition to each engine&#39;s default environment.</p>
+<p><code>write_assets(build_dir)</code> writes the vendored Dockerfile and a small overlay
+directory, returning <code>Assets</code>. Add its arguments to the real converter command
+with <code>Assets::add_to_command(&amp;mut command)</code>. Docker Buildx is required:</p>
+<pre><code class="language-text">c2w --dockerfile &lt;generated&gt;/Dockerfile \
+  --extra-flag=--build-context=ostadix-exit=&lt;generated&gt;/overlay \
+  --target-arch=amd64 --build-arg VM_MEMORY_SIZE_MB=512 \
+  --build-arg OPTIMIZATION_MODE=native &lt;image&gt; &lt;output.wasm&gt;
+</code></pre>
+<p>The two exit-patch steps remain in <code>init-amd64-dev</code> and <code>bochs-dev-common</code>.
+No upstream repository fork or publication is necessary. Hash checks bind
+these patched files and the prebuilt tools listed below, not every dependency
+of the conversion; the broader upstream build is not claimed to be hermetic.</p>
+<h2>Optional browser Guix state and finalization</h2>
+<p>The compiler&#39;s explicit <code>--browser-guix</code> profile sets the build argument
+<code>OSTADIX_GUIX_STATE=1</code>; the default is zero. Its immutable
+<code>/oci/ostadix-guix-state.json</code> activates the new guest-init helper. Absence of
+that file preserves sealed behavior. The paired Bochs template patch adds a
+second EHCI USB disk at <code>/browser-state/guix.img</code>, after checking the original
+template hash. No workload capability, host device, or general-purpose root
+filesystem persistence is added.</p>
+<p>Init discovers whole SCSI disks through a private kernel sysfs mount; it does
+not assume the second USB port is <code>/dev/sdb</code>. Exactly one ext4 disk must match
+the immutable profile&#39;s UUID and fixed 2 GiB size/geometry and be clean without
+journal recovery. A read-only <code>noload</code> admission mount checks its profile marker
+against the schema, layout, runtime-image digest, UUID, and size. Only then may
+init mount it writable and overlay <code>/gnu/store</code>, <code>/var/guix</code>, and <code>/root</code> over
+the original embedded OCI lower directories. The raw disk preopen is removed
+from the workload&#39;s OCI mounts. <code>/ostadix</code> and its source-bound executable and
+adapters are not persistent overlays. Boot never formats or repairs existing
+state.</p>
+<p>Guix workers can create independent sessions, so process-group cleanup alone
+is insufficient. After runc returns, init stops remaining workers belonging to
+the exact owned container <code>foo</code>, unmounts the three overlays, calls <code>Syncfs</code>,
+and unmounts ext4. Cleanup has a ten-second caller deadline; a blocked sync or
+unmount cannot emit a late clean acknowledgement. Any cleanup failure reports
+init failure and leaves the browser responsible for treating storage as dirty.</p>
+<p>The paired trusted-init channel uses I/O port <code>0xf5</code>: reads return <code>0x53</code>, and
+only a single-byte write of <code>0xa5</code> sets the emulator&#39;s finalization flag. Other
+writes clear it. After successful cleanup, init acknowledges on F5 before the
+existing F4 status write. F4 then reports <code>0x4f530000 | status</code> to WASI;
+without acknowledgement it reports the original low-byte status. Thus a clean
+disk and the Guix command&#39;s success/failure are separate facts. The browser
+recognizes the tag, flushes its OPFS access handle, and only then clears its
+dirty marker. The tag is a protocol between the fixed emulator and guest init,
+not cryptographic authentication or evidence that an arbitrary guest is trusted.
+Guest OCI capabilities do not expose <code>/dev/port</code> or the private block nodes.</p>
+<p>The separate <code>bochs-network.patch</code> repairs the pinned Ethernet allocator&#39;s
+interior-pointer free: the device caller receives the allocation base, while
+the sender owns a temporary four-byte-length-prefixed wire buffer. It also
+rejects short writes and frame sizes outside 14–16,384 bytes, corrects partial
+header pointer arithmetic, and distinguishes EOF from <code>EAGAIN</code>. <code>apply.sh</code>
+checks original <code>bochs/wasm.cc</code> SHA-256
+<code>11f064262c1027618c729966a14f8407326dff061c745f60b44ffcebad3bb9a7</code>
+before applying this separate zero-context patch with <code>--unidiff-zero</code>.
+These changes preserve the existing WASI network imports; they do not grant
+arbitrary networking to the sealed host.</p>
+<p><strong>Status:</strong> these Guix state, finalization, and network changes are implemented
+in source only. No new patch-application check, build, test, guest boot,
+installation, or persistence qualification was run; those were deferred to
+better-equipped hardware. Earlier sealed Python fixture results do not qualify
+this changed overlay. See the
+<a href="../../../../docs/OLANGC_WASM.md#browser-only-interactive-guix-profile">browser profile guide</a>
+for the complete bounds and manual acceptance steps.</p>
+<p>When distributing binaries, retain the applicable source, license, and notice
+materials for the actual linked/runtime components. <code>LICENSE.container2wasm</code>
+does not cover Bochs or its embedded TinyEMU-derived virtio code, the Guix
+closure, Linux, or the remaining dependencies. The compiler guide&#39;s
+<a href="../../../../docs/OLANGC_WASM.md#source-and-license-materials">source/license inventory</a>
+is a starting point, not a completed binary-redistribution notice bundle.</p>
+<h2>Cold-boot, lower-resource build</h2>
+<p>The amd64 exit overlay now defaults to and requires
+<code>OPTIMIZATION_MODE=native</code>. Here, <code>native</code> means <strong>without a preinitialized
+snapshot</strong>, not host-native execution: the output still contains Bochs, Linux,
+the runtime image, and the compiled O program in one core WASI module. Each
+execution cold-boots Linux, so startup is slower and runtime tests may need a
+longer timeout. The original <code>_start</code> is retained and the full <code>/pack</code> directory
+is embedded. Requests for Wizer optimization fail explicitly; there is no
+fallback to a different exit-status protocol.</p>
+<p>The amd64 tool stage uses Ubuntu 22.04 instead of a Rust build image. It checks
+the SHA-256 of these exact upstream downloads before unpacking or using them:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>SHA-256</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/kateinoigakukun/wasi-vfs/releases/download/v0.3.0/wasi-vfs-cli-x86_64-unknown-linux-gnu.zip">wasi-vfs v0.3.0 Linux x86-64 CLI</a></td>
+<td><code>bfb542ba89a0a8645f556eef32d95feaf5ad6b276516b112e9c90fecf1da23df</code></td>
+</tr>
+<tr>
+<td><a href="https://github.com/kateinoigakukun/wasi-vfs/releases/download/v0.3.0/libwasi_vfs-wasm32-unknown-unknown.zip">wasi-vfs v0.3.0 Wasm static library</a></td>
+<td><code>604d037e5b14374b78cf7b96a1c958a6ba5eee4263fb4b4733fabba4496684eb</code></td>
+</tr>
+<tr>
+<td><a href="https://raw.githubusercontent.com/bytecodealliance/wizer/04e49c989542f2bf3a112d60fbf88a62cce2d0d0/include/wizer.h">wizer.h at 04e49c989542f2bf3a112d60fbf88a62cce2d0d0</a></td>
+<td><code>5a7a641c6dbb489d2bd3b4a19c47db64ec21437163b8b4cd66317299aeff9729</code></td>
+</tr>
+</tbody></table>
+<p>The standalone Wizer executable and its Cargo build are omitted from this
+profile. The version-matched wasi-vfs CLI still performs filesystem packing;
+the exact pinned header supplies Bochs&#39;s compile-time initialization hooks.
+Overriding the filesystem-library or header versions is rejected rather than
+silently accepting an unreviewed combination. The hash-checked Bochs and
+guest-init overlays remain part of this build, including the optional state
+profile described above.</p>
+<p>Explicit Make parallelism is one job, and Go stages inherit <code>GOMAXPROCS=1</code> and
+<code>GOFLAGS=-p=1</code>. Bochs is fetched shallowly at its exact commit. The amd64 Linux
+v6.1 sources are cloned, configured, built, and removed in one build step, so
+the large source tree is not retained in a separate image layer. The original
+Bochs/QEMU kernel configurations and output paths are preserved. Other upstream
+architecture stages remain in the file but are not covered by this amd64 exit
+profile.</p>
+<p>Repository fetch stages share one Ubuntu 22.04 Git installation, before their
+source-specific build arguments. The amd64 cross-toolchain, BIOS, and Bochs
+stages also share one native build-tools layer; BIOS no longer pulls a separate
+floating Ubuntu release. Shared package layers discard apt indexes within the
+same installation step. The two patch stages copy only their respective patch
+inputs, so documentation or unrelated build-context changes do not invalidate
+the emulator and init caches. A running conversion must be restarted to use a
+changed Dockerfile; already completed compatible layers can still be reused.</p>
+<p>The BIOS boot ISO uses Ubuntu 22.04&#39;s packaged GRUB rather than compiling GRUB
+from source. Both <code>grub-common</code> and <code>grub-pc-bin</code> are pinned to
+<a href="https://packages.ubuntu.com/jammy-updates/grub-pc-bin"><code>2.06-2ubuntu7.2</code></a>,
+with packages obtained through the configured Ubuntu apt archive.
+<a href="https://manpages.ubuntu.com/manpages/jammy/man1/grub-mkrescue.1.html"><code>grub-mkrescue</code></a>
+uses the packaged <code>/usr/lib/grub/i386-pc</code> BIOS modules and xorriso, retaining the
+same kernel, boot configuration template, and <code>/out/boot.iso</code> output path.
+This is Ubuntu&#39;s downstream build of GRUB 2.06, not bit-identical upstream
+GRUB 2.06. The package version pins do not make the wider conversion hermetic,
+and the resulting ISO still requires actual guest-boot qualification.</p>
+<p>The amd64 BusyBox stage lists applets directly from the already compiled
+<code>/out/bin/busybox</code> when creating its symlinks. The converter runs on
+Linux/amd64, so this avoids a second host build solely for <code>--list</code>; the first
+static BusyBox binary shipped in the guest is unchanged. Other architecture
+stages retain their original build procedure.</p>
+<p>These changes reduce build pressure; they do not guarantee a particular peak
+memory or disk usage. BuildKit can still execute independent stages in parallel;
+a constrained builder should separately set worker <code>max-parallelism=1</code> using
+<a href="https://docs.docker.com/build/buildkit/configure/#max-parallelism">Docker&#39;s BuildKit configuration</a>.
+WASI SDK and Binaryen remain x86-64 build tools, so the converter&#39;s Linux/amd64
+build platform must be retained on an arm64 host.</p>
+<p>The amd64 packer writes directly to its final <code>/out/${OUTPUT_NAME}</code> path in
+one build step. Moving a large packed module in a later overlay layer can copy
+the whole lower-layer file before removing the old name, requiring another
+module-sized allocation even though packing itself succeeded. The single-step
+layout avoids that particular copy-up; it does not bound Wizer&#39;s memory use or
+the cache/exporter&#39;s storage requirements.</p>
+<p>Qualification must run both successful and failing O programs under the actual
+target engines, with exact exit status and observable output checks. Merely
+applying patches or producing a Wasm header does not qualify this protocol.</p>

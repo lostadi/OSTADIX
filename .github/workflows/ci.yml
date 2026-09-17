@@ -188,7 +188,9 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-hosted-${{ hashFiles('Cargo.lock') }}
       - name: Build hosted targets
-        run: cargo +1.97.1 build --locked --workspace --all-targets --all-features
+        run: |
+          cargo +1.97.1 build --locked --workspace --all-targets --all-features
+          cargo +1.97.1 build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
       - name: Prove immutable rootfs execution and namespace lifecycle
         timeout-minutes: 10
         env:
@@ -227,8 +229,11 @@ jobs:
           O_LIFECYCLE_TRACE: ${{ runner.temp }}/ostadix-lifecycle/backend-proxy.log
         run: cargo +1.97.1 test --locked --package o-lang --test autonomous_hosted_parallel production_python_backend_proxy_shutdown_reaps_shim -- --exact --nocapture --test-threads=1
       - name: Run hosted transport and session tests
+        env:
+          OSTADIX_MCP_TEST_BIN: ${{ github.workspace }}/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp
         run: |
           cargo +1.97.1 test --locked --package o-lang --test hosted_remote_cli
+          cargo +1.97.1 test --locked --package o-lang --test project_mesh_cli -- --test-threads=1
           cargo +1.97.1 test --locked --package o-lang --test hosted_remote_v2
           cargo +1.97.1 test --locked --package o-lang --test placement_v6
           cargo +1.97.1 test --locked --package o-lang --test registry_v1
@@ -304,7 +309,7 @@ jobs:
         run: |
           cargo +1.97.1 build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info --bin o-link --bin o-node --bin octl
           cargo +1.97.1 test --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
-          python3 -m unittest -v tests.test_mcp_smoke tests.test_mcp_client
+          python3 -m unittest -v tests.test_mcp_smoke tests.test_mcp_client tests.test_configure_gemini_mcp
           cargo +1.97.1 clippy --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml -- -D warnings
           cargo +1.97.1 build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
           python3 scripts/smoke_ostadix_mcp.py

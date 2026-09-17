@@ -23,7 +23,7 @@ use crate::runtime_exec::validate_native_runtime_binary;
 use crate::value::OValue;
 
 use super::super::protocol::{
-    canonical_hosted_bytes, canonical_hosted_sha256, truncate_hosted_error_message, unix_time_ms,
+    canonical_hosted_len, canonical_hosted_sha256, truncate_hosted_error_message, unix_time_ms,
 };
 use super::auth::{
     AuthorizedPlacementV2, PlacementAuthorizationContextV2, SharedPlacementAuthorizerV2,
@@ -2124,18 +2124,7 @@ impl HostedV2Runtime {
         self.require_store_current()?;
         authenticate_locked(&state, principal_sha256, &query.credentials)?;
         let session = state.sessions.get(&query.credentials.session_id).unwrap();
-        let mut view = session_view(session, unix_time_ms()?);
-        if let Some(operation_id) = query.operation_id {
-            let selected = view.operations.remove(&operation_id).ok_or_else(|| {
-                reject(
-                    "operation-not-found",
-                    "operation does not exist in this session",
-                    false,
-                )
-            })?;
-            view.operations.clear();
-            view.operations.insert(operation_id, selected);
-        }
+        let view = session_view(session, unix_time_ms()?, query.operation_id.as_deref())?;
         let response = HostedResponseV2::Status {
             session: view,
             head_receipt: session.head_receipt.clone(),
@@ -4642,20 +4631,19 @@ fn execute_operation(
             "evaluation completed after its absolute deadline; value suppressed",
         ));
     }
-    match canonical_hosted_bytes(&value) {
+    match canonical_hosted_len(&value) {
         Err(error) => ExecutionDispositionV2::Settled(OperationOutcomeV2::failed(
             OperationFailureStageV2::Output,
             "result-encoding-failed",
             format!("{error:#}"),
         )),
-        Ok(bytes) if bytes.len() > operation.output_limit_bytes as usize => {
+        Ok(len) if len > operation.output_limit_bytes as usize => {
             ExecutionDispositionV2::Settled(OperationOutcomeV2::failed(
                 OperationFailureStageV2::Output,
                 "result-too-large",
                 format!(
                     "serialized result length {} exceeds prepared output limit {}",
-                    bytes.len(),
-                    operation.output_limit_bytes
+                    len, operation.output_limit_bytes
                 ),
             ))
         }
@@ -6433,8 +6421,12 @@ fn apply_receipt_head(session: &mut SessionRecordV2, receipt: &SignedJournalEntr
     session.head_receipt = receipt.clone();
 }
 
-fn session_view(session: &SessionRecordV2, observed: u64) -> SessionViewV2 {
-    SessionViewV2 {
+fn session_view(
+    session: &SessionRecordV2,
+    observed: u64,
+    operation_id: Option<&str>,
+) -> Result<SessionViewV2> {
+    Ok(SessionViewV2 {
         schema: HOSTED_SESSION_SCHEMA_V2.to_owned(),
         session_id: session.session_id.clone(),
         node_id: session.node_id.clone(),
@@ -6443,14 +6435,35 @@ fn session_view(session: &SessionRecordV2, observed: u64) -> SessionViewV2 {
         status: session.status,
         next_client_sequence: session.next_client_sequence,
         actor: actor_observation(session, observed),
-        operations: session
-            .operations
-            .iter()
-            .map(|(id, operation)| (id.clone(), operation.view.clone()))
-            .collect(),
+        operations: session_operation_views(&session.operations, operation_id)?,
         journal_head_sha256: session.journal_head_sha256.clone(),
         created_unix_ms: session.created_unix_ms,
         updated_unix_ms: session.updated_unix_ms,
+    })
+}
+
+fn session_operation_views(
+    operations: &BTreeMap<String, OperationRecordV2>,
+    operation_id: Option<&str>,
+) -> Result<BTreeMap<String, OperationViewV2>> {
+    match operation_id {
+        Some(operation_id) => {
+            let operation = operations.get(operation_id).ok_or_else(|| {
+                reject(
+                    "operation-not-found",
+                    "operation does not exist in this session",
+                    false,
+                )
+            })?;
+            Ok(BTreeMap::from([(
+                operation_id.to_owned(),
+                operation.view.clone(),
+            )]))
+        }
+        None => Ok(operations
+            .iter()
+            .map(|(id, operation)| (id.clone(), operation.view.clone()))
+            .collect()),
     }
 }
 
@@ -6718,4 +6731,70 @@ fn fresh_identifier(prefix: &str) -> Result<String> {
     let mut bytes = [0_u8; 16];
     getrandom::fill(&mut bytes).context("failed to obtain entropy for hosted V2 identity")?;
     Ok(format!("{prefix}-{}", hex::encode(bytes)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn operation_record(operation_id: &str) -> OperationRecordV2 {
+        OperationRecordV2 {
+            view: OperationViewV2 {
+                operation_id: operation_id.to_owned(),
+                task_attempt: TaskAttemptIdV1::new(
+                    SemanticDigestV1::hash_bytes(
+                        "ostadix/hosted-v2-runtime-test/task/v1",
+                        operation_id.as_bytes(),
+                    ),
+                    GenerationV1::new(1).unwrap(),
+                ),
+                operation_sha256: SemanticDigestV1::hash_bytes(
+                    "ostadix/hosted-v2-runtime-test/operation/v1",
+                    operation_id.as_bytes(),
+                )
+                .as_sha256()
+                .to_owned(),
+                status: OperationStatusV2::Accepted,
+                accepted_unix_ms: 1,
+                started_unix_ms: None,
+                finished_unix_ms: None,
+                outcome: None,
+            },
+            reserved_bytes: 0,
+        }
+    }
+
+    #[test]
+    fn filtered_session_operation_views_match_filtering_the_complete_view() -> Result<()> {
+        let operations = ["operation-a", "operation-b", "operation-c"]
+            .into_iter()
+            .map(|operation_id| (operation_id.to_owned(), operation_record(operation_id)))
+            .collect::<BTreeMap<_, _>>();
+
+        let mut formerly_filtered = session_operation_views(&operations, None)?;
+        let selected = formerly_filtered.remove("operation-b").unwrap();
+        formerly_filtered.clear();
+        formerly_filtered.insert("operation-b".to_owned(), selected);
+
+        let directly_filtered = session_operation_views(&operations, Some("operation-b"))?;
+        assert_eq!(directly_filtered, formerly_filtered);
+        assert_eq!(directly_filtered.len(), 1);
+        assert_eq!(directly_filtered["operation-b"].operation_id, "operation-b");
+        Ok(())
+    }
+
+    #[test]
+    fn filtered_session_operation_views_preserve_not_found_rejection() {
+        let operations =
+            BTreeMap::from([("operation-a".to_owned(), operation_record("operation-a"))]);
+
+        let error = session_operation_views(&operations, Some("missing-operation")).unwrap_err();
+        let rejection = error.downcast_ref::<HostedV2Rejection>().unwrap();
+        assert_eq!(rejection.code, "operation-not-found");
+        assert_eq!(
+            rejection.message,
+            "operation does not exist in this session"
+        );
+        assert!(!rejection.retryable);
+    }
 }

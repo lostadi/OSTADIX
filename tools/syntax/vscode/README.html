@@ -1,0 +1,36 @@
+<h1>Ostadix-lang for VS Code</h1>
+<p>Declarative extension <code>lostadi.ostadix-lang</code>, version 0.1.0. Associates <code>.O</code> and
+<code>.olang</code> sources and O shebangs with the <strong>Ostadix-lang</strong> language. No extension
+host JavaScript, language server, compiler invocation, or runtime dependency.</p>
+<p>Highlights evaluator tags, environments (<code>[7]</code>, <code>[*]</code>), block attributes,
+matching block closers, nested evaluators, <code>$name</code> splices, O escapes, bindings,
+and calls. Native O comments and statements apply only to the document and
+<code>O</code> / <code>o</code> / <code>quote</code> blocks. The grammar follows the tags and aliases in
+<code>crates/ostadix-api/src/backend_catalog.inc.rs</code> and delimiter rules in
+<code>crates/ostadix-api/src/parser.rs</code>.</p>
+<p>Python, JavaScript, shell, HTML, SQL, C-family languages, Ruby, Lisp, Nix,
+Markdown, and LaTeX receive lightweight lexical highlighting. O nesting and
+splices remain visible inside foreign strings and comments, because the O
+parser processes these before the foreign evaluator. These lexical rules are
+not complete grammars for those languages; heredocs, regex literals, and some
+language-specific string forms receive basic highlighting. Remaining evaluator
+bodies retain O structure and splice highlighting. This extension does not
+validate programs or provide semantic analysis.</p>
+<p>The opener&#39;s complete spelling (including alias, environment, and attribute
+spacing) must be repeated in the closer. The grammar handles the parser&#39;s
+different suffix rules for bare, environment, and attribute tags. Uppercase
+<code>.O</code> is intentional; this extension does not declare <code>.o</code> object files. VS Code
+file associations can be overridden explicitly by the user&#39;s settings.</p>
+<p>Run the repository syntax installer to install locally. Reload VS Code after
+installation, then open an <code>.O</code> file. The active editor theme supplies colors
+through standard TextMate scopes; no theme changes are required.</p>
+<h2>Maintaining the grammar</h2>
+<p>Edit <code>generate.mjs</code>, then run <code>node generate.mjs</code> to refresh the checked-in
+<code>syntaxes/ostadix.tmLanguage.json</code>. <code>node test.mjs</code> verifies token scopes with
+the real VS Code tokenizer, using its installed macOS application packages.
+For other installations, set <code>VSCODE_APP_RESOURCES</code> to the application&#39;s
+resources/app directory, or install <code>vscode-textmate</code> and <code>vscode-oniguruma</code> in
+a temporary directory and set <code>OSTADIX_TEXTMATE_NODE_MODULES</code> to its
+<code>node_modules</code> directory. These packages are test dependencies only.</p>
+<p>The extension uses the declarative grammar and embedded-language contribution
+points described in the <a href="https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide">VS Code syntax highlighting guide</a>.</p>

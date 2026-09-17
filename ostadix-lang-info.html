@@ -1,0 +1,78 @@
+<h1>OSTADIX technical overview</h1>
+<ul>
+<li><strong>Author:</strong> Lee Daghlar Ostadi</li>
+<li><strong>License:</strong> LGPL-2.1-only</li>
+</ul>
+<p>OSTADIX brings together hosted polyglot execution, a native systems language,
+and kernel and distributed-runtime components. Ostadix-lang and O-core are
+components of the system with distinct source languages and execution models.</p>
+<h2>Hosted language and runtime</h2>
+<p>Ostadix-lang uses typed expression boundaries, <code>LANG^( body )_LANG</code>, to select
+an evaluator within a program. Nested expressions exchange values through
+OValue. A complete <code>.O</code> source document can compose registered backends while
+preserving explicit data, sequence, and resource dependencies.</p>
+<p>The hosted pipeline parses source, lowers it to OIR and an execution plan,
+projects the execution graph, analyzes evidence, admits execution, and schedules
+work. Execution observations and receipts record results; they do not substitute
+for admission or establish broader execution guarantees.</p>
+<p>The independently packageable runtime engine lives in <code>crates/ostadix-api/</code>.
+The root <code>o-lang</code> package supplies compatibility exports and command-line
+programs. The canonical backend catalog and embedded shim assets belong to the
+engine; the root <code>backends/</code> directory provides compatibility shim paths.</p>
+<h2>Native systems components</h2>
+<p>O-core compiles <code>.oc</code> source through a typed HIR and SSA MIR to target object
+files. It is separate from hosted <code>.O</code> orchestration. The primary freestanding
+target is x86_64, with a bounded AArch64 scalar target.</p>
+<p>The <code>ocore/</code> tree contains the native runtime, kernel, and associated validation
+harnesses. Kernel, guest, device, network, and physical-hardware claims depend on
+their specific evidence and do not follow from a successful hosted example.</p>
+<h2>Tools and source map</h2>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>O</code></td>
+<td>Execute hosted <code>.O</code> programs</td>
+</tr>
+<tr>
+<td><code>olangc</code></td>
+<td>Compile <code>.O</code> source and inspect IR and execution plans</td>
+</tr>
+<tr>
+<td><code>o-link</code> / <code>o-unlink</code></td>
+<td>Combine and recover source documents</td>
+</tr>
+<tr>
+<td><code>ocorec</code></td>
+<td>Compile and inspect O-core programs</td>
+</tr>
+<tr>
+<td><code>o-node</code> / <code>octl</code></td>
+<td>Native node and distributed execution interfaces</td>
+</tr>
+<tr>
+<td><code>mcp/ostadix_lang_mcp_server/</code></td>
+<td>MCP access to the toolchain</td>
+</tr>
+<tr>
+<td><code>c_cpp/</code></td>
+<td>C17 implementation</td>
+</tr>
+<tr>
+<td><code>o_lang/</code></td>
+<td>Python reference implementation</td>
+</tr>
+</tbody></table>
+<p>For syntax and semantics, see <a href="SPEC.md">SPEC.md</a>. For component boundaries and
+implementation locations, see <a href="ARCHITECTURE.md">ARCHITECTURE.md</a>. The native
+language is specified in <a href="docs/OCORE.md">docs/OCORE.md</a>.
+<a href="docs/CLAIMS.md">docs/CLAIMS.md</a>, <a href="docs/VERSIONING.md">docs/VERSIONING.md</a>, and the
+retained evidence records distinguish current guarantees, bounded profiles,
+archival interfaces, and proposed work.</p>
+<p>This overview describes repository structure and contracts. It does not assert
+that every backend is installed or that all native, distributed, or hardware
+validation gates have passed.</p>

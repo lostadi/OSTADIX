@@ -1,0 +1,141 @@
+<h1>OVFSIMG1 immutable image format</h1>
+<p><code>OVFSIMG1</code> is a deterministic, bounded, little-endian read-only container for
+the native O-core VFS importer. It contains no timestamps, host paths, owner
+IDs, aliases, compression, or mutable metadata. The SHA-256 of the complete
+image is its immutable identity; builders name it <code>root-&lt;sha256&gt;.ovfs</code> and set
+its host mode to <code>0444</code>.</p>
+<h2>Bounds and canonical form</h2>
+<ul>
+<li>Maximum image size: 64 KiB in historical native probes; Mode 26 selects an
+isolated 96 KiB backing-store profile for its four-principal image.</li>
+<li>Maximum files: 16.</li>
+<li>Maximum file size: 1 MiB.</li>
+<li>Paths are canonical absolute UTF-8, 1 through 63 bytes: no empty component,
+<code>.</code> or <code>..</code>, repeated slash, trailing slash, NUL, or non-ASCII control byte.</li>
+<li>Entries are bytewise path-sorted and unique.</li>
+<li>The table immediately follows the header. <code>data_offset</code> and every payload
+offset are 4096-byte aligned. Payload extents do not overlap.</li>
+<li>Every padding byte and every reserved field is zero.</li>
+<li>Integers are unsigned little-endian. Arithmetic is checked before use.</li>
+</ul>
+<h2>Header (128 bytes)</h2>
+<table>
+<thead>
+<tr>
+<th align="right">Offset</th>
+<th align="right">Size</th>
+<th>Field</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">8</td>
+<td>magic, ASCII <code>OVFSIMG1</code></td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">4</td>
+<td>version = 1</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td align="right">4</td>
+<td>header size = 128</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">4</td>
+<td>entry size = 128</td>
+</tr>
+<tr>
+<td align="right">20</td>
+<td align="right">4</td>
+<td>file count</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td align="right">8</td>
+<td>table offset = 128</td>
+</tr>
+<tr>
+<td align="right">32</td>
+<td align="right">8</td>
+<td>first data offset, 4096-byte aligned</td>
+</tr>
+<tr>
+<td align="right">40</td>
+<td align="right">8</td>
+<td>exact image size</td>
+</tr>
+<tr>
+<td align="right">48</td>
+<td align="right">32</td>
+<td>SHA-256 of the complete entry table</td>
+</tr>
+<tr>
+<td align="right">80</td>
+<td align="right">32</td>
+<td>SHA-256 of bytes <code>[data_offset, image_size)</code> including zero padding</td>
+</tr>
+<tr>
+<td align="right">112</td>
+<td align="right">16</td>
+<td>reserved zero</td>
+</tr>
+</tbody></table>
+<h2>Entry (128 bytes)</h2>
+<table>
+<thead>
+<tr>
+<th align="right">Offset</th>
+<th align="right">Size</th>
+<th>Field</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">2</td>
+<td>path length, 1 through 63</td>
+</tr>
+<tr>
+<td align="right">2</td>
+<td align="right">2</td>
+<td>kind = 1 (regular file)</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">4</td>
+<td>flags</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">8</td>
+<td>absolute payload offset, 4096-byte aligned</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">8</td>
+<td>file size</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td align="right">32</td>
+<td>SHA-256 of file bytes</td>
+</tr>
+<tr>
+<td align="right">56</td>
+<td align="right">64</td>
+<td>path bytes followed by zero padding</td>
+</tr>
+<tr>
+<td align="right">120</td>
+<td align="right">8</td>
+<td>reserved zero</td>
+</tr>
+</tbody></table>
+<p>Flags are <code>READ = 1</code>, <code>EXEC = 2</code>, and <code>CORPUS = 4</code>. <code>READ</code> is mandatory,
+unknown bits are rejected, and there is deliberately no write bit. Executable
+personality artifacts use <code>READ | EXEC</code>; negative loader corpus files use
+<code>READ | CORPUS</code> and are never executable VFS authorities.</p>
+<p>The importer may cache an FNV-1a-64 path ID, but the canonical full path is the
+authority and must be compared to resolve hash collisions.</p>

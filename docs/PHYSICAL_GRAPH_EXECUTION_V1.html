@@ -1,0 +1,100 @@
+<h1>Physical graph execution V1</h1>
+<p><code>ostadix_api::computation</code> exposes a multi-operation planner and an executable
+operation/transfer DAG. The implementation is in
+<code>crates/ostadix-api/src/computation/graph_realization_plan.rs</code>.</p>
+<h2>Build a request</h2>
+<p>Construct <code>GraphPlanningRequestV1</code> with:</p>
+<ul>
+<li>A validated <code>LogicalHGraphV2</code>, containing dense operation IDs and directed
+output-port to input-port edges. Its roots are exactly the terminal operations.</li>
+<li>One shared <code>ObjectiveV1</code>.</li>
+<li>A vector of <code>OperationPlanningRequestV1</code> closures, indexed by graph operation
+ID. Each closure retains the existing V1 single-operation graph and local
+operation ID zero. Its interface, contract, realization set, input geometry,
+and objective must match the corresponding global operation.</li>
+<li>Exactly one <code>TransferPlanV1</code> per logical edge, naming the full graph identity,
+source and destination targets, physical representations, adapter identity,
+transfer mechanism, and predicted transfer cost.</li>
+</ul>
+<p>Call <code>plan_graph_realizations_v1(&amp;request)</code>. The planner checks edge port names
+and semantic types, filters operation offers against their incident transfer
+coordinates, and applies the existing V1 ranking to compatible offers. The
+overall predicted cost includes each selected V1 profile&#39;s uncertainty and
+every transfer&#39;s estimated cost. A graph-wide objective maximum and checked
+arithmetic apply to that sum.</p>
+<p>This profile takes fixed transfer offers. To compare alternative physical
+transfer routes, construct separate requests. It does not search an unbounded
+Cartesian product of operation and transfer choices.</p>
+<p>The returned <code>GraphRealizationPlanV1</code> exposes <code>deployment()</code>, <code>tasks()</code>, and
+<code>predicted_total_ns()</code>. Each logical edge becomes a real transfer task whose
+producer operation is its prerequisite; the consumer operation depends on
+that transfer task.</p>
+<h2>Supply executable authority</h2>
+<p>A <code>PhysicalAdapterRegistryV1&lt;T&gt;</code> is supplied by a trusted embedding. Register an
+operation adapter at an exact realization-descriptor and target-digest pair,
+and a transfer adapter at its artifact identity. Registration connects those
+descriptive identities to executable capabilities. It does not authenticate a
+remote target, establish artifact provenance, or discharge backend authority
+by itself.</p>
+<p><code>PhysicalOperationAdapterV1&lt;T&gt;</code> implements:</p>
+<ul>
+<li><code>admit</code>: bind the selected implementation and live target and discharge the
+required authority, state, actor, and interaction conditions.</li>
+<li><code>execute</code>: consume the supplied named inputs and return every declared
+output port in a <code>PhysicalPortValuesV1&lt;T&gt;</code> map.</li>
+</ul>
+<p><code>PhysicalTransferAdapterV1&lt;T&gt;</code> implements:</p>
+<ul>
+<li><code>admit</code>: check the concrete edge, mechanism, authority, and target bindings.</li>
+<li><code>observe_source</code>: capture an immutable, typed observation identity before
+the transfer can mutate or otherwise interact with the source payload.</li>
+<li><code>transfer</code>: move or convert the actual payload and return its destination
+physical value.</li>
+<li><code>check_observation</code>: compare the destination with the captured observation
+under the adapter&#39;s admitted interaction and congruence contract.</li>
+</ul>
+<p>Every transfer runs the observation check, including edges with identical
+representations. A successful envelope/type check alone cannot publish a
+consumer input. Adapter code defines the observation policy; passing that
+policy is evidence about the actual execution under those admitted
+interactions, not unrestricted behavioral equivalence between runtimes.</p>
+<p>Adapters own their executable provenance checks, transport authentication,
+resource lifetime, timeouts, and cancellation behavior. Payload type <code>T</code> is
+generic and must implement <code>Clone + Send + Sync</code>; it may contain bytes,
+<code>OValue</code>, or a native handle. No universal serialization or foreign-runtime
+embedding is implied by that interface.</p>
+<h2>Execute and observe</h2>
+<pre><code class="language-rust,ignore">let plan = plan_graph_realizations_v1(&amp;request)?;
+let report = execute_graph_realizations_v1(
+    &amp;plan,
+    &amp;registry,
+    &amp;external_inputs,
+    4, // maximum concurrent operation and transfer tasks
+)?;
+</code></pre>
+<p>External inputs are keyed by <code>LogicalEdgeEndpointV2</code>; they exactly cover input
+ports without a producer edge. They cannot replace a transferred input.
+Before dispatch, execution recomputes the plan, checks every adapter&#39;s
+admission, and validates external inputs. Values are checked against the exact
+semantic type, selected physical representation, residency, and port set.</p>
+<p>The executor refills a bounded set of worker slots on each completion. A
+consumer starts only after all its transfer tasks have produced valid values
+and passed their observation checks. The report contains operation outputs
+and coordinator-observed Started/Succeeded/Failed transitions. A failure
+suppresses new tasks, drains already-started work, and returns its observations;
+it does not roll back effects already performed by an adapter.</p>
+<p>This module is the generic embedding API. The separate
+<a href="OIR_PHYSICAL_EXECUTION_V1.md">automatic OIR bridge</a> derives these records from
+admitted local program graphs and executes their operations and real socket
+transfers through the existing coordinator. Generated native runtimes include
+the records, graph API, and automatic bridge.</p>
+<h2>Executable coverage</h2>
+<p><code>crates/ostadix-api/tests/graph_realization_execution.rs</code> executes a three-stage
+Integer -&gt; Decimal -&gt; Integer graph and checks consumer gating. Its process
+pipe test transports both edge payloads through a separately launched
+<code>/bin/cat</code>, receives sixteen actual bytes, checks both observations, and obtains
+the final value 43. This is local process/pipe evidence; target authentication
+continues to belong to the trusted adapters.</p>
+<p>Other tests cover malformed edges, missing adapters and transfers, cycles,
+aggregate costs, corrupted transfer payloads, wrong representations, aliased
+native-handle mutation, and worker refill while an earlier task remains active.</p>

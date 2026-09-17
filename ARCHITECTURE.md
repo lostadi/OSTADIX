@@ -72,6 +72,10 @@ executable repository contracts:
   evaluator-independent graph execution, and backend lifecycle state. Their
   historical public paths preserve type identity without recompiling the
   implementation or reopening the higher realization roots;
+- `crates/ostadix-api/src/cancellation.rs` owns the shared cooperative cancellation
+  token without importing runtime consumers. Embedding requests, backend processes,
+  and graph execution use one token type; both historical executor paths re-export
+  it without creating a reverse dependency on the coordinator;
 - `execution_fabric` owns the frozen authority-free capsule and candidate
   records below `execution_fabric_authority`, which adds signed transport and
   placement bindings. `hosted_remote` is the higher realization layer that
@@ -108,8 +112,8 @@ runtime implementation outside its CLI entrypoints.
 Facades bind an unconditionally public owner and exact public alias or glob
 projection. The checker then rejects undeclared roots and edges, retains
 the narrow semantic rules above, and runs Tarjan's algorithm over the observed
-root graph. The frozen baseline contains 184 production engine module files,
-47 roots, 223 cross-root edges, and zero multi-root strongly connected
+root graph. The current inventory contains 194 production engine module files,
+48 roots, 243 cross-root edges, and zero multi-root strongly connected
 components. The separately scanned include fragment has no cross-root edge.
 
 That is a root-level acyclicity claim only. Dependencies and bounded strongly

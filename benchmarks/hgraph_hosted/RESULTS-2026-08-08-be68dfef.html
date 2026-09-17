@@ -1,0 +1,200 @@
+<h1>Hosted HGraph benchmark result — 2026-08-08</h1>
+<p>This is the retained local measurement record for the four hosted HGraph
+fixtures. It is bound to the measured source and executable as follows:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Measurement date</td>
+<td>2026-08-08</td>
+</tr>
+<tr>
+<td>Source commit</td>
+<td><code>be68dfef528ea0d4e287916ee18028b1aa7a5c5f</code></td>
+</tr>
+<tr>
+<td><code>target/release/O</code> SHA-256</td>
+<td><code>adacf7c77d98d886c35420598e6f330f705b4952ff50e35b854b2a027f8fd35c</code></td>
+</tr>
+<tr>
+<td>Machine</td>
+<td>Apple M1 Max</td>
+</tr>
+<tr>
+<td>Harness-reported logical CPUs</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Warmup pairs</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Measured pairs per main result</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Hosted delay per task</td>
+<td>0.25 seconds</td>
+</tr>
+<tr>
+<td>Graph worker override</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Missing-runtime policy</td>
+<td><code>fail</code></td>
+</tr>
+</tbody></table>
+<p>The measured command shape was:</p>
+<pre><code class="language-bash">scripts/benchmark_hgraph_hosted.sh \
+  --warmups 1 \
+  --repetitions 5 \
+  --sleep 0.25 \
+  --workers 4 \
+  --missing-runtime fail
+</code></pre>
+<p>The source commit identifies the benchmark fixtures and runtime source. The
+binary digest identifies the executable that was actually measured. This file
+was added after that run, so its containing documentation commit is not the
+benchmark subject. This is a human-readable measurement record, not a signed
+attestation or a retained raw transcript. Raw per-sample timings were not
+retained here and are not reconstructed.</p>
+<h2>Main result</h2>
+<p>Times are medians in milliseconds. <code>Speedup</code> is serial median divided by graph
+median. <code>Equivalent</code> means every measured serial/graph pair had identical
+canonical <code>ok</code>, <code>type</code>, and returned OValue JSON. <code>Expected</code> means those fields
+also matched the fixture&#39;s checked-in <code>*.expected.json</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Program</th>
+<th align="right">Predicted width</th>
+<th align="right">Predicted span</th>
+<th align="right">Serial median (ms)</th>
+<th align="right">Graph median (ms)</th>
+<th align="right">Speedup</th>
+<th>Equivalent</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>heterogeneous.O</code></td>
+<td align="right">3</td>
+<td align="right">1</td>
+<td align="right">981</td>
+<td align="right">347</td>
+<td align="right">2.827089x</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td align="right">1</td>
+<td align="right">4</td>
+<td align="right">1389</td>
+<td align="right">1402</td>
+<td align="right">0.990728x</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td align="right">4</td>
+<td align="right">3</td>
+<td align="right">2033</td>
+<td align="right">1024</td>
+<td align="right">1.985352x</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td align="right">2</td>
+<td align="right">3</td>
+<td align="right">1316</td>
+<td align="right">1009</td>
+<td align="right">1.304262x</td>
+<td>true</td>
+<td>true</td>
+</tr>
+</tbody></table>
+<p>Width and span are manually declared, reviewed predictions for the fixture
+topology. They are not inferred by the runner or <code>--explain-schedule</code>, and they
+do not prove observed overlap. The mixed-width fixture&#39;s equal-cost model has
+six task units over three predicted layers, so its ideal bound is 2x; the
+measured 1.985352x is consistent with that bounded model on this run. The
+width-one chain is the negative control and shows no meaningful speedup.</p>
+<h2>Chained worker-count control</h2>
+<p>The width-one chain was also measured at several worker settings. The four-
+worker row is the five-pair main result above; the other rows used three
+measured pairs with the same 0.25-second hosted delay.</p>
+<table>
+<thead>
+<tr>
+<th align="right">Workers</th>
+<th align="right">Repetitions</th>
+<th align="right">Serial median (ms)</th>
+<th align="right">Graph median (ms)</th>
+<th align="right">Speedup</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td align="right">3</td>
+<td align="right">1371</td>
+<td align="right">1388</td>
+<td align="right">0.987752x</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">5</td>
+<td align="right">1389</td>
+<td align="right">1402</td>
+<td align="right">0.990728x</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">3</td>
+<td align="right">1394</td>
+<td align="right">1391</td>
+<td align="right">1.002157x</td>
+</tr>
+</tbody></table>
+<p>Increasing pool capacity does not accelerate a true dependency chain. That is
+the expected negative-control behavior.</p>
+<h2>Interpretation and non-claims</h2>
+<p>These are wait-heavy subprocess fixtures. They measure the benefit of
+overlapping blocked waits across hosted runtimes, not parallel CPU computation.
+The main suite above ran on the stated 10-logical-CPU M1 Max. A previously
+mentioned 3.28x result from a one-logical-CPU environment was not reproduced or
+bound to this commit and executable, so this record does not claim it.</p>
+<p>Semantic equivalence here covers only <code>ok</code>, type, and canonical returned OValue
+JSON. It excludes filesystem and network effects, scope snapshots, traces,
+timing, and external-effect ordering. In particular, the result does not widen
+the documented <code>explicit-autonomous-unordered</code> effect semantics into strict
+serial equivalence. The four fixtures are a bounded mechanism/model benchmark,
+not a general CPU-throughput, application-throughput, or scheduler-optimality
+claim.</p>
+<h2>Capturing a future run</h2>
+<p>Build through the canonical release path, record the clean source identity and
+executable digest, and retain the complete harness stream before summarizing it:</p>
+<pre><code class="language-bash">./setup.sh -y --minimal
+git status --short
+git rev-parse HEAD
+shasum -a 256 target/release/O
+set -o pipefail
+scripts/benchmark_hgraph_hosted.sh \
+  --warmups 1 \
+  --repetitions 5 \
+  --sleep 0.25 \
+  --workers 4 \
+  --missing-runtime fail 2&gt;&amp;1 | tee hosted-hgraph-YYYY-MM-DD.log
+</code></pre>
+<p>Preserve the unedited log separately and record its SHA-256 alongside a new,
+dated result document. The runner&#39;s provenance header supplies machine, logical
+CPU, runtime path, and runtime-version fields. Do not overwrite this record or
+reuse its measurements when any bound input differs.</p>

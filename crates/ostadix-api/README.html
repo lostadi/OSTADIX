@@ -1,0 +1,37 @@
+<h1>ostadix-api</h1>
+<p><code>ostadix-api</code> is the independent Ostadix runtime engine. It owns the parser,
+OIR and HGraph representations, evaluator, backend registry and shims,
+evidence/admission pipeline, placement and hosted-runtime machinery, World and
+Information contracts, O-core support, and the source inventory used by AOT
+generation.</p>
+<p>The small embedding entry point is <code>Runtime</code>:</p>
+<pre><code class="language-rust">use std::path::PathBuf;
+
+use ostadix_api::{OValue, Runtime};
+
+let mut runtime = Runtime::new(PathBuf::new());
+let value = runtime.evaluate(&quot;&quot;)?;
+assert_eq!(value, OValue::Null);
+# Ok::&lt;(), ostadix_api::RuntimeError&gt;(())
+</code></pre>
+<p>Advanced consumers may use the versioned engine modules directly, including
+<code>parser</code>, <code>ir</code>, <code>hgraph</code>, <code>computation</code>, <code>computation_core</code>, <code>evidence</code>,
+<code>placement</code>, <code>execution_fabric</code>, <code>execution_fabric_authority</code>, <code>hosted_remote</code>,
+<code>world</code>, and <code>information</code>.
+The Fabric modules expose frozen authority-free execution records and additive
+authenticated attempt authority; a remote result remains provisional, and the
+coordinator alone may publish or settle graph state.</p>
+<p><code>computation_core</code> exposes the authority-free <code>OComputationManifestV1</code> identity
+spine and the experimental <code>OperationContractV1</code>, <code>OperationInterfaceV1</code>,
+<code>RealizationDescriptorV1</code>, and <code>RealizationSetV1</code> records; <code>computation</code>
+provides higher-level authority-free manifest builders.
+Canonical decoding and <code>verify_realization_set_v1</code> establish local validation
+and exact referential consistency only. They do not plan or select a
+realization, prove behavioral equivalence or evidence authenticity, determine
+target eligibility or placement, execute or recover work, or grant admission,
+capability, lease, or World authority. The complete boundary is documented in
+the <a href="https://github.com/lostadi/Ostadix-lang/blob/master/docs/OPERATION_REALIZATION_V1.md">operation-realization V1 contract</a>.</p>
+<p>The repository-root <code>o-lang</code> package is the compatibility and CLI shell. It
+depends one-way on this engine and explicitly reexports the historical module
+paths. Engine implementation code does not depend on <code>o-lang</code>.</p>
+<p>License: LGPL-2.1-only. See <code>LICENSE</code> and <code>NOTICE</code> in this package.</p>

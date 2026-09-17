@@ -179,13 +179,12 @@
   ],
   "references": [
     {
-      "path": "/Users/ustad/Avesta-unstable/output/hatch-pet/little-o/references/reference-01.png",
+      "path": "references/reference-01.png",
       "width": 1536,
       "height": 1024,
       "mode": "RGB",
       "format": "PNG",
-      "source_path": "/Users/ustad/.codex/generated_images/019ee17c-6891-7da2-be93-16e608614dd1/exec-0caa8eb6-0864-41cf-b80b-43838bc7d1c4.png",
-      "copied_path": "/Users/ustad/Avesta-unstable/output/hatch-pet/little-o/references/reference-01.png"
+      "copied_path": "references/reference-01.png"
     }
   ],
   "chroma_key": {
@@ -206,6 +205,5 @@
   "brand_name": "",
   "brand_brief": "",
   "brand_sources": [],
-  "pet_safe_style": "Pet-safe sprite: compact full-body mascot, readable in a 192x208 cell, clear silhouette, simple face, stable palette/materials, and crisp edges for chroma-key extraction.",
-  "primary_generation_skill": "$imagegen"
+  "pet_safe_style": "Pet-safe sprite: compact full-body mascot, readable in a 192x208 cell, clear silhouette, simple face, stable palette/materials, and crisp edges for chroma-key extraction."
 }

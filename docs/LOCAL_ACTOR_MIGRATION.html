@@ -1,0 +1,39 @@
+<h1>Local actor recovery and migration</h1>
+<p><code>ostadix_api::eval::migration</code> executes checkpoint restoration and ownership
+handoff between local evaluators. It uses the existing backend-state protocol
+and consumes destination-owned <code>PreparedPlacementFragmentV2</code> admission handles.</p>
+<p><code>restore_persistent_actors(destination, snapshot, targets, max_bytes)</code> restores
+an existing <code>EvaluatorStateSnapshotV1</code>, including after its original evaluator
+has exited. Each checkpoint actor needs one admitted persistent target with the
+same backend, environment, sandbox, executable-set digest, and launch generation.
+The target fragment&#39;s code is not executed. Its retained runtime admission is
+rechecked before sending the backend a <code>RestoreV1</code> request. The returned receipt
+contains the actual matching backend acknowledgments in canonical snapshot order.</p>
+<p><code>migrate_persistent_actors(source, destination, targets, max_bytes)</code> first
+checkpoints every settled persistent source actor. After every destination
+backend acknowledges restoration, it fences the moved identities in the source
+registry and retires the source processes. Both evaluators are exclusively
+borrowed throughout this sequence: callers cannot dispatch restored destination
+actors before source fencing completes. Subsequent execution or restore through
+the old evaluator rejects a moved identity with <code>state.actor-migrated</code>.</p>
+<p>If destination validation or restoration fails, the source remains usable.
+Restored destination actors and staged checkpoints belonging to the failed
+transaction are removed; unrelated destination actors remain intact. Physical
+rollback failures are included in the error. After a successful transfer, physical
+source shutdown failures are included in <code>source_shutdown_failures</code>; source
+identities remain fenced and the destination owns the restored state.</p>
+<p>The supported state is whatever the backend checkpoint codec can represent
+without external resource bindings. Current examples include Python&#39;s constrained
+object graph with aliases and cycles, and SQLite&#39;s autocommit main database.
+Unsupported Python functions, open external resources, and unsupported SQLite
+connection state still require pinning. These APIs do not move coordinator
+bindings, in-flight operations, process memory, or external resources. The
+handoff fence is local to the source evaluator and is not a durable distributed
+commit protocol.</p>
+<p>Hosted V2 recovery keeps its existing authenticated warrant and placement
+boundaries. These local APIs do not issue warrants, move Hosted sessions between
+nodes, or alter placement identity.</p>
+<p><code>tests/actor_migration.rs</code> exercises Python and SQLite processes, source liveness
+at destination restore acknowledgment, source fencing, recovery after source
+exit, rollback after a later actor refuses restoration, preservation of unrelated
+destination state, and rejection of substituted admission/runtime identities.</p>

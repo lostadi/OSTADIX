@@ -27,6 +27,15 @@ pub(crate) fn encode<T: Serialize>(message: &T) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+/// Return the exact byte length of the canonical encoding without allocating
+/// the encoded payload. This retains the same serde lowering and numeric
+/// validation as [`encode`], while quota checks avoid materializing bytes that
+/// would immediately be discarded.
+pub(crate) fn encoded_len<T: Serialize>(message: &T) -> Result<usize> {
+    let value = serde_json::to_value(message).context("failed to lower message to wire value")?;
+    encoded_value_len(&value)
+}
+
 pub(crate) fn decode<T: DeserializeOwned>(payload: &[u8]) -> Result<T> {
     let mut decoder = CborDecoder::new(payload);
     let value = decoder.decode_value()?;
@@ -94,9 +103,7 @@ fn encode_value(value: &Value, out: &mut Vec<u8>) -> Result<()> {
                 .map(|(key, value)| {
                     let mut encoded_key = Vec::new();
                     encode_text(key, &mut encoded_key)?;
-                    let mut encoded_value = Vec::new();
-                    encode_value(value, &mut encoded_value)?;
-                    Ok((encoded_key, encoded_value))
+                    Ok((encoded_key, value))
                 })
                 .collect::<Result<Vec<_>>>()?;
             entries.sort_by(|(left, _), (right, _)| {
@@ -106,11 +113,67 @@ fn encode_value(value: &Value, out: &mut Vec<u8>) -> Result<()> {
             encode_type_len(5, entries.len() as u64, out);
             for (key, value) in entries {
                 out.extend_from_slice(&key);
-                out.extend_from_slice(&value);
+                encode_value(value, out)?;
             }
         }
     }
     Ok(())
+}
+
+fn encoded_value_len(value: &Value) -> Result<usize> {
+    match value {
+        Value::Null | Value::Bool(_) => Ok(1),
+        Value::Number(number) => encoded_number_len(number),
+        Value::String(text) => encoded_text_len(text),
+        Value::Array(items) => items
+            .iter()
+            .try_fold(encoded_type_len_len(items.len() as u64), |total, item| {
+                checked_encoded_len_add(total, encoded_value_len(item)?)
+            }),
+        Value::Object(map) => map.iter().try_fold(
+            encoded_type_len_len(map.len() as u64),
+            |total, (key, value)| {
+                let total = checked_encoded_len_add(total, encoded_text_len(key)?)?;
+                checked_encoded_len_add(total, encoded_value_len(value)?)
+            },
+        ),
+    }
+}
+
+fn encoded_number_len(number: &Number) -> Result<usize> {
+    if let Some(value) = number.as_u64() {
+        Ok(encoded_type_len_len(value))
+    } else if let Some(value) = number.as_i64() {
+        let encoded = if value >= 0 {
+            value as u64
+        } else {
+            (-1_i128 - value as i128) as u64
+        };
+        Ok(encoded_type_len_len(encoded))
+    } else if number.as_f64().is_some() {
+        Ok(9)
+    } else {
+        bail!("unsupported JSON number in wire value: {number}");
+    }
+}
+
+fn encoded_text_len(text: &str) -> Result<usize> {
+    checked_encoded_len_add(encoded_type_len_len(text.len() as u64), text.len())
+}
+
+fn encoded_type_len_len(len: u64) -> usize {
+    match len {
+        0..=23 => 1,
+        24..=0xff => 2,
+        0x100..=0xffff => 3,
+        0x1_0000..=0xffff_ffff => 5,
+        _ => 9,
+    }
+}
+
+fn checked_encoded_len_add(left: usize, right: usize) -> Result<usize> {
+    left.checked_add(right)
+        .context("canonical encoded length overflowed usize")
 }
 
 fn encode_number(number: &Number, out: &mut Vec<u8>) -> Result<()> {
@@ -419,7 +482,74 @@ mod tests {
     fn insertion_order_does_not_change_bytes() {
         let left = BTreeMap::from([("aa", 2_u64), ("b", 1)]);
         let right = BTreeMap::from([("b", 1_u64), ("aa", 2)]);
-        assert_eq!(encode(&left).unwrap(), encode(&right).unwrap());
+        let expected = hex::decode("a261620162616102").unwrap();
+        assert_eq!(encode(&left).unwrap(), expected);
+        assert_eq!(encode(&right).unwrap(), expected);
+    }
+
+    #[test]
+    fn encoded_len_matches_nested_canonical_payload() {
+        let value = serde_json::json!({
+            "short": [null, true, false, -1, 23, 24, 65_536],
+            "a-much-longer-key": {
+                "text": "hello",
+                "nested": [{"z": 9, "aa": 10}, {"bytes": [0, 1, 255]}],
+            },
+        });
+
+        assert_eq!(encoded_len(&value).unwrap(), encode(&value).unwrap().len());
+    }
+
+    #[test]
+    fn encoded_len_matches_numeric_and_container_boundaries() {
+        fn assert_matches(value: &Value) {
+            assert_eq!(
+                encoded_len(value).unwrap(),
+                encode(value).unwrap().len(),
+                "value: {value:?}"
+            );
+        }
+
+        for unsigned in [
+            0_u64,
+            23,
+            24,
+            255,
+            256,
+            65_535,
+            65_536,
+            u32::MAX as u64,
+            u32::MAX as u64 + 1,
+            u64::MAX,
+        ] {
+            assert_matches(&Value::Number(Number::from(unsigned)));
+        }
+        for signed in [i64::MIN, -65_537, -65_536, -257, -256, -25, -24, -1] {
+            assert_matches(&Value::Number(Number::from(signed)));
+        }
+        for length in [0_usize, 23, 24, 255, 256, 65_535, 65_536] {
+            assert_matches(&Value::String("x".repeat(length)));
+        }
+        for length in [0_usize, 23, 24, 255, 256] {
+            assert_matches(&Value::Array(vec![Value::Null; length]));
+            let map = (0..length)
+                .map(|index| (format!("key-{index}"), Value::Null))
+                .collect::<Map<_, _>>();
+            assert_matches(&Value::Object(map));
+        }
+    }
+
+    #[test]
+    fn encoded_len_matches_floats_and_multibyte_text() {
+        for float in [-0.0, 0.0, -1.5, f64::MIN, f64::MAX] {
+            assert_eq!(
+                encoded_len(&float).unwrap(),
+                encode(&float).unwrap().len(),
+                "float: {float:?}"
+            );
+        }
+        let text = "Ostadix 🦀 λ 日本語";
+        assert_eq!(encoded_len(&text).unwrap(), encode(&text).unwrap().len());
     }
 
     #[test]

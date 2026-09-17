@@ -1,0 +1,230 @@
+<h1>Native Ethernet execution profile V1</h1>
+<p>This directory builds a standalone freestanding O-core image. Two copies run
+as separate QEMU x86_64 machines with RTL8139 NICs. The coordinator transfers
+each operation to its peer over Ethernet, checks the returned value and digest,
+and supplies that output as the next operation&#39;s input. The worker independently
+checks the provisioned graph and the prior result before executing an addition.
+The host launches the machines, provisions private boot configuration, perturbs
+opaque Ethernet frames in fault cases, and verifies observations. It does not
+execute graph operations or supply their results.</p>
+<p>This is a finite native execution profile, not the general project/HGraph
+executor, a native IP/TCP stack, a replicated Governor, or physical qualification.
+It supports one provisioned pair and an add chain containing two through four
+operations. The initial value and each right-hand operand are u32; intermediate
+and final values are u64. Each operation is total within this finite delegation.
+There is no compiler change or change to existing kernel probe modes.</p>
+<p>Build with an existing compiler (the script never invokes Cargo):</p>
+<pre><code class="language-sh">OCOREC_BIN=/absolute/path/to/ocorec \
+OCORE_LLD=/absolute/path/to/ld.lld \
+OCORE_NATIVE_CLUSTER_BUILD_DIR=/absolute/output \
+  ocore/kernel/native-cluster/build.sh
+python3 ocore/kernel/native-cluster/verify.py --help
+</code></pre>
+<p>The output is <code>kernel.elf</code>, an ELF64 image with the existing native bootstrap&#39;s
+Multiboot2/Xen 32-bit entry convention. It enters long mode, identity maps the
+first GiB, and keeps code, stack, and private DMA buffers below 16 MiB. It has
+no hosted runtime, Linux guest, filesystem, or CPL3 provider. The RTL8139 driver
+uses PCI configuration I/O, four transmit descriptors, and an 8 KiB receive
+ring; ring-wrapped frames are copied into a bounded buffer. Register semantics
+were checked against <a href="https://raw.githubusercontent.com/qemu/qemu/master/hw/net/rtl8139.c">QEMU&#39;s RTL8139 implementation</a>.
+The software profile uses polling and fixed TSC retry/deadline bounds.</p>
+<h2>Provisioning and authority</h2>
+<p>After <code>NATIVE_CLUSTER BOOT_READY</code>, the trusted boot controller writes exactly
+320 lowercase hexadecimal digits and a newline to the serial port. These encode
+the 160-byte configuration below. All integer fields are unsigned big-endian.
+The MAC is <code>52:54:00:12:34:&lt;node&gt;</code>; local and peer IDs are distinct values 1–254.</p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th align="right">Bytes</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td align="right">8</td>
+<td><code>OCNBOOT1</code></td>
+</tr>
+<tr>
+<td>8, 16</td>
+<td align="right">8 each</td>
+<td>Local node, peer node</td>
+</tr>
+<tr>
+<td>24, 32</td>
+<td align="right">8 each</td>
+<td>Local generation, peer generation; both nonzero</td>
+</tr>
+<tr>
+<td>40</td>
+<td align="right">32</td>
+<td>Fresh provisioned session nonce</td>
+</tr>
+<tr>
+<td>72</td>
+<td align="right">32</td>
+<td>Private pair key</td>
+</tr>
+<tr>
+<td>104</td>
+<td align="right">8</td>
+<td>Role: coordinator 1, worker 2</td>
+</tr>
+<tr>
+<td>112</td>
+<td align="right">8</td>
+<td>Task count, 2–4</td>
+</tr>
+<tr>
+<td>120</td>
+<td align="right">8</td>
+<td>Initial u32 value encoded in u64</td>
+</tr>
+<tr>
+<td>128</td>
+<td align="right">32</td>
+<td>Four u32 operands encoded in u64; unused entries must be zero</td>
+</tr>
+</tbody></table>
+<p>The graph digest is SHA-256 of the exact 48 bytes at offsets 112–159. Keys and
+nonces must be generated anew by the provisioning harness and are not evidence
+fields. Authentication uses HMAC-SHA256 with a constant-work tag comparison;
+the native image runs RFC 4231 test case 1 before accepting provisioning.
+This authenticates the explicitly provisioned pair. It does not provide
+encryption, native entropy, enrollment, persistent key storage, public-key
+attestation, key rotation, or authentication of an untrusted boot controller.</p>
+<p>The authenticated peer is still restricted to the separately provisioned graph:
+exact task number, operation kind, operand, predecessor number, predecessor
+result digest, and expected accumulator. A pair key is not a CSpace capability.
+This boot-controlled delegation must not be presented as Governor authorization
+or as a transferable native capability grant.</p>
+<h2>Ethernet record</h2>
+<p>Frames have Ethernet type <code>0x88b5</code> and contain exactly 320 payload bytes. The
+driver supplies the 334 bytes excluding Ethernet CRC. No IP layer or serial
+relay carries these operation records. Integers are unsigned big-endian.</p>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th align="right">Bytes</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td align="right">8</td>
+<td><code>OCNDIS01</code></td>
+</tr>
+<tr>
+<td>8, 10</td>
+<td align="right">2 each</td>
+<td>Schema 1, message kind</td>
+</tr>
+<tr>
+<td>12</td>
+<td align="right">4</td>
+<td>Exact payload length 320</td>
+</tr>
+<tr>
+<td>16, 24</td>
+<td align="right">8 each</td>
+<td>Sender node, recipient node</td>
+</tr>
+<tr>
+<td>32, 40</td>
+<td align="right">8 each</td>
+<td>Sender generation, recipient generation</td>
+</tr>
+<tr>
+<td>48</td>
+<td align="right">32</td>
+<td>Provisioned session nonce</td>
+</tr>
+<tr>
+<td>80</td>
+<td align="right">8</td>
+<td>Sequence</td>
+</tr>
+<tr>
+<td>88, 96</td>
+<td align="right">8 each</td>
+<td>Task number, delegated add opcode 1</td>
+</tr>
+<tr>
+<td>104, 112</td>
+<td align="right">8 each</td>
+<td>Left and right operands</td>
+</tr>
+<tr>
+<td>120</td>
+<td align="right">8</td>
+<td>Predecessor task number, zero for the first task</td>
+</tr>
+<tr>
+<td>128</td>
+<td align="right">32</td>
+<td>Input digest</td>
+</tr>
+<tr>
+<td>160</td>
+<td align="right">32</td>
+<td>Predecessor result digest, zero for the first task</td>
+</tr>
+<tr>
+<td>192</td>
+<td align="right">8</td>
+<td>Result value; zero in a request</td>
+</tr>
+<tr>
+<td>200, 208, 216</td>
+<td align="right">8 each</td>
+<td>Execution, duplicate, rejection counters in responses</td>
+</tr>
+<tr>
+<td>224</td>
+<td align="right">32</td>
+<td>Result digest; zero in a request</td>
+</tr>
+<tr>
+<td>256</td>
+<td align="right">32</td>
+<td>Provisioned graph digest</td>
+</tr>
+<tr>
+<td>288</td>
+<td align="right">32</td>
+<td>HMAC-SHA256 of payload bytes 0–287</td>
+</tr>
+</tbody></table>
+<p>The input digest is SHA-256 of <code>opcode || left || right || predecessor || predecessor_result_digest</code>, 64 bytes. The result digest is SHA-256 of its
+eight-byte big-endian representation. Generation, nonce, graph, direction,
+length, and exact bytes are authenticated; authentication alone is never the
+operation admission check.</p>
+<p>Kinds are request 1, result 2, drain 3, drain acknowledgment 4, and drain
+confirmation 5. Task sequences are 1 through the task count. Only the next
+dependent task can create an execution. An exact duplicate request returns the
+retained result bytes. A substituted request using an old sequence is rejected.
+The native result counter advances once per accepted task; retry never runs the
+addition again. Four retained attempt slots are independent of the existing
+single-wait personality RPC implementation.</p>
+<p>After all tasks, sequence <code>task_count + 1</code> drains the worker. Task bytes 88–255
+must be zero in control requests. The worker fences new work, retains the exact
+drain acknowledgment for retries, and reports its counters. <code>COMPLETE</code> is emitted
+only after the coordinator validates that authenticated acknowledgment and its
+final value/digest. Sequence <code>task_count + 2</code> confirms drain. Both nodes then
+drain transmit ownership, disable the NIC and its PCI bus mastering, clear the
+session key storage, and emit <code>NIC_QUIESCED</code>. This is the lifecycle of a dedicated
+emulated device, not IOMMU isolation, reset recovery, or physical-device ownership.
+On terminal failure, an idempotent abort path also disables the emulated device
+and its PCI bus mastering, including partially initialized and malformed-RX
+states. It reports <code>NIC_ABORTED</code>, separately from successful <code>NIC_QUIESCED</code>;
+failed disable verification reports <code>NIC_ABORT_FAILED</code> and cannot pass a gate.
+The native coordinator additionally tests that an authentic drain acknowledgment
+with nonzero unused task fields, or a wrong byte length, is rejected. Those
+local decoder probes are not counted as network fault injections.</p>
+<p>The cache and sequence fence exist only in RAM for one boot session. Loss of a
+node or confirmation is bounded by the harness deadline and is not silently
+reported as success. New boots require fresh provisioning. These records make
+no persistent exactly-once, replicated commit, crash-recovery, World membership,
+G4, G8, G10, or Alpha claim. Keep physical-node and device gates open.</p>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accessory_background">#0B1020</color>
+    <color name="accessory_surface">#D9223049</color>
+    <color name="accessory_surface_strong">#F02A3954</color>
+    <color name="accessory_glass_edge">#8FD9F7FF</color>
+    <color name="accessory_text">#F8FAFF</color>
+    <color name="accessory_text_muted">#DCE6F4</color>
+    <color name="accessory_accent">#7FEDE4</color>
+    <color name="accessory_accent_pressed">#B7FFF7</color>
+    <color name="accessory_button_text">#071D20</color>
+    <color name="accessory_button_text_disabled">#D8E4F2</color>
+</resources>

@@ -1,0 +1,104 @@
+<h1>Measured fidelity results</h1>
+<p>Recorded on 2026-09-12 from the working tree based on <code>806399e7</code>, including
+the accompanying crossing-propagation fix and evaluation tests.
+Environment: macOS 15.7.7, Python 3.14.7, Node.js v26.7.0, rustc 1.97.1.</p>
+<p>The complete structured reports emitted by the tests are retained in
+<a href="results.json">results.json</a>. Their typed original/returned values, exact
+CBOR payloads, runtime profile assessments, and known-value solver bounds
+come from the successful run below. Map field order is not semantic.</p>
+<pre><code class="language-bash">CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 OSTADIX_TEST_RUNTIME_POLICY=required cargo test --locked --test fidelity_evaluation --test backend_morphism_v1 -- --nocapture --test-threads=1
+</code></pre>
+<pre><code class="language-text">Running tests/backend_morphism_v1.rs
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.60s
+
+Running tests/fidelity_evaluation.rs
+test cbor_preserves_float_but_javascript_crossing_changes_type_dispatch ... ok
+test cbor_preserves_integer_but_javascript_crossing_changes_parity ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+</code></pre>
+<p>Debug information and incremental caching were disabled for this run after
+the default build exhausted local disk space. Both witnesses ran on both
+executors; neither test skipped a runtime. These durations are test-suite
+durations, not a performance comparison.</p>
+<table>
+<thead>
+<tr>
+<th>Observation</th>
+<th>Float witness</th>
+<th>Integer witness</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Original</td>
+<td>binary64 <code>1.0</code></td>
+<td>integer <code>9007199254740993</code></td>
+</tr>
+<tr>
+<td>Returned</td>
+<td>integer <code>1</code></td>
+<td>integer <code>9007199254740992</code></td>
+</tr>
+<tr>
+<td>Ordinary scalar CBOR exact</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td>Tagged OValue CBOR exact</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td>Graph and serial results equal</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td>Numeric equality before/after</td>
+<td>true</td>
+<td>false</td>
+</tr>
+<tr>
+<td>Downstream behavior before → after</td>
+<td>float branch → integer branch</td>
+<td>odd → even</td>
+</tr>
+<tr>
+<td>Runtime JavaScript profile</td>
+<td>Structural: TypeTag, NumericExactness</td>
+<td>OutsideProfile: IntegerOutOfRange</td>
+</tr>
+<tr>
+<td>Known-value accumulated verdict</td>
+<td>Structural</td>
+<td>Structural</td>
+</tr>
+</tbody></table>
+<p>The known-value graph reports equal definite and possible sets in these
+concrete cases. The float set is <code>{TypeTag, NumericExactness}</code>; the integer
+set additionally contains <code>NumericPrecision</code>. The second crossing&#39;s local
+assessment is <code>Lossless</code> in both cases, but its accumulated assessment
+retains the first crossing&#39;s losses. The runtime observation and known-value
+graph are separate evidence, with the scope explained in <a href="README.md">README.md</a>.</p>
+<p>Related validation passed in the same working tree:</p>
+<pre><code class="language-text">cargo test --locked -p ostadix-api --lib value::tests::fidelity_v2_
+24 passed; 0 failed
+
+cargo test --offline --locked -p ostadix-api --lib hgraph::
+53 passed; 0 failed
+
+cargo test --offline --locked -p ostadix-api --lib evidence::
+47 passed; 0 failed
+</code></pre>
+<p>The evaluation test also passed Clippy with <code>-D warnings</code>, using the same
+reduced debug settings, and formatting/diff whitespace checks passed.</p>
+<p>The solver regression covers all six insertion orders of crossing →
+dataflow → crossing, including abstract must/may precision and a concrete
+large integer. Before the fix it reproduced loss erasure as <code>Lossless</code>.
+The admission regression starts with parsed <code>.O</code> source, builds its canonical
+plan, checks the accumulated V2 fact in V6 admission, and rejects an attempt
+to replace that fact with <code>Lossless</code>.</p>
+<p>Both <code>.O</code> files also passed <code>O --check --json</code>, and <code>olangc --target ir</code>
+produced the type witness&#39;s OIR, ExecutionPlan, and HGraph with explicit
+binding dependencies. This does not claim that static analysis infers the
+concrete result of opaque Python code.</p>

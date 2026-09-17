@@ -23,6 +23,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+  - package-ecosystem: cargo
+    directory: /apps/mobile-console
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
   - package-ecosystem: docker
     directory: /
     schedule:

@@ -1,0 +1,359 @@
+<h1>Ostadix-lang — Repository Inventory</h1>
+<p><strong>Compiled:</strong> 2026-08-28 (local, Mac/ARM) by running the actual toolchain, not by reading docs.
+<strong>Scope:</strong> Everything that exists in <code>/Users/ustad/Ostadix-lang</code> that you have built and can run.
+<strong>Method:</strong> <code>o_env</code> / <code>o_doctor</code> / <code>o_smoke</code> via the Ostadix MCP, the <code>test_o_lang_examples.sh</code>
+suite, direct binary probes, <code>ocorec</code>, <code>olangc</code> AOT (Rust + C editions), and the legacy Python
+evaluator. No changes were made to the language tree during this inventory (new file only; a
+throwaway <code>/tmp</code> AOT harness was used for build checks and cleaned up conceptually — artifacts
+left in <code>/var/folders/.../opencode/</code> if you want to inspect them).</p>
+<hr>
+<h2>1. One-screen state</h2>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Canonical language</td>
+<td><strong>O-lang / Ostadix-lang</strong> (one language, three editions)</td>
+</tr>
+<tr>
+<td>Version</td>
+<td><strong>0.4.0</strong> (<code>O 0.4.0</code> reported live) · git tag history: v0.2.0, v0.3.0</td>
+</tr>
+<tr>
+<td>Commits</td>
+<td>589 on <code>master</code>, last commit 2026-08-27</td>
+</tr>
+<tr>
+<td>Remote</td>
+<td><code>https://github.com/lostadi/Ostadix-lang.git</code></td>
+</tr>
+<tr>
+<td>Rust workspace</td>
+<td>root crate <code>o-lang</code> + <code>crates/ostadix-api</code> (v0.4.0, independent engine) · 197 <code>.rs</code> files</td>
+</tr>
+<tr>
+<td>Backends</td>
+<td><strong>30 total</strong>: 7 builtin (<code>O</code>, quote, nix/nix_expr/nix_store, html, markdown, latex, text) + 22 located shims + 1 missing (<code>mathematica</code>→<code>wolframscript</code> not installed)</td>
+</tr>
+<tr>
+<td>Smoke</td>
+<td><code>O examples/hello.O backends</code> → <strong><code>[number] 2</code></strong>, exit 0 (MCP <code>o_smoke</code> = SMOKE_OK)</td>
+</tr>
+<tr>
+<td>Example suite</td>
+<td><strong>39 passed / 0 failed / 5 skipped</strong> (opt-in: 2×nixos_test, 2×group_pipeline, 1×manual plan9_browser)</td>
+</tr>
+<tr>
+<td>O-core <code>.oc</code> sources</td>
+<td><strong>132</strong> files (118 x86_64 runtime + world + aarch64 g2) · <code>ocorec</code> compiles <code>minimal.oc</code> → <code>minimal.mir</code>, exit 0</td>
+</tr>
+<tr>
+<td>Built binaries</td>
+<td>12 of 14 bins in <code>target/release/</code> (missing: <code>o-notebook</code> — <code>notebook</code> feature off; <code>ocore-kernel-world-record</code> — not in default build)</td>
+</tr>
+<tr>
+<td>Alternate editions</td>
+<td><strong>C17 <code>c_cpp/</code> edition: clean <code>make</code> succeeds, AOT <code>olangc</code> emits and runs native <code>hello</code> → <code>2</code></strong>. <strong>Legacy Python <code>o_lang/</code>: runs <code>hello.O</code> → <code>2</code></strong>.</td>
+</tr>
+<tr>
+<td>WASM AOT</td>
+<td><code>olangc --target wasm</code> — <em>not currently runnable on this Mac</em>: <code>rustup target wasm32-wasip1</code> not installed. Native AOT (default <code>--target binary</code>) works and runs.</td>
+</tr>
+<tr>
+<td>Artifacts on disk</td>
+<td>UEFI boot ISO (<code>target/ostadix-iso/.../ostadix-x86_64-uefi.iso</code>, OVMF-booted, evidence in commit <code>7e6ef401</code>), foreign-kernel lab (Alpine/FreeBSD/Guix/9front/Redox boot timings), <code>kernel.elf</code> (2.2 MB static x86-64 ELF), capacity ISO dir.</td>
+</tr>
+<tr>
+<td>Whitepaper</td>
+<td><code>Ostadix-lang_Technical_Whitepaper.pdf</code> (1.5 MB, + <code>.tex</code> in <code>docs/</code>); <code>llms.txt</code> agent briefing; <code>docs/</code> = 30 design/spec docs.</td>
+</tr>
+<tr>
+<td>Tests</td>
+<td>46 top-level integration <code>.rs</code> files in <code>tests/</code> + 28 <code>.py</code> (fixtures/support), 100 files in <code>src/</code>+<code>crates/</code> with <code>#[test]</code>s.</td>
+</tr>
+<tr>
+<td>CI</td>
+<td><code>.github/workflows/ci.yml</code> + <code>fuzz.yml</code> (parser fuzz campaign).</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. Binaries you have built (<code>target/release/</code>)</h2>
+<p>14 bins are declared in <code>Cargo.toml</code>. 12 are built and running right now:</p>
+<table>
+<thead>
+<tr>
+<th>Bin</th>
+<th>Status</th>
+<th>Purpose (verified via <code>--help</code> / run)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>O</code> (2.8 MB)</td>
+<td>✅ runs, exit 0</td>
+<td>Hosted interpreter. <code>O file.O backends</code>, <code>--json</code>, <code>--check</code>, <code>--eval</code>, <code>--repl</code>, <code>O 0.4.0</code></td>
+</tr>
+<tr>
+<td><code>o-cli</code> (6.3 MB)</td>
+<td>✅ built (backed by <code>o run/plan/ship/doctor/...</code> wrappers, not on PATH as-is; <code>~/.local/bin/o</code> re-exports it via <code>scripts/o-cli.sh</code>)</td>
+<td>CLI façade per <code>ostadix-term</code> skill</td>
+</tr>
+<tr>
+<td><code>olangc</code> (7.7 MB)</td>
+<td>✅ runs</td>
+<td>AOT: <code>--target binary</code> (default) / <code>wasm</code> / <code>script</code> / <code>ir</code> / <code>dot</code>. Embedded 23 shim scripts. <strong>Native AOT of <code>examples/hello.O</code> built in 56 s and printed <code>2</code></strong></td>
+</tr>
+<tr>
+<td><code>ocorec</code> (0.9 MB)</td>
+<td>✅ runs</td>
+<td>O-core freestanding compiler: <code>--emit ast|hir|mir|asm|obj</code>, <code>--target x86_64-unknown-none</code>. Verified: <code>ocorec ocore/examples/minimal.oc --emit mir</code> → <code>minimal.mir</code>, exit 0</td>
+</tr>
+<tr>
+<td><code>o-link</code> (5.7 MB)</td>
+<td>✅ built</td>
+<td>Link files/dirs into one <code>.O</code>; <code>--literal</code> / <code>--project</code>; link-and-run by default</td>
+</tr>
+<tr>
+<td><code>o-unlink</code> (0.8 MB)</td>
+<td>✅ built</td>
+<td>Restore a lifted tree</td>
+</tr>
+<tr>
+<td><code>o-notebook</code></td>
+<td>⬜ not built (opt-in <code>notebook</code> feature; would need <code>--features notebook</code>)</td>
+<td>Notebook host</td>
+</tr>
+<tr>
+<td><code>ogit</code> (0.6 MB)</td>
+<td>✅ built</td>
+<td>O-Git semantic ledger: <code>demo</code>, <code>diff-semantic</code>; live receipt at <code>.ogit/receipts/semantic-receipt-001.json</code></td>
+</tr>
+<tr>
+<td><code>o-live-host</code> (2.1 MB)</td>
+<td>✅ runs, <code>--help</code> clean</td>
+<td>Live-World CAS: `pack/install/activate/upgrade/invoke/compose/rollback</td>
+</tr>
+<tr>
+<td><code>o-node</code> (6.0 MB)</td>
+<td>✅ built</td>
+<td>Zero-config LAN node: <code>start/stop/status/restart/pair/pki/identity</code></td>
+</tr>
+<tr>
+<td><code>o-registry</code> (1.2 MB)</td>
+<td>✅ built</td>
+<td>Signed placement-registry snapshots: <code>init/profile-local/publish-profile/verify/list</code></td>
+</tr>
+<tr>
+<td><code>o-info</code> (1.1 MB)</td>
+<td>✅ built</td>
+<td>Authority-free Information store: <code>init/keygen/record/verify/import/head</code> (matches the <code>o_information_inspect</code> MCP tool)</td>
+</tr>
+<tr>
+<td><code>octl</code> (4.6 MB)</td>
+<td>✅ built</td>
+<td>Control CLI for an admitted hosted node: <code>octl node inspect/invoke</code></td>
+</tr>
+<tr>
+<td><code>ocore-kernel-world-record</code></td>
+<td>⬜ not in current build (not in default feature set / not in release dir listing)</td>
+<td>Kernel-world record helper</td>
+</tr>
+</tbody></table>
+<p>MCP: <code>~/.local/bin/ostadix-mcp</code> (the <code>olang</code> MCP server used at the top of this session) =
+<code>mcp/ostadix_lang_mcp_server</code> (own Cargo.lock, not in workspace). Registered in <code>.mcp.json</code>.
+Connected <code>o</code>/<code>ostadix</code> wrappers also in <code>~/.local/bin</code>.</p>
+<h2>3. O-language surface (what runs today)</h2>
+<p><strong>Syntax</strong> — <code>LANG^(…)_LANG</code> with optional <code>[n]</code> persistent env (<code>python[0]^(...)_python[0]</code>);
+registered-alias support (<code>py</code>, <code>md</code>, <code>tex</code>, <code>plain</code>, <code>o</code>); <code>$IDENT</code> binds to O values, <code>\$var</code>
+splices host env; <code>quote^(…)_quote</code> for unevaluated O source.</p>
+<p><strong>30 backends</strong> (from the live <code>o_doctor</code> catalog above): builtin = <code>O,quote,nix_expr,html, markdown,latex,text</code>; located shims (22 <code>.py</code> files in <code>backends/</code>) = <code>bash,shell,python, javascript,ruby,rust,c,cpp,java(java+java),nix,nix_store,nixos_test,sql,haskell,ocaml,racket, lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),webassembly (wat2wasm+wasmtime),ubuntu_vm(python3+multipass)</code>.</p>
+<p><strong>What I ran, in this session, that actually worked:</strong></p>
+<ul>
+<li><code>examples/hello.O</code> via MCP <code>o_smoke</code> → <code>[number] 2</code></li>
+<li>Full <code>test_o_lang_examples.sh</code> → <strong>39 pass / 0 fail / 5 skip</strong> (see above for skips)</li>
+<li>Rust AOT: <code>olangc examples/hello.O -o /tmp/... --shim-dir backends</code> → native binary → <code>2</code> (exit 0)</li>
+<li>C17 AOT: <code>c_cpp/./olangc ../examples/hello.O -o /tmp/...</code> → native binary → <code>2</code> (exit 0)</li>
+<li>Legacy Python: <code>python3 -m o_lang examples/hello.O</code> → <code>2</code></li>
+<li><code>ocorec ocore/examples/minimal.oc --emit mir</code> → <code>minimal.mir</code>, exit 0</li>
+<li><code>octl</code>/<code>o-info</code>/<code>o-registry</code>/<code>o-node</code>/<code>o-live-host</code>/<code>ogit</code>/<code>o-link</code>/<code>o-unlink</code> — <code>--help</code> clean</li>
+</ul>
+<p><strong>Skipped, not failures:</strong> 2× <code>nixos_test</code> (opt-in <code>RUN_NIXOS_TESTS=1</code>), 2× group_pipeline
+(opt-in <code>RUN_GROUP_PIPELINE_EXAMPLES=1</code>), 1× <code>plan9_browser</code> (manual).</p>
+<hr>
+<h2>4. O-core (<code>.oc</code> freestanding systems language)</h2>
+<ul>
+<li><strong>132 <code>.oc</code> files</strong> under <code>ocore/</code>. Key clusters:<ul>
+<li><code>ocore/runtime/x86_64/</code> — 70+ modules (world, kernel-world boot/record/execution, m5 REPL/
+supervisor/init/selftest, m6 Linux personality/supervisor/observer, m6b live variants,
+m7 Plan 9 client + m7b logical-read, ipc, elf_loader, image_vfs, memory/vm objects, scheduler,
+svm_execution, thread/domain/namespace, personality, capability transfer, delegated resource,
+endpoints, native control/ABI, m1/m3 live stubs, smp probe, …)</li>
+<li><code>ocore/runtime/aarch64/</code> — <code>g2_kernel.oc</code>, <code>g2_user_a.oc</code>, <code>g2_user_b.oc</code> (G2 kernel, aarch64)</li>
+<li><code>ocore/kernel/</code> — m1, m2, m3, m3_live, m4, m5, m6, m6b, m7b, world_identity/value/receipt/
+protocol, kernel_world_semantics, kernel_world_execution_device_semantics, linux_personality*
+(semantics + stubs), <code>main.oc</code>, <code>scheduler_bridge.oc</code>, <code>linker.ld</code>, <code>boot.S</code>, plus <strong>30
+QEMU smoke scripts</strong> (<code>smoke-*.sh</code>: faults, ipc, ipc-foundation, kernel-world execution/live/
+device, loader, live bounded persona, personas, processes, scheduler, smp, UEFI ISO/media,
+world identity/protocol/receipt/runtime/project receipts, x86_64 boot-info, world value,
+stress-live-linux-personality, etc.) and 8 <code>build-*-artifacts.sh</code> scripts (m4, m5, m6, m6b
+live, m7 linux/plan9, m7b logical, <strong>x86_64 UEFI ISO</strong> <code>build-x86_64-uefi-iso.sh</code>, and capacity
+ISO).</li>
+<li><code>ocore/user/</code> — linux-minimal guest corpus tooling (<code>OVFS_IMAGE_V1.md</code>, <code>make_m4_elf_corpus.py</code>,
+<code>pack_ovfs.py</code>, <code>verify_ovfs.py</code>, <code>linux-minimal-oracle.json</code>, 9p2000 / m7b / linux-minimal
+test scripts, <code>static-user.ld</code>, <code>linux-minimal-user.ld</code>)</li>
+<li><code>ocore/world/</code> — <code>codec.oc,identity.oc,protocol.oc,receipt_codec.oc,receipt.oc,sha256.oc, value_codec.oc,value.oc</code> (the world value/protocol/receipt type system)</li>
+<li><code>ocore/examples/minimal.oc</code> (verified compilable via <code>ocorec --emit mir</code>)</li>
+</ul>
+</li>
+<li><strong><code>ocorec</code></strong> is the compiler (built, runs, emits AST/HIR/MIR/asm/obj for x86_64-unknown-none).</li>
+<li><strong><code>kernel.elf</code></strong> at repo root: 2.2 MB statically-linked x86-64 ELF (dated 2026-07-28 in this
+checkout — a previously-built kernel image).</li>
+<li><strong>Boot ISO, OVMF-booted, with foreign-kernel boots</strong> — evidenced in commit <code>7e6ef401</code>:<ul>
+<li>ISO: <code>target/ostadix-iso/.../ostadix-x86_64-uefi.iso</code>, 9,734,144 bytes,
+SHA-256 <code>d9578053a24237c55cbd86a2e608d834c460bd96954fea60510e655076cb0e18</code></li>
+<li>Boots verified: Alpine 1.73 s, FreeBSD 39.74 s, 9front Plan 9 19.20 s, Guix System 47.87 s,
+Redox 7.17 s (per that commit&#39;s message; lab tree at <code>target/foreign-kernel-lab-current/</code>)</li>
+</ul>
+</li>
+<li><strong>QEMU</strong> present on this machine (<code>qemu-system-x86_64</code>, <code>qemu-system-aarch64</code>) — all 30 smoke
+scripts are runnable when you choose to run them (not run in this pass; that&#39;s a longer op).</li>
+<li><strong><code>okernel-multikernel/</code></strong> and <strong><code>plan9/</code></strong> top-level dirs: present but <code>plan9/</code> was empty in
+this checkout&#39;s listing; treat <code>okernel-multikernel/</code> as the kernel-mesh experiment area
+(see <code>06-gaps-notes.md</code>).</li>
+</ul>
+<h2>5. What it is, top-level, per directory (the rest)</h2>
+<ul>
+<li><code>src/</code> + <code>crates/ostadix-api/</code> — Rust workspace. 197 <code>.rs</code> files, ~100 containing unit tests.
+Root crate exposes all 14 bins. <code>ostadix-api</code> = the &quot;independent runtime engine&quot; (v0.4.0,
+default feature <code>graph_executor</code>; see commit <code>e74cda5a</code> &quot;make ostadix-api the independent
+runtime engine&quot; and <code>e20fe0f4</code> &quot;freeze M2 execution fabric loopback&quot;).</li>
+<li><code>backends/</code> — 22 <code>*_shim.py</code> files + <code>manifest.json</code>, etc (the shim set for <code>O</code> AOT execution).</li>
+<li><code>examples/</code> — 52 top-level entries; 42 are <code>.O</code> programs + fixtures (<code>computed_plot.html</code>,
+<code>hello.html</code>, <code>t.html</code>, <code>manifest.json</code>, <code>literate_report.md</code>, <code>group_pipeline/</code>,
+<code>docker_literal/</code>, <code>plan9/</code>, <code>plan9_test.html</code>, <code>plan9.html</code>) + a bunch of single-topic demos
+(bash/js/shell/sql/nix/nixos/html/markdown/latex/quote/meta_eval/persist/lazy/instantiate/
+realise/os_as_participant/nested_splice/coordination_groups/env_split/ephemeral/semantic_
+custody/trailing_expr/bindings/script/computed_plot/literate_report/plan9_browser/nixos_test/
+nixos_test_two_machine/nix_storepath[_python]/nix_basic/nix_python_html).</li>
+<li><code>tests/</code> — 46 top-level integration <code>.rs</code> + 28 <code>.py</code> (fixtures/support). Covers: autonomous
+hosted parallel, backend morphism v1, execution fabric two-node, execution intent CLI,
+executor actors/effects/reentrancy/state-complete, hgraph ontology + schedule + proptest,
+hosted live cli/reference/supervisor transactions + remote v1/v2/recovery, independent
+runtime engine, information bridge v1, kernel world contract, o-cli intent blackbox, o-info
+cli, olink project + proptest, parser proptest, placement v6, project deployment plan, project
+hgraph exec + logical + integration, project mesh cli, project world runtime, registry v1,
+runtime adapter closure, runtime exec capacity/TOCTOU, semantic custody demo, fixtures/support.</li>
+<li><code>docs/</code> — 30 design/spec docs + <code>releases/{v0.2.0,v0.3.0}.md</code> + <code>Ostadix-lang_Technical_ Whitepaper.tex</code>. See the full list in the directory. Notable: ARCHITECTURE.md, SPEC.md,
+OIR_EXECUTION_FABRIC_V1.md, HGRAPH_EXECUTOR_PLAN.md, HOSTED_PLACEMENT_V6.md,
+KERNEL_WORLD_CONTRACT.md, PROJECT_MESH_V1.md, INFORMATION_KERNEL_V1.md,
+M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md, SEMANTIC_CUSTODY.md,
+RELEASE_CHECKLIST.md, VERSIONING.md, CI_POSTURE.md, ABSORBED_CAPACITY.md, FOREIGN_KERNEL_LAB.md,
+IMAGE_ADMISSION.md, O_MACHINE_CONTRACT.md, OSTADIX_BOOT.md, OSTADIX_WORLD.md, WORLD/PERSONALITY
+memory, ZERO_CONFIG_{LAN,INSTALLER_V2,E0382_HOTFIX,VERIFICATION}.md.</li>
+<li><code>evidence/</code> — TOML evidence files for gate checks: <code>absorbed_capacity_catalog.toml</code>,
+<code>absorbed_capacity_iso.toml</code>, <code>foreign_kernel_lab.toml</code>, <code>gates.toml</code>,
+<code>o_machine_contract_v1.toml</code>, <code>world_contract_v1.toml</code>, <code>world_contract_v2.toml</code>,
+<code>world_alpha_gates.toml</code>, plus <code>evidence/world/</code> (15 G0-era evidence+supersession TOMLs
+dated through 2026-08-17). These are the &quot;independently inspectable&quot; claims files the docs
+keep referencing.</li>
+<li><code>ci/</code> — <code>architecture-roots.toml</code>, <code>required-jobs.toml</code>, <code>test-suites.toml</code> (CI gate manifests
+used by <code>.github/workflows/ci.yml</code>).</li>
+<li><code>setup/</code> + <code>setup.sh</code> — platform setup (12 platform scripts in <code>setup/os/</code>: alpine, arch,
+debian, fedora, freebsd, gentoo, macos, nixos, opensuse, tinycore, void, windows).</li>
+<li><code>mcp/ostadix_lang_mcp_server</code> — the Ostadix MCP server (Rust, <code>rmcp</code>, tokio full; not a
+workspace member — own lockfile). Used at the top of this session (<code>o_env</code>/<code>o_doctor</code>/
+<code>o_smoke</code>/<code>o_run</code>/<code>o_olangc</code>/<code>o_information_inspect</code>/<code>o_analyze_intent</code>/<code>o_execute_intent</code>).</li>
+<li><code>tools/lsp/ostadix-lsp</code> — LSP server (Python, own <code>venv/</code>).</li>
+<li><code>fuzz/</code> — parser proptest/fuzz corpus (<code>corpus/</code>, <code>fuzz_targets/</code>, own lock) — used by
+<code>fuzz.yml</code>.</li>
+<li><code>media/</code>, <code>assets/</code>, <code>Olang_Mascot_little-o/little-o/</code> — logo + &quot;little-o&quot; mascot assets.</li>
+<li><code>Ostadix-lang_Technical_Whitepaper.pdf</code> (1.5 MB) + <code>ostadix-demo-assets/</code> — whitepaper (also a
+<code>.tex</code> in <code>docs/</code>) + demo assets.</li>
+<li><code>.ogit/receipts/</code> — one live receipt (<code>semantic-receipt-001.json</code>) from <code>ogit demo</code>.</li>
+<li><code>.modloop/</code>, <code>.ocore-repair-backups/</code>, <code>.remember/</code>, <code>.pytest_cache/</code>, <code>.opencode/</code> — local
+scratch/bookkeeping, not part of the ship.</li>
+<li><code>big_iron_to_my_texas_red.sh</code> (+ <code>.1</code>) — big-iron→Texas-red migration helper (script pair at
+root; a copy in <code>scripts/</code>).</li>
+<li><code>o_lang/</code> — <strong>Legacy Python edition</strong> of O (parser, evaluator, ovalue, cli, backends). Status:
+&quot;Reference Only&quot; per its README. Verified: <code>python3 -m o_lang examples/hello.O</code> → <code>2</code>.</li>
+<li><code>c_cpp/</code> — <strong>C17 edition</strong>. Standalone <code>cc</code>-based build (value.c, parser.c, process.c, eval.c,
+scheduler.c, nix_ops.c, nixos_ops.c, main.c, olangc.c, CMakeLists + Makefile + <code>tests/</code>,
+<code>include/</code>). Verified: clean <code>make</code> succeeds; its <code>./olangc ../examples/hello.O</code> emits a
+running native binary that prints <code>2</code>.</li>
+<li><code>Ostadix-lang/</code> (nested dir at repo root) — an <strong>older snapshot of the <em>same</em> repo</strong> (own
+<code>.git/</code>, 716 files non-target, remote = same GitHub repo, last commit there: <code>3742190a</code>
+&quot;Merge pull request #5 from lostadi/feature/semantic-unification-hosted-v2&quot;). Its README
+differs from the top-level README. <strong>Not</strong> on the current <code>master</code> build path per the
+toolchain above — treat it as a checkout you happened to leave at the root, not a dependency.
+(See <code>06-gaps-notes.md</code> for a recommendation.)</li>
+<li><code>plan9/</code> — present, <strong>empty</strong> at this moment.</li>
+<li><code>benchmarks/hgraph_hosted/</code> — HGraph hosted benchmarks, driven by
+<code>scripts/benchmark_hgraph_hosted.sh</code>.</li>
+<li><code>dev/</code>, <code>build/</code>, <code>target/</code>, <code>src/</code>, <code>sys/</code>, <code>proc/</code>, <code>root/</code>, <code>run/</code>, <code>srv/</code>, <code>mnt/</code>, <code>opt/</code>,
+<code>home/</code> — the unusual <code>sys/proc/root/run/srv/mnt/opt/home</code> dirs at the repo root look like a
+Linux-style rootfs tree someone (or some tool, possibly a Plan 9 / O-core kernel build or an
+<code>o-live-host</code> fixture) dropped at the root. Only <code>run/lock</code> was populated in the listing I
+took; the others were empty. Flagged in <code>06-gaps-notes.md</code>.</li>
+<li><code>newroot/</code>, <code>boot-and-test.sh</code>, <code>kernelsu_patched_20260820_052312.img</code> — kernel/phone-patching
+work (Kernelsu-patched image dated 2026-08-20).</li>
+<li><code>google_images.html</code> — a stray HTML file at root (search-result dump, not code).</li>
+<li><code>session-ses_fe33.md</code>, <code>ostadix-lang-info.md</code>, <code>ORIGIN.md</code>, <code>llms.txt</code>, <code>olango-c-backend.patch</code>
+(<code>olang-c-backend.patch</code>), <code>Olang_Mascot_little-o/</code>, <code>opencode.jsonc</code> (OpenCode config for this
+repo), <code>opencode.jsonc</code> — agent/project config/prose.</li>
+<li><code>Dockerfile</code>, <code>.dockerignore</code>, <code>smoke-docker.sh</code> — Docker packaging for the runtime.</li>
+<li><code>NOTICE</code>, <code>LICENSE</code> (LGPL-2.1-only), <code>CONTRIBUTING.md</code>, <code>CODE_OF_CONDUCT.md</code>, <code>SECURITY.md</code>,
+<code>CITATION.cff</code> — governance/citation files.</li>
+<li><code>CHANGELOG.md</code> — version history.</li>
+<li><code>AGENTS.md</code> — the agent instruction file that is injected into every session on this repo
+(the one at the top of this conversation).</li>
+<li><code>rust-toolchain.toml</code> — pins the Rust toolchain for the workspace.</li>
+</ul>
+<hr>
+<h2>6. How to re-verify this inventory in one shot</h2>
+<pre><code class="language-bash">cd /Users/ustad/Ostadix-lang
+export O_LANG_ROOT=$PWD O_BACKENDS_DIR=$PWD/backends \
+       PATH=&quot;$HOME/.local/bin:$PWD/target/release:$PATH&quot;
+
+# 1. Smoke (expect `[number] 2`)
+O examples/hello.O backends
+
+# 2. Full example suite (expect 39 pass / 0 fail / 5 skip)
+bash test_o_lang_examples.sh
+
+# 3. Native AOT (Rust runtime, expect `2`)
+olangc examples/hello.O -o /tmp/oo --shim-dir backends &amp;&amp; /tmp/oo
+
+# 4. Legacy Python AOT, expect `2`
+python3 -m o_lang examples/hello.O
+
+# 5. C17 AOT, expect `2`
+cd c_cpp &amp;&amp; make -s -j4 O olangc &amp;&amp; \
+    olangc ../examples/hello.O -o /tmp/oc &amp;&amp; /tmp/oc; cd -
+
+# 6. O-core MIR
+ocorec ocore/examples/minimal.oc --emit mir
+</code></pre>
+<hr>
+<h2>7. Gaps &amp; notes (what I did <em>not</em> claim)</h2>
+<ul>
+<li><code>mathematica</code> backend = <em>missing</em> (<code>wolframscript</code> not on PATH). 29 of 30 backends are located.</li>
+<li><code>o-notebook</code> is not in <code>target/release/</code> (needs <code>--features notebook</code>).</li>
+<li><code>ocore-kernel-world-record</code> bin is declared in <code>Cargo.toml</code> but not in the current release
+dir — needs a rebuild to appear, or it&#39;s built by a different feature I didn&#39;t enable here.
+I did <strong>not</strong> claim it runs; I only listed it.</li>
+<li><code>--target wasm</code> AOT fails on this Mac until <code>rustup target add wasm32-wasip1</code> is run.</li>
+<li>The 30 O-core QEMU smokes are <em>present</em> and QEMU is <em>installed</em>, but I did not re-run all of
+them this pass (each is a multi-second boot). I ran <code>ocorec</code> on one file instead. The most
+recent full OVMF boot set is the one captured in commit <code>7e6ef401</code> (ISO + Alpine/FreeBSD/
+Guix/9front/Redox timings).</li>
+<li>The nested <code>Ostadix-lang/</code> checkout and the rootfs-looking <code>sys/</code>, <code>proc/</code>, <code>root/</code>, etc.
+directories are real but not on the current <code>master</code> build path — treat as leftovers/scratch
+unless you say otherwise.</li>
+<li><code>plan9/</code> at the root was empty in this snapshot.</li>
+<li>I did not run <code>cargo test</code> here (policy: don&#39;t <code>cargo</code> in the live tree while Lee is
+developing — use Multipass <code>moral-gaur</code>). If you want a full <code>cargo test --lib</code> + the G0
+conformance gates, say the word and I&#39;ll do it on the VM and paste the report.</li>
+</ul>

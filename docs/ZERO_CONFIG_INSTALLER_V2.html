@@ -1,0 +1,28 @@
+<h1>Zero-configuration installer v2</h1>
+<p>The first source overlay exposed two integration defects that were not caught by
+source-only dispatch tests.</p>
+<ol>
+<li>The overlay copied files with archive timestamps. Cargo could therefore keep
+an older fingerprinted executable even though the source tree now contained
+the zero-configuration commands. A deleted top-level binary could be restored
+from an older dependency artifact without recompiling the modified source.</li>
+<li>The installed wrapper attempted to distinguish <code>O</code> from <code>o</code> through the case
+of <code>$0</code>. On case-insensitive filesystems and through shell command caches, that
+spelling is not a stable semantic channel.</li>
+</ol>
+<p>Installer v2 changes the contract as follows:</p>
+<ul>
+<li>overlay targets receive a current modification time;</li>
+<li>the affected checkout is cleaned before its first post-overlay build;</li>
+<li><code>o-node --help</code>, <code>octl node --help</code>, the repository dispatcher, and the
+installed dispatcher are checked after compilation;</li>
+<li>the lowercase wrapper never branches on <code>$0</code> case;</li>
+<li>on case-insensitive filesystems both <code>O</code> and <code>o</code> pass through the dispatcher,
+whose fallback still invokes the native evaluator;</li>
+<li><code>ostadix-evaluator</code> remains the unambiguous raw evaluator entry point;</li>
+<li>broad accidental mode changes are restored from the Git index without
+reverting file contents.</li>
+</ul>
+<p>The installer aborts rather than printing success when any runtime surface is
+still stale. A clean Rust build remains a host-side verification gate and is not
+claimed until the installer completes it on a machine with Cargo.</p>

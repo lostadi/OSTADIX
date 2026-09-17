@@ -1,0 +1,543 @@
+<h1>State-complete HGraph executor</h1>
+<p>The Rust hosted runtime executes OIR through a directed HGraph. The graph
+coordinator is the default; <code>O_EXECUTOR=serial</code> selects the reference OIR
+executor used by the differential conformance suite.</p>
+<pre><code class="language-text">.O -&gt; OIR -&gt; validated ExecutionPlan -&gt; draft HGraph -&gt; type/fidelity solve
+   -&gt; EvidenceBundleV6 -&gt; admission compiler -&gt; AdmittedExecutionV6
+   -&gt; Coordinator
+</code></pre>
+<h2>Evidence-bound ordinary OIR admission</h2>
+<p>The ordinary OIR coordinator no longer accepts an arbitrary HGraph.
+<code>Coordinator::new</code> accepts only <code>AdmittedExecution</code>, whose fields and
+constructor are private to the digest-checking admission path. The evaluator
+also compiles this admission when <code>O_EXECUTOR=serial</code> selects the differential
+oracle, so changing the executor does not bypass pre-execution checking.</p>
+<p><code>EvidenceBundleV6</code> is the current pre-execution certificate bundle. For each executable
+operation it records type, effect-footprint, dispatch, capability-policy,
+placement, failure-policy, and resource-demand contracts, plus a separate soft
+cost estimate, the complete typed <code>FidelityAssessmentV2</code>, and the provenance of
+every fact. Only enforced,
+compiler-verified, or trusted-adapter evidence can establish a closed effect
+footprint. A user declaration can add conservative constraints but cannot
+erase unknown hosted effects. Historical observations and costs can inform a
+future ordering policy; they do not change which schedules are legal.
+Before issuing that bundle, the analyzer validates registered backend identity
+and special-invocation name/mode/arity, so digest consistency cannot admit
+forged execution metadata.</p>
+<p>The bundle binds canonical lowered OIR, the validated plan, the solved analyzed
+graph, analyzer identity, the canonical backend-catalog specifications
+referenced by the plan, consumed legacy Python shim artifacts, the current
+direct-executable manifest, execution environment, and a descriptive ambient
+<code>HostWorld</code> snapshot. Execution selects plan-used direct launchers once,
+preserves absolute invocation paths, opens and hashes each canonical target
+once, records Unix identity, and retains the handles through dispatch. The current O
+proxy and macOS sandbox wrapper are included when consumed. On non-Unix hosts,
+an immediate canonical-target content rehash preserves backend capacity under a
+weaker portable guarantee. Inspection remains
+non-probing and reports no runtime readiness. The catalog projection establishes
+specification identity only; it does not establish health, authorization,
+capacity, or readiness. The bundle deliberately labels the
+first digest <code>lowered-oir-sha256</code>: evaluator APIs can receive an existing
+<code>OIrProgram</code>, so V6 does not claim an original source-byte digest. Admission
+rejects mismatched bindings, attaches seven pre-materialized
+<code>AdmissionEvidence</code> nodes to every executable edge, validates the resulting
+graph, and freezes it. Immediately before running, both the coordinator and
+serial oracle recompute and check the runtime binding; both recheck again before
+opaque/deferred operations.</p>
+<p>The backend artifact binding distinguishes hashed files, missing paths,
+non-regular paths, and unreadable paths. Direct launch uses only manifest paths,
+never a later <code>PATH</code> candidate, and rechecks retained-handle plus canonical-path
+identity immediately before spawn. A persistent actor is restarted when its
+backend launch generation changes; that digest binds its backend-scoped
+executable set, matching legacy shim artifacts, and plan-independent child
+launch context without coupling actor lifetime to unrelated backends. These
+checks detect replacement and in-place drift but do not make bytes immutable.
+On Linux, the ELF O backend proxy uses the retained open object when procfs
+makes that compatible; otherwise it falls back to a freshly revalidated path.
+The admitted <code>argv[0]</code> is preserved. Scripts and foreign launchers remain
+path-executed so shebang, multicall, self-location, dynamic-loader, and
+toolchain behavior are not narrowed, leaving their final same-principal
+verification-to-exec micro-window. macOS has no general public handle-exec
+primitive. The direct-launcher manifest excludes shebang interpreters,
+compiler-driver subtools, dynamic libraries, hosted descendants, and the
+separate Request/project admission authorities. Consumed legacy Python support
+files and adapter-owned tools are bound without restricting user-created
+subprocesses. A Nix command lease is captured only when an uncached Nix Request
+is actually performed and is shared only by Nix members; lazy, cached, and
+independent non-Nix members remain executable without Nix. V6 also does not
+bind caller initial-scope shape/values, a frozen child environment, opaque
+state/generation inside an already-live actor, or a placement lease.
+In current V6 admission, actor identity is only a serialization identity; all
+persistent hosted work remains unknown, coordinator-lane, and conservatively
+attached to <code>HostWorld</code>.</p>
+<p>Graph V1, <code>EvidenceBundleV5</code>, and <code>AdmittedExecutionV5</code> remain explicit
+archival inspection APIs. They are not converted or relabeled, and neither the
+coordinator nor evaluator accepts them as current execution authority.</p>
+<p><code>olangc FILE --target ir --explain-schedule</code> exercises this solve, analysis,
+and admission path without dispatch. It prints exact digest bindings,
+per-operation provenance, blockers, retained source-sequence reasons, and
+static legal waves. Its admission report identifies the runtime snapshot as
+<code>inspection-only</code>; it is not interchangeable with the evaluator&#39;s execution
+snapshot. The inspection surface is ordinary-OIR-only in current V6.</p>
+<p><code>olangc FILE.O --target ir --why P3</code> projects the same evidence-bound admission
+onto one plan operation and its immediate dependency neighborhood; repository
+command <code>o why FILE.O P3</code> is a thin route to that compiler surface and performs
+no scheduler parsing. <code>--why</code> is mutually exclusive with
+<code>--explain-schedule</code>. The result is inspection-only and nonexecuting: static
+waves/layers are not runtime batches, and the query observes no readiness,
+timing, worker identity, or overlap. Its source origin is a descriptive sidecar
+for the exact parsed input, outside OIR, plan, evidence, and admission digests;
+it neither authorizes execution nor promises stable identity or incremental
+invalidation across edits.</p>
+<p>This admission is distinct from an observation or receipt. <code>RuntimeGraphV1</code>
+and <code>ExecutionReceiptV1</code> describe completed execution and carry no scheduling
+authority; a prior receipt cannot authorize a new run. Project HGraphs and the
+buffered Request scheduler also remain separate execution islands under the
+current V6 admission contract.</p>
+<p>Project inputs have a distinct logical-planning and hosted execution
+surface:</p>
+<pre><code class="language-text">ProjectBundle -&gt; shared ResolvedSelection -&gt; ProjectExecutionPlan
+              -&gt; ProjectHGraph -&gt; ReadySchedule -&gt; ProjectCoordinator
+              -&gt; OExecutionResult + ProjectAttemptTrace
+
+ProjectHGraph -&gt; LogicalHGraphV1 -&gt; DeploymentPlanV1(hosted-unbound)
+                                  -&gt; ProjectAttemptTrace v7 header binding
+
+LogicalHGraphV1 + PlacementSnapshotV1 + DeploymentPlanV1(snapshot-derived)
+  -&gt; HostedWorldLaunchV1 + HostedWorldCurrentV1
+     (coordinator observer + distinct coordinator attempt + operation attempts)
+  -&gt; ProjectCoordinator::new_world_bound (all fences before workspace/child)
+  -&gt; ProjectAttemptTrace -&gt; causal replay -&gt; terminal RuntimeGraphV1
+  -&gt; caller-signed OWRECEIPT v1 (ReceiptCommitFenceV1::Uncommitted)
+  -&gt; Mode 32 native canonical/semantic comparison
+</code></pre>
+<p>Routes are not synthesized as fake OIR. The project planner binds its source to
+the exact deterministic bundle digest and normalized route policy, constructs
+one logical materialization branch per selected alternative, recursively
+places prerequisite routes inside that branch, and then projects real project
+operation kinds. Its project-specific validator reconstructs the canonical
+source plan and checks the exact operations, dependencies, effects, values, and
+graph projection. This closes a provenance gap that generic HGraph
+well-formedness and the intentionally OIR-only <code>source_plan</code> field cannot close.</p>
+<p><code>olangc &lt;project&gt; --target ir|dot</code> remains inspection only and uses the selected
+execution contract when computing graph identity. Default project execution
+uses <code>ProjectCoordinator</code> with a canonical <code>LegacyCompatibility</code> contract;
+<code>O_PROJECT_EXECUTOR=hgraph</code> selects the existing strict contract, and <code>legacy</code>
+explicitly selects the previous runtime. No graph failure triggers fallback.</p>
+<p>All ten policies execute through the graph. Explicit/default and ordered
+fallback/any-success preserve their ordering; <code>all</code> retains sequential legacy
+behavior. Race, equivalence, and benchmark policies launch graph-ready route
+workers concurrently, each branch owning its isolated workspace. Prerequisites
+and explicit shared resources remain graph dependencies. For these expressly
+parallel policies, <code>ConcurrentProjectBranch</code> retains unknown ambient effects
+but permits them to overlap across branches, with a shared HostWorld lease so
+explicit ambient exclusivity still fences access. <code>ProjectBranchPath</code> names
+paths in physically separate workspaces. These keys confer no governed World
+authority, host isolation, or strict effect-equivalence guarantee. Placement
+and grounding still classify the branch marker as residual ambient host access;
+a provider that denies that access remains incompatible.</p>
+<p>The logical source freezes <code>ProjectSchedulingContract</code>. New parallel plans
+explicitly encode <code>concurrent_branches_v1</code>; absence means the archived
+<code>serial_host_world_v1</code> graph, including its original global HostWorld/path
+chains and digest. Both reconstruct against the trusted bundle. The concurrent
+version is invalid for nonparallel policies. The continuation contract is
+independent: omitting its Strict default preserves earlier bytes only when the
+scheduling version is also unchanged.</p>
+<p>One coordinator owns publication. Race cancellation is triggered by the first
+qualifying branch settlement, including prerequisite/infrastructure failure
+for race-settle. Started workers are drained before final selection; typed
+cancellation is recorded as an aborted route with its causal terminal ordinal.
+Results and real branch errors that settle before cancellation takes effect
+retain declaration-order tie behavior. The cancellation cause remains the
+first observed qualifying event even when a different branch wins that tie. Equivalence and validated selection reuse the existing comparison
+algorithms and reference order. Validated selection preserves both terminal
+process time and complete branch time, its receipt, and progress events.
+Candidate-start callbacks complete before measurement begins. Candidate-finish
+callbacks use a separate delivery worker and are flushed before validation;
+route workers supply the actual completion instant, so callback and delivery
+queue delays do not enter the branch measurement. No observer worker is
+created when no observer is supplied.</p>
+<p>The normative World-v3 constitution and Hosted World profile are byte-sealed
+by the append-only G0 evidence ledger. Their older repository-status paragraphs
+are not rewritten by this hosted executor patch; changing those bytes requires
+a separate constitution-source refresh, a new schema-v3 G0 attestation, and an
+explicit supersession event. Nothing here claims G1.</p>
+<h2>Deployment intention boundary</h2>
+<p>World PR8-2 adds <code>DeploymentPlanV1</code> as a canonical intention record bound to
+the exact <code>LogicalHGraphV1</code> digest, including the continuation contract. All
+current route policies have hosted bindings: <code>BuildRoute</code>, <code>SelectRoute</code>, and
+<code>CompareRouteResults</code> are <code>HostedCoordinator</code>; materialization and route
+commands are <code>AmbientHost</code>. The hosted-unbound form carries no World, task,
+node, domain, process, provider, or placement identity. Parallel policy markers
+retain residual ambient host truth and do not acquire a provider assignment.</p>
+<p>The active requirements derived from the logical graph are the exact project
+bundle, bundle-scoped role/path declarations, runtime classes,
+executable/evaluator facts, platform and ambient-environment guards, explicit
+authority absence, and residual <code>HostWorld</code> admission. Bundle-provided
+environment-overlay key names are recorded separately from ambient environment
+requirements. Architecture, package, and failure-domain fields are canonical
+schema vocabulary, but the current project logical profile leaves them
+unconstrained or empty.</p>
+<p>The separate <code>from_snapshot_single_provider</code> constructor requires a
+caller-supplied exact World-epoch <code>PlacementSnapshotV1</code> and one caller-supplied
+exact <code>TaskIdentity</code> for each logical operation. It deterministically emits a
+<code>ProposedProvider</code> or <code>Unresolved</code> result from those descriptive facts. This is
+not current or authenticated inventory, Governor admission, authority,
+dispatch, reservation, provider health, or execution. <code>require_current_world</code>
+checks only World identity/epoch. The ordinary configured executor continues to use
+the hosted-unbound plan, but the separate hosted-reference World entry point
+does consume the exact snapshot-derived plan. <code>HostedWorldLaunchV1</code> binds the
+logical, deployment, snapshot, World, descriptive Governor position, selected
+provider, receipt identity, caller-supplied coordinator observer, dedicated
+coordinator attempt, and one exact task attempt per logical operation. The
+coordinator attempt must use a task distinct from every operation attempt.
+<code>HostedWorldCurrentV1</code> fences the World/Governor generations, observer
+node/domain/optional-process generations, coordinator attempt, provider
+node/domain/optional-process/service generations and implementation digest, and
+every operation attempt before <code>ProjectCoordinator</code> derives its schedule,
+materializes a workspace, or starts a child. This is a caller-supplied
+current-view comparison, not authenticated membership, proof that the host owns
+the observer identity, or Governor admission.</p>
+<p>After coordinator completion or an observable coordinator failure,
+<code>RuntimeGraphV1</code> canonically binds the logical/deployment/launch/snapshot
+schemas and digests, exact World/observer/coordinator-attempt/provider and
+per-operation task-attempt context, normalized trace event ordinals and
+outcomes, and each operation&#39;s residual <code>HostWorld</code> truth. Construction first
+runs plan-aware causal replay against the trusted HGraph and exact deployment.
+Never-started operations retain empty observations. The neutral
+<code>RouteSettlement</code> terminal represents successful, nonzero, or guard-skipped
+route settlement; it is not synonymous with successful execution. Its residual
+<code>HostWorld</code> bit is aggregated across all actually observed started or terminal
+operations. The graph is terminal hosted-reference evidence, not mutable live
+state, authority, a recovery plan, or a commit decision.</p>
+<p><code>execute_world_project_with_receipt</code> then uses a caller-supplied Ed25519 signer
+to emit canonical <code>OWRECEIPT</code> v1 with
+<code>ReceiptCommitFenceV1::Uncommitted</code>. The receipt placement is the coordinator
+observer and its attempt is the dedicated coordinator attempt, not the proposed
+provider or a per-operation attempt. The receipt subject binds the bundle and
+logical graph while leaving package absent; the provider implementation is not
+overloaded into that field. Route success maps to receipt success, while
+nonzero and guard-skipped settlements map to receipt failure. Signing protects
+integrity but does not turn the descriptive Governor/provider context into
+admission, authority, or a governed commit.</p>
+<p>Mode 32 accepts that emitted receipt as canonical lowercase hex, performs full
+native canonical decode, exact re-encoding, validated signing-preimage
+construction, requires the uncommitted fence, and compares the
+domain-separated SHA-256 of the complete unsigned canonical body with the
+hosted value. It also reuses successful validation scratch with a malformed
+envelope and requires stale terminal/commit tags to be cleared. The first
+command is the required no-argument end-to-end wrapper; the second is the
+direct two-argument vector interface:</p>
+<pre><code class="language-bash">./ocore/kernel/smoke-world-project-runtime-qemu.sh
+./ocore/kernel/smoke-world-project-receipt-qemu.sh RECEIPT_HEX_FILE EXPECTED_SEMANTIC_SHA256
+</code></pre>
+<p>This is no Governor admission/commit, capability grant, lease, reservation,
+remote dispatch, recovery, or exactly-once protocol. Mode 32 does not execute a
+project or verify Ed25519 natively. QEMU TCG is not physical-hardware evidence,
+and this slice passes neither G1 nor Workstream A acceptance. G1 remains defined
+and unpassed.</p>
+<p>Project dependencies distinguish <code>Value(pN)</code> from <code>Success(pN)</code>. A settled
+nonzero route publishes its ordinary result and conservative resource
+successors, but not its successful-completion token. This lets selection inspect
+a terminal unsuccessful result while preventing a failed prerequisite from
+activating its dependent route. Guard skips preserve the compatibility
+runtime&#39;s successful progression semantics. Infrastructure aborts publish no
+route result, completion, or resource successor.</p>
+<h2>Implemented operation shape</h2>
+<pre><code class="language-text">ordinary child/data values ----\
+completion dependencies --------&gt; [ Execute(plan node) ] -&gt; ordinary OValue
+resource/actor state ----------/                         -&gt; Completion(plan node)
+admission evidence -----------/                          -&gt; written state successors
+</code></pre>
+<p>Every executable hyperedge has one distinguished ordinary result and one
+successful-completion output. Resource/control outputs are synthetic scheduling
+values and carry no <code>OValue</code>. Every output has exactly one producer. Admission
+evidence is producer-free, materialized before execution, and attached as a
+literal readiness input rather than consulted as detached metadata.</p>
+<p>Resource access has two different shapes:</p>
+<pre><code class="language-text">Read:  latest writer R@n -----------------&gt; Execute(Read) -&gt; Completion(reader)
+Write: latest writer R@n + reader completions -&gt; Execute(Write) -&gt; R@n+1
+</code></pre>
+<p>A read does not emit a successor resource version. Its completion joins the
+open-reader frontier. The next writer drains that complete frontier before it
+can advance the resource once.</p>
+<h2>Effect and state model</h2>
+<p><code>crates/ostadix-api/src/effects.rs</code> derives summaries before executable edges are built. The
+currently modeled resource keys are:</p>
+<ul>
+<li><code>HostWorld</code></li>
+<li>evaluator-local state</li>
+<li>O scope bindings</li>
+<li>project-relative paths</li>
+<li>host paths</li>
+<li>environment variables</li>
+<li>standard I/O</li>
+<li>exact or unknown network endpoints</li>
+<li>named services</li>
+<li>persistent actor state keyed by canonical language and environment number</li>
+<li>exact governed World/namespace epochs and descriptive Governor positions</li>
+<li>exact node, domain, and process generations</li>
+<li>owner-scoped generic resource, device, and accelerator generations</li>
+<li>object versions, descriptive capability identities, task attempts, and
+artifact publication state</li>
+</ul>
+<p>Unknown hosted operations report reads and writes of <code>HostWorld</code> and
+evaluator-local state. Ordinary unknown access is lowered as exclusive. The
+narrow exception is a direct, attribute-free ephemeral member of a group whose
+effective source policy is explicitly <code>autonomous</code>: its open, unknown evidence
+remains visible, but <code>explicit-autonomous-unordered</code> semantics permit those
+implicit state ports to be omitted. This allows already-started members to race
+external effects and provides no rollback guarantee. A precise
+host access additionally holds a shared <code>HostWorld</code> read lease: this prevents
+overlap with ambient unknown work without serializing two disjoint precise host
+resources merely because both are host-visible. A persistent shim also consumes
+and produces its actor-state token. The live process registry does not expose a
+trustworthy generation, so actor resource identity does not invent a constant
+generation field.</p>
+<p>After scheduler-visible alias expansion, lowering maintains one frontier per
+resource: the most recent writer state and every reader completion since that
+writer. Reads consume the writer state and join the frontier without changing
+the version. A write consumes that state plus all open-reader completions,
+emits the next version, and clears the frontier. This admits read/read sharing,
+preserves read/write and write/write exclusion, and prevents aliases from
+bypassing the dependency.</p>
+<p>Governed resource keys do not alias <code>HostWorld</code>: they are vocabulary intended
+for a future trusted World/O-core lowering. Device and accelerator views do
+also expand to the canonical generic governed-resource key so the same resource
+cannot bypass a dependency through a different typed view. A key by itself is
+not proof of mediation or authority, and <code>CapabilityState</code> is descriptive
+identity rather than a grant. Source <code>reads=</code> and <code>writes=</code> declarations cannot
+construct these keys, no production lowering emits them yet, and today&#39;s
+arbitrary hosted backends keep their conservative <code>HostWorld</code> dependency.
+<code>olangc file.O --target ir --grounding</code> renders the distinction,
+capability-right requirements, actor and
+capsule affinity information, and any residual ambient dependency. Optional
+<code>--world-id NAME --world-epoch N</code> binds that inspection report to an exact
+caller-supplied epoch; it does not consult a live snapshot, enforce freshness,
+perform placement, or execute the plan.</p>
+<p>Effect attributes are checked constraints. <code>effects=unknown</code> can downgrade a
+verified renderer. <code>effects=pure</code> cannot upgrade an arbitrary shim. <code>reads=</code>,
+<code>writes=</code>, and <code>serial=host</code> add dependencies without removing unknown
+fallbacks. Backend authority remains a permission model and is not treated as
+an exact footprint.</p>
+<h2>Sequence and group control</h2>
+<p>Ordinary source sequence is implemented by adding the earlier operation&#39;s
+completion token to the later operation&#39;s executable inputs. Sequence is
+relaxed only in these cases:</p>
+<ol>
+<li>Both operations are direct members of the same explicit <code>batch</code>, <code>all</code>,
+<code>any</code>, or <code>race</code> group.</li>
+<li>Both operations are compiler-verified, read-only O-level <code>Load</code> operations
+outside a structural left-to-right <code>O</code> region.</li>
+<li>Both operations are verified, deterministic, infallible, resource-free
+inline renderers from the trusted <code>html</code>, <code>markdown</code>, <code>text</code>, and <code>latex</code>
+set; both complete structural subtrees contain only literal text and
+recursively trusted renderers; and neither operation is a child of a
+structural <code>O</code> sequencing region.</li>
+</ol>
+<p>Outside explicit group semantics, any unknown fact retains the completion
+dependency. Group topology does not normally override resource conflicts. Only
+the explicitly autonomous ephemeral contract above omits its implicit
+<code>HostWorld</code>/evaluator frontier, and that is a semantic opt-in rather than proof
+of independent effects.</p>
+<h2>Scheduling and failure</h2>
+<p><code>ReadySchedule</code> builds a producer map over every ordinary and synthetic output.
+An operation&#39;s blockers are exactly the producers of its input nodes. There is
+no separately maintained actor or effect blocker in the final scheduler. The
+one explicit exception to conjunctive input readiness is recorded in
+<code>ReadyOp::input_policy</code>: <code>SelectRoute(fallback|any_success)</code> derives
+<code>OrderedFirstSuccess</code>. Its ordered inputs are alternative results, so the
+operation can settle after the first successful prefix member or after all
+members settle unsuccessfully. Every other operation derives <code>All</code>; the
+project coordinator rejects a policy/operation mismatch rather than silently
+bypassing readiness.</p>
+<p>The ordinary OIR coordinator owns the mutable evaluator and process registry.
+It can be constructed only from an <code>AdmittedExecution</code>. Its <code>LocalWorker</code> lane
+admits compiler-verified O-scope <code>Load</code> operations; attribute-free trusted
+<code>html</code>, <code>markdown</code>, <code>text</code>, and <code>latex</code> inline renderers whose bodies contain
+only literal text, already-settled Store children, and recursively trusted
+renderers; and the explicit non-strict hosted contract described above. On the
+coordinator thread, preparation freezes the relevant scope or already-
+materialized splice inputs into immutable owned <code>PreparedTask</code> envelopes.
+Evidence schema V6 binds each
+operation to exactly one adapter ID: <code>o-scope-load/v1</code>,
+<code>trusted-inline-renderer/v1</code>, <code>autonomous-ephemeral-shim/v1</code>, or
+<code>coordinator/v1</code>. Dispatch evidence also records <code>strict-equivalent</code> or
+<code>explicit-autonomous-unordered</code> semantics. Runtime preparation validates
+that exact adapter against the admitted OIR; it cannot choose a different
+adapter as a second scheduling authority.</p>
+<p>For each graph execution containing local-worker operations, the coordinator
+creates one fixed-size pool and reuses its threads across changing readiness
+frontiers. Without an explicit override, capacity is
+<code>min(available_parallelism, admitted_max_local_worker_wave_width).max(1)</code>;
+if the host query fails, <code>available_parallelism</code> falls back to one. An explicit
+override replaces the derived value and is not clamped to either the reported
+host count or the admitted width. A graph with no admitted local-worker
+operations creates no pool, even though the shared count resolver has a minimum
+result of one. The admitted quantity counts only local-worker operations in
+each static Kahn wave. It is a sizing heuristic and not evidence-backed CPU or
+memory admission or a bound on the completion-driven dynamic frontier. Each
+physical completion is delivered independently.
+The coordinator buffers the provisional outcome, settles every now-eligible
+semantic prefix result, recomputes readiness, and may submit newly exposed
+worker work while an unrelated prior task is still running. A reported static
+wave is therefore not a pool batch, capacity promise, or observed completion
+order. Coordinator-owned work remains single-owner and this bounded
+implementation waits for the local pool to become idle before executing it.</p>
+<p>A successful worker whose hard contract is both compiler-verified pure and
+infallible may publish its value and HGraph outputs provisionally before its
+deterministic trace frontier. This lets an infallible worker-only dependent
+pipeline advance behind an unrelated slow operation. If an earlier semantic or
+infrastructure failure wins, the coordinator removes every such output, clears
+the frame value, and records the provisionally published operation as
+discarded. <code>NodeFinished</code> remains the durable-settlement event, so a
+provisionally unlocked dependent may start before its producer&#39;s
+<code>NodeFinished</code>; the admission explanation makes that trace ordering explicit.
+Fallible outcomes never use this early-publication path.</p>
+<p>Same-binding loads share the latest writer frontier and demonstrably execute at
+the same time in the local pool. Loads are pure but fallible. The coordinator
+uses serial topological rank rather than preorder plan identity, and admits a
+fallible task only while it extends the contiguous unfinished semantic prefix.
+Physical completions may arrive in any order, but outcomes remain provisional
+until the semantic frontier reaches them. Successful outcomes before the first
+failure are materialized; the selected failure is reported; every later started
+outcome is drained, recorded as discarded, and publishes no graph outputs.
+Infallible effect-free workers may be dispatched outside the prefix. This
+preserves deterministic strict fail-stop selection without requiring adjacent
+pure reads to execute serially. Errors returned by admitted fallible adapters
+remain semantic outcomes; an error from an admitted-infallible adapter is an
+infrastructure contract violation. A broken pool mechanism is likewise an
+infrastructure abort: the coordinator stops dispatch, drains every started task
+to one terminal trace event, and does not disguise the failure as <code>NodeFailed</code>.
+An unwind-capable build gives a caught worker panic the same treatment. The
+release profile uses <code>panic = &quot;abort&quot;</code>, so
+a release worker panic terminates the process before in-process recovery or
+terminal trace completion; V6 does not claim otherwise.</p>
+<p>After each accepted success, the coordinator materializes the value,
+completion, and written successor-state outputs. On a selected failure, it emits
+none of that operation&#39;s outputs and admits no later dependent operation. Root
+values and scope writes commit in deterministic source order, but commit order
+is not used to justify early external effects. Ordinary hosted reads and all
+persistent language environments remain coordinator-owned. Before an admitted
+autonomous hosted task is submitted, the coordinator revalidates runtime
+artifacts, resolves live backend authority, and freezes the sandbox policy into
+the task.</p>
+<p>The separate hosted <code>ProjectCoordinator</code> uses stable launch rank for dispatch
+and one coordinator for publication; expressly parallel policies launch ready
+route workers concurrently. For ordered
+first-success policies it prioritizes the now-ready <code>SelectRoute</code> choice over
+later potential branches; those later operations never receive <code>Ready</code> or
+<code>Started</code> attempt events. When the terminal alternative settles unsuccessfully,
+under the strict contract continuation is admitted only when every route child
+was guard-skipped or every executed route in that branch, including successful prerequisites, carries the bundle-bound
+<code>failure_continuation = &quot;declared_idempotent&quot;</code> contract. The field defaults to
+<code>unproven</code>, which stops before the next branch under the strict contract. The
+default compatibility contract instead records <code>LegacyUnchecked</code> and admits
+legacy continuation; trusted-plan replay rejects that evidence under strict
+execution. Strict canonical JSON omits the default continuation field; the
+separate scheduling contract preserves archival graph reconstruction. An infrastructure abort also
+stops because it publishes no alternative result or resource successor. A
+nonzero prerequisite also hard-stops: this slice does not synthesize a
+branch-terminal result or continuation decision from a failed prerequisite,
+regardless of its declared contract. Its terminal route states are
+<code>SettledSuccess</code>, <code>SettledFailure</code>, <code>Skipped</code>, and <code>Aborted</code>; non-route
+operations use <code>Finished</code>. Recording the terminal event, storing the operation
+value, and publishing the settlement-appropriate outputs is the coordinator&#39;s
+local linearization point. The idempotency contract is an author declaration,
+not a verified sandbox, effect log, fence, compensation protocol, or proof of
+exactly-once external effects. Strict admission remains available through the
+explicit HGraph setting; default compatibility execution records unchecked
+continuation rather than asserting idempotence.
+Project-bundle format v2 carries the continuation contract. Legacy v1 bundles
+migrate only when all routes omit that field and then default to <code>unproven</code>;
+v1 documents carrying the v2 field and mislabeled serializer inputs are
+rejected.</p>
+<h2>Validation and observability</h2>
+<p>Graph validation checks node roles, port direction, one producer per output,
+exact value/completion shape, access-mode-specific resource inputs and outputs,
+resource version monotonicity, complete reader drains, completion-backed
+preserved sequence, and executable acyclicity. Admission validation additionally
+requires exactly one materialized token of each evidence-fact kind per
+operation. <code>olangc --target dot</code> renders the solved draft graph&#39;s ordinary,
+resource, actor, completion/control, executable, and constraint nodes with
+distinct styles and directed ports. The separate
+<code>--target ir --explain-schedule</code> surface compiles admission and reports its
+evidence inputs and digest bindings without execution. It also emits an
+advisory <code>ScheduleRealizability</code> marker under schema
+<code>oexec.realizability/v1</code>. <code>admitted-static-max-wave-width</code> counts all operations
+in the widest admitted static Kahn wave; <code>admitted-max-local-worker-wave-width</code>
+counts only its <code>LocalWorker</code> subset and drives default pool sizing.
+<code>worker-count-covers-static-wave</code> is <code>not-applicable</code> when the latter width is
+zero, <code>yes</code> when <code>selected-workers</code> covers it, and <code>no</code> otherwise. The marker
+also distinguishes <code>machine-default</code> from an unclamped <code>cli-override</code>; a failed
+host parallelism query is displayed as the conservative fallback <code>1</code>. This
+marker is intentionally outside the admission digest and states
+<code>execution-realizable=unknown</code>, runtime availability unknown, no placement
+lease, and no dispatch or overlap observed. Even a <code>yes</code> coverage value proves
+no simultaneous dispatch, CPU/memory fit, runtime readiness, placement, or
+dynamic-frontier bound.</p>
+<p><code>ProjectAttemptTrace</code> version 7 binds events to the project name, bundle digest,
+target, policy, canonical <code>LogicalHGraphV1</code> schema/digest, exact canonical
+deployment schema/digest, and an execution-attempt identifier. The ordinary
+path binds the hosted-unbound plan and uses a fresh diagnostic identifier. The
+World-bound path binds the exact snapshot-derived plan and uses the launch&#39;s
+dedicated coordinator attempt identity, which is distinct from every logical
+operation attempt and remains descriptive and non-authorizing.
+For an unsuccessful ordered branch it also records the proposed next route,
+the assessed route prefix, the <code>no_execution</code>, <code>declared_idempotent</code>, or
+<code>unproven_effects</code> evidence class, and the allow/deny result.
+<code>--project-trace-out PATH</code> stores the unsigned JSON diagnostic when HGraph mode
+is selected, including a denied decision before the command reports no
+successful route. Structural replay alone checks only event-local lifecycle
+invariants. Plan-aware replay against a trusted <code>ProjectHGraph</code> additionally
+checks all header bindings, reconstructs the ordinary hosted-unbound deployment
+artifact or compares the explicitly supplied snapshot-derived artifact, rejects
+substitution, checks exact operation identities,
+requires the decision on the correct terminal alternative, requires complete
+causally ordered lifecycle coverage for every transitive route prerequisite,
+recomputes its evidence from <code>RoutePlanFacts</code>, checks the exact next alternative,
+and rejects later-branch events after denial. Every complete
+coordinator-produced trace passes that semantic replay before it is returned.
+The trace itself remains unsigned and is not an OWRECEIPT or attestation; only
+the separate terminal RuntimeGraph/receipt adapter emits the signed,
+uncommitted receipt described above.</p>
+<p>The integration suite runs graph and serial execution in isolated working
+directories and compares exit status, stdout, normalized stderr, final values,
+persistent Python and SQL state, environment mutation/read behavior, and full
+filesystem snapshots. Test-only rendezvous probes prove real worker overlap for
+safe renderer tasks and same-binding O-scope loads; isolated CLI integration
+tests use monotonic intervals to prove overlap for explicitly autonomous
+ephemeral Python members while retaining ordinary strict fail-stop behavior and
+worker-side <code>O.eval</code> lexical scope. Pool tests prove fixed
+capacity, thread reuse, singleton off-owner placement, independent completion
+delivery, and recovery after a caught worker panic. Coordinator tests prove
+that a fast worker can expose dependent worker work while an unrelated slow
+task remains active. Fallible-worker tests preserve lowest-semantic-ordinal
+failure selection and later-outcome discard while tasks overlap. Additional
+regressions prove provisional-output revocation after an earlier failure and
+that an infallible-adapter error immediately enters the infrastructure-abort
+path without becoming <code>NodeFailed</code> or preempting an earlier semantic failure.
+<code>scripts/benchmark_hgraph_hosted.sh</code> alternates release-mode serial and graph
+runs across four fixed shapes: heterogeneous Python/Bash/Node work, a width-one
+dependency chain, a <code>1 -&gt; 4 -&gt; 1</code> diamond, and a staged realistic pipeline. It
+feeds each exact rendered fixture through the non-executing evidence/admission
+path and consumes the versioned <code>oexec.schedule-prediction/v1</code> hosted-task
+width/span projection before timing. It fails closed on an invalid prediction,
+records the analyzer and execution-binary digests plus the prediction&#39;s
+admission digest, emits per-pair timings and distributions, and checks exact
+serial/graph/expected-output equivalence without imposing a speedup threshold
+or treating one machine measurement as a portability claim.</p>
+<h2>Deliberately deferred optimization</h2>
+<p>The reader-frontier topology now drives actual persistent-pool overlap for its
+narrow compiler-verified O-scope <code>Load</code> class, per-completion wakeups remove the
+previous complete-wave barrier, and explicit autonomous groups can opt bare
+ephemeral hosted members into non-strict worker overlap. Enforced strict hosted
+effect contracts, actor-owned persistent environments, renewable
+CPU/memory/device capacity admission, critical-path or measured-cost ranking,
+transactional prepare/commit, overlap between coordinator-owned operations and
+outstanding worker tasks, and unified OIR/Request/project scheduling are future
+work. Broader dispatch also requires verified or enforced backend-specific
+effect and failure contracts.
+The runtime does not claim complete static effect inference, automatic path
+extraction from arbitrary hosted source, arbitrary hosted-read overlap, or safe
+arbitrary cross-runtime parallelism.</p>

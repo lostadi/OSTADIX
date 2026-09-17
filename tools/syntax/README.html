@@ -1,0 +1,86 @@
+<h1>Ostadix-lang syntax highlighting</h1>
+<p>Local highlighting for <code>.O</code> and <code>.olang</code> files in VS Code, bat, GNU nano,
+and interactive zsh <code>cat</code>. These files cover hosted Ostadix orchestration;
+O-core <code>.oc</code> is a separate language.</p>
+<h2>Install</h2>
+<p>From the repository root:</p>
+<pre><code class="language-sh"># macOS dependencies (Apple&#39;s /usr/bin/nano may actually be Pico):
+brew install bat nano
+python3 tools/syntax/install.py
+</code></pre>
+<p>The VS Code <code>code</code> CLI must be on PATH. The installer builds a local VSIX using
+Python&#39;s standard library and installs <code>lostadi.ostadix-lang</code>. No Marketplace
+publication, account, runtime compilation, or npm dependencies are needed.
+Run <strong>Developer: Reload Window</strong> in an already-open VS Code window if <code>.O</code>
+files have not switched to <strong>Ostadix-lang</strong>.</p>
+<p>Choose components when needed:</p>
+<pre><code class="language-sh">python3 tools/syntax/install.py --only bat nano cat
+python3 tools/syntax/install.py --only vscode
+</code></pre>
+<p>Existing config files are preserved. The installer adds or replaces its own
+marked section and saves changed originals under
+<code>~/.local/share/ostadix/syntax/backups/</code> (or <code>$XDG_DATA_HOME/ostadix/syntax/backups/</code>).
+It respects XDG configuration paths, Nano&#39;s user-config precedence, and zsh&#39;s
+<code>ZDOTDIR</code>. Re-running installation updates the files without duplicating sections.</p>
+<h2>Use</h2>
+<pre><code class="language-sh">code examples/nested_splice.O
+bat examples/nested_splice.O
+nano examples/nested_splice.O
+</code></pre>
+<p>New zsh terminals load the <code>cat</code> integration automatically. For an existing
+terminal, source the exact path printed by the installer (normally):</p>
+<pre><code class="language-sh">source ~/.config/ostadix/syntax/ostadix-cat.zsh
+cat examples/nested_splice.O
+ocat examples/nested_splice.O
+</code></pre>
+<p><code>cat</code> is a zsh function that uses bat only when stdout is a terminal and all
+arguments are <code>.O</code>/<code>.olang</code> regular files. Other files, options, stdin, pipes,
+redirections, <code>NO_COLOR</code>, and dumb terminals use system <code>cat</code>. The function
+replaces any pre-existing interactive <code>cat</code> alias/function after being sourced;
+remove the marked <code>.zshrc</code> section and start a fresh shell to restore it.
+<code>command cat</code> always bypasses this function.</p>
+<p><code>ocat</code> is also installed in <code>~/.local/bin</code> for use in other shells. It supports
+bat&#39;s automatic language detection for other file types, with plain layout and
+no pager; pipes and cat flags use system <code>cat</code>. These adapters ignore bat&#39;s
+config options while highlighting, so options such as <code>--line-range</code> cannot
+silently truncate a file. Direct <code>bat</code> keeps your usual configuration.</p>
+<h2>Coverage and limits</h2>
+<p>The authoritative source is <code>crates/ostadix-api/src/parser.rs</code> and
+<code>backend_catalog.inc.rs</code>. VS Code and bat distinguish evaluator tags,
+<code>[number]</code>/<code>[*]</code> environments, attributes, exact corresponding closing tags,
+nested blocks, escaped markers, <code>$name</code> splices, native <code>let</code>, calls, and comments.</p>
+<p>Foreign-language coloring is a bounded lexical aid. O recognizes its own blocks
+and splices even inside another language&#39;s strings/comments, so simply delegating
+the entire body to a stock foreign grammar would conceal real O syntax. VS Code
+has more detailed lexical rules for common languages; bat provides common
+keyword/string/number accents. Neither is a full foreign-language parser,
+diagnostic engine, or language server. Both use theme-standard scopes, including
+dark themes already installed in your editor/terminal.</p>
+<p>bat&#39;s extension fallback is case-insensitive, so it may also choose this grammar
+for textual <code>.o</code> files. Use <code>bat --language=&#39;Plain Text&#39; file.o</code> when needed.
+The interactive <code>cat</code> adapter checks <code>.O</code> case-sensitively.</p>
+<p>Nano uses line-oriented POSIX regular expressions. It highlights tokens but
+cannot balance recursive blocks, check exact paired headers, or determine the
+embedded language at every position. In particular, its comment/string colors
+and tag recognition are approximations; use the runtime for validation.</p>
+<p>Reference formats: <a href="https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide">VS Code TextMate grammars</a>,
+<a href="https://github.com/sharkdp/bat#adding-new-syntaxes--language-definitions">bat custom syntaxes</a>,
+and <a href="https://www.nano-editor.org/dist/latest/nanorc.5.html">GNU nano nanorc</a>.</p>
+<h2>Development checks</h2>
+<pre><code class="language-sh">python3 -m unittest discover -s tools/syntax -p test_install.py -v
+python3 tools/syntax/bat/check.py
+node tools/syntax/vscode/test.mjs
+zsh -n tools/syntax/terminal/ostadix-cat.zsh
+sh -n tools/syntax/terminal/ocat
+</code></pre>
+<p>VS Code grammar generation and tokenization checks are documented in <code>vscode/</code>.
+After editing the bat grammar, run <code>bat cache --build</code> and actually render
+representative files with <code>bat --color=always --paging=never</code>; a successful cache
+build alone does not exercise runtime regex/backreference behavior.</p>
+<h2>Remove</h2>
+<p>Uninstall <code>lostadi.ostadix-lang</code> through VS Code or
+<code>code --uninstall-extension lostadi.ostadix-lang</code>. Remove the marked sections
+from your Nano config and <code>.zshrc</code>, the installed Ostadix syntax files under
+bat/Nano&#39;s config directories, <code>~/.local/bin/ocat</code>, and the sourced
+<code>ostadix-cat.zsh</code> file. Run <code>bat cache --build</code> and start a fresh shell.
+Backups preserve the original settings if you need them.</p>

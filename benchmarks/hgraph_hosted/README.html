@@ -1,0 +1,120 @@
+<h1>Hosted HGraph benchmark shapes</h1>
+<p>This directory contains the fixed inputs for
+<a href="../../scripts/benchmark_hgraph_hosted.sh"><code>scripts/benchmark_hgraph_hosted.sh</code></a>.
+The suite compares the serial reference evaluator with the evidence-admitted
+graph executor. It is descriptive: the runner records measurements and checks
+results, but it does not enforce a speedup threshold.</p>
+<table>
+<thead>
+<tr>
+<th>Shape</th>
+<th>Topology</th>
+<th align="right">Analyzer-predicted width</th>
+<th align="right">Analyzer-predicted span</th>
+<th>Required runtimes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>heterogeneous.O</code></td>
+<td>one autonomous Python + Bash + Node.js batch</td>
+<td align="right">3</td>
+<td align="right">1</td>
+<td><code>python3</code>, <code>bash</code>, <code>node</code></td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td>four genuinely dependent Python stages</td>
+<td align="right">1</td>
+<td align="right">4</td>
+<td><code>python3</code></td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td>one Python seed, four Python branches, one Python aggregate</td>
+<td align="right">4</td>
+<td align="right">3</td>
+<td><code>python3</code></td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td>Python fetch/parse, Bash and Node transforms, Python aggregate</td>
+<td align="right">2</td>
+<td align="right">3</td>
+<td><code>python3</code>, <code>bash</code>, <code>node</code></td>
+</tr>
+</tbody></table>
+<p>The table records the reviewed fixture expectations, but the runner does not
+copy those numbers. It renders the exact timed source, invokes the release
+<code>olangc --target ir --explain-schedule</code>, and consumes the versioned
+<code>oexec.schedule-prediction/v1</code> record produced by the evidence-bound admission.
+That record is derived after admission and lies outside the admission digest;
+its <code>admission-sha256</code> field must match the enclosing v5 admission binding.
+Missing, duplicated, malformed, or internally inconsistent prediction records
+or a mismatched admission reference fail before either executor runs.</p>
+<p>The prediction assigns unit cost to every admitted shim-backed hosted operation
+and zero cost to scope loads, stores, groups, schedule controls, and other
+coordinator bookkeeping. Longest-path depth through the admitted dependency DAG
+defines hosted-task layers; predicted span is the number of layers and predicted
+width is the largest layer. The unit is therefore <strong>hosted-task layers</strong>, not
+milliseconds. The prediction is static topology, not observed overlap or proof
+that a layer fits current CPU, memory, process, runtime, or placement capacity.
+The explicit <code>--workers</code> limit and dynamic graph readiness still bound actual
+dispatch.</p>
+<p>The middle stages use each backend&#39;s injected lexical bindings (<code>seed</code>,
+<code>${fetched}</code>, and <code>fetched</code>) deliberately. An O-level <code>$name</code> splice inside an
+autonomous hosted body would add a load child and make that body ineligible for
+the current prepared hosted-task adapter. Source and group control still gate
+the <code>1 -&gt; N -&gt; 1</code> stages, while the hosted programs consume the injected values.
+The realistic fixture&#39;s “fetch” is deterministic local parsing; it performs no
+network access.</p>
+<h2>Run</h2>
+<p>Build the release runtime through the canonical setup path, then run all shapes:</p>
+<pre><code class="language-bash">./setup.sh -y --minimal
+scripts/benchmark_hgraph_hosted.sh \
+  --warmups 1 \
+  --repetitions 5 \
+  --sleep 0.25 \
+  --workers 4 \
+  --missing-runtime fail
+</code></pre>
+<p>Use <code>--shape heterogeneous</code>, <code>chained</code>, <code>mixed_width</code>, or <code>realistic</code> to run
+one shape. <code>--missing-runtime skip</code> emits an explicit skipped block with
+<code>not-measured</code> metrics; <code>fail</code> emits the same block and returns nonzero.
+<code>python3</code> is also the JSON/statistics harness and is therefore a hard runner
+requirement. Runtime paths and version strings are included in the provenance
+header. The paths and SHA-256 digests of both the executing <code>O</code> binary and the
+analyzing <code>olangc</code> binary are recorded, and each shape records the exact
+admission digest that produced its prediction.</p>
+<p>The runner analyzes each rendered fixture once before timing, alternates
+serial-first and graph-first pairs, emits every raw pair timing, reports medians
+and ranges, and checks every sample in two ways:</p>
+<ol>
+<li>serial and graph must have identical canonical <code>ok</code>, <code>type</code>, and returned
+OValue JSON; and</li>
+<li>that canonical triple must match the fixture&#39;s checked-in
+<code>*.expected.json</code> result.</li>
+</ol>
+<p>This semantic-equivalence check is deliberately narrower than complete
+observational equivalence. It does <strong>not</strong> compare filesystem or network
+effects, scope snapshots, traces, event timing, or external-effect ordering.
+These four fixtures return deterministic values and do not claim equivalence
+for effects outside that returned-value boundary.</p>
+<p>The CI invocation supplies its co-built debug <code>O</code> and <code>olangc</code> binaries and uses
+zero hosted delay. It validates that every real fixture is analyzed and
+executes, and that the serial, graph, and checked-in results agree; it is a
+semantic smoke test, not a performance gate. CI does not enforce a speedup.</p>
+<p>Timing includes hosted process startup and protocol overhead. Speedup on a
+single CPU core can still occur because sleeping hosted subprocesses overlap;
+that is wait concurrency, not evidence of parallel CPU computation. Treat
+reported ratios as measurements of this fixture/runtime/machine combination,
+not as a general scheduler-performance claim.</p>
+<p>The current <a href="RESULTS-2026-08-08-f216771.md">analyzer-bound 2026-08-08 M1 Max result
+record</a> links its complete
+<a href="TRANSCRIPT-2026-08-08-f216771.log">raw transcript</a> and binds the analyzer,
+executor, admission, source, machine, runtime, and measurement identities.</p>
+<p>The historical <a href="RESULTS-2026-08-08-be68dfef.md">earlier 2026-08-08 M1 Max result
+record</a> binds its retained medians to the
+measured source commit and <code>O</code> digest. It predates analyzer-derived predictions
+and correctly labels its width/span values as manual. Keep result records
+append-only: do not replace or relabel an older result when the source, either
+binary, machine, runtime, parameters, or prediction method changes.</p>

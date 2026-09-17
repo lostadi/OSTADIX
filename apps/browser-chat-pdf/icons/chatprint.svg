@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Chatprint document mark">
+  <rect width="128" height="128" rx="24" fill="#155eef"/>
+  <path d="M38 24h35l18 18v62H38z" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M73 24v18h18M50 59h29M50 74h29M50 89h20" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

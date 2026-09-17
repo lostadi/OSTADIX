@@ -1,0 +1,54 @@
+<h1>Linux runtime rootfs collection</h1>
+<p><code>scripts/collect_runtime_rootfs.py</code> constructs a runtime image on Linux using
+the Python standard library and the host&#39;s <code>readelf</code> (binutils). It inspects ELF
+metadata; it does not run the supplied executables or invoke <code>ldd</code>.</p>
+<pre><code class="language-json">{
+  &quot;schema&quot;: &quot;ostadix.runtime-rootfs-closure/v1&quot;,
+  &quot;commands&quot;: {&quot;bash&quot;: &quot;/bin/bash&quot;, &quot;python3&quot;: &quot;/usr/bin/python3&quot;},
+  &quot;paths&quot;: [&quot;/usr/lib/python3.12&quot;, &quot;/usr/share/terminfo&quot;],
+  &quot;runner&quot;: &quot;/absolute/path/to/olangc&quot;
+}
+</code></pre>
+<p>Use the paths and Python version actually installed on the collection host.
+<code>commands</code> names the executable aliases exposed under the image&#39;s real <code>bin/</code>
+directory. <code>paths</code> supplies runtime data, standard libraries, configurations,
+and modules loaded dynamically. Optional <code>runner</code> names a Linux O/olangc ELF
+with the same ABI as the runtime commands; only its loader/dependencies are
+included for generated-program reentry. The compiler binary itself is not copied;
+the launcher installs the actual generated binary at <code>/.ostadix/runner</code>.
+The collector checks ELF class/machine compatibility,
+not cross-host CPU features or kernel compatibility.</p>
+<pre><code class="language-bash">python3 scripts/collect_runtime_rootfs.py closure.json --output ./runtime-rootfs
+python3 scripts/collect_runtime_rootfs.py closure.json --output ./runtime-rootfs \
+  --report ./runtime-rootfs.collection.json
+</code></pre>
+<p>The output must be absent or empty. The report defaults to an adjacent
+<code>DIR.collection.json</code> and must remain outside the image; an existing report is
+not overwritten. Failure can leave an incomplete output directory. A successful
+run writes <code>runtime.json</code> with <code>execution: linux-rootfs-v1</code>, plus the copied
+payloads. The separate report records hashes, modes, links, ELF metadata, and
+resolved dependencies.</p>
+<p>Files retain their absolute coordinates inside the image. The collector follows
+<code>PT_INTERP</code> and <code>DT_NEEDED</code> recursively, including ELF extensions found in declared
+data directories. It uses <code>RPATH</code> (including inherited paths), direct <code>RUNPATH</code>,
+the host&#39;s <code>ldconfig -p</code> cache, and default library directories, checking library
+ELF class/machine. Cache-based resolution also carries <code>/etc/ld.so.cache</code>, records
+its hash, and collects compatible candidates for each needed library, including
+hardware capability variants. <code>DF_1_NODEFLIB</code> retains nondefault cache lookup
+while excluding default library directories. <code>$ORIGIN</code> is expanded at the canonical executable/library
+location. Missing libraries, cwd-relative search paths, and unsupported dynamic
+search tokens fail explicitly. Ambient <code>LD_LIBRARY_PATH</code> is not an input.</p>
+<p>File symlinks become relative links to copied targets. Directory symlinks are
+materialized as directories, preserving file aliases to canonical locations and
+refusing cycles. This supports hosts where <code>/bin</code> is a symlink without making
+the image&#39;s <code>bin/</code> a directory symlink. Empty directories and ordinary Unix
+permission bits are retained. The launcher-owned roots <code>.ostadix</code>, <code>.old-root</code>,
+<code>proc</code>, <code>dev</code>, <code>tmp</code>, <code>work</code>, and <code>run</code> cannot be supplied as runtime data.
+Scripts collect their absolute shebang interpreter; <code>/usr/bin/env</code> shebangs
+require the selected command to be listed in <code>commands</code>.</p>
+<p>Static ELF dependencies do not describe every runtime behavior. Supply assets
+loaded by <code>dlopen</code>, language imports, plugins, or configuration explicitly in
+<code>paths</code>; then qualify the resulting image under the intended clean environment.
+The collector does not synthesize daemons, external services, licenses, device
+access, or a universal runtime closure. Its unit tests use synthetic ELF metadata
+and filesystems; real Linux execution is a separate qualification step.</p>

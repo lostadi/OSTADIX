@@ -1,0 +1,238 @@
+<h1>Zero-configuration LAN nodes</h1>
+<p>The ordinary Ostadix node path is designed around one rule:</p>
+<blockquote>
+<p>Transport coordinates, certificates, keys, node generations, capabilities,
+leases, operation identifiers, task digests, and proof artifacts are internal
+protocol state. They are not ordinary user input.</p>
+</blockquote>
+<p>The expert interfaces still expose those values, but only when an operator
+explicitly chooses manual mode.</p>
+<h2>Ordinary use</h2>
+<p>On Unix-like hosts (including WSL), start a node on both machines:</p>
+<pre><code class="language-bash">o node start
+</code></pre>
+<p>The command provisions a stable node identity, LAN certificate material, a
+Hosted V2 receipt identity, interface-aware discovery, and a detached server.
+It does <strong>not</strong> expose the historical plaintext bootstrap service. Closing the
+terminal or an ordinary remote-desktop terminal does not send the hosted server
+the terminal&#39;s hangup signal.
+Fresh automatic TLS material uses RSA-3072 by default. The explicit
+<code>--fresh-pki-key-algorithm ec-p256</code> profile provides comparable classical
+security with much faster key generation on cross-architecture emulators. It
+only selects the algorithm when material is absent; it never rotates an
+existing identity.</p>
+<p>On the first machine, create a foreground one-use pairing offer:</p>
+<pre><code class="language-bash">o node pair
+</code></pre>
+<p>The command prints its node ID and a ten-digit passcode, then waits for one
+connection attempt for up to five minutes. On the second machine, name that
+node and type the printed passcode at the hidden prompt:</p>
+<pre><code class="language-bash">o node pair NODE_ID
+</code></pre>
+<p>For noninteractive automation, <code>o node pair NODE_ID --passcode-stdin</code> reads one
+line from standard input. The passcode is deliberately not accepted as a
+positional argument, so the ordinary interface does not place it in shell
+history or the process list.</p>
+<p>After the exchange, both machines retain reciprocal pinned identities. Either
+machine can later select the other by node ID, and ordinary commands reuse the
+remembered identity without another passcode or transport flags:</p>
+<pre><code class="language-bash">o node list
+o node profile --node NODE_ID
+o node doctor --node NODE_ID
+o node run --node NODE_ID examples/hello.O
+o node session run --node NODE_ID examples/hello.O
+</code></pre>
+<p>When the paired node is the remembered preference, <code>--node NODE_ID</code> may be
+omitted. Pairing records the current endpoint as a reconnect coordinate; a
+later command can therefore reconnect from remembered state even when
+discovery is unavailable.</p>
+<p>On Unix-like hosts (including WSL), inspect or stop the local detached node
+with:</p>
+<pre><code class="language-bash">o node status
+o node stop
+o node restart
+</code></pre>
+<p><code>status</code> describes the PID record under the active Ostadix/XDG state root; it
+does not probe listener ports or discover an expert <code>o-node serve</code> process
+absent from that record. For a newly launched node, <code>start</code> reports success
+only after its hosted TCP listener is bound. Configuration and spawn errors are
+returned directly; a child failure or timeout prints launch-scoped diagnostics
+plus the path to the complete private log. The default 120-second startup
+window is configurable with <code>--startup-timeout-seconds N</code> for large durable
+state roots. An already-managed PID is reported without a fresh listener
+probe.</p>
+<p>No CA, certificate, private key, receipt key, capability, placement lease,
+operation ID, task digest, or attempt generation is ordinary user input.</p>
+<p>The root <code>o-node-quickstart.sh</code> script is only a compatibility front door for
+these same commands. It stores no parallel demo configuration and has no
+localhost-only mode: no arguments starts the node, <code>--run FILE.O</code> delegates to
+the automatically managed V2 session path, and <code>--manual</code> is the explicit
+operator escape hatch.</p>
+<p>When one paired node exists, Ostadix uses it. When several exist, Ostadix uses
+the remembered preference when possible and otherwise chooses a stable,
+deterministic first node. Selecting a different semantic node is the only
+ordinary choice exposed to the user:</p>
+<pre><code class="language-bash">o node use ostadix-example-host-12ab34cd
+</code></pre>
+<p>That preference is remembered. It is not a transport configuration.</p>
+<h2>What pairing and automatic reuse do</h2>
+<p>The offering node generates ten uniformly distributed decimal digits and
+formats them as <code>00000-00000</code>. The offer accepts one connection attempt and
+expires after 300 seconds by default. The two processes run SPAKE2 over the
+short passcode, derive directional keys with HKDF-SHA-256, and exchange explicit
+HMAC-SHA-256 confirmations. Those confirmations bind both node identities,
+both public bundles, both SPAKE2 messages, both certificate requests, and both
+issued certificates. A wrong code, changed transcript, replayed completed
+offer, or late connection does not produce a stored peer.</p>
+<p>Each node creates a fresh per-peer private client key locally and sends only
+its certificate signing request. The pairing channel carries public server CA,
+client-issuer CA, CSR, issued client certificate, and Hosted V2 receipt public
+key material. Private keys never cross the pairing connection. Each destination
+issues the other node a client certificate, so later traffic uses ordinary TLS
+1.3 mutual X.509 authentication.</p>
+<p>The resulting record pins the paired node&#39;s semantic ID, server CA, expected
+server name, and receipt public key. Those identity coordinates are immutable:
+an unauthenticated advertisement cannot rotate them, and conflicting material
+for an existing node ID fails closed instead of silently replacing the pair.</p>
+<p>Destination-issued client certificates are valid for 397 days. Renewing them,
+or recovering when pairing state persisted on only one machine, requires a
+fresh offer with explicit replacement enabled on both sides:</p>
+<pre><code class="language-bash"># offering machine
+o node pair --replace
+# joining machine
+o node pair NODE_ID --replace
+</code></pre>
+<p>Ordinary pairing still refuses changed pins. <code>--replace</code> permits the staged
+replacement of an existing paired record and lets the missing side perform its
+ordinary first store; it does not authorize identity changes from discovery.</p>
+<p>Every later ordinary node command follows one resolver pipeline:</p>
+<ol>
+<li>Use UDP discovery, when available, only as a current routing hint.</li>
+<li>Select the requested, remembered, or deterministic paired node identity.</li>
+<li>Require an existing reciprocal pairing record for a pairing-required node.</li>
+<li>Connect using the remembered CA, server name, receipt key, locally retained
+private key, and destination-issued client certificate.</li>
+<li>If discovery is unavailable, try the remembered last endpoint.</li>
+<li>For durable sessions, generate capabilities and exact protocol artifacts
+internally, submit them, poll the terminal outcome, and close temporary
+sessions automatically.</li>
+</ol>
+<p>When a paired identity is known but its remembered route is stale, the caller
+may override only the route for one invocation:</p>
+<pre><code class="language-bash">octl node profile --node NODE_ID --address HOST:7337
+</code></pre>
+<p>This retains the stored server CA, expected server name, client credential, and
+receipt-key pin. It neither persists the supplied route nor replaces paired
+identity material.</p>
+<p>A DHCP address change therefore changes routing, not semantic node identity.
+The node ID is generated once and persisted independently of the current host
+address.</p>
+<p>Discovery is interface-aware. On multi-homed machines, including hosts whose
+default route is a VPN, Ostadix opens a probe socket on every active IPv4
+interface. It sends directed broadcast and multicast probes from each one, and
+the node joins the multicast group on every active IPv4 interface. The source
+address of the node&#39;s reply remains the routing coordinate, so a client on the
+physical LAN does not receive a VPN-only or loopback address merely because
+that route is preferred by the host.</p>
+<p>Discovery is unauthenticated and establishes no identity or permission. Direct
+discovery is limited to connected IPv4 networks and does not cross routers,
+VLAN boundaries, NAT, or the public Internet. When the route is already known,
+the joiner can bypass discovery while preserving the passcode exchange:</p>
+<pre><code class="language-bash">o node pair NODE_ID --address HOST:7340
+</code></pre>
+<p>The supplied pairing endpoint must be directly reachable over TCP. This records
+the observed address for later reconnect but provides no NAT traversal, relay,
+hole punching, or persistent node mesh. Duplicate or spoofed advertisements for
+a paired node ID can make route selection fail or select an unreachable route;
+they cannot replace the stored identity pins, so their effect is availability
+rather than silent re-enrollment.</p>
+<h2>Security boundary</h2>
+<p>Passcode pairing authenticates the reciprocal transport identities used by
+later mTLS connections. Its current boundary is intentionally narrower than a
+general node-membership or authorization system:</p>
+<ul>
+<li>The repository uses the <code>spake2</code> crate&#39;s Ed25519-group implementation; that
+dependency has not been independently audited as part of Ostadix evidence.</li>
+<li>A pairing offer is consumed by its first connection attempt. There is no
+retry allowance under the same code.</li>
+<li>Version 1 issues a distinct client certificate per paired peer, but inbound
+trust is pairing-CA-wide: the server accepts certificates issued by that CA,
+not only the leaf stored for a current peer record. There is no leaf
+allowlist, unpair operation, or revocation mechanism; replacement therefore
+does not revoke an already issued certificate before its expiry.</li>
+<li>Pairing pins transport and receipt identity. It does not make the automatic
+Hosted V2 placement authorizer restrictive: that authorizer still accepts a
+self-consistent, unexpired lease signed by any key when its exact command
+fields match the live request.</li>
+<li>Pairing does not create a persistent background connection, replicated
+membership service, scheduler, or node mesh. An ordinary command opens a
+connection when work or inspection is requested.</li>
+</ul>
+<h2>Explicit legacy LAN-open compatibility</h2>
+<p>The former reachability-is-authorization behavior remains available only by
+explicit request:</p>
+<pre><code class="language-bash">o node start --lan-open
+# or, for the raw surface:
+o-node serve --lan-open
+</code></pre>
+<p>Legacy LAN-open exposes a plaintext bootstrap service and lets any
+LAN-reachable caller download a shared client private key. It should be used
+only when that weak boundary is deliberate. A paired peer cannot be downgraded
+or overwritten by legacy bootstrap material.</p>
+<h2>Expert and IT mode</h2>
+<p>Manual mode preserves the prior explicit trust surface. It is selected by
+passing <code>--manual</code> or explicit trust-identity coordinates. The paired
+<code>--node NODE_ID --address HOST:PORT</code> combination is a route-only exception: it
+retains the stored identity and credential. Manual examples:</p>
+<pre><code class="language-bash">o-node serve --manual \
+  --node-id controlled-node \
+  --bind 192.0.2.10:7337 \
+  --cert /secure/node-cert.pem \
+  --key /secure/node-key.pem \
+  --client-ca /secure/client-ca.pem \
+  --v2-state-dir /secure/hosted-v2 \
+  --v2-node-signing-key /secure/node-signing-key.v2 \
+  --v2-authority-public-key /secure/placement-public-key.v2
+
+octl node profile --manual \
+  --address 192.0.2.10:7337 \
+  --server-name node.example \
+  --ca /secure/ca.pem \
+  --cert /secure/client-cert.pem \
+  --key /secure/client-key.pem
+</code></pre>
+<p>The high-level wrapper leaves the raw server CLI available as <code>o node-host</code>.
+Manual flags are overrides and diagnostic controls, not prerequisites for
+ordinary use.</p>
+<h2>Storage</h2>
+<p>Automatic node material follows XDG locations where available:</p>
+<ul>
+<li>Node configuration, pairing CA, and PKI:
+<code>$XDG_CONFIG_HOME/ostadix/lan-open</code>, otherwise
+<code>~/.config/ostadix/lan-open</code></li>
+<li>Paired peers and client-side automatic authority:
+<code>$XDG_CONFIG_HOME/ostadix/peers</code>, otherwise <code>~/.config/ostadix/peers</code></li>
+<li>Durable node state: <code>$XDG_STATE_HOME/ostadix/lan-open-v2</code>, otherwise
+<code>~/.local/state/ostadix/lan-open-v2</code></li>
+<li>Automatic client sessions: <code>$XDG_STATE_HOME/ostadix/client-sessions</code>,
+otherwise <code>~/.local/state/ostadix/client-sessions</code></li>
+<li>Detached node PID, lifecycle lock, and log: <code>$XDG_STATE_HOME/ostadix/node</code>, otherwise
+<code>~/.local/state/ostadix/node</code></li>
+</ul>
+<p>Private key and capability files are written with owner-only permissions on
+Unix systems. Per-peer private keys remain local; peer directories contain the
+public trust material plus the local credential needed for that exact peer and
+do not accept private material supplied by the remote node.</p>
+<h2>Current operational boundary</h2>
+<p><code>o node start</code> detaches the process from the invoking terminal. It is not yet a
+system service installer. It therefore survives an ordinary shell or remote
+terminal closing, but automatic restart after a machine reboot is outside this
+patch. <code>o node pair</code> is intentionally foreground and temporary; only the
+resulting trust record persists. A later service-manager adapter can make node
+process persistence an internal projection without changing the ordinary
+command surface.</p>
+<h2>Verification status</h2>
+<p>The historical pairing and zero-configuration checks are recorded in
+<a href="ZERO_CONFIG_VERIFICATION.md">Zero-configuration LAN patch verification</a>.
+That dated record does not by itself validate later lifecycle or readiness
+changes; those must be rerun against the current source revision.</p>

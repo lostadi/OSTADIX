@@ -1,0 +1,233 @@
+<h1>Real-world serial-versus-graph benchmark</h1>
+<p>This suite runs the same O program through the serial reference evaluator and
+the evidence-admitted graph executor while doing useful work on this
+repository&#39;s own assets and tests. It contains no artificial sleeps. The
+<a href="../../scripts/benchmark_real_world.sh">runner</a> records measurements and checks
+plans, returned values, and generated artifacts, but it never enforces a
+speedup threshold.</p>
+<p>This is a bounded, reproducible benchmark suite, not a claim that every
+program becomes faster. A dependency-bound program cannot gain parallelism,
+small tasks can lose to scheduling overhead, and CPU, memory, storage, and
+thermal limits remain properties of the machine being measured.</p>
+<h2>Workloads</h2>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Real work</th>
+<th>Static hosted-task topology</th>
+<th>Required tools</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>asset_pipeline</code></td>
+<td>Generate 18 AVIF/WebP release derivatives at three sizes from three project images</td>
+<td>3 tasks, width 3, span 1</td>
+<td>Bash, ImageMagick, standard Unix tools</td>
+</tr>
+<tr>
+<td><code>ci_shards</code></td>
+<td>Run three independent repository unit-test shards and retain their complete logs</td>
+<td>3 tasks, width 3, span 1</td>
+<td>Bash, Python 3, standard Unix tools</td>
+</tr>
+<tr>
+<td><code>video_previews</code></td>
+<td>Decode nine project GIF animations and encode nine 768×832, 30-fps VP9 WebM previews</td>
+<td>9 tasks, width 9, span 1</td>
+<td>Bash, FFmpeg with VP9, <code>ffprobe</code></td>
+</tr>
+</tbody></table>
+<p>The exact programs are <a href="asset_pipeline.O">asset_pipeline.O</a>,
+<a href="ci_shards.O">ci_shards.O</a>, and <a href="video_previews.O">video_previews.O</a>. The
+responsive-image lanes use <code>MAGICK_THREAD_LIMIT=1</code>, and the video helper uses
+one FFmpeg encoder thread with row multithreading disabled. These controls make
+cross-lane concurrency primarily the graph executor&#39;s responsibility instead
+of silently delegating it to each external tool.</p>
+<p><code>autonomous</code> has a precise meaning here. The fixture author explicitly declares
+that the lanes may run unordered; each lane owns a disjoint output subtree or filename.
+Ostadix then admits the graph, derives its ready set, applies the
+worker limit, dispatches the hosted processes, and joins their results. The
+suite does not claim that Ostadix inferred arbitrary shell-command effects or
+found hidden parallelism inside an opaque executable.</p>
+<h2>Run it</h2>
+<p>Build the release evaluator and schedule analyzer first:</p>
+<pre><code class="language-bash">cargo build --release --locked --package o-lang --bin O --bin olangc
+</code></pre>
+<p>A quick descriptive run uses the runner defaults of one paired warmup, four
+measured pairs (a balanced AB/BA order), and four workers:</p>
+<pre><code class="language-bash">scripts/benchmark_real_world.sh --workload all --missing-tool fail
+</code></pre>
+<p>For a result worth retaining, use at least seven measured pairs, keep the
+device idle and thermally stable, and retain both the evidence tree and the
+complete transcript:</p>
+<pre><code class="language-bash">set -o pipefail
+evidence_dir=$(mktemp -d target/real-world-evidence.XXXXXX)
+transcript=&quot;${evidence_dir}.log&quot;
+scripts/benchmark_real_world.sh \
+  --workload all \
+  --warmups 1 \
+  --repetitions 7 \
+  --workers 3 \
+  --missing-tool fail \
+  --evidence-dir &quot;$evidence_dir&quot; 2&gt;&amp;1 | tee &quot;$transcript&quot;
+</code></pre>
+<p>The evidence path must be empty when the runner starts. If <code>--evidence-dir</code> is
+omitted, the runner uses a temporary directory and removes it at exit. Use
+<code>--missing-tool skip</code> only for an explicitly partial run; skipped workloads are
+reported as not measured.</p>
+<p>Run one workload by selecting its name:</p>
+<pre><code class="language-bash">scripts/benchmark_real_world.sh \
+  --workload video_previews \
+  --warmups 1 \
+  --repetitions 7 \
+  --workers 3 \
+  --missing-tool fail
+</code></pre>
+<p>The standard video workload makes three-second previews. The helper accepts an
+<code>OSTADIX_PREVIEW_SECONDS</code> override for local experimentation, but changing it
+changes the workload. The runner records <code>preview_seconds</code> and the expected
+decoded-frame count; treat an overridden run as a different benchmark rather
+than comparing it directly with the standard result.</p>
+<h2>See the result</h2>
+<p>With retained evidence, every measured pair has separate serial and graph
+artifact directories. On Termux, open a generated preview from the first graph
+sample with:</p>
+<pre><code class="language-bash">termux-open &quot;$evidence_dir/video_previews/sample-1-graph-artifacts/idle.webm&quot;
+</code></pre>
+<p>On a desktop with FFmpeg tools, use:</p>
+<pre><code class="language-bash">ffplay &quot;$evidence_dir/video_previews/sample-1-graph-artifacts/idle.webm&quot;
+</code></pre>
+<p>The neighboring <code>sample-1-graph-manifest.json</code> records the checked codec,
+dimensions, duration, decoded-frame count, and a SHA-256 digest of FFmpeg&#39;s
+decoded-frame MD5 stream. WebM container bytes are not used as the semantic
+oracle because container metadata need not be byte-identical even when every
+decoded frame is identical.</p>
+<p>The image workload leaves 18 directly inspectable AVIF/WebP files under its
+sample artifact directory. The CI workload leaves the complete <code>o-cli</code>,
+<code>setup</code>, and <code>boot-iso</code> test logs.</p>
+<h2>What is checked</h2>
+<p>Before timing a workload, <code>olangc --explain-schedule</code> must emit a valid
+<code>oexec.schedule-prediction/v1</code> record bound to the enclosing admission digest.
+The runner rejects an unexpected task count, width, span, or malformed
+prediction.</p>
+<p>Every serial/graph pair then has two independent equivalence checks:</p>
+<ol>
+<li>O must return identical canonical <code>ok</code>, type, and value fields.</li>
+<li>Independently inspected artifacts must produce identical canonical
+manifests.</li>
+</ol>
+<p>For responsive images, the manifest checks the complete 18-file inventory,
+format, dimensions, non-empty payload, byte count, and SHA-256. For CI shards,
+every log must contain a passing <code>OK</code> summary and a parsed test count; the total
+is derived rather than trusted as a permanent constant. For video previews,
+<code>ffprobe</code> must report VP9, 768×832, <code>yuv420p</code>, and the requested duration, while
+FFmpeg must decode exactly 30 frames per second and yield the same decoded-frame
+digest in both modes.</p>
+<p>The work happens in executor-specific directories, so serial and graph runs
+cannot validate or overwrite each other&#39;s output. A failure, missing artifact,
+extra artifact, test failure, decode failure, or manifest difference fails the
+workload rather than being summarized as a performance result.</p>
+<h2>Read the measurements</h2>
+<p>The headline comparison is whole-process wall time around each O invocation.
+It includes O process startup, source loading, parsing, admission, scheduling,
+hosted-runtime startup, external application work, result collection, and O
+JSON serialization. The runner obtains it from the no-shell
+<a href="timed_exec.py"><code>timed_exec.py</code></a> helper&#39;s monotonic <code>perf_counter_ns</code> interval.
+O&#39;s own <code>elapsed_ms</code> is retained as a diagnostic, not used as the primary
+performance headline. Artifact verification runs after the O invocation and
+is deliberately outside that execution timer.</p>
+<p>Pairs alternate order: odd pairs run serial then graph, and even pairs run
+graph then serial. Warmup pairs are checked but excluded from the statistics.
+Use the paired geometric-mean wall-time speedup as the most order-resistant
+summary, alongside both raw paired wall times, medians, ranges, and latency
+reduction. Do not report only the fastest sample.</p>
+<p>The principal transcript fields are:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>paired_wall_ms</code></td>
+<td>Every measured serial/graph wall-time pair, in execution-pair order</td>
+</tr>
+<tr>
+<td><code>serial_wall_ms</code>, <code>graph_wall_ms</code></td>
+<td>Median, median absolute deviation, minimum, and maximum whole-process wall time</td>
+</tr>
+<tr>
+<td><code>paired_geometric_mean_speedup</code></td>
+<td>Geometric mean of each pair&#39;s <code>serial / graph</code> ratio; preferred headline ratio</td>
+</tr>
+<tr>
+<td><code>ratio_of_median_wall_times</code></td>
+<td>Serial wall-time median divided by graph wall-time median; useful secondary summary</td>
+</tr>
+<tr>
+<td><code>median_latency_reduction_percent</code></td>
+<td>Reduction calculated from the two wall-time medians</td>
+</tr>
+<tr>
+<td><code>serial_internal_elapsed_ms</code>, <code>graph_internal_elapsed_ms</code></td>
+<td>O-reported internal elapsed time; diagnostic only</td>
+</tr>
+<tr>
+<td><code>effective_unit_cost_reference</code></td>
+<td>Minimum of the unit-cost work/span ratio and configured worker count; diagnostic only</td>
+</tr>
+</tbody></table>
+<p>The runner also reports a unit-cost work/span reference derived from the
+admitted topology and the configured worker limit. It assigns one unit to every
+hosted task, not the task&#39;s measured milliseconds. It is not a speedup ceiling:
+adaptive frequency, core placement, cache state, internal tool parallelism,
+unequal task costs, process startup, and memory bandwidth can all change task
+service rates between arms. Consequently, the runner does not report a
+percentage of this reference &quot;captured.&quot;</p>
+<p>For example, with three workers all three workloads have an effective
+unit-cost reference of 3×: the image and CI graphs each expose three ready
+tasks, while the nine preview tasks are dispatched in successive ready waves.
+A 2.8× paired wall-time result should be reported directly alongside that
+diagnostic reference; it would not mean that arbitrary programs or a single
+VP9 encode become 2.8× faster.</p>
+<h2>Controls and caveats</h2>
+<p>Run the graph executor with one worker to expose scheduler and subprocess
+overhead when no worker concurrency is available:</p>
+<pre><code class="language-bash">scripts/benchmark_real_world.sh \
+  --workload all \
+  --warmups 1 \
+  --repetitions 7 \
+  --workers 1 \
+  --missing-tool fail
+</code></pre>
+<p>Repeat with <code>--workers 2</code> and <code>--workers 3</code> to check whether throughput follows
+available capacity and then stops improving when another resource becomes the
+bottleneck. The width-one <code>chained</code> shape in the separate
+<a href="../hgraph_hosted/README.md">hosted HGraph suite</a> is the dependency negative
+control; adding workers must not materially accelerate that chain.</p>
+<p>Keep these limitations attached to any published result:</p>
+<ul>
+<li>Results apply to the recorded commit, O and <code>olangc</code> binary hashes, tool
+versions, worker count, workload configuration, and machine. They are not
+portable constants.</li>
+<li>Mobile dynamic voltage/frequency scaling, thermal throttling, background
+applications, battery policy, and filesystem cache state can materially move
+the numbers. Alternate order, retain raw pairs, and repeat across thermal
+sessions before making a strong claim.</li>
+<li>Image and video tasks are CPU- and memory-intensive. Concurrent lanes may
+contend for memory bandwidth even though they write different files.</li>
+<li>The Python shards are real repository tests, but their count and cost can
+change with the source tree. Passing these shards is not the same as running
+every project test.</li>
+<li>The suite shows that one admitted execution mechanism can govern several
+kinds of external program. It cannot establish a universal speedup: opaque
+sequential work, dependency chains, tiny tasks, and already-saturated tools
+may show no gain or a regression.</li>
+</ul>
+<p>The focused runner contract tests live in
+<a href="../../tests/test_benchmark_real_world.py">test_benchmark_real_world.py</a>. The
+deterministic source-release builder includes this README, the runner,
+fixtures, helper, and exact source assets so the suite can be reproduced from
+a published source archive.</p>

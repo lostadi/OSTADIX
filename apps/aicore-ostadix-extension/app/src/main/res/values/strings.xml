@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OSTADIX AICore experiment</string>
+    <string name="module_description">Disabled-by-default, version-pinned AS.OSS result-processing experiment.</string>
+</resources>

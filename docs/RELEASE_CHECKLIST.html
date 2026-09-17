@@ -1,0 +1,585 @@
+<h1>DOI-ready release checklist</h1>
+<p>This checklist covers the <strong>Ostadix-lang</strong> component source archive. The
+umbrella system release is named <strong>OSTADIX Alpha</strong>; an Ostadix-lang tag or DOI
+does not by itself qualify that system release. OSTADIX Alpha additionally
+requires G13 and the evidence bound by the qualification registry below.</p>
+<p>This checklist is grounded in the current repository state: the synchronized
+root and engine package versions, <code>CITATION.cff</code>, the independently packageable
+<code>crates/ostadix-api</code> runtime engine, the README citation example, the CI
+workflow in <code>.github/workflows/ci.yml</code>, and the active release-claim guard in
+<code>scripts/check_release_claims.sh</code>. The source-release builder and its tests
+also reject disagreement among the root LGPL-2.1-only license text, Cargo
+package metadata, <code>CITATION.cff</code>, and the live README citation prose. The
+<code>olangc</code> unit suite parses both generated host and project Cargo manifests,
+requires component-scoped metadata to identify the embedded runtime as
+LGPL-2.1-only, records that embedded input licensing is retained by its source,
+and keeps the mixed generated crates <code>publish = false</code>.</p>
+<h2>Pre-tag validation</h2>
+<p>Run these manual preflight commands from the repository root before creating an
+archival tag. They overlap the CI coverage but are not a byte-for-byte copy of
+the workflow. The tag-triggered <code>Required CI</code> aggregate is the authoritative
+release gate; this list is complementary local evidence.</p>
+<p>The native artifact and QEMU gates require Clang, LLD, <code>llvm-objdump</code>, <code>nm</code>
+(provided by binutils in CI), and <code>qemu-system-x86_64</code>. CI installs each
+dependency explicitly; local runs must make them discoverable on <code>PATH</code> (or use
+the documented linker override).</p>
+<pre><code class="language-bash">cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo build --workspace --all-targets --all-features --verbose
+bash scripts/check_declared_bins.sh
+cargo test --workspace --all-targets --all-features --verbose
+cargo test --package ostadix-api
+cargo test --locked --package o-lang --test execution_fabric_two_node -- --nocapture --test-threads=1
+bash scripts/smoke-hosted-live-reference.sh
+bash scripts/smoke-world-resource-keys.sh
+bash scripts/smoke-project-hgraph.sh
+bash scripts/smoke-project-hgraph-exec.sh
+cargo test --package o-lang --test parser_proptest
+cargo test --package ostadix-api --lib ocore::driver::tests::ocore_object_is_byte_reproducible_across_source_directories -- --exact
+cargo check --manifest-path fuzz/Cargo.toml
+cargo build --release --locked --package o-lang --bin O --bin o-cli --bin olangc --bin o-info
+cargo test --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
+cargo clippy --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml -- -D warnings
+cargo build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
+python3 scripts/smoke_ostadix_mcp.py
+python3 scripts/release_evidence.py validate
+python3 scripts/check_architecture_boundaries.py
+python3 scripts/contract_surfaces.py validate
+cargo test --package o-lang --test world_identity_wire
+./ocore/kernel/smoke-world-identity-qemu.sh
+./ocore/kernel/smoke-world-value-qemu.sh
+cargo test --package o-lang --test world_receipt
+./ocore/kernel/smoke-world-receipt-qemu.sh
+./ocore/kernel/smoke-world-project-runtime-qemu.sh
+python3 scripts/world_alpha_evidence.py
+python3 -m unittest -v tests.test_world_alpha_evidence
+./boot-and-test.sh smoke
+python3 -m tests.test_parser
+python3 tests/example_manifest.py validate
+python3 -m tests.test_evaluator
+python3 -m compileall -q o_lang backends tests
+make -C c_cpp clean &amp;&amp; make -C c_cpp &amp;&amp; make -C c_cpp test &amp;&amp; make -C c_cpp olangc-test
+make -C c_cpp warnings-as-errors
+cmake -S c_cpp -B /tmp/olang-cmake-build -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build /tmp/olang-cmake-build --parallel &amp;&amp; ctest --test-dir /tmp/olang-cmake-build --output-on-failure
+bash scripts/check_release_claims.sh
+python3 -m unittest -v tests.test_source_release
+python3 scripts/local_ci_posture.py --profile baseline --format text
+</code></pre>
+<p>The M3 Fabric command must launch two real same-host <code>o-node</code> processes with
+separate ports, TLS identities, node identities, state directories, ledgers,
+node generations, and explicit Fabric authority enrollment. Evidence must show
+that both nodes match direct local execution, a node-A lease is rejected by
+node B, a wrong-node result cannot enter coordinator acceptance, stopping a
+selected node produces an infrastructure failure with no local-renderer
+fallback, and Hosted plus Mesh ALPN routes still work. This is a same-host
+process-boundary gate, not physical-multinode, distinct-kernel, or
+heterogeneous-architecture evidence. The exact positive claim and all M3
+nonclaims are frozen in
+<a href="OIR_EXECUTION_FABRIC_V1.md"><code>OIR_EXECUTION_FABRIC_V1.md</code></a>.</p>
+<p>The posture command is a standard-library-only, read-only contract check. See
+<a href="CI_POSTURE.md"><code>CI_POSTURE.md</code></a> for its machine-readable form, optional local
+analyzers, remote read-only inspection, and exit-code contract.</p>
+<p><code>smoke-world-project-runtime-qemu.sh</code> is the required no-argument Mode 32 gate.
+It runs the focused hosted World-project test to produce a fresh caller-signed
+receipt and semantic digest, then delegates to the direct vector interface. For
+an additional caller-selected vector, pass the emitted lowercase-hex file and
+hosted domain-separated unsigned-body semantic digest directly:</p>
+<pre><code class="language-bash">./ocore/kernel/smoke-world-project-receipt-qemu.sh RECEIPT_HEX_FILE EXPECTED_SEMANTIC_SHA256
+</code></pre>
+<p>The two-argument gate is not a source of receipt fixtures or signing keys. It
+must fully decode and exactly re-encode the canonical receipt, construct the
+validated signing preimage, require <code>ReceiptCommitFenceV1::Uncommitted</code>, and
+match the hosted unsigned-body semantic SHA-256. It also reuses validation
+scratch after a successful record with a malformed envelope and requires the
+prior terminal/commit tags to have been reset. It does not execute the project
+or verify Ed25519 natively.</p>
+<p>The hosted World ResourceKey smoke is the bounded PR6 repository-conformance
+gate. It verifies typed governed vocabulary, underlying identity helpers&#39;
+caller-pair comparison, generic/device/accelerator HGraph chaining, alias-aware
+grounding projection, source-forgery rejection, and residual <code>HostWorld</code> on a
+real CLI projection. Grounding itself checks only the bound World
+epoch/membership. This is not Mode 31, a ResourceKey wire ABI, production
+governed lowering, native/QEMU/hardware evidence, Governor authority, device
+assignment, DMA/IOMMU isolation, Acceptance A, or G0--G13 passage.</p>
+<p>The composite Project HGraph smoke contains bounded hosted PR7 planning and
+World PR8-1/PR8-2 project-profile phases. It constructs an exact-provenance plan
+and real HGraph operations from a checked-in project, validates logical
+alternatives and prerequisites, route policy and equivalence metadata,
+malformed/substitution rejection, stable nonexecuting IR/DOT output, residual
+<code>HostWorld</code>, and ordinary <code>.O</code> IR compatibility. The PR8-1 phase checks
+canonical <code>LogicalHGraphV1</code>
+encoding/digest, raw and scheduler-expanded effect resources, strict decoding,
+forged-governed-resource rejection, and the hosted no-authority boundary. That
+digest is exact-source-bound; it does not normalize source or manifest
+formatting. The PR8-2 phase checks canonical hosted-unbound and
+snapshot-derived <code>DeploymentPlanV1</code> records, exact logical/bundle binding,
+bundle-scoped role/path compatibility, deterministic provider proposals,
+World/task hierarchy rejection, and trusted substitution rejection. Supported
+hosted policies use only <code>AmbientHost</code> and <code>HostedCoordinator</code>; unsupported
+hosted policies remain <code>Unresolved</code>. Its logical alternative branches may
+remain serialized and cross-coupled by shared conservative ambient/resource
+state chains; the smoke claims neither parallel execution nor independent host
+mediation. It also checks byte parity between direct <code>olangc</code> and
+repository-owned <code>o plan</code>, then compiles a real project binary, checks its CLI,
+and runs opt-in AnySuccess for immediate short-circuit plus nonzero-to-success
+continuation in disposable workspaces.</p>
+<p>The execution Project HGraph smoke is the bounded
+ProjectExec-A/ProjectExec-B opt-in hosted gate for one resolved
+<code>Explicit</code>/<code>Default</code> alternative plus serial ordered
+<code>Fallback</code>/<code>AnySuccess</code>. It checks shared isolated workspace execution, typed
+value/success prerequisite edges, first-success prefix readiness, attempted
+result retention, guard-skip/nonzero continuation, conservative <code>HostWorld</code>
+progression, infrastructure aborts, and unsigned deterministic lifecycle
+events. Trace v5 binds those events to the canonical logical graph schema and
+digest plus the exact canonical hosted-unbound <code>DeploymentPlanV1</code> schema and
+digest. Trusted plan-aware replay reconstructs that deployment artifact and
+rejects its substitution. A terminal alternative may continue only after no
+route child executed or after every executed route declares
+<code>failure_continuation = &quot;declared_idempotent&quot;</code>; a failed prerequisite remains a
+hard stop. Bundle v2 carries that contract, and complete traces pass plan-aware
+semantic replay against the trusted HGraph. It is not parallel
+race/cancellation, retry, authenticated placement, Governor authority,
+exactly-once effects, native execution, hardware evidence, G1, or G0--G13
+passage. The separate explicit World-bound adapter described below does not
+change those ordinary opt-in semantics.</p>
+<p>The snapshot-derived deployment record is a deterministic descriptive proposal
+from caller-supplied exact snapshot and task identities. It is not current or
+authenticated inventory, Governor admission, authority, dispatch, reservation,
+health, or execution. Active
+compatibility checks cover the exact bundle plus bundle-scoped role/path
+declarations, runtime classes, executable/evaluator facts, platform and
+ambient-environment guards, authority absence, and residual <code>HostWorld</code>
+admission. Architecture, package, and failure-domain fields are currently
+unconstrained or empty schema vocabulary; <code>require_current_world</code> checks only
+World identity/epoch. The ordinary executor does not consume this plan; the
+explicit hosted-reference World entry point does. It re-derives exact
+logical/deployment/snapshot bindings and fences caller-supplied current
+World/Governor; dedicated coordinator observer
+node/domain/optional-process; dedicated coordinator attempt; selected provider
+node/domain/optional-process/service and implementation; and every operation
+task attempt inside <code>ProjectCoordinator</code> before any workspace or child process.
+The coordinator attempt is distinct from all operation attempts and identifies
+the World-bound trace.</p>
+<p>Terminal <code>RuntimeGraphV1</code> is built only after plan-aware causal replay against
+the trusted HGraph and exact deployment. Its neutral <code>RouteSettlement</code> covers
+successful, nonzero, and guard-skipped results, and terminal residual
+<code>HostWorld</code> aggregates every observed started/terminal operation; never-started
+operations do not contribute. A caller-supplied Ed25519 signer then emits
+canonical OWRECEIPT with an unconditional <code>Uncommitted</code> fence. Receipt placement
+names the coordinator observer and the receipt context uses the coordinator
+attempt, not the proposed provider or a per-operation attempt. The receipt
+subject leaves package absent rather than storing the provider implementation.
+Only route success produces receipt success. Mode 32 performs the native
+canonical/unsigned-semantic comparison above.</p>
+<p>Release wording must retain the boundary: this is no Governor admission or
+commit, capability/lease grant, reservation, remote dispatch, recovery, or
+exactly-once protocol. It is no native project execution or native Ed25519
+verification; QEMU TCG is not physical hardware. It passes neither G1 nor
+Workstream A acceptance, and G1 remains defined and unpassed.</p>
+<p>The OSTADIX Alpha registry in
+<a href="../evidence/world_alpha_gates.toml"><code>world_alpha_gates.toml</code></a> is a
+qualification schema, not an additional set of portable release commands. Its
+checked-in ledger view must report 14 defined entries--G0 plus 13 integration
+gates through G13--with only G0 and G2 passed and <code>G13 DEFINED</code>. Schema v4 keeps
+the registry definition-only; the validator derives status from immutable
+attestations, typed transcript observations, evidence-class and claim floors,
+dependency status, and separate history events. Hosted reference and virtual
+multinode classes can never be substituted for physical/native qualification.</p>
+<p>When derivation policy or validator code changes, use this order:</p>
+<ol>
+<li>finish the validator and rule changes;</li>
+<li>compute the final derivation and validator hashes;</li>
+<li>if the derivation identity changed, append every required <code>rederive</code> event,
+recording the exact claims lost and gained without editing the original
+attestation; if only validator/source ownership changed, mint a new
+schema-v3 attestation and append a <code>supersede</code> event instead;</li>
+<li>validate the complete ledger and deterministic source release; and</li>
+<li>only then ask an external CI/reviewer to witness or countersign the final
+implementation hash.</li>
+</ol>
+<p>Repository CI checks the checked-in ledger, but it is not by itself an
+independent trust anchor. Never pin an intermediate validator and never repair
+history by rewriting an attestation. A later reviewer must append a separate
+witness record rather than edit the correction event; until trusted-key policy
+and cryptographic verification exist, the repository reports that envelope as
+<code>external_unverified</code> and does not use it for gate status. Run ledger
+validation from a full Git checkout: historical content-addressed working-tree
+attestations may resolve
+their immutable source bytes from a later reachable commit, and shallow clones
+cannot establish that provenance.</p>
+<!-- BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_CHECKLIST -->
+<p>The portable native release surface contains exactly <strong>26</strong> required
+QEMU gates. <code>evidence/gates.toml</code> is authoritative; the aggregate, CI, this
+checklist, and the README status table are validated projections. After each
+successful gate, the aggregate requires every manifest marker exactly once in
+the captured live stdout/stderr transcript.</p>
+<pre><code class="language-bash">python3 scripts/release_evidence.py validate
+./boot-and-test.sh smoke
+</code></pre>
+<table>
+<thead>
+<tr>
+<th align="right">Order</th>
+<th>Gate</th>
+<th>Milestone</th>
+<th>Class</th>
+<th>Script</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">1</td>
+<td><code>ocore-bootstrap</code></td>
+<td>M0.1-M0.3</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">2</td>
+<td><code>ostadix-x86_64-boot-info</code></td>
+<td>OSTADIX Alpha x86_64 BootInfo / Mode 33</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-x86_64-boot-info-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">3</td>
+<td><code>ostadix-x86_64-smp4</code></td>
+<td>OSTADIX Alpha x86_64 bounded SMP / Mode 34</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-x86_64-smp-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td><code>world-g2-aarch64-native</code></td>
+<td>World G2 / AArch64 native compiler</td>
+<td><code>qemu_tcg_aarch64</code></td>
+<td><code>ocore/kernel/smoke-aarch64-g2-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">5</td>
+<td><code>world-identity-v1</code></td>
+<td>World identity PR2 / Mode 27</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-world-identity-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">6</td>
+<td><code>world-protocol-v1</code></td>
+<td>World protocol PR3 / Mode 28</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-world-protocol-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">7</td>
+<td><code>world-value-v1</code></td>
+<td>World OValue PR4 / Mode 29</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-world-value-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td><code>world-receipt-v1</code></td>
+<td>World receipt PR5 / Mode 30</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-world-receipt-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">9</td>
+<td><code>world-project-runtime-mode32</code></td>
+<td>World project runtime / Mode 32</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-world-project-runtime-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">10</td>
+<td><code>m02-fault-recovery</code></td>
+<td>M0.2</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-faults-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">11</td>
+<td><code>m1-process-isolation</code></td>
+<td>M1</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-processes-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td><code>m2-scheduler</code></td>
+<td>M2</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-scheduler-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">13</td>
+<td><code>m3-ipc-foundation</code></td>
+<td>M3 foundation</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-ipc-foundation-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">14</td>
+<td><code>m3-public-ipc</code></td>
+<td>M3</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-ipc-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">15</td>
+<td><code>m4-native-loader</code></td>
+<td>M4</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-loader-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td><code>m5-native-live</code></td>
+<td>M5</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-live-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">17</td>
+<td><code>m5-supervisor-semantics</code></td>
+<td>M5 semantics</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-live-semantics-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">18</td>
+<td><code>m6a-scalar-personality</code></td>
+<td>M6A</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-personality-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">19</td>
+<td><code>m6b-bounded-copy</code></td>
+<td>M6B mechanism</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-m6b-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">20</td>
+<td><code>m6b-live-bounded-personality</code></td>
+<td>M6B Mode 24 live</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-live-bounded-personality-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">21</td>
+<td><code>m6-linux-minimal-live</code></td>
+<td>M6 Linux Mode 25 live</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-live-linux-personality-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">22</td>
+<td><code>m7-linux-plan9-9p2000-live</code></td>
+<td>M7 Linux/Plan 9 Mode 26 live</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-live-linux-plan9-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">23</td>
+<td><code>m7b-logical-read-fallback-live</code></td>
+<td>M7B-1 native LogicalRead Mode 31</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-m7b-logical-read-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td><code>kernel-world-mode20-objects</code></td>
+<td>KernelWorld Mode 20</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-kernel-world-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">25</td>
+<td><code>kernel-world-mode22-live</code></td>
+<td>KernelWorld Mode 22</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-kernel-world-live-qemu.sh</code></td>
+</tr>
+<tr>
+<td align="right">26</td>
+<td><code>kernel-world-mode23-execution-device</code></td>
+<td>KernelWorld Mode 23</td>
+<td><code>portable_tcg</code></td>
+<td><code>ocore/kernel/smoke-kernel-world-execution-device-qemu.sh</code></td>
+</tr>
+</tbody></table>
+<p>Supplemental hardware evidence is validated by the same manifest but is not
+executed by the portable aggregate:</p>
+<table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>Milestone</th>
+<th>Class</th>
+<th>Script</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>kernel-world-mode21-svm-kvm</code></td>
+<td>KernelWorld Mode 21</td>
+<td><code>hardware_kvm</code></td>
+<td><code>ocore/kernel/smoke-kernel-world-execution-qemu.sh</code></td>
+</tr>
+</tbody></table>
+<p>Explicit supplemental non-claims:</p>
+<ul>
+<li>Mode 21 is supplemental hardware-dependent evidence and is not part of the portable release aggregate</li>
+<li>It does not boot Linux, Plan 9, firmware, or a supplied image</li>
+<li>It has no provider lifecycle, guest agent, service export, virtual device, PCI assignment, DMA mapping, or IOMMU-isolation proof</li>
+</ul>
+<!-- END GENERATED: REQUIRED_QEMU_EVIDENCE_CHECKLIST --><p>The manifest also records each gate&#39;s positive claims, explicit non-claims,
+required tools, and expected transcript markers. Static validation rejects a
+missing or non-executable gate, projection drift, CI bypass, claim-guard bypass,
+or loss of byte identity between the two aggregate entrypoints. During the
+aggregate run, each gate&#39;s combined output remains visible and is also captured;
+the gate counts as passed only when it exits successfully and every marker
+declared for that script occurs exactly once in that live transcript. A marker
+left in a source comment or dead string therefore cannot satisfy the release
+gate. A directory scan or an &quot;all present&quot; result is not release evidence.</p>
+<p>Build the public source ZIP from the exact commit or annotated tag that passed
+the gate. The command rejects a dirty worktree by default and reads payload
+bytes from the resolved Git commit, not from local build products:</p>
+<pre><code class="language-bash">python3 scripts/build_source_release.py \
+  --ref v0.4.0 \
+  --output dist/Ostadix-lang-source-v0.4.0.zip
+python3 scripts/build_source_release.py \
+  --verify dist/Ostadix-lang-source-v0.4.0.zip
+</code></pre>
+<p>The ZIP is deterministic for one commit and prefix. It contains a canonical
+<code>SOURCE-MANIFEST.json</code> plus <code>SHA256SUMS</code>, and the command prints the digest of
+the complete archive. Rebuilding the same ref must produce identical bytes.
+Archive verification also checks relative Markdown-link closure: every local
+target referenced outside code or comments by included documentation must be
+present in the release. Git symlinks are refused rather than encoded as archive
+members, and verification requires the writer&#39;s canonical ZIP metadata and
+layout. It also parses, without importing or executing released code,
+<code>.mcp.json</code>, the MCP crate metadata/license, <code>examples/manifest.json</code>, and
+<code>evidence/gates.toml</code>, then proves their required archive-local references. For
+OSTADIX Alpha constitution version 3 it also verifies sealed bytes for the
+native constitution, hosted reference profile, composed executable G0
+contracts, and typed <code>evidence/world_alpha_gates.toml</code>; it inertly validates
+exact-byte-sealed historical attestations and ledger events plus their retained
+transcripts/artifacts, topology, markers, and bounded non-claims. Only a current
+schema-v3 active attestation binds its source digests to current ZIP members.
+Schema-v2 source reconstruction requires the coherent
+<code>c25d38c00283f2873eed1aa84dd89b437777e356</code> Git tree and is not archive-only
+proof.
+The allowlisted surface includes the separate <code>mcp/ostadix_lang_mcp_server</code>
+crate, the root LGPL-2.1-only license, <code>.mcp.json</code>, its direct stdio smoke client,
+and the focused MCP/example regression tests. CI tests and lints that crate with
+its own lockfile, builds its release binary separately from the root package,
+and runs <code>scripts/smoke_ostadix_mcp.py</code> against the real transport.</p>
+<h2>Version synchronization points</h2>
+<p>Before tagging, verify all public version references agree:</p>
+<ul>
+<li><code>Cargo.toml</code> <code>[package].version</code>.</li>
+<li><code>crates/ostadix-api/Cargo.toml</code> package version and the root <code>o-lang</code>
+manifest&#39;s exact <code>=VERSION</code> dependency on that engine package.</li>
+<li>The root, fuzz, and isolated MCP lockfile entries for repository-owned
+packages.</li>
+<li><code>mcp/ostadix_lang_mcp_server/Cargo.toml</code> and its isolated lockfile.</li>
+<li><code>o_lang/__init__.py</code> <code>__version__</code>.</li>
+<li><code>CITATION.cff</code> <code>version</code>.</li>
+<li>The Git tag name, for example <code>v0.4.0</code>.</li>
+<li>The README citation example in <code>README.md</code> under &quot;How to cite&quot;.</li>
+<li><code>Cargo.toml</code> and <code>CITATION.cff</code> both declare <code>LGPL-2.1-only</code>, matching the root
+<code>LICENSE</code>; the attribution-only <code>NOTICE</code> does not grant an alternate license.</li>
+</ul>
+<p>The immutable v0.3.0 release points all historical coordinates at <code>0.3.0</code>.
+The engine-ownership inversion uses synchronized <code>0.4.0</code> development
+coordinates; keep package, citation, and future tag coordinates together and
+never retarget the v0.3.0 tag.</p>
+<h2>Registry publication order</h2>
+<p>The root compatibility/CLI package intentionally has one exact dependency on
+the independent engine package. Publish and verify <code>ostadix-api VERSION</code> first,
+then publish <code>o-lang VERSION</code>. A local path makes workspace development atomic,
+while the exact version makes the registry dependency deterministic. Never
+publish the shell first, relax the exact version to work around registry
+propagation, or add an engine dependency back to <code>o-lang</code>; that would recreate
+the cycle this extraction removes. The isolated MCP package remains
+<code>publish = false</code> and is built from its own lockfile.</p>
+<h2>Git tag and GitHub release</h2>
+<ol>
+<li>Choose the exact commit that passed the pre-tag validation above.</li>
+<li>Create an annotated version tag, for example <code>git tag -a v0.4.0 -m &quot;Ostadix-lang v0.4.0&quot;</code>.</li>
+<li>Push the tag only after verifying it points to the intended commit.</li>
+<li>Draft a GitHub release for that tag.</li>
+<li>Build and verify the allowlisted source ZIP from that tag. Attach that ZIP,
+not a recursive worktree archive, as the canonical source-release asset.</li>
+<li>Record the printed whole-archive SHA-256 in the release notes.</li>
+<li>Publish the GitHub release when the release notes and metadata are final.</li>
+</ol>
+<p>The <code>release-package</code> CI job uploads a source archive only for a <code>v*</code> tag push
+or an explicit <code>workflow_dispatch</code>. An ordinary <code>master</code> push still builds and
+verifies a temporary source ZIP in the <code>release-claims</code> job, but it does not
+upload that ZIP as a workflow artifact. Use the successful tag run&#39;s
+<code>Ostadix-lang-source-&lt;github.sha&gt;</code> artifact for the GitHub release.</p>
+<h2>Zenodo DOI minting</h2>
+<p>The existing DOI <code>10.5281/zenodo.21544345</code> identifies the preprint/package
+record. It is not an archive of a tagged Ostadix-lang source release and must
+remain the <code>preferred-citation</code> DOI. The steps below mint a separate DOI for a
+future tagged v0.4.0 source snapshot:</p>
+<ol>
+<li>Enable the repository in Zenodo&#39;s GitHub integration.</li>
+<li>Confirm Zenodo sees <code>lostadi/Ostadix-lang</code> and is authorized to archive releases.</li>
+<li>Publish the GitHub release for the tag.</li>
+<li>Wait for Zenodo to archive that exact repository state.</li>
+<li>Record the DOI minted by Zenodo for the versioned release, not just the
+concept DOI unless the citation intentionally targets the project as a whole.</li>
+</ol>
+<h2>ORCID and DataCite metadata</h2>
+<ul>
+<li>Verify <code>CITATION.cff</code> keeps the author ORCID
+<code>https://orcid.org/0009-0001-6380-9558</code>.</li>
+<li>After Zenodo mints the DOI, inspect the DataCite metadata for title, author
+name, ORCID, version, release date, repository URL, license, and keywords.</li>
+<li>Confirm GitHub&#39;s &quot;Cite this repository&quot; view surfaces the expected
+<code>CITATION.cff</code> metadata.</li>
+</ul>
+<h2>Post-DOI updates</h2>
+<p>After DOI minting:</p>
+<ol>
+<li>Fill the top-level <code>doi</code> field in <code>CITATION.cff</code> with the separate tagged
+source-release DOI; do not replace the existing <code>preferred-citation</code> DOI.</li>
+<li>Set <code>date-released</code> to the actual v0.4.0 publication date; do not reuse the
+archived v0.2.0 date or replace it with a later DOI-minting date.</li>
+<li>Update the README citation section to cite the DOI-bearing archived release.</li>
+<li>Use a follow-up metadata commit and a subsequent release as appropriate for
+repository policy. Never move or recreate either archival <code>v0.2.0</code> or
+<code>v0.3.0</code> or future <code>v0.4.0</code> tags after publication; preserve a clear public
+trail from source tag to DOI.</li>
+</ol>
+<h2>Generated artifacts must not be published</h2>
+<p>Never publish generated build products as source-release content or release
+assets unless a future release explicitly defines binary distribution. Exclude
+at least:</p>
+<ul>
+<li>Rust <code>target/</code>.</li>
+<li>C edition products such as <code>c_cpp/O</code>, <code>c_cpp/olangc</code>, and <code>c_cpp/src/*.o</code>.</li>
+<li>CMake build directories.</li>
+<li>Python <code>__pycache__/</code> and bytecode.</li>
+<li>Local fuzz, coverage, and compiler outputs.</li>
+<li><code>.DS_Store</code> and editor metadata.</li>
+<li><code>.ocore-repair-backups/</code> and one-off repair patches.</li>
+<li>Generated HTML and intermediate <code>cvelist*</code> reports.</li>
+</ul>
+<p>The allowlist and forbidden-path rules live in
+<code>scripts/build_source_release.py</code>; changing the public release surface requires
+an explicit edit there plus a regression-test update. Do not replace this gate
+with <code>zip -r</code> over a development checkout.</p>
+<h2>Manual GitHub settings outside code</h2>
+<p>These release items cannot be completed by source-code changes alone and must be
+checked in GitHub/Zenodo settings:</p>
+<ul>
+<li>Repository description.</li>
+<li>Repository topics and keywords.</li>
+<li>Default branch protection.</li>
+<li>Zenodo webhook / GitHub integration state.</li>
+<li>GitHub &quot;Cite this repository&quot; surfacing through <code>CITATION.cff</code>.</li>
+</ul>

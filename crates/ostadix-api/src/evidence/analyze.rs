@@ -17,7 +17,8 @@ use crate::hgraph::{
 use crate::ir::{ExecutionPlan, InvokeMode, OIrProgram, PlanNodeKind};
 use crate::runtime_exec::{
     capture_execution_manifest, capture_execution_manifest_with_current_executable,
-    inspection_executable_manifest, ExecutableLeaseSet, ExecutableManifestV1,
+    capture_execution_manifest_with_executable_overrides, inspection_executable_manifest,
+    ExecutableLeaseSet, ExecutableManifestV1,
 };
 use crate::value::{AnnotationKind, FidelityAssessmentV2, GroupMode};
 
@@ -75,6 +76,36 @@ pub fn runtime_binding_from_directory_with_current_executable(
         .collect::<Vec<_>>();
     let (executable_manifest, executable_leases) =
         capture_execution_manifest_with_current_executable(plan, current_executable)?;
+    Ok(build_runtime_binding(
+        RuntimeSnapshotKindV1::Execution,
+        artifacts,
+        executable_manifest,
+        Some(executable_leases),
+        backend_catalog_projection_sha256(plan),
+        context,
+    ))
+}
+
+/// Capture an execution binding for an embedding that supplies both the O
+/// proxy and selected direct backend launchers without ambient PATH lookup.
+pub fn runtime_binding_from_directory_with_executable_overrides(
+    plan: &ExecutionPlan,
+    shim_dir: &Path,
+    context: &[(&str, &str)],
+    current_executable: &Path,
+    executable_overrides: &std::collections::HashMap<String, std::path::PathBuf>,
+) -> Result<RuntimeBindingV1> {
+    let backends = legacy_python_shim_backends(plan);
+    let artifacts = backends
+        .into_iter()
+        .flat_map(|backend| legacy_python_artifacts_from_directory(shim_dir, backend))
+        .collect::<Vec<_>>();
+    let (executable_manifest, executable_leases) =
+        capture_execution_manifest_with_executable_overrides(
+            plan,
+            current_executable,
+            executable_overrides,
+        )?;
     Ok(build_runtime_binding(
         RuntimeSnapshotKindV1::Execution,
         artifacts,

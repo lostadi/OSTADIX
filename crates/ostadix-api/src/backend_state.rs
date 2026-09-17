@@ -191,7 +191,7 @@ impl BackendCheckpointV1 {
     }
 
     pub fn encoded_len(&self) -> Result<usize> {
-        Ok(crate::wire::encode_message(self)?.len())
+        crate::wire::encoded_message_len(self)
     }
 }
 
@@ -349,7 +349,8 @@ impl EvaluatorStateSnapshotV1 {
     }
 
     pub fn encoded_len(&self) -> Result<usize> {
-        Ok(self.canonical_bytes()?.len())
+        self.validate()?;
+        crate::wire::encoded_message_len(self)
     }
 
     pub fn canonical_bytes(&self) -> Result<Vec<u8>> {

@@ -1,5 +1,8 @@
 package org.ostadix.terminal;
 
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.io.Writer;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 
@@ -47,6 +50,134 @@ public final class TerminalBuffer {
             this.documentLine = documentLine;
             this.startColumn = startColumn;
             this.endColumn = endColumn;
+        }
+    }
+
+    /** Immutable text-only selection captured at one terminal-buffer revision. */
+    public static final class TextSelection {
+        private final Line[] lines;
+        private final int[] fromColumns;
+        private final int[] toColumns;
+        private final boolean[] hardBreakAfter;
+        private final long maximumUtf8ByteCount;
+
+        private TextSelection(
+                Line[] lines,
+                int[] fromColumns,
+                int[] toColumns,
+                boolean[] hardBreakAfter) {
+            this.lines = lines;
+            this.fromColumns = fromColumns;
+            this.toColumns = toColumns;
+            this.hardBreakAfter = hardBreakAfter;
+
+            long maximumBytes = 0;
+            for (int index = 0; index < lines.length; index++) {
+                maximumBytes += 4L
+                        * Math.max(0, toColumns[index] - fromColumns[index] + 1);
+                if (hardBreakAfter[index]) {
+                    maximumBytes++;
+                }
+            }
+            maximumUtf8ByteCount = maximumBytes;
+        }
+
+        public boolean isEmpty() {
+            return utf8ByteCount() == 0;
+        }
+
+        /** Cheap upper bound used to decide whether materializing this selection is safe. */
+        public long maximumUtf8ByteCount() {
+            return maximumUtf8ByteCount;
+        }
+
+        public long utf8ByteCount() {
+            long bytes = 0;
+            int pendingLineBreaks = 0;
+            for (int index = 0; index < lines.length; index++) {
+                String line = lineText(index);
+                if (!line.isEmpty()) {
+                    bytes += pendingLineBreaks;
+                    pendingLineBreaks = 0;
+                    bytes += utf8Length(line);
+                }
+                if (hardBreakAfter[index]) {
+                    pendingLineBreaks++;
+                }
+            }
+            return bytes;
+        }
+
+        public String asString() {
+            if (maximumUtf8ByteCount > Integer.MAX_VALUE) {
+                throw new IllegalStateException("selection is too large to materialize");
+            }
+            StringBuilder result = new StringBuilder((int) maximumUtf8ByteCount);
+            appendTo(result);
+            return result.toString();
+        }
+
+        public void writeTo(Writer destination) throws IOException {
+            if (destination == null) {
+                throw new IllegalArgumentException("destination must not be null");
+            }
+            int pendingLineBreaks = 0;
+            for (int index = 0; index < lines.length; index++) {
+                requireNotInterrupted();
+                String line = lineText(index);
+                if (!line.isEmpty()) {
+                    while (pendingLineBreaks > 0) {
+                        destination.write('\n');
+                        pendingLineBreaks--;
+                    }
+                    destination.write(line);
+                }
+                if (hardBreakAfter[index]) {
+                    pendingLineBreaks++;
+                }
+            }
+        }
+
+        private void appendTo(StringBuilder destination) {
+            int pendingLineBreaks = 0;
+            for (int index = 0; index < lines.length; index++) {
+                String line = lineText(index);
+                if (!line.isEmpty()) {
+                    while (pendingLineBreaks > 0) {
+                        destination.append('\n');
+                        pendingLineBreaks--;
+                    }
+                    destination.append(line);
+                }
+                if (hardBreakAfter[index]) {
+                    pendingLineBreaks++;
+                }
+            }
+        }
+
+        private String lineText(int index) {
+            Line line = lines[index];
+            int from = fromColumns[index];
+            int to = toColumns[index];
+            StringBuilder selectedLine = new StringBuilder(Math.max(0, to - from + 1));
+            for (int column = from; column <= to; column++) {
+                if (isContinuation(line, column)) {
+                    continue;
+                }
+                int codePoint = codePointAt(line, column);
+                selectedLine.appendCodePoint(codePoint == 0 ? ' ' : codePoint);
+            }
+            while (selectedLine.length() > 0
+                    && selectedLine.charAt(selectedLine.length() - 1) == ' ') {
+                selectedLine.setLength(selectedLine.length() - 1);
+            }
+            return selectedLine.toString();
+        }
+
+        private static void requireNotInterrupted() throws InterruptedIOException {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedIOException("clipboard export cancelled");
+            }
         }
     }
 
@@ -596,8 +727,8 @@ public final class TerminalBuffer {
      * Copies an inclusive rectangular-flow selection as plain text.
      *
      * <p>Trailing empty cells are removed, soft-wrapped rows are joined, and hard line boundaries
-     * become newlines. Extremely large selections are capped before reaching Android's clipboard
-     * binder.</p>
+     * become newlines. This materialized form is heap-bounded; use {@link #writeText} when the
+     * complete selection must be streamed.</p>
      */
     public synchronized String extractText(
             int requestedStartLine,
@@ -681,8 +812,89 @@ public final class TerminalBuffer {
         return result.toString();
     }
 
+    /**
+     * Captures one immutable text-only selection while holding the terminal lock briefly.
+     *
+     * <p>Encoding and disk I/O can then happen without blocking PTY updates, rendering, or resize
+     * operations on this live buffer.</p>
+     */
+    public synchronized TextSelection captureText(
+            int requestedStartLine,
+            int requestedStartColumn,
+            int requestedEndLine,
+            int requestedEndColumn) {
+        int startLine = requestedStartLine;
+        int startColumn = requestedStartColumn;
+        int endLine = requestedEndLine;
+        int endColumn = requestedEndColumn;
+        if (comparePosition(startLine, startColumn, endLine, endColumn) > 0) {
+            int swapLine = startLine;
+            int swapColumn = startColumn;
+            startLine = endLine;
+            startColumn = endColumn;
+            endLine = swapLine;
+            endColumn = swapColumn;
+        }
+
+        int historySize = scrollback.size();
+        int documentLines = historySize + rows;
+        if (documentLines <= 0) {
+            return new TextSelection(
+                    new Line[0], new int[0], new int[0], new boolean[0]);
+        }
+        startLine = clamp(startLine, 0, documentLines - 1);
+        endLine = clamp(endLine, startLine, documentLines - 1);
+        startColumn = clamp(startColumn, 0, columns - 1);
+        endColumn = clamp(endColumn, 0, columns - 1);
+        Line[] history = scrollback.toArray(new Line[0]);
+        Line firstSelectedLine = documentLineAt(startLine, history);
+        Line lastSelectedLine = documentLineAt(endLine, history);
+        if (isContinuation(firstSelectedLine, startColumn) && startColumn > 0) {
+            startColumn--;
+        }
+        if (isContinuation(lastSelectedLine, endColumn) && endColumn > 0) {
+            endColumn--;
+        }
+
+        int selectedLineCount = endLine - startLine + 1;
+        Line[] selectedLines = new Line[selectedLineCount];
+        int[] fromColumns = new int[selectedLineCount];
+        int[] toColumns = new int[selectedLineCount];
+        boolean[] hardBreakAfter = new boolean[selectedLineCount];
+        for (int documentLine = startLine; documentLine <= endLine; documentLine++) {
+            Line line = documentLineAt(documentLine, history);
+            int from = documentLine == startLine ? startColumn : 0;
+            int to = documentLine == endLine ? endColumn : columns - 1;
+            int selectedIndex = documentLine - startLine;
+            // Scrollback lines are no longer mutated. Live screen rows need a private copy so the
+            // encoder can run later without holding the terminal lock.
+            selectedLines[selectedIndex] = documentLine < historySize ? line : line.copy();
+            fromColumns[selectedIndex] = from;
+            toColumns[selectedIndex] = to;
+            hardBreakAfter[selectedIndex] = documentLine < endLine && !line.wrapped;
+        }
+        return new TextSelection(selectedLines, fromColumns, toColumns, hardBreakAfter);
+    }
+
+    /** Streams a stable selection snapshot without holding the live terminal-buffer lock. */
+    public void writeText(
+            int requestedStartLine,
+            int requestedStartColumn,
+            int requestedEndLine,
+            int requestedEndColumn,
+            Writer destination) throws IOException {
+        captureText(
+                requestedStartLine,
+                requestedStartColumn,
+                requestedEndLine,
+                requestedEndColumn).writeTo(destination);
+    }
+
     public synchronized void putCodePoint(int codePoint) {
-        if (!Character.isValidCodePoint(codePoint) || isControl(codePoint)) {
+        if (!Character.isValidCodePoint(codePoint)
+                || (codePoint >= Character.MIN_SURROGATE
+                        && codePoint <= Character.MAX_SURROGATE)
+                || isControl(codePoint)) {
             return;
         }
         if (isCombining(codePoint)) {
@@ -1239,6 +1451,24 @@ public final class TerminalBuffer {
             return 1;
         }
         return 2;
+    }
+
+    private static long utf8Length(String text) {
+        long bytes = 0;
+        for (int offset = 0; offset < text.length();) {
+            int codePoint = text.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            if (codePoint <= 0x7f) {
+                bytes++;
+            } else if (codePoint <= 0x7ff) {
+                bytes += 2;
+            } else if (codePoint <= 0xffff) {
+                bytes += 3;
+            } else {
+                bytes += 4;
+            }
+        }
+        return bytes;
     }
 
     private static int comparePosition(

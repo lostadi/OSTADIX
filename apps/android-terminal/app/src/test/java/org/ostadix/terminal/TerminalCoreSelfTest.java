@@ -1,5 +1,10 @@
 package org.ostadix.terminal;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 
 /** Dependency-free host smoke tests for the terminal parser and screen model. */
@@ -12,6 +17,7 @@ public final class TerminalCoreSelfTest {
         testTextAndCursor();
         testAnsiColors();
         testSplitUtf8();
+        testRejectNonScalarCodePoints();
         testOscTitle();
         testBoundedScrollback();
         testAlternateScreenRestore();
@@ -19,6 +25,9 @@ public final class TerminalCoreSelfTest {
         testWordSelectionAndReverseExtraction();
         testSoftWrapAndWideSelection();
         testSelectionAfterHistoryEviction();
+        testStreamingSelection();
+        testVoiceInputSemantics();
+        testClipboardFileStore();
         System.out.println("Terminal core self-tests passed");
     }
 
@@ -83,6 +92,15 @@ public final class TerminalCoreSelfTest {
         parser.feed(encoded, 0, 1);
         parser.feed(encoded, 1, encoded.length - 1);
         equal(0x03bb, buffer.snapshot(0).codePointAt(0, 0), "split UTF-8 scalar");
+    }
+
+    private static void testRejectNonScalarCodePoints() {
+        TerminalBuffer buffer = new TerminalBuffer(4, 2, 4);
+        buffer.putCodePoint(Character.MIN_SURROGATE);
+        buffer.putCodePoint(Character.MAX_SURROGATE);
+        TerminalBuffer.Snapshot screen = buffer.snapshot(0);
+        equal(0, screen.codePointAt(0, 0), "surrogate code point rejection");
+        equal(0, screen.cursorColumn, "surrogate does not advance cursor");
     }
 
     private static void testOscTitle() {
@@ -176,6 +194,181 @@ public final class TerminalCoreSelfTest {
         equal(1, buffer.snapshot(2).firstDocumentLine, "scrolled viewport document origin");
         equal("2\n3\n4\n5",
                 buffer.extractText(4, 0, 1, 0), "selection after history eviction");
+    }
+
+    private static void testStreamingSelection() {
+        TerminalBuffer buffer = new TerminalBuffer(4, 4, 20);
+        AnsiParser parser = new AnsiParser(buffer);
+        parser.feed("ab\r\n\r\ncd".getBytes(StandardCharsets.UTF_8));
+        StringWriter streamed = new StringWriter();
+        try {
+            buffer.writeText(2, 3, 0, 0, streamed);
+        } catch (IOException error) {
+            throw new AssertionError("streamed selection failed", error);
+        }
+        equal("ab\n\ncd", streamed.toString(), "streamed selection formatting");
+        equal(
+                buffer.extractText(2, 3, 0, 0),
+                streamed.toString(),
+                "materialized and streamed selections agree");
+        equal(
+                (long) streamed.toString().getBytes(StandardCharsets.UTF_8).length,
+                buffer.captureText(2, 3, 0, 0).utf8ByteCount(),
+                "selection snapshot UTF-8 byte count");
+
+        TerminalBuffer.TextSelection snapshot = buffer.captureText(2, 3, 0, 0);
+        if (snapshot.maximumUtf8ByteCount() < snapshot.utf8ByteCount()) {
+            throw new AssertionError("selection UTF-8 upper bound is too small");
+        }
+        buffer.reset();
+        equal("ab\n\ncd", snapshot.asString(), "selection snapshot survives screen mutation");
+
+        boolean interrupted = false;
+        Thread.currentThread().interrupt();
+        try {
+            snapshot.writeTo(new StringWriter());
+        } catch (InterruptedIOException expected) {
+            interrupted = true;
+        } catch (IOException error) {
+            throw new AssertionError("unexpected cancellation error", error);
+        } finally {
+            Thread.interrupted();
+        }
+        if (!interrupted) {
+            throw new AssertionError("selection streaming ignored cancellation");
+        }
+    }
+
+    private static void testClipboardFileStore() {
+        equal(629_145_600L, ClipboardFileStore.MAX_PAYLOAD_BYTES,
+                "600 MiB clipboard payload limit");
+        File testRoot = new File(
+                System.getProperty("java.io.tmpdir"),
+                "ostadix-clipboard-test-" + System.nanoTime());
+        if (!testRoot.mkdirs()) {
+            throw new AssertionError("unable to create clipboard test directory");
+        }
+        ClipboardFileStore.StagedPayload payload = null;
+        try {
+            final String expected = "clipboard 界";
+            payload = ClipboardFileStore.stage(
+                    testRoot,
+                    new ClipboardFileStore.PayloadWriter() {
+                        @Override
+                        public void writeTo(Writer destination) throws IOException {
+                            destination.write(expected);
+                        }
+                    });
+            equal(
+                    (long) expected.getBytes(StandardCharsets.UTF_8).length,
+                    payload.byteCount,
+                    "UTF-8 clipboard payload byte count");
+            equal(expected, payload.readInlineText(), "inline clipboard payload");
+            if (!ClipboardFileStore.isFinishedPayloadName(payload.file.getName())) {
+                throw new AssertionError("staged clipboard payload name is not provider-safe");
+            }
+            equal(
+                    payload.file.getCanonicalFile(),
+                    ClipboardFileStore.resolvePayload(testRoot, payload.file.getName()),
+                    "clipboard payload resolution");
+            equal(
+                    payload.byteCount,
+                    ClipboardFileStore.reopen(
+                            testRoot, payload.file.getName()).byteCount,
+                    "clipboard payload restart recovery");
+
+            ClipboardFileStore.StagedPayload orphan = ClipboardFileStore.stage(
+                    testRoot,
+                    new ClipboardFileStore.PayloadWriter() {
+                        @Override
+                        public void writeTo(Writer destination) throws IOException {
+                            destination.write("orphan");
+                        }
+                    });
+            ClipboardFileStore.deleteOrphanedPayloads(
+                    testRoot, payload.file.getName());
+            if (!payload.file.exists()) {
+                throw new AssertionError("current clipboard payload was not preserved");
+            }
+            if (orphan.file.exists()) {
+                throw new AssertionError("orphaned clipboard payload was not deleted");
+            }
+
+            boolean rejected = false;
+            try {
+                ClipboardFileStore.stage(
+                        testRoot,
+                        4,
+                        new ClipboardFileStore.PayloadWriter() {
+                            @Override
+                            public void writeTo(Writer destination) throws IOException {
+                                destination.write("12345");
+                            }
+                        });
+            } catch (ClipboardFileStore.PayloadTooLargeException expectedFailure) {
+                rejected = true;
+            }
+            if (!rejected) {
+                throw new AssertionError("clipboard payload limit was not enforced");
+            }
+
+            if (!payload.file.setLastModified(1)) {
+                throw new AssertionError("unable to age clipboard test payload");
+            }
+            ClipboardFileStore.deleteExpiredPayloads(
+                    testRoot, 8L * 24L * 60L * 60L * 1000L);
+            if (payload.file.exists()) {
+                throw new AssertionError("expired clipboard payload was not deleted");
+            }
+        } catch (IOException error) {
+            throw new AssertionError("clipboard file-store test failed", error);
+        } finally {
+            deleteRecursively(testRoot);
+        }
+    }
+
+    private static void testVoiceInputSemantics() {
+        equal("next command",
+                TerminalView.trailingInputLine("first command\r\nnext command"),
+                "voice input CRLF normalization state");
+        equal("λ world",
+                TerminalView.trailingInputLine("ignored\nλ world"),
+                "voice input Unicode trailing line");
+        if (!TerminalView.containsLineBreak("one\ntwo")) {
+            throw new AssertionError("voice input line break was not detected");
+        }
+        equal(
+                "hello ".length(),
+                TerminalView.commonPrefixAtCodePointBoundary("hello world", "hello there"),
+                "voice replacement common prefix");
+        equal(
+                "A😀".length(),
+                TerminalView.commonPrefixAtCodePointBoundary("A😀x", "A😀y"),
+                "voice replacement Unicode boundary");
+        TerminalView.InputReplacement append = TerminalView.planInputReplacement(
+                "echo", "echo hello world");
+        equal(0, append.deleteCodePoints, "voice append deletion count");
+        equal(" hello world", append.suffix, "voice append suffix");
+        TerminalView.InputReplacement correction = TerminalView.planInputReplacement(
+                "hello world", "hello there");
+        equal(5, correction.deleteCodePoints, "voice correction deletion count");
+        equal("there", correction.suffix, "voice correction suffix");
+        TerminalView.InputReplacement unicode = TerminalView.planInputReplacement(
+                "A😀x", "A😀y");
+        equal(1, unicode.deleteCodePoints, "voice Unicode correction deletion count");
+        equal("y", unicode.suffix, "voice Unicode correction suffix");
+    }
+
+    private static void deleteRecursively(File target) {
+        File[] children = target.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                deleteRecursively(child);
+            }
+        }
+        if (target.exists() && !target.delete()) {
+            throw new AssertionError("unable to remove test path: " + target);
+        }
     }
 
     private static void equal(Object expected, Object actual, String label) {

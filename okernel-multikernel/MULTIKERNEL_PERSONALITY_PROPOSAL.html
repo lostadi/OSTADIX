@@ -1,0 +1,486 @@
+<h1>Containing and Utilizing Foreign Kernels in O-core</h1>
+<p><em>A design proposal for hosting Linux, Android, XNU/Darwin, and Windows NT as
+O-Domain personalities — written against the existing <code>ocore</code> runtime and the
+<code>ODOMAIN_PLAN</code> roadmap.</em></p>
+<p>Status: architecture note reconciled with the current bounded evidence. Modes
+19 and 24 implement the first bounded-copy mechanism and live four-byte path;
+Mode 25 executes one exact static Linux ELF corpus; and Mode 26 composes that
+corpus with one exact native 9P2000 client/server path. Full M6B, the broader M7
+acceptance matrix, M8--M11, and a distributed Ostadix World remain planned. No
+type, name, or proposal text expands those executable claim boundaries.</p>
+<hr>
+<h2>0. Deconstructing the request</h2>
+<p>&quot;Allow my Okernel to contain and fully utilize all other kernels within it&quot; is
+one sentence hiding three separate questions. Untangling them is most of the
+design work, because each admits a different answer and the mistakes come from
+conflating them.</p>
+<p><strong>What does &quot;contain a kernel&quot; mean?</strong> It bifurcates, and your own roadmap
+already encodes the fork:</p>
+<ul>
+<li><em>Contain the ABI.</em> Reimplement the application-facing contract a foreign
+kernel exposes — its syscall numbers, errno space, struct layouts, signal and
+object model — and run foreign <strong>binaries</strong> directly on O-core. No foreign
+kernel code executes. This is the <strong>personality / library-OS</strong> path
+(<code>ODOMAIN_PLAN</code> M7–M10). Precedents: WSL1, FreeBSD&#39;s Linuxulator, illumos
+LX-branded zones, Wine, Darling.</li>
+<li><em>Contain the kernel image.</em> Run the actual Linux/NT/XNU binary kernel as a
+guest, with O-core as hypervisor, and talk to it through a paravirtual
+channel. This is <strong>full-kernel domain mode</strong> (<code>ODOMAIN_PLAN</code> M11). Precedents:
+WSL2, gVisor&#39;s KVM platform, any Type-1/Type-2 VMM.</li>
+</ul>
+<p>These are duals, and the trade is exact: translation maximizes <em>utilization</em>
+(foreign resources become native O-core capabilities, crossings are cheap,
+scheduling is shared) at the cost of <em>engineering per syscall</em> and a permanent
+compatibility tail. Subordination maximizes <em>fidelity</em> (it is the real kernel,
+so compatibility is total) at the cost of <em>integration</em> (the guest is an opaque
+box reachable only through an agent) and of you now maintaining a VMM.</p>
+<p><strong>What does &quot;fully utilize&quot; mean?</strong> This is the load-bearing phrase, and it is
+where containment and utilization pull against each other. A VM contains
+perfectly and utilizes poorly: the guest&#39;s file descriptors, sockets, and
+processes are invisible sludge behind a virtio wall. A personality utilizes well
+and contains imperfectly: a foreign <code>fd</code> can <em>become</em> an O-core capability, but
+every unimplemented syscall is a leak in the abstraction. &quot;Fully utilize&quot; is not
+&quot;emulate everything&quot; — it is <em>make foreign resources first-class citizens of the
+O-Domain graph without granting them ambient authority</em>. You already have the
+membrane for exactly this: the M9 trichotomy of <strong>OValue</strong> (data),
+<strong>capability</strong> (authority), and <strong>native capsule</strong> (affinity). That trichotomy
+<em>is</em> the technical answer to &quot;utilize,&quot; and Section 3 argues it is the whole
+game.</p>
+<p><strong>What does &quot;all other kernels ... within it&quot; mean?</strong> The word <em>all</em> implies
+simultaneity — Linux and NT and XNU domains coexisting and <em>composing</em> in one
+running system. Hosting one foreign kernel is a solved genre; Google, Microsoft,
+and Apple each ship a variant. The part that is novel, and that your
+architecture is unusually well-positioned for, is the <em>composition</em>: a single
+typed computational graph in which a value crosses from a Linux process through
+an NT process into a native O-core service, each hop typed as data / authority /
+capsule, each personality failure contained. That is <code>ODOMAIN_PLAN</code> M9, and it
+is the actual thesis-grade contribution. Section 5 makes the case.</p>
+<p>So the request factors into three orthogonal parameters, and every target kernel
+is a point in this space:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Values</th>
+<th>Governs</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>P1 — boundary mechanism</strong></td>
+<td>translate · subordinate · hybrid</td>
+<td>how the foreign contract is realized</td>
+</tr>
+<tr>
+<td><strong>P2 — fidelity</strong></td>
+<td>syscall-exact · errno-exact · layout-exact, over a <em>named corpus</em></td>
+<td>what you promise a foreign binary</td>
+</tr>
+<tr>
+<td><strong>P3 — crossing semantics</strong></td>
+<td>OValue · capability · native capsule</td>
+<td>how foreign resources are <em>utilized</em></td>
+</tr>
+</tbody></table>
+<p>The rest of this document is: a structural framing that says <em>why</em> your existing
+primitives are the right substrate (Section 1–2), the crossing membrane that
+delivers &quot;utilize&quot; (Section 3), a per-kernel map with honest blockers
+(Section 4), the composition thesis (Section 5), non-claims (Section 6), and the
+reconciled bounded result plus next dependency work (Section 7).</p>
+<hr>
+<h2>1. The structural-realist framing: kernels as functors into O</h2>
+<p>Here is the lens I think actually fits what you are building, and it is not
+decoration — it dictates the interfaces.</p>
+<p>Strip a kernel to its invariant and every one of Linux, NT, XNU, and Binder is
+the <strong>same</strong> structure: a function from <code>(principal, request, capability-set, memory-view)</code> to <code>(result, effect, next-state)</code>. What differs between them is
+not that structure but its <em>presentation</em> — the coordinates in which the
+structure is expressed. Linux presents authority as a small-integer <code>fd</code>; NT as
+a <code>HANDLE</code> into the Object Manager; Mach as a <code>mach_port_t</code> send/receive right;
+Binder as a reference-counted object handle. These are the <em>phenomena</em>. The
+<em>noumenon</em> — the thing they are all presentations of — is a capability-mediated
+request over an isolated principal. That noumenon is precisely what <code>ocore</code>
+already implements: PCB/domain/CSpace as principal, endpoint send/receive as
+request, typed generation-tagged capability as authority, and the
+<code>PERSONALITY_MEMORY_VIEW</code> protocol as the memory-view.</p>
+<p>Cast in categorical terms (since parameterization is the point): let each
+foreign kernel be a category <strong>K</strong> whose objects are its resource types (<code>fd</code>,
+<code>HANDLE</code>, <code>mach_port</code>, <code>binder_ref</code>) and whose morphisms are its syscalls. Let
+<strong>O</strong> be O-core&#39;s category: objects are typed capabilities, morphisms are
+endpoint operations under the memory-view protocol. A <strong>personality is a functor
+<code>P: K → O</code></strong>. Its job is to preserve the structure that matters — object
+identity, the rights lattice (attenuation-only), lifetime/generation, and
+failure — while discarding the accidental coordinates.</p>
+<p>Three consequences fall out of this framing immediately, and they are why your
+existing design choices are the correct ones rather than arbitrary:</p>
+<ol>
+<li><strong>Attenuation-only capability transfer</strong> (<code>cap_transfer.oc</code>) is exactly the
+requirement that <code>P</code> be a functor into the <em>sub-object/rights lattice</em> — a
+personality may narrow authority but never forge or amplify it. Your
+<code>RIGHT_*</code> model and generation tags are the codomain&#39;s object structure.</li>
+<li><strong>The memory-view protocol</strong> is the statement that <code>P</code> may not smuggle a raw
+pointer across the functor — a foreign address is meaningless in O; only a
+bounded, request-scoped view is a legal codomain object. Your
+<code>PERSONALITY_MEMORY_VIEW.md</code> is, in this reading, the naturality condition on
+memory arguments.</li>
+<li>Because all <code>P_i</code> <strong>share the codomain O</strong>, morphisms <em>between</em> personalities
+exist for free-ish — they factor through O. That shared codomain is what
+makes &quot;utilize <em>all</em> kernels at once&quot; a coherent goal rather than N disjoint
+emulators. (Section 5.)</li>
+</ol>
+<p>&quot;Compatibility,&quot; then, has a precise definition: <code>P</code> preserves the observable
+equalities of a <em>named binary corpus</em> against a <em>native oracle</em>. That is already
+the discipline in your M7 acceptance gate — you just have a cleaner name for it.</p>
+<hr>
+<h2>2. What already exists to build on</h2>
+<p>This proposal is cheap because most of the substrate is built and gated. The
+foreign-personality work is <em>additive</em> over the following, all of which are
+present in <code>ocore/runtime/x86_64/</code> and gated in <code>ocore/kernel/</code>:</p>
+<ul>
+<li><strong>Principal isolation &amp; mechanism</strong> (M0.1–M1): independent CR3s, W^X, guarded
+stacks, normalized trap frames, typed capability lookup, per-CSpace quotas.
+Foreign processes are just O-core processes with a foreign personality tag.</li>
+<li><strong>Scheduling &amp; blocking</strong> (M2): preemptive/blocking TCB scheduler with sleep,
+yield, and IPC wake epochs — the substrate a <code>futex</code> or <code>mach_msg</code> receive
+blocks on.</li>
+<li><strong>Endpoint IPC + attenuated transfer + crash containment</strong> (M3): public
+bounded CPL3 endpoints, real block/wake, death cleanup. This is the transport
+a personality service speaks.</li>
+<li><strong>Static ELF loader + immutable OVFS + service namespace</strong> (M4): loads foreign
+static ELF images from a content-addressed read-only image into isolated
+W^X address spaces. A foreign binary is loaded here.</li>
+<li><strong>Package activation / live supervision</strong> (M5): a personality ships as an
+<em>immutable package</em>, activated through the supervisor, health-gated, with
+generation rebind and rollback — never compiled into privileged policy.</li>
+<li><strong>Scalar personality supervision</strong> (M6A): <code>personality.oc</code> already carries
+<code>PERSONALITY_NATIVE</code> and a deliberately tiny <code>PERSONALITY_TEST</code>;
+<code>personality_rpc.oc</code> already routes a versioned request corpus with
+cancellation, timeout, and service-death results and rejects late / duplicate
+/ prior-generation / stale-capability use while an unrelated observer keeps
+running. This is the scalar personality <strong>router</strong> reused by the later bounded
+modes; M6A alone is not a foreign ABI.</li>
+<li><strong>Bounded request views</strong> (M6B mechanism and Mode 24): mode 19 implements
+generation-tagged request-scoped bounded-copy views and independently
+revocable typed leases. Mode 24 connects one exact four-byte <code>INOUT</code> shape to
+the live CPL3 router and supervisor across one contained daemon fault and
+generation-2 rebind. It does not complete pinned-window, streaming, signal,
+mapping-event, fuzzing, allocation-failure, or concurrent teardown work.</li>
+<li><strong>Exact Linux and 9P compositions</strong> (Modes 25 and 26): Mode 25 loads and
+executes one pinned 8,520-byte static Linux x86-64 ELF at CPL3 for two writes,
+Linux <code>-ENOSYS</code>, and <code>exit_group(42)</code>. Mode 26 reuses that exact corpus behind
+one bounded native 9P2000 server and Plan-9-style client at
+<code>/srv/linux/status</code>, including withdrawal, replacement, and stale-generation
+denial. Neither gate boots Linux or Plan 9 or establishes a general foreign
+ABI or namespace.</li>
+</ul>
+<p>The ABI seam is already reserved in <code>native_abi.oc</code>:</p>
+<pre><code>SYS_PERSONALITY_CALL       = 14
+SYS_PERSONALITY_REPLY      = 15
+SYS_PERSONALITY_SUPERVISE  = 16
+PERSONALITY_RPC_V1         = 1
+ERR_PERSONALITY_{UNAVAILABLE,CANCELLED,TIMEOUT,FAILED,STALE,DUPLICATE,BUSY,UNSUPPORTED}
+</code></pre>
+<p>In other words: the router, supervision lifecycle, bounded-copy mechanism, one
+exact live request shape, one exact Linux syscall corpus, and one exact 9P2000
+composition now have executable gates. What does not exist yet -- and this
+proposal does not pretend otherwise -- is the complete M6B memory-view and race
+matrix, the broader native-oracle-backed M7 syscall corpus, general Linux or
+Plan 9 environments, or the M9 OValue/capability/capsule transport codecs.
+Those remain dependency-ordered work.</p>
+<hr>
+<h2>3. The crossing membrane — how &quot;utilize&quot; actually happens</h2>
+<p>If Section 0 is right that &quot;fully utilize&quot; means &quot;make foreign resources
+first-class without ambient authority,&quot; then the single most important part of
+this whole effort is not any syscall table — it is the three-channel crossing
+contract (M9). It deserves to be built <em>early and rigidly</em>, because it is what
+prevents a personality from becoming an untyped RPC escape hatch, and it is what
+lets one domain&#39;s resources be used by another.</p>
+<p><strong>OValue channel — structural data.</strong> Numbers, text, bytes, lists, maps, tables,
+graphs, errors. Reuse the hosted <code>OValue</code> vocabulary but define a <em>versioned,
+bounded kernel transport schema</em> with hard message-size / depth / node-count /
+allocation quotas. The kernel never deserializes arbitrary Rust objects. A Linux
+process&#39;s <code>write(2)</code> payload crossing to a native logging service is an OValue
+crossing.</p>
+<p><strong>Capability channel — live authority.</strong> Files, shared memory, sockets, devices,
+services, processes cross as <em>opaque transport references</em>; the kernel&#39;s atomic
+transfer operation supplies the actual authority, always attenuated. This is the
+channel that makes a foreign <code>fd</code> genuinely <em>usable</em> elsewhere: a Linux
+personality&#39;s open file becomes an O-core file capability that a native service —
+or an NT domain — can receive with strictly narrowed rights. This is
+&quot;utilization&quot; in its strongest form, and it is only safe because of
+attenuation-only transfer.</p>
+<p><strong>Native-capsule channel — affinity-locked objects.</strong> Some foreign objects
+cannot be honestly normalized: a Mach port with complex right semantics, an NT
+<code>APC</code> queue, a Binder death-recipient link. These cross as <em>capsules</em> tagged with
+origin domain, personality, type, lifetime, and rehydration policy, defaulting to
+<strong>same-process or never</strong>. The capsule is the honest admission that not
+everything is portable — and encoding that dishonesty-refusal in the type system
+is what keeps the whole system trustworthy.</p>
+<p>The design rule (your invariant #10) is the thing to defend to the death:
+<strong>OValues are data, capabilities are authority, capsules preserve affinity, and
+no transport silently converts one category into another.</strong> A foreign kernel is
+&quot;fully utilized&quot; exactly to the degree its resources can be expressed in these
+three channels — and no further, on purpose.</p>
+<hr>
+<h2>4. Per-kernel map</h2>
+<p>Ordered by <em>structural difficulty</em>, which is not the same as popularity. The
+right sequence is dictated by how stable and how capability-shaped each foreign
+contract is.</p>
+<h3>4.1 Linux x86-64 — the correct first personality (M7–M8)</h3>
+<p>The first exact M7 slice is now Mode 25, with Mode 26 adding its bounded 9P2000
+composition. Their corpus and non-claims are fixed above; the broader Linux
+personality described in this section remains a target, not a projection from
+those four calls.</p>
+<p>Linux is easiest for one structural reason: <strong>its userspace ABI is deliberately,
+famously stable</strong> (&quot;we do not break userspace&quot;). The syscall boundary is the
+contract — number in <code>rax</code>, args in <code>rdi, rsi, rdx, r10, r8, r9</code> — and a static
+ELF64 binary needs almost nothing else. The object model is trivially
+functorial: a Linux <code>fd</code> is a small integer index into a <em>personality-object
+table</em> whose entries are O-core capabilities. <code>fd</code> never becomes a raw O-core
+handle (invariant), it stays a personality object that <em>names</em> one.</p>
+<p>Difficulty lives in a handful of syscalls, each of which maps onto machinery you
+already have:</p>
+<ul>
+<li><code>mmap</code>/<code>munmap</code>/<code>brk</code> → <code>address_space.oc</code> map/unmap + the memory-view
+protocol. Anonymous memory first; file-backed later.</li>
+<li><code>clone</code>/<code>futex</code> → M2 scheduler + M3 endpoint wait epochs. A <code>futex</code> wait is
+strikingly close to a blocked TCB on an endpoint wake epoch — you already have
+the wake-once retry semantics (<code>ERR_IPC_RETRY</code>).</li>
+<li><code>rt_sigaction</code>/signal delivery → your normalized trap-frame delivery path.</li>
+<li><code>ioctl</code> → the compatibility swamp. It <em>must</em> stay corpus-pinned; an open
+<code>ioctl</code> surface is where &quot;minimal Linux personality&quot; quietly becomes &quot;all of
+Linux.&quot; Return the documented error for anything off-corpus, never silently
+succeed.</li>
+</ul>
+<p>Ship it as an immutable <code>personality/linux</code> package (M5), start with a pinned
+static-binary corpus, and validate argument/errno/struct/signal/memory behavior
+against a <strong>native Linux oracle</strong> before broadening pointer-bearing behavior
+beyond the exact bounded-copy calls already gated by Mode 25.
+M8 then adds multiple root filesystems — <code>linux[alpine]</code>, <code>linux[debian]</code> — over
+<em>one</em> Linux personality with distinct namespaces. Debian vs Alpine are rootfs
+compositions, not different personalities; keep that distinction crisp.</p>
+<h3>4.2 Android — Linux personality <strong>plus a Binder capability service</strong> (reframe)</h3>
+<p>The most useful thing I can tell you here: <strong>Android is not a different kernel.</strong>
+It is the Linux kernel plus a userspace stack (bionic libc, the ART runtime) plus
+a small set of kernel-adjacent primitives — chiefly the <strong>Binder</strong> IPC driver
+(<code>/dev/binder</code>, an <code>ioctl</code>-driven transaction protocol), <code>ashmem</code>/<code>dmabuf</code> shared
+memory, and the property service. So &quot;contain the Android kernel&quot; decomposes into
+&quot;the Linux personality (4.1) <strong>+</strong> a native O-core Binder service.&quot;</p>
+<p>And Binder is almost isomorphic to what you already built. A Binder transaction
+carries object references with kernel-managed reference counting and death
+notification; handles are per-process and translated by the driver on every
+cross-process hop. Read that again in your vocabulary: <strong>Binder handles are
+capabilities</strong> — per-CSpace, generation-tagged, attenuated on transfer, with
+death cleanup. Your <code>endpoint.oc</code> + <code>cap_transfer.oc</code> + IPC death-cleanup is a
+better-typed Binder. So the plan is: expose a native <code>binderd</code> service over
+endpoints; have the Linux personality translate the <code>/dev/binder</code> <code>ioctl</code>
+surface into calls on it; map Binder&#39;s <code>flat_binder_object</code> reference passing
+onto capability transfer; back <code>ashmem</code>/<code>dmabuf</code> with shared memory objects
+(<code>memory_object.oc</code>). This is a genuinely elegant fit and, I suspect, a stronger
+demonstration than raw Linux because it shows the capability model <em>absorbing</em> a
+real-world object-IPC system rather than merely shimming POSIX.</p>
+<h3>4.3 macOS / XNU — Mach ports are capabilities, but the userland fights back (research-grade)</h3>
+<p>XNU is a hybrid: a Mach microkernel core + a BSD (POSIX) layer + IOKit. Two
+syscall classes: BSD unix syscalls (positive numbers, ≈ the POSIX surface you
+already serve for Linux — real reuse) and <strong>Mach traps</strong> (negative numbers:
+<code>mach_msg</code>, <code>mach_port_*</code>, <code>vm_allocate</code>, …). On the Mach side the functor is
+beautiful: <code>mach_port_t</code> send/receive rights are one of the origin points of
+capability-OS lineage; <code>mach_msg</code> with port-right transfer is your endpoint
+send/receive with capability transfer, almost line for line. If you only had to
+implement Mach, XNU would rank <em>above</em> NT.</p>
+<p>The difficulty is not the kernel model, it is everything Apple wraps around it:
+binaries are <strong>Mach-O</strong>, not ELF (new loader); modern macOS requires the <strong>dyld
+shared cache</strong> and code-signing/entitlements; and Apple actively breaks
+compatibility release to release (Darling has pursued this for ~a decade and
+still cannot run most GUI apps). There is also a hard <strong>legal</strong> edge: you cannot
+redistribute Apple&#39;s frameworks or dyld cache — a user must supply them — so a
+&quot;macOS domain&quot; is realistically a <em>Darwin</em> domain (the open-source core) plus
+user-supplied Apple userland. Recommendation: treat a <strong>Mach-trap + BSD subset
+personality running Darwin/PureDarwin binaries</strong> as the honest target, reuse the
+Linux personality&#39;s POSIX work for the BSD half, and defer full macOS userland
+indefinitely. This is a multi-year research line, not a slice.</p>
+<h3>4.4 Windows NT — the syscall boundary is the wrong seam (translate high, or subordinate)</h3>
+<p>NT is the hardest of the four, for a precise structural reason that inverts the
+Linux argument: <strong>the NT syscall boundary is deliberately <em>unstable</em>.</strong> System
+call numbers change between builds; Microsoft reserves the right and does it
+routinely. The stable contract lives <em>higher</em> — at the <strong>Native API</strong> (<code>ntdll</code>&#39;s
+<code>Nt*</code>/<code>Zw*</code> functions) and above it the Win32 API (<code>kernel32</code>, <code>user32</code>,
+<code>gdi32</code>). So a &quot;Windows personality&quot; cannot target the raw syscall table; it must
+reimplement a large <em>userspace</em> surface at the ntdll/Win32 seam. That is Wine&#39;s
+entire existence, and it is a very large, permanently-moving target. NT&#39;s object
+model is also the richest: <code>HANDLE</code>s into the Object Manager with full
+security-descriptor/ACL semantics, heavy ALPC use, and the registry as a
+first-class namespace.</p>
+<p>There is a lovely historical irony worth internalizing: <strong>NT was <em>designed</em> as a
+personality system.</strong> The original NT ran Win32, POSIX, and OS/2 &quot;subsystems&quot; as
+userland servers over the Executive&#39;s Native API — the exact shape you are
+building, minus capabilities as the substrate. You are, in a real sense,
+rebuilding Cutler&#39;s subsystem architecture on a capability core.</p>
+<p>Honest recommendation: NT is where <strong>full-kernel domain mode (M11) is the
+realistic first answer.</strong> Boot a real Windows kernel as <code>nt.kernel[0]</code> under the
+VMM and integrate through a guest agent that speaks your three crossing channels.
+In parallel, a <em>translate-high</em> path — run <strong>Wine over the Linux personality</strong>
+(Wine-on-libOS) — gives you a surprising amount of Win32 for near-zero
+NT-specific kernel work, because Wine already does the ntdll/Win32 translation
+and only needs a POSIX host, which 4.1 provides. That hybrid (Wine userland +
+Linux personality + native services) is likely the highest-leverage Windows story
+before any native NT personality is justified.</p>
+<h3>4.5 Full-kernel domain mode — the universal fallback (M11)</h3>
+<p>For any kernel whose ABI is too unstable, too large, or too legally encumbered to
+translate, subordinate it. A hardware-virtualization backend (KVM-class where
+available) owns guest physical memory, vCPUs, interrupt injection, and
+<strong>paravirtual</strong> devices only — no direct passthrough until IOMMU-backed DMA
+isolation, reset, revocation, and hostile-device tests have their own evidence.
+Crucially, crossings still go through the <em>same</em> OValue/capability/capsule
+contract via a guest agent — never implicit host mounts or sockets. This keeps a
+subordinate Linux/NT/XNU domain a first-class, <em>composable</em> citizen rather than a
+walled-off VM, which is the whole point of doing it inside O-core instead of next
+to it.</p>
+<h3>4.6 Summary matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>ABI stability</th>
+<th>Object model → O mapping</th>
+<th>Recommended P1</th>
+<th>First honest deliverable</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Linux x86-64</strong></td>
+<td>very high (stable syscalls)</td>
+<td><code>fd</code> → personality-object → capability</td>
+<td>translate</td>
+<td>pinned static-ELF corpus vs native oracle (M7)</td>
+</tr>
+<tr>
+<td><strong>Android</strong></td>
+<td>= Linux + Binder</td>
+<td>Binder ref → <strong>capability</strong> (near-isomorphic)</td>
+<td>translate + native <code>binderd</code></td>
+<td>Linux corpus + Binder transaction over endpoints</td>
+</tr>
+<tr>
+<td><strong>XNU / Darwin</strong></td>
+<td>low (Apple churn)</td>
+<td><code>mach_port</code> → <strong>capability</strong>; BSD → reuse Linux POSIX</td>
+<td>translate (Mach+BSD subset)</td>
+<td>Darwin binaries, Mach-trap subset; defer Apple userland</td>
+</tr>
+<tr>
+<td><strong>Windows NT</strong></td>
+<td>very low at syscalls; stable at ntdll/Win32</td>
+<td><code>HANDLE</code>/Object Manager → capability + capsule</td>
+<td>subordinate (M11) <em>or</em> Wine-on-Linux hybrid</td>
+<td>boot <code>nt.kernel[0]</code> in VMM, or Wine over Linux personality</td>
+</tr>
+<tr>
+<td><strong>Anything else</strong></td>
+<td>—</td>
+<td>—</td>
+<td>subordinate</td>
+<td>guest agent over the three crossing channels</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. The real answer to &quot;<em>all</em> kernels at once&quot;: composition (M9)</h2>
+<p>Hosting one foreign kernel is a genre with three shipping incumbents. The claim
+worth making — and the one your architecture is distinctively built for — is
+about <em>simultaneity and composition</em>, and it follows directly from the functor
+framing in Section 1.</p>
+<p>Because every personality <code>P_i</code> is a functor into the <strong>same</strong> codomain O, a
+value or resource can be routed <em>through several of them in one typed graph</em>, and
+the crossings between them are mediated by the M9 channels. Concretely, the
+credible flagship demonstration is a single <code>ExecutionPlan</code>-style graph in which:</p>
+<ol>
+<li>a native O-Domain produces a structural <strong>OValue</strong>;</li>
+<li>it crosses into <code>linux[alpine]</code>, consumed by a pinned static binary via the
+Linux personality (<code>P_linux</code>);</li>
+<li>that binary&#39;s output file crosses as an <strong>attenuated capability</strong> into a
+second domain (native service, or <code>nt</code> domain via agent);</li>
+<li>every personality <strong>state/effect transition is recorded</strong> as a distinct graph
+node, exactly as your HGraph already records resource/actor/completion nodes
+for hosted backends; and</li>
+<li>revoking any upstream domain or capability <strong>deterministically fails
+downstream operations</strong> — and a crash in any one personality service leaves
+the others running (M3 containment, already gated at scalar scope).</li>
+</ol>
+<p>That is not &quot;a kernel that contains kernels.&quot; It is a <strong>capability-mediated
+composition substrate in which foreign kernels are interchangeable personalities
+over one invariant request/authority structure.</strong> The container metaphor
+undersells it; the accurate metaphor is a <em>common categorical target</em> into which
+each foreign kernel is a functor, with the crossing channels as the natural
+transformations between them. The novelty, and the paper, is the composition —
+not any single emulation.</p>
+<p>This also reframes &quot;fully utilize&quot; one final time: a foreign kernel is fully
+utilized when its resources are <em>reachable as ordinary nodes in the O-Domain
+graph</em> — schedulable, attenuatable, revocable, composable with every other
+domain — rather than trapped behind an opaque boundary. The three channels are
+the exact measure of how much utilization is honestly available.</p>
+<hr>
+<h2>6. Non-claims and blockers (kept in your CLAIMS register style)</h2>
+<ul>
+<li>Nothing is implemented by virtue of a type, constant, name, or proposal
+existing. Modes 25 and 26 are implemented only at their exact executable
+corpus boundaries; the remainder of M7 and all of M8--M11 remain planned.</li>
+<li>Modes 19, 24, and 25 establish bounded-copy request views and one exact live
+four-byte/native and two-write/Linux use. They do not complete the full M6B
+acceptance matrix. Broader pointer-bearing foreign syscalls remain blocked on
+pinned windows, actual mapping and signal events, lifecycle-race evidence,
+fuzzing, allocation-failure coverage, and a native Linux oracle. No service
+receives a raw foreign pointer.</li>
+<li>&quot;Compatibility&quot; claims must always name the <strong>binary corpus, architecture,
+syscall slice, and execution mode</strong> tested against a native oracle. &quot;Runs
+Linux&quot; is not a claim; &quot;runs <em>this</em> pinned static corpus with <em>these</em> syscalls,
+errno-exact vs oracle&quot; is.</li>
+<li>The <code>ioctl</code> / driver / GUI / dynamic-loader long tail is unbounded and must
+stay explicitly corpus-pinned. Off-corpus behavior fails closed with the
+documented error.</li>
+<li>NT&#39;s syscall ABI instability makes a native syscall-level NT personality a
+poor early target; XNU&#39;s Mach-O + dyld cache + code-signing + Apple churn plus
+the legal non-redistribution of Apple userland make full macOS translation
+research-grade. Both are honestly addressed first via subordination (M11) or a
+Mach/BSD-subset-over-Darwin slice.</li>
+<li>Full-kernel mode must not become a hole in the security model: guest-agent
+crossings only, paravirtual devices first, hard quotas, <strong>no</strong> ambient host
+mounts or sockets, and <strong>no</strong> direct passthrough before IOMMU-backed isolation
+and hostile-device evidence.</li>
+</ul>
+<hr>
+<h2>7. Current bounded result and next dependency work</h2>
+<p>The former M7 slice-1 proposal has landed in a deliberately narrower form as
+Mode 25. Its evidence names one exact static ELF, two <code>write</code> calls, one
+unsupported syscall returning <code>-ENOSYS</code>, and <code>exit_group(42)</code> across one
+contained daemon replacement. It does not include the proposed <code>brk</code>, <code>mmap</code>,
+<code>read</code>, or <code>clock_gettime</code> corpus and has not passed the broader native Linux
+oracle matrix. Mode 26 then adds one exact 9P2000 service composition without
+expanding the Linux syscall corpus.</p>
+<p>The next native work follows the remaining dependency boundaries rather than
+renaming those two gates as full M7:</p>
+<ol>
+<li>complete M6B with pinned windows, streaming, signal and actual
+mapping/resource events, lifecycle-race tests, schema fuzzing, and
+allocation-failure coverage;</li>
+<li>broaden the pinned Linux corpus only behind syscall-by-syscall native-oracle
+evidence, explicit unsupported behavior, and the same fault/rebind rules;</li>
+<li>implement the first versioned, bounded M9 structural OValue crossing while
+keeping capability authority private and capsules affinity-bound;</li>
+<li>add a Binder-style capability service only after those memory and crossing
+boundaries are executable; and</li>
+<li>pursue the KernelWorld guest-agent and physical-device track only in the
+dependency order documented by
+<a href="../docs/KERNEL_WORLD_CONTRACT.md"><code>docs/KERNEL_WORLD_CONTRACT.md</code></a>, with no
+passthrough before IOMMU, DMA-window, interrupt-revocation, reset, and hostile
+failure evidence.</li>
+</ol>
+<p>The immediate product integration cycle is separately defined by
+<a href="../docs/OSTADIX_WORLD.md"><code>docs/OSTADIX_WORLD.md</code></a>. Its native replicated
+Governor, membership, WorldFS, real KernelWorld, device-isolation,
+route-dispatch, and placement gates are not implemented by Modes 25 or 26. The
+prior hosted-first topology is retained only as the non-qualifying
+<a href="../docs/HOSTED_WORLD_REFERENCE_PROFILE.md"><code>Hosted World Reference Profile</code></a>.</p>
+<hr>
+<p><em>Written against <code>ocore/runtime/x86_64/</code> (<code>native_abi.oc</code>, <code>personality.oc</code>,
+<code>personality_rpc.oc</code>, <code>cap_transfer.oc</code>, <code>endpoint.oc</code>, <code>address_space.oc</code>,
+<code>memory_object.oc</code>), <code>ocore/kernel/</code> gates, and <code>docs/ODOMAIN_PLAN.md</code>,
+<code>docs/PERSONALITY_MEMORY_VIEW.md</code>, <code>docs/KERNEL_WORLD_CONTRACT.md</code>,
+<code>docs/OSTADIX_WORLD.md</code>, and <code>docs/CLAIMS.md</code>.</em></p>

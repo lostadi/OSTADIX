@@ -1,0 +1,130 @@
+<h1>Hosted World Reference Profile</h1>
+<p><strong>Status:</strong> design/reference profile with partial hosted foundations;
+non-qualifying for native OSTADIX Alpha release gates.</p>
+<p>This profile preserves the useful hosted design that preceded the native
+full-stack constitution in <a href="OSTADIX_WORLD.md"><code>OSTADIX_WORLD.md</code></a>. It specifies
+how hosted simulators, differential oracles, protocol-fuzz targets, and
+development consoles may support native work. It is not the product definition
+and cannot satisfy G0 through G13 by being scaled across more Linux processes
+or machines.</p>
+<p>The currently executable hosted surface consists of the narrower lifecycle
+oracle and the partial libraries identified below; there is no complete hosted
+World node, Governor, or World protocol implementation.</p>
+<h2>What the profile models</h2>
+<p>The hosted profile may model:</p>
+<ul>
+<li>one named <code>WorldId</code> and monotonically increasing <code>WorldEpoch</code>;</li>
+<li>hosted node and domain generations, renewable leases, and stale-reference
+denial;</li>
+<li>a single authoritative development Governor;</li>
+<li>logical HGraphs, inert snapshots, placement inputs, and deployment records;</li>
+<li>OValue, capability, and capsule crossing classifications;</li>
+<li>separate namespace/control, authority, execution, and bulk-data planes;</li>
+<li>node admission/withdrawal and exactly-one task-result fencing; and</li>
+<li>explicit resource locality rather than coherent cross-node RAM.</li>
+</ul>
+<p>Names, inventory, serialized capability descriptions, and planner annotations
+remain descriptive. They do not grant authority. A live bearer must be bound
+to a private authority implementation, and unknown portability defaults to a
+capsule.</p>
+<p>The narrower package and service lifecycle oracle is documented in
+<a href="HOSTED_LIVE_REFERENCE.md"><code>HOSTED_LIVE_REFERENCE.md</code></a>.</p>
+<h2>Reference topology and consistency</h2>
+<p>The profile may use Linux-hosted node daemons and one development Governor.
+That Governor can persist epochs, issue leases, and reject stale generations.
+It does not implement the replicated authoritative plane required by the
+native constitution. During a partition, the reference profile may fail
+closed, but that behavior is not evidence for quorum, fencing across replicas,
+island mode, or recovery of a replicated log.</p>
+<p>The profile can produce deterministic fixtures and expected results for later
+native implementations. Native results must still pass their own qualifying
+gate under the evidence class required by
+<a href="../evidence/world_alpha_gates.toml"><code>world_alpha_gates.toml</code></a>.</p>
+<h2>Current repository boundary</h2>
+<p>The repository currently has a shared identity foundation plus a partial
+hosted World foundation:</p>
+<ul>
+<li>all 20 constitutional identity atoms typed in Rust and <code>.oc</code>, with bounded
+<code>OWIDENT</code> v1 byte-exact native convergence, strict invalid-record rejection,
+and separate hierarchical stale/mismatch rejection;</li>
+<li>a bounded <code>OWPROTO</code> v1 Rust/<code>.oc</code> record codec with deterministic framing,
+strict size and canonical-form rejection, and offline schema-range selection;</li>
+<li>a separate bounded <code>OWVALUE</code> v1 Rust/<code>.oc</code> oracle with an explicit portable
+allowlist, canonical record and scalar-key-map ordering, a root-only inert
+versioned extension envelope, and a byte-exact 19-record, 928-byte corpus
+whose concatenated SHA-256 is
+<code>264e00550bbbe7561412d9a43f89036667ffbcf27add522131f8e650abef19bc</code>;</li>
+<li>a separate bounded <code>OWRECEIPT</code> v1 Rust/<code>.oc</code> oracle for canonical execution
+receipt and signing-preimage bytes, with hosted Ed25519 verification under a
+pinned public conformance key and native structural signature-envelope
+validation;</li>
+<li>the hosted PR6 typed planner vocabulary for World, Governor, node, domain,
+process, generic resource, object, descriptive capability, namespace,
+task-attempt, artifact-publication, device, and accelerator state, kept
+separate from ambient <code>HostWorld</code>;</li>
+<li>the hosted PR7 deterministic project logical planner, which binds a real
+directory or lifted bundle and resolved route policy to a
+<code>ProjectExecutionPlan</code> and validated HGraph without executing commands;</li>
+<li>deterministic grounding views for OValues, capabilities, capsules, and
+governed resources; underlying identity helpers compare caller-supplied
+pairs, while grounding checks only a bound World epoch/membership rather than
+authoritative nested freshness;</li>
+<li>a descriptive KernelWorld-to-domain binding; and</li>
+<li>local hosted lifecycle, project, HGraph, and capability-broker components.</li>
+</ul>
+<p>The <code>OWIDENT</code> record remains identity-only, and serialized capability IDs are
+descriptive non-authority. The separate <code>OWPROTO</code> v1 slice is a record codec
+with a pure bounded negotiation function; it is not a stream or network
+transport, live peer handshake, authenticated session, OValue envelope, or
+receipt codec and supplies no authority, Governor, or consensus. The repository
+now also has the separate Mode 29 <code>OWVALUE</code> codec/hash oracle. It does not make
+the full hosted <code>OValue</code> enum portable: hosted capabilities, capsules, live
+references, requests, and other effectful values fail its explicit projection.
+Decoded extensions stay inert, and descriptive code or object references do not
+resolve into authority. Mode 30&#39;s receipt corpus is also offline: current
+HGraph, project, live-system, KernelWorld, O-Git, and evidence paths do not emit
+or consume it, and native O-core does not yet provide a general Ed25519 verifier.
+A conformance signature authenticates bytes under its pinned test key; it does
+not grant authority, establish trusted signer policy, or prove current World
+state. The repository does not yet have a live replicated
+Governor, an authoritative World snapshot service, governed distributed lowering, native World transport,
+WorldFS, physical multinode convergence, or an OSTADIX Alpha evidence bundle. No
+production lowering currently eliminates ambient <code>HostWorld</code> for arbitrary
+hosted effects.</p>
+<p>The PR6 smoke is hosted repository-conformance only. Its device and accelerator
+keys are descriptive scheduling views that share a generic resource dependency;
+they do not discover, own, assign, drive, or isolate hardware. The smoke is not
+Mode 31, native or QEMU evidence, a ResourceKey wire ABI, Governor authority,
+device assignment, DMA/IOMMU isolation, Acceptance gate A, or G0--G13 passage.</p>
+<p>The PR7 project-HGraph smoke is likewise hosted logical-planning evidence only.
+It constructs real materialize/build/run/select/compare operation topology with
+exact bundle/policy provenance, logical materialization alternatives and
+prerequisites, and visible route constraints. It does not execute project commands through the
+HGraph coordinator. The existing hosted project runtime remains the execution
+path, and route materialization and commands retain fallible <code>HostWorld</code>
+effects. Logical alternative branches may therefore remain serialized and
+cross-coupled through shared conservative ambient/resource state chains; this
+is not parallel-execution or independent-mediation evidence. This adds no graph-layer
+separation, placement, remote execution,
+Governor or receipt integration, native/QEMU/hardware evidence, G1, or G0--G13
+passage.</p>
+<h2>Non-claims</h2>
+<p>No hosted reference result, including a multinode Linux-hosted deployment,
+establishes:</p>
+<ul>
+<li>a native O-core node fabric or native network transport;</li>
+<li>AArch64 O-core boot or SMP safety;</li>
+<li>replicated Governor authority;</li>
+<li>a live per-process WorldFS namespace;</li>
+<li>Linux or Plan 9 kernel boot;</li>
+<li>a general Linux ABI or Debian personality;</li>
+<li>KVM/SVM hardware isolation merely from QEMU TCG;</li>
+<li>PCI or physical-device assignment, DMA/IOMMU isolation, interrupt remapping,
+or hardware reset;</li>
+<li>transparent remote pointers, coherent distributed RAM, or transparent
+migration; or</li>
+<li>G12, G13, or the name <strong>OSTADIX Alpha</strong>.</li>
+</ul>
+<p>Modes 20 through 30 remain separately scoped native or QEMU evidence. Their
+bounded claims and exclusions are recorded in <a href="CLAIMS.md"><code>CLAIMS.md</code></a> and
+<a href="../evidence/gates.toml"><code>gates.toml</code></a>; they are not promoted by this profile.</p>

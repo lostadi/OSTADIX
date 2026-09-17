@@ -165,6 +165,7 @@ impl Runtime {
 """
 FIXTURE_AOT_SOURCE = """\
 pub const RUNTIME_VALUE_RS: &str = include_str!("../value.rs");
+pub const RUNTIME_CANCELLATION_RS: &str = include_str!("../cancellation.rs");
 pub const RUNTIME_EXECUTION_FABRIC_AUTHORITY_SOURCES: &[(&str, &str)] = &[
     ("mod.rs", include_str!("../execution_fabric_authority/mod.rs")),
     ("codec.rs", include_str!("../execution_fabric_authority/codec.rs")),
@@ -763,6 +764,10 @@ class SourceReleaseTests(unittest.TestCase):
             "apps/android-terminal/runtime/Cargo.toml": (
                 "[package]\nname = 'fixture-android-runtime'\nversion = '0.0.0'\n"
             ),
+            "apps/browser-chat-pdf/README.md": (
+                "# Fixture Chatprint\n\n[Mobile](mobile/README.md)\n"
+            ),
+            "apps/browser-chat-pdf/mobile/README.md": "# Fixture Chatprint Mobile\n",
             "crates/ostadix-api/Cargo.toml": FIXTURE_API_CARGO,
             "crates/ostadix-api/LICENSE": FIXTURE_LICENSE,
             "crates/ostadix-api/NOTICE": FIXTURE_NOTICE,
@@ -1112,6 +1117,7 @@ class SourceReleaseTests(unittest.TestCase):
             "ocore/world/value.oc": "module world::value;\n",
             "ocore/world/value_codec.oc": "module world::value_codec;\n",
             "scripts/smoke_ostadix_mcp.py": "#!/usr/bin/env python3\n",
+            "scripts/configure_gemini_mcp.py": "#!/usr/bin/env python3\n",
             "scripts/bootstrap_offline_kit.sh": "#!/bin/sh\nexit 0\n",
             "scripts/build_offline_kit.py": "#!/usr/bin/env python3\n",
             "scripts/foreign_kernel_lab.py": "#!/usr/bin/env python3\n",
@@ -1310,6 +1316,7 @@ class SourceReleaseTests(unittest.TestCase):
             "tests/test_local_ci_posture.py": "# fixture local CI posture tests\n",
             "tests/test_backend_state_protocol.py": "# fixture backend state protocol tests\n",
             "tests/test_mcp_smoke.py": "# fixture MCP smoke tests\n",
+            "tests/test_configure_gemini_mcp.py": "# fixture MCP registration tests\n",
             "tests/test_ostadix_capacity.py": "# fixture absorbed-capacity tests\n",
             "tests/test_ostadix_capacity_iso.py": "# fixture capacity-ISO tests\n",
             "tests/test_boot_object_cli_dispatch.py": "# fixture boot-object CLI tests\n",
@@ -1525,6 +1532,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "apps/android-terminal/README.md": "# Fixture Android app\n",
                 "apps/android-terminal/runtime/src/lib.rs": "// fixture Android runtime\n",
                 "apps/android-terminal/runtime/target/debug/libfixture.rlib": b"build debris",
+                "apps/browser-chat-pdf/node_modules/example/index.js": "generated dependency\n",
                 "assets/logo.bin": b"intentional asset",
                 "backends/__pycache__/shim.pyc": b"bytecode",
                 "backends/shim.py": "print('source')\n",
@@ -1643,6 +1651,8 @@ class SourceReleaseTests(unittest.TestCase):
                 "apps/android-terminal/runtime/Cargo.lock",
                 "apps/android-terminal/runtime/Cargo.toml",
                 "apps/android-terminal/runtime/src/lib.rs",
+                "apps/browser-chat-pdf/README.md",
+                "apps/browser-chat-pdf/mobile/README.md",
                 "CITATION.cff",
                 "CHANGELOG.md",
                 "CODE_OF_CONDUCT.md",
@@ -1847,6 +1857,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "ocore/world/value.oc",
                 "ocore/world/value_codec.oc",
                 "scripts/smoke_ostadix_mcp.py",
+                "scripts/configure_gemini_mcp.py",
                 "scripts/bootstrap_offline_kit.sh",
                 "scripts/build_offline_kit.py",
                 "scripts/foreign_kernel_lab.py",
@@ -2041,6 +2052,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "tests/test_local_ci_posture.py",
                 "tests/test_backend_state_protocol.py",
                 "tests/test_mcp_smoke.py",
+                "tests/test_configure_gemini_mcp.py",
                 "tests/test_ostadix_capacity.py",
                 "tests/test_ostadix_capacity_iso.py",
                 "tests/test_boot_object_cli_dispatch.py",
@@ -2121,6 +2133,7 @@ class SourceReleaseTests(unittest.TestCase):
                 ".DS_Store",
                 ".ocore-repair-backups/run/typeck.rs",
                 "apps/android-terminal/runtime/target/debug/libfixture.rlib",
+                "apps/browser-chat-pdf/node_modules/example/index.js",
                 "backends/__pycache__/shim.pyc",
                 "benchmarks/scratch.txt",
                 "c_cpp/O",
@@ -2280,6 +2293,47 @@ class SourceReleaseTests(unittest.TestCase):
             r"missing relative link target.*docs/missing\(reference\)\.md",
         ):
             self._build("broken-reference-links.zip")
+
+    def test_browser_chat_pdf_html_allowlist_is_exact_and_packaged(self) -> None:
+        allowed = frozenset(
+            {
+                "apps/olang-browser-wasi/index.html",
+                "apps/browser-chat-pdf/mobile/install.template.html",
+                "apps/browser-chat-pdf/popup.html",
+                "apps/browser-chat-pdf/preview.html",
+                "apps/browser-chat-pdf/tests/fixtures/generic-chat.html",
+            }
+        )
+        unrelated = frozenset(
+            {
+                "apps/browser-chat-pdf/settings.html",
+                "apps/browser-chat-pdf/tests/fixtures/other-chat.html",
+                "apps/other-extension/popup.html",
+                "docs/browser-chat-pdf.html",
+            }
+        )
+
+        self.assertEqual(release.ALLOWED_HTML_PATHS, allowed)
+        for path in allowed:
+            self.assertTrue(release.is_allowed_release_path(path), path)
+        for path in unrelated:
+            self.assertFalse(release.is_allowed_release_path(path), path)
+
+        self._commit(
+            {
+                **{path: f"<p>allowed fixture: {path}</p>\n" for path in allowed},
+                **{
+                    path: f"<p>excluded fixture: {path}</p>\n"
+                    for path in unrelated
+                },
+            }
+        )
+        result = self._build("browser-chat-pdf-source.zip")
+        manifest = release.verify_archive(result.output)
+        packaged_paths = {item["path"] for item in manifest["files"]}
+
+        self.assertTrue(allowed <= packaged_paths)
+        self.assertTrue(unrelated.isdisjoint(packaged_paths))
 
     def test_archive_verifier_rejects_a_self_consistent_broken_document_link(self) -> None:
         result = self._build("valid-before-link-tamper.zip", ref=self._commit())
@@ -2597,21 +2651,17 @@ class SourceReleaseTests(unittest.TestCase):
 
     def test_mcp_crate_config_and_transport_smoke_are_required(self) -> None:
         self._commit()
-        self._git(
-            "rm",
+        required = (
             ".mcp.json",
             "mcp/ostadix_lang_mcp_server/Cargo.toml",
+            "scripts/configure_gemini_mcp.py",
             "scripts/smoke_ostadix_mcp.py",
+            "tests/test_configure_gemini_mcp.py",
             "tests/test_mcp_smoke.py",
         )
+        self._git("rm", *required)
         self._git("commit", "-q", "-m", "remove MCP release surface")
-
-        with self.assertRaisesRegex(
-            release.ReleaseError,
-            r"missing required path\(s\): \.mcp\.json.*Cargo\.toml.*"
-            r"smoke_ostadix_mcp\.py.*test_mcp_smoke\.py",
-        ):
-            self._build("missing-mcp.zip")
+        self._assert_missing_required_paths("missing-mcp.zip", required)
 
     def test_toolchain_and_ci_contract_projection_are_required(self) -> None:
         required = (

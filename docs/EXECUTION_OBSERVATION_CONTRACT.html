@@ -1,0 +1,145 @@
+<h1>Execution observations and scheduling correctness</h1>
+<p>Ostadix defines execution through transitions between configurations. A
+configuration includes pending operations, materialized values, environments,
+World state, and outcome. A transition can emit an event or be internal. An
+execution is a finite or infinite path; a specified observation policy maps
+that path to retained behavior. Reusable component replacement additionally
+quantifies over explicitly admitted surrounding interactions.</p>
+<h2>Runtime capability scope</h2>
+<p>The executable interfaces below implement bounded parts of the six runtime
+requirements. They do not establish the unrestricted forms of those requirements.</p>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Executable support</th>
+<th>Remaining boundary</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Lossless native-object exchange</td>
+<td>Python handles retain arbitrary objects and identity; O, Python, and the Unix Node bridge invoke, read, write, and release them through their exact admitted owner.</td>
+<td>Execution stays in the live Python owner. Other native owner runtimes, arbitrary reconstruction, and migration of live handles need additional adapters.</td>
+</tr>
+<tr>
+<td>Authoritative morphisms on edges</td>
+<td>Opt-in Python plain-data crossings validate actual inputs and outputs; the physical graph executor requires an observation check on every transfer.</td>
+<td>Each contract has a defined carrier and trusted adapter. This is not universal enforcement of contextual equivalence across all backends.</td>
+</tr>
+<tr>
+<td>Parallel evaluator blocks</td>
+<td>Explicit autonomous groups admit fresh backend bodies with materialized nested evaluator inputs and refill worker slots as dependencies complete.</td>
+<td>Persistent actors, callbacks, policy boundaries, and failure settlement retain their applicable coordination rules. Arbitrary effects are not proven serial-equivalent.</td>
+</tr>
+<tr>
+<td>Multi-operation physical planning</td>
+<td>The embedding API executes operation/transfer DAGs; the automatic OIR bridge derives complete admitted local operation graphs and moves actual inputs through checked socket transfers.</td>
+<td>Automatic remote placement and authenticated remote transfer adapters are separate work; the automatic profile remains local.</td>
+</tr>
+<tr>
+<td>Recovery and migration</td>
+<td>Local handoffs and authenticated Hosted V2 checkpoint transfers restore supported actor state, require acknowledgements, durably fence the source, and recover interrupted handoff phases.</td>
+<td>Quiescent Python/SQLite codecs are supported. In-flight computation, live handles, external resources, and automatic failover without signed fencing remain outside this handoff.</td>
+</tr>
+<tr>
+<td>One-binary foreign runtimes</td>
+<td>Native compilation embeds runtime payloads. The Linux rootfs profile collects declared ELF dependencies/data and executes inside private namespaces with an immutable image and private network.</td>
+<td>Each runtime closure still needs qualification. Host kernel/initial loader and standard streams remain inputs; computed imports, external services, and every catalog runtime are not automatically supplied.</td>
+</tr>
+</tbody></table>
+<p>Interface details and executable coverage are documented in
+<a href="PYTHON_NATIVE_HANDLES.md">native handles</a>,
+<a href="BACKEND_MORPHISM_ENFORCEMENT_V1.md">crossing enforcement</a>,
+<a href="PHYSICAL_GRAPH_EXECUTION_V1.md">physical graphs</a>,
+<a href="LOCAL_ACTOR_MIGRATION.md">local actor migration</a>,
+<a href="HOSTED_ACTOR_MIGRATION.md">Hosted actor migration</a>, and
+<a href="EMBEDDED_RUNTIME_BUNDLES.md">runtime bundles</a>.</p>
+<h2>Regression observation policy</h2>
+<p>For the terminating examples in <code>tests/executor_state_complete.rs</code>, the
+observation is process termination, stdout bytes, normalized stderr, and
+selected relative file paths with their bytes. Termination compares the full
+<code>ExitStatus</code>, preserving distinct Unix signals. The file projection excludes
+permissions, timestamps, empty directories, and external state. The suite
+compares selected completed executions, not every trace or every context.
+<a href="https://doc.rust-lang.org/std/process/struct.ExitStatus.html">Rust&#39;s ExitStatus contract</a>
+explains why comparing only <code>code()</code> loses signal distinctions.</p>
+<h2>Finite DAG theorem</h2>
+<p>Fix a finite acyclic operation graph, deterministic terminating atomic
+transitions <code>T_v: W -&gt; W</code>, an equivalence <code>R</code> on <code>W</code>, and final observation <code>o</code>.
+Require:</p>
+<ol>
+<li>Every <code>T_v</code> preserves <code>R</code>.</li>
+<li><code>w R w&#39;</code> implies <code>o(w) = o(w&#39;)</code>.</li>
+<li>Every pair incomparable in the graph commutes modulo <code>R</code> on relevant
+reachable states: <code>T_u(T_v(w)) R T_v(T_u(w))</code>.</li>
+</ol>
+<p>Then all complete topological orders have equal observations. Any two such
+orders are connected by swaps of adjacent incomparable operations. Condition
+3 relates the states after a swap; condition 1 carries the relation through
+the suffix; condition 2 equates final observations. Serial equivalence also
+requires the reference serial order to be a permitted complete order.</p>
+<p><code>hgraph::semantics::check_finite_confluence</code> checks these hypotheses against
+the actual HGraph input-producer dependencies and supplied finite transition
+tables. It requires total tables for exactly the executable operations and
+conjunctive readiness. It checks all model states, which is stronger than
+checking reachable states. It is bounded to 256 states and 256 operations.
+Its result is descriptive; it grants no admission and does not establish that
+a foreign adapter implements the tables. The tests enumerate all six orders
+of an independent three-operation model, reject a suffix that distinguishes
+equivalent states, and require ordering between noncommuting write/fail steps.</p>
+<p>Unknown effects, callbacks, persistent actors, failure, and internal operation
+interleavings belong in the model before that theorem can justify reordering.
+Explicit <code>autonomous(...)</code> opts into unordered effects; it is not evidence
+that those effects commute with the serial reference. Worker preparation can
+consume materialized nested evaluator inputs while retaining child data and
+completion dependencies. Stateful actors and inner <code>lazy(...)</code> boundaries
+keep their existing ordering obligations.</p>
+<h2>Equivalence records what coincides, not what it means</h2>
+<p>For transition monoid <code>M = &lt;F&gt;</code> including identity, the future-stable part of
+an equivalence is</p>
+<pre><code class="language-text">i_F(epsilon) = intersection over m in M of (m x m)^-1(epsilon)
+theta_o = i_F(kernel(o))
+</code></pre>
+<p>With inclusion <code>j: Con(A) -&gt; Eq(X)</code>, <code>j</code> is left adjoint to <code>i_F</code>. Observations
+can be ordered by kernel inclusion, identifying observations with equal
+kernels. Quotient-class observations can represent every congruence; choosing
+such an observation already presupposes the desired quotient.</p>
+<p>The congruence lattice and even the entire family of these partitions do not
+determine behavior values. On <code>{0,1,2}</code>, identity and constant-zero operations
+preserve every equivalence, but state <code>1</code> has traces <code>1,1,1,...</code> and
+<code>1,0,0,...</code> under identity observation. The regression model retains this
+counterexample. For a fixed carrier the representation criterion is
+<code>L = Con(End(L))</code>; a complete sublattice alone does not suffice. See §2.2 of
+<a href="https://web.uni-miskolc.hu/~matradi/files/2017JPR_forAUfinal_forPublication1.pdf">Jakubikova-Studenovska, Poschel, and Radeleczki</a>.</p>
+<p>For deterministic total transitions the behavior map into <code>O^(D*)</code>, equipped
+with shifts, is a homomorphism and <code>A/theta_o</code> is isomorphic to its image.
+The image need not be the full behavior space. An OValue lifting is adequate
+for a declared interaction family only if every permitted future interaction
+is determined by the lifted value. Equal OValues cannot erase environments
+that an admitted callback can distinguish. <code>Set/Beh</code> has terminal object
+<code>(Beh,id)</code>; changing categories alone does not prove this lifting obligation.</p>
+<p>Extending observations gives
+<code>theta_(o1,o2) = theta_o1 intersection theta_o2</code>, a non-strict refinement in
+general. Adding interactions changes the transition family and can refine
+equivalence separately. A rule without observation/specification input
+cannot recover all independently varying contracts: constant and injective
+observations already force different quotients on any nontrivial carrier.</p>
+<h2>Lowering termination and fidelity convergence</h2>
+<p>A multiset rank can justify graph lowering when every rewrite removes nodes,
+creates only lower-ranked nodes, and retains operand subgraphs by reference.
+Duplicating a substituted higher-ranked subterm invalidates that argument;
+every actual rewrite needs a decrease or another well-founded component.
+Well-foundedness excludes infinite descent, not ascent. The implementation
+does not yet assign and verify such ranks for every lowering rule. See
+<a href="https://www.cs.tau.ac.il/~nachumd/papers/LNCS/Multisets.pdf">Dershowitz and Manna</a>.</p>
+<p>The type solver&#39;s finite convergence budget counts possible lattice changes.
+Its generated loss labels and their budget contribution now derive from the
+same closed vocabulary. Existing labels in incoming facts are also counted.
+Domain intersections and accumulating fidelity unions impose monotonicity;
+debug assertions check those directions and are not their sole enforcement.
+Conflicting materialized values remain runtime errors. This solver argument
+is separate from termination of arbitrary evaluator code.</p>
+<p>State simulations can connect these transitions to execution observations,
+including source steps represented by several target steps. Divergence
+preservation also needs control of infinite internal stuttering; see
+<a href="https://xavierleroy.org/publi/compcert-backend.pdf">Leroy&#39;s verified compiler backend</a>.</p>

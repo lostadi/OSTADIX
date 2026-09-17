@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="prismatic_transparent">#00000000</color>
+    <color name="prismatic_background">#10172B</color>
+    <color name="prismatic_surface">#CC273451</color>
+    <color name="prismatic_surface_opaque">#273451</color>
+    <color name="prismatic_surface_highlight">#80F7FBFF</color>
+    <color name="prismatic_border">#66DCEBFF</color>
+    <color name="prismatic_text">#F7FBFF</color>
+    <color name="prismatic_text_muted">#C3CDDD</color>
+    <color name="prismatic_aqua">#51D6D0</color>
+    <color name="prismatic_violet">#8E72F1</color>
+    <color name="prismatic_rose">#FF8EAE</color>
+</resources>

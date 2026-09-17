@@ -9,6 +9,14 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- The primary MCP `o_run` operation now accepts a complete source document or
+  compatible path, offers a non-executing unified `mode=check`, and can require
+  existing authenticated project-mesh placement without local fallback. Mesh
+  responses attach the engine-produced placement trace; selected-node execution
+  remains whole-document submission. Neither lane claims general distributed
+  execution of ordinary OIR graphs. MCP cancellation now kills the complete
+  child process group so descendants cannot commit late side effects.
+
 - Experimental `OperationContractV1`, `OperationInterfaceV1`,
   `RealizationDescriptorV1`, and `RealizationSetV1` records add four bounded,
   canonical, independently domain-separated descriptions of one logical
@@ -19,6 +27,18 @@ Package SemVer is only one of the independent coordinates documented in
   authenticate evidence, determine placement, execute, recover, or authorize
   work. `docs/OPERATION_REALIZATION_V1.md` defines the complete boundary and is
   a required source-release member.
+
+- `apps/browser-chat-pdf` adds a dependency-free browser extension that
+  captures a rendered AI conversation from the tab's local DOM and creates a
+  print-focused preview with selectable, searchable text and retained document
+  structure. PDF creation remains an explicit handoff to the browser's native
+  print dialog, where the user selects **Save as PDF** and the destination; the
+  extension does not silently write files.
+
+- Chatprint Mobile adds a deterministic, self-contained Android Chrome
+  bookmarklet build and offline installer. It provides live-DOM capture on
+  browsers that cannot load the desktop extension, while keeping bookmark
+  creation and the final Save as PDF confirmation under browser control.
 
 - `o routes TARGET [--json] [--route-decl DECL]...` provides a read-only
   route-discovery UI for project directories and lifted project bundles. It

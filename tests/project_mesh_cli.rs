@@ -1,6 +1,7 @@
 //! Black-box loopback gate for the o-link project mesh.
 
 use std::fs;
+use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
@@ -365,6 +366,114 @@ fn snapshot_tree(root: &Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
     snapshot
 }
 
+fn mcp_transact(
+    stdin: &mut impl Write,
+    stdout: &mut impl BufRead,
+    request: &serde_json::Value,
+) -> serde_json::Value {
+    serde_json::to_writer(&mut *stdin, request).unwrap();
+    stdin.write_all(b"\n").unwrap();
+    stdin.flush().unwrap();
+    let mut line = String::new();
+    stdout.read_line(&mut line).unwrap();
+    assert!(!line.is_empty(), "MCP closed stdout before replying");
+    serde_json::from_str(&line).unwrap()
+}
+
+fn run_mcp_mesh_gate_if_configured(project: &Path, peer_root: &Path, state: &Path) {
+    let Some(mcp_binary) = std::env::var_os("OSTADIX_MCP_TEST_BIN") else {
+        return;
+    };
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut child = Command::new(mcp_binary)
+        .current_dir(repository)
+        .env("O_LANG_ROOT", repository)
+        .env("O_BACKENDS_DIR", repository.join("backends"))
+        .env("OSTADIX_O_CLI_BIN", env!("CARGO_BIN_EXE_o-cli"))
+        .env("OSTADIX_MCP_MESH_PEER_ROOT", peer_root)
+        .env("XDG_STATE_HOME", state)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+
+    let initialized = mcp_transact(
+        &mut stdin,
+        &mut stdout,
+        &serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {"name": "project-mesh-test", "version": "1"}
+            }
+        }),
+    );
+    assert_eq!(initialized["id"], 1);
+    serde_json::to_writer(
+        &mut stdin,
+        &serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized",
+            "params": {}
+        }),
+    )
+    .unwrap();
+    stdin.write_all(b"\n").unwrap();
+    stdin.flush().unwrap();
+
+    let response = mcp_transact(
+        &mut stdin,
+        &mut stdout,
+        &serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "o_run",
+                "arguments": {
+                    "path": project,
+                    "route": "local",
+                    "placement": "project_mesh",
+                    "timeout_secs": 30
+                }
+            }
+        }),
+    );
+    assert_ne!(response["result"]["isError"], true, "{response:#}");
+    let structured = &response["result"]["structuredContent"];
+    assert_eq!(
+        structured["execution_mode"],
+        "authenticated_project_mesh_required"
+    );
+    assert_eq!(structured["disposition"], "succeeded");
+    let dispatched = structured["mesh_trace"]["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|event| event["event"] == "dispatched")
+        .expect("MCP mesh trace omitted the actual dispatch placement");
+    assert!(
+        matches!(
+            dispatched["node_id"].as_str(),
+            Some("mesh-node-a" | "mesh-node-b")
+        ),
+        "unexpected MCP mesh placement: {dispatched:#}"
+    );
+
+    drop(stdin);
+    let status = child.wait().unwrap();
+    assert!(
+        status.success(),
+        "MCP server failed after mesh request: {status}"
+    );
+}
+
 #[test]
 fn two_node_mesh_parallel_retry_and_local_fallback_are_end_to_end() {
     if !support::require_runtimes(&["bash", "openssl"]) {
@@ -447,6 +556,12 @@ policy = "all"
     assert_eq!(snapshot_tree(&peer_root), registry_before);
     assert_eq!(snapshot_tree(&node_a.state.join("mesh-v1")), node_a_before);
     assert_eq!(snapshot_tree(&node_b.state.join("mesh-v1")), node_b_before);
+
+    run_mcp_mesh_gate_if_configured(
+        &project,
+        &peer_root,
+        &root.path().join("mcp-front-door-state"),
+    );
 
     let front_door_state = root.path().join("front-door-state");
     let parallel_trace = root.path().join("parallel-trace.json");

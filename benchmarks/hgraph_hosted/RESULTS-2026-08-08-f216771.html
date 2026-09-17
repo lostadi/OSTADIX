@@ -1,0 +1,351 @@
+<h1>Analyzer-bound hosted HGraph benchmark result — 2026-08-08</h1>
+<p>This append-only record measures the four hosted HGraph fixtures after the
+runner began consuming predictions from the evidence-bound admission. The
+workload blocks on subprocess sleeps and protocol I/O, so the speedup comes
+from overlapping waits across heterogeneous runtimes, not from parallel CPU
+computation.</p>
+<h2>Provenance</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Measurement date</td>
+<td>2026-08-08</td>
+</tr>
+<tr>
+<td>Run-start timestamps</td>
+<td><code>2026-08-08T20:59:56Z</code>, <code>2026-08-08T21:01:10Z</code>, <code>2026-08-08T21:02:12Z</code></td>
+</tr>
+<tr>
+<td>Source commit</td>
+<td><code>f216771376194e930b213e2250948ffb6d173c51</code></td>
+</tr>
+<tr>
+<td>Source tree during every run</td>
+<td><code>clean</code></td>
+</tr>
+<tr>
+<td><code>target/release/O</code> SHA-256</td>
+<td><code>edec6ba2cefdceb343abe201a5037c8dfd116a308fa60f10418c26feb56583b3</code></td>
+</tr>
+<tr>
+<td><code>target/release/olangc</code> SHA-256</td>
+<td><code>49754ff418454ad153e6195aaacada0b399f89c84ca41149739c23bdc75ad722</code></td>
+</tr>
+<tr>
+<td>Raw transcript</td>
+<td><a href="TRANSCRIPT-2026-08-08-f216771.log"><code>TRANSCRIPT-2026-08-08-f216771.log</code></a></td>
+</tr>
+<tr>
+<td>Raw transcript bytes</td>
+<td><code>27404</code></td>
+</tr>
+<tr>
+<td>Raw transcript SHA-256</td>
+<td><code>09c8bbfac9858537a4737d14d494e8f47da31ea3e7d957bb4a93c1351c8339c7</code></td>
+</tr>
+<tr>
+<td>Machine</td>
+<td>Apple M1 Max, 64 GiB</td>
+</tr>
+<tr>
+<td>OS</td>
+<td>Darwin 25.5.0 arm64</td>
+</tr>
+<tr>
+<td>Harness-reported logical CPUs</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>Python 3.14.6 at <code>/opt/homebrew/bin/python3</code></td>
+</tr>
+<tr>
+<td>Bash</td>
+<td>GNU bash, version 3.2.57(1)-release (arm64-apple-darwin25) at <code>/bin/bash</code></td>
+</tr>
+<tr>
+<td>Node.js</td>
+<td>v26.7.0 at <code>/opt/homebrew/bin/node</code></td>
+</tr>
+<tr>
+<td>Warmup pairs per shape and capacity</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Measured pairs per shape and capacity</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Hosted delay per task</td>
+<td>0.25 seconds</td>
+</tr>
+<tr>
+<td>Graph worker overrides</td>
+<td>1, 4, and 8</td>
+</tr>
+<tr>
+<td>Missing-runtime policy</td>
+<td><code>fail</code></td>
+</tr>
+<tr>
+<td>Prediction schema</td>
+<td><code>oexec.schedule-prediction/v1</code></td>
+</tr>
+<tr>
+<td>Prediction model</td>
+<td><code>unit-cost-shim-hosted-tasks</code></td>
+</tr>
+<tr>
+<td>Measured-commit CI</td>
+<td><a href="https://github.com/lostadi/Ostadix-lang/actions/runs/31278091325">GitHub Actions run 31278091325</a>, all six jobs passed</td>
+</tr>
+</tbody></table>
+<p>The release binaries were rebuilt from the clean measured commit with
+<code>./setup.sh -y --minimal</code>. Their hashes bind the exact analyzer and executor
+bytes used here. This procedural co-build record is not a cryptographic proof
+that either executable was produced from the stated source. This result and its
+transcript are added by a later documentation commit, which is not the measured
+subject.</p>
+<h2>Main result: four workers</h2>
+<p>Times are five-sample medians in milliseconds. <code>Ideal unit-cost speedup</code> is
+hosted task count divided by predicted hosted-task span; it is a topology model,
+not a time prediction. <code>Measured speedup</code> is serial median divided by graph
+median.</p>
+<table>
+<thead>
+<tr>
+<th>Program</th>
+<th align="right">Hosted tasks</th>
+<th align="right">Predicted width</th>
+<th align="right">Predicted span</th>
+<th align="right">Ideal unit-cost speedup</th>
+<th align="right">Serial median (ms)</th>
+<th align="right">Graph median (ms)</th>
+<th align="right">Measured speedup</th>
+<th>Equivalent</th>
+<th>Expected</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>heterogeneous.O</code></td>
+<td align="right">3</td>
+<td align="right">3</td>
+<td align="right">1</td>
+<td align="right">3.00×</td>
+<td align="right">1006</td>
+<td align="right">354</td>
+<td align="right">2.841808×</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td align="right">4</td>
+<td align="right">1</td>
+<td align="right">4</td>
+<td align="right">1.00×</td>
+<td align="right">1443</td>
+<td align="right">1427</td>
+<td align="right">1.011212×</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td align="right">6</td>
+<td align="right">4</td>
+<td align="right">3</td>
+<td align="right">2.00×</td>
+<td align="right">2083</td>
+<td align="right">1045</td>
+<td align="right">1.993301×</td>
+<td>true</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td align="right">4</td>
+<td align="right">2</td>
+<td align="right">3</td>
+<td align="right">1.33×</td>
+<td align="right">1351</td>
+<td align="right">1041</td>
+<td align="right">1.297791×</td>
+<td>true</td>
+<td>true</td>
+</tr>
+</tbody></table>
+<p>The negative-control chain remains approximately 1×. The heterogeneous and
+diamond results approach their respective 3× and 2× unit-cost topology bounds,
+while the realistic pipeline approaches its 4/3 bound. This pattern supports
+the narrower claim that measured wait overlap follows the analyzer-predicted
+dependency geometry.</p>
+<p>The four-worker prediction records refer to these exact admission digests:</p>
+<table>
+<thead>
+<tr>
+<th>Program</th>
+<th>Admission SHA-256</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>heterogeneous.O</code></td>
+<td><code>f71407047219e4d869ab283b828401f155a59effb761e4cf97445b865b273ae0</code></td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td><code>04cf269e5ef6a4389e587c711d220854dbc9c302143ff3b63537e4e5e35688ce</code></td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td><code>9924e8bb0569d9b3422649d534e1a434f8e176a80368e5b5a2806a1bb5e57616</code></td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td><code>540a9a1e9efc773423a7aa714655e3395d209880b7d7debe157bbe963983d6f1</code></td>
+</tr>
+</tbody></table>
+<h2>Worker-capacity sweep</h2>
+<p><code>--workers 1</code> constrains the local-worker pool; it does <strong>not</strong> turn this
+10-logical-CPU host into a single-core machine. It is a scheduler-capacity
+control. Four workers cover the widest predicted layer, and eight workers add
+capacity beyond every admitted fixture width.</p>
+<table>
+<thead>
+<tr>
+<th>Program</th>
+<th align="right">Workers</th>
+<th align="right">Serial median (ms)</th>
+<th align="right">Graph median (ms)</th>
+<th align="right">Speedup</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>heterogeneous.O</code></td>
+<td align="right">1</td>
+<td align="right">996</td>
+<td align="right">1005</td>
+<td align="right">0.991045×</td>
+</tr>
+<tr>
+<td><code>heterogeneous.O</code></td>
+<td align="right">4</td>
+<td align="right">1006</td>
+<td align="right">354</td>
+<td align="right">2.841808×</td>
+</tr>
+<tr>
+<td><code>heterogeneous.O</code></td>
+<td align="right">8</td>
+<td align="right">992</td>
+<td align="right">355</td>
+<td align="right">2.794366×</td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td align="right">1</td>
+<td align="right">1443</td>
+<td align="right">1427</td>
+<td align="right">1.011212×</td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td align="right">4</td>
+<td align="right">1443</td>
+<td align="right">1427</td>
+<td align="right">1.011212×</td>
+</tr>
+<tr>
+<td><code>chained.O</code></td>
+<td align="right">8</td>
+<td align="right">1434</td>
+<td align="right">1420</td>
+<td align="right">1.009859×</td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td align="right">1</td>
+<td align="right">2115</td>
+<td align="right">2101</td>
+<td align="right">1.006663×</td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td align="right">4</td>
+<td align="right">2083</td>
+<td align="right">1045</td>
+<td align="right">1.993301×</td>
+</tr>
+<tr>
+<td><code>mixed_width.O</code></td>
+<td align="right">8</td>
+<td align="right">2085</td>
+<td align="right">1068</td>
+<td align="right">1.952247×</td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td align="right">1</td>
+<td align="right">1330</td>
+<td align="right">1341</td>
+<td align="right">0.991797×</td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td align="right">4</td>
+<td align="right">1351</td>
+<td align="right">1041</td>
+<td align="right">1.297791×</td>
+</tr>
+<tr>
+<td><code>realistic.O</code></td>
+<td align="right">8</td>
+<td align="right">1341</td>
+<td align="right">1050</td>
+<td align="right">1.277143×</td>
+</tr>
+</tbody></table>
+<p>Capacity one removes the concurrency benefit from every shape. In this run,
+capacity eight does not materially improve on capacity four; that observation
+is consistent with the static prediction containing no layer wider than four,
+but static width is not a hard bound on the completion-driven dynamic frontier.
+The width-one chain remains approximately 1× at every capacity.</p>
+<h2>Analyzer and semantic checks</h2>
+<p>For each rendered fixture and worker setting, the harness first invoked the
+co-built <code>olangc --target ir --explain-schedule</code>. It required exactly one v3
+admission, one canonical digest binding, one v1 prediction whose admission
+digest matched that binding, and internally consistent task layers. No manual
+width/span table was consulted by the runner.</p>
+<p>All 72 warmup or measured serial/graph pairs reported both:</p>
+<ul>
+<li><code>semantic_equivalence=true</code>: identical canonical <code>ok</code>, type, and returned
+OValue JSON from the serial and graph executors; and</li>
+<li><code>expected_output_match=true</code>: that same value matched the checked-in fixture
+result.</li>
+</ul>
+<p>The raw transcript retains every pair&#39;s order and elapsed times, all 12
+prediction summaries, all binary/runtime provenance fields, and every final
+median and range.</p>
+<h2>Interpretation and non-claims</h2>
+<p>This record demonstrates wait concurrency on a multicore machine. It neither
+recreates nor claims a one-logical-CPU result, and it is not evidence of CPU
+parallel computation. Worker capacity is not CPU affinity or a processor
+reservation.</p>
+<p>The analyzer predicts static hosted-task layers. It does not predict durations,
+reserve CPU or memory, prove runtime readiness, choose observed placement, or
+prove that a legal layer overlapped physically. The measurement validates the
+prediction against this bounded fixture/runtime/machine combination.</p>
+<p>Semantic equivalence covers returned values only. It excludes filesystem and
+network effects, scope snapshots, traces, timing, and external-effect ordering.
+The record does not widen <code>explicit-autonomous-unordered</code> into strict serial
+effect equivalence and does not claim general application throughput or
+scheduler optimality.</p>
+<p>The earlier
+<a href="RESULTS-2026-08-08-be68dfef.md"><code>RESULTS-2026-08-08-be68dfef.md</code></a> remains a
+valid historical record for its own source and executable. Its manually
+reviewed predictions were not retroactively relabeled or reused here.</p>

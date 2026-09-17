@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 
@@ -46,9 +46,13 @@ const MAX_OLANGC_MATERIALIZE_PATH_BYTES: usize = 4096;
 const MAX_INFORMATION_HEAD_NAME_BYTES: usize = 128;
 const MAX_INFORMATION_INSPECTION_STDOUT_BYTES: usize = 256 * 1024;
 const MAX_INFORMATION_INSPECTION_STDERR_BYTES: usize = 16 * 1024;
+const MAX_COMMAND_STDOUT_BYTES: usize = 4 * 1024 * 1024;
+const MAX_COMMAND_STDERR_BYTES: usize = 256 * 1024;
 const DEFAULT_INFORMATION_INSPECTION_TIMEOUT_SECS: u64 = 10;
 const MAX_INFORMATION_INSPECTION_TIMEOUT_SECS: u64 = 30;
 const O_INFO_BIN_ENV: &str = "OSTADIX_O_INFO_BIN";
+const O_CLI_BIN_ENV: &str = "OSTADIX_O_CLI_BIN";
+const OCTL_BIN_ENV: &str = "OSTADIX_OCTL_BIN";
 const INFORMATION_NON_AUTHORITY_NOTICE: &str =
     "information presence and signatures grant no execution authority";
 
@@ -344,6 +348,36 @@ fn resolve_o_bin(root: &Path) -> PathBuf {
         return release;
     }
     which::which("O").unwrap_or_else(|_| PathBuf::from("O"))
+}
+
+fn resolve_o_cli(root: &Path) -> PathBuf {
+    if let Ok(path) = std::env::var(O_CLI_BIN_ENV) {
+        let path = PathBuf::from(path);
+        if path.is_file() {
+            return path;
+        }
+    }
+    let release = root.join("target/release/o-cli");
+    if release.is_file() {
+        return release;
+    }
+    which::which("o-cli")
+        .or_else(|_| which::which("o"))
+        .unwrap_or_else(|_| PathBuf::from("o-cli"))
+}
+
+fn resolve_octl(root: &Path) -> PathBuf {
+    if let Ok(path) = std::env::var(OCTL_BIN_ENV) {
+        let path = PathBuf::from(path);
+        if path.is_file() {
+            return path;
+        }
+    }
+    let release = root.join("target/release/octl");
+    if release.is_file() {
+        return release;
+    }
+    which::which("octl").unwrap_or_else(|_| PathBuf::from("octl"))
 }
 
 fn resolve_olangc(root: &Path) -> PathBuf {
@@ -1187,6 +1221,56 @@ fn text_err(s: impl Into<String>) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::error(vec![Content::text(s.into())]))
 }
 
+fn structured_command_result(
+    code: i32,
+    stdout: &str,
+    stderr: &str,
+    execution_mode: &str,
+    attachment: Option<(&str, serde_json::Value)>,
+) -> Result<CallToolResult, McpError> {
+    match serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+        Ok(mut value) => {
+            if let Some(object) = value.as_object_mut() {
+                object.insert("execution_mode".into(), execution_mode.into());
+                if !stderr.is_empty() {
+                    object.insert("diagnostics".into(), stderr.into());
+                }
+                if let Some((name, attachment)) = attachment {
+                    object.insert(name.into(), attachment);
+                }
+            }
+            if code == 0 {
+                Ok(CallToolResult::structured(value))
+            } else {
+                Ok(CallToolResult::structured_error(value))
+            }
+        }
+        Err(error) => text_err(format!(
+            "execution command returned invalid JSON ({error})\n{}",
+            format_run(code, stdout, stderr)
+        )),
+    }
+}
+
+fn structured_runner_error(
+    error: impl Into<String>,
+    execution_mode: &str,
+) -> Result<CallToolResult, McpError> {
+    Ok(CallToolResult::structured_error(serde_json::json!({
+        "schema": "ostadix.mcp-execution-failure/v1",
+        "execution_mode": execution_mode,
+        "disposition": "infrastructure_failed",
+        "output": {
+            "complete": false
+        },
+        "replayed": false,
+        "failure": {
+            "stage": "mcp_runner",
+            "message": error.into()
+        }
+    })))
+}
+
 async fn run_cmd(
     program: &Path,
     args: &[&str],
@@ -1243,6 +1327,140 @@ async fn run_cmd(
         output.remove(0),
         output.remove(0),
     ))
+}
+
+// Structured front-door responses require complete, bounded JSON. Expert
+// command and background APIs continue to spool full output through JobManager.
+async fn run_structured_cmd(
+    program: &Path,
+    args: &[&str],
+    cwd: Option<&Path>,
+    env: &[(&str, String)],
+    timeout_secs: u64,
+) -> Result<(i32, String, String), String> {
+    let mut cmd = Command::new(program);
+    cmd.args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        // Keep abnormal future cancellation from orphaning the group leader;
+        // the explicit timeout path below kills and reaps the whole group.
+        .kill_on_drop(true);
+    #[cfg(unix)]
+    {
+        cmd.process_group(0);
+    }
+    if let Some(c) = cwd {
+        cmd.current_dir(c);
+    }
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("spawn {}: {e}", program.display()))?;
+
+    let stdout_pipe = child
+        .stdout
+        .take()
+        .ok_or_else(|| "child stdout was not piped".to_string())?;
+    let stderr_pipe = child
+        .stderr
+        .take()
+        .ok_or_else(|| "child stderr was not piped".to_string())?;
+    #[cfg(unix)]
+    let process_group_id = child.id();
+    #[cfg(unix)]
+    let mut process_group_guard = ProcessGroupDropGuard(process_group_id);
+    let mut stdout_task = tokio::spawn(read_information_pipe_bounded(
+        stdout_pipe,
+        MAX_COMMAND_STDOUT_BYTES,
+    ));
+    let mut stderr_task = tokio::spawn(read_information_pipe_bounded(
+        stderr_pipe,
+        MAX_COMMAND_STDERR_BYTES,
+    ));
+    let timeout = tokio::time::sleep(Duration::from_secs(timeout_secs));
+    tokio::pin!(timeout);
+    let mut status = None;
+    let mut stdout_bytes = None;
+    let mut stderr_bytes = None;
+
+    while status.is_none() || stdout_bytes.is_none() || stderr_bytes.is_none() {
+        tokio::select! {
+            waited = child.wait(), if status.is_none() => match waited {
+                Ok(value) => status = Some(value),
+                Err(error) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stdout_task.abort();
+                    stderr_task.abort();
+                    return Err(format!("wait: {error}"));
+                }
+            },
+            output = &mut stdout_task, if stdout_bytes.is_none() => match output {
+                Ok(Ok(bytes)) => stdout_bytes = Some(bytes),
+                Ok(Err(())) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stderr_task.abort();
+                    return Err(format!("stdout exceeded {MAX_COMMAND_STDOUT_BYTES} bytes"));
+                }
+                Err(error) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stderr_task.abort();
+                    return Err(format!("read stdout task failed: {error}"));
+                }
+            },
+            output = &mut stderr_task, if stderr_bytes.is_none() => match output {
+                Ok(Ok(bytes)) => stderr_bytes = Some(bytes),
+                Ok(Err(())) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stdout_task.abort();
+                    return Err(format!("stderr exceeded {MAX_COMMAND_STDERR_BYTES} bytes"));
+                }
+                Err(error) => {
+                    terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                    stdout_task.abort();
+                    return Err(format!("read stderr task failed: {error}"));
+                }
+            },
+            _ = &mut timeout => {
+                terminate_information_child(&mut child, #[cfg(unix)] process_group_id).await;
+                stdout_task.abort();
+                stderr_task.abort();
+                return Err(format!("timeout after {timeout_secs}s"));
+            }
+        }
+    }
+
+    let status = status.expect("run loop requires child status");
+    let stdout_bytes = stdout_bytes.expect("run loop requires stdout");
+    let stderr_bytes = stderr_bytes.expect("run loop requires stderr");
+    let code = status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
+    let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+    #[cfg(unix)]
+    {
+        process_group_guard.0 = None;
+    }
+    Ok((code, stdout, stderr))
+}
+
+#[cfg(unix)]
+struct ProcessGroupDropGuard(Option<u32>);
+
+#[cfg(unix)]
+impl Drop for ProcessGroupDropGuard {
+    fn drop(&mut self) {
+        let Some(pid) = self.0 else {
+            return;
+        };
+        if let Ok(group_id) = i32::try_from(pid) {
+            // SAFETY: run_structured_cmd creates this child in a fresh process group.
+            unsafe {
+                libc::kill(-group_id, libc::SIGKILL);
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1620,6 +1838,33 @@ fn resolve_run_target(
     Ok((program, cwd))
 }
 
+fn resolve_unified_run_target(
+    root: &Path,
+    requested_path: &str,
+    requested_cwd: Option<&str>,
+) -> Result<(PathBuf, PathBuf), String> {
+    match resolve_run_target(root, requested_path, requested_cwd) {
+        Ok(target) => Ok(target),
+        Err(file_error) => {
+            let input_path = Path::new(requested_path);
+            let cwd = match requested_cwd {
+                Some(requested) => resolve_directory(root, Some(requested), "cwd")?,
+                None if input_path.is_absolute() => resolve_directory(
+                    input_path.parent().ok_or_else(|| {
+                        format!("absolute target has no parent: {}", input_path.display())
+                    })?,
+                    None,
+                    "target cwd",
+                )?,
+                None => resolve_directory(root, None, "cwd")?,
+            };
+            resolve_directory(&cwd, Some(requested_path), "project target")
+                .map(|target| (target, cwd))
+                .map_err(|_| file_error)
+        }
+    }
+}
+
 fn format_run(code: i32, stdout: &str, stderr: &str) -> String {
     let mut s = format!("exit={code}\n");
     if !stdout.is_empty() {
@@ -1900,15 +2145,79 @@ impl OstadixMcp {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RunOArgs {
     #[schemars(
-        description = "Path to a .O program (absolute paths default cwd to their parent; relative paths use cwd/O_LANG_ROOT)"
+        description = "Existing .O program or project path. Supply exactly one of path or source"
     )]
-    path: String,
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    #[schemars(description = "Complete .O source document. Supply exactly one of source or path")]
+    source: Option<String>,
     #[serde(default)]
     #[schemars(description = "Optional working directory (relative paths use O_LANG_ROOT)")]
     cwd: Option<String>,
     #[serde(default)]
     #[schemars(description = "Timeout seconds (default 120)")]
     timeout_secs: Option<u64>,
+    #[serde(default)]
+    #[schemars(
+        description = "Operation mode: execute (default) or check (non-executing unified static plan and graph validation)"
+    )]
+    mode: Option<String>,
+    #[serde(default)]
+    #[schemars(
+        description = "Execution placement: local (default unified front door), node (complete document on one selected hosted node), or project_mesh (project route on authenticated peers; never ordinary OIR graph splitting)"
+    )]
+    placement: Option<String>,
+    #[serde(default)]
+    #[schemars(
+        description = "Optional discovered node identity for placement=node; omitted uses the remembered or deterministic node selection"
+    )]
+    node_id: Option<String>,
+    #[serde(default)]
+    #[schemars(
+        description = "Optional project route ID when a project or lifted bundle has no unambiguous default"
+    )]
+    route: Option<String>,
+}
+
+struct StagedSource(PathBuf);
+
+impl Drop for StagedSource {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+async fn stage_source(source: &str) -> Result<(StagedSource, PathBuf), String> {
+    let (guard, directory) = private_staging_directory("source").await?;
+    let program = directory.join("program.O");
+    tokio::fs::write(&program, source)
+        .await
+        .map_err(|error| format!("stage complete .O source: {error}"))?;
+    Ok((guard, program))
+}
+
+async fn private_staging_directory(kind: &str) -> Result<(StagedSource, PathBuf), String> {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("system clock cannot stage {kind}: {error}"))?
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "ostadix-mcp-{kind}-{}-{unique}",
+        std::process::id()
+    ));
+    tokio::fs::create_dir(&directory)
+        .await
+        .map_err(|error| format!("create private {kind} staging directory: {error}"))?;
+    let guard = StagedSource(directory.clone());
+    #[cfg(unix)]
+    tokio::fs::set_permissions(
+        &directory,
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .await
+    .map_err(|error| format!("secure private {kind} staging directory: {error}"))?;
+    Ok((guard, directory))
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -2436,7 +2745,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Run a .O program with the O interpreter using absolute O_BACKENDS_DIR (fixes relative backends failures)"
+        description = "Execute one complete .O source document or existing path through Ostadix's unified, project-aware front door and return its structured result"
     )]
     async fn o_run(
         &self,
@@ -2444,18 +2753,176 @@ impl OstadixMcp {
     ) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
-        let o_bin = resolve_o_bin(&root);
-        let (path, cwd) = match resolve_run_target(&root, &args.path, args.cwd.as_deref()) {
-            Ok(target) => target,
-            Err(error) => return text_err(error),
+        let o_cli = resolve_o_cli(&root);
+        let (path, cwd, _staged) = match (&args.path, &args.source) {
+            (Some(_), Some(_)) | (None, None) => {
+                return text_err("o_run requires exactly one of `source` or `path`");
+            }
+            (Some(requested), None) => {
+                let (path, cwd) =
+                    match resolve_unified_run_target(&root, requested, args.cwd.as_deref()) {
+                        Ok(target) => target,
+                        Err(error) => return text_err(error),
+                    };
+                (path, cwd, None)
+            }
+            (None, Some(source)) => {
+                let cwd = match resolve_directory(&root, args.cwd.as_deref(), "cwd") {
+                    Ok(cwd) => cwd,
+                    Err(error) => return text_err(error),
+                };
+                let (staged, path) = match stage_source(source).await {
+                    Ok(staged) => staged,
+                    Err(error) => return text_err(error),
+                };
+                (path, cwd, Some(staged))
+            }
         };
+        let timeout = args.timeout_secs.unwrap_or(120);
+        let mode = args.mode.as_deref().unwrap_or("execute");
+        if mode != "execute" && mode != "check" {
+            return text_err(format!(
+                "unsupported mode `{mode}`; expected `execute` or `check`"
+            ));
+        }
+        let placement = args.placement.as_deref().unwrap_or("local");
+        if mode == "check" {
+            if placement != "local" {
+                return text_err(
+                    "mode=check is non-executing and requires placement=local; it never contacts a node or mesh",
+                );
+            }
+            if args.node_id.is_some() {
+                return text_err("node_id is unavailable for mode=check");
+            }
+            if !backends.is_dir() {
+                return text_err(format!("backends missing: {}", backends.display()));
+            }
+            let path_text = path.to_string_lossy().into_owned();
+            let route_arg = args.route.as_ref().map(|route| format!("--route={route}"));
+            let mut command_args = vec!["plan", path_text.as_str(), "--json"];
+            if let Some(route_arg) = route_arg.as_deref() {
+                command_args.push(route_arg);
+            }
+            return match run_structured_cmd(
+                &o_cli,
+                &command_args,
+                Some(&cwd),
+                &[
+                    ("O_LANG_ROOT", root.display().to_string()),
+                    ("O_BACKENDS_DIR", backends.display().to_string()),
+                    ("A18_WORK", cwd.display().to_string()),
+                ],
+                timeout,
+            )
+            .await
+            {
+                Ok((code, stdout, stderr)) => structured_command_result(
+                    code,
+                    &stdout,
+                    &stderr,
+                    "nonexecuting_unified_static_plan",
+                    None,
+                ),
+                Err(error) => structured_runner_error(error, "nonexecuting_unified_static_plan"),
+            };
+        }
+        if placement == "node" {
+            if args.route.is_some() {
+                return text_err("route is available only for local project-aware execution");
+            }
+            if timeout == 0 || timeout > 86_400 {
+                return text_err("node placement timeout must be between 1 and 86400 seconds");
+            }
+            let octl = resolve_octl(&root);
+            let deadline = timeout.to_string();
+            let path_text = path.to_string_lossy().into_owned();
+            let mut command_args = vec!["node", "run", path_text.as_str()];
+            if let Some(node_id) = args.node_id.as_deref() {
+                command_args.extend(["--node", node_id]);
+            }
+            command_args.extend(["--deadline-seconds", deadline.as_str()]);
+            return match run_structured_cmd(
+                &octl,
+                &command_args,
+                Some(&cwd),
+                &[("O_LANG_ROOT", root.display().to_string())],
+                timeout,
+            )
+            .await
+            {
+                Ok((code, stdout, stderr)) => structured_command_result(
+                    code,
+                    &stdout,
+                    &stderr,
+                    "selected_node_complete_document",
+                    None,
+                ),
+                Err(error) => structured_runner_error(error, "selected_node_complete_document"),
+            };
+        }
+        if placement != "local" && placement != "project_mesh" {
+            return text_err(format!(
+                "unsupported placement `{placement}`; expected `local`, `node`, or `project_mesh`"
+            ));
+        }
+        if args.node_id.is_some() {
+            return text_err("node_id requires placement=node");
+        }
         if !backends.is_dir() {
             return text_err(format!("backends missing: {}", backends.display()));
         }
-        let timeout = args.timeout_secs.unwrap_or(120);
-        match run_cmd(
-            &o_bin,
-            &[path.to_str().unwrap_or(""), backends.to_str().unwrap_or("")],
+        let path_text = path.to_string_lossy().into_owned();
+        let mut command_args = vec![
+            "run".to_string(),
+            path_text,
+            "--json".to_string(),
+            "--include-result".to_string(),
+            "--no-record".to_string(),
+        ];
+        if let Some(route) = args.route.as_deref() {
+            command_args.push(format!("--route={route}"));
+        }
+        let mut mesh_trace_staging = None;
+        if placement == "project_mesh" {
+            command_args.extend([
+                "--mesh=required".to_string(),
+                "--mesh-local-fallback=never".to_string(),
+            ]);
+            let (guard, directory) = match private_staging_directory("mesh-trace").await {
+                Ok(staging) => staging,
+                Err(error) => return text_err(error),
+            };
+            let trace_path = directory.join("trace.json");
+            command_args.extend([
+                "--mesh-trace-out".to_string(),
+                trace_path.to_string_lossy().into_owned(),
+            ]);
+            if let Some(configured) = std::env::var_os("OSTADIX_MCP_MESH_PEER_ROOT") {
+                let configured = PathBuf::from(configured);
+                if !configured.is_absolute() {
+                    return text_err("OSTADIX_MCP_MESH_PEER_ROOT must be absolute");
+                }
+                let peer_root = match resolve_directory(
+                    &root,
+                    configured.to_str(),
+                    "configured mesh peer root",
+                ) {
+                    Ok(peer_root) => peer_root,
+                    Err(error) => return text_err(error),
+                };
+                command_args.extend([
+                    "--mesh-peer-root".to_string(),
+                    peer_root.to_string_lossy().into_owned(),
+                    "--mesh-no-lan-discovery".to_string(),
+                ]);
+            }
+            mesh_trace_staging = Some((guard, trace_path));
+        }
+        let command_arg_refs = command_args.iter().map(String::as_str).collect::<Vec<_>>();
+        match run_structured_cmd(
+            &o_cli,
+            &command_arg_refs,
             Some(&cwd),
             &[
                 ("O_LANG_ROOT", root.display().to_string()),
@@ -2467,14 +2934,54 @@ impl OstadixMcp {
         .await
         {
             Ok((code, stdout, stderr)) => {
-                let body = format_run(code, &stdout, &stderr);
-                if code == 0 {
-                    text_ok(body)
+                let mesh_trace = if let Some((_guard, path)) = mesh_trace_staging {
+                    match tokio::fs::read(&path).await {
+                        Ok(bytes) => match serde_json::from_slice(&bytes) {
+                            Ok(trace) => Some(("mesh_trace", trace)),
+                            Err(error) => {
+                                return text_err(format!(
+                                    "project mesh returned an invalid placement trace ({error})"
+                                ));
+                            }
+                        },
+                        Err(error) if code != 0 && error.kind() == std::io::ErrorKind::NotFound => {
+                            Some((
+                                "mesh_trace_status",
+                                serde_json::json!({
+                                    "complete": false,
+                                    "reason": "execution failed before mesh dispatch produced a trace"
+                                }),
+                            ))
+                        }
+                        Err(error) => {
+                            return text_err(format!(
+                                "project mesh did not produce its required placement trace: {error}"
+                            ));
+                        }
+                    }
                 } else {
-                    text_err(body)
-                }
+                    None
+                };
+                structured_command_result(
+                    code,
+                    &stdout,
+                    &stderr,
+                    if placement == "project_mesh" {
+                        "authenticated_project_mesh_required"
+                    } else {
+                        "local_unified_front_door"
+                    },
+                    mesh_trace,
+                )
             }
-            Err(e) => text_err(e),
+            Err(error) => structured_runner_error(
+                error,
+                if placement == "project_mesh" {
+                    "authenticated_project_mesh_required"
+                } else {
+                    "local_unified_front_door"
+                },
+            ),
         }
     }
 
@@ -2844,9 +3351,10 @@ Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/link
 Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. \
 Jobs run concurrently, full logs stay on disk, and a job start is not success. Jobs end on MCP server shutdown; no restart persistence is claimed. \
 Use o_env/o_runtimes/o_doctor to check the environment. Source capability discovery is not installed-version or runtime-health proof; inspect the catalog's safe help invocation when needed. \
-Use o_analyze_intent then o_execute_intent for a one-use same-intent gate; o_run remains direct ungated compatibility execution. \
+Use o_run with source or path for the structured unified front door. o_run.mode=check performs non-executing static planning and graph validation; it never contacts a node or mesh. \
+Set o_run.placement=node for whole-document selected-node submission or project_mesh for required authenticated project-route placement with local fallback disabled. \
+Use o_analyze_intent then o_execute_intent for explicit inspect-then-execute with a one-use same-intent gate. \
 Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. \
-Always run .O programs through an MCP O tool so backends is absolute. \
 Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
                     .into(),
             ),
@@ -2937,17 +3445,19 @@ mod tests {
         random_intent_handle, resolve_directory, resolve_file, resolve_information_state,
         resolve_new_directory_under, resolve_o_info_with_override, resolve_run_target,
         resolve_search_corpus, resolve_search_program, run_cmd, run_information_inspect_bounded,
-        runtime_search_path_with_mode, runtime_search_path_with_mode_and_manager_environment,
-        sanitize_information_head_output, validate_information_head_name, validate_intent_target,
-        EmptyArgs, InformationInspectRunError, IntentLease, IntentReservation, IntentStore,
-        OstadixMcp, RuntimePathMode, RuntimeSearchPath, CATALOG_BACKEND_RUNTIMES,
-        CATALOG_LEGACY_SCHEMA_V3, CATALOG_LEGACY_SCHEMA_V4, CATALOG_LEGACY_SCHEMA_V5,
-        CATALOG_RUNTIME_REQUIREMENTS, CATALOG_SCHEMA, INTENT_SCHEMA_V1, MAX_LIVE_INTENTS,
+        run_structured_cmd, runtime_search_path_with_mode,
+        runtime_search_path_with_mode_and_manager_environment, sanitize_information_head_output,
+        stage_source, structured_runner_error, validate_information_head_name,
+        validate_intent_target, EmptyArgs, InformationInspectRunError, IntentLease,
+        IntentReservation, IntentStore, OstadixMcp, RuntimePathMode, RuntimeSearchPath,
+        CATALOG_BACKEND_RUNTIMES, CATALOG_LEGACY_SCHEMA_V3, CATALOG_LEGACY_SCHEMA_V4,
+        CATALOG_LEGACY_SCHEMA_V5, CATALOG_RUNTIME_REQUIREMENTS, CATALOG_SCHEMA, INTENT_SCHEMA_V1,
+        MAX_COMMAND_STDERR_BYTES, MAX_COMMAND_STDOUT_BYTES, MAX_LIVE_INTENTS,
     };
     use std::collections::BTreeSet;
     use std::ffi::OsStr;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     struct Fixture(PathBuf);
@@ -3724,6 +4234,52 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    async fn structured_runner_kills_oversized_output() {
+        let stdout_error =
+            run_structured_cmd(Path::new("/usr/bin/yes"), &[], Some(Path::new("/")), &[], 5)
+                .await
+                .expect_err("unbounded command stdout must be killed at the MCP cap");
+        assert_eq!(
+            stdout_error,
+            format!("stdout exceeded {MAX_COMMAND_STDOUT_BYTES} bytes")
+        );
+
+        let stderr_error = run_structured_cmd(
+            Path::new("/bin/sh"),
+            &["-c", "while :; do printf x >&2; done"],
+            Some(Path::new("/")),
+            &[],
+            5,
+        )
+        .await
+        .expect_err("unbounded command stderr must be killed at the MCP cap");
+        assert_eq!(
+            stderr_error,
+            format!("stderr exceeded {MAX_COMMAND_STDERR_BYTES} bytes")
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn staged_source_is_private_and_removed_with_guard() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let (guard, program) = stage_source("text^(staged)_text\n").await.unwrap();
+        let directory = guard.0.clone();
+        assert_eq!(
+            fs::read_to_string(&program).unwrap(),
+            "text^(staged)_text\n"
+        );
+        assert_eq!(
+            fs::metadata(&directory).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        drop(guard);
+        assert!(!directory.exists());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
     async fn information_inspector_timeout_kills_descendants() {
         let fixture = Fixture::new();
         let sentinel = fixture.0.join("late-information-inspector-write");
@@ -3881,6 +4437,19 @@ mod tests {
     }
 
     #[test]
+    fn runner_failures_report_incomplete_output_without_replay() {
+        let result = structured_runner_error("timeout after 1s", "local_unified_front_door")
+            .expect("structured runner failure");
+        assert!(result.is_error.unwrap_or(false));
+        let structured = result
+            .structured_content
+            .expect("runner failure structured content");
+        assert_eq!(structured["output"]["complete"], false);
+        assert_eq!(structured["replayed"], false);
+        assert_eq!(structured["failure"]["stage"], "mcp_runner");
+    }
+
+    #[test]
     fn materialize_destination_is_new_and_contained_under_server_cwd() {
         let fixture = Fixture::new();
         let workspace = fixture.0.join("workspace");
@@ -3931,6 +4500,88 @@ mod tests {
         assert!(
             !sentinel.exists(),
             "a backend descendant survived the timeout and wrote {}",
+            sentinel.display()
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn cancelled_runner_future_kills_descendants_before_they_can_commit() {
+        let fixture = Fixture::new();
+        let started = fixture.0.join("backend-started");
+        let sentinel = fixture.0.join("late-cancelled-backend-write");
+        let command = format!(
+            "printf started > '{}'; (sleep 1; printf late > '{}') & wait",
+            started.display(),
+            sentinel.display()
+        );
+        let task = tokio::spawn(async move {
+            run_cmd(
+                PathBuf::from("/bin/sh").as_path(),
+                &["-c", &command],
+                None,
+                &[],
+                30,
+            )
+            .await
+        });
+        for _ in 0..100 {
+            if started.exists() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert!(
+            started.exists(),
+            "backend never reached its cancellation point"
+        );
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        tokio::time::sleep(std::time::Duration::from_millis(1_250)).await;
+        assert!(
+            !sentinel.exists(),
+            "a backend descendant survived request cancellation and wrote {}",
+            sentinel.display()
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn cancelled_structured_runner_future_kills_descendants_before_they_can_commit() {
+        let fixture = Fixture::new();
+        let started = fixture.0.join("backend-started");
+        let sentinel = fixture.0.join("late-cancelled-backend-write");
+        let command = format!(
+            "printf started > '{}'; (sleep 1; printf late > '{}') & wait",
+            started.display(),
+            sentinel.display()
+        );
+        let task = tokio::spawn(async move {
+            run_structured_cmd(
+                PathBuf::from("/bin/sh").as_path(),
+                &["-c", &command],
+                None,
+                &[],
+                30,
+            )
+            .await
+        });
+        for _ in 0..100 {
+            if started.exists() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert!(
+            started.exists(),
+            "backend never reached its cancellation point"
+        );
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        tokio::time::sleep(std::time::Duration::from_millis(1_250)).await;
+        assert!(
+            !sentinel.exists(),
+            "a backend descendant survived request cancellation and wrote {}",
             sentinel.display()
         );
     }

@@ -1,0 +1,88 @@
+<h1>Python native object handles</h1>
+<p><code>O.native(value)</code> retains any Python object in its current backend process and
+returns an opaque <code>OValue::Native</code> descriptor. It does not serialize the object,
+run <code>repr</code>, pickle it, or reconstruct it in another runtime. Closures, arbitrary
+instances, generators, mutable aliases, and cycles retain their Python identity.</p>
+<pre><code class="language-text">let handle = python[7]^(O.native(lambda value: value + 2))_python[7]
+python[7]^(O.resolve_native($handle)(40))_python[7]
+python[7]^(O.release_native($handle))_python[7]
+</code></pre>
+<p><code>O.resolve_native(handle)</code> returns the original object in the original owner
+process. Repeated resolution returns that same object. Descriptors can be
+carried through O and echoed by other Python actors as opaque values; a foreign
+actor cannot resolve them locally. The descriptor uses a random process origin and a
+random 256-bit token, and the owner verifies the complete exported descriptor
+before resolving or releasing it. Changed, unknown, released, or foreign-owner
+handles fail explicitly. A forked process cannot reuse its parent&#39;s store.</p>
+<p>Foreign code can operate on that exact retained object through the evaluator:</p>
+<pre><code class="language-text">let handle = python[7]^(O.native(lambda value: value + 2))_python[7]
+javascript^(console.log(O.native_call(handle, 40)))_javascript
+native_release($handle)
+</code></pre>
+<p>The JavaScript adapter supplies <code>O.native_call(handle, ...args)</code>,
+<code>O.native_get(handle, name)</code>, <code>O.native_set(handle, name, value)</code>, and
+<code>O.native_release(handle)</code> on Unix. Python supplies the same methods.
+The O builtins are <code>native_call(handle, argument_list)</code>, <code>native_get(handle, name)</code>,
+<code>native_set(handle, name, value)</code>, and <code>native_release(handle)</code>.
+<code>get</code> and <code>set</code> access Python attributes; Python descriptors can execute user
+code. Obtain a bound method with <code>get</code> and invoke that returned handle with <code>call</code>.</p>
+<p>Every operation routes through the evaluator to the exact live physical owner,
+session, and admitted launch generation. It never spawns a replacement owner.
+The Python store then verifies the full descriptor seal and all argument handles
+before invoking a callable, descriptor, setter, or release finalizer. Handles
+passed as arguments resolve to their original objects. Plain data arguments are
+explicit value copies; JavaScript rejects unsupported values and shared/cyclic
+plain argument containers. Export those objects in Python and pass handles when
+their identity must survive. The dedicated Node socket keeps callbacks separate
+from ordinary stdout/stderr and bounds each bridge frame to 16 MiB.</p>
+<p>Exact immutable scalar results cross as plain values (large integers become
+JavaScript <code>BigInt</code> when needed). Mutable containers, arbitrary instances,
+callables, and scalar values outside the supported plain carrier return a new
+owner handle. For example, a method returning <code>self</code> returns another export of
+the same Python object, with no serialized reconstruction. Each export must be
+released separately. Native result exports share the existing handle quota;
+quota failure after a method executes does not undo its effects.</p>
+<p>Operations are effectful coordinator work, including attribute reads. They
+execute under the owner&#39;s existing admitted backend authority. An exported
+descriptor delegates access to that owner object within its evaluator; carrying
+it to a different evaluator grants no process ownership. Operations inherit the
+callback deadline (or the backend operation timeout), allow at most 64 nested
+owner operations, and terminate an owner whose operation cannot settle. An
+operation may call <code>O.eval</code>; its callback can perform another native operation
+at that explicit suspension boundary. An ordinary reentrant <code>python[N]</code> block
+remains forbidden. Handle/seal/argument failures precede owner user code;
+exceptions or timeouts after admitted user code starts provide no rollback.</p>
+<p><code>O.release_native(handle)</code> releases one explicit export and invalidates every
+copy of that descriptor. Separate calls to <code>O.native</code> allocate separate exports,
+even for the same object, and each must be released. Already resolved local
+Python references keep their normal Python lifetime; release does not revoke
+those references. Backend cleanup invalidates all remaining exports.</p>
+<p>Use a persistent <code>python[N]</code> owner for a handle needed by later blocks. A fresh
+<code>python^(...)_python</code> actor is retired when its block finishes, so its returned
+handle cannot subsequently be resolved. Owner exit has the same effect. An
+attempt to resolve such a handle in a replacement actor reports
+<code>native.owner-mismatch</code>; a released or cleaned-up handle in its existing owner
+reports <code>native.handle-expired</code>.
+Coordinator operations on a retired, foreign-evaluator, or replaced physical
+owner instead report <code>native.owner-expired</code>. Active fresh owners held by the
+coordinator can service operations while suspended at <code>O.eval</code>; autonomous worker
+owners are not registered as coordinator-owned actors and cannot be addressed
+through this route. Use a persistent owner for cross-runtime operations.</p>
+<p>The descriptor declares <code>LiveHandle</code>, <code>SameProcess</code>, and an effectful boundary.
+It is not cache-safe, replay-safe, or boot-persistable. The stronger Python plain
+data morphism contract rejects these handles; it does not relabel them as
+structural data. Native object methods continue to run under the existing
+Python actor&#39;s execution authority.</p>
+<p>While any exported handle remains live, Python checkpointing reports
+<code>state.pin-required</code> at <code>$native_handles</code>. This prevents local actor migration
+or checkpoint-based recovery from silently replacing an owner with a process
+that lacks its objects. Releasing every export permits checkpointing only when
+the remaining actor state is supported by the existing checkpoint codec.</p>
+<p>Each process allows 4096 simultaneous exports by default. Set
+<code>O_PYTHON_MAX_NATIVE_HANDLES</code> to a positive integer before starting the actor to
+select a different bound. The bound counts handles; it does not estimate the
+memory reachable through arbitrary retained objects. Capacity exhaustion leaves
+existing handles valid, and release returns capacity.</p>
+<p><code>tests/test_python_native_handles.py</code> exercises the real shim protocol;
+<code>tests/python_native_handles.rs</code> checks OIR/wire round trips, owner expiry,
+checkpoint pinning, and migration after release.</p>

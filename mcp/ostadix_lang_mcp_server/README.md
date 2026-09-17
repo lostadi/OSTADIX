@@ -27,7 +27,7 @@ and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 | `o_smoke` | `O examples/hello.O <absolute-backends>` — expect `2` |
 | `o_analyze_intent` | Nonexecutingly compute a stable execution intent and return a bounded, expiring, one-use opaque handle |
 | `o_execute_intent` | Consume that handle and require `O` to recompute the same source and execution-intent digests before fresh Graph V2/Evidence and Admission V6 dispatch |
-| `o_run` | Direct, ungated compatibility execution of any `.O` with absolute backends; relative input resolves once against `cwd` or the repository root, while an absolute path with no `cwd` runs from its parent directory |
+| `o_run` | Structured unified operation: accept exactly one complete `.O` `source` or existing `path`. Default `mode=execute` routes work through the unified project-aware front door and returns decoded value/project results. `mode=check` returns the non-executing unified static plan/graph validation and never contacts a node or mesh. Optional `route` resolves genuinely ambiguous projects. `placement=node` submits the complete document to one selected hosted node. `placement=project_mesh` requires authenticated project-route mesh execution with local fallback disabled; neither placement splits an ordinary OIR graph. |
 | `o_olangc` | `olangc` with `--shim-dir`; relative input/output resolves against the repository root. `materialize_only` admits ordinary binary/WASM inputs, requires a new contained destination below the server cwd, rejects traversal/existing targets, and invokes neither Cargo nor output publication. |
 | `o_search_run` | Run one strict leaf name from `<work>/search`, or bundled `examples/` when no external work tree exists; reject traversal and symlink escape |
 | `o_information_inspect` | Fixed, bounded `o-info head` inspection of one existing local Information V1 root; returns sanitized IDs/count, no state path or authority, and makes no logical/content/inode/mode/mtime change (atime untested) |
@@ -110,6 +110,15 @@ deadline. Hosted V1 retains its native 1 MiB source and 768 KiB canonical-CBOR
 outcome bounds. These protocol limits do not apply to ordinary local O source.
 
 ### Results and artifacts
+
+`o_run` buffers a complete structured native response, capped at 4 MiB stdout
+and 256 KiB stderr. Overflow, timeout, and cancellation terminate its local
+process group; runner failures report incomplete output without replay. Its
+`mode: "check"` validates the static plan/graph, while `o_execute`'s
+`action: "check"` performs parse-only validation. Selected-node cancellation
+stops the local client and cannot promise cancellation of remote effects.
+The managed `o_execute`, `o_cli`, and `o_eval` interfaces below spool output
+in full and limit only previews and inline result projection.
 
 Ordinary execute/check results project the existing `O --json` object into
 `result`; project results retain their native summary/run references.
@@ -217,7 +226,8 @@ Foreground calls return a job result with bounded stdout/stderr previews and
 retained log locations. Nonzero exit, timeout, and cancellation are MCP tool
 errors with job/exit evidence. New tools provide the same JSON object as both
 `structuredContent` and text so clients supporting either representation can
-read it. The original ten tools retain their text contracts.
+read it. The compatibility text tools retain their text contracts. `o_run` returns
+structured native output and a text representation of the same object.
 
 `o_job_read` accepts `stream: "stdout" | "stderr"`, `offset`, and `limit`.
 Advance using `next_offset`; offsets and `bytes_read` count bytes, while `text`
@@ -303,7 +313,7 @@ python3 scripts/smoke_ostadix_mcp_node.py
 The first smoke performs a real MCP initialize/list/call exchange and requires
 the root release `O`, `o-cli`, `olangc`, `o-info`, and `o-link` binaries. Under a deliberately system-only
 `PATH`, it validates every tool's object schema, calls `o_runtimes`, `o_smoke`,
-both supported relative-path forms of `o_run`, relative-path `o_olangc`, and
+fresh inline source plus both supported relative-path forms of `o_run`, relative-path `o_olangc`, and
 bundled `o_search_run`, rejects search-path escape, and performs fixed local
 Information V1 head inspection with a no-mutation tree comparison.
 It also checks the new structured and text response contracts, command
@@ -403,19 +413,30 @@ authority.
 
 This protocol is a local **same-intent gate**, not authorization, a capability,
 a retained admission object, proof of runtime health, or a capacity lease.
-`o_run` remains available as an explicitly ungated compatibility path. The MCP
-crate does not link the root runtime or change its worker and scheduler
-configuration. Managed background jobs may keep an `O` process alive for the
-duration of the MCP session.
+`o_run.path` preserves existing path clients; `o_run.source` accepts a complete
+document through the unified front door. Local execution uses
+`o run --json --include-result` and returns the retained structured result.
+`o_execute` is the primary source-first interface, with explicit check, plan,
+compile, admission, and managed-job controls. The MCP crate does not link the
+root runtime or alter worker and scheduler configuration. Managed background
+jobs may keep an `O` process alive for the duration of the MCP session.
 
-The existing local execution tools retain fresh Graph V2 with
-`oexec.evidence/v6` and `oexec.admission/v6`; current CLI/API inspection
+Local MCP execution uses fresh Graph V2
+with `oexec.evidence/v6` and `oexec.admission/v6`; current CLI/API inspection
 exposes Schedule Explanation/Why V2. Graph V1, Evidence/Admission V5, Schedule
 Explanation/Why V1, and `PreparedPlacementFragmentV1` remain explicit archival
 inspection surfaces only. The MCP never uplifts, relabels, authorizes, or
 dispatches them as current V2/V6 authority. Execution Intent V1 stays bound to
 the frozen Graph V1 identity, but a matching handle carries no authority and
 forces fresh Graph V2/V6 admission before dispatch.
+
+Hosted Placement V6 uses `PreparedPlacementFragmentV2`. `o_run` exposes
+whole-document node submission as `placement=node`, with optional `node_id`,
+and labels its receipt `selected_node_complete_document`. For projects and
+lifted bundles, `placement=project_mesh` delegates to required authenticated
+mesh placement with local fallback disabled. Ordinary `.O` mesh requests are
+rejected by the engine boundary. Neither mode claims general operation-level
+OIR distribution.
 
 Hosted Placement V6 uses `PreparedPlacementFragmentV2`; its authenticated
 direct-node surface is the `octl node ...` client and `o-node` service documented
@@ -427,6 +448,12 @@ placement leases, durable sessions, receipt verification, and state-version
 checks. Neither a catalog entry nor a same-intent handle supplies missing
 authority or upgrades an old execution identity. Inspect the mesh guide and
 the selected CLI's help for the current operation before invoking it.
+
+An operator may bind mesh discovery to an existing paired-peer registry with
+the absolute `OSTADIX_MCP_MESH_PEER_ROOT` environment path. In that configured
+mode the adapter disables LAN discovery, keeps the registry path out of model
+arguments, requires remote placement, and attaches the engine-produced mesh
+trace (including dispatched node identities) to the structured tool response.
 
 The checked-in `.mcp.json` contains no shell expressions. When explicit
 environment paths are absent, the server recognizes the repository from its

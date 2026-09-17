@@ -180,7 +180,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             "architecture dependency boundaries: PASS "
-            "(193 production files, 47 roots, 237 cross-root edges)\n",
+            "(194 production files, 48 roots, 243 cross-root edges)\n",
         )
 
     def test_manifest_inventories_every_current_root_edge_override_and_facade(self) -> None:
@@ -206,9 +206,9 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 },
             ],
         )
-        self.assertEqual(len(roots), 47)
+        self.assertEqual(len(roots), 48)
         self.assertEqual(
-            sum(len(root["allowed_dependencies"]) for root in roots), 237
+            sum(len(root["allowed_dependencies"]) for root in roots), 243
         )
         api_root = next(root for root in roots if root["name"] == "api")
         self.assertIn("ir", api_root["allowed_dependencies"])
@@ -2036,6 +2036,19 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "forbidden dependency `crate::execution_contract`", result.stderr
                 )
 
+    def test_cancellation_cannot_depend_on_runtime_consumers(self) -> None:
+        for module in ("eval_core", "executor", "process"):
+            with self.subTest(module=module):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    write_minimal_tree(root)
+                    (root / "crates/ostadix-api/src/cancellation.rs").write_text(
+                        f"use crate::{module}::Boundary;\n", encoding="utf-8"
+                    )
+                    result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("cooperative cancellation", result.stderr)
+
     def test_eval_core_cannot_reenter_evaluator_or_executor_realizations(self) -> None:
         for module in ("eval", "executor"):
             with self.subTest(module=module):
@@ -2060,9 +2073,11 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("forbidden dependency `crate::information`", result.stderr)
 
-    def test_eval_core_accepts_exactly_its_six_lower_roots(self) -> None:
+    def test_eval_core_accepts_its_declared_lower_roots(self) -> None:
         allowed = (
             "backend_catalog",
+            "backend_morphism",
+            "cancellation",
             "capability",
             "evidence",
             "execution_contract",

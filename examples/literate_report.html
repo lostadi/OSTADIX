@@ -1,0 +1,28 @@
+<h1>A Literate Report in .O</h1>
+<p><em>This entire file is a single Markdown expression with embedded Python.
+There is no &quot;code cell vs. prose cell&quot; distinction — there is one expression
+tree whose leaves are text and typed sub-expressions.</em></p>
+<h2>A small statistical experiment</h2>
+<p>We draw samples from a normal distribution and compute some summary statistics.
+All of the numbers below are computed <em>at render time</em> by Python code living
+in the middle of this sentence:</p>
+<ul>
+<li><strong>Sample mean</strong>: 0.0412</li>
+<li><strong>Sample stddev</strong>: 0.9988</li>
+<li><strong>Min / max</strong>: [-2.62, 3.33]</li>
+</ul>
+<p>Because <code>python[0]</code> is a <em>persistent</em> environment, the <code>samples</code> list defined
+in the first block is still in scope in every subsequent <code>python[0]</code> block in
+this document. State flows naturally along the reading order of the text.</p>
+<h2>What about a different language?</h2>
+<p>Here is some raw HTML embedded inline:</p>
+<p><span style="color: crimson; font-weight: bold">I am HTML inside Markdown inside O.</span></p>
+<p>And a small computation combining multiple languages — Python produces the
+number, HTML wraps it for styling, Markdown links it into the prose:</p>
+<p>The answer is <strong style="color: teal">285</strong>.</p>
+<h2>The collapse</h2>
+<p>What you just read <em>is</em> the program that produced it. The document&#39;s layout
+and its computational content are the same S-expression tree. Running it
+produces this Markdown. Running it with <code>--as html</code> would produce HTML.
+Running it with <code>--as json</code> would dump the raw OValue tree. The source is
+neutral to the output format — the invocation chooses.</p>

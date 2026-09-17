@@ -1,0 +1,48 @@
+<h1>Security policy</h1>
+<p>Ostadix is research-stage software. Its checked-in tests establish bounded
+claims; they do not constitute a production-readiness, isolation, or hardware
+security certification.</p>
+<h2>Report a vulnerability privately</h2>
+<p>Prefer GitHub private vulnerability reporting:</p>
+<p><a href="https://github.com/lostadi/Ostadix-lang/security/advisories/new">https://github.com/lostadi/Ostadix-lang/security/advisories/new</a></p>
+<p>Do not disclose a suspected vulnerability in public issues, discussions, pull
+requests, patches, logs, or demonstrations. If private vulnerability reporting
+is temporarily unavailable, retain the details privately until a private
+channel with the maintainer is available. This repository does not publish a
+security-reporting email address.</p>
+<p>Include only information needed to reproduce and assess the report:</p>
+<ul>
+<li>affected commit, package coordinate, binary, protocol, or schema;</li>
+<li>local environment and the smallest safe reproducer;</li>
+<li>observed impact and the boundary an attacker must cross;</li>
+<li>whether secrets, capabilities, signed records, or third-party systems are
+involved; and</li>
+<li>any proposed mitigation or embargo constraint.</li>
+</ul>
+<p>Do not include live credentials, private keys, bearer capabilities, personal
+data, or unnecessary exploit payloads. Use inert fixtures and redact paths or
+identities when possible.</p>
+<h2>Supported targets</h2>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Security handling</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Current default branch</td>
+<td>Reports are assessed against the current source and its documented claim boundaries.</td>
+</tr>
+<tr>
+<td>Older commits, tags, generated artifacts, or downstream forks</td>
+<td>No standing backport commitment; handling is decided case by case.</td>
+</tr>
+</tbody></table>
+<p>The package coordinate in <code>Cargo.toml</code> is not, by itself, proof that a public
+release exists or remains supported. No response or remediation SLA is
+promised. The maintainer will coordinate disclosure and credit through the
+private advisory when practical.</p>
+<p>Security fixes should preserve execution capability and capacity where the
+threat model permits. Any unavoidable compatibility reduction, disabled path,
+or narrower guarantee must be made explicit and versioned where applicable.</p>

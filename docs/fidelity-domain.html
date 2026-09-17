@@ -1,0 +1,143 @@
+<h1>Fidelity intervals: order, adjunction, and soundness</h1>
+<p><code>FidelityAssessmentV2</code> has an information order as well as operations for
+sequential crossings and path merges. These are distinct concepts. In
+particular, the severity precedence of <code>Unsupported</code> and <code>NativeCapsule</code> in
+<code>join_paths</code> is not the information order.</p>
+<h2>Concrete and abstract domains</h2>
+<p>Let <code>U</code> be the vocabulary of <code>AnnotationKind</code> values. The Rust enum has a fixed
+list of variants, but <code>BackendSpecific { lang, label }</code> contains arbitrary
+strings, so <code>U</code> is not finite. Neither the subset invariant nor the algebra
+below requires a globally finite vocabulary.</p>
+<p>For structural outcomes, a concrete observation is a finite set <code>L ⊆ U</code> of
+lost annotation kinds. <code>Fidelity::Lossless</code> represents <code>L = ∅</code>;
+<code>Fidelity::Structural</code> represents nonempty <code>L</code>. Write <code>C₀ = P_fin(U)</code>.
+These observations describe fidelity judgments, not the underlying native
+values or backend semantics.</p>
+<p>The concrete domain for the adjunction is</p>
+<pre><code class="language-text">C = { S ⊆ C₀ | S is finite and nonempty }, ordered by inclusion.
+</code></pre>
+<p>An abstract structural assessment is an interval</p>
+<pre><code class="language-text">A = { [D, P] | D and P are finite subsets of U, D ⊆ P }.
+</code></pre>
+<p><code>D</code> is the set of definite losses, <code>P</code> the set of possible losses, and
+<code>[∅, ∅]</code> is the canonical <code>FidelityAssessmentV2::Lossless</code>. An absent
+<code>definite</code> field means the empty set. The information order is</p>
+<pre><code class="language-text">[D₁, P₁] ⊑ [D₂, P₂]  iff  D₂ ⊆ D₁ and P₁ ⊆ P₂.
+</code></pre>
+<p>Smaller means more precise. The implementation is <code>precision_leq</code>; its
+checked counterpart <code>try_precision_leq</code> rejects invalid bounds in either
+operand. Invalid, directly assembled enum values are outside <code>A</code>; their
+defensive false membership result does not introduce a bottom element.</p>
+<h2>The Galois connection</h2>
+<p>Define abstraction and concretization by</p>
+<pre><code class="language-text">α(S)       = [ ⋂ { L | L ∈ S }, ⋃ { L | L ∈ S } ]
+γ([D, P])  = { L ∈ C₀ | D ⊆ L ⊆ P }.
+</code></pre>
+<p>These maps are well defined: <code>S</code> is finite and nonempty, so its intersection
+and union give finite bounds; <code>γ([D, P])</code> is finite and nonempty because
+<code>P</code> is finite and <code>D ∈ γ([D, P])</code>. Thus they are maps <code>α : C → A</code> and
+<code>γ : A → C</code>, even though the vocabulary <code>U</code> is infinite.</p>
+<p>The adjunction is</p>
+<pre><code class="language-text">α(S) ⊑ a  ⇔  S ⊆ γ(a).
+</code></pre>
+<p>Proof, for <code>a = [D, P]</code>:</p>
+<pre><code class="language-text">α(S) ⊑ [D, P]
+⇔ D ⊆ ⋂S and ⋃S ⊆ P
+⇔ for every L ∈ S, D ⊆ L and L ⊆ P
+⇔ S ⊆ γ([D, P]).
+</code></pre>
+<p>This proves a Galois connection between the stated posets. They are not
+claimed to be complete lattices: empty outcome families would require a
+bottom that the enum does not have, and unrestricted infinite families can
+require infinite possible-loss bounds. On a fixed finite vocabulary <code>B</code>,
+the same theorem applies to all nonempty subsets of <code>P(B)</code>.</p>
+<p>It is also a Galois insertion. Both endpoints <code>D</code> and <code>P</code> belong to the
+concretization, so its intersection is <code>D</code>, its union is <code>P</code>, and
+<code>α(γ(a)) = a</code>. Consequently the order above is exactly concretization
+inclusion, rather than merely a sufficient comparison rule.</p>
+<p>The executable point embedding is
+<code>α_point(c) = FidelityAssessmentV2::from_concrete(c)</code>. On structural
+observations this is <code>α({c}) = [L, L]</code>. It satisfies the requested point
+correspondence:</p>
+<pre><code class="language-text">α_point(c) ⊑ a  ⇔  c ∈ γ(a).
+</code></pre>
+<p>The implementation of <code>α</code> for a nonempty family of structural/lossless
+outcomes is the existing point embedding followed by interval hulls:</p>
+<pre><code class="language-rust">let abstracted = outcomes
+    .into_iter()
+    .map(FidelityAssessmentV2::from_concrete)
+    .reduce(FidelityAssessmentV2::join_paths)
+    .expect(&quot;a nonempty family of structural/lossless outcomes&quot;);
+</code></pre>
+<p>This expression&#39;s domain restriction is essential; heterogeneous sentinel
+outcomes do not have an interval hull in the current enum.</p>
+<h2>Monotonicity and crossing soundness</h2>
+<p>If <code>S ⊆ T</code>, then <code>⋂T ⊆ ⋂S</code> and <code>⋃S ⊆ ⋃T</code>; hence
+<code>α(S) ⊑ α(T)</code>. If <code>a = [D₁, P₁] ⊑ b = [D₂, P₂]</code>, every
+<code>L ∈ γ(a)</code> satisfies <code>D₂ ⊆ D₁ ⊆ L ⊆ P₁ ⊆ P₂</code>, so
+<code>γ(a) ⊆ γ(b)</code>. These are monotonicity of the two adjoints. Concrete
+observations here are ordered as sets of alternatives; increasing a loss
+set&#39;s severity is a different order and does not make one exact singleton
+observation less precise than another.</p>
+<p>For successive structural crossings, concrete composition is union and
+<code>then</code> computes</p>
+<pre><code class="language-text">[D₁, P₁] then [D₂, P₂] = [D₁ ∪ D₂, P₁ ∪ P₂].
+</code></pre>
+<p>If <code>L₁ ∈ γ(a₁)</code> and <code>L₂ ∈ γ(a₂)</code>, then
+<code>D₁ ∪ D₂ ⊆ L₁ ∪ L₂ ⊆ P₁ ∪ P₂</code>. Therefore
+<code>L₁ ∪ L₂ ∈ γ(a₁ then a₂)</code>: abstract sequential composition is sound.
+Union preserves both endpoint inclusions, so <code>then</code> is monotone in both
+arguments under <code>⊑</code>. These results require no enumeration of <code>U</code>.</p>
+<p>For structural path alternatives, <code>join_paths</code> computes the least upper
+bound in the information order:</p>
+<pre><code class="language-text">[D₁, P₁] join_paths [D₂, P₂] = [D₁ ∩ D₂, P₁ ∪ P₂].
+</code></pre>
+<p>It may introduce additional concrete alternatives, as interval abstraction
+can discard correlations between loss kinds. The adjunction establishes
+that it is the most precise interval containing both input concretizations.</p>
+<h2>Sentinel and convergence limits</h2>
+<p><code>NativeCapsule</code> and <code>Unsupported</code> each concretize to their corresponding
+single V1 outcome. The precision order treats them as isolated points,
+comparable only with themselves. The point correspondence remains true for
+all valid enum values, including these sentinels. Sequential composition
+remains sound because its concrete and abstract sentinel precedence agrees.</p>
+<p>The enum cannot represent <code>{Lossless, Unsupported}</code> or
+<code>{Lossless, NativeCapsule}</code>. <code>Lossless.join_paths(Unsupported)</code> returns
+<code>Unsupported</code>, whose concretization omits <code>Lossless</code>. Therefore that
+severity merge is not a concretization upper bound, and there is no claim
+of a Galois connection over arbitrary mixed V1 outcome families. A
+success-selecting execution path must retain alternatives separately or use
+evidence identifying the selected path.</p>
+<p>The finite-support algebra must also be distinguished from solver
+termination. For a fixed finite graph vocabulary <code>B</code>, structural intervals
+have <code>3^|B|</code> possible states: each kind is absent, possible only, or
+definite. This supports finite-height arguments for monotone iteration in
+the appropriate order. The active solver accumulates crossing facts using
+<code>then</code>, so its structural update order is <code>D₁ ⊆ D₂</code> and <code>P₁ ⊆ P₂</code>, with
+severity precedence for sentinels. This is distinct from the information
+order <code>⊑</code> above: increasing definite losses refines information, whereas
+increasing possible losses broadens it. The adjunction is not a claim that
+every solver update ascends in <code>⊑</code>. The convergence budget accounts for
+both growing coordinates and the retained V1 possible-loss projection.
+An unbounded supply of fresh <code>BackendSpecific</code>
+labels would invalidate that convergence argument, while leaving the
+subset invariant and the proofs above intact. Transfer rules that introduce
+such labels need a bounded vocabulary or a widening policy; a convergence
+budget must fail closed if its bound is exceeded.</p>
+<h2>Executable checks and scope</h2>
+<p><code>crates/ostadix-api/src/value.rs</code> tests the point correspondence, both
+adjoints&#39; monotonicity, sequential monotonicity, and concrete-member
+composition soundness using generated annotation sets, including arbitrary
+<code>BackendSpecific</code> labels. The finite exhaustive regression enumerates all
+8 concrete loss sets, all 27 intervals, and all 255 nonempty outcome
+families over a three-kind vocabulary. It checks the adjunction against
+concrete membership, reflects concretization inclusion into the order,
+checks abstraction monotonicity, and checks <code>α(γ(a)) = a</code>.
+Sentinel regressions make the excluded mixed-family case explicit.</p>
+<p>Run the focused tests with:</p>
+<pre><code class="language-bash">cargo test --locked -p ostadix-api --lib value::tests::fidelity_v2_
+</code></pre>
+<p>The proof establishes properties of fidelity abstraction and composition.
+It does not by itself prove each backend&#39;s loss report correct, establish
+solver authority, or show an observable interop failure. Those require
+transfer-rule checks and end-to-end evaluation evidence separately.</p>

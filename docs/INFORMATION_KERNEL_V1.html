@@ -1,0 +1,274 @@
+<h1>Information Kernel V1</h1>
+<p>Status: experimental, local-first, authority-free sidecar</p>
+<p>The Information Kernel V1 gives Ostadix one content-addressed vocabulary for
+identity, provenance, projections, decisions, and observations without
+replacing the existing execution authorities. It is deliberately additive:
+existing OIR, evidence, admission, placement, Hosted, World, and O-core record
+bytes retain their current identities.</p>
+<h2>Boundary</h2>
+<p>An information snapshot says which facts are present. It does <strong>not</strong> say that
+every fact is true, current, mutually consistent, causally related, or
+authorized for execution. Existing admission and placement records remain the
+only execution authority.</p>
+<h2>V1 byte compatibility and the V2 provenance sidecar</h2>
+<p>The provenance extension is additive. <code>InformationAtomV1</code>,
+<code>AcquisitionModalityV1</code>, their canonical CBOR encodings, and the
+domain-separated <code>AtomIdV1</code> digest remain byte-for-byte unchanged. The same is
+true of V1 snapshots, revisions, deltas, signed packs, and every identity that
+transitively binds those bytes. A V1 atom is never rewritten in place to add a
+witness or to change its acquisition modality.</p>
+<p>Instead, V2 provenance is a separate sidecar bound to the existing
+<code>AtomIdV1</code>. Raw witness shapes live inside the low-layer information root;
+contextual analysis and opaque admitted handles live in the higher-layer
+<code>information_provenance</code> root described by
+<a href="IMAGE_ADMISSION.md"><code>IMAGE_ADMISSION.md</code></a>. This keeps the V1 information
+kernel and the authority-free <code>information_bridge</code> free of execution or
+evidence authority. The existing <code>o-info</code> V1 import path remains bounded to
+declared atoms; it does not silently uplift V1 records into admitted V2
+provenance.</p>
+<p>The V1 implementation currently provides:</p>
+<ul>
+<li>domain-separated identifiers for entities, atoms, snapshots, revisions,
+projection receipts, deltas, decisions, and observations;</li>
+<li>immutable snapshots separated from revision lineage;</li>
+<li>declared, derived, enforced, observed, predicted, counterfactual,
+contradicted, and invalidated modalities. Contradiction and invalidation are
+provenance-bearing atoms; they never silently overwrite the earlier claim;</li>
+<li>scoped facts with explicit producer and support sets;</li>
+<li>projection receipts binding an exact source root, read set, projector,
+output, loss contract, freshness requirements, and lift schema;</li>
+<li>compositional loss contracts;</li>
+<li>exact-base information deltas with conflict-preserving reconciliation;</li>
+<li>dependency-driven projection invalidation;</li>
+<li>deterministic, bounded, read-only value-of-information selection;</li>
+<li>a private local content-addressed store with an exclusive root lock and
+exact compare-and-set heads;</li>
+<li>canonical, signed offline delta packs whose signer is checked against an
+independent local trust resolver.</li>
+</ul>
+<h2>Typed native bridge</h2>
+<p>Package 0.3 adds the experimental <code>information_bridge</code> leaf root. It projects
+only eight allowlisted, read-only records into T2-shaped canonical metadata;
+there is no generic <code>Serialize</code> entry point, native reverse edge, authority
+conversion, mutation, dispatch, credential, capability, admission, or
+execution handle.</p>
+<table>
+<thead>
+<tr>
+<th>Native input</th>
+<th>Bridge record</th>
+<th>Exported metadata only</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ParsedDocumentV1</code> plus exact source bytes</td>
+<td><code>ParsedDocumentInformationV1</code></td>
+<td>source SHA-256/length, immutable syntax/origin counts, origin-map digest</td>
+</tr>
+<tr>
+<td>caller-declared-public scalar <code>OValue</code></td>
+<td><code>PublicValueInformationV1</code></td>
+<td>allowlisted scalar kind, canonical digest/length, caller-public flag</td>
+</tr>
+<tr>
+<td>unadmitted <code>HGraph</code></td>
+<td><code>HGraphInformationV1</code></td>
+<td>structural counts and <code>metadata_projection_sha256</code> over exactly those counts</td>
+</tr>
+<tr>
+<td>Evidence V6</td>
+<td><code>EvidenceInformationV1</code></td>
+<td>exact evidence schema/analyzer, Catalog V6 public projection digest, node count, metadata projection digest</td>
+</tr>
+<tr>
+<td>verified registry profile</td>
+<td><code>RegistryProfileInformationV1</code></td>
+<td>canonical namespace, projected node identity, generation, event digest, validity range, stale flag</td>
+</tr>
+<tr>
+<td>verified World receipt</td>
+<td><code>WorldReceiptInformationV1</code></td>
+<td>receipt/semantic digests and <code>signature_validated=true</code></td>
+</tr>
+<tr>
+<td>logical project HGraph</td>
+<td><code>ProjectGraphInformationV1</code></td>
+<td>logical/source-bundle digests and operation/root counts</td>
+</tr>
+<tr>
+<td>self-signature-consistent Hosted V2 journal entry</td>
+<td><code>HostedJournalInformationV1</code></td>
+<td>projected session/current/previous entry identities, sequence/time, self-consistency, explicit <code>signer_trust_evaluated=false</code></td>
+</tr>
+</tbody></table>
+<p>Every record has its own <code>ostadix.info-bridge-*/v1</code> schema, strict canonical
+decoder, semantic validator, and digest-only <code>NativeRecordRefV1</code>. Decoding
+checks bytes and declared invariants; it does not establish supplier trust.
+T2 references contain no native locator or inverse lookup mechanism.</p>
+<p>The parser captures exact source SHA-256 and byte length. A parsed-document
+projection fails unless supplied bytes match both. <code>ParsedDocumentV1.nodes</code> is
+private; <code>nodes()</code> and <code>into_nodes()</code> are the supported borrowed and owned
+accessors. Derived equality now also includes captured source digest and length.
+Scalar projection preflights size, numeric recursion/node count, bigint
+magnitude, rational denominator, binary-float width, and BigFloat precision
+before canonicalization. Container, path, byte/blob, graph, native, request,
+system, capability, snapshot, thunk, group, and error values are rejected.</p>
+<p>HGraph and Evidence <code>metadata_projection_sha256</code> values hash only the fields in
+the table. Inputs with the same allowlisted metadata intentionally collide even
+when omitted source, value, OIR, plan, native graph/evidence identity, runtime,
+environment, capability, placement, or dispatch fields differ. These digests
+are neither native identities, privacy commitments, nor authority. HGraphs
+with an admission map or any admission-evidence node are rejected.</p>
+<p>Registry namespaces remain raw because their bounded slash-separated grammar
+is a public descriptive scope, not a locator or secret classifier. Raw
+registry node IDs and Hosted session/journal-link tokens are removed by
+bridge-specific, length-framed, domain-separated SHA-256 projections. These
+projections preserve equality (and Hosted link equality), but remain dictionary
+oracles for low-entropy inputs; they are not confidentiality or privacy
+primitives. Registry <code>stale</code> is descriptive only. World
+<code>signature_validated=true</code> proves neither freshness nor authorization. Hosted
+self-consistency proves neither signer trust, journal continuity, nor
+currentness.</p>
+<p>The independent <code>ostadix_api::api</code> engine surface exports the explicit bridge;
+<code>o_lang::api</code> is an exact compatibility reexport of that same module and type
+identity. Generated AOT projects intentionally embed neither <code>information</code> nor
+<code>information_bridge</code>; their one-copy runtime closure remains separate.</p>
+<h2>Payload tiers</h2>
+<p>Canonical information records have no typed variants for bearer tokens,
+private keys, live capabilities, executable handles, secret retrieval
+locators, or credentials. This is a type boundary, not content inspection:
+arbitrary T0 text could still contain a secret if a caller misclassifies it.
+The local CLI therefore requires <code>--acknowledge-public</code> before recording T0.</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Meaning</th>
+<th>V1 bound</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>T0</td>
+<td>Small public typed scalar embedded in the atom</td>
+<td>4 KiB canonical bytes</td>
+</tr>
+<tr>
+<td>T1</td>
+<td>Local managed non-secret blob reference</td>
+<td>16 MiB logical bytes</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>External record schema, media type, digest, and length</td>
+<td>bytes remain outside the information store</td>
+</tr>
+</tbody></table>
+<p>T2 deliberately contains no path, URI, native retrieval identity, or
+credential-like locator. Retrieval credentials and secret locators belong to
+an authority-bearing runtime channel, never to a canonical information atom.</p>
+<h2>Projection closure</h2>
+<p>A materialized view is acceptable only when it carries a projection receipt.
+The receipt binds:</p>
+<ol>
+<li>the immutable information root and exact facts read;</li>
+<li>the projection recipe, implementation, configuration, and direction;</li>
+<li>the projected output and stable canonical-to-local identity map;</li>
+<li>the distinctions omitted or made uncertain;</li>
+<li>the scope, freshness condition, consumer contract, and lift schema.</li>
+</ol>
+<p>A component returns new knowledge as a delta anchored to that receipt and the
+revision from which it worked. A stale delta is retained as historical
+information; it is not silently promoted to current state.</p>
+<h2>Local and offline operation</h2>
+<p>V1 needs no daemon, cloud account, consensus service, or laboratory cluster.
+The store is a local directory, and offline packs are canonical CBOR signed
+with Ed25519. Pack verification keeps four judgments separate:</p>
+<ul>
+<li>the pack envelope is canonical and each included object is digest-bound;</li>
+<li>the signature is cryptographically valid;</li>
+<li>the signer is accepted by an independent local trust policy;</li>
+<li>the contained claim is semantically valid and operationally applicable.</li>
+</ul>
+<p>Only the first three belong to pack verification. A verified pack does not
+become an execution lease or admission.</p>
+<p>The V1 offline boundary is intentionally laptop-sized and closed under its
+decoder limits: at most 1,024 packed objects, at most 256 KiB for any one
+object and for the sum of packed object bytes, at most 768 KiB for the
+canonical inner pack, and at most 1 MiB for the signed envelope. These are hard
+ceilings even when a caller supplies a looser policy. The local store uses the
+same 256 KiB bound for canonical record objects and 1 MiB bound for historical
+packs, while separately managed T1 blob content retains its exact 16 MiB
+capacity.</p>
+<p><code>InformationStoreReaderV1::open_existing</code> is the separate inspection path for
+an already initialized private root. It creates no directory or lock file,
+repairs no mode, and performs no head update. Its bounded regular-file reads
+verify object identity. <code>o-info head</code> uses this reader; tests prove no change to
+directory entries, file content, inode, mode, or mtime. Atime is not part of
+that claim. Missing, nonprivate, or symlinked roots/kind directories fail
+without repair. This path does not claim hostile same-user resistance if an
+attacker can replace ancestor directories concurrently.</p>
+<p>The bridge decoder ceilings are conjunctive safety bounds: 64 KiB of input,
+256 decoded items, and depth 8. Not every ceiling is independently reachable
+after the item budget and per-record semantic limits are applied. The tests pin
+reachable exact item/depth and scalar limits plus one-over rejection; 64 KiB is
+an outer byte ceiling, not a claim that a valid V1 projection exists at exactly
+that size.</p>
+<h2>Local CLI</h2>
+<p>Normal <code>setup.sh</code> installation builds <code>o-info</code> and exposes it through the
+installed <code>o info</code> dispatcher route. The complete V1 workflow runs on one
+ordinary local machine:</p>
+<pre><code class="language-bash">o info init --state .ostadix-information
+o info keygen --key .ostadix-keys/info-private.json \
+    --trust .ostadix-keys/info-trust.json
+o info record --state .ostadix-information \
+    --key .ostadix-keys/info-private.json --pack result.info.cbor \
+    --namespace local --kind research-result --coordinate name=demo \
+    --predicate ostadix.local/public-scalar-v1 --scalar text --value ready \
+    --acknowledge-public
+o info verify --pack result.info.cbor --trust .ostadix-keys/info-trust.json
+o info head --state .ostadix-information
+</code></pre>
+<p><code>init</code> always derives the same empty snapshot and parentless revision. <code>keygen</code>
+uses OS entropy for a mode-0600 private Ed25519 key and writes a separate trust
+file containing public material only. <code>record</code> accepts exactly one public T0
+scalar (<code>null</code>, <code>bool</code>, <code>i64</code>, <code>u64</code>, <code>f64-bits</code>, or <code>text</code>), appends its
+declared atom locally, and writes a canonical signed CBOR delta pack. The
+required <code>--acknowledge-public</code> is a caller classification, not a claim that
+Ostadix can discover secrets hidden in arbitrary text.</p>
+<p>To reintegrate a pack into another local store, initialize that store and use:</p>
+<pre><code class="language-bash">o info import --state other-information \
+    --pack result.info.cbor --trust .ostadix-keys/info-trust.json
+</code></pre>
+<p>The importer first checks canonical encoding, object digests, signature, and
+the independent public trust file. It advances <code>main</code> only when the pack base
+exactly equals the current revision and the bounded entity/atom/delta/snapshot/
+revision closure validates and reconstructs the unique next revision. A stale,
+unsupported, or incomplete but correctly signed pack is retained byte-for-byte
+under <code>historical-packs/</code> and reported as <code>historical-only</code>; it cannot advance
+the head. A bad signature or untrusted signer is rejected rather than archived.</p>
+<p>The private key is never required for <code>verify</code> or <code>import</code>, never enters a
+canonical information object, and is never embedded in a pack. Every command
+that could otherwise be misread as authorization prints the boundary:
+information presence and signatures grant no execution authority.</p>
+<h2>Deliberate nonclaims</h2>
+<p>Information Kernel V1 does not yet claim:</p>
+<ul>
+<li>a universal replacement for current evidence or protocol schemas;</li>
+<li>live distributed replication, consensus, CRDT convergence, or World
+membership;</li>
+<li>automatic semantic validation of every referenced native record;</li>
+<li>general invertibility of projections;</li>
+<li>permission to execute merely because a record is present or signed;</li>
+<li>autonomous probing with side effects. V1 value-of-information selection is
+deterministic, bounded, and read-only;</li>
+<li>hostile same-user resistance when an attacker can replace ancestor
+directories concurrently, or no-follow parity on non-Unix hosts;</li>
+<li>a transaction spanning pack publication, every content-addressed object,
+and the named-head update. Each file publication is staged and synchronized,
+while interruption between publications may leave harmless unreferenced
+objects or a separately emitted pack for later inspection.</li>
+</ul>
+<p>The rollout order is shadow first, compare against existing semantics, and
+only then enforce narrowly proven invariants. Existing record versions remain
+unchanged until a separately reviewed compatibility boundary requires a new
+version.</p>

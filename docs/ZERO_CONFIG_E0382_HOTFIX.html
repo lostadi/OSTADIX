@@ -1,0 +1,16 @@
+<h1>Zero-configuration client ownership hotfix</h1>
+<h2>Observed failure</h2>
+<p>Rust correctly rejected two client constructors that moved the owned
+<code>resolved.address: String</code> and then borrowed the partially moved <code>resolved</code>
+structure to call <code>resolved.tls_identity()</code>.</p>
+<h2>Correction</h2>
+<p>The TLS identity is now cloned from the still-intact resolved connection first:</p>
+<pre><code class="language-rust">let tls_identity = resolved.tls_identity();
+let mut client = HostedNodeClient::new(resolved.address, tls_identity);
+</code></pre>
+<p>The V2 constructor uses the same ordering. The transport address, TLS identity,
+receipt key, and timeout values are unchanged; only the ownership-safe order in
+which they are extracted changes.</p>
+<h2>Scope</h2>
+<p>This is an implementation correction, not a new user-facing requirement. No
+new flag, path, credential, hostname, or other configuration is introduced.</p>

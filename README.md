@@ -451,7 +451,7 @@ let mut runtime = Runtime::new("/absolute/path/to/backends");
 let value: OValue = runtime.evaluate("text^(hello)_text")?;
 ```
 
-Direct engine users may import the 41 public runtime modules from
+Direct engine users may import the 42 public runtime modules from
 `ostadix_api`, including `parser`, `ir`, `hgraph`, `evidence`, `eval`,
 `execution_fabric`, `execution_fabric_authority`, `executor`, `hosted_remote`,
 `project`, and `world`. Historical
@@ -1100,7 +1100,7 @@ for the complete contract and native placement boundaries.
 | `o_smoke` | Runs `examples/hello.O` with an absolute backend path and expects `2`. |
 | `o_analyze_intent` | Analyzes exact source and a stable graph intent, then creates a bounded one-use handle. |
 | `o_execute_intent` | Consumes that handle, requires O to recompute the same Intent V1, then performs a fresh V6 admission before dispatch. |
-| `o_run` | Runs one local `.O` file directly with an explicit working directory and timeout. |
+| `o_run` | Accepts exactly one complete `.O` `source` or existing `path`; local runs use the unified project-aware front door and return decoded results as MCP structured content. `placement=node` submits the complete document to one selected hosted node without claiming graph splitting. |
 | `o_olangc` | Runs `olangc` with the resolved shim directory; `ir`/`dot` inspect, `script` executes, and `wasm`/`binary` build artifacts. Omitting the target builds a binary. |
 | `o_search_run` | Runs one strictly named `.O` search program from `<work>/search` when an external `a18re` tree exists, otherwise from the installed bundled `examples/` corpus; path traversal and symlink escape are rejected. |
 | `o_information_inspect` | Runs fixed local `o-info head` against one existing non-symlink state root with bounded input, output, and timeout. It returns sanitized object IDs and counts while preserving entries, content, inode, mode, and mtime. |
@@ -1134,6 +1134,16 @@ wrappers are disabled, copies the executable to
 ./setup.sh --minimal --yes
 ```
 
+When an existing `~/.gemini` profile is present, setup also idempotently
+registers that absolute executable path as the `ostadix` server in its
+`settings.json`. Existing Gemini authentication, servers, and unrelated
+preferences are preserved. Machines without a Gemini profile skip this step,
+and a local Gemini configuration error is reported without failing Ostadix
+setup. The checked-in `GEMINI.md` makes Ostadix the required default for code
+creation, build, run, test, benchmark, and validation work in this repository.
+Re-running setup after an update refreshes both the installed server and, on a
+Gemini-enabled machine, its registration.
+
 For a build without the rest of setup, build the Ostadix commands used by
 the server and then the server itself:
 
@@ -1150,7 +1160,7 @@ deliberately separate from the root Cargo package, so a root `cargo build` or
 own lockfile, rejects Clippy warnings, and exercises initialization, exact tool
 and object-schema discovery, `o_env`, `o_runtimes`, and `o_smoke` over the real
 stdio transport with `scripts/smoke_ostadix_mcp.py`. The smoke launches the
-server with a system-only `PATH`, then calls `o_run` with both forms of relative
+server with a system-only `PATH`, then calls `o_run` with fresh inline source and both forms of relative
 path, executes the bundled `o_search_run`, rejects search-path escape, calls
 `o_olangc`, and inspects a temporary local Information V1 head
 without mutating its entries/content/inode/mode/mtime; transport discovery
@@ -1198,6 +1208,13 @@ o_execute {"source":"python^( __oval_result__ = 2 )_python","action":"check"}
 o_execute {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","action":"plan"}
 o_capabilities {"query":"mesh"}
 o_guide {"topic":"projects"}
+o_env {}
+o_runtimes {}
+o_smoke {}
+o_run {"source":"python^(\n__oval_result__ = 1 + 1\n)_python"}
+o_run {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O"}
+o_olangc {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","target":"ir"}
+o_information_inspect {"state":"/absolute/path/to/existing-information-state","head":"main"}
 ```
 
 Enter these names and argument objects through the MCP client's tool-call
@@ -1209,8 +1226,13 @@ then appends existing local Homebrew, Nix, language-manager, and per-runtime
 locations so GUI-launched clients can see the same runtimes as terminal tools.
 Set `OSTADIX_RUNTIME_PATH` to add explicit search directories. Discovery checks
 executable presence; the selected backend adapter remains the execution
-authority and reports launch or runtime failures. A `.O` program run through
-`o_run` can invoke any configured backend, including shell backends.
+authority and reports launch or runtime failures. A `.O` program run locally
+through `o_run` can invoke any configured backend, including shell backends.
+The structured `o_run` response limits stdout to 4 MiB and stderr to 256 KiB;
+overflow terminates its process group and reports incomplete output. The
+`o_execute`, `o_cli`, and `o_eval` job APIs retain full disk logs and bound only
+response previews. Node
+placement is whole-document execution, not automatic graph-operation distribution.
 
 ---
 
@@ -2727,6 +2749,26 @@ substrate gate did not run, not that the image passed or failed semantically.
 
 The O-core QEMU proof is intended to run directly on the host because it
 needs QEMU and the local Rust linker toolchain.
+
+### Browser AI chat PDF export
+
+The dependency-free browser extension under
+[`apps/browser-chat-pdf`](apps/browser-chat-pdf/) turns a rendered AI chat into
+a clean print preview. It captures the conversation from the tab's live local
+DOM, preserving structured text, links, lists, and code rather than flattening
+the page into screenshots, so the resulting PDF text remains searchable and
+selectable.
+
+The final step deliberately uses the browser's native print dialog. Choose
+**Save as PDF** there to retain the browser's pagination and font rendering;
+the extension does not silently write a file or choose its destination. See
+the app README for load-unpacked installation, supported browsers, and usage.
+
+Android Chrome cannot load this desktop extension, so Chatprint also includes
+a generated, self-contained mobile bookmarklet and offline copy installer under
+`apps/browser-chat-pdf/mobile`. It performs the capture locally and uses the
+same native Print / Save as PDF handoff; the browser still requires a one-time
+manual bookmark edit as a security boundary.
 
 ### Native Android device control
 
@@ -4624,7 +4666,7 @@ Native computation
 ```text
 Ostadix-lang/
 ├── crates/ostadix-api/src/
-│   ├── lib.rs                  # 47 engine modules, 41 public
+│   ├── lib.rs                  # 48 engine modules, 42 public
 │   ├── parser.rs               # hosted typed-parenthesis parser
 │   ├── value.rs                # OValue and hosted wire protocol
 │   ├── ir.rs                   # OIR and ExecutionPlan
@@ -4641,7 +4683,7 @@ Ostadix-lang/
 │   ├── live_system/            # package CAS, policy, and supervisor oracle
 │   └── ocore/                  # native front end, IRs, codegen, capability bridge
 ├── src/
-│   ├── lib.rs                  # 41 public compatibility reexports
+│   ├── lib.rs                  # 42 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
 ├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 20 tools
@@ -5937,10 +5979,11 @@ confuse with the implemented mechanisms described above.
   memory. Local fallback is eligible only while execution-start evidence
   remains absent.
 - `ostadix-mcp` is a local stdio child process that inherits the MCP client's
-  authority. Its ten tools expose environment, runtime, doctor, smoke, intent,
-  direct run, compiler, optional search, and bounded Information inspection
-  functions. It has no network listener or MCP-level authentication layer. The
-  direct `o_run` tool is the compatibility execution path; the one-use
+  authority. Its 20 tools expose source-first execution, full native command
+  arguments, concurrent managed jobs, capability guides, environment/runtime
+  diagnostics, compiler, intent, search, and bounded Information inspection. It has no network listener or MCP-level authentication layer. The
+  `o_run` tool uses the unified local front door by default and can explicitly
+  submit one complete document through the existing hosted-node client; the one-use
   `o_analyze_intent` and `o_execute_intent` pair supplies intent recomputation
   and fresh V6 admission. Information inspection does not expose the state path
   or raw stderr, and access-time preservation remains untested.

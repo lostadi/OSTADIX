@@ -1,0 +1,93 @@
+<h1>Embedded foreign runtime bundles</h1>
+<p><code>olangc --runtime-bundle DIR</code> embeds the regular files of an explicitly supplied
+relocatable runtime tree in an ordinary native <code>.O</code> binary. The tree contains
+<code>bin/</code> and this manifest:</p>
+<pre><code class="language-json">{
+  &quot;schema&quot;: &quot;ostadix.embedded-runtime/v1&quot;,
+  &quot;environment&quot;: {
+    &quot;PYTHONHOME&quot;: &quot;${BUNDLE}/python&quot;
+  }
+}
+</code></pre>
+<p>The environment map is optional. Use <code>bin/python3</code>, <code>bin/node</code>, or the relevant
+catalog command names. Include runtime libraries, standard libraries, helper
+executables, and licenses in the tree. Internal file symlinks are retained so
+invocation aliases and self-relative executable locations survive extraction.
+Relative targets retain their spelling; absolute internal targets are rewritten
+relative to the extracted link. Targets must remain inside the bundle. External
+symlinks, directory symlinks, and special files are rejected. Empty directories,
+UTF-8 paths, and Unix permissions are retained. Environment
+entries support the listed Python, Node, Ruby, Java, .NET and dynamic-library
+path keys; each value must name an existing path within <code>${BUNDLE}/</code>.</p>
+<pre><code class="language-bash">olangc program.O -o program --runtime-bundle ./runtime-tree
+olangc program.O -o program --runtime-bundle ./runtime-tree \
+  --materialize-only ./generated
+</code></pre>
+<p>The generated project includes <code>runtime-bundle-manifest.json</code> with path, byte
+length, mode, and SHA-256 for each file, plus directory paths/modes and symlink
+paths/targets. Startup checks the embedded digests,
+extracts to a private randomly named temporary directory, and sets runtime
+command lookup to its <code>bin/</code> exclusively before evidence/admission. Missing
+commands therefore cannot be satisfied by ambient <code>PATH</code>. The extraction
+remains alive during execution and is removed on normal scope exit, restoring
+owner access to read-only directories during cleanup without following symlinks. Process
+abort can leave its private directory behind.</p>
+<p>The default <code>host</code> execution profile provides runtime payload embedding and closed command lookup. It does not
+automatically discover or verify a complete dynamic library closure, replace
+the host kernel, isolate arbitrary absolute file access or environment reads,
+or embed external daemons/services. Clean-environment execution must qualify
+each supplied closure. In particular, this feature alone cannot establish
+hermetic embedding of every catalog runtime, including Mathematica, Multipass,
+or Nix services. Native project binaries and WASI targets are not supported by
+this option.</p>
+<h2>Linux root filesystem execution</h2>
+<p>Add <code>&quot;execution&quot;: &quot;linux-rootfs-v1&quot;</code> to the manifest to execute the generated
+program inside its embedded filesystem image. The
+<a href="LINUX_RUNTIME_ROOTFS.md">closure collector</a> builds such an image from declared
+runtime commands and data, recursively resolving static ELF dependencies.
+Preserve absolute runtime locations inside the image; <code>bin/</code> contains command
+aliases. The image must leave <code>.ostadix</code>, <code>.old-root</code>, <code>proc</code>, <code>dev</code>, <code>tmp</code>,
+<code>work</code>, and <code>run</code> absent for the launcher to create.</p>
+<p>Before evaluator or multicall dispatch, the launcher extracts the image and
+reexecutes itself inside new Linux user, mount, PID, network, IPC, and UTS
+namespaces. It detaches the previous root, makes the payload read-only, clears
+ambient environment variables, drops process capabilities, sets <code>no_new_privs</code>,
+and denies mount-changing syscalls. It closes inherited descriptors above
+standard input/output/error. A private PID-namespace procfs is read-only;
+<code>/tmp</code>, <code>/work</code>, <code>/run</code>, and <code>/dev/shm</code> are writable temporary filesystems.
+The namespace exposes loopback and the four kernel devices <code>null</code>, <code>zero</code>,
+<code>random</code>, and <code>urandom</code>. Ordinary threads, subprocess execution, temporary
+compiler outputs, pipes, and local sockets remain available. The parent waits
+for completion, removes its extracted image, and preserves exit codes/signals.
+A dedicated namespace init reaps orphaned grandchildren, forwards termination
+signals, and removes remaining descendants when the evaluator finishes. The
+evaluator keeps its normal child-wait behavior. The init communicates the
+evaluator&#39;s raw wait status to the outside parent, preserving fatal signals
+despite Linux&#39;s special PID 1 signal rules.</p>
+<p>The image identity binds the complete compiler inventory. Every multicall
+entry checks that identity, the user namespace mapping, empty capability
+sets, and <code>no_new_privs</code>, then installs the exact mount filter again. An
+environment marker alone cannot enable execution. Namespace creation failure
+stops before program evaluation; the launcher does not fall back to the host
+profile or modify the host&#39;s namespace policy.</p>
+<p>This profile currently supports Linux x86-64 and AArch64 with the requisite
+namespace permissions and syscalls. The host kernel, the initial trusted
+Linux executable loader, and the three standard streams remain its execution
+substrate. This is filesystem/network isolation after entry, not a replacement
+kernel or protection against a malicious host. Runtime services and libraries
+loaded by computed names must be included explicitly. Mount-dependent runtimes
+and external services need another qualified execution profile. No catalog-wide
+hermeticity claim follows from one qualified Python/Bash image.</p>
+<p>The ignored Linux integration test <code>tests/linux_runtime_rootfs.rs</code> compiles a
+real one-binary Python/Bash program, removes the original image, and tests
+runtime data, multicall callbacks, threads, subprocesses, loopback, absent host
+paths/environment, immutable payloads, external route refusal, orphan reaping,
+signal outcomes, and cleanup.
+Run it explicitly on a suitable Linux host; <code>OSTADIX_ROOTFS_TEST_SUDO=1</code> allows
+VM-local <code>sudo -n</code> for the generated program where unprivileged namespaces are
+denied. It never changes a host sysctl or AppArmor policy.</p>
+<pre><code class="language-sh">cargo test --locked --all-features --test linux_runtime_rootfs -- --ignored
+</code></pre>
+<p>The launcher follows Linux&#39;s <a href="https://man7.org/linux/man-pages/man7/user_namespaces.7.html">user namespace mapping rules</a>,
+<a href="https://man7.org/linux/man-pages/man7/mount_namespaces.7.html">mount namespace semantics</a>,
+and <a href="https://cdn.kernel.org/doc/html/latest/userspace-api/no_new_privs.html">no_new_privs contract</a>.</p>

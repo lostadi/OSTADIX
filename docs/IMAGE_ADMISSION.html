@@ -1,0 +1,229 @@
+<h1>Image admission and codomain slack</h1>
+<p>Ostadix uses two different shapes of validation, and audits must not confuse
+them. A predicate can select acceptable values from a declared type. A trusted
+analyzer can instead determine which values are reachable at an authority
+boundary. The first creates a checker-coverage obligation. The second creates
+an analyzer-image obligation.</p>
+<p>Ostadix Evidence V5 and V6 use a third, deliberately qualified form: the
+trusted analyzer determines every hard execution fact, while a soft cost
+estimate may differ from the analyzer result without changing execution
+legality. The precise architectural claim is therefore <strong>hard-projection image
+admission</strong>, not whole-record image admission.</p>
+<h2>Three admission forms</h2>
+<p>Let <code>T</code> be a declared record type.</p>
+<h3>Predicate admission</h3>
+<p>A predicate-admitting boundary defines its trusted set with a checker</p>
+<pre><code class="language-text">C : T -&gt; Bool
+Trusted = C^-1(true)
+</code></pre>
+<p>The caller can present values from <code>T</code>; the checker decides which values enter.
+The audit question is whether <code>C</code> handles every reachable form of <code>T</code> and
+checks every field on which the protected property depends. A new enum variant
+or field can create a new obligation even when no current producer constructs
+it, because external construction or deserialization may still reach the
+checker.</p>
+<p>Normalization is predicate admission. Reconstructing a record from its own
+fields and comparing it with the input proves canonical form, not independent
+derivation of the claim.</p>
+<h3>Full image admission</h3>
+<p>An image-admitting boundary has a trusted derivation</p>
+<pre><code class="language-text">A : S -&gt; T
+Trusted = im(A)
+</code></pre>
+<p>where <code>S</code> is the independently bound source/context space. An implementation
+may accept a caller-supplied candidate <code>t</code>, but only by recomputing <code>A(s)</code> and
+requiring whole-record equality <code>t = A(s)</code>. Downstream code receives the result
+only through the admitted authority handle.</p>
+<p>The audit question is now what <code>A</code> can produce. Values in <code>T</code> that are outside
+<code>im(A)</code> cannot reach the protected consumer through this boundary. A wider
+declared codomain is therefore compatible with a narrower current analyzer
+image.</p>
+<h3>Projected image admission</h3>
+<p>Many useful records mix authoritative and descriptive fields. Let</p>
+<pre><code class="language-text">pi : T -&gt; H
+</code></pre>
+<p>be the explicit projection onto hard fields. A projected-image boundary
+requires</p>
+<pre><code class="language-text">pi(t) = pi(A(s))
+</code></pre>
+<p>while the remaining soft fields stay outside the image theorem and retain
+their own, explicitly stated acceptance and consumer contract. The trusted
+hard set is <code>im(pi . A)</code>. The complete accepted record set need not be <code>im(A)</code>,
+because multiple soft values may occupy one hard-field fibre.</p>
+<p>Projected image admission licenses codomain slack only for the hard
+projection. Any property claimed invariant under soft-field changes must be
+shown to factor through <code>pi</code>:</p>
+<pre><code class="language-text">legal = legal_h . pi
+</code></pre>
+<p>This is the exact form used by current Ostadix execution admission.</p>
+<h2>Four audit preconditions</h2>
+<p>The image argument is valid only when all four conditions hold.</p>
+<ol>
+<li><strong>Trusted, deterministic derivation.</strong> <code>A</code> is total on the stated
+admissible source space and deterministic there. Repeating analysis for the
+same bound source/context yields the same hard projection. Analyzer failure
+rejects admission; it does not create an unchecked value.</li>
+<li><strong>Explicit equality scope.</strong> Admission recomputes <code>A(s)</code> and compares either
+the whole record or a named projection <code>pi</code>. Every excluded field is
+documented as soft and retains its own acceptance, provenance, and consumer
+obligations; it must not silently influence the protected hard property.</li>
+<li><strong>Source and context binding.</strong> The source analyzed by <code>A</code> is digest-bound
+to the source admitted and consumed. Source, plan, graph, analyzer, runtime,
+environment, and other relevant context cannot be mixed between analysis
+and use.</li>
+<li><strong>Consumer confinement.</strong> Protected consumers obtain the record only
+through an opaque admitted handle. A raw record, graph, or deserialized enum
+cannot bypass the boundary and be interpreted as admitted authority.</li>
+</ol>
+<p>These preconditions are also the audit checklist for applying the theorem at a
+new boundary.</p>
+<h2>Codomain Slack Theorem</h2>
+<p><strong>Theorem.</strong> Suppose a boundary satisfies the four preconditions for
+<code>A : S -&gt; T</code>, and let <code>Reach</code> be the set of records that its protected consumer
+can receive as authority. Under full image admission,</p>
+<pre><code class="language-text">Reach subseteq im(A).
+</code></pre>
+<p>Consequently, every value in <code>T \ im(A)</code> is unreachable through that authority
+boundary. Extending <code>T</code> without changing <code>A</code>, admission equality, or the
+consumer boundary does not extend authorized behavior.</p>
+<p>Under projected image admission,</p>
+<pre><code class="language-text">pi(Reach) subseteq im(pi . A).
+</code></pre>
+<p>Consequently, hard values outside <code>im(pi . A)</code> are unreachable. Soft values
+may vary inside a hard-field fibre, and only properties proven to factor
+through <code>pi</code> are invariant under that variation.</p>
+<p><strong>Proof.</strong> By the equality condition, every admitted whole record equals
+<code>A(s)</code>, or every admitted hard projection equals <code>pi(A(s))</code>, for the bound
+source <code>s</code>. Source/context binding prevents substituting a different source
+after analysis. Consumer confinement prevents introducing a raw value through
+another constructor or decoder. Therefore every authoritative consumer input
+is in the stated image. The projected conclusion follows by applying <code>pi</code>.
+For a property that factors through <code>pi</code>, equal hard projections give equal
+property values. QED.</p>
+<p>This is a reachability theorem, not a kernel-membership theorem. For a function
+<code>f : T -&gt; U</code>, <code>ker(f)</code> is normally an equivalence relation on pairs of elements
+of <code>T</code>; an expression such as <code>T \ im(A) subseteq ker(f)</code> is ill-typed. If an
+observational statement is needed, state it with two reachable records:</p>
+<pre><code class="language-text">pi(t1) = pi(t2) implies legal(t1) = legal(t2)
+</code></pre>
+<p>and prove that <code>legal</code> factors through <code>pi</code>.</p>
+<h3>Corollary: safe declared slack</h3>
+<p>A declared hard-field codomain may be strictly wider than the analyzer&#39;s image
+without an attestation obligation over the difference. The unused values are a
+versioning affordance until the analyzer, equality projection, or consumer
+boundary changes.</p>
+<p>This does not make direct consumers total over the larger type, and it does not
+license wildcard handling as compile-time exhaustive. Explicit enum arms can
+still be useful so that extending the enum forces a compiler review.</p>
+<h2>Ostadix Evidence V5 and V6</h2>
+<p>Current execution admission realizes the projected theorem.</p>
+<h3>A1: trusted derivation</h3>
+<p>The trusted analyzers construct node evidence from the solved executable graph
+and runtime binding in
+<a href="../crates/ostadix-api/src/evidence/analyze.rs"><code>evidence/analyze.rs</code></a>. Their
+current dispatch-lane image is exactly <code>LocalWorker</code> or <code>Coordinator</code>; the
+choice is derived from the classified worker candidate rather than accepted as
+a caller label.</p>
+<p>V5 and V6 admission independently rerun those analyzers before accepting a
+bundle:</p>
+<ul>
+<li>V5 recomputation begins in
+<a href="../crates/ostadix-api/src/evidence/admit.rs"><code>admit.rs</code></a> at
+<code>admit_execution_v5</code>;</li>
+<li>V6 recomputation begins at <code>admit_execution_v6</code> in the same file.</li>
+</ul>
+<h3>A2: hard-projection equality</h3>
+<p>For every operation, both versions require equality with the recomputed
+baseline for these hard fields:</p>
+<ul>
+<li>type contract;</li>
+<li>effect contract;</li>
+<li>dispatch contract;</li>
+<li>capability disposition and provenance;</li>
+<li>placement and provenance;</li>
+<li>failure contract;</li>
+<li>resource demand.</li>
+</ul>
+<p>The comparisons are in <code>validate_node_evidence_v1</code> and
+<code>validate_node_evidence_v2</code> in
+<a href="../crates/ostadix-api/src/evidence/admit.rs"><code>evidence/admit.rs</code></a>.</p>
+<p><code>cost_estimate</code> is intentionally absent from that equality. It is soft
+evidence, not a blocker, lane, wave, capability, or legality input. The test
+<code>soft_cost_estimates_cannot_change_legal_blockers_or_waves</code> proves that changed
+historical costs remain admissible and change the evidence digest while the
+legal projection remains identical. Ostadix therefore does <strong>not</strong> claim
+whole-record equality or full image admission for <code>NodeEvidenceV1</code> or
+<code>NodeEvidenceV2</code>.</p>
+<p>In symbols, with <code>H</code> the hard projection,</p>
+<pre><code class="language-text">admitted(e, s) implies H(e) = H(analyze(s)).
+</code></pre>
+<h3>A3: source and runtime binding</h3>
+<p>Admission checks the exact evidence bindings before reanalysis. The bindings
+cover the lowered OIR, canonical plan, analyzed graph, backend-catalog
+projection, backend set and executable manifest, launch context, environment,
+ambient World, and analyzer identity. Their construction is in
+<a href="../crates/ostadix-api/src/evidence/analyze.rs"><code>evidence/analyze.rs</code></a>, and both
+admission versions reject a mismatch before comparing node evidence.</p>
+<h3>A4: consumer confinement</h3>
+<p>The current coordinator constructor accepts
+<code>AdmittedExecution</code>, not a raw HGraph or evidence bundle. See
+<a href="../crates/ostadix-api/src/executor/coordinator.rs"><code>executor/coordinator.rs</code></a>.
+That opaque authority type is the protected path to dispatch.</p>
+<h3>Dispatch-lane consequence</h3>
+<p>Six declared <code>DispatchLaneV1</code> values are currently outside the analyzer&#39;s hard
+image. They are unreachable by the coordinator through fresh V6 admission even
+though the coordinator is not designed as a general executor for all eight
+declared lanes. This is benign codomain slack at the current authority
+boundary, not evidence that every direct use of the enum would be safe.</p>
+<p>Changing the analyzer to construct another lane, excluding dispatch from the
+hard projection, or admitting raw evidence to the coordinator would invalidate
+the corollary and require a new review.</p>
+<h2>Connection to contextual provenance recovery</h2>
+<p>Provenance V2 should preserve the distinction between structural consistency
+and admitted epistemic authority.</p>
+<p>A raw provenance claim may carry a witness whose discriminant determines an
+origin such as declared, derived, observed, predicted, or counterfactual. Making
+<code>origin()</code> a method prevents a stored label from disagreeing with that witness,
+but it does not prove that a measurement occurred, that a derivation ran, or
+that an enforcement mechanism was active. If the witness is caller-supplied
+and deserializable, <code>validate_shape()</code> remains predicate admission.</p>
+<p>Full provenance authority requires a contextual analyzer</p>
+<pre><code class="language-text">R : (raw claim, trusted receipts, trust policy, recovery question) -&gt; admitted provenance
+</code></pre>
+<p>that resolves and verifies the referenced observation, derivation,
+enforcement, or execution evidence. It should return an opaque admitted handle;
+protected consumers must not accept the raw claim as equivalent. The recovery
+question must state what is being recovered, the observation equivalence, and
+the counterfactual domain. Exactness is therefore relative to a context and a
+question, not a zero-argument property of a witness enum.</p>
+<p>For a derivation, an addressed procedure and listed inputs can create residual
+obligations. A source- and output-bound execution receipt may discharge those
+obligations. Missing execution fidelity is an unresolved obligation, not a
+permanent loss: the current <code>LossContractV1::sequence</code> only accumulates losses
+and cannot later remove one. Provenance recovery should consequently keep
+intrinsic loss, residual obligations, and their typed discharges separate.</p>
+<p>The first execution adapter discharges cryptographic receipt-signature
+verification, not signer authorization. <code>VerifiedExecutionReceiptV1</code> proves
+the signature against a caller-supplied resolver but retains no trust-policy
+identity, so producer authentication, signer authorization, and receipt
+currentness remain explicit obligations beside execution and morphism fidelity.</p>
+<p>The resulting architecture has two nested image boundaries:</p>
+<ol>
+<li>the provenance analyzer image-admits its origin classification, assurance
+statements, and recovery judgment relative to bound context; the opaque
+handle exposes an established origin only when that recovery is <code>Exact</code>;
+and</li>
+<li>execution admission image-admits the hard evidence projection used to
+authorize any Ostadix execution cited as a provenance discharge.</li>
+</ol>
+<p>Neither a content address nor an information-snapshot membership claim becomes
+execution authority by itself.</p>
+<h2>Paper-sized statement</h2>
+<blockquote>
+<p>Predicate admission trusts the preimage of a checker. Image admission trusts
+the output of a bound derivation. Ostadix execution admission is the projected
+form: trusted reanalysis fixes every hard execution fact, while auditable soft
+costs may vary without changing legality. The Codomain Slack Theorem licenses
+declared hard-field values outside the analyzer image because they are
+unreachable, not because they belong to a consumer kernel.</p>
+</blockquote>

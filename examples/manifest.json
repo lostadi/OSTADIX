@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "examples": [
-    {
+{
       "path": "bash_binding.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -14,7 +14,7 @@
         "rust": {"patterns": ["hello world"]}
       }
     },
-    {
+{
       "path": "bash_exit_code.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -27,7 +27,7 @@
         "rust": {"patterns": ["ok"]}
       }
     },
-    {
+{
       "path": "bash_hello.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -40,7 +40,7 @@
         "rust": {"patterns": ["hello from bash"]}
       }
     },
-    {
+{
       "path": "bash_multiline.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -53,7 +53,7 @@
         "rust": {"patterns": ["10 + 20 = 30"]}
       }
     },
-    {
+{
       "path": "bindings.O",
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
@@ -68,7 +68,22 @@
         "python": {"result": {"tag": "int", "value": 43}}
       }
     },
-    {
+{
+      "path": "boxing.O",
+      "editions": ["rust"],
+      "classification": "integration",
+      "requirements": {
+        "backends": ["python", "shell"],
+        "programs": ["python3", "sh"],
+        "authorities": ["process"],
+        "opt_in": ["RUN_INTERACTIVE_EXAMPLES=1"]
+      },
+      "expected": {
+        "rust": {"patterns": ["64-bit Ostadix Boxing Match Complete with Physics"]}
+      },
+      "timeout_seconds": 300
+    },
+{
       "path": "computed_plot.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -96,7 +111,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "coordination_groups.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -111,7 +126,7 @@
         }
       }
     },
-    {
+{
       "path": "env_split.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -125,7 +140,7 @@
         "python": {"patterns": ["100"]}
       }
     },
-    {
+{
       "path": "ephemeral.O",
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
@@ -143,7 +158,7 @@
         "python": {"patterns": ["EPHEMERAL: x from first bare block is NOT visible here"]}
       }
     },
-    {
+{
       "path": "group_pipeline/main.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -158,7 +173,7 @@
         "rust": {"patterns": ["# normalize_pipeline", "policy: lazy"]}
       }
     },
-    {
+{
       "path": "group_pipeline/main.eager.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -173,7 +188,52 @@
         "rust": {"patterns": ["# normalize_pipeline", "policy: eager"]}
       }
     },
-    {
+{
+      "path": "guix-wasm/guix-package.O",
+      "editions": ["rust"],
+      "classification": "integration",
+      "requirements": {
+        "backends": ["python"],
+        "programs": ["python3"],
+        "authorities": ["process"],
+        "opt_in": ["RUN_GUIX_WASM_EXAMPLES=1"]
+      },
+      "expected": {
+        "rust": {"patterns": ["OSTADIX_GUIX_PACKAGE:42->43"]}
+      },
+      "timeout_seconds": 300
+    },
+{
+      "path": "guix-wasm/guix-session.O",
+      "editions": ["rust"],
+      "classification": "integration",
+      "requirements": {
+        "backends": ["python"],
+        "programs": ["python3"],
+        "authorities": ["process"],
+        "opt_in": ["OSTADIX_GUIX_SESSION_GUEST=1"]
+      },
+      "expected": {
+        "rust": {"patterns": ["O-owned Guix session"]}
+      },
+      "timeout_seconds": 3600
+    },
+{
+      "path": "guix-wasm/run.O",
+      "editions": ["rust"],
+      "classification": "integration",
+      "requirements": {
+        "backends": ["python"],
+        "programs": ["python3", "wasmtime"],
+        "authorities": ["process"],
+        "opt_in": ["RUN_GUIX_WASM_EXAMPLES=1"]
+      },
+      "expected": {
+        "rust": {"patterns": ["OSTADIX_GUIX_PACKAGE:42->43"]}
+      },
+      "timeout_seconds": 3600
+    },
+{
       "path": "hello.O",
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
@@ -188,7 +248,7 @@
         "python": {"result": {"tag": "int", "value": 2}}
       }
     },
-    {
+{
       "path": "html_basic.O",
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
@@ -203,7 +263,7 @@
         "python": {"patterns": ["<h1>O-lang is rendering HTML</h1>", "<p>The answer is 42.</p>"]}
       }
     },
-    {
+{
       "path": "html_escape.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -217,7 +277,7 @@
         "python": {"patterns": ["<p>&lt;O-lang &amp; friends&gt;</p>"]}
       }
     },
-    {
+{
       "path": "html_python_html.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -230,7 +290,7 @@
         "rust": {"patterns": ["<h1>Outer HTML</h1>", "<strong>Hello, Lee.</strong>"]}
       }
     },
-    {
+{
       "path": "html_raw_roundtrip.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -243,7 +303,7 @@
         "rust": {"patterns": ["<section>", "<strong>Hello, Lee.</strong>"]}
       }
     },
-    {
+{
       "path": "instantiate_realise_basic.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -257,7 +317,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "js_binding.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -270,7 +330,7 @@
         "rust": {"patterns": ["42"]}
       }
     },
-    {
+{
       "path": "js_hello.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -283,7 +343,7 @@
         "rust": {"patterns": ["hello from js"]}
       }
     },
-    {
+{
       "path": "js_json.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -296,7 +356,7 @@
         "rust": {"patterns": ["\"x\"", "\"y\"", "[number] 1", "[number] 2"]}
       }
     },
-    {
+{
       "path": "js_multiline.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -309,7 +369,7 @@
         "rust": {"patterns": ["42"]}
       }
     },
-    {
+{
       "path": "lazy_defer_attrs_basic.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -322,7 +382,7 @@
         "rust": {"patterns": ["[request] <request eval|python|"]}
       }
     },
-    {
+{
       "path": "lazy_request_basic.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -335,7 +395,7 @@
         "rust": {"patterns": ["# Step-3 lazy region (call form)", "unresolved Request — no Nix call made"]}
       }
     },
-    {
+{
       "path": "literate_report.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -354,7 +414,7 @@
         }
       }
     },
-    {
+{
       "path": "meta_eval.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -369,7 +429,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "nested_splice.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -383,7 +443,7 @@
         "python": {"result": {"tag": "int", "value": 42}}
       }
     },
-    {
+{
       "path": "nix_basic.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -398,7 +458,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "nix_python_html.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -413,7 +473,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "nix_storepath.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -428,7 +488,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "nix_storepath_python.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -443,7 +503,7 @@
       },
       "timeout_seconds": 60
     },
-    {
+{
       "path": "nixos_test.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -459,7 +519,7 @@
       },
       "timeout_seconds": 600
     },
-    {
+{
       "path": "nixos_test_two_machine.O",
       "editions": ["rust", "python"],
       "classification": "integration",
@@ -475,7 +535,7 @@
       },
       "timeout_seconds": 600
     },
-    {
+{
       "path": "os_as_participant_basic.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -488,7 +548,7 @@
         "rust": {"patterns": ["# Step-4 OS-as-participant", "current system reference:  (current_system() builtin)"]}
       }
     },
-    {
+{
       "path": "persist.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -502,7 +562,7 @@
         "python": {"patterns": ["42"]}
       }
     },
-    {
+{
       "path": "plan9_browser.O",
       "editions": ["rust"],
       "classification": "manual",
@@ -517,7 +577,7 @@
       },
       "timeout_seconds": 600
     },
-    {
+{
       "path": "python_html_python.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -531,7 +591,7 @@
         "python": {"patterns": ["PAGE START", "<p>The computed number is 42.</p>", "PAGE END"]}
       }
     },
-    {
+{
       "path": "script.O",
       "editions": ["rust", "python"],
       "classification": "unit",
@@ -545,7 +605,7 @@
         "python": {"patterns": ["<h1>Hello from executable O-lang</h1>"]}
       }
     },
-    {
+{
       "path": "semantic_custody.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -558,7 +618,7 @@
         "rust": {"patterns": ["semantic-custody answer=42"]}
       }
     },
-    {
+{
       "path": "shell_hello.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -571,7 +631,7 @@
         "rust": {"patterns": ["hello from sh"]}
       }
     },
-    {
+{
       "path": "sql_aggregation.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -584,7 +644,7 @@
         "rust": {"patterns": ["total_rows", "total_points", "[number] 3", "[number] 60"]}
       }
     },
-    {
+{
       "path": "sql_create_insert_select.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -597,7 +657,7 @@
         "rust": {"patterns": ["\"name\"", "\"age\"", "Ollie", "[number] 3"]}
       }
     },
-    {
+{
       "path": "sql_python_sql.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -610,7 +670,7 @@
         "rust": {"patterns": ["[number] 200"]}
       }
     },
-    {
+{
       "path": "sql_select.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -623,7 +683,7 @@
         "rust": {"patterns": ["[number] 2"]}
       }
     },
-    {
+{
       "path": "trailing_expr.O",
       "editions": ["rust", "c17"],
       "classification": "unit",
@@ -637,7 +697,7 @@
         "c17": {"patterns": ["42"]}
       }
     },
-    {
+{
       "path": "wasm_hello.O",
       "editions": ["rust"],
       "classification": "unit",
@@ -650,7 +710,7 @@
         "rust": {"patterns": ["OSTADIX OLANGC WASM EXECUTION PASS"]}
       }
     },
-    {
+{
       "path": "webassembly_hello.O",
       "editions": ["rust"],
       "classification": "integration",
@@ -663,5 +723,6 @@
         "rust": {"patterns": ["OSTADIX WEBASSEMBLY BACKEND PASS"]}
       }
     }
+
   ]
 }

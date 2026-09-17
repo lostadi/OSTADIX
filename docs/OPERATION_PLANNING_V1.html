@@ -1,0 +1,408 @@
+<h1>Operation planning and observation V1</h1>
+<p>Schema/planner status: <strong>experimental, deterministic, bounded, and
+authority-free</strong>. The marked <code>o run</code> bridge enters the pre-existing project
+admission/executor path; the planner records do not grant that authority.</p>
+<p>This surface extends the four semantic records in
+<a href="OPERATION_REALIZATION_V1.md"><code>OPERATION_REALIZATION_V1.md</code></a> with physical
+representation descriptions, explicit candidate tuples, descriptive cost
+profiles, deterministic selection, runtime-observation records, and recovery
+records. The first planner profile accepts exactly one logical operation and a
+caller-supplied bounded list of complete tuples. It does not construct a
+Cartesian product.</p>
+<p>The word <em>selected</em> in this document means only that a tuple won the declared
+offline objective. It does not mean admitted, authorized, reserved, placed,
+dispatched, resident, reachable, or executed.</p>
+<h2>Implemented record family</h2>
+<p>The records and their exact schema coordinates are:</p>
+<table>
+<thead>
+<tr>
+<th>Rust record</th>
+<th>Schema coordinate</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PhysicalRepresentationV1</code></td>
+<td><code>ostadix.physical-representation/v1</code></td>
+<td>Describes a value type, format, storage class, ownership class, and mutability.</td>
+</tr>
+<tr>
+<td><code>TransferPlanV1</code></td>
+<td><code>ostadix.transfer-plan/v1</code></td>
+<td>Describes one adapter and representation/target crossing for one logical edge.</td>
+</tr>
+<tr>
+<td><code>CostProfileV1</code></td>
+<td><code>ostadix.cost-profile/v1</code></td>
+<td>Carries caller-supplied aggregate costs for one exact descriptor, target, input geometry, representation tuple, and residency tuple.</td>
+</tr>
+<tr>
+<td><code>ObjectiveV1</code></td>
+<td><code>ostadix.objective/v1</code></td>
+<td>Selects the implemented minimum-predicted-nanoseconds objective and canonical tie break.</td>
+</tr>
+<tr>
+<td><code>LogicalHGraphV2</code></td>
+<td><code>ostadix.logical-hgraph/v2</code></td>
+<td>Names semantic operation nodes and directed value-flow edges without implementations or targets.</td>
+</tr>
+<tr>
+<td><code>DeploymentPlanV2</code></td>
+<td><code>ostadix.deployment-plan/v2</code></td>
+<td>Records every assessed tuple, causal reasons, the selected tuple, semantic schedule, and transfer identities.</td>
+</tr>
+<tr>
+<td><code>RuntimeGraphV2</code></td>
+<td><code>ostadix.runtime-graph/v2</code></td>
+<td>Records caller-supplied lifecycle observations and optional measurements against selected deployment candidates.</td>
+</tr>
+<tr>
+<td><code>RecoveryPlanV1</code></td>
+<td><code>ostadix.recovery-plan/v1</code></td>
+<td>Records an ordered set of conditional alternatives for a selected candidate observed to have failed.</td>
+</tr>
+<tr>
+<td><code>OperationPlanningRequestV1</code></td>
+<td><code>ostadix.operation-planning-request/v1</code></td>
+<td>Supplies the exact semantic closure, objective, explicit offers, and transfer records consumed by the first planner.</td>
+</tr>
+</tbody></table>
+<p>The marked-project bridge also uses separately versioned auxiliary
+coordinates:</p>
+<ul>
+<li><code>ostadix.project-route-pipeline/v1</code> identifies the versioned, deterministic
+serialized route-pipeline projection of a captured <code>olang.project.toml</code> route that a
+descriptor names as its execution pipeline;</li>
+<li><code>ostadix.operation-run-decision/v1</code> freezes the original operation choice in
+the pre-execution seed; <code>ostadix.operation-run-plan/v1</code> retains its original
+request and deployment in the terminal content object;</li>
+<li><code>ostadix.operation-runtime-binding/v2</code> binds observation to that original
+decision and the exact recorded route; V1 remains the explicitly labeled
+reconstruction for legacy records without an original decision; and</li>
+<li><code>ostadix.operation-command-error/v1</code> versions the JSON error envelope for the
+marked-project commands.</li>
+</ul>
+<p>These are CLI bridge/report coordinates, not additional planner authority
+records.</p>
+<p><code>REQUIREMENT_FOOTPRINT_CONTENT_SCHEMA_V1</code> has the exact value
+<code>ostadix.placement.requirement-footprint/v1</code>. It labels the raw canonical
+content reference used to join a frozen <code>RealizationDescriptorV1</code> to the
+supplied <code>RequirementFootprintV1</code>; it is not a new authority or evidence type.</p>
+<p>The implementation is in
+<code>crates/ostadix-api/src/computation/realization_plan.rs</code> and is exported through
+<code>ostadix_api::computation::realization_plan</code>. The <code>o-lang</code> compatibility package
+reexports that same implementation; it does not maintain a second schema.</p>
+<h2>Canonical bytes, identities, and bounds</h2>
+<p>Every top-level record above uses bounded canonical CBOR, denies unknown
+fields, and has bounded JSON decoding for interchange. Canonical-CBOR decoding
+re-encodes the validated record and rejects any byte sequence that is not its
+exact canonical form. JSON may normalize set-like field order; record identity
+always comes from canonical CBOR.</p>
+<p>Each record has an independent typed identity:</p>
+<pre><code class="language-text">SHA256(record_domain || u64_be(canonical_cbor_length) || canonical_cbor)
+</code></pre>
+<p>The domains are record- and version-specific. Typed identities are distinct
+even when two records would otherwise have identical bytes. The record limit is
+4 MiB, bounded decoding uses at most 1,000,000 items and depth 128, and the
+implementation separately bounds operations, edges, candidate offers, ports,
+references, and explanations.</p>
+<p>Two raw-content joins intentionally differ from typed record identities:</p>
+<ul>
+<li>a descriptor&#39;s accepted/produced representation reference is compared with
+<code>PhysicalRepresentationV1::semantic_ref()</code>, whose content is the ordinary
+SHA-256 of that representation&#39;s canonical bytes and whose schema token is
+<code>ostadix.physical-representation/v1</code>; and</li>
+<li>a descriptor&#39;s target-requirements reference is compared with the ordinary
+SHA-256 of the supplied placement footprint&#39;s canonical bytes under the
+<code>ostadix.placement.requirement-footprint/v1</code> schema token.</li>
+</ul>
+<p>Those joins preserve the already-frozen <code>RealizationDescriptorV1</code> reference
+shape. A raw semantic-content digest must not be substituted for the new
+domain-separated typed record ID, or vice versa.</p>
+<p>The OComputation manifest vocabulary adds exactly five facet kinds for this
+slice: <code>physical_representation</code>, <code>transfer_plan</code>, <code>cost_profile</code>, <code>objective</code>,
+and <code>recovery_plan</code>. Their <code>facet_ref</code> helpers use the manifest&#39;s raw canonical
+content digest convention. The typed planning-record IDs remain distinct.</p>
+<h2>Physical representation and residency</h2>
+<p><code>PhysicalRepresentationV1</code> supports these descriptive storage classes:
+portable value, host memory, shared memory, memory-mapped artifact, WebAssembly
+linear memory, device memory, remote stream, and content-addressed artifact.
+Ownership is described as owned, borrowed, shared, or streamed.</p>
+<p>Residency is deliberately kept out of reusable physical-representation
+identity. Each <code>PortRepresentationSelectionV1</code> instead carries one
+<code>ValueResidencyV1</code>: portable, an exact content artifact, or an exact target
+descriptor digest. This permits the same representation schema to be used with
+different candidate locations and cost profiles.</p>
+<p>These fields are descriptions. Validation does not probe memory, open an
+artifact, contact a target, prove that a value is present, prove access to it,
+or establish that a storage/ownership/residency combination is physically
+feasible. In the single-operation profile, residency is cost and explanation
+context; external-input and result movement are not automatically derived as
+transfer operations.</p>
+<h2>Logical graph and explicit offers</h2>
+<p><code>LogicalHGraphV2</code> validates a nonempty DAG with dense graph-local operation and
+edge IDs, known endpoints, no self-edge, and an exact sorted set of terminal
+roots. Nodes bind exact interface, contract, realization-set, and input-geometry
+identities. Nodes do not name an implementation or target.</p>
+<p>The graph schema is general, but <code>OperationPlanningRequestV1</code> currently
+requires exactly one operation. Consequently the implemented profile has no
+logical edges. <code>TransferPlanV1</code> and exact edge coverage are implemented as
+schema and closure plumbing, but the single-node example does not exercise
+transfer choice or data movement.</p>
+<p>Each <code>CandidateTupleOfferV1</code> supplies one complete tuple:</p>
+<pre><code class="language-text">logical operation
+  x realization descriptor
+  x target descriptor
+  x one physical representation and residency per input/output port
+  x one matching cost profile
+</code></pre>
+<p>Offers are bounded and canonicalized. The planner never expands independent
+descriptor, target, representation, or profile lists. Supplying more than one
+cost profile for the same conceptual operation/descriptor/target/port tuple is
+rejected.</p>
+<h2>Static compatibility and selection</h2>
+<p>Before ranking, the request validates the exact four-record
+contract/interface/descriptor/set closure from the V1 semantic surface and
+binds the graph node to it. Each offer is then assessed with machine-readable
+causal reasons.</p>
+<p>A tuple is rankable only when all of the following implemented checks pass:</p>
+<ul>
+<li>the offer names the request&#39;s sole logical operation and a descriptor in the
+exact realization set;</li>
+<li>the descriptor&#39;s supplied-fidelity reference exactly equals the contract&#39;s
+required-fidelity reference;</li>
+<li>the supplied target footprint has the exact raw content identity named by
+the descriptor and is <code>Complete</code>;</li>
+<li>every static footprint atom is supported by the supplied
+<code>TargetDescriptorV1</code>;</li>
+<li>environment, effect, and resource-minimum atoms are absent, because this
+authority-free planner cannot discharge them;</li>
+<li>input and output offers cover exactly the interface ports, use matching value
+types, and name representations declared by the descriptor; and</li>
+<li>the cost profile exactly binds the descriptor, stable realization,
+interface, contract, target digest, input geometry, and complete
+representation/residency tuple.</li>
+</ul>
+<p>Passing these checks produces <code>StaticallyCompatibleForRanking</code>, not placement
+eligibility. Descriptor state and actor requirements are recorded as deferred.
+The pure planner in <code>realization_plan.rs</code> also does not resolve or validate the
+descriptor&#39;s implementation bytes, execution pipeline, optional cost-model
+document, or validation-evidence documents. The marked-project bridge performs
+the narrower exact implementation and route-pipeline joins described below; it
+does not change the pure planner&#39;s authority boundary.</p>
+<p>The only implemented objective is
+<code>MinimizePredictedTotalNanoseconds</code>. Its score is the checked unsigned sum of
+compute, startup, conversion, transfer, queue, and checkpoint nanoseconds plus
+<code>uncertainty_ns</code>. Overflow is rejected. An optional maximum is inclusive: a
+tuple is rejected only when its total is greater than the maximum. Among equal
+scores, the lexicographically smallest full canonical candidate tuple wins.
+The objective&#39;s ruleset reference is identity-bound but its content is not
+resolved or interpreted.</p>
+<p><code>DeploymentPlanV2</code> retains rejected and rankable assessments as well as the
+winner and causal reasons. Its <code>schedule</code> is semantic vector order and must
+name each deployment operation exactly once. In the current profile that
+schedule contains the sole logical operation.</p>
+<h2>Runtime observation and recovery records</h2>
+<p><code>RuntimeGraphV2</code> can be constructed against an exact <code>DeploymentPlanV2</code> and
+verified so every observation names a candidate selected by that plan. It
+supports <code>Proposed</code>, <code>Started</code>, <code>Succeeded</code>, and <code>Failed</code> states. A producer may
+record optional transfer, queue, startup, conversion, execution, checkpoint,
+elapsed, and peak-memory measurements; observed-fidelity, failure,
+actor-generation, and evidence references remain explicit optional fields.</p>
+<p>Lifecycle validation permits a direct terminal observation or the transition
+chain <code>Proposed -&gt; Started -&gt; Succeeded|Failed</code>; a chain may also remain at
+<code>Proposed</code> or <code>Started</code>. A failed observation requires a failure-classification
+reference, and non-failed observations must not carry one. These rules establish
+internal record consistency. They do not authenticate the observer, evidence,
+clock, target, actor, fidelity, or measurement.</p>
+<p><code>RecoveryPlanV1::verify_against</code> is stricter than a detached recovery record: it
+requires the failed tuple to have been selected by the supplied deployment and
+observed as failed in the supplied runtime graph. Every ordered alternative
+must be a distinct, non-rejected candidate assessment from that same
+deployment. Conditions and optional checkpoints are unresolved semantic
+references.</p>
+<p>A verified recovery record still does not retry, dispatch, restore a
+checkpoint, migrate state, reserve capacity, fence effects, or grant authority.
+Replanning after a successful run is not recovery and must not be represented
+as a <code>RecoveryPlanV1</code>.</p>
+<p>The marked-project CLI freezes an <code>ostadix.operation-run-decision/v1</code> before
+execution in the durable attempt seed. It binds the original planning-request
+ID, operation <code>DeploymentPlanV2</code> ID, selected-candidate content digest, exact bundle,
+selected route, project execution and scheduling contracts, project-route graph/deployment IDs,
+pipeline digest, and implementation path/content digest. Terminal finalization
+must preserve that exact decision.</p>
+<p>Before dispatch, <code>begin_with_operation_plan</code> also durably publishes
+<code>ostadix.operation-run-plan/v1</code>: the original
+<code>OperationPlanningRequestV1</code>, original <code>DeploymentPlanV2</code>, full selected candidate
+tuple, initially without an execution observation. The seed&#39;s optional
+<code>operation_plan_ref</code> retains only its private content address, keeping the
+256 KiB attempt index compact even for large port/representation tuples. Active
+attempts pin their snapshots in the store&#39;s aggregate retention accounting.
+The snapshot has its own closed schema within the existing private records
+namespace. Separate canonical-content
+SHA-256 values freeze their exact bytes independently of planner semantic IDs.
+The store validates neutral content bindings; the higher CLI layer validates
+typed semantic records and their exact request/deployment/candidate joins.
+Terminal finalization rereads the immutable initial snapshot and requires an
+exact match after removing only the appended execution observation. It embeds
+the verified snapshot in the terminal record; the separate initial object can
+then be collected. Orphan and recording-incomplete reconciliation perform the
+same verified read and retain the original planner payload even after SIGKILL.
+Snapshot corruption fails verification instead of reconstructing missing history.
+The optional additions preserve absent fields in legacy canonical bytes. A
+legacy on-disk decision-only seed with no snapshot reference remains explicitly degraded;
+it cannot be observed as a fully retained original plan. New decision-bearing leases
+must use <code>begin_with_operation_plan</code>; ordinary <code>begin</code> rejects a missing planner
+payload before allocating a run or changing retention.</p>
+<p><code>o observe</code> resolves an exact content-verified terminal record, verifies the
+retained request/deployment IDs and selected tuple against that frozen decision,
+and checks the unchanged project&#39;s exact request, descriptor, implementation,
+and route bindings. It recomputes the project-route projection under the persisted execution contract
+for substitution checks, independently of the current executor environment,
+but <strong>does not rerank the historical operation selection</strong>. The resulting
+<code>RuntimeGraphV2</code> binds <code>ostadix.operation-runtime-binding/v2</code>, which names the
+recorded decision and execution observation. Old records without these fields
+retain the explicitly labeled V1 current-binary reconstruction; observation
+never upgrades an old record into a persisted original choice.</p>
+<p>An interrupted or recording-incomplete record may retain no terminal route
+result. <code>o observe</code> still returns its exact original choice with <code>execution = null</code> and a <code>Proposed</code> runtime observation containing no execution metrics.
+It does not infer whether an external side effect occurred. <code>o replan</code> can
+compute an alternative, but cannot emit a recovery claim from that unknown
+execution outcome.</p>
+<p>Execution observations separate three claims. The selected route&#39;s executed
+result establishes isolated local project execution. A matching direct
+interpreter/native entrypoint establishes submission of the captured artifact
+as an argument or executable; it does not prove interpreter loading or semantic
+behavior. Other shell, package, generated, or indirect routes remain executable
+and report <code>artifact_use = not_established</code>. Local OS, architecture, pointer
+width, and endianness are compared with the selected target&#39;s declared platform;
+a matching interpreter command is reported separately. These are process-local
+observations, not authenticated physical node identity, interpreter-version or
+loaded-executable evidence, live capacity admission, or an independent failure
+domain. Raw argv, credentials, hostnames, and workspace paths are not retained
+in the new observations.</p>
+<p><code>o replan</code> always emits the recomputed <code>DeploymentPlanV2</code>; it emits a
+<code>RecoveryPlanV1</code> only when that exact source observation failed and the new
+selection differs. A successful source reports recovery as not applicable.
+Recovery planning is not recovery execution: the command does not dispatch the
+alternative or establish that it can succeed.</p>
+<h2>Marked operation-project CLI</h2>
+<p>An existing project directory opts into this path with an <code>[operation]</code> section
+in <code>olang.project.toml</code>. It names the planning-request file and provides one
+explicit <code>(descriptor, target, cost profile)</code> binding for every offer. Each
+binding names its realization, target label, project route, and captured
+implementation file. The bundled
+<a href="../examples/normalize"><code>examples/normalize</code></a> project is the executable example.</p>
+<pre><code class="language-bash">cd examples
+o operation normalize
+o realizations normalize
+o plan normalize --explain
+o run normalize
+o observe normalize
+o replan normalize --without-target gpu-1
+</code></pre>
+<p>The command boundaries are intentional:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+<th>What it does not do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>o operation TARGET</code></td>
+<td>Captures the exact project bundle and validates its marker, planning request, and exact implementation/cost-profile/route-pipeline bindings.</td>
+<td>It does not rank, select, or run a tuple.</td>
+</tr>
+<tr>
+<td><code>o realizations TARGET</code></td>
+<td>Lists declared offers, costs, exact implementation and route-pipeline identities, route bindings, and manifest-declared unavailable targets.</td>
+<td>It does not perform planning or live availability/eligibility discovery.</td>
+</tr>
+<tr>
+<td><code>o plan TARGET --explain</code></td>
+<td>Runs deterministic offline selection and emits the deployment, causal assessments, selected route, and static project route plan.</td>
+<td>It does not dispatch, reserve, or authorize work.</td>
+</tr>
+<tr>
+<td><code>o run TARGET</code></td>
+<td>Repeats exact preflight, pins the selected tuple&#39;s manifest-bound project route and its project HGraph/deployment identities, executes through the existing project admission/executor path, and requires a durable run record.</td>
+<td>Planner selection itself supplies no execution authority, and the exact joins do not prove that the route loaded the named implementation or ran on the physical target described by the tuple.</td>
+</tr>
+<tr>
+<td><code>o observe TARGET [--run RUN]</code></td>
+<td>Reads a content-verified terminal record, verifies its original operation decision and retained planner records against the unchanged bundle, recomputes only the project-route projection, and emits a bound <code>RuntimeGraphV2</code>. Legacy records use explicitly labeled current-planner reconstruction. The default run selector is <code>last-run</code>.</td>
+<td>It does not execute work, invent an original tuple for a legacy record, authenticate the observation&#39;s real-world truth, or turn a run record into trusted World state.</td>
+</tr>
+<tr>
+<td><code>o replan TARGET [--run RUN] --without-target TARGET_ID</code></td>
+<td>Verifies the source runtime/bundle binding, removes caller-named target offers, and emits a recomputed <code>DeploymentPlanV2</code>. It emits a descriptive <code>RecoveryPlanV1</code> only for a failed source observation when selection changes.</td>
+<td>It does not discover unavailability, prove an independent failure domain, dispatch the replacement, perform recovery, or make a successful source run into a recovery event.</td>
+</tr>
+</tbody></table>
+<p>The marked bridge has two exact descriptor joins. First, the descriptor&#39;s
+implementation digest must equal the bytes of the named captured, regular,
+non-symlink project file. Second, its execution-pipeline reference must equal
+the deterministic serialized <code>ostadix.project-route-pipeline/v1</code> projection of the bound
+manifest route,
+including its route ID, kind, command, evaluator/entrypoint, working directory,
+arguments, environment, prerequisites, inputs, outputs, effects, failure
+continuation, result codec, provided capabilities, and guards. The manifest
+binding&#39;s cost-profile digest must also match the complete candidate tuple.</p>
+<p>Those exact joins are still declarative. They establish which artifact and
+route projection the descriptor names and which route the retained project run
+used. They do not prove that the route loads the separately named implementation
+artifact, behavioral equivalence between realizations, or execution on the
+tuple&#39;s described target.</p>
+<p>The normalize example&#39;s <code>Ambient Python Primary</code> and <code>Ambient Python Fallback</code>
+targets are descriptive static offers. Both routes execute through the ambient
+local <code>python3</code>; they are not distinct observed machines or failure domains.
+Selecting the alternate after excluding the primary therefore demonstrates
+static replanning only, not failover independence or successful recovery.
+The flagship <code>--without-target gpu-1</code> command names a manifest-declared
+unavailable target for which no offer exists; it excludes zero offers, preserves
+the successful selection, and correctly emits no recovery plan.</p>
+<p>The CLI output-envelope coordinates are
+<code>ostadix.operation-project-description/v1</code>,
+<code>ostadix.operation-realization-catalog/v1</code>,
+<code>ostadix.operation-plan-summary/v1</code>,
+<code>ostadix.operation-observation/v1</code>, <code>ostadix.operation-replan/v1</code>, and
+<code>ostadix.operation-command-error/v1</code>. The exact route and observation joins use
+<code>ostadix.project-route-pipeline/v1</code> and
+<code>ostadix.operation-runtime-binding/v2</code> (V1 for legacy records), respectively.
+The persisted decision and planner snapshot use <code>ostadix.operation-run-decision/v1</code>
+and <code>ostadix.operation-run-plan/v1</code>. These coordinates version
+reports or deterministic identity projections, not authority protocols.</p>
+<h2>Authority and equivalence boundary</h2>
+<p>The implementation proves deterministic syntax, identity, exact referential
+joins, static compatibility checks, objective evaluation, route binding, and
+the internal consistency of supplied observation/recovery records. It does
+<strong>not</strong> by itself establish:</p>
+<ul>
+<li>behavioral equivalence, refinement, numerical tolerance, or side-effect
+equivalence between realizations;</li>
+<li>authenticity, provenance, freshness, truth, or sufficiency of contract,
+fidelity, cost, condition, checkpoint, or validation-evidence content;</li>
+<li>live target health, reachability, current generation, current backend
+catalog, resource capacity, data residency, transfer feasibility, or target
+eligibility;</li>
+<li>distinct physical targets or independent failure domains for the normalize
+example&#39;s two ambient-Python offers;</li>
+<li>satisfaction of deferred state or actor requirements;</li>
+<li>general artifact discovery, adapter execution, implementation loading, or
+transfer. The marked bridge resolves one exact captured implementation file
+but does not prove that its bound route loads it;</li>
+<li>a historical original decision for legacy records that predate operation
+decision persistence;</li>
+<li>admission, capability, warrant, reservation, lease, dispatch, retry,
+recovery execution, checkpoint restore, effect fencing, settlement, or World
+authority; or</li>
+<li>general multi-operation planning. The current planner profile is one logical
+operation even though the graph and plan records reserve a wider shape.</li>
+</ul>
+<p>Those boundaries are not temporary implications hidden behind a successful
+<code>validate</code>, <code>plan</code>, <code>verify_against</code>, or CLI exit status. A later authority or
+execution layer must consume the exact records and establish its own fresh
+preconditions.</p>

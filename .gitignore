@@ -121,4 +121,10 @@ ostadix-lang.zip
 
 # Anything else that you dont care to catagorize 
 big_iron_to_my_texas_red.sh
-big_iron_to_my_texas_red* 
+big_iron_to_my_texas_red*
+
+# Local conversation exports and temporary source snapshots
+/*-session-*.md
+/session-*.md
+/ostadix-lang-info.pdf
+/src/bin/*.before-*
