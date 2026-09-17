@@ -7,6 +7,8 @@ import android.content.IntentFilter;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.os.Process;
+import android.os.Bundle;
+import android.os.ResultReceiver;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Base64;
@@ -34,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.json.JSONArray;
@@ -47,6 +50,7 @@ public final class NanoLocalProbe {
     private static final String ACTIVATION = "local-factory-234-10745-v1";
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final AtomicBoolean BUSY = new AtomicBoolean();
+    private static final AtomicReference<Probe> ACTIVE_ACTION = new AtomicReference<>();
     private static final Object EVENTS_LOCK = new Object();
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor(new ThreadFactory() {
         @Override public Thread newThread(Runnable runnable) {
@@ -101,11 +105,55 @@ public final class NanoLocalProbe {
                     }
                 }
             }, new IntentFilter(ACTION), "android.permission.DUMP", null, Context.RECEIVER_EXPORTED);
+            NanoActionReceiver.register(context);
             Log.i(TAG, "Registered explicit local probe receiver uid=" + Process.myUid()
                     + " pid=" + Process.myPid());
         } catch (RuntimeException failure) {
             REGISTERED.set(false);
             throw failure;
+        }
+    }
+
+    static void submitAction(Context context, String requestId, String prompt, ResultReceiver reply) {
+        final Probe probe = new Probe(context, requestId,
+                SystemClock.elapsedRealtime() + 120000L, true);
+        probe.reply = reply;
+        try {
+            // All generation policy remains owned here. The caller supplies text only.
+            probe.requestGeneration = new Generation(new JSONObject().put("prompt", prompt)
+                    .put("maxOutputTokens", 512).put("timeoutMs", 90000)
+                    .put("matformerSignature", "matformer_0"));
+            probe.checkGates();
+            if (!BUSY.compareAndSet(false, true)) {
+                probe.finish(false, new IllegalStateException("local model busy; not dispatched; no retry"));
+                return;
+            }
+            ACTIVE_ACTION.set(probe);
+            try {
+                WORKER.execute(new Runnable() {
+                    @Override public void run() {
+                        try { probe.run(); }
+                        finally {
+                            ACTIVE_ACTION.compareAndSet(probe, null);
+                            BUSY.set(false);
+                        }
+                    }
+                });
+            } catch (RuntimeException failure) {
+                ACTIVE_ACTION.compareAndSet(probe, null);
+                BUSY.set(false);
+                probe.finish(false, failure);
+            }
+        } catch (Throwable failure) {
+            probe.finish(false, failure);
+            rethrowFatal(failure);
+        }
+    }
+
+    static void cancelAction(String requestId) {
+        Probe probe = ACTIVE_ACTION.get();
+        if (probe != null && probe.requestId.equals(requestId)) {
+            probe.externalCancellation.set(true);
         }
     }
 
@@ -149,6 +197,10 @@ public final class NanoLocalProbe {
         private String phase = "request_enter";
         private boolean inferenceDispatched;
         private boolean inferenceReturned;
+        private final AtomicBoolean externalCancellation = new AtomicBoolean();
+        private Generation requestGeneration;
+        private ResultReceiver reply;
+        private JSONObject generationResult;
 
         Probe(Context context, String requestId, long deadlineElapsedMs, boolean allowGeneration) {
             this.context = context;
@@ -159,6 +211,9 @@ public final class NanoLocalProbe {
         }
 
         private void checkGates() {
+            if (externalCancellation.get()) {
+                throw new java.util.concurrent.CancellationException("local model action cancelled");
+            }
             long remaining = deadlineElapsedMs - SystemClock.elapsedRealtime();
             if (remaining <= 0 || remaining > 120000) {
                 throw new IllegalStateException("probe deadline expired or invalid");
@@ -205,8 +260,35 @@ public final class NanoLocalProbe {
 
         void finish(boolean success, Throwable failure) {
             if (!terminal.compareAndSet(false, true)) return;
+            if (failure == null && externalCancellation.get()) {
+                failure = new java.util.concurrent.CancellationException("local model action cancelled");
+                success = false;
+            }
+            if (failure == null && evidenceFailure != null) { failure = evidenceFailure; success = false; }
             String detail = failure == null ? "local probe finished" : unwrap(failure).toString();
             bestEffort("complete", success && evidenceFailure == null, false, detail);
+            if (reply != null) {
+                boolean ok = success && evidenceFailure == null && !externalCancellation.get();
+                try {
+                    JSONObject result = new JSONObject().put("schema", "ostadix.nano-action-result/v1")
+                            .put("ok", ok).put("request_id", requestId)
+                            .put("pid", Process.myPid()).put("uid", Process.myUid())
+                            .put("inference_dispatched", inferenceDispatched)
+                            .put("inference_returned", inferenceReturned)
+                            .put("cancel_requested", externalCancellation.get())
+                            .put("result", generationResult == null ? JSONObject.NULL : generationResult)
+                            .put("error", ok ? JSONObject.NULL : evidenceFailure != null
+                                    ? "execution evidence failed: " + evidenceFailure.toString() : detail);
+                    Bundle response = new Bundle();
+                    response.putString("request_id", requestId);
+                    response.putString("result_json", result.toString());
+                    reply.send(ok ? 0 : 1, response);
+                } catch (Throwable deliveryFailure) {
+                    Log.e(TAG, "Result delivery failed; no inference retry request_id=" + requestId,
+                            deliveryFailure);
+                    rethrowFatal(deliveryFailure);
+                }
+            }
         }
 
         private byte[] readManifest() throws Exception {
@@ -348,7 +430,7 @@ public final class NanoLocalProbe {
                                     || method.getParameterTypes()[0] != float.class) {
                                 throw new UnsupportedOperationException(method.toString());
                             }
-                            if (callbacks.incrementAndGet() > 4096
+                            if (externalCancellation.get() || callbacks.incrementAndGet() > 4096
                                     || SystemClock.elapsedRealtime() >= deadline) cancel.set(true);
                             return cancel.get() ? 2 : 0;
                         }
@@ -387,6 +469,7 @@ public final class NanoLocalProbe {
                     throw new IllegalStateException("generation cancelled or exceeded its deadline; returned data is partial");
                 }
                 if (candidates.length() == 0) throw new IllegalStateException("native response has no candidates");
+                generationResult = result;
             } catch (Throwable error) {
                 failure = unwrap(error);
                 failurePhase = phase;
@@ -418,10 +501,11 @@ public final class NanoLocalProbe {
                 checkGates();
                 byte[] manifestBytes = readManifest();
                 JSONObject manifest = new JSONObject(new String(manifestBytes, StandardCharsets.UTF_8));
-                if (manifest.has("generation") != allowGeneration) {
+                if (requestGeneration == null && manifest.has("generation") != allowGeneration) {
                     throw new IllegalArgumentException("generation requires both manifest object and allow_generation broadcast flag");
                 }
-                Generation generation = allowGeneration ? new Generation(manifest.getJSONObject("generation")) : null;
+                Generation generation = requestGeneration != null ? requestGeneration
+                        : allowGeneration ? new Generation(manifest.getJSONObject("generation")) : null;
                 String modelName = manifest.getString("modelName");
                 if (modelName.length() == 0 || modelName.length() > 4096
                         || modelName.startsWith("/") || modelName.contains("..")
@@ -431,7 +515,8 @@ public final class NanoLocalProbe {
                 if (manifest.has("files") == manifest.has("baseDirectory")) {
                     throw new IllegalArgumentException("exactly one of files and baseDirectory is required");
                 }
-                String tokenText = manifest.has("tokenText") ? manifest.getString("tokenText") : null;
+                String tokenText = requestGeneration == null && manifest.has("tokenText")
+                        ? manifest.getString("tokenText") : null;
                 if (tokenText != null && tokenText.getBytes(StandardCharsets.UTF_8).length > 16384) {
                     throw new IllegalArgumentException("tokenText exceeds 16KiB");
                 }

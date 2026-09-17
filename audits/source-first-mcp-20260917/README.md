@@ -1,3 +1,11 @@
+# Historical source-first snapshot
+
+This directory records an earlier MCP implementation. The canonical advertised
+schema subsequently evolved; do not use this snapshot as its current contract.
+See the [current assistant/MCP audit](../gemini-nano-rebuild-20260917/LOCAL-ASSISTANT-RESULT.md)
+and its fresh schema/lifted-project capture for the canonical binary tested on
+2026-09-17.
+
 # Source-first MCP acceptance — 2026-09-17
 
 ## Accepted boundary

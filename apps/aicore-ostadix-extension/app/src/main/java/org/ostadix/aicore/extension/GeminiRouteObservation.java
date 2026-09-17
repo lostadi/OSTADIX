@@ -110,6 +110,9 @@ final class GeminiRouteObservation {
                     input = field(query, "c"); store = field(query, "b");
                 } else { return null; }
             } else { input = chain.getArg(inputIndex); }
+            // Kotlin resumes suspend methods with null placeholders; their
+            // original input lives in the continuation. This is not a new send.
+            if (input == null) { return null; }
             Object text = field(input, "a");
             if (!(text instanceof String) || !selected.equals(sha256((String) text))) {
                 return null;

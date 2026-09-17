@@ -1,0 +1,12 @@
+{
+  "utc": "2026-09-17T19:07:36.744683+00:00",
+  "invocation": "Android KEYCODE_ASSIST (219), ordinary GSA FloatyActivity",
+  "input_method": "Android input text after verifying FloatyActivity focus",
+  "source": "Ostadix route probe 20260917: reply with the word ready.",
+  "send_operator": "Codex tapped the visible Send arrow",
+  "user_pressed_send": false,
+  "purpose": "dispatch observation",
+  "model_identity": "unverified",
+  "nano_inference_claimed": false,
+  "mcp_execution_claimed": false
+}

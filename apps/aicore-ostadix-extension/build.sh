@@ -15,8 +15,8 @@ EXPECTED_API_SHA256=423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe914
 NATIVE_HASH_MANIFEST="$APP_ROOT/app/src/main/resources/META-INF/ostadix/native-sha256.txt"
 MIN_SDK=31
 TARGET_SDK=34
-VERSION_CODE=4
-VERSION_NAME=0.4.0-assistant-route-observation
+VERSION_CODE=10
+VERSION_NAME=0.10.0-nano-assistant-action
 
 for tool in aapt2 apksigner d8 jar javac javap keytool readelf sed sha256sum unzip; do
     command -v "$tool" >/dev/null 2>&1 || { echo "Missing build tool: $tool" >&2; exit 1; }
@@ -63,15 +63,30 @@ aapt2 link -o "$INTERMEDIATES/base-unsigned.apk" -I "$ANDROID_JAR" \
     --auto-add-overlay
 
 echo "[3/6] Compiling Java and DEX"
+IDENTITY_DIR="$INTERMEDIATES/generated/org/ostadix/aicore/extension"
+mkdir -p "$IDENTITY_DIR"
+SOURCES_HASH=$(find "$APP_ROOT/app/src/main/java" -type f -name '*.java' -print0 | \
+    sort -z | xargs -0 sha256sum | sha256sum)
+SOURCES_HASH=${SOURCES_HASH%% *}
+cat >"$IDENTITY_DIR/OwnedBuildIdentity.java" <<IDENTITY
+package org.ostadix.aicore.extension;
+final class OwnedBuildIdentity {
+    static final int VERSION = $VERSION_CODE;
+    static final String SOURCES_SHA256 = "$SOURCES_HASH";
+}
+IDENTITY
 mapfile -t JAVA_SOURCES < <(find "$INTERMEDIATES/generated" \
     "$APP_ROOT/app/src/main/java" -type f -name '*.java' -print | sort)
 JAVA_SOURCES+=("$TERMINAL_ROOT/app/src/main/java/org/ostadix/terminal/OstadixRuntime.java")
-javac -encoding UTF-8 -source 8 -target 8 -bootclasspath "$ANDROID_JAR" \
+JAVA_SOURCES+=("$TERMINAL_ROOT/app/src/main/java/org/ostadix/terminal/HostMcpClient.java")
+# Compile Java 8 lambdas against the JDK's LambdaMetafactory signatures;
+# the platform stubs omit that compiler-only method. D8 desugars them below.
+javac -encoding UTF-8 --release 8 \
     -classpath "$ANDROID_JAR:$LIBXPOSED_CLASSES" -d "$INTERMEDIATES/classes" \
     "${JAVA_SOURCES[@]}"
 mapfile -t TEST_SOURCES < <(find "$APP_ROOT/app/src/test/java" \
     -type f -name '*.java' -print | sort)
-javac -encoding UTF-8 -source 8 -target 8 -bootclasspath "$ANDROID_JAR" \
+javac -encoding UTF-8 --release 8 \
     -classpath "$ANDROID_JAR:$LIBXPOSED_CLASSES:$INTERMEDIATES/classes" \
     -d "$INTERMEDIATES/test-classes" "${TEST_SOURCES[@]}"
 java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \

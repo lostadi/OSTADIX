@@ -1,5 +1,10 @@
 # Assistant dispatch and pending-turn boundary
 
+Historical v4 observer report. The subsequent v10 implementation and successful
+ordinary assistant → local Nano → Ostadix result are recorded in
+[LOCAL-ASSISTANT-RESULT.md](LOCAL-ASSISTANT-RESULT.md). Open items below describe
+the earlier observation stage, not the final v10 status.
+
 This continues [the initial boundary review](ASSISTANT-BOUNDARIES.md).
 It does not establish a working ordinary Gemini → local Nano → `o_execute`
 interaction. The prior goal turn made progress: it recovered a deeper stock
@@ -59,8 +64,9 @@ The useful new boundary is inside `asvq`:
    compare-and-set loop using `aszq.G(...)` or `aszq.d(...)`, according to mode.
 3. It builds `asux` and invokes the supplied `hdne` callback, concretely `asue`.
 4. The callback's result is cast to **`heab`**, then passed through the original
-   response-processing flows. An arbitrary `hdzx` interface proxy is therefore
-   insufficient at this boundary.
+   response-processing flows. Subsequent inspection establishes that `heab` is
+   an interface exposing `jw(heac, hdkj)`, and `heac` exposes `a(Object, hdkj)`.
+   A proxy can implement this exact interface; a proxy for `hdzx` alone cannot.
 5. The original `asue` constructs the stock request and calls `asew.f(...)`.
 
 This makes the callback after pending-turn publication a candidate for local
@@ -98,10 +104,36 @@ UI input was paused and screen availability was requested. No synthetic prompt
 was typed or sent in this attempt. Subsequent deployment checks restarted only
 the background Google search process, with PID and UID validation and a pidfd.
 
+### Subsequent ordinary-assistant test
+
+After resuming, `KEYCODE_ASSIST` opened the stock Gemini `FloatyActivity`.
+Focus and the empty text field were inspected before typing. Codex typed and
+tapped Send for the synthetic prompt recorded in
+[the input record](assistant-route-live-input.json); no user-send action is
+claimed for this test. Gemini displayed **ready**.
+
+[Correlated events](assistant-route-live-events.logcat) prove the same input
+digest, input object `82399563` and chat-store object `153003816` reached
+`asuo.d`, `asuo.e`, `asuo.c`, `asvw.c`, and `asue.invoke` in PID 16884 / UID 10191.
+The store had `pending=false` at `asvw.c` entry and **`pending=true` at
+`asue.invoke` entry**, with zero complete turns at both points. This establishes
+ordinary-assistant reachability of the callback after pending publication.
+The earlier `atma` / sender / query-manager hooks did not log this request;
+their use in this active configuration is not inferred.
+
+The coroutine methods returned `hdkt` (suspension), not completed answers.
+Four later null-input resume calls caused contained observer errors; stock
+execution still displayed the requested response. The source now skips these
+null placeholders; that correction is not part of the APK used for this trace.
+[Result record](assistant-route-live-result.json) retains the screenshot hash;
+the screenshot itself remains local. This request used the original model
+dispatch, with model identity unverified. It invoked neither the local Nano
+probe nor MCP.
+
 ## Unverified and next work
 
-- Ordinary assistant reachability of the observed branches; no matching query
-  entry event has yet been captured.
+- The active upper sender/query-manager branch; the deeper response callback
+  is now observed for an ordinary assistant request.
 - A local Nano-backed replacement for `asue` that returns a valid `heab` flow,
   preserves cancellation and produces the original handler's expected values.
 - The same ordinary assistant interaction producing fresh `.O`, invoking the

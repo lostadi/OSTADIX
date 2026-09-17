@@ -1,0 +1,21 @@
+let parts = autonomous(batch(
+python^(
+    __oval_result__ = sum([2**2, 7**2, 11**2])
+)_python,
+rust^(
+fn main(){
+    let mut sum_cubes: i32 = 0;
+    for i in 1..=4 {
+        sum_cubes += i * i * i;
+    }
+    println!("{}", sum_cubes);
+}
+)_rust,
+bash^(
+    printf '%s\n' red blue red | sort -u | wc -l
+)_bash
+))
+python^(
+    a,b,c = $parts
+    __oval_result__ = a + b + c
+)_python

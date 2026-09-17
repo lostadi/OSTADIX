@@ -1,5 +1,9 @@
 # Local factory model reconstruction — 2026-09-17
 
+Historical checkpoint. The later ordinary assistant → local Nano → Ostadix
+request succeeded with result **276**. See [the current implementation, live
+observations and limits](LOCAL-ASSISTANT-RESULT.md).
+
 Checkpoint: **17:57–18:08 UTC, the controlled local model → primary `o_execute`
 → model result-consumption chain and a subsequent loopback-host execution succeeded.** The local factory model generated
 a complete Python/Rust/Bash `.O` program after two model repair rounds; the host

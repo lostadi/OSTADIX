@@ -1,0 +1,9 @@
+{
+  "prompt": "Use Ostadix to run one O program combining Python Rust and Bash. Python sums squares of 3 9 8. Rust sums cubes from 1 through 4. Bash counts unique labels red blue red. Final Python adds the three results. Return the actual result and execution evidence.",
+  "sha256": "c2a8b64f6e140c210d29226f776d1ad53fab5ce7b670e0f1c9117a5f8054d4da",
+  "typed_by": "Codex",
+  "utc": "2026-09-17T19:55:46.785704+00:00",
+  "expected_result": 256,
+  "sent_by": "Codex",
+  "send_tap_utc": "2026-09-17T19:56:02.420662+00:00"
+}

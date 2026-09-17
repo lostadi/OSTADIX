@@ -1,0 +1,100 @@
+{
+  "action": "execute",
+  "cleanup": {
+    "child_reaped": true,
+    "detached_new_sessions_included": false,
+    "logs_drained": true,
+    "process_group_signaled": false,
+    "scope": "job_session_including_nested_process_groups",
+    "session_id": 25581,
+    "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+    "session_processes_signaled": 0,
+    "session_scan_complete": false
+  },
+  "error": null,
+  "exit_code": 0,
+  "initial_input_state": "not_supplied",
+  "input": {
+    "cwd": "/data/data/com.termux/files/home/OSTADIX",
+    "kind": "ordinary",
+    "path": null,
+    "source_inline": true,
+    "temporary_source": false
+  },
+  "input_error": null,
+  "job_id": "job-25549-1789675326546792296-1-1",
+  "mode": "direct",
+  "pid": 25581,
+  "placement": {
+    "requested": "auto",
+    "route": "ordinary-local"
+  },
+  "pty": false,
+  "restart_persistence": false,
+  "result": {
+    "elapsed_ms": 946,
+    "execution_evidence": {
+      "admission": {
+        "admission_sha256": "4d30e147367e87ee34c71effc3524ec2338675b047dae306509d5ada2602382e",
+        "admitted_graph_sha256": "62945f1655a719e85263f47b29ec7050aac602077a1410808a6c1e90de641b5d",
+        "analyzed_graph_sha256": "b17c9735cd89fdf770d48147db84b4dfeb2aaefa644fccbf48985c1df801b48a",
+        "evidence_sha256": "d7d1d2c56eb9739807534070bf724097f34f1beaf787cb7b9f226d813fde2663",
+        "oir_sha256": "be84325f7580da0ee463c308fc9f4930c426ff944a8d10c2ae36482c0c3f2ad9",
+        "plan_sha256": "37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1",
+        "schema": "oexec.admission/v6"
+      },
+      "execution_mode": "graph",
+      "parsed_source_sha256": "01ecd091196f8e2a3eefa4feb6b7cb1a52df93672d8ef25185689086de7c888f",
+      "result_content_identity": "3f6a2137568075a5f63bfdf0591651b856a003ec9a044f29d04bee0927acb657",
+      "schema": "ostadix.native-execution-evidence/v1",
+      "source_identity_scope": "submitted_utf8_before_shebang_removal",
+      "source_intent_gate": null,
+      "source_sha256": "01ecd091196f8e2a3eefa4feb6b7cb1a52df93672d8ef25185689086de7c888f"
+    },
+    "ok": true,
+    "type": "number",
+    "value": {
+      "t": "number",
+      "v": {
+        "kind": "int",
+        "v": "276"
+      }
+    }
+  },
+  "session_scoped": true,
+  "signal": null,
+  "state": "completed",
+  "stderr": {
+    "bytes_read": 0,
+    "complete": true,
+    "encoding": "utf8_lossy",
+    "eof": true,
+    "job_id": "job-25549-1789675326546792296-1-1",
+    "limit_bytes": 65536,
+    "merged_into": null,
+    "next_offset": 0,
+    "offset": 0,
+    "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-25549-1789675326546792296-1/job-25549-1789675326546792296-1-1/stderr.log",
+    "stream": "stderr",
+    "text": "",
+    "total_bytes": 0
+  },
+  "stdin_eof_mode": "pipe_close",
+  "stdin_open": false,
+  "stdout": {
+    "bytes_read": 1107,
+    "complete": true,
+    "encoding": "utf8_lossy",
+    "eof": true,
+    "job_id": "job-25549-1789675326546792296-1-1",
+    "limit_bytes": 65536,
+    "merged_into": null,
+    "next_offset": 1107,
+    "offset": 0,
+    "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-25549-1789675326546792296-1/job-25549-1789675326546792296-1-1/stdout.log",
+    "stream": "stdout",
+    "text": "{\"ok\":true,\"value\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"276\"}},\"type\":\"number\",\"elapsed_ms\":946,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"01ecd091196f8e2a3eefa4feb6b7cb1a52df93672d8ef25185689086de7c888f\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"01ecd091196f8e2a3eefa4feb6b7cb1a52df93672d8ef25185689086de7c888f\",\"result_content_identity\":\"3f6a2137568075a5f63bfdf0591651b856a003ec9a044f29d04bee0927acb657\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"be84325f7580da0ee463c308fc9f4930c426ff944a8d10c2ae36482c0c3f2ad9\",\"plan_sha256\":\"37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1\",\"analyzed_graph_sha256\":\"b17c9735cd89fdf770d48147db84b4dfeb2aaefa644fccbf48985c1df801b48a\",\"evidence_sha256\":\"d7d1d2c56eb9739807534070bf724097f34f1beaf787cb7b9f226d813fde2663\",\"admitted_graph_sha256\":\"62945f1655a719e85263f47b29ec7050aac602077a1410808a6c1e90de641b5d\",\"admission_sha256\":\"4d30e147367e87ee34c71effc3524ec2338675b047dae306509d5ada2602382e\"}}}\n",
+    "total_bytes": 1107
+  },
+  "timeout_secs": 120
+}

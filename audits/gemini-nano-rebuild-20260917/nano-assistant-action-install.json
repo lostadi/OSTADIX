@@ -1,0 +1,18 @@
+{
+  "utc": "2026-09-17T19:38:08.283078+00:00",
+  "installed_apk": "/data/app/~~WivbFjbTrM_9S9S_o_3gxw==/org.ostadix.aicore.extension--SDF1i-gkjFGKUURV0diTg==/base.apk",
+  "apk_sha256": "d673aa05e19d8cb307ce396dd562ee613db1a0edead3d31d71451e5be3d3410a",
+  "version_code": 6,
+  "restarted": [
+    {
+      "pid": 32034,
+      "uid": 10173,
+      "name": "com.google.android.aicore"
+    },
+    {
+      "pid": 32082,
+      "uid": 10191,
+      "name": "com.google.android.googlequicksearchbox:search"
+    }
+  ]
+}

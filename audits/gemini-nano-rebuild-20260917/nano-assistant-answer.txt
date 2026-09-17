@@ -1,0 +1,3 @@
+The Ostadix program calculates the sum of squares of 2, 7, and 11, which is 4 + 49 + 121 = 174.  Then, it calculates the sum of cubes of integers from 1 to 4, which is 1 + 8 + 27 + 64 = 100. Finally, it counts the unique labels "red" and "blue", resulting in 2. The sum of these three values (174 + 100 + 2) is 276.
+
+Executed locally with Ostadix. Result identity: 3f6a2137568075a5f63bfdf0591651b856a003ec9a044f29d04bee0927acb657

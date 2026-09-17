@@ -19,6 +19,9 @@ public final class AicoreOstadixModule extends XposedModule {
 
     @Override
     public void onModuleLoaded(ModuleLoadedParam param) {
+        Log.i(TAG, "event=owned_build version=" + OwnedBuildIdentity.VERSION
+                + " sources_sha256=" + OwnedBuildIdentity.SOURCES_SHA256
+                + " module_apk=" + getModuleApplicationInfo().sourceDir);
         acceptedProcess = !param.isSystemServer()
                 && ExtensionGate.matchesEarlyProcess(
                         param.getProcessName(), getFrameworkName(), getApiVersion());
@@ -275,6 +278,8 @@ public final class AicoreOstadixModule extends XposedModule {
 
     private void initializeGsa(Context context) {
         XposedInterface.HookHandle installedHook = null;
+        XposedInterface.HookHandle nanoAction = null;
+        XposedInterface.HookHandle nanoSideStreams = null;
         List<XposedInterface.HookHandle> observations = null;
         try {
             ClassLoader loader = context.getClassLoader();
@@ -298,11 +303,17 @@ public final class AicoreOstadixModule extends XposedModule {
             log(Log.INFO, TAG,
                     "Installed version-pinned Gemini AppFunction schema inventory hook");
             observations = GeminiRouteObservation.install(this, context);
+            NanoActionClient.registerDiagnostic(context);
+            nanoAction = GeminiNanoActionHooks.install(this, context);
+            nanoSideStreams = GeminiNanoActionHooks.installSideStreams(this, context);
+            Log.i(TAG, "event=nano_assistant_action_installed");
             Log.i(TAG, "event=gsa_hooks_installed observer_hooks=" + observations.size());
             detach();
         } catch (Throwable error) {
             ExtensionGate.rethrowIfVmFatal(error);
             Log.e(TAG, "event=gsa_hooks_failed", error);
+            if (nanoAction != null) { nanoAction.unhook(); }
+            if (nanoSideStreams != null) { nanoSideStreams.unhook(); }
             if (observations != null) {
                 for (XposedInterface.HookHandle observation : observations) {
                     observation.unhook();

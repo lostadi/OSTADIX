@@ -18,11 +18,11 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 /** Translates the AppFunction payload to the primary MCP tool through a pinned local host. */
-final class HostMcpClient implements AutoCloseable {
+public final class HostMcpClient implements AutoCloseable {
     private volatile HttpsURLConnection connection;
     private volatile boolean closed;
 
-    String execute(Context context, String source, String bindingsJson, long timeoutMs,
+    public String execute(Context context, String source, String bindingsJson, long timeoutMs,
             String requestId, CancellationSignal cancellation) throws Exception {
         File configuration = new File(context.getFilesDir(), "ostadix-mcp-host.json");
         if (!configuration.isFile()) {

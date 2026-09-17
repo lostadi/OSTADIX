@@ -1,0 +1,29 @@
+{
+  "utc": "2026-09-17T19:09:30.850433+00:00",
+  "matching_input_sha256": "a7cf2d750715da18049a11cec087a6e182f0b80a394cfeb629baf3aeeccdb372",
+  "gsa_pid": 16884,
+  "gsa_uid": 10191,
+  "input_object": 82399563,
+  "store_object": 153003816,
+  "observed_stages": [
+    "asuo.d",
+    "asuo.e",
+    "asuo.c",
+    "asvw.c",
+    "asue.invoke"
+  ],
+  "pending_at_response_handler_entry": false,
+  "pending_at_callback_entry": true,
+  "other_configured_stages_observed": false,
+  "displayed_text": "ready",
+  "response_screenshot_local": "/data/local/tmp/ostadix-route-live-result.png",
+  "response_screenshot_sha256": "8a09d79e7c0e0f07a29b060a7ec0de96f069e3a39d1823b7e4862fdcbe84b545",
+  "screenshots_published": false,
+  "model_identity": "unverified",
+  "nano_dispatch": false,
+  "mcp_dispatch": false,
+  "observer_resume_errors": 4,
+  "observer_resume_error_class": "NullPointerException",
+  "errors_interfered_with_original": false,
+  "errors_note": "Original completed and displayed ready; entry observer needs to skip null inputs on coroutine resume"
+}

@@ -1,0 +1,11 @@
+{
+  "utc": "2026-09-17T19:41:35.056249+00:00",
+  "request_id": "ostadix-turn-f44cbafb-48d3-499e-8b17-d82a2c4de1dd",
+  "terminal": "stock_sendMessageStream_finished_after_exception",
+  "failure": "ClassCastException: Proxy cannot be cast to hdwf in hdwq.l",
+  "nano_dispatched": false,
+  "mcp_dispatched": false,
+  "reason": "failure before worker start",
+  "ordinary_assistant_callback_reached": true,
+  "retried": false
+}

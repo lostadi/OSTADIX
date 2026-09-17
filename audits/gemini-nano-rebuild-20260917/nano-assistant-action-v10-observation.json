@@ -1,0 +1,26 @@
+{
+  "ui_result": "276",
+  "visible_result_matches_native": true,
+  "screenshot_local": "/data/local/tmp/ostadix-nano-assistant-v10-result.png",
+  "screenshot_sha256": "766be2e6fb31c79cb93367c3e1fc081f5c8af2665a79db421a6b17d65a01cb4f",
+  "stock_completion_observed": true,
+  "auxiliary_project_update": "stock logged Failed to update project; cloud project/history persistence unverified",
+  "elapsed_to_answer_ready_ms": 61887,
+  "native_elapsed_ms": 946,
+  "model_requests": [
+    "nano-action-1e4de74b-5f5f-42c0-b5c7-f121172caae1",
+    "nano-action-a9855356-7bb9-485f-b9c1-d7915b26b5a8"
+  ],
+  "native_cleanup": [
+    {
+      "request_id": "nano-action-1e4de74b-5f5f-42c0-b5c7-f121172caae1",
+      "complete": true,
+      "descriptors_closed": true
+    },
+    {
+      "request_id": "nano-action-a9855356-7bb9-485f-b9c1-d7915b26b5a8",
+      "complete": true,
+      "descriptors_closed": true
+    }
+  ]
+}

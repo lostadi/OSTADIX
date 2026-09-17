@@ -93,6 +93,15 @@ final class ExtensionGate {
         return hostMatches;
     }
 
+    static boolean acceptsGsaCaller(Context context, int uid, String packageName) {
+        if (!GSA_PACKAGE.equals(packageName) || uid < 0) { return false; }
+        try {
+            return context.getPackageManager().getApplicationInfo(GSA_PACKAGE, 0).uid == uid
+                    && packageMatches(context, GSA_PACKAGE, EXPECTED_GSA_CODE,
+                            EXPECTED_GSA_NAME, EXPECTED_GSA_APK, EXPECTED_GSA_SIGNER);
+        } catch (PackageManager.NameNotFoundException missing) { return false; }
+    }
+
     static boolean isExplicitlyEnabled(Context context) {
         try {
             if (AICORE_PACKAGE.equals(context.getPackageName())) {
