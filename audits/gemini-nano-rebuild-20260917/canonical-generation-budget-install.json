@@ -1,0 +1,21 @@
+{
+  "apk_sha256": "29e005a01f40b4cbacf008954769b3a3c514f9fd551fff01537319194ed6a54c",
+  "source_checkout": "/data/data/com.termux/files/home/OSTADIX",
+  "native_payloads": "Seven reused local native artifacts; pinned hashes checked. Canonical Java rebuild.",
+  "previous_process": {
+    "pid": 22419,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 5554035,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  },
+  "previous_process_exited": true,
+  "generation_timeout_ceiling_ms": 90000,
+  "outer_request_lease_ms": 120000,
+  "reason": "Measured initial native generation was 5109ms for32tokens; retain bounded512token program generation with enough time for measured throughput."
+}

@@ -1,20 +1,43 @@
 # Gemini Nano target — 2026-09-17
 
-## Superseding successful local load — 17:19 UTC
+## Current controlled model/tool cycle — 17:57–17:59 UTC
 
-The [current reconstruction status](../gemini-nano-rebuild-20260917/STATUS.md)
-records a successful model load and token-count request inside the genuine
-installed AICore process, PID 7088 / UID 10173. An explicitly derived config
-omits only the factory audio submessage; all model weight files are unchanged.
-Native initialization took 5.281 seconds and the synthetic `Ostadix` input
-returned 3 tokens. Model/runtime cleanup and all 191 descriptor closures
-completed successfully. The process remained alive.
+The [current implementation/live/unverified report](../gemini-nano-rebuild-20260917/STATUS.md)
+now records a local factory-model program executed through the canonical primary
+MCP `o_execute`, followed by the model consuming the actual returned result.
+Python, Rust and Bash composed to produce **26 units**, **north 13 / south 13**,
+with selected shipment IDs **2, 3, 8, 13**. Native execution took **802 ms**;
+the later result-consumption model attempt took **40,869 ms including loading
+and cleanup**. These are controlled host measurements, not assistant latency.
 
-This supersedes the earlier local model-loading blocker. The successful test
-performed no generation, established no exact public Nano model identity, and
-did not connect an ordinary assistant invocation to Ostadix. The original
-Prompt API observations below remain historical results; availability of
-those public features has not been demonstrated by the private native probe.
+The sequence required four program-generation attempts: raw empty output,
+a chat-framed program with `AttributeError`, repair 1 with `IndentationError`,
+and repair 2 whose outer Markdown fence initially became the final O text value.
+The host then removed only that fence; the program body was unchanged. See the
+[complete source/result evidence](../gemini-nano-rebuild-20260917/nano-program-mcp-result.json),
+[acceptance check](../gemini-nano-rebuild-20260917/nano-program-acceptance.json),
+and [model result-consumption run](../gemini-nano-rebuild-20260917/canonical-nano-result.json).
+
+This proves a controlled local model → tool → model cycle. The host submitted
+the tool call and provided its returned result to the model. Autonomous function
+invocation and an ordinary Pixel assistant caller remain unverified, as do the
+exact public Nano release identity and availability of the public Prompt API.
+The separately installed UID 10402 loopback host initially returned HTTP 200
+with a native linker failure in the
+[18:00 test](../gemini-nano-rebuild-20260917/nano-program-canonical-broker-result.json).
+After a [loader fix verified only under `u:r:ksu:s0`](../gemini-nano-rebuild-20260917/appfunction-host-loader-diagnostic.json),
+the restarted host PID **9901** passed the
+[18:08 controlled HTTPS retest](../gemini-nano-rebuild-20260917/nano-program-canonical-broker-fixed-result.json):
+HTTP 200, `isError: false`, completed execution, the same typed result 26 and
+identical source/result identities, with **787 ms native execution**. The
+[restart record](../gemini-nano-rebuild-20260917/canonical-mcp-host-install.json)
+retains UID 10402 and the KernelSU SELinux context. No real AppFunction or
+ordinary Gemini caller, other execution context, or boot persistence was
+established by this retest.
+
+The 17:35 arithmetic completion and the earlier blocked readiness observations
+remain historical records. They have been superseded as evidence of what the
+private native path can do, without changing the outcomes of those older tests.
 
 ## Earlier local reconstruction findings — historical checkpoint
 
@@ -33,13 +56,12 @@ adjacent stdout/stderr. No inference occurred in that test. Investigation
 continued through this concrete local loading path; the older blocked audit is
 a historical checkpoint, not evidence that local recovery is impossible.
 
-The full goal remains incomplete. `GOAL-REMAINING.md` records the requirement
-audit and the same unavailable-Nano prerequisite across three consecutive goal
-turns. `blocked-audit-current.json` retains the final live readiness check and
-installed artifact identities. Continuation requires usable Nano inference;
-the ordinary assistant-to-tool connection still needs implementation and proof.
+The full goal remains incomplete. [GOAL-REMAINING.md](GOAL-REMAINING.md) separates
+the now-demonstrated controlled native cycle from the missing ordinary assistant
+route. `blocked-audit-current.json` retains the earlier readiness check and its
+then-installed artifact identities; it is not the latest native inference state.
 
-## Implementation
+## Implementation — public API diagnostic preserved from the earlier checkpoint
 
 The user explicitly requires **Gemini Nano on device**. The ordinary Pixel
 assistant entrypoint and the primary MCP `o_execute` remain part of the intended
@@ -77,7 +99,7 @@ coexistence scripts now inspect AICore's own legacy inference history as well as
 the distinct framework history. Missing history is reported as unknown rather
 than zero. Both scripts passed `bash -n` and completed their live read-only check.
 
-## Live observations
+## Live observations — historical public API and routing tests
 
 The initial intent-driven measurement aborted on an Activity pause without a
 prompt dispatch. `nano-prompt-measurement.txt` preserves that unsuccessful
@@ -159,24 +181,25 @@ Nano inference or an Ostadix call. See the adjacent Gemini integration audit.
 
 ## Unverified claims
 
-- Nano has not generated a complete `.O` program, called `o_execute`, or consumed
-  its returned result in these tests.
-- The ordinary power-button assistant has not been shown routing this request to
-  Nano. This probe update does not alter that assistant routing.
-- No inference result or execution evidence can be attributed to Nano from this
-  request. The previously demonstrated Ostadix inventory result of 50 was
-  generated by this coding assistant and executed via direct test calls.
-- The exact cause of Feature 636 being unavailable remains undetermined.
-  Google's [Prompt API setup documentation](https://developers.google.com/ml-kit/genai/prompt/android/get-started)
-  identifies initialization/configuration and an unlocked bootloader as possible
-  causes of this error. Those documented possibilities are not a causal diagnosis
-  of this specific request.
-- The same missing-feature failure now covers all four documented Nano
-  configurations. A functioning Nano request and a correlated connection from
-  the ordinary assistant to that request remain prerequisites. Static catalog
-  edits and the working direct MCP tests do not satisfy them.
-- No offline, remote-execution, general-device-control or Nano-to-assistant
-  completion claim follows from these observations.
+- An ordinary power-button Gemini assistant request has not been shown selecting
+  this local model, invoking Ostadix and consuming the returned result. The
+  controlled source-generation/result-consumption test does not prove that route.
+- Exact public Nano release identity and the four public Prompt API features
+  remain unverified after private native recovery. The earlier error-606 results
+  are unchanged historical observations, not proof that local inference is now
+  impossible.
+- The cause of those missing public features remains undetermined. Google's
+  [Prompt API setup documentation](https://developers.google.com/ml-kit/genai/prompt/android/get-started)
+  lists initialization/configuration and an unlocked bootloader as possible
+  causes; these are not a diagnosis of this device.
+- The prior inventory result 50 was generated by this coding assistant. The later
+  shipment result 26 came from the recorded model-generated program, after model
+  repairs and the disclosed outer-fence extraction. These are separate proofs.
+- No successful remote execution, general device control, automatic function
+  invocation, air-gapped operation, or complete Nano-to-ordinary-assistant flow
+  has been demonstrated by the current evidence. The successful UID 10402 HTTPS
+  retest establishes the recorded KernelSU host context only; real AppFunction
+  invocation and other Android execution contexts remain unverified.
 
 The explicit selection follows Google's
 [model configuration API](https://developers.google.com/ml-kit/genai/prompt/android/select-model).

@@ -1,0 +1,61 @@
+```ostadix
+let parts = autonomous(batch(
+python^(
+    csv_data = '2,north,6\n3,south,9\n4,north,5\n5,west,8\n8,south,4\n13,north,7\n21,south,100'
+    rows = []
+    for line in csv_data.splitlines():
+        row = line.split(',')
+        id = int(row[0])
+        depot = row[1]
+        units = int(row[2])
+        rows.append((id, depot, units))
+    __oval_result__ = rows
+)_python,
+rust^(
+    fn main() {
+        let mut a = 2;
+        let mut b = 3;
+        let mut fib_numbers: Vec<i32> = Vec::new();
+        fib_numbers.push(a);
+        fib_numbers.push(b);
+
+        loop {
+            let next = a + b;
+            if next > 20 {
+                break;
+            }
+            fib_numbers.push(next);
+            a = b;
+            b = next;
+        }
+
+        println!("{:?}", fib_numbers);
+    }
+)_rust,
+bash^(
+    printf '%s\n' 'south' 'north' 'south' | sort -u
+)_bash
+))
+python^(
+    rows, ids, sites = $parts
+    enabled = set(sites.split())
+    selected_ids = []
+    totals = {}
+    total_units = 0
+
+    for id, depot, units in rows:
+        if id in ids and depot in enabled:
+            selected_ids.append(id)
+            if depot in totals:
+                totals[depot] += units
+            else:
+                totals[depot] = units
+            total_units += units
+
+    __oval_result__ = {
+        "selected_ids": selected_ids,
+        "totals": totals,
+        "total_units": total_units
+    }
+)_python
+```

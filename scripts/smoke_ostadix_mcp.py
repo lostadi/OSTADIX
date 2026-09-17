@@ -472,7 +472,7 @@ def _run_unified_surface_smoke(
                            "evidence_sha256", "admitted_graph_sha256", "admission_sha256")
         if (
             evidence.get("schema") != "ostadix.native-execution-evidence/v1"
-            or evidence.get("execution_mode") != "admitted_graph"
+            or evidence.get("execution_mode") != "graph"
             or evidence.get("source_sha256") != hashlib.sha256(source.encode()).hexdigest()
             or evidence.get("parsed_source_sha256") != evidence.get("source_sha256")
             or evidence.get("source_intent_gate") is not None

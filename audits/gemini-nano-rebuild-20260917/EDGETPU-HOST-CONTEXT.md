@@ -1,5 +1,13 @@
 # Edge TPU caller context — read-only findings
 
+**Superseding observation, 2026-09-17 17:35–17:36 UTC:** the 13 large-file
+copies proposed below were completed and manifest-verified. Genuine AICore
+opened all 191 staged regular files, loaded the derived audio-disabled config
+and generated text, with successful cleanup. The UID 10402/root authorization
+denials and factory-directory SELinux denial remain valid historical results;
+no service authorization gate or SELinux policy was changed. See the
+[current report](STATUS.md) for the live evidence and remaining assistant work.
+
 ## Implementation evidence
 
 The installed service executable's compressed `.gnu_debugdata` supplied actual

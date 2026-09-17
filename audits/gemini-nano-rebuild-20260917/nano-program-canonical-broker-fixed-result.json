@@ -1,0 +1,176 @@
+{
+  "utc": "2026-09-17T18:08:02.508260+00:00",
+  "caller": "controlled local HTTPS test caller, not Android AppFunction or Gemini",
+  "host_uid": 10402,
+  "host_selinux_context": "u:r:ksu:s0",
+  "request_id": "canonical-nano-program-broker-fixed-20260917",
+  "source_sha256": "58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a",
+  "http_status": 200,
+  "certificate_pin_verified": true,
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"action\":\"execute\",\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":10100,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input\":{\"cwd\":\"/data/data/com.termux/files/home/OSTADIX\",\"kind\":\"ordinary\",\"path\":null,\"source_inline\":true,\"temporary_source\":false},\"input_error\":null,\"job_id\":\"job-10081-1789668481613030610-1-1\",\"mode\":\"direct\",\"pid\":10100,\"placement\":{\"requested\":\"auto\",\"route\":\"ordinary-local\"},\"pty\":false,\"restart_persistence\":false,\"result\":{\"elapsed_ms\":787,\"execution_evidence\":{\"admission\":{\"admission_sha256\":\"e6ace12a0574ea3fa603bde989a84d19a38231aedac8ded0666ecf53476c848a\",\"admitted_graph_sha256\":\"19cc1527b19cb45dde47ee7dc7d412c059bdea00f50c557780968c00138f88fd\",\"analyzed_graph_sha256\":\"7da99cbc7012c6148c2d187dcf489c8de2564f697cdd893936f7476403c41e31\",\"evidence_sha256\":\"cc9c5dfcc70b34c578c096b4d2caa442a86541c844374f9c88289a0e1e1585d9\",\"oir_sha256\":\"64fd2fe3b6f2bcaa5b7fea3aaa1caab830c2f227be700844e020ab47ef952681\",\"plan_sha256\":\"37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1\",\"schema\":\"oexec.admission/v6\"},\"execution_mode\":\"graph\",\"parsed_source_sha256\":\"58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a\",\"result_content_identity\":\"7a06fec778a8fdf1970f466793a268c660c0bb3238ffb35844b83e7a1e33f193\",\"schema\":\"ostadix.native-execution-evidence/v1\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"source_intent_gate\":null,\"source_sha256\":\"58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a\"},\"ok\":true,\"type\":\"map\",\"value\":{\"t\":\"map\",\"v\":{\"selected_ids\":{\"t\":\"list\",\"v\":[{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"2\"}},{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"3\"}},{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"8\"}},{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"13\"}}]},\"total_units\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"26\"}},\"totals\":{\"t\":\"map\",\"v\":{\"north\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"13\"}},\"south\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"13\"}}}}}}},\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-10081-1789668481613030610-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-10081-1789668481613030610-1/job-10081-1789668481613030610-1-1/stderr.log\",\"stream\":\"stderr\",\"text\":\"\",\"total_bytes\":0},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":1467,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-10081-1789668481613030610-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":1467,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-10081-1789668481613030610-1/job-10081-1789668481613030610-1-1/stdout.log\",\"stream\":\"stdout\",\"text\":\"{\\\"ok\\\":true,\\\"value\\\":{\\\"t\\\":\\\"map\\\",\\\"v\\\":{\\\"selected_ids\\\":{\\\"t\\\":\\\"list\\\",\\\"v\\\":[{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"2\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"3\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"8\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"13\\\"}}]},\\\"totals\\\":{\\\"t\\\":\\\"map\\\",\\\"v\\\":{\\\"south\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"13\\\"}},\\\"north\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"13\\\"}}}},\\\"total_units\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"26\\\"}}}},\\\"type\\\":\\\"map\\\",\\\"elapsed_ms\\\":787,\\\"execution_evidence\\\":{\\\"schema\\\":\\\"ostadix.native-execution-evidence/v1\\\",\\\"execution_mode\\\":\\\"graph\\\",\\\"source_sha256\\\":\\\"58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a\\\",\\\"source_identity_scope\\\":\\\"submitted_utf8_before_shebang_removal\\\",\\\"parsed_source_sha256\\\":\\\"58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a\\\",\\\"result_content_identity\\\":\\\"7a06fec778a8fdf1970f466793a268c660c0bb3238ffb35844b83e7a1e33f193\\\",\\\"source_intent_gate\\\":null,\\\"admission\\\":{\\\"schema\\\":\\\"oexec.admission/v6\\\",\\\"oir_sha256\\\":\\\"64fd2fe3b6f2bcaa5b7fea3aaa1caab830c2f227be700844e020ab47ef952681\\\",\\\"plan_sha256\\\":\\\"37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1\\\",\\\"analyzed_graph_sha256\\\":\\\"7da99cbc7012c6148c2d187dcf489c8de2564f697cdd893936f7476403c41e31\\\",\\\"evidence_sha256\\\":\\\"cc9c5dfcc70b34c578c096b4d2caa442a86541c844374f9c88289a0e1e1585d9\\\",\\\"admitted_graph_sha256\\\":\\\"19cc1527b19cb45dde47ee7dc7d412c059bdea00f50c557780968c00138f88fd\\\",\\\"admission_sha256\\\":\\\"e6ace12a0574ea3fa603bde989a84d19a38231aedac8ded0666ecf53476c848a\\\"}}}\\n\",\"total_bytes\":1467},\"timeout_secs\":120}"
+      }
+    ],
+    "structuredContent": {
+      "action": "execute",
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": false,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 10100,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 0,
+        "session_scan_complete": false
+      },
+      "error": null,
+      "exit_code": 0,
+      "initial_input_state": "not_supplied",
+      "input": {
+        "cwd": "/data/data/com.termux/files/home/OSTADIX",
+        "kind": "ordinary",
+        "path": null,
+        "source_inline": true,
+        "temporary_source": false
+      },
+      "input_error": null,
+      "job_id": "job-10081-1789668481613030610-1-1",
+      "mode": "direct",
+      "pid": 10100,
+      "placement": {
+        "requested": "auto",
+        "route": "ordinary-local"
+      },
+      "pty": false,
+      "restart_persistence": false,
+      "result": {
+        "elapsed_ms": 787,
+        "execution_evidence": {
+          "admission": {
+            "admission_sha256": "e6ace12a0574ea3fa603bde989a84d19a38231aedac8ded0666ecf53476c848a",
+            "admitted_graph_sha256": "19cc1527b19cb45dde47ee7dc7d412c059bdea00f50c557780968c00138f88fd",
+            "analyzed_graph_sha256": "7da99cbc7012c6148c2d187dcf489c8de2564f697cdd893936f7476403c41e31",
+            "evidence_sha256": "cc9c5dfcc70b34c578c096b4d2caa442a86541c844374f9c88289a0e1e1585d9",
+            "oir_sha256": "64fd2fe3b6f2bcaa5b7fea3aaa1caab830c2f227be700844e020ab47ef952681",
+            "plan_sha256": "37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1",
+            "schema": "oexec.admission/v6"
+          },
+          "execution_mode": "graph",
+          "parsed_source_sha256": "58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a",
+          "result_content_identity": "7a06fec778a8fdf1970f466793a268c660c0bb3238ffb35844b83e7a1e33f193",
+          "schema": "ostadix.native-execution-evidence/v1",
+          "source_identity_scope": "submitted_utf8_before_shebang_removal",
+          "source_intent_gate": null,
+          "source_sha256": "58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a"
+        },
+        "ok": true,
+        "type": "map",
+        "value": {
+          "t": "map",
+          "v": {
+            "selected_ids": {
+              "t": "list",
+              "v": [
+                {
+                  "t": "number",
+                  "v": {
+                    "kind": "int",
+                    "v": "2"
+                  }
+                },
+                {
+                  "t": "number",
+                  "v": {
+                    "kind": "int",
+                    "v": "3"
+                  }
+                },
+                {
+                  "t": "number",
+                  "v": {
+                    "kind": "int",
+                    "v": "8"
+                  }
+                },
+                {
+                  "t": "number",
+                  "v": {
+                    "kind": "int",
+                    "v": "13"
+                  }
+                }
+              ]
+            },
+            "total_units": {
+              "t": "number",
+              "v": {
+                "kind": "int",
+                "v": "26"
+              }
+            },
+            "totals": {
+              "t": "map",
+              "v": {
+                "north": {
+                  "t": "number",
+                  "v": {
+                    "kind": "int",
+                    "v": "13"
+                  }
+                },
+                "south": {
+                  "t": "number",
+                  "v": {
+                    "kind": "int",
+                    "v": "13"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "session_scoped": true,
+      "signal": null,
+      "state": "completed",
+      "stderr": {
+        "bytes_read": 0,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-10081-1789668481613030610-1-1",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 0,
+        "offset": 0,
+        "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-10081-1789668481613030610-1/job-10081-1789668481613030610-1-1/stderr.log",
+        "stream": "stderr",
+        "text": "",
+        "total_bytes": 0
+      },
+      "stdin_eof_mode": "pipe_close",
+      "stdin_open": false,
+      "stdout": {
+        "bytes_read": 1467,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-10081-1789668481613030610-1-1",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 1467,
+        "offset": 0,
+        "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-10081-1789668481613030610-1/job-10081-1789668481613030610-1-1/stdout.log",
+        "stream": "stdout",
+        "text": "{\"ok\":true,\"value\":{\"t\":\"map\",\"v\":{\"selected_ids\":{\"t\":\"list\",\"v\":[{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"2\"}},{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"3\"}},{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"8\"}},{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"13\"}}]},\"totals\":{\"t\":\"map\",\"v\":{\"south\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"13\"}},\"north\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"13\"}}}},\"total_units\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"26\"}}}},\"type\":\"map\",\"elapsed_ms\":787,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a\",\"result_content_identity\":\"7a06fec778a8fdf1970f466793a268c660c0bb3238ffb35844b83e7a1e33f193\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"64fd2fe3b6f2bcaa5b7fea3aaa1caab830c2f227be700844e020ab47ef952681\",\"plan_sha256\":\"37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1\",\"analyzed_graph_sha256\":\"7da99cbc7012c6148c2d187dcf489c8de2564f697cdd893936f7476403c41e31\",\"evidence_sha256\":\"cc9c5dfcc70b34c578c096b4d2caa442a86541c844374f9c88289a0e1e1585d9\",\"admitted_graph_sha256\":\"19cc1527b19cb45dde47ee7dc7d412c059bdea00f50c557780968c00138f88fd\",\"admission_sha256\":\"e6ace12a0574ea3fa603bde989a84d19a38231aedac8ded0666ecf53476c848a\"}}}\n",
+        "total_bytes": 1467
+      },
+      "timeout_secs": 120
+    },
+    "isError": false
+  }
+}

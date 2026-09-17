@@ -442,6 +442,15 @@ impl OstadixMcp {
             return Err("route requires a project directory or lifted project bundle".into());
         }
         let mut env = args.env.clone();
+        if input.project {
+            if let Some(snapshot) = &input.snapshot {
+                // Native lifted materialization lives below the retained source
+                // owner, so killing the CLI cannot orphan its temporary tree.
+                // Preserve an explicit per-call TMPDIR supplied by the caller.
+                env.entry("TMPDIR".into())
+                    .or_insert_with(|| snapshot.directory.display().to_string());
+            }
+        }
         let mut analysis = None;
         let mut project_probe = None;
         let mut operation_project = false;

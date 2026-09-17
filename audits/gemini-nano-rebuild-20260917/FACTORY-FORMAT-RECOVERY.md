@@ -1,5 +1,13 @@
 # Factory model format and recovered metadata — 2026-09-17
 
+**Superseding observation, 2026-09-17 17:35–17:36 UTC:** all 191 available
+payloads were verified and staged as AICore-readable regular files. With an
+explicitly derived config omitting only audio field 3/6, genuine AICore loaded
+the model, counted tokens and then generated text. The standalone caller's
+authorization failure and pending-load assessment below are historical.
+See [current implementation, live results and limits](STATUS.md). Public Nano
+identity and the ordinary assistant-to-Ostadix chain remain unverified.
+
 ## Implementation
 
 Three original Python tools were added in this directory:

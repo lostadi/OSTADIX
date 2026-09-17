@@ -314,6 +314,7 @@ fn resolve_lang_root() -> PathBuf {
 
     for candidate in [
         PathBuf::from("/usr/src/ostadix"),
+        home_dir().join("OSTADIX"),
         home_dir().join("Ostadix-lang"),
         home_dir().join("O-lang"),
     ] {
@@ -322,7 +323,7 @@ fn resolve_lang_root() -> PathBuf {
         }
     }
 
-    std::env::current_dir().unwrap_or_else(|_| home_dir().join("Ostadix-lang"))
+    home_dir().join("OSTADIX")
 }
 
 fn resolve_backends(root: &Path) -> PathBuf {
@@ -3340,7 +3341,7 @@ impl ServerHandler for OstadixMcp {
                 name: "ostadix-mcp".into(),
                 title: Some("Ostadix runtime and toolchain".into()),
                 version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.2").into(),
-                website_url: Some("https://github.com/lostadi/Ostadix-lang".into()),
+                website_url: Some("https://github.com/lostadi/OSTADIX".into()),
                 icons: None,
             },
             instructions: Some(

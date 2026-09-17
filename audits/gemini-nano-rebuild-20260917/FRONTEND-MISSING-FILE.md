@@ -1,5 +1,13 @@
 # Missing audio frontend graph
 
+**Superseding observation, 2026-09-17 17:35–17:36 UTC:** the compiled
+audio-disabled branch described below was subsequently exercised successfully.
+An explicitly derived config omitting only field 3/6 loaded, tokenized and
+generated text inside genuine AICore; weights were unchanged. The missing
+frontend remains unresolved for the original audio configuration. The static
+investigation and its then-unverified conclusions below are historical; see
+the [current report](STATUS.md) and [derivation evidence](config-audio-disabled-derivation.json).
+
 ## Implementation evidence
 
 The recovered factory manifest has 192 payload records, 191 of which were

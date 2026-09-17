@@ -1,8 +1,30 @@
 # Native generation inside the original AICore process
 
-Prepared 2026-09-17. This is a proposed follow-up to the explicit model-load and
-tokenizer probe. It has not been installed or executed. `NanoLocalProbe` remains
-load/tokenizer-only and rejects a generation manifest.
+## Current checkpoint — 2026-09-17 17:35–17:36 UTC
+
+**Implementation:** `NanoLocalProbe` now supports an explicitly requested native
+generation session, response artifacts, dispatch/return evidence and session
+cleanup. The canonical Java build used for the initial generation smoke was
+installed as APK SHA-256
+`5766bd0a5e5522d6b886d6c8e8491a031a0e2197478e952aaf29cc389ef6c568`;
+the seven pinned native payloads were reused from the prior local build.
+
+**Live observations:** genuine AICore PID 22419 / UID 10173 generated a response
+to `The sum of 2 and 3 is` using explicit `matformer_0`, the derived config with
+audio disabled, and a 32-token output limit. The response began ` 5.` and
+repeated the arithmetic statement before an incomplete ending. Generation
+enter/return spanned 5,109 ms; session/model/runtime cleanup and all 191
+descriptor closures succeeded. See the
+[current report](../../audits/gemini-nano-rebuild-20260917/STATUS.md)
+and [actual run](../../audits/gemini-nano-rebuild-20260917/canonical-nano-text.json).
+
+**Unverified:** an omitted matformer signature's default, a correct assistant
+chat template, exact public Nano identity, `.O` synthesis/tool use by this
+model, and the ordinary Pixel assistant connection remain unproved.
+
+The API reconstruction, initial proposal and adaptation sketch below are
+retained as historical design notes. Their statements that generation had not
+yet been installed or executed are superseded by this checkpoint.
 
 ## Established boundary
 

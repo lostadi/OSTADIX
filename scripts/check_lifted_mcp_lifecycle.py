@@ -56,6 +56,8 @@ default = true
                 records.append(dict(request=req, result=result))
                 return result
 
+            status = "incomplete"
+            failure = None
             try:
                 call(dict(jsonrpc="2.0", id=1, method="initialize", params=dict(
                     protocolVersion="2025-03-26", capabilities={},
@@ -119,14 +121,20 @@ with marker.open("a") as stream:
                                        state=structured.get("state"),
                                        cleanup=structured.get("cleanup")))
                 result = call(dict(jsonrpc="2.0", id=5, method="tools/call", params=dict(
-                    name="o_execute", arguments=dict(source="7"))))
+                    name="o_execute", arguments=dict(source="python^( __oval_result__ = 7 )_python"))))
                 assert result["structuredContent"]["result"]["value"]["v"]["v"] == "7"
                 checks.append(dict(recovery=7))
+                status = "passed"
+            except BaseException as error:
+                status = "failed"
+                failure = {"type": type(error).__name__, "message": str(error)}
+                raise
             finally:
                 proc.stdin.close()
                 proc.wait(timeout=15)
                 evidence.write_text(json.dumps(dict(
-                    binary_sha256=tested_binary_sha256,
+                    schema="ostadix.mcp-lifted-lifecycle/v2", status=status,
+                    failure=failure, utc=stamp, binary_sha256=tested_binary_sha256,
                     exchange=records, checks=checks), indent=2) + "\n")
     print(json.dumps(checks, indent=2))
 

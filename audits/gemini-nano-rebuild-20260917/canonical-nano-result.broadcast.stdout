@@ -1,0 +1,2 @@
+Broadcasting: Intent { act=org.ostadix.aicore.NANO_LOCAL_PROBE flg=0x400000 pkg=com.google.android.aicore (has extras) }
+Broadcast completed: result=0

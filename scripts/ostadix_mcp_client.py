@@ -86,7 +86,7 @@ class Configuration:
         requested = os.environ.get("OSTADIX_MCP", str(home / ".local/bin/ostadix-mcp"))
         located = shutil.which(requested) if os.sep not in requested else requested
         binary = Path(located or requested).expanduser().absolute()
-        root = Path(os.environ.get("O_LANG_ROOT", str(home / "Ostadix-lang"))).expanduser().resolve()
+        root = Path(os.environ.get("O_LANG_ROOT", str(home / "OSTADIX"))).expanduser().resolve()
         backends = Path(os.environ.get("O_BACKENDS_DIR", str(root / "backends"))).expanduser().resolve()
         # macOS TMPDIR can be too long for sockaddr_un. Keep the default path
         # short; the directory itself is checked for owner, mode, and symlinks.

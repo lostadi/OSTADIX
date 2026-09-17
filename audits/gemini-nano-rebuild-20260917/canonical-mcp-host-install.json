@@ -1,0 +1,20 @@
+{
+  "utc": "2026-09-17T17:59:54.805385+00:00",
+  "canonical_root": "/data/data/com.termux/files/home/OSTADIX",
+  "previous_mcp_sha256": "c63c8533d0c8714bb83f91eb2f1a1137f16bfa7fd37d43f7ba600a59506a122d",
+  "installed_mcp_sha256": "b879c51f6480cf8b1e7a0f1d24a519519f7ae6263ad6a7e5749524b274ce88e6",
+  "previous_host_pid": 15174,
+  "new_host_pid": 6790,
+  "host_uid": 10402,
+  "host_configuration_private": true,
+  "boot_persistence_installed": false,
+  "host_selinux_context": "u:r:ksu:s0",
+  "initial_broker_execution": "failed: Android system-linker image admitted as current O executable; retained in nano-program-canonical-broker-result.json",
+  "loader_fix_restart": {
+    "utc": "2026-09-17T18:07:38.077788+00:00",
+    "previous_pid": 6790,
+    "new_pid": 9901,
+    "expected_uid": 10402,
+    "change": "Disable Termux system-linker wrapper in verified KernelSU context before MCP starts; leave native admission unchanged."
+  }
+}

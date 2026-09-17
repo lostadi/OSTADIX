@@ -256,6 +256,11 @@ fn main() -> Result<()> {
     for grant in &backend_grants {
         evaluator.install_backend_grant(grant, &mut scope)?;
     }
+    // Both graph and serial evaluation pass through native V6 admission;
+    // admission presence alone does not identify the executor that ran.
+    let execution_mode = env::var("O_EXECUTOR")
+        .unwrap_or_else(|_| "graph".to_string())
+        .to_ascii_lowercase();
     let evaluation = match required_execution_intent {
         Some((expected_source_sha256, expected_execution_intent_sha256)) => evaluator
             .eval_document_with_scope_requiring_execution_intent(
@@ -315,7 +320,7 @@ fn main() -> Result<()> {
         let admission = evaluator.last_execution_admission();
         envelope["execution_evidence"] = serde_json::json!({
             "schema": "ostadix.native-execution-evidence/v1",
-            "execution_mode": if admission.is_some() { "admitted_graph" } else { "no_graph_admission" },
+            "execution_mode": execution_mode,
             "source_sha256": source_sha256,
             "source_identity_scope": "submitted_utf8_before_shebang_removal",
             "parsed_source_sha256": o_lang::evidence::source_sha256(source.as_bytes()),

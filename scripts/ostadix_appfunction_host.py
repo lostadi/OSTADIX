@@ -30,6 +30,50 @@ def send(process, frame):
     process.stdin.flush()
 
 
+def mcp_arguments(body, max_timeout_ms):
+    """Validate the Android envelope and map it to the current o_execute schema."""
+    if not isinstance(body, dict):
+        raise ValueError('request must be a JSON object')
+    if set(body) - {'source', 'bindings', 'constraints'}:
+        raise ValueError('only source, bindings and constraints are accepted')
+    source = body.get('source')
+    if not isinstance(source, str) or len(source.encode()) > 65536:
+        raise ValueError('source must be text within the 65536-byte host limit')
+    bindings = body.get('bindings', {})
+    if not isinstance(bindings, dict):
+        raise ValueError('bindings must be a JSON object')
+    if bindings:
+        raise ValueError('current o_execute does not support nonempty bindings; not dispatched')
+    constraints = body.get('constraints', {})
+    if not isinstance(constraints, dict):
+        raise ValueError('constraints must be a JSON object')
+    if set(constraints) - {'timeout_ms'}:
+        raise ValueError('only constraints.timeout_ms is supported; not dispatched')
+    timeout = constraints.get('timeout_ms', max_timeout_ms)
+    if type(timeout) is not int or not 1 <= timeout <= max_timeout_ms:
+        raise ValueError('timeout exceeds host policy')
+    # MCP accepts whole seconds; the host still cancels at the exact ms budget.
+    return dict(source=source, timeout_secs=(timeout + 999) // 1000), timeout
+
+
+def mcp_environment(root):
+    env = dict(os.environ, O_LANG_ROOT=root, O_BACKENDS_DIR=root + '/backends',
+               OSTADIX_O_CLI_BIN=root + '/target/release/o-cli',
+               OSTADIX_RUNTIME_PATH_MODE='discover-local')
+    try:
+        context = Path('/proc/self/attr/current').read_text().strip('\0\n')
+    except OSError:
+        context = ''
+    if context == 'u:r:ksu:s0':
+        # Direct app-file execution was verified in this host context. Termux's
+        # automatic linker wrapper otherwise makes O's current_exe() identify
+        # linker64, so admitted --o-backend launches target the wrong image.
+        # Set this before MCP initializes its preload library; changing the
+        # already-running Python host's environment is too late for its cache.
+        env['TERMUX_EXEC__SYSTEM_LINKER_EXEC__MODE'] = 'disable'
+    return env
+
+
 def stop_tree(process):
     """Emergency cleanup of the owned subprocess and observed descendants."""
     if process.poll() is not None:
@@ -99,20 +143,10 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 <= length <= 2 * 1024 * 1024:
                 raise ValueError('request exceeds host transport limit')
             body = json.loads(self.rfile.read(length))
-            if set(body) - {'source', 'bindings', 'constraints'}:
-                raise ValueError('only source, bindings and constraints are accepted')
-            source = body.get('source')
-            if not isinstance(source, str) or len(source.encode()) > 65536:
-                raise ValueError('source must be text within the 65536-byte host limit')
-            constraints = body.setdefault('constraints', {})
-            timeout = constraints.get('timeout_ms', config['max_timeout_ms'])
-            if type(timeout) is not int or not 1 <= timeout <= config['max_timeout_ms']:
-                raise ValueError('timeout exceeds host policy')
-            constraints['timeout_ms'] = timeout
+            arguments, timeout = mcp_arguments(body, config['max_timeout_ms'])
+            source = arguments['source']
             root = config['root']
-            env = dict(os.environ, O_LANG_ROOT=root, O_BACKENDS_DIR=root + '/backends',
-                       OSTADIX_O_CLI_BIN=root + '/target/release/o-cli',
-                       OSTADIX_RUNTIME_PATH_MODE='discover-local')
+            env = mcp_environment(root)
             process = subprocess.Popen([config['mcp_executable']], cwd=root, env=env,
                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                        stderr=subprocess.DEVNULL, start_new_session=True)
@@ -141,12 +175,12 @@ class Handler(BaseHTTPRequestHandler):
             if isinstance(initialized, Exception) or 'error' in initialized:
                 raise RuntimeError('MCP initialization failed; not dispatched')
             send(process, dict(jsonrpc='2.0', method='notifications/initialized'))
+            deadline = time.monotonic() + timeout / 1000
             send(process, dict(jsonrpc='2.0', id=2, method='tools/call',
-                               params=dict(name='o_execute', arguments=body)))
+                               params=dict(name='o_execute', arguments=arguments)))
             dispatched = True
             self.connection.setblocking(False)
             log('mcp_dispatch', app_request=request_id, source_sha256=hashlib.sha256(source.encode()).hexdigest())
-            deadline = time.monotonic() + timeout / 1000 + 5
             cancelled = False
             while True:
                 try:
@@ -160,9 +194,11 @@ class Handler(BaseHTTPRequestHandler):
                         raise RuntimeError('MCP returned a protocol error after dispatch; no retry')
                     result = frame['result']
                     structured = result.get('structuredContent', {})
+                    if not isinstance(structured, dict):
+                        structured = {}
                     log('mcp_result', app_request=request_id,
-                        request_id=structured.get('request_id'),
-                        disposition=structured.get('disposition'), cancelled=cancelled)
+                        job_id=structured.get('job_id'), state=structured.get('state'),
+                        is_error=result.get('isError', False), cancelled=cancelled)
                     if not cancelled:
                         self.respond(200, result)
                     break

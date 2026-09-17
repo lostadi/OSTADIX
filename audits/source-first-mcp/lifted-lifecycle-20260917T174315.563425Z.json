@@ -1,0 +1,149 @@
+{
+  "binary_sha256": "c07d90744901263a2352b3d8f3a4a3a77e59588802fd121353f7ab5dccc90105",
+  "exchange": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-03-26",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "lifted-lifecycle",
+            "version": "1"
+          }
+        }
+      },
+      "result": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {
+          "resources": {},
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "ostadix-mcp",
+          "title": "Ostadix runtime and toolchain",
+          "version": "0.4.0+source-surface.2",
+          "websiteUrl": "https://github.com/lostadi/Ostadix-lang"
+        },
+        "instructions": "Ostadix-lang / O-lang MCP. Prefer o_execute with one complete polyglot O source or existing program/project path. Its action defaults to execute; check is parse-only, plan is static inspection, compile explicitly requests an artifact. Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. Jobs run concurrently, full logs stay on disk, and a job start is not success. Jobs end on MCP server shutdown; no restart persistence is claimed. Use o_env/o_runtimes/o_doctor to check the environment. Source capability discovery is not installed-version or runtime-health proof; inspect the catalog's safe help invocation when needed. Use o_run with source or path for the structured unified front door. o_run.mode=check performs non-executing static planning and graph validation; it never contacts a node or mesh. Set o_run.placement=node for whole-document selected-node submission or project_mesh for required authenticated project-route placement with local fallback disabled. Use o_analyze_intent then o_execute_intent for explicit inspect-then-execute with a one-use same-intent gate. Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
+      }
+    },
+    {
+      "notification": {
+        "jsonrpc": "2.0",
+        "method": "notifications/cancelled",
+        "params": {
+          "requestId": 2,
+          "reason": "lifecycle probe"
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "# Ostadix-lang lifted project\n# project: lifted-lifecycle\n# root_fingerprint: 0c0c3b03e67c916470816cce561c971be20c8d0b708b6104d0d24a7d519f44a9\n# files: 2   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: lifted-lifecycle  (1 route, 0 route sets)\n# * main  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6ImxpZnRlZC1saWZlY3ljbGUiLCJyb290X2Zpbmdl\ncnByaW50IjoiMGMwYzNiMDNlNjdjOTE2NDcwODE2Y2NlNTYxYzk3MWJlMjBjOGQwYjcwOGI2MTA0\nZDBkMjRhN2Q1MTlmNDRhOSIsImZpbGVzIjpbeyJwYXRoIjoibWFpbi5weSIsImJ5dGVzIjoiWm5K\ndmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DbWx0Y0c5eWRDQnZjeXdnZEdsdFpTd2djM1Zp\nY0hKdlkyVnpjeXdnYzNsekxDQnFjMjl1Q2xCaGRHZ29KeTlrWVhSaEwyUmhkR0V2WTI5dExuUmxj\nbTExZUM5bWFXeGxjeTkxYzNJdmRHMXdMMjl6ZEdGa2FYZ3RiR2xtZEdWa0xXeHBabVZqZVdOc1pT\nMTNlSGgwZDJ0d2JTOWpZVzVqWld3dGQyOXlhM053WVdObEp5a3VkM0pwZEdWZmRHVjRkQ2h2Y3k1\nblpYUmpkMlFvS1NrS2JXRnlhMlZ5SUQwZ1VHRjBhQ2duTDJSaGRHRXZaR0YwWVM5amIyMHVkR1Z5\nYlhWNEwyWnBiR1Z6TDNWemNpOTBiWEF2YjNOMFlXUnBlQzFzYVdaMFpXUXRiR2xtWldONVkyeGxM\nWGQ0ZUhSM2EzQnRMMk5oYm1ObGJDMXpkR0Z5ZEdWa0p5a0tkMmwwYUNCdFlYSnJaWEl1YjNCbGJp\nZ2lZU0lwSUdGeklITjBjbVZoYlRvS0lDQWdJSE4wY21WaGJTNTNjbWwwWlNnaWMzUmhjblJsWkZ4\ndUlpa0tJQ0FnSUhOMGNtVmhiUzVtYkhWemFDZ3BDbk4xWW5CeWIyTmxjM011VUc5d1pXNG9XM041\nY3k1bGVHVmpkWFJoWW14bExDQW5MV01uTENBaWFXMXdiM0owSUhScGJXVTdJR1p5YjIwZ2NHRjBh\nR3hwWWlCcGJYQnZjblFnVUdGMGFEc2dkR2x0WlM1emJHVmxjQ2d5S1RzZ1VHRjBhQ2duTDJSaGRH\nRXZaR0YwWVM5amIyMHVkR1Z5YlhWNEwyWnBiR1Z6TDNWemNpOTBiWEF2YjNOMFlXUnBlQzFzYVda\nMFpXUXRiR2xtWldONVkyeGxMWGQ0ZUhSM2EzQnRMMk5oYm1ObGJDMXNZWFJsSnlrdWQzSnBkR1Zm\nZEdWNGRDZ25iR0YwWlNjcElsMHBDblJwYldVdWMyeGxaWEFvTVRBcENuQnlhVzUwS0dwemIyNHVa\nSFZ0Y0hNb1pHbGpkQ2hrYjI1bFBWUnlkV1VwS1NrSyIsImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4\nX21vZGUiOjMzMTg4LCJzeW1saW5rX3RhcmdldCI6bnVsbCwiZXZhbHVhdG9yIjoicHl0aG9uIiwi\nY29udGVudF9oYXNoIjoiZWExZDJhY2VhNWUwNzhkYTZmMDFlMzFmYzIzOTk2MGVlY2EyM2FlN2Yx\nMTVhOGMyZGY2ZGZmOWE3OTJiMWQ0NCIsInJvbGUiOiJTb3VyY2UifSx7InBhdGgiOiJvbGFuZy5w\ncm9qZWN0LnRvbWwiLCJieXRlcyI6IlczQnliMnBsWTNSZENtNWhiV1VnUFNBaWJHbG1kR1ZrTFd4\ncFptVmplV05zWlNJS1pHVm1ZWFZzZEY5eWIzVjBaU0E5SUNKdFlXbHVJZ3BiVzNKdmRYUmxjMTFk\nQ21sa0lEMGdJbTFoYVc0aUNtTnZiVzFoYm1RZ1BTQmJJbkI1ZEdodmJqTWlMQ0FpYldGcGJpNXdl\nU0pkQ25KbGMzVnNkRjlqYjJSbFl5QTlJQ0pxYzI5dUlncGtaV1poZFd4MElEMGdkSEoxWlFvPSIs\nImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4X21vZGUiOjMzMTg4LCJzeW1saW5rX3RhcmdldCI6bnVs\nbCwiZXZhbHVhdG9yIjpudWxsLCJjb250ZW50X2hhc2giOiIzYjYzMWY0ZGY4MDQ3ZWE5OTk0YWEx\nOTQ2MWIwNmE5ZmE4OTg4M2I2M2Y0ZjNkOTFjMzNhYTczMjMyZjdlZmQ1Iiwicm9sZSI6Ik1hbmlm\nZXN0In1dLCJyb3V0ZXMiOlt7ImlkIjoibWFpbiIsImxhYmVsIjoibWFpbiIsImtpbmQiOiJJbnRl\ncnByZXRlckNvbW1hbmQiLCJjb21tYW5kIjpbInB5dGhvbjMiLCJtYWluLnB5Il0sImV2YWx1YXRv\nciI6bnVsbCwiZW50cnlwb2ludCI6bnVsbCwid29ya2luZ19kaXJlY3RvcnkiOiIuIiwiYXJndW1l\nbnRzIjpbXSwiZW52aXJvbm1lbnQiOnt9LCJwcmVyZXF1aXNpdGVzIjpbXSwiaW5wdXRzIjpbXSwi\nb3V0cHV0cyI6W10sImVmZmVjdHMiOnsicHVyZSI6ZmFsc2UsInVua25vd24iOnRydWUsInJlYWRz\nIjpbXSwid3JpdGVzIjpbXX0sImZhaWx1cmVfY29udGludWF0aW9uIjoidW5wcm92ZW4iLCJyZXN1\nbHRfY29kZWMiOiJKc29uIiwicHJvdmlkZXMiOltdLCJndWFyZHMiOltdLCJwcmlvcml0eSI6MCwi\naXNfZGVmYXVsdCI6dHJ1ZSwicHJvdmVuYW5jZSI6eyJNYW5pZmVzdCI6eyJwYXRoIjoib2xhbmcu\ncHJvamVjdC50b21sIn19fV0sInJvdXRlX3NldHMiOltdLCJkZWZhdWx0X3JvdXRlIjoibWFpbiIs\nIm1ldGFkYXRhIjp7fX0=\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+            "placement": "local",
+            "timeout_secs": 10
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"action\":\"execute\",\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":true,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":30593,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":3,\"session_scan_complete\":true},\"error\":null,\"exit_code\":-1,\"initial_input_state\":\"not_supplied\",\"input\":{\"cwd\":\"/data/data/com.termux/files/home/OSTADIX\",\"kind\":\"project\",\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-13cbdd50e0cea96dc6ccc73baf75934b75ab6900d2ae1ddaf1df385c53afa314/computation.O\",\"source_inline\":true,\"temporary_source\":true},\"input_error\":null,\"job_id\":\"job-30578-1789666995612055795-1-1\",\"mode\":\"direct\",\"pid\":30593,\"placement\":{\"requested\":\"local\",\"route\":\"project-local\"},\"pty\":false,\"restart_persistence\":false,\"result\":null,\"result_projection_error\":\"native command produced no structured output\",\"result_retrieval\":{\"full_output_retained\":true,\"job_id\":\"job-30578-1789666995612055795-1-1\",\"offset\":0,\"stream\":\"stdout\",\"tool\":\"o_job_read\"},\"session_scoped\":true,\"signal\":9,\"state\":\"cancelled\",\"stderr\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-30578-1789666995612055795-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-30578-1789666995612055795-1/job-30578-1789666995612055795-1-1/stderr.log\",\"stream\":\"stderr\",\"text\":\"\",\"total_bytes\":0},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-30578-1789666995612055795-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-30578-1789666995612055795-1/job-30578-1789666995612055795-1-1/stdout.log\",\"stream\":\"stdout\",\"text\":\"\",\"total_bytes\":0},\"timeout_secs\":10}"
+          }
+        ],
+        "structuredContent": {
+          "action": "execute",
+          "cleanup": {
+            "child_reaped": true,
+            "detached_new_sessions_included": false,
+            "logs_drained": true,
+            "process_group_signaled": true,
+            "scope": "job_session_including_nested_process_groups",
+            "session_id": 30593,
+            "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+            "session_processes_signaled": 3,
+            "session_scan_complete": true
+          },
+          "error": null,
+          "exit_code": -1,
+          "initial_input_state": "not_supplied",
+          "input": {
+            "cwd": "/data/data/com.termux/files/home/OSTADIX",
+            "kind": "project",
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-13cbdd50e0cea96dc6ccc73baf75934b75ab6900d2ae1ddaf1df385c53afa314/computation.O",
+            "source_inline": true,
+            "temporary_source": true
+          },
+          "input_error": null,
+          "job_id": "job-30578-1789666995612055795-1-1",
+          "mode": "direct",
+          "pid": 30593,
+          "placement": {
+            "requested": "local",
+            "route": "project-local"
+          },
+          "pty": false,
+          "restart_persistence": false,
+          "result": null,
+          "result_projection_error": "native command produced no structured output",
+          "result_retrieval": {
+            "full_output_retained": true,
+            "job_id": "job-30578-1789666995612055795-1-1",
+            "offset": 0,
+            "stream": "stdout",
+            "tool": "o_job_read"
+          },
+          "session_scoped": true,
+          "signal": 9,
+          "state": "cancelled",
+          "stderr": {
+            "bytes_read": 0,
+            "complete": true,
+            "encoding": "utf8_lossy",
+            "eof": true,
+            "job_id": "job-30578-1789666995612055795-1-1",
+            "limit_bytes": 65536,
+            "merged_into": null,
+            "next_offset": 0,
+            "offset": 0,
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-30578-1789666995612055795-1/job-30578-1789666995612055795-1-1/stderr.log",
+            "stream": "stderr",
+            "text": "",
+            "total_bytes": 0
+          },
+          "stdin_eof_mode": "pipe_close",
+          "stdin_open": false,
+          "stdout": {
+            "bytes_read": 0,
+            "complete": true,
+            "encoding": "utf8_lossy",
+            "eof": true,
+            "job_id": "job-30578-1789666995612055795-1-1",
+            "limit_bytes": 65536,
+            "merged_into": null,
+            "next_offset": 0,
+            "offset": 0,
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-30578-1789666995612055795-1/job-30578-1789666995612055795-1-1/stdout.log",
+            "stream": "stdout",
+            "text": "",
+            "total_bytes": 0
+          },
+          "timeout_secs": 10
+        },
+        "isError": true
+      },
+      "wall_ms": 419
+    }
+  ],
+  "checks": []
+}
