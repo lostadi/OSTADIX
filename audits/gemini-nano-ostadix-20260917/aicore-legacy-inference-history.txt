@@ -1,0 +1,3 @@
+SERVICE com.google.android.aicore/com.google.android.apps.aicore.service.multiuser.AiCoreMultiUserService a24de7e pid=26387 user=0
+  Client:
+    Number of recent inferences collected: 0

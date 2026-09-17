@@ -1,0 +1,35 @@
+{
+  "command": [
+    "/system/bin/am",
+    "broadcast",
+    "-a",
+    "org.ostadix.aicore.NANO_LOCAL_PROBE",
+    "-p",
+    "com.google.android.aicore",
+    "--es",
+    "request_id",
+    "expired-lease-20260917-1706",
+    "--el",
+    "deadline_elapsed_ms",
+    "1"
+  ],
+  "exit_code": 0,
+  "stdout": "Broadcasting: Intent { act=org.ostadix.aicore.NANO_LOCAL_PROBE flg=0x400000 pkg=com.google.android.aicore (has extras) }\nBroadcast completed: result=0\n",
+  "stderr": "",
+  "events": [
+    {
+      "schema": "ostadix.aicore-local-probe/v1",
+      "request_id": "expired-lease-20260917-1706",
+      "pid": 31623,
+      "uid": 10173,
+      "phase": "complete",
+      "success": false,
+      "native_call_active": false,
+      "elapsed_realtime_ms": 53977679,
+      "deadline_elapsed_ms": 1,
+      "inference_executed": false,
+      "detail": "java.lang.IllegalStateException: probe deadline expired or invalid"
+    }
+  ],
+  "expired_lease_rejected_before_native": true
+}

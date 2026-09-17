@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/Ostadix-lang/scripts/check_lifted_mcp_lifecycle.py", line 113, in <module>
+    main()
+    ~~~~^^
+  File "/data/data/com.termux/files/home/Ostadix-lang/scripts/check_lifted_mcp_lifecycle.py", line 101, in main
+    assert result["structuredContent"]["result"]["typed_value"]["v"]["v"] == "7"
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+KeyError: 'v'

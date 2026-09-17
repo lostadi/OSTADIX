@@ -1,0 +1,300 @@
+{
+  "cancellation_elapsed_ms": 410,
+  "cancellation_result": {
+    "caller_id": "mcp/stdio",
+    "disposition": "failed",
+    "failure": {
+      "message": "[bash[*ephemeral*]]: backend `bash[4294967295]` request cancellation was observed; actor forcibly reaped: backend `bash[4294967295]` request cancellation was observed; actor forcibly reaped",
+      "stage": "evaluate"
+    },
+    "request_id": "mcp-15790-3",
+    "schema": "ostadix.runtime-request-result/v1"
+  },
+  "lifecycle_trace": [
+    "monotonic_ns=4833829332620 pid=15790 thread=ThreadId(11) event=evidence.runtime_binding_started plan_nodes=19",
+    "monotonic_ns=4833858651864 pid=15790 thread=ThreadId(11) event=evidence.runtime_binding_finished plan_nodes=19",
+    "monotonic_ns=4833864147828 pid=15790 thread=ThreadId(11) event=coordinator.task_prepared token=0 plan_node=3",
+    "monotonic_ns=4833864237776 pid=15790 thread=ThreadId(11) event=coordinator.task_prepared token=1 plan_node=5",
+    "monotonic_ns=4833864261578 pid=15790 thread=ThreadId(11) event=coordinator.task_prepared token=2 plan_node=7",
+    "monotonic_ns=4833864292281 pid=15790 thread=ThreadId(11) event=coordinator.task_submitted token=0 plan_node=3",
+    "monotonic_ns=4833864305432 pid=15790 thread=ThreadId(11) event=coordinator.task_submitted token=1 plan_node=5",
+    "monotonic_ns=4833864315588 pid=15790 thread=ThreadId(11) event=coordinator.task_submitted token=2 plan_node=7",
+    "monotonic_ns=4833864431031 pid=15790 thread=ThreadId(15) event=worker.task_received token=0",
+    "monotonic_ns=4833864461760 pid=15790 thread=ThreadId(16) event=worker.task_received token=1",
+    "monotonic_ns=4833864651109 pid=15790 thread=ThreadId(17) event=worker.task_received token=2",
+    "monotonic_ns=4833872372828 pid=15790 thread=ThreadId(17) event=worker.backend_spawned language=bash backend_pid=15815",
+    "monotonic_ns=4833872624989 pid=15790 thread=ThreadId(17) event=worker.exec_sent language=bash environment=ephemeral",
+    "monotonic_ns=4833875407411 pid=15790 thread=ThreadId(15) event=worker.backend_spawned language=python backend_pid=15816",
+    "monotonic_ns=4833875798218 pid=15790 thread=ThreadId(16) event=worker.backend_spawned language=rust backend_pid=15817",
+    "monotonic_ns=4833875885536 pid=15790 thread=ThreadId(15) event=worker.exec_sent language=python environment=ephemeral",
+    "monotonic_ns=4833875953583 pid=15790 thread=ThreadId(16) event=worker.exec_sent language=rust environment=ephemeral",
+    "monotonic_ns=4833896839130 pid=15816 thread=ThreadId(1) event=proxy.shim_spawned language=python shim_pid=15824",
+    "monotonic_ns=4835191554860 pid=15790 thread=ThreadId(17) event=worker.done_received language=bash environment=ephemeral",
+    "monotonic_ns=4835191709652 pid=15790 thread=ThreadId(17) event=worker.shutdown_sent language=bash backend_pid=15815",
+    "monotonic_ns=4835191836423 pid=15815 thread=ThreadId(1) event=backend.shutdown_acknowledged language=bash",
+    "monotonic_ns=4835193436631 pid=15790 thread=ThreadId(17) event=worker.shutdown_acknowledged language=bash backend_pid=15815",
+    "monotonic_ns=4835194066397 pid=15790 thread=ThreadId(17) event=worker.backend_wait_returned language=bash backend_pid=15815",
+    "monotonic_ns=4835194409209 pid=15790 thread=ThreadId(17) event=worker.completion_emitted token=2",
+    "monotonic_ns=4835197843949 pid=15790 thread=ThreadId(11) event=coordinator.completion_received token=2",
+    "monotonic_ns=4835197988818 pid=15790 thread=ThreadId(11) event=coordinator.result_buffered token=2 plan_node=7",
+    "monotonic_ns=4835218072673 pid=15790 thread=ThreadId(15) event=worker.done_received language=python environment=ephemeral",
+    "monotonic_ns=4835218417542 pid=15790 thread=ThreadId(15) event=worker.shutdown_sent language=python backend_pid=15816",
+    "monotonic_ns=4835218457803 pid=15816 thread=ThreadId(1) event=proxy.shutdown_received language=python shim_pid=15824",
+    "monotonic_ns=4835248218141 pid=15816 thread=ThreadId(1) event=proxy.shim_reaped language=python shim_pid=15824",
+    "monotonic_ns=4835248522256 pid=15816 thread=ThreadId(1) event=proxy.shutdown_acknowledged language=python",
+    "monotonic_ns=4835250919235 pid=15790 thread=ThreadId(15) event=worker.shutdown_acknowledged language=python backend_pid=15816",
+    "monotonic_ns=4835251508975 pid=15790 thread=ThreadId(15) event=worker.backend_wait_returned language=python backend_pid=15816",
+    "monotonic_ns=4835251719548 pid=15790 thread=ThreadId(15) event=worker.completion_emitted token=0",
+    "monotonic_ns=4835256926501 pid=15790 thread=ThreadId(11) event=coordinator.completion_received token=0",
+    "monotonic_ns=4835257234470 pid=15790 thread=ThreadId(11) event=coordinator.result_buffered token=0 plan_node=3",
+    "monotonic_ns=4835257475694 pid=15790 thread=ThreadId(11) event=coordinator.result_settled token=0 plan_node=3 outcome=success",
+    "monotonic_ns=4835572125564 pid=15790 thread=ThreadId(16) event=worker.done_received language=rust environment=ephemeral",
+    "monotonic_ns=4835572437673 pid=15790 thread=ThreadId(16) event=worker.shutdown_sent language=rust backend_pid=15817",
+    "monotonic_ns=4835572785433 pid=15817 thread=ThreadId(1) event=backend.shutdown_acknowledged language=rust",
+    "monotonic_ns=4835575487204 pid=15790 thread=ThreadId(16) event=worker.shutdown_acknowledged language=rust backend_pid=15817",
+    "monotonic_ns=4835575789939 pid=15790 thread=ThreadId(16) event=worker.backend_wait_returned language=rust backend_pid=15817",
+    "monotonic_ns=4835575885407 pid=15790 thread=ThreadId(16) event=worker.completion_emitted token=1",
+    "monotonic_ns=4835578845303 pid=15790 thread=ThreadId(11) event=coordinator.completion_received token=1",
+    "monotonic_ns=4835579030668 pid=15790 thread=ThreadId(11) event=coordinator.result_buffered token=1 plan_node=5",
+    "monotonic_ns=4835579114939 pid=15790 thread=ThreadId(11) event=coordinator.result_settled token=1 plan_node=5 outcome=success",
+    "monotonic_ns=4835579183090 pid=15790 thread=ThreadId(11) event=coordinator.result_settled token=2 plan_node=7 outcome=success",
+    "monotonic_ns=4835582468480 pid=15790 thread=ThreadId(11) event=coordinator.task_prepared token=6 plan_node=16",
+    "monotonic_ns=4835582670694 pid=15790 thread=ThreadId(11) event=coordinator.task_submitted token=6 plan_node=16",
+    "monotonic_ns=4835582831840 pid=15790 thread=ThreadId(17) event=worker.task_received token=6",
+    "monotonic_ns=4835583338506 pid=15790 thread=ThreadId(17) event=worker.completion_emitted token=6",
+    "monotonic_ns=4835587905980 pid=15790 thread=ThreadId(11) event=coordinator.completion_received token=6",
+    "monotonic_ns=4835588152517 pid=15790 thread=ThreadId(11) event=coordinator.result_buffered token=6 plan_node=16",
+    "monotonic_ns=4835588262256 pid=15790 thread=ThreadId(11) event=coordinator.result_settled token=6 plan_node=16 outcome=success",
+    "monotonic_ns=4835603273116 pid=15790 thread=ThreadId(11) event=worker.backend_spawned language=python backend_pid=15857",
+    "monotonic_ns=4835604412360 pid=15790 thread=ThreadId(11) event=worker.exec_sent language=python environment=4294967295",
+    "monotonic_ns=4835625110225 pid=15857 thread=ThreadId(1) event=proxy.shim_spawned language=python shim_pid=15859",
+    "monotonic_ns=4835741247308 pid=15790 thread=ThreadId(11) event=worker.done_received language=python environment=4294967295",
+    "monotonic_ns=4835741424079 pid=15790 thread=ThreadId(11) event=worker.shutdown_sent language=python backend_pid=15857",
+    "monotonic_ns=4835741517907 pid=15857 thread=ThreadId(1) event=proxy.shutdown_received language=python shim_pid=15859",
+    "monotonic_ns=4835754497022 pid=15857 thread=ThreadId(1) event=proxy.shim_reaped language=python shim_pid=15859",
+    "monotonic_ns=4835754647074 pid=15857 thread=ThreadId(1) event=proxy.shutdown_acknowledged language=python",
+    "monotonic_ns=4835756101553 pid=15790 thread=ThreadId(11) event=worker.shutdown_acknowledged language=python backend_pid=15857",
+    "monotonic_ns=4835756379001 pid=15790 thread=ThreadId(11) event=worker.backend_wait_returned language=python backend_pid=15857",
+    "monotonic_ns=4835756628611 pid=15790 thread=ThreadId(11) event=pool.submission_channel_closed ",
+    "monotonic_ns=4835756990824 pid=15790 thread=ThreadId(11) event=pool.worker_joined worker=0",
+    "monotonic_ns=4835757419157 pid=15790 thread=ThreadId(11) event=pool.worker_joined worker=1",
+    "monotonic_ns=4835757617960 pid=15790 thread=ThreadId(11) event=pool.worker_joined worker=2"
+  ],
+  "mcp_result": {
+    "caller_id": "mcp/stdio",
+    "disposition": "executed",
+    "elapsed_ms": 1932,
+    "evidence": {
+      "admission_sha256": "f67421b4a167cbe8d43b487de949cc1ef01f20bf84560763a91bba94cc031a00",
+      "admitted_graph_sha256": "e345198612c15d174d56fd7002f9107b11f53f49e1bd8ed2efe974aced6922b4",
+      "analyzed_graph_sha256": "402074f363700b335c719a14dec5739bd1a0e9d764cdd5199db7f4280c3119fe",
+      "evidence_sha256": "3a8e146904b5f1b0a7b4829bcaa411fe6bc48fc18192f58bb9ee3dd86cdd63b8",
+      "execution_intent_sha256": "a3e7958c74880085f474315208d02347ba47cf53f70556822b7c450972cd3c79",
+      "oir_sha256": "0621deecf86880d38d5b416a8a65f24df7cd980d85f9ab023f719e3f1fa16c8c",
+      "plan_sha256": "d7e608f1f6304754503d64663057f905cfc6016ee173d08e8d2406f5d8cfee8f",
+      "request_scope_content_identity": "18127eb361263ede4dbb30543c38387d976823db47e02a99ec181c5b91a5c86e",
+      "result_content_identity": "b7d8fea9c6c7e8a34ba9736fe7f2773545d09bfb1498f7466c731b64504876ea",
+      "source_sha256": "ef50d8c6c25215fa6254cfc0a16a94c334e279d04f672c7068f2c001a07b72a1"
+    },
+    "execution_mode": "embedded_runtime_request",
+    "request_id": "mcp-15790-5",
+    "result": {
+      "typed_value": {
+        "t": "map",
+        "v": {
+          "all_three_overlap": {
+            "t": "bool",
+            "v": true
+          },
+          "branches": {
+            "t": "list",
+            "v": [
+              {
+                "t": "map",
+                "v": {
+                  "end_ns": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "1789615794777990409"
+                    }
+                  },
+                  "runtime": {
+                    "t": "text",
+                    "v": {
+                      "encoding": "utf-8",
+                      "utf8": "python"
+                    }
+                  },
+                  "start_ns": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "1789615793577820278"
+                    }
+                  },
+                  "value": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "6"
+                    }
+                  }
+                }
+              },
+              {
+                "t": "map",
+                "v": {
+                  "end_ns": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "1789615795132355722"
+                    }
+                  },
+                  "runtime": {
+                    "t": "text",
+                    "v": {
+                      "encoding": "utf-8",
+                      "utf8": "rust"
+                    }
+                  },
+                  "start_ns": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "1789615793931317830"
+                    }
+                  },
+                  "value": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "21"
+                    }
+                  }
+                }
+              },
+              {
+                "t": "map",
+                "v": {
+                  "end_ns": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "1789615794749239549"
+                    }
+                  },
+                  "runtime": {
+                    "t": "text",
+                    "v": {
+                      "encoding": "utf-8",
+                      "utf8": "bash"
+                    }
+                  },
+                  "start_ns": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "1789615793497899392"
+                    }
+                  },
+                  "value": {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "15"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "overlap_ns": {
+            "t": "number",
+            "v": {
+              "kind": "int",
+              "v": "817921719"
+            }
+          },
+          "runtimes": {
+            "t": "list",
+            "v": [
+              {
+                "t": "text",
+                "v": {
+                  "encoding": "utf-8",
+                  "utf8": "bash"
+                }
+              },
+              {
+                "t": "text",
+                "v": {
+                  "encoding": "utf-8",
+                  "utf8": "python"
+                }
+              },
+              {
+                "t": "text",
+                "v": {
+                  "encoding": "utf-8",
+                  "utf8": "rust"
+                }
+              }
+            ]
+          },
+          "sum": {
+            "t": "number",
+            "v": {
+              "kind": "int",
+              "v": "42"
+            }
+          }
+        }
+      }
+    },
+    "schema": "ostadix.runtime-request-result/v1",
+    "structure": {
+      "hgraph_exec_edges": 8,
+      "hgraph_nodes": 35,
+      "plan_nodes": 19
+    }
+  },
+  "recovery_result": {
+    "caller_id": "mcp/stdio",
+    "disposition": "executed",
+    "elapsed_ms": 8,
+    "evidence": {
+      "admission_sha256": "bd063942dad556905b4057bc52c88a3724ba137406ab99d3cc34e24590ed9066",
+      "admitted_graph_sha256": "ac2fe2ee34366ff2ad86a4ad4b5b5261140d04e58d5c7ead431dab33cc2f5c52",
+      "analyzed_graph_sha256": "bddf7f3f34f783c3c70b906bbd44780d0463c52336cb88a477182e225f66406d",
+      "evidence_sha256": "eda901efd0f4420a38fd0ae5b068eddcb3aedb13378789dc91a882017bf1a3df",
+      "execution_intent_sha256": "6ffd9a340f3290a424c278d6c42c537864e4bf2d73809655228b07c9d9bfbb45",
+      "oir_sha256": "f32e00b3bc1f5a0c78cd8521c25b7f3a43bf578397720e888b2d110c899e201f",
+      "plan_sha256": "cfb40d49075299c0d2a321413110c0745c0bc33fcc3131cbf708f9c4c0469827",
+      "request_scope_content_identity": "9657fd3d1bfc50342685bec62d5a72301092e198f94489501f6806f11de09f3d",
+      "result_content_identity": "81820b739ce691b7f74ce93ef919b6651acf36dacaa3582bee4a06020a835c15",
+      "source_sha256": "2eb447b3ac088ded418f3300a13cda892c2189b73bfe75d328bc1cb5bc167536"
+    },
+    "execution_mode": "embedded_runtime_request",
+    "request_id": "mcp-15790-4",
+    "result": {
+      "typed_value": {
+        "t": "number",
+        "v": {
+          "kind": "int",
+          "v": "7"
+        }
+      }
+    },
+    "schema": "ostadix.runtime-request-result/v1",
+    "structure": {
+      "hgraph_exec_edges": 1,
+      "hgraph_nodes": 3,
+      "plan_nodes": 1
+    }
+  },
+  "schema": "ostadix.mcp-heterogeneous-proof/v1",
+  "source_path": "/data/data/com.termux/files/home/Ostadix-lang/examples/ai_heterogeneous_one_call.O",
+  "source_sha256": "ef50d8c6c25215fa6254cfc0a16a94c334e279d04f672c7068f2c001a07b72a1"
+}

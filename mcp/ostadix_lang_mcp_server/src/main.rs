@@ -2447,8 +2447,9 @@ impl OstadixMcp {
     async fn o_execute(
         &self,
         Parameters(args): Parameters<unified::ExecuteArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        self.execute_computation(args).await
+        self.execute_computation(args, &context).await
     }
 
     #[tool(

@@ -9,7 +9,15 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /** In-process JNI wrapper around the stable Ostadix embedding API. */
 public final class OstadixRuntime implements AutoCloseable {
     static {
-        System.loadLibrary("ostadix_runtime");
+        try {
+            // An embedding host can load the package-owned library by absolute
+            // path before this class initializes. Probe the stable JNI symbol
+            // first because an injected class loader may not expose that same
+            // extracted directory to System.loadLibrary's name lookup.
+            nativeVersion();
+        } catch (UnsatisfiedLinkError notLoaded) {
+            System.loadLibrary("ostadix_runtime");
+        }
     }
 
     public static final class Evaluation {
@@ -70,14 +78,9 @@ public final class OstadixRuntime implements AutoCloseable {
     }
 
     public Evaluation evaluate(String source) {
-        Lock lock = lifecycle.readLock();
-        lock.lock();
         try {
-            if (handle == 0) {
-                throw new IllegalStateException("Ostadix runtime is closed");
-            }
             String requestId = "terminal-" + nextRequestId.incrementAndGet();
-            JSONObject result = new JSONObject(nativeEvaluateBounded(handle, source,
+            JSONObject result = new JSONObject(evaluateBoundedJson(source, "{}",
                     "org.ostadix.terminal", requestId, DEFAULT_TIMEOUT_MS));
             boolean ok = result.optBoolean("ok", false);
             return new Evaluation(
@@ -98,6 +101,26 @@ public final class OstadixRuntime implements AutoCloseable {
         } catch (JSONException error) {
             return new Evaluation(false, "bridge", "", "", error.getMessage(),
                     "org.ostadix.terminal", "", "", "", "", "", 0, -1, 0);
+        }
+    }
+
+    /**
+     * Execute one complete O document with ordinary JSON bindings and retain the
+     * canonical RuntimeRequest JSON envelope for agent and service embeddings.
+     */
+    public String evaluateBoundedJson(String source, String bindingsJson,
+            String callerId, String requestId, long timeoutMs) {
+        if (source == null || bindingsJson == null || callerId == null || requestId == null) {
+            throw new IllegalArgumentException("bounded evaluation arguments must be non-null");
+        }
+        Lock lock = lifecycle.readLock();
+        lock.lock();
+        try {
+            if (handle == 0) {
+                throw new IllegalStateException("Ostadix runtime is closed");
+            }
+            return nativeEvaluateBoundedWithBindings(handle, source, bindingsJson,
+                    callerId, requestId, timeoutMs);
         } finally {
             lock.unlock();
         }
@@ -115,6 +138,41 @@ public final class OstadixRuntime implements AutoCloseable {
             }
             JSONObject result = new JSONObject(nativePostprocessAicoreReplies(handle,
                     scoresMilli, stopReasons, maxPolicyScoresMilli, policyLimit,
+                    callerId, requestId, timeoutMs));
+            boolean ok = result.optBoolean("ok", false);
+            return new Evaluation(ok,
+                    result.optString("stage", ok ? "complete" : "runtime"),
+                    result.optString("type", "value"), result.optString("output", ""),
+                    result.optString("message", "Unknown runtime error"),
+                    result.optString("callerId", callerId),
+                    result.optString("requestId", requestId),
+                    result.optString("executionIntentSha256", ""),
+                    result.optString("requestScopeContentIdentity", ""),
+                    result.optString("admissionSha256", ""),
+                    result.optString("resultContentIdentity", ""),
+                    result.optLong("elapsedMs", 0),
+                    result.optInt("selectedSourceIndex", -1),
+                    result.optInt("selectedScoreMilli", 0));
+        } catch (JSONException error) {
+            return new Evaluation(false, "bridge", "", "", error.getMessage(), callerId,
+                    requestId, "", "", "", "", 0, -1, 0);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Select one safe, nonempty Smart Reply without exposing generated text to Ostadix. */
+    public Evaluation postprocessAicoreSmartReplies(int[] scoresMilli,
+            int[] hasText, int[] safetyClassifications,
+            String callerId, String requestId, long timeoutMs) {
+        Lock lock = lifecycle.readLock();
+        lock.lock();
+        try {
+            if (handle == 0) {
+                throw new IllegalStateException("Ostadix runtime is closed");
+            }
+            JSONObject result = new JSONObject(nativePostprocessAicoreSmartReplies(handle,
+                    scoresMilli, hasText, safetyClassifications,
                     callerId, requestId, timeoutMs));
             boolean ok = result.optBoolean("ok", false);
             return new Evaluation(ok,
@@ -172,8 +230,13 @@ public final class OstadixRuntime implements AutoCloseable {
     private static native String nativeEvaluate(long handle, String source);
     private static native String nativeEvaluateBounded(long handle, String source,
             String callerId, String requestId, long timeoutMs);
+    private static native String nativeEvaluateBoundedWithBindings(long handle, String source,
+            String bindingsJson, String callerId, String requestId, long timeoutMs);
     private static native String nativePostprocessAicoreReplies(long handle, int[] scoresMilli,
             int[] stopReasons, int[] maxPolicyScoresMilli, int policyLimit,
+            String callerId, String requestId, long timeoutMs);
+    private static native String nativePostprocessAicoreSmartReplies(long handle,
+            int[] scoresMilli, int[] hasText, int[] safetyClassifications,
             String callerId, String requestId, long timeoutMs);
     private static native boolean nativeCancelRequest(long handle, String callerId,
             String requestId);

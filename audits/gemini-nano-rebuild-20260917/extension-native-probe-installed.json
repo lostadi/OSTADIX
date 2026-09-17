@@ -1,0 +1,11 @@
+{
+  "time_utc": "2026-09-17T16:59:23.465836+00:00",
+  "staged_apk": "/data/local/tmp/ostadix-nano-extension-v3.apk",
+  "expected_sha256": "8af4eadc1c5de567f22a2a97641bdb59c0a1fd031e178dfa4619b52c41879ace",
+  "install_exit_code": 0,
+  "stdout": "Success\n",
+  "stderr": "",
+  "installed_apk": "/data/app/~~2amvAKIL2WoSIsDEhReaSQ==/org.ostadix.aicore.extension-I-U8INKMRTNIhRrFsUcL_A==/base.apk",
+  "installed_sha256": "8af4eadc1c5de567f22a2a97641bdb59c0a1fd031e178dfa4619b52c41879ace",
+  "installed_matches": true
+}

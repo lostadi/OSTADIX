@@ -128,6 +128,21 @@ oversized record lookup is reported separately from execution status.
 Process status, stdout/stderr logs and cleanup evidence remain available. Plans,
 compiler output, native receipts, and successful execution are distinct.
 There is no synthetic receipt claiming more than the invoked runtime reports.
+
+Successful native `O --json` execution also returns `execution_evidence` with
+identities read from the actual last V6 admission and the typed result's content
+identity. The submitted source digest is taken before shebang removal; a separate
+parsed-source digest identifies the bytes parsed. A verified source/intent gate
+is reported only when the native required-digest checks ran. These descriptive
+identities are not signed caller receipts, and absent graph admission stays null.
+
+Primary `o_execute` observes MCP cancellation notifications and awaits its
+managed job's native process cleanup before returning. Linux and Android use
+`/proc` to enumerate the owned session, including nested backend process groups.
+A subprocess that creates a separate session remains outside this boundary.
+Run `python3 scripts/check_lifted_mcp_lifecycle.py` for actual transport
+cancellation, deadline, single-dispatch failure, and recovery evidence. The test
+writes a fresh evidence file and accepts an explicit `--evidence-output` path.
 Inline result projection is bounded to 1 MiB. Larger results remain in full
 through `o_job_read`; `result_retrieval` identifies the log and cursor. This
 limits response size without limiting execution or discarding program output.

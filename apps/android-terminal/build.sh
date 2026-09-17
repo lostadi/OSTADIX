@@ -7,7 +7,7 @@ BUILD_ROOT="$APP_ROOT/build"
 INTERMEDIATES="$BUILD_ROOT/intermediates"
 OUTPUT_DIR="$BUILD_ROOT/outputs/apk/debug"
 ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-$HOME/android-sdk}
-ANDROID_JAR=${ANDROID_JAR:-$ANDROID_SDK_ROOT/platforms/android-34/android.jar}
+ANDROID_JAR=${ANDROID_JAR:-$ANDROID_SDK_ROOT/platforms/android-37.2/android.jar}
 DEBUG_KEYSTORE=${DEBUG_KEYSTORE:-$HOME/.android/debug.keystore}
 TERMUX_PREFIX=${TERMUX_PREFIX:-/data/data/com.termux/files/usr}
 TERMUX_LIB="$TERMUX_PREFIX/lib"
@@ -420,9 +420,9 @@ aapt2 link \
     --manifest "$APP_ROOT/app/src/main/AndroidManifest.xml" \
     --java "$INTERMEDIATES/generated" \
     --min-sdk-version 28 \
-    --target-sdk-version 34 \
-    --version-code 9 \
-    --version-name 0.1.8 \
+    --target-sdk-version 37 \
+    --version-code 11 \
+    --version-name 0.1.10 \
     -A "$INTERMEDIATES/assets" \
     -R "$INTERMEDIATES/compiled-res/resources.zip" \
     --auto-add-overlay
@@ -434,6 +434,9 @@ python3 "$APP_ROOT/tools/verify_root_environment.py" \
 mapfile -t JAVA_SOURCES < <(find \
     "$APP_ROOT/app/src/main/java" \
     "$INTERMEDIATES/generated" \
+    -type f -name '*.java' -print | sort)
+mapfile -t TEST_SOURCES < <(find \
+    "$APP_ROOT/app/src/test/java" \
     -type f -name '*.java' -print | sort)
 javac \
     -encoding UTF-8 \
@@ -448,12 +451,13 @@ javac \
     -bootclasspath "$ANDROID_JAR" \
     -classpath "$ANDROID_JAR:$INTERMEDIATES/classes" \
     -d "$INTERMEDIATES/test-classes" \
-    "$APP_ROOT/app/src/test/java/org/ostadix/terminal/TerminalCoreSelfTest.java" \
-    "$APP_ROOT/app/src/test/java/org/ostadix/terminal/PtyJniSmoke.java" \
-    "$APP_ROOT/app/src/test/java/org/ostadix/terminal/RuntimeJniSmoke.java"
+    "${TEST_SOURCES[@]}"
 java \
     -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR" \
     org.ostadix.terminal.TerminalCoreSelfTest
+java \
+    -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR" \
+    org.ostadix.terminal.OstadixAppFunctionContractSelfTest
 JNI_LIBRARY_DIR="$INTERMEDIATES/package/lib/arm64-v8a"
 env "LD_LIBRARY_PATH=$JNI_LIBRARY_DIR:$TERMUX_LIB" \
     java -Djava.library.path="$JNI_LIBRARY_DIR" \
@@ -493,6 +497,8 @@ for apk_entry in \
         assets/licenses/ncurses-LICENSE.txt \
         assets/licenses/libandroid-support-LICENSE.txt \
         assets/licenses/libandroid-support-LICENSE-2.txt \
+        assets/app_functions_schema.xsd \
+        assets/ostadix_app_function_service.xml \
         assets/shell/inputrc \
         assets/terminfo/x/xterm-256color; do
     if ! jar tf "$INTERMEDIATES/OstadixTerminal-unsigned.apk" \

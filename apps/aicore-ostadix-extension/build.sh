@@ -15,10 +15,10 @@ EXPECTED_API_SHA256=423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe914
 NATIVE_HASH_MANIFEST="$APP_ROOT/app/src/main/resources/META-INF/ostadix/native-sha256.txt"
 MIN_SDK=31
 TARGET_SDK=34
-VERSION_CODE=1
-VERSION_NAME=0.1.0-disabled-experiment
+VERSION_CODE=3
+VERSION_NAME=0.3.0-nano-local-loader
 
-for tool in aapt2 apksigner d8 jar javac keytool readelf sed sha256sum unzip; do
+for tool in aapt2 apksigner d8 jar javac javap keytool readelf sed sha256sum unzip; do
     command -v "$tool" >/dev/null 2>&1 || { echo "Missing build tool: $tool" >&2; exit 1; }
 done
 [[ -f "$ANDROID_JAR" ]] || { echo "Android platform jar missing: $ANDROID_JAR" >&2; exit 1; }
@@ -76,6 +76,8 @@ javac -encoding UTF-8 -source 8 -target 8 -bootclasspath "$ANDROID_JAR" \
     -d "$INTERMEDIATES/test-classes" "${TEST_SOURCES[@]}"
 java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
     org.ostadix.aicore.extension.ResultReplacementSelfTest
+java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
+    org.ostadix.aicore.extension.AsiDelegationSelfTest
 jar cf "$INTERMEDIATES/module-classes.jar" -C "$INTERMEDIATES/classes" .
 d8 --min-api "$MIN_SDK" --lib "$ANDROID_JAR" --classpath "$LIBXPOSED_CLASSES" \
     --output "$INTERMEDIATES/dex" "$INTERMEDIATES/module-classes.jar"
@@ -109,23 +111,82 @@ apksigner sign --ks "$DEBUG_KEYSTORE" --ks-key-alias androiddebugkey \
 echo "[6/6] Verifying fail-closed package"
 "$APP_ROOT/verify-source-policy.sh"
 apksigner verify --verbose --print-certs "$OUTPUT_APK"
+APK_ENTRIES="$INTERMEDIATES/apk-entries.txt"
+jar tf "$OUTPUT_APK" >"$APK_ENTRIES"
 for entry in java_init.list module.prop scope.list; do
-    jar tf "$OUTPUT_APK" | grep -Fx "META-INF/xposed/$entry" >/dev/null || exit 1
+    grep -Fx "META-INF/xposed/$entry" "$APK_ENTRIES" >/dev/null || exit 1
 done
-jar tf "$OUTPUT_APK" | grep -Fx 'META-INF/ostadix/native-sha256.txt' >/dev/null || exit 1
+grep -Fx 'META-INF/ostadix/native-sha256.txt' "$APK_ENTRIES" >/dev/null || exit 1
 [[ $(unzip -p "$OUTPUT_APK" META-INF/ostadix/native-sha256.txt) == \
         "$(cat "$NATIVE_HASH_MANIFEST")" ]] || exit 1
-[[ $(unzip -p "$OUTPUT_APK" META-INF/xposed/scope.list) == 'com.google.android.as.oss' ]] || exit 1
+EXPECTED_SCOPE=$(printf 'com.google.android.as.oss\ncom.google.android.as\ncom.google.android.googlequicksearchbox\ncom.google.android.aicore')
+[[ $(unzip -p "$OUTPUT_APK" META-INF/xposed/scope.list) == "$EXPECTED_SCOPE" ]] || exit 1
 for native_name in libostadix_runtime.so libostadix_cli.so libostadix_bash.so \
         libandroid-support.so libiconv.so libreadline_8.so libncursesw_6.so; do
-    jar tf "$OUTPUT_APK" | grep -Fx "lib/arm64-v8a/$native_name" >/dev/null || exit 1
+    grep -Fx "lib/arm64-v8a/$native_name" "$APK_ENTRIES" >/dev/null || exit 1
 done
 grep -Fq 'ostadix_aicore_extension_token' \
     "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/ExtensionGate.java"
-grep -Fq 'chain.proceed(new Object[] {replacement})' \
+grep -Fq ':asoss-smart-reply-result-v1:' \
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/ExtensionGate.java"
+grep -Fq 'chain.proceed(new Object[] {outcome.replacement})' \
     "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java"
+grep -Fq 'new OstadixResultBridge(getModuleApplicationInfo())' \
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreOstadixModule.java"
+MODULE_SOURCE="$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreOstadixModule.java"
+grep -Fq 'Application.class.getDeclaredMethod("attach", Context.class)' "$MODULE_SOURCE"
+for runtime_class in flv flw fna flo; do
+    grep -Fq "Class.forName(\"$runtime_class\", false, loader)" "$MODULE_SOURCE"
+done
+for runtime_class in jht ksf isj ffg; do
+    grep -Fq "Class.forName(\"$runtime_class\", false, loader)" "$MODULE_SOURCE"
+done
+grep -Fq 'setId("ostadix-asi/jht-fill-response-v1")' "$MODULE_SOURCE"
+grep -Fq 'setId("ostadix-gemini/schema-function-inventory-v1")' "$MODULE_SOURCE"
+grep -Fq 'SchemaFunctionInventory_Impl' "$MODULE_SOURCE"
+grep -Fq 'event=schema_inventory_injected' \
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/GeminiAppFunctionSchemaHooks.java"
+grep -Fq 'chain.proceed(arguments)' \
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java"
 [[ $(grep -Fc 'ExtensionGate.isExplicitlyEnabled(context)' \
-        "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java") -ge 2 ]] || exit 1
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java") -ge 2 ]] || exit 1
+grep -Fq 'ExtensionGate.thermalPolicyAllows(context)' \
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java"
+if grep -Fq 'Class.forName("defpackage.' "$MODULE_SOURCE"; then
+    echo 'Runtime class lookup must use installed default-package DEX names' >&2
+    exit 1
+fi
+for invariant in 'bootstrapHandle' 'installedHooks.add' '.unhook()' 'bridge.close()' \
+        'smokeRuntime()' 'smoke.selectedSourceIndex != 1' \
+        'smoke.selectedScoreMilli != 950'; do
+    grep -Fq "$invariant" "$MODULE_SOURCE"
+done
+grep -Fq 'runtime.postprocessAicoreSmartReplies(' \
+    "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/OstadixResultBridge.java"
+grep -Fq 'nativeVersion();' \
+    "$REPO_ROOT/apps/android-terminal/app/src/main/java/org/ostadix/terminal/OstadixRuntime.java"
+RUNTIME_API="$INTERMEDIATES/ostadix-runtime-api.txt"
+javap -classpath "$INTERMEDIATES/module-classes.jar" -p \
+    org.ostadix.terminal.OstadixRuntime >"$RUNTIME_API"
+for method in postprocessAicoreReplies postprocessAicoreSmartReplies; do
+    grep -Fq "$method(" "$RUNTIME_API"
+done
+DYNAMIC_SYMBOLS="$INTERMEDIATES/ostadix-runtime-dynamic-symbols.txt"
+readelf --dyn-syms --wide \
+    "$INTERMEDIATES/package/lib/arm64-v8a/libostadix_runtime.so" \
+    >"$DYNAMIC_SYMBOLS"
+for symbol in \
+        Java_org_ostadix_terminal_OstadixRuntime_nativePostprocessAicoreReplies \
+        Java_org_ostadix_terminal_OstadixRuntime_nativePostprocessAicoreSmartReplies; do
+    grep -Fq "$symbol" "$DYNAMIC_SYMBOLS"
+done
+for event in request_enter request_dispatched ostadix_selected result_forwarded \
+        result_fallback inference_failure cancellation_forwarded; do
+    grep -Fq "event=$event" \
+        "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java"
+done
+[[ $(grep -Fc 'ExtensionGate.isExplicitlyEnabled(context)' \
+        "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java") -ge 3 ]] || exit 1
 aapt2 dump badging "$OUTPUT_APK" | sed -n '1,8p'
 sha256sum "$OUTPUT_APK"
 echo "$OUTPUT_APK"

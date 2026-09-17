@@ -1,0 +1,102 @@
+{
+  "library": "/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so",
+  "sha256": "62015826fb79be5f10d7d7aa9d137a1bc0a4980c2b687bcab44a9cc4c3a71823",
+  "limitation": "Adjacent ADRP/ADD only; absence is not proof of no reference.",
+  "strings": {
+    "0x81179": "Loading image encoder file ",
+    "0xaf3e3": "lazy_loading is currently a no-op. The file content will be loaded when needed.",
+    "0xd302e": "LlmRuntime::LazyInitForSession",
+    "0xd4681": "LoadAudioEncoderGraphs",
+    "0x1eea08a": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu5v1_xs12_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_0JEEEEE",
+    "0x1eea17f": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu5v1_xs12_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_1JEEEEE",
+    "0x1eea274": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu5v1_xs12_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_2JEEEEE",
+    "0x1eea369": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu5v1_xs12_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_3JEEEEE",
+    "0x1eea45e": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu5v1_xs12_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_4JEEEEE",
+    "0x1eea67a": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v212_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigENSC_INS5_22EdgeTpuBufferAllocatorEEEE3$_0JEEEEE",
+    "0x1eea790": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v212_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigENSC_INS5_22EdgeTpuBufferAllocatorEEEE3$_1JEEEEE",
+    "0x1eea8a6": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v212_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigENSC_INS5_22EdgeTpuBufferAllocatorEEEE3$_2JEEEEE",
+    "0x1eea9bc": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v212_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigENSC_INS5_22EdgeTpuBufferAllocatorEEEE3$_3JEEEEE",
+    "0x1eeaad2": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v212_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigENSC_INS5_22EdgeTpuBufferAllocatorEEEE3$_5JEEEEE",
+    "0x1eeabe8": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v212_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigENSC_INS5_22EdgeTpuBufferAllocatorEEEE3$_6JEEEEE",
+    "0x1eeb06b": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v312_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_0JEEEEE",
+    "0x1eeb15d": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v312_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_1JEEEEE",
+    "0x1eeb24f": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v312_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_2JEEEEE",
+    "0x1eeb341": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v312_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_3JEEEEE",
+    "0x1eeb433": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v312_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_5JEEEEE",
+    "0x1eeb525": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v312_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_6JEEEEE",
+    "0x1eeb9b9": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v412_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_0JEEEEE",
+    "0x1eebaab": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v412_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_1JEEEEE",
+    "0x1eebb9d": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v412_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_2JEEEEE",
+    "0x1eebc8f": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v412_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_3JEEEEE",
+    "0x1eebd81": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v412_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_5JEEEEE",
+    "0x1eebe73": "NSt6__ndk119__async_assoc_stateIN4absl6StatusENS_12__async_funcIZN6aicore7edgetpu2v412_GLOBAL__N_122LoadAudioEncoderGraphsERKNS4_13ModelProviderENS1_11string_viewENS_10shared_ptrIKNS5_14EdgeTpuOptionsEEERKNS5_18AudioEncoderConfigEE3$_6JEEEEE"
+  },
+  "xrefs": [
+    {
+      "adrp_pc": "0x2ba9904",
+      "add_pc": "0x2ba9908",
+      "string_address": "0xaf3e3",
+      "string": "lazy_loading is currently a no-op. The file content will be loaded when needed."
+    },
+    {
+      "adrp_pc": "0x2c9ecf8",
+      "add_pc": "0x2c9ecfc",
+      "string_address": "0xd302e",
+      "string": "LlmRuntime::LazyInitForSession"
+    },
+    {
+      "adrp_pc": "0x2c9ed44",
+      "add_pc": "0x2c9ed48",
+      "string_address": "0xd302e",
+      "string": "LlmRuntime::LazyInitForSession"
+    },
+    {
+      "adrp_pc": "0x2f1c8b4",
+      "add_pc": "0x2f1c8b8",
+      "string_address": "0x81179",
+      "string": "Loading image encoder file "
+    },
+    {
+      "adrp_pc": "0x2f2e72c",
+      "add_pc": "0x2f2e730",
+      "string_address": "0x81179",
+      "string": "Loading image encoder file "
+    },
+    {
+      "adrp_pc": "0x2f2fe80",
+      "add_pc": "0x2f2fe84",
+      "string_address": "0x81179",
+      "string": "Loading image encoder file "
+    },
+    {
+      "adrp_pc": "0x2f30bb8",
+      "add_pc": "0x2f30bbc",
+      "string_address": "0x81179",
+      "string": "Loading image encoder file "
+    },
+    {
+      "adrp_pc": "0x2f32090",
+      "add_pc": "0x2f32094",
+      "string_address": "0xd4681",
+      "string": "LoadAudioEncoderGraphs"
+    },
+    {
+      "adrp_pc": "0x2f38568",
+      "add_pc": "0x2f3856c",
+      "string_address": "0xd4681",
+      "string": "LoadAudioEncoderGraphs"
+    },
+    {
+      "adrp_pc": "0x2f3eea0",
+      "add_pc": "0x2f3eea4",
+      "string_address": "0xd4681",
+      "string": "LoadAudioEncoderGraphs"
+    },
+    {
+      "adrp_pc": "0x2f470e0",
+      "add_pc": "0x2f470e4",
+      "string_address": "0xd4681",
+      "string": "LoadAudioEncoderGraphs"
+    }
+  ]
+}

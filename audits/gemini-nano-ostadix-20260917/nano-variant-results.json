@@ -1,0 +1,50 @@
+[
+  {
+    "configuration": "stable_full",
+    "feature_ids": [
+      "636"
+    ],
+    "unavailable_status": true,
+    "inference_skipped": true,
+    "successful_inference_logged": false,
+    "suite_complete_ms": [
+      "663"
+    ]
+  },
+  {
+    "configuration": "stable_fast",
+    "feature_ids": [
+      "645"
+    ],
+    "unavailable_status": true,
+    "inference_skipped": true,
+    "successful_inference_logged": false,
+    "suite_complete_ms": [
+      "48"
+    ]
+  },
+  {
+    "configuration": "preview_full",
+    "feature_ids": [
+      "647"
+    ],
+    "unavailable_status": true,
+    "inference_skipped": true,
+    "successful_inference_logged": false,
+    "suite_complete_ms": [
+      "33"
+    ]
+  },
+  {
+    "configuration": "preview_fast",
+    "feature_ids": [
+      "646"
+    ],
+    "unavailable_status": true,
+    "inference_skipped": true,
+    "successful_inference_logged": false,
+    "suite_complete_ms": [
+      "41"
+    ]
+  }
+]

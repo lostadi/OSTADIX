@@ -1,0 +1,29 @@
+{
+  "time_utc": "2026-09-17T17:03:54.013603+00:00",
+  "before": {
+    "pid": 26387,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 3538,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  },
+  "reason": "Load explicitly scoped pinned Ostadix local Nano probe",
+  "old_exit_observed": true,
+  "after": {
+    "pid": 31623,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 5385695,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  }
+}

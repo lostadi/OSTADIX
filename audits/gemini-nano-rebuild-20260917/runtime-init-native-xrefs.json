@@ -1,0 +1,60 @@
+{
+  "library": "/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so",
+  "strings": {
+    "0x1b308": "Tachyon not ready for AICore; falling back to Driver2.",
+    "0x40e11": "Forcing use Tachyon due to testing flag",
+    "0xf1b5a": "vendor.edgetpu.tflite_delegate.tachyon_aicore_ready",
+    "0x88983": "debug.aicore.edgetpu.model_init_priority",
+    "0x16123d": "libedgetpu_tachyon.google.so"
+  },
+  "xrefs": [
+    {
+      "adrp": "0x2b09968",
+      "add": "0x2b0996c",
+      "string": "vendor.edgetpu.tflite_delegate.tachyon_aicore_ready",
+      "string_address": "0xf1b5a"
+    },
+    {
+      "adrp": "0x2b099c0",
+      "add": "0x2b099c4",
+      "string": "vendor.edgetpu.tflite_delegate.tachyon_aicore_ready",
+      "string_address": "0xf1b5a"
+    },
+    {
+      "adrp": "0x2b1f758",
+      "add": "0x2b1f75c",
+      "string": "Forcing use Tachyon due to testing flag",
+      "string_address": "0x40e11"
+    },
+    {
+      "adrp": "0x2b5c070",
+      "add": "0x2b5c074",
+      "string": "libedgetpu_tachyon.google.so",
+      "string_address": "0x16123d"
+    },
+    {
+      "adrp": "0x2b5c0ac",
+      "add": "0x2b5c0d0",
+      "string": "libedgetpu_tachyon.google.so",
+      "string_address": "0x16123d"
+    },
+    {
+      "adrp": "0x2b5c0cc",
+      "add": "0x2b5c0d0",
+      "string": "libedgetpu_tachyon.google.so",
+      "string_address": "0x16123d"
+    },
+    {
+      "adrp": "0x2ded294",
+      "add": "0x2ded298",
+      "string": "Tachyon not ready for AICore; falling back to Driver2.",
+      "string_address": "0x1b308"
+    },
+    {
+      "adrp": "0x2deda44",
+      "add": "0x2deda48",
+      "string": "debug.aicore.edgetpu.model_init_priority",
+      "string_address": "0x88983"
+    }
+  ]
+}

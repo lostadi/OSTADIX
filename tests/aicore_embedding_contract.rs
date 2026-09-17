@@ -24,6 +24,8 @@ __oval_result__ = {
 const LLM_REPLY_POSTPROCESS: &str = include_str!("fixtures/aicore_llm_reply_postprocess.O");
 const ANDROID_LLM_REPLY_POSTPROCESS: &str =
     include_str!("fixtures/aicore_llm_reply_postprocess_bash.O");
+const ANDROID_SMART_REPLY_POSTPROCESS: &str =
+    include_str!("fixtures/aicore_smart_reply_postprocess_bash.O");
 
 fn android_llm_result_request(
     id: &str,
@@ -49,6 +51,35 @@ fn android_llm_result_request(
         caller_id: "aicore-android-contract/uid-1000".into(),
         request_id: id.into(),
         source: ANDROID_LLM_REPLY_POSTPROCESS.into(),
+        bindings,
+        limits: RuntimeRequestLimits::default(),
+        cancellation: CancellationToken::new(),
+    }
+}
+
+fn android_smart_reply_request(
+    id: &str,
+    replies: &[(i64, i64, i64)],
+) -> RuntimeRequest {
+    assert!(replies.len() <= 3);
+    let mut bindings = HashMap::new();
+    for index in 0..3 {
+        let (present, score, has_text, safety_classification) = replies
+            .get(index)
+            .map(|&(score, has_text, safety)| (1, score, has_text, safety))
+            .unwrap_or((0, 0, 0, 0));
+        bindings.insert(format!("present_{index}"), OValue::int(present));
+        bindings.insert(format!("score_{index}"), OValue::int(score));
+        bindings.insert(format!("has_text_{index}"), OValue::int(has_text));
+        bindings.insert(
+            format!("safety_classification_{index}"),
+            OValue::int(safety_classification),
+        );
+    }
+    RuntimeRequest {
+        caller_id: "aicore-smart-reply-contract/uid-1000".into(),
+        request_id: id.into(),
+        source: ANDROID_SMART_REPLY_POSTPROCESS.into(),
         bindings,
         limits: RuntimeRequestLimits::default(),
         cancellation: CancellationToken::new(),
@@ -250,6 +281,50 @@ fn android_bash_postprocessor_consumes_only_bounded_reply_metadata() {
         .and_then(|request| runtime.execute_request(request))
         .unwrap_err();
     assert!(error.message().contains("no policy-safe finished reply"));
+}
+
+#[test]
+fn android_smart_reply_postprocessor_uses_named_scalar_contract() {
+    let mut runtime = Runtime::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends"))
+        .with_runtime_executable(Path::new(env!("CARGO_BIN_EXE_O")));
+
+    let first = runtime
+        .prepare_request(android_smart_reply_request(
+            "smart-reply-a",
+            &[(600, 1, 0), (950, 0, 0), (990, 1, 1)],
+        ))
+        .and_then(|request| runtime.execute_request(request))
+        .unwrap();
+    assert_eq!(field(&first.value, "source_index"), &OValue::int(0));
+    assert_eq!(field(&first.value, "score_milli"), &OValue::int(600));
+
+    let second = runtime
+        .prepare_request(android_smart_reply_request(
+            "smart-reply-b",
+            &[(600, 1, 0), (950, 1, 0), (990, 1, 2)],
+        ))
+        .and_then(|request| runtime.execute_request(request))
+        .unwrap();
+    assert_eq!(field(&second.value, "source_index"), &OValue::int(1));
+    assert_eq!(field(&second.value, "score_milli"), &OValue::int(950));
+    assert_eq!(
+        first.evidence.execution_intent_sha256,
+        second.evidence.execution_intent_sha256
+    );
+    assert_ne!(
+        first.evidence.request_scope_content_identity,
+        second.evidence.request_scope_content_identity
+    );
+    assert_ne!(first.value, second.value);
+
+    let error = runtime
+        .prepare_request(android_smart_reply_request(
+            "smart-reply-no-safe-nonempty",
+            &[(999, 1, 2), (998, 0, 0)],
+        ))
+        .and_then(|request| runtime.execute_request(request))
+        .unwrap_err();
+    assert!(error.message().contains("no safe nonempty reply"));
 }
 
 #[test]

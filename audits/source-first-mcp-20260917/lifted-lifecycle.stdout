@@ -1,0 +1,35 @@
+[
+  {
+    "mode": "cancel",
+    "dispatch_count": 1,
+    "late_descendant_write": false,
+    "workspace_removed": true,
+    "failure": {
+      "stage": "project_execution",
+      "message": "cancelled after dispatch; process group terminated; no retry"
+    }
+  },
+  {
+    "mode": "deadline",
+    "dispatch_count": 1,
+    "late_descendant_write": false,
+    "workspace_removed": true,
+    "failure": {
+      "stage": "project_execution",
+      "message": "timeout after 492ms"
+    }
+  },
+  {
+    "mode": "failure",
+    "dispatch_count": 1,
+    "late_descendant_write": false,
+    "workspace_removed": true,
+    "failure": {
+      "stage": "project_execution",
+      "message": "project executor failed; no retry"
+    }
+  },
+  {
+    "recovery": 7
+  }
+]

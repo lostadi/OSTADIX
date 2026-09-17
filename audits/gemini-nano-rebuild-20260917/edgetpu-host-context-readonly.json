@@ -1,0 +1,85 @@
+{
+  "service_binary": "/system_ext/bin/hw/vendor.google.edgetpu_app_service@1.0-service",
+  "service_sha256": "580e9198650f2527da7545973741d4b9f0add998bfa06bcd2c45fa1c8a6ea8af",
+  "services": {
+    "command": [
+      "/system/bin/service",
+      "list"
+    ],
+    "exit_code": 0,
+    "stdout": "53\tandroid.hardware.neuralnetworks.IDevice/google-edgetpu: [android.hardware.neuralnetworks.IDevice]\n146\tcom.google.edgetpu.IEdgeTpuAppService/default: [com.google.edgetpu.IEdgeTpuAppService]\n",
+    "stderr": ""
+  },
+  "processes": {
+    "command": [
+      "/system/bin/ps",
+      "-A",
+      "-o",
+      "USER,PID,PPID,NAME,LABEL"
+    ],
+    "exit_code": 0,
+    "stdout": "system       20272     1 vendor.google.edgetpu_app_service@1.0-service u:r:edgetpu_app_server:s0\nsystem       20328     1 android.hardware.neuralnetworks@service-darwinn-aidl u:r:hal_neuralnetworks_darwinn:s0\nsystem       20531 20328 android.hardware.neuralnetworks@service-darwinn-aidl u:r:hal_neuralnetworks_darwinn:s0\nsystem       20995     1 android.hardware.edgetpu.logging@service-edgetpu-logging u:r:edgetpu_logging:s0\nu0_a173      26387 20185 com.google.android.aicore   u:r:priv_app_36:s0:c512,c768\n",
+    "stderr": ""
+  },
+  "properties": {
+    "command": [
+      "/system/bin/getprop"
+    ],
+    "exit_code": 0,
+    "stdout": "[init.svc.edgetpu_app_service]: [running]\n[init.svc.edgetpu_logging]: [running]\n[init.svc.edgetpu_vendor_service]: [stopped]\n[init.svc.hal_neuralnetworks_darwinn]: [running]\n[ro.build.type]: [user]\n",
+    "stderr": ""
+  },
+  "service_dump": {
+    "command": [
+      "/system/bin/dumpsys",
+      "com.google.edgetpu.IEdgeTpuAppService/default"
+    ],
+    "exit_code": 0,
+    "stdout": "*EdgeTpuAppService\n\n**Mlock Sessions**\nTotal sessions: 0\n",
+    "stderr": ""
+  },
+  "service_logs": {
+    "command": [
+      "/system/bin/logcat",
+      "-d",
+      "-b",
+      "all",
+      "-v",
+      "threadtime",
+      "--pid=20272"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "binder_status_definition": [
+    "EX_SERVICE_SPECIFIC = -8,"
+  ],
+  "policy_matches": [
+    {
+      "path": "/vendor/etc/selinux/vendor_sepolicy.cil",
+      "line": 5700,
+      "rule": "(allow priv_app_all edgetpu_app_service_202604 (service_manager (find)))"
+    },
+    {
+      "path": "/vendor/etc/selinux/vendor_sepolicy.cil",
+      "line": 13187,
+      "rule": "(allow priv_app_202604 intelligence_data_file (dir (ioctl read getattr lock open watch watch_reads search)))"
+    },
+    {
+      "path": "/vendor/etc/selinux/vendor_sepolicy.cil",
+      "line": 13190,
+      "rule": "(allow priv_app_202604 intelligence_data_file (file (ioctl read getattr lock map open watch watch_reads)))"
+    },
+    {
+      "path": "/system/etc/selinux/plat_sepolicy.cil",
+      "line": 55837,
+      "rule": "(allow priv_app_all shell_data_file (file (ioctl read getattr lock map open watch watch_reads)))"
+    },
+    {
+      "path": "/system/etc/selinux/plat_sepolicy.cil",
+      "line": 55842,
+      "rule": "(allow priv_app_all shell_data_file (dir (ioctl read getattr lock open watch watch_reads search)))"
+    }
+  ]
+}

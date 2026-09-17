@@ -1,0 +1,8 @@
+Stopping: org.ostadix.pixelai.probe
+Starting: Intent { act=org.ostadix.pixelai.probe.RUN_PROMPT cmp=org.ostadix.pixelai.probe/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: org.ostadix.pixelai.probe/.MainActivity
+TotalTime: 116
+WaitTime: 117
+Complete

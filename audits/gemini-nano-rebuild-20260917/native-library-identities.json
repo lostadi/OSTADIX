@@ -1,0 +1,44 @@
+[
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entry": "lib/arm64-v8a/libdarwinninterpreterjni.so",
+    "installed_sha256": "092d19f5be8bd36906304e957b416ea0bf69d471e7ff5098515014ecde86a3bf",
+    "extracted_sha256": "092d19f5be8bd36906304e957b416ea0bf69d471e7ff5098515014ecde86a3bf",
+    "match": true
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entry": "lib/arm64-v8a/libembedder_wrapper_jni.so",
+    "installed_sha256": "ff7773724b0911eef714b0b0c34ab258c005b2e3b0bfa7061a66383d1898503a",
+    "extracted_sha256": "ff7773724b0911eef714b0b0c34ab258c005b2e3b0bfa7061a66383d1898503a",
+    "match": true
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entry": "lib/arm64-v8a/libgoogle3.so",
+    "installed_sha256": "62015826fb79be5f10d7d7aa9d137a1bc0a4980c2b687bcab44a9cc4c3a71823",
+    "extracted_sha256": "62015826fb79be5f10d7d7aa9d137a1bc0a4980c2b687bcab44a9cc4c3a71823",
+    "match": true
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entry": "lib/arm64-v8a/libllm_wrapper_jni.so",
+    "installed_sha256": "277737c18544482ca4297ea3e87b725c89cef1e297aab3a046d2a8092e27c2a8",
+    "extracted_sha256": "277737c18544482ca4297ea3e87b725c89cef1e297aab3a046d2a8092e27c2a8",
+    "match": true
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entry": "lib/arm64-v8a/libruntime_edgetpu_jni.so",
+    "installed_sha256": "b789bdbe879e519063574a090903c3f509e0c1c68ae8dc898367672c5e254f6c",
+    "extracted_sha256": "b789bdbe879e519063574a090903c3f509e0c1c68ae8dc898367672c5e254f6c",
+    "match": true
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entry": "lib/arm64-v8a/libruntime_model_loader_wrapper_jni.so",
+    "installed_sha256": "76d93616b4d9c549de6055ba9c72d5f6bae18854f41dbed95a4640cb5ac47620",
+    "extracted_sha256": "76d93616b4d9c549de6055ba9c72d5f6bae18854f41dbed95a4640cb5ac47620",
+    "match": true
+  }
+]

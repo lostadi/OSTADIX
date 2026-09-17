@@ -1,0 +1,87 @@
+{
+  "schema": "ostadix.nano-task-reference/v1",
+  "provenance": "Independently calculated by the coding assistant using Python; not a Nano output or Ostadix execution result.",
+  "method": "Fibonacci membership uses the integer perfect-square test 5*n*n + 4 or 5*n*n - 4, restricted to 2..20; depot names are sorted/deduplicated; rows are independently filtered and aggregated.",
+  "prompt_file": "nano-o-generation-prompt.txt",
+  "prompt_bytes": 2548,
+  "output_token_budget_requested": 512,
+  "actual_model_token_count_measured": false,
+  "input_rows": [
+    {
+      "id": 2,
+      "depot": "north",
+      "units": 6
+    },
+    {
+      "id": 3,
+      "depot": "south",
+      "units": 9
+    },
+    {
+      "id": 4,
+      "depot": "north",
+      "units": 5
+    },
+    {
+      "id": 5,
+      "depot": "west",
+      "units": 8
+    },
+    {
+      "id": 8,
+      "depot": "south",
+      "units": 4
+    },
+    {
+      "id": 13,
+      "depot": "north",
+      "units": 7
+    },
+    {
+      "id": 21,
+      "depot": "south",
+      "units": 100
+    }
+  ],
+  "eligible_ids_reference": [
+    2,
+    3,
+    5,
+    8,
+    13
+  ],
+  "enabled_depots_reference": [
+    "north",
+    "south"
+  ],
+  "expected_result": {
+    "selected_ids": [
+      2,
+      3,
+      8,
+      13
+    ],
+    "totals": {
+      "north": 13,
+      "south": 13
+    },
+    "total_units": 26
+  },
+  "excluded_rows": [
+    {
+      "id": 4,
+      "reason": "ID outside eligible Fibonacci range"
+    },
+    {
+      "id": 5,
+      "reason": "depot disabled"
+    },
+    {
+      "id": 21,
+      "reason": "ID outside eligible Fibonacci range"
+    }
+  ],
+  "model_invoked": false,
+  "mcp_invoked": false,
+  "fresh_o_source_generated_by_nano": false
+}

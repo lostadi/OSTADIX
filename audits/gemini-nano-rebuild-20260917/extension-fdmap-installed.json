@@ -1,0 +1,13 @@
+{
+  "time_utc": "2026-09-17T17:08:56.041862+00:00",
+  "staged_apk": "/data/local/tmp/ostadix-nano-extension-v3-fdmap.apk",
+  "expected_sha256": "4d3797e3f72f82a87e0b896afd7c5cf81b61474cdba070aa489c1cde2871abb6",
+  "install_exit_code": 0,
+  "stdout": "Success\n",
+  "stderr": "",
+  "installed_apk": "/data/app/~~tebgIfRDJiMhKIvpMjycbg==/org.ostadix.aicore.extension-Wjka5-ffzcNq8JughZ8eRg==/base.apk",
+  "installed_sha256": "4d3797e3f72f82a87e0b896afd7c5cf81b61474cdba070aa489c1cde2871abb6",
+  "installed_matches": true,
+  "fdmap_manifest_activated": true,
+  "restorecon_exit_code": 0
+}

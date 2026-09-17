@@ -1,0 +1,243 @@
+OSTADIX / ASI accepted Smart Reply request evidence
+Captured 2026-09-17 after reboot on the installed Pixel build
+
+Artifact and boot identity
+--------------------------
+boot_id=0dcb5292-6a1c-4690-878b-97ca5194da46
+module_local_sha256=92d541ebbdaf53c5648470ceb2f050238e3583e960dddb0aa389fda4fe88c02f
+module_installed_sha256=92d541ebbdaf53c5648470ceb2f050238e3583e960dddb0aa389fda4fe88c02f
+asi_apk_sha256=16d2b265fbea8c8abc46b537b6191628f7a855d7e3fd760b4a60bb6ea9c93e68
+
+Vector scope
+------------
+mid  enabled        app_pkg_name         user_id
+---  -------  -------------------------  -------
+319        1  com.google.android.as            0
+319        1  com.google.android.as.oss        0
+
+Cold bounded fallback
+---------------------
+--------- beginning of main
+09-16 22:08:13.503  9332  9332 I AsiSmartReplyTrigger: event=activity_created synthetic_input=true
+09-16 22:08:13.592  9332  9332 I AsiSmartReplyTrigger: event=content_capture_settle
+09-16 22:08:15.412  9332  9332 I AsiSmartReplyTrigger: event=ime_requested accepted=true
+09-16 22:08:15.975 25846 27912 I AiAiAutofill: Autofill onFillRequest
+09-16 22:08:16.294 25846 27912 I AiAiAutofill: (REDACTED) Candidate Providers: [%s]
+09-16 22:08:16.295 25846 27912 I AiAiAutofill: [PersonalContextService] Get candidates from PSI
+09-16 22:08:16.313  9332  9332 I AsiSmartReplyTrigger: event=autofill_requested
+09-16 22:08:17.128  9332  9332 I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: (REDACTED) CandidateProvider %s failed.
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: java.lang.RuntimeException: Uninitialized service.
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at com.google.android.apps.miphone.aiai.autofill.candidates.aicoresmartreply.AiCoreLlmService.b(PG:199)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at jbh.b(PG:12)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at alni.u(PG:12)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at amgd.f(PG:6)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at alua.u(PG:13)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at alni.u(PG:36)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at kotlinx.coroutines.DispatchedTask.run(PG:103)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at agjr.a(PG:2)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at agiu.run(PG:18)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at agjs.run(PG:4)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.util.concurrent.FutureTask.run(FutureTask.java:328)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:323)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at nez.run(PG:220)
+09-16 22:08:17.457 25846 27912 W AiAiAutofill: 	at java.lang.Thread.run(Thread.java:1571)
+09-16 22:08:17.457 25846 27912 I AiAiAutofill: (REDACTED) %s
+09-16 22:08:17.613 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:17.613 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:17.613 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:17.613 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:17.614 25846 27912 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-1 candidate_count=1
+09-16 22:08:18.232 25846 27912 W OstadixAicoreExperiment: event=asi_result_fallback request_id=asi-autofill-10201-1 error_class=java.lang.IllegalStateException
+09-16 22:08:20.306  9332  9332 I AsiSmartReplyTrigger: event=content_capture_settle
+09-16 22:08:20.411 25846 27912 W AiAiAutofill: (REDACTED) On activity pause for %s completing %d sessions with %d remaining.
+09-16 22:08:22.108  9332  9332 I AsiSmartReplyTrigger: event=ime_requested accepted=true
+09-16 22:08:22.299  9332  9332 I AsiSmartReplyTrigger: event=autofill_event value=input_hidden
+09-16 22:08:23.009  9332  9332 I AsiSmartReplyTrigger: event=blocked_before_autofill
+09-16 22:08:25.217 25846 27912 I AiAiAutofill: Requesting autofill for keyboard status changed
+09-16 22:08:26.516 25846 27912 I AiAiAutofill: Requesting autofill for keyboard status changed
+
+Warm successful request log
+---------------------------
+--------- beginning of main
+09-16 22:08:39.592 10380 10380 I AsiSmartReplyTrigger: event=activity_created synthetic_input=true
+09-16 22:08:39.623 25846 27506 W AiAiAutofill: (REDACTED) LearningControllerImpl#onHistoryEvent: Unknown candidate %s in history for %s/%s
+09-16 22:08:39.663 10380 10380 I AsiSmartReplyTrigger: event=content_capture_settle
+09-16 22:08:41.474 10380 10380 I AsiSmartReplyTrigger: event=ime_requested accepted=true
+09-16 22:08:41.498 25846 27912 I AiAiAutofill: Autofill onFillRequest
+09-16 22:08:41.510 25846 27912 I AiAiAutofill: (REDACTED) Candidate Providers: [%s]
+09-16 22:08:41.510 25846 27912 I AiAiAutofill: [PersonalContextService] Get candidates from PSI
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: (REDACTED) CandidateProvider %s failed.
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: java.lang.RuntimeException: Uninitialized service.
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at com.google.android.apps.miphone.aiai.autofill.candidates.aicoresmartreply.AiCoreLlmService.b(PG:199)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at jbh.b(PG:12)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at alni.u(PG:12)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at amgd.f(PG:6)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at alua.u(PG:13)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at alni.u(PG:36)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at kotlinx.coroutines.DispatchedTask.run(PG:103)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at agjr.a(PG:2)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at agiu.run(PG:18)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at agjs.run(PG:4)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.util.concurrent.FutureTask.run(FutureTask.java:328)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:323)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at nez.run(PG:220)
+09-16 22:08:41.558 25846 27912 W AiAiAutofill: 	at java.lang.Thread.run(Thread.java:1571)
+09-16 22:08:41.558 25846 27912 I AiAiAutofill: (REDACTED) %s
+09-16 22:08:41.560 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:41.560 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:41.560 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:41.560 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:41.561 25846 27912 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-2 candidate_count=1
+09-16 22:08:41.914 25846 27912 I OstadixAicoreExperiment: event=asi_ostadix_selected request_id=asi-autofill-10201-2 candidate_count=1 source_index=0 score_milli=1000 elapsed_ms=342 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=e6a76b9d0cf4b1b068d8db6941441908659f8e45827bd6899ea029d6b8ee562b
+09-16 22:08:41.922 25846 27912 I OstadixAicoreExperiment: event=asi_result_forwarded request_id=asi-autofill-10201-2 selected_source_index=0
+09-16 22:08:41.925 10380 10380 I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+09-16 22:08:41.926 25846 27912 I AiAiAutofill: Requesting autofill for keyboard status changed
+09-16 22:08:41.986 25846 27912 I AiAiAutofill: Autofill onFillRequest
+09-16 22:08:42.003 25846 27912 I AiAiAutofill: (REDACTED) Candidate Providers: [%s]
+09-16 22:08:42.005 25846 27912 I AiAiAutofill: [PersonalContextService] Get candidates from PSI
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: (REDACTED) CandidateProvider %s failed.
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: java.lang.RuntimeException: Uninitialized service.
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at com.google.android.apps.miphone.aiai.autofill.candidates.aicoresmartreply.AiCoreLlmService.b(PG:199)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at jbh.b(PG:12)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at alni.u(PG:12)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at amgd.f(PG:6)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at alua.u(PG:13)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at alni.u(PG:36)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at kotlinx.coroutines.DispatchedTask.run(PG:103)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at agjr.a(PG:2)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at agiu.run(PG:18)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at agjs.run(PG:4)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.util.concurrent.FutureTask.run(FutureTask.java:328)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:323)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at nez.run(PG:220)
+09-16 22:08:42.086 25846 27912 W AiAiAutofill: 	at java.lang.Thread.run(Thread.java:1571)
+09-16 22:08:42.087 25846 27912 I AiAiAutofill: (REDACTED) %s
+09-16 22:08:42.090 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:42.090 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:42.091 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:42.091 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:42.092 25846 27912 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-3 candidate_count=1
+09-16 22:08:42.379 10380 10380 I AsiSmartReplyTrigger: event=autofill_requested
+09-16 22:08:42.462 25846 27912 I OstadixAicoreExperiment: event=asi_ostadix_selected request_id=asi-autofill-10201-3 candidate_count=1 source_index=0 score_milli=1000 elapsed_ms=353 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=e6a76b9d0cf4b1b068d8db6941441908659f8e45827bd6899ea029d6b8ee562b
+09-16 22:08:42.464 25846 27912 I OstadixAicoreExperiment: event=asi_result_forwarded request_id=asi-autofill-10201-3 selected_source_index=0
+09-16 22:08:42.468 10380 10380 I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+09-16 22:08:45.755 25846 27912 I AiAiAutofill: Requesting autofill for keyboard status changed
+09-16 22:08:45.802 25846 27912 I AiAiAutofill: Autofill onFillRequest
+09-16 22:08:45.857 25846 27912 I AiAiAutofill: (REDACTED) Candidate Providers: [%s]
+09-16 22:08:45.859 25846 27912 I AiAiAutofill: [PersonalContextService] Get candidates from PSI
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: (REDACTED) CandidateProvider %s failed.
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: java.lang.RuntimeException: Uninitialized service.
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at com.google.android.apps.miphone.aiai.autofill.candidates.aicoresmartreply.AiCoreLlmService.b(PG:199)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at jbh.b(PG:12)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at alni.u(PG:12)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at amgd.f(PG:6)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at alua.u(PG:13)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at alni.u(PG:36)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at kotlinx.coroutines.DispatchedTask.run(PG:103)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at agjr.a(PG:2)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at agiu.run(PG:18)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at agjs.run(PG:4)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.util.concurrent.FutureTask.run(FutureTask.java:328)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:323)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at nez.run(PG:220)
+09-16 22:08:45.899 25846 27912 W AiAiAutofill: 	at java.lang.Thread.run(Thread.java:1571)
+09-16 22:08:45.900 25846 27912 I AiAiAutofill: (REDACTED) %s
+09-16 22:08:45.902 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:45.902 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:45.902 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:45.902 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:45.902 25846 27912 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-4 candidate_count=1
+09-16 22:08:46.129 25846 27912 I OstadixAicoreExperiment: event=asi_ostadix_selected request_id=asi-autofill-10201-4 candidate_count=1 source_index=0 score_milli=1000 elapsed_ms=219 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=e6a76b9d0cf4b1b068d8db6941441908659f8e45827bd6899ea029d6b8ee562b
+09-16 22:08:46.131 25846 27912 I OstadixAicoreExperiment: event=asi_result_forwarded request_id=asi-autofill-10201-4 selected_source_index=0
+09-16 22:08:47.521 10380 10380 I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+09-16 22:08:47.643 25846 27912 I AiAiAutofill: Requesting autofill for keyboard status changed
+09-16 22:08:47.669 25846 27912 I AiAiAutofill: Autofill onFillRequest
+09-16 22:08:47.674 25846 27912 I AiAiAutofill: (REDACTED) Candidate Providers: [%s]
+09-16 22:08:47.674 25846 27912 I AiAiAutofill: [PersonalContextService] Get candidates from PSI
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: (REDACTED) CandidateProvider %s failed.
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: java.lang.RuntimeException: Uninitialized service.
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at com.google.android.apps.miphone.aiai.autofill.candidates.aicoresmartreply.AiCoreLlmService.b(PG:199)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at jbh.b(PG:12)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at alni.u(PG:12)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at amgd.f(PG:6)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at alua.u(PG:13)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at alni.u(PG:36)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at kotlinx.coroutines.DispatchedTask.run(PG:103)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at agjr.a(PG:2)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at agiu.run(PG:18)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at agjs.run(PG:4)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:520)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.util.concurrent.FutureTask.run(FutureTask.java:328)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:323)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at nez.run(PG:220)
+09-16 22:08:47.772 25846 27912 W AiAiAutofill: 	at java.lang.Thread.run(Thread.java:1571)
+09-16 22:08:47.773 25846 27912 I AiAiAutofill: (REDACTED) %s
+09-16 22:08:47.775 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:47.775 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:47.775 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:47.775 25846 27912 I AiAiAutofill: (REDACTED) [%s] %s
+09-16 22:08:47.776 25846 27912 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-5 candidate_count=1
+09-16 22:08:48.133 25846 27912 I OstadixAicoreExperiment: event=asi_ostadix_selected request_id=asi-autofill-10201-5 candidate_count=1 source_index=0 score_milli=1000 elapsed_ms=347 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=e6a76b9d0cf4b1b068d8db6941441908659f8e45827bd6899ea029d6b8ee562b
+09-16 22:08:48.141 25846 27912 I OstadixAicoreExperiment: event=asi_result_forwarded request_id=asi-autofill-10201-5 selected_source_index=0
+09-16 22:08:48.143 10380 10380 I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+
+ASI service history
+-------------------
+SERVICE com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiAugmentedAutofillService e5c23ef pid=25846 user=0
+  Client:
+    Service component: com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiAugmentedAutofillService
+    Number proxies: 0
+    AiAi Augmented Autofill Handler is enabled in AiAi settings for en-us in [en,fr,de,es,ja,ar,pt].
+
+    Service connection: connected (working)
+
+    Active model version: 30000
+    Request history has [10] records:
+      [22:08:59.856] - ac=N/A, t=2ms, rc=[4, 2], hl=N/A
+      [22:08:59.836] - [CALLBACK] slot={com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity}:1073741824 res=true
+      [22:08:56.508] - ac=N/A, t=0ms, rc=[4, 2], hl=N/A
+      [22:08:56.490] - [CALLBACK] slot={com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity}:1073741824 res=true
+      [22:08:47.669] - id=835d0d, slot=ContentSelector{packageName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp, activityName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity, resourceId=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/id:reply}, lang=en-us+[en-US], t=472ms, rc=[31, 11, 1], hl=[1], cp=[12-1/1][:hc], cp=[1-0/0][], cp=[29-0/0][], cp=[25-0/0][]
+      [22:08:47.645] - [CALLBACK] slot={com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity}:1073741824 res=true
+      [22:08:45.802] - id=6c7011, slot=ContentSelector{packageName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp, activityName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity, resourceId=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/id:reply}, lang=en-us+[en-US], t=329ms, rc=[31, 11, 1], hl=[1], cp=[12-1/1][:hc], cp=[1-0/0][], cp=[29-0/0][], cp=[25-0/0][]
+      [22:08:45.763] - [CALLBACK] slot={com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity}:1073741824 res=true
+      [22:08:41.986] - id=12ed3f, slot=ContentSelector{packageName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp, activityName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity, resourceId=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/id:reply}, lang=en-us+[en-US], t=477ms, rc=[31, 11, 1], hl=[1], cp=[12-1/1][:hc], cp=[1-0/0][], cp=[29-0/0][], cp=[25-0/0][]
+      [22:08:41.927] - [CALLBACK] slot={com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity}:1073741824 res=true
+
+
+Loaded module/runtime mappings in ASI
+-------------------------------------
+7b76470000-7b766c7000 r-xp 00000000 fe:41 691097                         /data/app/~~7EZoLl_uURsHa8PyhTaPLQ==/org.ostadix.aicore.extension-lRtzhdaVHNCYvkXyWFfjTg==/lib/arm64/libostadix_runtime.so
+7b766ca000-7b766d5000 r--p 00256000 fe:41 691097                         /data/app/~~7EZoLl_uURsHa8PyhTaPLQ==/org.ostadix.aicore.extension-lRtzhdaVHNCYvkXyWFfjTg==/lib/arm64/libostadix_runtime.so
+7b766d8000-7b766da000 rw-p 00260000 fe:41 691097                         /data/app/~~7EZoLl_uURsHa8PyhTaPLQ==/org.ostadix.aicore.extension-lRtzhdaVHNCYvkXyWFfjTg==/lib/arm64/libostadix_runtime.so
+7f6b751000-7f6b879000 r-xp 00000000 fe:41 2354076                        /data/adb/modules/zygisk_vector/zygisk/arm64-v8a.so
+7f6b87c000-7f6b884000 r--p 00127000 fe:41 2354076                        /data/adb/modules/zygisk_vector/zygisk/arm64-v8a.so
+7f6b887000-7f6b889000 rw-p 0012e000 fe:41 2354076                        /data/adb/modules/zygisk_vector/zygisk/arm64-v8a.so
+
+Interpretation
+--------------
+Provider 12 is the installed SMART_REPLY enum. Provider 25 is AICORE_SMART_REPLY.
+The cold OSTADIX call exceeded 500 ms and the extension preserved the original path.
+Warm requests record selection and forwarding before the caller input_shown callback.
+ASI history records cp=[12-1/1] and a normal response. AICore provider 25 remained
+uninitialized and did not produce these candidates.

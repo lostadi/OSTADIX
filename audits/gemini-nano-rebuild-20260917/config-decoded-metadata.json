@@ -1,0 +1,1547 @@
+{
+  "input": "/data/local/tmp/ostadix-nano-rebuild-20260917/config.decoded.pb",
+  "bytes": 1703,
+  "sha256": "2579a3a81a1c22403cf4f930581d85e743b9b33e7340ac917508b6419f1ef54e",
+  "schema": "hid",
+  "decoded": {
+    "3:variant_hib": [
+      {
+        "1:unknown": [
+          {
+            "bytes": 10,
+            "sha256": "27edb16225876fb806e4a9bd017be1f6c631854177931766063ddf1ec80fec36"
+          }
+        ],
+        "2:unknown": [
+          32
+        ],
+        "3:b": [
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              256
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              512
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              256
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              640
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              256
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              640
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              256
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              640
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              256
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              640
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              1024
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              2048
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              3072
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              4096
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              5120
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              6144
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              7168
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              8192
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              9216
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              10240
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              11264
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              12288
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              13312
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              14336
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              15360
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              16384
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              18432
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              20480
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              22528
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              24576
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              26624
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              28672
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              30720
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              1
+            ],
+            "3:context_bound_c": [
+              32768
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              1024
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              2048
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              3072
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              4096
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              5120
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              6144
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              7168
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              8192
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              9216
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              10240
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              11264
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              12288
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              13312
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              14336
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              15360
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              16384
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              18432
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              20480
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              22528
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              24576
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              26624
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              28672
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              30720
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              4
+            ],
+            "3:context_bound_c": [
+              32768
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              1024
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              2048
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              3072
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              4096
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              5120
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              6144
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              7168
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              8192
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              9216
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              10240
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              11264
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              12288
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              13312
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              14336
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              15360
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              16384
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              18432
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              20480
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              22528
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              24576
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              26624
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              28672
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              30720
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              8
+            ],
+            "3:context_bound_c": [
+              32768
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              1024
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              2048
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              3072
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              4096
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              5120
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              6144
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              7168
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              8192
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              9216
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              10240
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              11264
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              12288
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              13312
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              14336
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              15360
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              16384
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              18432
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              20480
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              22528
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              24576
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              26624
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              28672
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              30720
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              32
+            ],
+            "3:context_bound_c": [
+              32768
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              1024
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              2048
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              3072
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              4096
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              5120
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              6144
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              7168
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              8192
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              9216
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              10240
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              11264
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              12288
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              13312
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              14336
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              15360
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              16384
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              18432
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              20480
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              22528
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              24576
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              26624
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              28672
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              30720
+            ]
+          },
+          {
+            "1:batch_bound_b": [
+              1
+            ],
+            "2:unknown": [
+              128
+            ],
+            "3:context_bound_c": [
+              32768
+            ]
+          }
+        ],
+        "4:unknown": [
+          {
+            "bytes": 34,
+            "sha256": "903ae553bbe727844dd8e958ad65bb187d1c988c8e0a794e47b3feda3e3abcc0"
+          }
+        ],
+        "5:unknown": [
+          {
+            "bytes": 23,
+            "sha256": "26b6b10d47b8354d153986ca882b5f55e34ae0208e98b3a1fa8c48380b702477"
+          }
+        ],
+        "6:unknown": [
+          {
+            "bytes": 83,
+            "sha256": "0ef6e702c12decca9a3095873a3b49fb7370a871d766ddfba68466b2687599f5"
+          }
+        ],
+        "11:unknown": [
+          {
+            "bytes": 9,
+            "sha256": "ba31196d40199c862e3e63ad8807dddd7dda4a29dd04fd597c5b6c13ab23edea"
+          }
+        ],
+        "12:unknown": [
+          {
+            "bytes": 64,
+            "sha256": "4a0f1bd3f27704bf47a62a7ac9c56ea529ea20b7d161cf896c3002d9a9c02bb1"
+          }
+        ],
+        "13:unknown": [
+          {
+            "bytes": 11,
+            "sha256": "fe6fc14394b8a9bf631236f34902ab132a6e3868dbd4497ef9d834fee7bffbdc"
+          },
+          {
+            "bytes": 11,
+            "sha256": "f06fd88f1df783f84c4217accc0e67d06381a15289b8cbf8aac23acc2dcc6649"
+          }
+        ],
+        "14:unknown": [
+          {
+            "bytes": 43,
+            "sha256": "cbff7db1b48d0dcdd5a67061b329d792fc85038670d4a1bb7eccf1d35673f6bd"
+          }
+        ],
+        "15:unknown": [
+          {
+            "bytes": 1,
+            "sha256": "189f40034be7a199f1fa9891668ee3ab6049f82d38c68be70f596eab2e1857b7"
+          }
+        ],
+        "16:unknown": [
+          1
+        ],
+        "17:unknown": [
+          {
+            "bytes": 32,
+            "sha256": "ec250dcca5488e72bb2538cb3223397bd40f0225f29ef8b2fec7a36259b99e6c"
+          },
+          {
+            "bytes": 31,
+            "sha256": "d9a6d39f080549a6d2589f473f9c3fb848bd863d258bfe6e9f2a17404cf81f16"
+          }
+        ],
+        "18:unknown": [
+          1
+        ],
+        "19:unknown": [
+          4
+        ],
+        "20:unknown": [
+          20
+        ],
+        "21:unknown": [
+          {
+            "bytes": 4,
+            "sha256": "ed2e9f995b336b84f239a29eaf92acc06e98d810e9c102064360949422534d2f"
+          },
+          {
+            "bytes": 4,
+            "sha256": "d28349e3d37f2049c7757a95143d9d197e809d6e6dfe51ab1d04cb4abe5c7f92"
+          },
+          {
+            "bytes": 4,
+            "sha256": "919cdc1896688ef1b357375b6495ca00b1b26d7cbdc2bb16f4612c9f23f19dc9"
+          }
+        ],
+        "22:unknown": [
+          {
+            "bytes": 43,
+            "sha256": "e20b1b146649b956561cf84bce752674ee77405c1e4c001d0615855257e7aefe"
+          }
+        ]
+      }
+    ]
+  }
+}

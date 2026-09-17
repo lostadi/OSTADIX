@@ -1,0 +1,78 @@
+{
+  "binary_sha256": "3064a468ee4a01cfd407261476a736074e33009eef4a8650e84b4fa190f97a1a",
+  "exchange": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-03-26",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "lifted-lifecycle",
+            "version": "1"
+          }
+        }
+      },
+      "result": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "rmcp",
+          "version": "0.6.4"
+        },
+        "instructions": "Ostadix-lang / O-lang MCP (Rust). Supply one complete .O document as o_execute.source for the ordinary computational workflow; optional bindings are ordinary JSON and optional constraints are resource ceilings. Ostadix performs parsing, OIR lowering, planning, HGraph analysis, admission, and execution internally and returns one typed result with evidence. Use o_execute for complete ordinary or lifted .O source; lifted projects carry their own inputs and default route. Use o_run for existing paths, explicit project routes, or explicit whole-document hosted placement. Use o_env/o_runtimes/o_doctor when diagnostics are needed. Set o_run.placement=node only to submit the complete document to one selected hosted node; this is not graph splitting or project mesh. Use o_analyze_intent then o_execute_intent only for an explicit review-then-execute workflow with a one-use same-intent gate. Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
+      }
+    },
+    {
+      "notification": {
+        "jsonrpc": "2.0",
+        "method": "notifications/cancelled",
+        "params": {
+          "requestId": 2,
+          "reason": "lifecycle probe"
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "# Ostadix-lang lifted project\n# project: lifted-lifecycle\n# root_fingerprint: 3e7469b20aa74e9afcd61a618b9dc94e2284bba7594d74a7ca671d4ec23d63d6\n# files: 2   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: lifted-lifecycle  (1 route, 0 route sets)\n# * main  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6ImxpZnRlZC1saWZlY3ljbGUiLCJyb290X2Zpbmdl\ncnByaW50IjoiM2U3NDY5YjIwYWE3NGU5YWZjZDYxYTYxOGI5ZGM5NGUyMjg0YmJhNzU5NGQ3NGE3\nY2E2NzFkNGVjMjNkNjNkNiIsImZpbGVzIjpbeyJwYXRoIjoibWFpbi5weSIsImJ5dGVzIjoiWm5K\ndmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DbWx0Y0c5eWRDQnZjeXdnZEdsdFpTd2djM1Zp\nY0hKdlkyVnpjeXdnYzNsekxDQnFjMjl1Q20xaGNtdGxjaUE5SUZCaGRHZ29KeTlrWVhSaEwyUmhk\nR0V2WTI5dExuUmxjbTExZUM5bWFXeGxjeTkxYzNJdmRHMXdMMjl6ZEdGa2FYZ3RiR2xtZEdWa0xX\neHBabVZqZVdOc1pTMDJhR2h3ZW1ocGVpOWpZVzVqWld3dGMzUmhjblJsWkNjcENuZHBkR2dnYldG\neWEyVnlMbTl3Wlc0b0ltRWlLU0JoY3lCemRISmxZVzA2Q2lBZ0lDQnpkSEpsWVcwdWQzSnBkR1Vv\nSW5OMFlYSjBaV1JjYmlJcENpQWdJQ0J6ZEhKbFlXMHVabXgxYzJnb0tRcHpkV0p3Y205alpYTnpM\nbEJ2Y0dWdUtGdHplWE11WlhobFkzVjBZV0pzWlN3Z0p5MWpKeXdnSW1sdGNHOXlkQ0IwYVcxbE95\nQm1jbTl0SUhCaGRHaHNhV0lnYVcxd2IzSjBJRkJoZEdnN0lIUnBiV1V1YzJ4bFpYQW9NaWs3SUZC\naGRHZ29KeTlrWVhSaEwyUmhkR0V2WTI5dExuUmxjbTExZUM5bWFXeGxjeTkxYzNJdmRHMXdMMjl6\nZEdGa2FYZ3RiR2xtZEdWa0xXeHBabVZqZVdOc1pTMDJhR2h3ZW1ocGVpOWpZVzVqWld3dGJHRjBa\nU2NwTG5keWFYUmxYM1JsZUhRb0oyeGhkR1VuS1NKZEtRcDBhVzFsTG5Oc1pXVndLREV3S1Fwd2Nt\nbHVkQ2hxYzI5dUxtUjFiWEJ6S0dScFkzUW9aRzl1WlQxVWNuVmxLU2twQ2c9PSIsImV4ZWN1dGFi\nbGUiOmZhbHNlLCJ1bml4X21vZGUiOjMzMTg4LCJzeW1saW5rX3RhcmdldCI6bnVsbCwiZXZhbHVh\ndG9yIjoicHl0aG9uIiwiY29udGVudF9oYXNoIjoiNmNhNjIwNDI3Njk3MGE4YTA2MWZhNWM3ZjFl\nMjhhNzA2MTk2NjdhYzcyMjYzYThkZDczMjQwYTMyZTE2ZDM1OCIsInJvbGUiOiJTb3VyY2UifSx7\nInBhdGgiOiJvbGFuZy5wcm9qZWN0LnRvbWwiLCJieXRlcyI6IlczQnliMnBsWTNSZENtNWhiV1Vn\nUFNBaWJHbG1kR1ZrTFd4cFptVmplV05zWlNJS1pHVm1ZWFZzZEY5eWIzVjBaU0E5SUNKdFlXbHVJ\nZ3BiVzNKdmRYUmxjMTFkQ21sa0lEMGdJbTFoYVc0aUNtTnZiVzFoYm1RZ1BTQmJJbkI1ZEdodmJq\nTWlMQ0FpYldGcGJpNXdlU0pkQ25KbGMzVnNkRjlqYjJSbFl5QTlJQ0pxYzI5dUlncGtaV1poZFd4\nMElEMGdkSEoxWlFvPSIsImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4X21vZGUiOjMzMTg4LCJzeW1s\naW5rX3RhcmdldCI6bnVsbCwiZXZhbHVhdG9yIjpudWxsLCJjb250ZW50X2hhc2giOiIzYjYzMWY0\nZGY4MDQ3ZWE5OTk0YWExOTQ2MWIwNmE5ZmE4OTg4M2I2M2Y0ZjNkOTFjMzNhYTczMjMyZjdlZmQ1\nIiwicm9sZSI6Ik1hbmlmZXN0In1dLCJyb3V0ZXMiOlt7ImlkIjoibWFpbiIsImxhYmVsIjoibWFp\nbiIsImtpbmQiOiJJbnRlcnByZXRlckNvbW1hbmQiLCJjb21tYW5kIjpbInB5dGhvbjMiLCJtYWlu\nLnB5Il0sImV2YWx1YXRvciI6bnVsbCwiZW50cnlwb2ludCI6bnVsbCwid29ya2luZ19kaXJlY3Rv\ncnkiOiIuIiwiYXJndW1lbnRzIjpbXSwiZW52aXJvbm1lbnQiOnt9LCJwcmVyZXF1aXNpdGVzIjpb\nXSwiaW5wdXRzIjpbXSwib3V0cHV0cyI6W10sImVmZmVjdHMiOnsicHVyZSI6ZmFsc2UsInVua25v\nd24iOnRydWUsInJlYWRzIjpbXSwid3JpdGVzIjpbXX0sImZhaWx1cmVfY29udGludWF0aW9uIjoi\ndW5wcm92ZW4iLCJyZXN1bHRfY29kZWMiOiJKc29uIiwicHJvdmlkZXMiOltdLCJndWFyZHMiOltd\nLCJwcmlvcml0eSI6MCwiaXNfZGVmYXVsdCI6dHJ1ZSwicHJvdmVuYW5jZSI6eyJNYW5pZmVzdCI6\neyJwYXRoIjoib2xhbmcucHJvamVjdC50b21sIn19fV0sInJvdXRlX3NldHMiOltdLCJkZWZhdWx0\nX3JvdXRlIjoibWFpbiIsIm1ldGFkYXRhIjp7fX0=\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+            "constraints": {
+              "timeout_ms": 10000
+            }
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"schema\":\"ostadix.runtime-request-result/v1\",\"disposition\":\"failed\",\"caller_id\":\"mcp/stdio\",\"request_id\":\"mcp-5744-1\",\"failure\":{\"stage\":\"project_execution\",\"message\":\"cancelled after dispatch; process group terminated; no retry\"}}"
+          }
+        ],
+        "structuredContent": {
+          "schema": "ostadix.runtime-request-result/v1",
+          "disposition": "failed",
+          "caller_id": "mcp/stdio",
+          "request_id": "mcp-5744-1",
+          "failure": {
+            "stage": "project_execution",
+            "message": "cancelled after dispatch; process group terminated; no retry"
+          }
+        },
+        "isError": true
+      },
+      "wall_ms": 229
+    }
+  ],
+  "checks": []
+}

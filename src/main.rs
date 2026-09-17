@@ -205,8 +205,10 @@ fn main() -> Result<()> {
             (path, text)
         }
     };
-    let source_sha256 = required_execution_intent
-        .is_some()
+    // Hash the bytes actually read, before the optional shebang is stripped.
+    // This is descriptive input identity; only the explicit native intent gate
+    // below binds it to an expected source/intent pair before dispatch.
+    let source_sha256 = (json_output || required_execution_intent.is_some())
         .then(|| o_lang::evidence::source_sha256(source.as_bytes()));
     let (shim_dir, _shim_guard) = resolve_shim_dir(args.pop_front().map(PathBuf::from))?;
     if let Some(extra) = args.pop_front() {
@@ -309,6 +311,34 @@ fn main() -> Result<()> {
             "value": result,
             "type": result.type_name(),
             "elapsed_ms": elapsed.as_millis() as u64,
+        });
+        let admission = evaluator.last_execution_admission();
+        envelope["execution_evidence"] = serde_json::json!({
+            "schema": "ostadix.native-execution-evidence/v1",
+            "execution_mode": if admission.is_some() { "admitted_graph" } else { "no_graph_admission" },
+            "source_sha256": source_sha256,
+            "source_identity_scope": "submitted_utf8_before_shebang_removal",
+            "parsed_source_sha256": o_lang::evidence::source_sha256(source.as_bytes()),
+            "result_content_identity": result.content_identity(),
+            "source_intent_gate": required_execution_intent.map(|(source, intent)| {
+                serde_json::json!({
+                    "verified": true,
+                    "source_sha256": source,
+                    "execution_intent_sha256": intent,
+                })
+            }),
+            "admission": admission.map(|admission| {
+                let bindings = admission.bindings();
+                serde_json::json!({
+                    "schema": admission.schema(),
+                    "oir_sha256": bindings.oir_sha256,
+                    "plan_sha256": bindings.plan_sha256,
+                    "analyzed_graph_sha256": bindings.analyzed_graph_sha256,
+                    "evidence_sha256": admission.evidence_sha256(),
+                    "admitted_graph_sha256": admission.admitted_graph_sha256(),
+                    "admission_sha256": admission.admission_sha256(),
+                })
+            }),
         });
         if let Some(records) = crossing_records {
             envelope["backend_crossings"] = serde_json::json!(records);

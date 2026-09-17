@@ -1,0 +1,29 @@
+{
+  "time_utc": "2026-09-17T17:13:21.500347+00:00",
+  "before": {
+    "MemFree_kB": 958668,
+    "MemAvailable_kB": 3455016,
+    "Mlocked_kB": 513668,
+    "SwapFree_kB": 5368,
+    "ION_heap_pool_kB": 2525312,
+    "ION_heap_kB": 945928,
+    "Zram_kB": 2732492
+  },
+  "command": [
+    "/system/bin/am",
+    "kill-all"
+  ],
+  "purpose": "Release cached background app processes before bounded model-load test",
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "MemFree_kB": 1366536,
+    "MemAvailable_kB": 3893600,
+    "Mlocked_kB": 513668,
+    "SwapFree_kB": 1118356,
+    "ION_heap_pool_kB": 2526588,
+    "ION_heap_kB": 944652,
+    "Zram_kB": 2624768
+  }
+}

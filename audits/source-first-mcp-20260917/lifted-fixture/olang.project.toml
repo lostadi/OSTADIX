@@ -1,0 +1,10 @@
+[project]
+name = "mcp-lifted-acceptance"
+default_route = "summarize"
+
+[[routes]]
+id = "summarize"
+command = ["python3", "main.py"]
+inputs = ["main.py", "readings.json"]
+result_codec = "json"
+default = true

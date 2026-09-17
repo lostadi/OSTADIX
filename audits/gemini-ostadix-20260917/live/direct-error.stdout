@@ -1,0 +1,5 @@
+{
+  "androidAppfunctionsReturnValue": [
+    "{\"schema\":\"ostadix.runtime-request-result\/v1\",\"disposition\":\"failed\",\"ok\":false,\"stage\":\"evaluate\",\"message\":\"Undefined variable: $missing\"}"
+  ]
+}

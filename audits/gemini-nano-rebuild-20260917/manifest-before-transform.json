@@ -1,0 +1,7 @@
+{
+  "input": "/data/vendor/intelligence/manifest.binarypb",
+  "bytes": 61440,
+  "sha256": "bd045d18a0ac1ce8321d7fd8b58bc74c124dea489fe8ebf763cd92b6807e90e9",
+  "schema": "edd",
+  "error": "unsupported wire type 6"
+}

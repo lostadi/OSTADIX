@@ -1,0 +1,45 @@
+[1/6] Extracting pinned compile-only libxposed API 102
+[2/6] Compiling resources
+[3/6] Compiling Java and DEX
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+SmartReplyResult replacement self-test passed
+ASI delegation: four success/failure combinations called original once; fatal called zero times
+[4/6] Packaging disabled module and exact native closure
+[5/6] Signing
+[6/6] Verifying fail-closed package
+source_policy_match=true fields=16
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V3.0 Signer: certificate DN: CN=Android Debug, O=Android, C=US
+V3.0 Signer: certificate SHA-256 digest: d7b281d142577c8c87dc755aeaeccf4edc85fe3d9c2d71110ee89cb167c3a8f3
+V3.0 Signer: certificate SHA-1 digest: ffbfd266cba0859e6e74e7e2c1e17a52050bbba3
+V3.0 Signer: certificate MD5 digest: 8f6903b83a6287b9b5e326f5900b1a74
+V3.0 Signer: key algorithm: RSA
+V3.0 Signer: key size (bits): 2048
+V3.0 Signer: public key SHA-256 digest: 12e7ad7b5cd8ed91cf656787f36e8a55086c908fc7aa47f73fa8cc1553349be6
+V3.0 Signer: public key SHA-1 digest: 0f17c6220e51f6c261a99ac28d558241d89b6c85
+V3.0 Signer: public key MD5 digest: 843c29575c1bb356143f14a3dba42147
+package: name='org.ostadix.aicore.extension' versionCode='3' versionName='0.3.0-nano-local-loader' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
+minSdkVersion:'31'
+targetSdkVersion:'34'
+application-label:'OSTADIX AICore experiment'
+application: label='OSTADIX AICore experiment' icon=''
+feature-group: label=''
+  uses-feature: name='android.hardware.faketouch'
+  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'
+852dcc33bd00321f60f900b645f08edc0725fe9b4df95705f8d278d8c3910c32  /data/data/com.termux/files/home/Ostadix-lang/apps/aicore-ostadix-extension/build/outputs/apk/debug/OstadixAicoreExtension-debug.apk
+/data/data/com.termux/files/home/Ostadix-lang/apps/aicore-ostadix-extension/build/outputs/apk/debug/OstadixAicoreExtension-debug.apk

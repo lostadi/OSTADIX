@@ -1,0 +1,3492 @@
+{
+  "config": {
+    "path": "/data/local/tmp/ostadix-nano-rebuild-20260917/config.decoded.pb",
+    "bytes": 1703,
+    "sha256": "2579a3a81a1c22403cf4f930581d85e743b9b33e7340ac917508b6419f1ef54e",
+    "field_structure": [
+      {
+        "field": 3,
+        "wire": 2,
+        "message": [
+          {
+            "field": 1,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 262144
+              }
+            ]
+          },
+          {
+            "field": 2,
+            "wire": 0,
+            "value": 32
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 256
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 512
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 256
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 640
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 256
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 640
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 256
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 640
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 256
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 640
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 1024
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 3072
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 4096
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 5120
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 6144
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 7168
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 8192
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 9216
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 10240
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 11264
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 12288
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 13312
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 14336
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 15360
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 16384
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 18432
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 20480
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 22528
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 24576
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 26624
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 28672
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 30720
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 32768
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 1024
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 3072
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 4096
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 5120
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 6144
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 7168
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 8192
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 9216
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 10240
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 11264
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 12288
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 13312
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 14336
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 15360
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 16384
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 18432
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 20480
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 22528
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 24576
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 26624
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 28672
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 30720
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 32768
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 1024
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 3072
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 4096
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 5120
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 6144
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 7168
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 8192
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 9216
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 10240
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 11264
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 12288
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 13312
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 14336
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 15360
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 16384
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 18432
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 20480
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 22528
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 24576
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 26624
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 28672
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 30720
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 32768
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 1024
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 3072
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 4096
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 5120
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 6144
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 7168
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 8192
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 9216
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 10240
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 11264
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 12288
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 13312
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 14336
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 15360
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 16384
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 18432
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 20480
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 22528
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 24576
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 26624
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 28672
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 30720
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 32768
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 1024
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 3072
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 4096
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 5120
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 6144
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 7168
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 8192
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 9216
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 10240
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 11264
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 12288
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 13312
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 14336
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 15360
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 16384
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 18432
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 20480
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 22528
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 24576
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 26624
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 28672
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 30720
+              }
+            ]
+          },
+          {
+            "field": 3,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 128
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 32768
+              }
+            ]
+          },
+          {
+            "field": 4,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 35
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 2048
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 16384
+              },
+              {
+                "field": 4,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 5,
+                "wire": 0,
+                "value": 256
+              },
+              {
+                "field": 6,
+                "wire": 0,
+                "value": 262144
+              },
+              {
+                "field": 7,
+                "wire": 0,
+                "value": 256
+              },
+              {
+                "field": 9,
+                "wire": 0,
+                "value": 2
+              },
+              {
+                "field": 10,
+                "wire": 0,
+                "value": 2
+              },
+              {
+                "field": 11,
+                "wire": 0,
+                "value": 1000000
+              },
+              {
+                "field": 12,
+                "wire": 0,
+                "value": 10000
+              },
+              {
+                "field": 13,
+                "wire": 0,
+                "value": 4
+              }
+            ]
+          },
+          {
+            "field": 5,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 768
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 768
+                  },
+                  {
+                    "field": 3,
+                    "wire": 0,
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 256
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              },
+              {
+                "field": 4,
+                "wire": 0,
+                "value": 0
+              },
+              {
+                "field": 6,
+                "wire": 0,
+                "value": 2048
+              },
+              {
+                "field": 7,
+                "wire": 0,
+                "value": 16
+              }
+            ]
+          },
+          {
+            "field": 6,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 8513
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 256000
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 518272
+              },
+              {
+                "field": 4,
+                "wire": 0,
+                "value": 3
+              },
+              {
+                "field": 5,
+                "wire": 0,
+                "value": 1536
+              },
+              {
+                "field": 6,
+                "wire": 0,
+                "value": 2048
+              },
+              {
+                "field": 7,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 13
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 1536
+                  },
+                  {
+                    "field": 4,
+                    "wire": 0,
+                    "value": 8
+                  },
+                  {
+                    "field": 5,
+                    "wire": 0,
+                    "value": 192
+                  }
+                ]
+              },
+              {
+                "field": 8,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 1
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 12
+                  },
+                  {
+                    "field": 3,
+                    "wire": 0,
+                    "value": 12
+                  }
+                ]
+              },
+              {
+                "field": 9,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 10,
+                "wire": 2,
+                "text": "audio_adapter-graph-custom_op.tflite"
+              },
+              {
+                "field": 12,
+                "wire": 0,
+                "value": 32
+              },
+              {
+                "field": 13,
+                "wire": 0,
+                "value": 1
+              }
+            ]
+          },
+          {
+            "field": 11,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 256
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 256
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 2048
+              }
+            ]
+          },
+          {
+            "field": 12,
+            "wire": 2,
+            "text": "8f2eff550f0fbadcd8bdacf95dab51f8123a122fb2d85a1bd3551bde931336c0"
+          },
+          {
+            "field": 13,
+            "wire": 2,
+            "text": "matformer_0"
+          },
+          {
+            "field": 13,
+            "wire": 2,
+            "text": "matformer_1"
+          },
+          {
+            "field": 14,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 2,
+                "text": "LLLLGLLLLGLLLLGLLLLGLLLLGLLLLGLLLLG"
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 512
+              },
+              {
+                "field": 4,
+                "wire": 0,
+                "value": 128
+              }
+            ]
+          },
+          {
+            "field": 15,
+            "wire": 2,
+            "text": "j"
+          },
+          {
+            "field": 16,
+            "wire": 0,
+            "value": 1
+          },
+          {
+            "field": 17,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 2,
+                "text": "matformer_0"
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 18446744073709551615
+              },
+              {
+                "field": 3,
+                "wire": 2,
+                "opaque": {
+                  "bytes": 1,
+                  "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+                }
+              },
+              {
+                "field": 4,
+                "wire": 2,
+                "opaque": {
+                  "bytes": 3,
+                  "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+                }
+              }
+            ]
+          },
+          {
+            "field": 17,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 2,
+                "text": "matformer_1"
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 18446744073709551615
+              },
+              {
+                "field": 3,
+                "wire": 2,
+                "opaque": {
+                  "bytes": 1,
+                  "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+                }
+              },
+              {
+                "field": 4,
+                "wire": 2,
+                "opaque": {
+                  "bytes": 2,
+                  "sha256": "fcf0a6c700dd13e274b6fba8deea8dd9b26e4eedde3495717cac8408c9c5177f"
+                }
+              }
+            ]
+          },
+          {
+            "field": 18,
+            "wire": 0,
+            "value": 1
+          },
+          {
+            "field": 19,
+            "wire": 0,
+            "value": 4
+          },
+          {
+            "field": 20,
+            "wire": 0,
+            "value": 20
+          },
+          {
+            "field": 21,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 0
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 20
+              }
+            ]
+          },
+          {
+            "field": 21,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 20
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 25
+              }
+            ]
+          },
+          {
+            "field": 21,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 0,
+                "value": 25
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 35
+              }
+            ]
+          },
+          {
+            "field": 22,
+            "wire": 2,
+            "message": [
+              {
+                "field": 1,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 1
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "field": 1,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 4
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "field": 1,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 8
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "field": 1,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 32
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "field": 1,
+                "wire": 2,
+                "message": [
+                  {
+                    "field": 1,
+                    "wire": 0,
+                    "value": 128
+                  },
+                  {
+                    "field": 2,
+                    "wire": 0,
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "field": 2,
+                "wire": 0,
+                "value": 10
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 4
+              },
+              {
+                "field": 3,
+                "wire": 0,
+                "value": 8
+              },
+              {
+                "field": 4,
+                "wire": 0,
+                "value": 1
+              },
+              {
+                "field": 5,
+                "wire": 0,
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "checkpoint": {
+    "path": "/data/local/tmp/ostadix-nano-rebuild-20260917/checkpoint.decoded.pb",
+    "bytes": 4683648,
+    "sha256": "50f79aa10d36bf5f9d81e9dcec1d0aeef83ffeaea8662c7d9b5b17cc87c80291",
+    "scalar_and_small_metadata": [
+      {
+        "field": 1,
+        "wire": 2,
+        "message": [
+          {
+            "field": 1,
+            "wire": 0,
+            "value": 35
+          },
+          {
+            "field": 2,
+            "wire": 0,
+            "value": 2048
+          },
+          {
+            "field": 3,
+            "wire": 0,
+            "value": 16384
+          },
+          {
+            "field": 4,
+            "wire": 0,
+            "value": 8
+          },
+          {
+            "field": 6,
+            "wire": 0,
+            "value": 3
+          },
+          {
+            "field": 7,
+            "wire": 0,
+            "value": 1
+          },
+          {
+            "field": 8,
+            "wire": 0,
+            "value": 262144
+          },
+          {
+            "field": 9,
+            "wire": 0,
+            "value": 0
+          },
+          {
+            "field": 10,
+            "wire": 0,
+            "value": 1
+          },
+          {
+            "field": 11,
+            "wire": 0,
+            "value": 1
+          },
+          {
+            "field": 12,
+            "wire": 0,
+            "value": 2
+          },
+          {
+            "field": 13,
+            "wire": 0,
+            "value": 1
+          },
+          {
+            "field": 18,
+            "wire": 0,
+            "value": 256
+          },
+          {
+            "field": 19,
+            "wire": 0,
+            "value": 0
+          },
+          {
+            "field": 20,
+            "wire": 0,
+            "value": 0
+          },
+          {
+            "field": 21,
+            "wire": 0,
+            "value": 0
+          }
+        ]
+      },
+      {
+        "field": 6,
+        "wire": 0,
+        "value": 1
+      }
+    ],
+    "external_files": [
+      "data0"
+    ],
+    "parameter_slices": [
+      {
+        "tensor_name": "params.lm.softmax.logits_ffn.linear.w",
+        "file_index": 0,
+        "offset": 0,
+        "bytes": 301989888
+      },
+      {
+        "tensor_name": "params.transformer.embedder.per_layer_embeddings.w",
+        "file_index": 0,
+        "offset": 301989888,
+        "bytes": 1321205760
+      },
+      {
+        "tensor_name": "params.lm.embedding_lookup.extra_emb_var",
+        "file_index": 0,
+        "offset": 1623195648,
+        "bytes": 8192
+      },
+      {
+        "tensor_name": "params.lm.embedding_lookup.audio_extra_emb_var",
+        "file_index": 0,
+        "offset": 1623203840,
+        "bytes": 8192
+      }
+    ],
+    "field_2_embedded_tokenizer_candidate": {
+      "bytes": 4683319,
+      "sha256": "d6daa52d93d7aad10e8388bd526c4e501d914b47177398d1d9621f1fe48438c7",
+      "direct_field_counts": {
+        "1:2": 262144,
+        "2:2": 1,
+        "3:2": 1
+      },
+      "pieces_exported": false
+    },
+    "field_5_identity_bytes": {
+      "bytes": 32,
+      "sha256": "ea07144bc16550ff337ace8424513f573a49864084f2a99776a7d9482c13bb93"
+    },
+    "external_file_coverage": [
+      {
+        "name": "data0",
+        "disk_bytes": 1623212032,
+        "range_end": 1623212032,
+        "contiguous_from_zero": true,
+        "exact_disk_size_match": true
+      }
+    ]
+  },
+  "schema_note": "Native field semantics are partly inferred from matching byte ranges. Slim installed Java schema only covers a subset.",
+  "manifest_consistency": [
+    {
+      "name": "config.binarypb",
+      "actual_bytes": 1703,
+      "actual_sha1": "4ad7879cc8e4bac628032432ea5c73848e2330ed",
+      "manifest_byte_size_match": true,
+      "manifest_sha1_match": true
+    },
+    {
+      "name": "checkpoint.binarypb",
+      "actual_bytes": 4683648,
+      "actual_sha1": "e3c88dc028891aa45ca34509be4f6c695b78437d",
+      "manifest_byte_size_match": true,
+      "manifest_sha1_match": true
+    }
+  ],
+  "manifest_absent_factory_files": [
+    {
+      "file_id": [
+        "edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs_dvfs_manager_params.binarypb"
+      ],
+      "relative_filename": "edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs/dvfs_manager_params.binarypb",
+      "mapped_factory_filename": "dvfs_manager_params.binarypb",
+      "checksum": [
+        "bfd24cec8734ca9ed8ebd2ad81b36b3ff2f9d694"
+      ],
+      "byte_size": [
+        3364
+      ],
+      "compression_marker_present": false,
+      "factory_exists": false,
+      "factory_disk_bytes": null
+    }
+  ]
+}

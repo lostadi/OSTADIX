@@ -1,0 +1,219 @@
+[1/8] Checking the privacy and foreground contract
+source contract OK; synthetic summary chars=932
+[2/8] Resolving pinned official ML Kit artifacts
+androidx.activity:activity:1.6.0 (aar) -> activity-1.6.0.aar
+androidx.annotation:annotation-experimental:1.3.0 (aar) -> annotation-experimental-1.3.0.aar
+androidx.annotation:annotation:1.3.0 (jar) -> annotation-1.3.0.jar
+androidx.appcompat:appcompat-resources:1.6.1 (aar) -> appcompat-resources-1.6.1.aar
+androidx.appcompat:appcompat:1.6.1 (aar) -> appcompat-1.6.1.aar
+androidx.arch.core:core-common:2.1.0 (jar) -> core-common-2.1.0.jar
+androidx.arch.core:core-runtime:2.1.0 (aar) -> core-runtime-2.1.0.aar
+androidx.collection:collection:1.1.0 (jar) -> collection-1.1.0.jar
+androidx.concurrent:concurrent-futures:1.0.0 (jar) -> concurrent-futures-1.0.0.jar
+androidx.core:core-ktx:1.9.0 (aar) -> core-ktx-1.9.0.aar
+androidx.core:core:1.9.0 (aar) -> core-1.9.0.aar
+androidx.core:core:1.9.0 (aar) -> core-1.9.0.aar
+androidx.cursoradapter:cursoradapter:1.0.0 (aar) -> cursoradapter-1.0.0.aar
+androidx.customview:customview:1.0.0 (aar) -> customview-1.0.0.aar
+androidx.drawerlayout:drawerlayout:1.0.0 (aar) -> drawerlayout-1.0.0.aar
+androidx.emoji2:emoji2-views-helper:1.2.0 (aar) -> emoji2-views-helper-1.2.0.aar
+androidx.emoji2:emoji2:1.2.0 (aar) -> emoji2-1.2.0.aar
+androidx.fragment:fragment:1.3.6 (aar) -> fragment-1.3.6.aar
+androidx.fragment:fragment:1.3.6 (aar) -> fragment-1.3.6.aar
+androidx.interpolator:interpolator:1.0.0 (aar) -> interpolator-1.0.0.aar
+androidx.lifecycle:lifecycle-common:2.5.1 (jar) -> lifecycle-common-2.5.1.jar
+androidx.lifecycle:lifecycle-livedata-core:2.5.1 (aar) -> lifecycle-livedata-core-2.5.1.aar
+androidx.lifecycle:lifecycle-livedata-core:2.5.1 (aar) -> lifecycle-livedata-core-2.5.1.aar
+androidx.lifecycle:lifecycle-livedata:2.0.0 (aar) -> lifecycle-livedata-2.0.0.aar
+androidx.lifecycle:lifecycle-process:2.4.1 (aar) -> lifecycle-process-2.4.1.aar
+androidx.lifecycle:lifecycle-runtime:2.5.1 (aar) -> lifecycle-runtime-2.5.1.aar
+androidx.lifecycle:lifecycle-viewmodel-savedstate:2.5.1 (aar) -> lifecycle-viewmodel-savedstate-2.5.1.aar
+androidx.lifecycle:lifecycle-viewmodel:2.5.1 (aar) -> lifecycle-viewmodel-2.5.1.aar
+androidx.lifecycle:lifecycle-viewmodel:2.5.1 (aar) -> lifecycle-viewmodel-2.5.1.aar
+androidx.loader:loader:1.0.0 (aar) -> loader-1.0.0.aar
+androidx.resourceinspection:resourceinspection-annotation:1.0.1 (jar) -> resourceinspection-annotation-1.0.1.jar
+androidx.savedstate:savedstate:1.2.0 (aar) -> savedstate-1.2.0.aar
+androidx.startup:startup-runtime:1.1.1 (aar) -> startup-runtime-1.1.1.aar
+androidx.tracing:tracing:1.0.0 (aar) -> tracing-1.0.0.aar
+androidx.vectordrawable:vectordrawable-animated:1.1.0 (aar) -> vectordrawable-animated-1.1.0.aar
+androidx.vectordrawable:vectordrawable:1.1.0 (aar) -> vectordrawable-1.1.0.aar
+androidx.versionedparcelable:versionedparcelable:1.1.1 (aar) -> versionedparcelable-1.1.1.aar
+androidx.viewpager:viewpager:1.0.0 (aar) -> viewpager-1.0.0.aar
+com.google.android.datatransport:transport-api:2.2.1 (aar) -> transport-api-2.2.1.aar
+com.google.android.datatransport:transport-backend-cct:2.3.3 (aar) -> transport-backend-cct-2.3.3.aar
+com.google.android.datatransport:transport-runtime:2.2.6 (aar) -> transport-runtime-2.2.6.aar
+com.google.android.gms:play-services-base:18.5.0 (aar) -> play-services-base-18.5.0.aar
+com.google.android.gms:play-services-basement:18.9.0 (aar) -> play-services-basement-18.9.0.aar
+com.google.android.gms:play-services-tasks:18.2.0 (aar) -> play-services-tasks-18.2.0.aar
+com.google.code.findbugs:jsr305:3.0.2 (jar) -> jsr305-3.0.2.jar
+com.google.errorprone:error_prone_annotations:2.3.2 (jar) -> error_prone_annotations-2.3.2.jar
+com.google.firebase:firebase-annotations:16.0.0 (jar) -> firebase-annotations-16.0.0.jar
+com.google.firebase:firebase-components:16.1.0 (aar) -> firebase-components-16.1.0.aar
+com.google.firebase:firebase-encoders-json:17.1.0 (aar) -> firebase-encoders-json-17.1.0.aar
+com.google.firebase:firebase-encoders:16.1.0 (jar) -> firebase-encoders-16.1.0.jar
+com.google.guava:failureaccess:1.0.1 (jar) -> failureaccess-1.0.1.jar
+com.google.guava:guava:28.0-jre (jar) -> guava-28.0-jre.jar
+com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (jar) -> listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+com.google.j2objc:j2objc-annotations:1.3 (jar) -> j2objc-annotations-1.3.jar
+com.google.mlkit:common:18.11.0 (aar) -> common-18.11.0.aar
+com.google.mlkit:genai-common:1.0.0-beta4 (aar) -> genai-common-1.0.0-beta4.aar
+com.google.mlkit:genai-image-description:1.0.0-beta1 (aar) -> genai-image-description-1.0.0-beta1.aar
+com.google.mlkit:genai-prompt:1.0.0-beta4 (aar) -> genai-prompt-1.0.0-beta4.aar
+com.google.mlkit:genai-schema:1.0.0-alpha1 (jar) -> genai-schema-1.0.0-alpha1.jar
+com.google.mlkit:genai-speech-recognition:1.0.0-alpha1 (aar) -> genai-speech-recognition-1.0.0-alpha1.aar
+com.google.mlkit:genai-summarization:1.0.0-beta1 (aar) -> genai-summarization-1.0.0-beta1.aar
+javax.inject:javax.inject:1 (jar) -> javax.inject-1.jar
+org.checkerframework:checker-qual:2.8.1 (jar) -> checker-qual-2.8.1.jar
+org.codehaus.mojo:animal-sniffer-annotations:1.17 (jar) -> animal-sniffer-annotations-1.17.jar
+org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.2.20 (jar) -> kotlin-stdlib-jdk7-2.2.20.jar
+org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.20 (jar) -> kotlin-stdlib-jdk8-1.8.20.jar
+org.jetbrains.kotlin:kotlin-stdlib:2.3.21 (jar) -> kotlin-stdlib-2.3.21.jar
+org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.1 (jar) -> kotlinx-coroutines-android-1.6.1.jar
+org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.7.3 (jar) -> kotlinx-coroutines-core-jvm-1.7.3.jar
+org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.5.0 (jar) -> kotlinx-coroutines-guava-1.5.0.jar
+org.jetbrains.kotlinx:kotlinx-coroutines-reactive:1.7.3 (jar) -> kotlinx-coroutines-reactive-1.7.3.jar
+org.jetbrains:annotations:23.0.0 (jar) -> annotations-23.0.0.jar
+org.reactivestreams:reactive-streams:1.0.3 (jar) -> reactive-streams-1.0.3.jar
+[3/8] Extracting AAR bytecode and compiling dependency resources
+[4/8] Linking resources and compiling Java
+aapt2 preserved 12642 non-fatal extra-package diagnostics in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aapt2-link.stderr.log
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+[5/8] Converting the application and resolved runtime to DEX
+Info: Stripped invalid locals information from 3 methods.
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/viewpager-1.0.0/classes.jar:androidx/viewpager/widget/PagerTitleStrip.class:
+Methods with invalid locals information:
+  void androidx.viewpager.widget.PagerTitleStrip.updateTextPositions(int, float, boolean)
+  Information in locals-table is invalid with respect to the stack map table. Local refers to non-present stack map type for register: 37 with constraint INT.
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/maven/kotlinx-coroutines-core-jvm-1.7.3.jar:kotlinx/coroutines/flow/FlowKt__BuildersKt$asFlow$$inlined$unsafeFlow$10.class:
+Methods with invalid locals information:
+  java.lang.Object kotlinx.coroutines.flow.FlowKt__BuildersKt$asFlow$$inlined$unsafeFlow$10.collect(kotlinx.coroutines.flow.FlowCollector, kotlin.coroutines.Continuation)
+  Attempt to define local of type long as element$iv:java.lang.Object
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/maven/kotlinx-coroutines-core-jvm-1.7.3.jar:kotlinx/coroutines/flow/FlowKt__BuildersKt$asFlow$$inlined$unsafeFlow$9.class:
+Methods with invalid locals information:
+  java.lang.Object kotlinx.coroutines.flow.FlowKt__BuildersKt$asFlow$$inlined$unsafeFlow$9.collect(kotlinx.coroutines.flow.FlowCollector, kotlin.coroutines.Continuation)
+  Attempt to define local of type int as element$iv:java.lang.Object
+Info: InnerClasses attribute has entries missing a corresponding EnclosingMethod attribute. Such InnerClasses attribute entries are ignored.
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgv$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zza, com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgv$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzb, com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgv$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzc, com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgv$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzd, com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgv$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zze, com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgv$zzf.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzf, com.google.android.gms.internal.mlkit_genai_image_description.zzgv$zzf
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgw$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zza, com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgw$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zzb, com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgw$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zzc, com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgw$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zzd, com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-image-description-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_image_description/zzgw$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zze, com.google.android.gms.internal.mlkit_genai_image_description.zzgw$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzoc$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zza, com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzoc$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzb, com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzoc$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzc, com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzoc$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzd, com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzoc$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zze, com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzoc$zzf.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzf, com.google.android.gms.internal.mlkit_genai_prompt.zzoc$zzf
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzod$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzod$zza, com.google.android.gms.internal.mlkit_genai_prompt.zzod$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzod$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzod$zzb, com.google.android.gms.internal.mlkit_genai_prompt.zzod$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzod$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzod$zzc, com.google.android.gms.internal.mlkit_genai_prompt.zzod$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzod$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzod$zzd, com.google.android.gms.internal.mlkit_genai_prompt.zzod$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-prompt-1.0.0-beta4/classes.jar:com/google/android/gms/internal/mlkit_genai_prompt/zzod$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_prompt.zzod$zze, com.google.android.gms.internal.mlkit_genai_prompt.zzod$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zzip$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zzip$zza, com.google.android.gms.internal.mlkit_genai_speech.zzip$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zzip$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zzip$zzb, com.google.android.gms.internal.mlkit_genai_speech.zzip$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zzip$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zzip$zzc, com.google.android.gms.internal.mlkit_genai_speech.zzip$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zzip$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zzip$zzd, com.google.android.gms.internal.mlkit_genai_speech.zzip$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zzip$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zzip$zze, com.google.android.gms.internal.mlkit_genai_speech.zzip$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zziq$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zziq$zza, com.google.android.gms.internal.mlkit_genai_speech.zziq$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zziq$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zziq$zzb, com.google.android.gms.internal.mlkit_genai_speech.zziq$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zziq$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zziq$zzc, com.google.android.gms.internal.mlkit_genai_speech.zziq$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zziq$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zziq$zzd, com.google.android.gms.internal.mlkit_genai_speech.zziq$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-speech-recognition-1.0.0-alpha1/classes.jar:com/google/android/gms/internal/mlkit_genai_speech/zziq$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_speech.zziq$zze, com.google.android.gms.internal.mlkit_genai_speech.zziq$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfq$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zza, com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfq$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzb, com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfq$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzc, com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfq$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzd, com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfq$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zze, com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zze
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfq$zzf.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzf, com.google.android.gms.internal.mlkit_genai_summarization.zzfq$zzf
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfr$zza.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zza, com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zza
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfr$zzb.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zzb, com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zzb
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfr$zzc.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zzc, com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zzc
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfr$zzd.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zzd, com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zzd
+Info in /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/intermediates/aar/genai-summarization-1.0.0-beta1/classes.jar:com/google/android/gms/internal/mlkit_genai_summarization/zzfr$zze.class:
+Classes with missing EnclosingMethod: com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zze, com.google.android.gms.internal.mlkit_genai_summarization.zzfr$zze
+Info: Some warnings are typically a sign of using an outdated Java toolchain. To fix, recompile the source with an updated toolchain.
+[6/8] Packaging and signing the debug APK
+[7/8] Verifying signature, package metadata, and DEX payload
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V3.0 Signer: certificate DN: CN=Android Debug, O=Android, C=US
+V3.0 Signer: certificate SHA-256 digest: 57fdcf70da729667c2089aa49412c66f38ceff213f9e374c0ff1cf42bce35b05
+V3.0 Signer: certificate SHA-1 digest: ed67457309e352f40cf23f5ba25a3a1862879986
+V3.0 Signer: certificate MD5 digest: 12c2557564900250b5b6781ceeeeebaf
+V3.0 Signer: key algorithm: RSA
+V3.0 Signer: key size (bits): 2048
+V3.0 Signer: public key SHA-256 digest: 6d483a78437febde6b83b312c5b2137fe51fa78a65fd9c0aed6a7e66363d83f2
+V3.0 Signer: public key SHA-1 digest: 7bf7abbe2368fb1ffff1df395ceb1efa880339b4
+V3.0 Signer: public key MD5 digest: 2a6dcc39d47f2938b88a83b9a09fd587
+package: name='org.ostadix.pixelai.probe' versionCode='3' versionName='0.1.2' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'
+minSdkVersion:'26'
+targetSdkVersion:'34'
+uses-permission: name='com.google.android.apps.aicore.service.BIND_SERVICE'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.INTERNET'
+application-label:'Pixel AI Probe'
+application-label-af:'Pixel AI Probe'
+application-label-am:'Pixel AI Probe'
+application-label-ar:'Pixel AI Probe'
+[8/8] Build artifact
+-rw-r--r--. 1 root root 5.1M Sep 17 10:50 /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/outputs/apk/debug/PixelAiProbe-debug.apk
+ee0369e3fe2e7a01d7ed5dab2f17cf065d855672060e22d04a7a84126305b772  /data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/outputs/apk/debug/PixelAiProbe-debug.apk
+/data/data/com.termux/files/home/Ostadix-lang/apps/pixel-ai-probe/build/outputs/apk/debug/PixelAiProbe-debug.apk

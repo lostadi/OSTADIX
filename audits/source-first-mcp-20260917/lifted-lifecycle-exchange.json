@@ -1,0 +1,324 @@
+{
+  "binary_sha256": "c63c8533d0c8714bb83f91eb2f1a1137f16bfa7fd37d43f7ba600a59506a122d",
+  "exchange": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-03-26",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "lifted-lifecycle",
+            "version": "1"
+          }
+        }
+      },
+      "result": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "rmcp",
+          "version": "0.6.4"
+        },
+        "instructions": "Ostadix-lang / O-lang MCP (Rust). Supply one complete .O document as o_execute.source for the ordinary computational workflow; optional bindings are ordinary JSON and optional constraints are resource ceilings. Ostadix performs parsing, OIR lowering, planning, HGraph analysis, admission, and execution internally and returns one typed result with evidence. Use o_execute for complete ordinary or lifted .O source; lifted projects carry their own inputs and default route. Use o_run for existing paths, explicit project routes, or explicit whole-document hosted placement. Use o_env/o_runtimes/o_doctor when diagnostics are needed. Set o_run.placement=node only to submit the complete document to one selected hosted node; this is not graph splitting or project mesh. Use o_analyze_intent then o_execute_intent only for an explicit review-then-execute workflow with a one-use same-intent gate. Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
+      }
+    },
+    {
+      "notification": {
+        "jsonrpc": "2.0",
+        "method": "notifications/cancelled",
+        "params": {
+          "requestId": 2,
+          "reason": "lifecycle probe"
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "# Ostadix-lang lifted project\n# project: lifted-lifecycle\n# root_fingerprint: b505bc110c15ea4d23e88d106708880494284b8a8f4b24a0f14b2fb848d0e0b7\n# files: 2   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: lifted-lifecycle  (1 route, 0 route sets)\n# * main  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6ImxpZnRlZC1saWZlY3ljbGUiLCJyb290X2Zpbmdl\ncnByaW50IjoiYjUwNWJjMTEwYzE1ZWE0ZDIzZTg4ZDEwNjcwODg4MDQ5NDI4NGI4YThmNGIyNGEw\nZjE0YjJmYjg0OGQwZTBiNyIsImZpbGVzIjpbeyJwYXRoIjoibWFpbi5weSIsImJ5dGVzIjoiWm5K\ndmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DbWx0Y0c5eWRDQnZjeXdnZEdsdFpTd2djM1Zp\nY0hKdlkyVnpjeXdnYzNsekxDQnFjMjl1Q2xCaGRHZ29KeTlrWVhSaEwyUmhkR0V2WTI5dExuUmxj\nbTExZUM5bWFXeGxjeTkxYzNJdmRHMXdMMjl6ZEdGa2FYZ3RiR2xtZEdWa0xXeHBabVZqZVdOc1pT\nMTNZM2xqTVcxek1DOWpZVzVqWld3dGQyOXlhM053WVdObEp5a3VkM0pwZEdWZmRHVjRkQ2h2Y3k1\nblpYUmpkMlFvS1NrS2JXRnlhMlZ5SUQwZ1VHRjBhQ2duTDJSaGRHRXZaR0YwWVM5amIyMHVkR1Z5\nYlhWNEwyWnBiR1Z6TDNWemNpOTBiWEF2YjNOMFlXUnBlQzFzYVdaMFpXUXRiR2xtWldONVkyeGxM\nWGRqZVdNeGJYTXdMMk5oYm1ObGJDMXpkR0Z5ZEdWa0p5a0tkMmwwYUNCdFlYSnJaWEl1YjNCbGJp\nZ2lZU0lwSUdGeklITjBjbVZoYlRvS0lDQWdJSE4wY21WaGJTNTNjbWwwWlNnaWMzUmhjblJsWkZ4\ndUlpa0tJQ0FnSUhOMGNtVmhiUzVtYkhWemFDZ3BDbk4xWW5CeWIyTmxjM011VUc5d1pXNG9XM041\nY3k1bGVHVmpkWFJoWW14bExDQW5MV01uTENBaWFXMXdiM0owSUhScGJXVTdJR1p5YjIwZ2NHRjBh\nR3hwWWlCcGJYQnZjblFnVUdGMGFEc2dkR2x0WlM1emJHVmxjQ2d5S1RzZ1VHRjBhQ2duTDJSaGRH\nRXZaR0YwWVM5amIyMHVkR1Z5YlhWNEwyWnBiR1Z6TDNWemNpOTBiWEF2YjNOMFlXUnBlQzFzYVda\nMFpXUXRiR2xtWldONVkyeGxMWGRqZVdNeGJYTXdMMk5oYm1ObGJDMXNZWFJsSnlrdWQzSnBkR1Zm\nZEdWNGRDZ25iR0YwWlNjcElsMHBDblJwYldVdWMyeGxaWEFvTVRBcENuQnlhVzUwS0dwemIyNHVa\nSFZ0Y0hNb1pHbGpkQ2hrYjI1bFBWUnlkV1VwS1NrSyIsImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4\nX21vZGUiOjMzMTg4LCJzeW1saW5rX3RhcmdldCI6bnVsbCwiZXZhbHVhdG9yIjoicHl0aG9uIiwi\nY29udGVudF9oYXNoIjoiNDBmNWY4Zjk5M2M2OWY2OTZhYzdkODEzYmNiYzkxOTliMWQ3ZTQwZjdh\nMzZhYzM5NTRjYjllZTRiNWIxMzAyMiIsInJvbGUiOiJTb3VyY2UifSx7InBhdGgiOiJvbGFuZy5w\ncm9qZWN0LnRvbWwiLCJieXRlcyI6IlczQnliMnBsWTNSZENtNWhiV1VnUFNBaWJHbG1kR1ZrTFd4\ncFptVmplV05zWlNJS1pHVm1ZWFZzZEY5eWIzVjBaU0E5SUNKdFlXbHVJZ3BiVzNKdmRYUmxjMTFk\nQ21sa0lEMGdJbTFoYVc0aUNtTnZiVzFoYm1RZ1BTQmJJbkI1ZEdodmJqTWlMQ0FpYldGcGJpNXdl\nU0pkQ25KbGMzVnNkRjlqYjJSbFl5QTlJQ0pxYzI5dUlncGtaV1poZFd4MElEMGdkSEoxWlFvPSIs\nImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4X21vZGUiOjMzMTg4LCJzeW1saW5rX3RhcmdldCI6bnVs\nbCwiZXZhbHVhdG9yIjpudWxsLCJjb250ZW50X2hhc2giOiIzYjYzMWY0ZGY4MDQ3ZWE5OTk0YWEx\nOTQ2MWIwNmE5ZmE4OTg4M2I2M2Y0ZjNkOTFjMzNhYTczMjMyZjdlZmQ1Iiwicm9sZSI6Ik1hbmlm\nZXN0In1dLCJyb3V0ZXMiOlt7ImlkIjoibWFpbiIsImxhYmVsIjoibWFpbiIsImtpbmQiOiJJbnRl\ncnByZXRlckNvbW1hbmQiLCJjb21tYW5kIjpbInB5dGhvbjMiLCJtYWluLnB5Il0sImV2YWx1YXRv\nciI6bnVsbCwiZW50cnlwb2ludCI6bnVsbCwid29ya2luZ19kaXJlY3RvcnkiOiIuIiwiYXJndW1l\nbnRzIjpbXSwiZW52aXJvbm1lbnQiOnt9LCJwcmVyZXF1aXNpdGVzIjpbXSwiaW5wdXRzIjpbXSwi\nb3V0cHV0cyI6W10sImVmZmVjdHMiOnsicHVyZSI6ZmFsc2UsInVua25vd24iOnRydWUsInJlYWRz\nIjpbXSwid3JpdGVzIjpbXX0sImZhaWx1cmVfY29udGludWF0aW9uIjoidW5wcm92ZW4iLCJyZXN1\nbHRfY29kZWMiOiJKc29uIiwicHJvdmlkZXMiOltdLCJndWFyZHMiOltdLCJwcmlvcml0eSI6MCwi\naXNfZGVmYXVsdCI6dHJ1ZSwicHJvdmVuYW5jZSI6eyJNYW5pZmVzdCI6eyJwYXRoIjoib2xhbmcu\ncHJvamVjdC50b21sIn19fV0sInJvdXRlX3NldHMiOltdLCJkZWZhdWx0X3JvdXRlIjoibWFpbiIs\nIm1ldGFkYXRhIjp7fX0=\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+            "constraints": {
+              "timeout_ms": 10000
+            }
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"schema\":\"ostadix.runtime-request-result/v1\",\"disposition\":\"failed\",\"caller_id\":\"mcp/stdio\",\"request_id\":\"mcp-11347-1\",\"failure\":{\"stage\":\"project_execution\",\"message\":\"cancelled after dispatch; process group terminated; no retry\"}}"
+          }
+        ],
+        "structuredContent": {
+          "schema": "ostadix.runtime-request-result/v1",
+          "disposition": "failed",
+          "caller_id": "mcp/stdio",
+          "request_id": "mcp-11347-1",
+          "failure": {
+            "stage": "project_execution",
+            "message": "cancelled after dispatch; process group terminated; no retry"
+          }
+        },
+        "isError": true
+      },
+      "wall_ms": 338
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "# Ostadix-lang lifted project\n# project: lifted-lifecycle\n# root_fingerprint: f5210a0120d1a58eb1dcaeb990be040445ceb4184887dabddfed05449d268481\n# files: 2   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: lifted-lifecycle  (1 route, 0 route sets)\n# * main  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6ImxpZnRlZC1saWZlY3ljbGUiLCJyb290X2Zpbmdl\ncnByaW50IjoiZjUyMTBhMDEyMGQxYTU4ZWIxZGNhZWI5OTBiZTA0MDQ0NWNlYjQxODQ4ODdkYWJk\nZGZlZDA1NDQ5ZDI2ODQ4MSIsImZpbGVzIjpbeyJwYXRoIjoibWFpbi5weSIsImJ5dGVzIjoiWm5K\ndmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DbWx0Y0c5eWRDQnZjeXdnZEdsdFpTd2djM1Zp\nY0hKdlkyVnpjeXdnYzNsekxDQnFjMjl1Q2xCaGRHZ29KeTlrWVhSaEwyUmhkR0V2WTI5dExuUmxj\nbTExZUM5bWFXeGxjeTkxYzNJdmRHMXdMMjl6ZEdGa2FYZ3RiR2xtZEdWa0xXeHBabVZqZVdOc1pT\nMTNZM2xqTVcxek1DOWtaV0ZrYkdsdVpTMTNiM0pyYzNCaFkyVW5LUzUzY21sMFpWOTBaWGgwS0c5\nekxtZGxkR04zWkNncEtRcHRZWEpyWlhJZ1BTQlFZWFJvS0NjdlpHRjBZUzlrWVhSaEwyTnZiUzUw\nWlhKdGRYZ3ZabWxzWlhNdmRYTnlMM1J0Y0M5dmMzUmhaR2w0TFd4cFpuUmxaQzFzYVdabFkzbGpi\nR1V0ZDJONVl6RnRjekF2WkdWaFpHeHBibVV0YzNSaGNuUmxaQ2NwQ25kcGRHZ2diV0Z5YTJWeUxt\nOXdaVzRvSW1FaUtTQmhjeUJ6ZEhKbFlXMDZDaUFnSUNCemRISmxZVzB1ZDNKcGRHVW9Jbk4wWVhK\nMFpXUmNiaUlwQ2lBZ0lDQnpkSEpsWVcwdVpteDFjMmdvS1FwemRXSndjbTlqWlhOekxsQnZjR1Z1\nS0Z0emVYTXVaWGhsWTNWMFlXSnNaU3dnSnkxakp5d2dJbWx0Y0c5eWRDQjBhVzFsT3lCbWNtOXRJ\nSEJoZEdoc2FXSWdhVzF3YjNKMElGQmhkR2c3SUhScGJXVXVjMnhsWlhBb01pazdJRkJoZEdnb0p5\nOWtZWFJoTDJSaGRHRXZZMjl0TG5SbGNtMTFlQzltYVd4bGN5OTFjM0l2ZEcxd0wyOXpkR0ZrYVhn\ndGJHbG1kR1ZrTFd4cFptVmplV05zWlMxM1kzbGpNVzF6TUM5a1pXRmtiR2x1WlMxc1lYUmxKeWt1\nZDNKcGRHVmZkR1Y0ZENnbmJHRjBaU2NwSWwwcENuUnBiV1V1YzJ4bFpYQW9NVEFwQ25CeWFXNTBL\nR3B6YjI0dVpIVnRjSE1vWkdsamRDaGtiMjVsUFZSeWRXVXBLU2tLIiwiZXhlY3V0YWJsZSI6ZmFs\nc2UsInVuaXhfbW9kZSI6MzMxODgsInN5bWxpbmtfdGFyZ2V0IjpudWxsLCJldmFsdWF0b3IiOiJw\neXRob24iLCJjb250ZW50X2hhc2giOiI3ZmMzZDllM2ZkMGJjY2YwYzM1MjkwOGRlZWJmYmJjMmU0\nNmVhNDE3ODYzN2YyMDNlMzYyNGMxZmM1NDEyMTA1Iiwicm9sZSI6IlNvdXJjZSJ9LHsicGF0aCI6\nIm9sYW5nLnByb2plY3QudG9tbCIsImJ5dGVzIjoiVzNCeWIycGxZM1JkQ201aGJXVWdQU0FpYkds\nbWRHVmtMV3hwWm1WamVXTnNaU0lLWkdWbVlYVnNkRjl5YjNWMFpTQTlJQ0p0WVdsdUlncGJXM0p2\nZFhSbGMxMWRDbWxrSUQwZ0ltMWhhVzRpQ21OdmJXMWhibVFnUFNCYkluQjVkR2h2YmpNaUxDQWli\nV0ZwYmk1d2VTSmRDbkpsYzNWc2RGOWpiMlJsWXlBOUlDSnFjMjl1SWdwa1pXWmhkV3gwSUQwZ2RI\nSjFaUW89IiwiZXhlY3V0YWJsZSI6ZmFsc2UsInVuaXhfbW9kZSI6MzMxODgsInN5bWxpbmtfdGFy\nZ2V0IjpudWxsLCJldmFsdWF0b3IiOm51bGwsImNvbnRlbnRfaGFzaCI6IjNiNjMxZjRkZjgwNDdl\nYTk5OTRhYTE5NDYxYjA2YTlmYTg5ODgzYjYzZjRmM2Q5MWMzM2FhNzMyMzJmN2VmZDUiLCJyb2xl\nIjoiTWFuaWZlc3QifV0sInJvdXRlcyI6W3siaWQiOiJtYWluIiwibGFiZWwiOiJtYWluIiwia2lu\nZCI6IkludGVycHJldGVyQ29tbWFuZCIsImNvbW1hbmQiOlsicHl0aG9uMyIsIm1haW4ucHkiXSwi\nZXZhbHVhdG9yIjpudWxsLCJlbnRyeXBvaW50IjpudWxsLCJ3b3JraW5nX2RpcmVjdG9yeSI6Ii4i\nLCJhcmd1bWVudHMiOltdLCJlbnZpcm9ubWVudCI6e30sInByZXJlcXVpc2l0ZXMiOltdLCJpbnB1\ndHMiOltdLCJvdXRwdXRzIjpbXSwiZWZmZWN0cyI6eyJwdXJlIjpmYWxzZSwidW5rbm93biI6dHJ1\nZSwicmVhZHMiOltdLCJ3cml0ZXMiOltdfSwiZmFpbHVyZV9jb250aW51YXRpb24iOiJ1bnByb3Zl\nbiIsInJlc3VsdF9jb2RlYyI6Ikpzb24iLCJwcm92aWRlcyI6W10sImd1YXJkcyI6W10sInByaW9y\naXR5IjowLCJpc19kZWZhdWx0Ijp0cnVlLCJwcm92ZW5hbmNlIjp7Ik1hbmlmZXN0Ijp7InBhdGgi\nOiJvbGFuZy5wcm9qZWN0LnRvbWwifX19XSwicm91dGVfc2V0cyI6W10sImRlZmF1bHRfcm91dGUi\nOiJtYWluIiwibWV0YWRhdGEiOnt9fQ==\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+            "constraints": {
+              "timeout_ms": 500
+            }
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"schema\":\"ostadix.runtime-request-result/v1\",\"disposition\":\"failed\",\"caller_id\":\"mcp/stdio\",\"request_id\":\"mcp-11347-2\",\"failure\":{\"stage\":\"project_execution\",\"message\":\"timeout after 492ms\"}}"
+          }
+        ],
+        "structuredContent": {
+          "schema": "ostadix.runtime-request-result/v1",
+          "disposition": "failed",
+          "caller_id": "mcp/stdio",
+          "request_id": "mcp-11347-2",
+          "failure": {
+            "stage": "project_execution",
+            "message": "timeout after 492ms"
+          }
+        },
+        "isError": true
+      },
+      "wall_ms": 629
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "# Ostadix-lang lifted project\n# project: lifted-lifecycle\n# root_fingerprint: 9b4f1cbba90d10f541fbfb28351256370ae11b8fc9d658200a1e4a4278974468\n# files: 2   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: lifted-lifecycle  (1 route, 0 route sets)\n# * main  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6ImxpZnRlZC1saWZlY3ljbGUiLCJyb290X2Zpbmdl\ncnByaW50IjoiOWI0ZjFjYmJhOTBkMTBmNTQxZmJmYjI4MzUxMjU2MzcwYWUxMWI4ZmM5ZDY1ODIw\nMGExZTRhNDI3ODk3NDQ2OCIsImZpbGVzIjpbeyJwYXRoIjoibWFpbi5weSIsImJ5dGVzIjoiWm5K\ndmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DbWx0Y0c5eWRDQnZjeXdnZEdsdFpTd2djM1Zp\nY0hKdlkyVnpjeXdnYzNsekxDQnFjMjl1Q2xCaGRHZ29KeTlrWVhSaEwyUmhkR0V2WTI5dExuUmxj\nbTExZUM5bWFXeGxjeTkxYzNJdmRHMXdMMjl6ZEdGa2FYZ3RiR2xtZEdWa0xXeHBabVZqZVdOc1pT\nMTNZM2xqTVcxek1DOW1ZV2xzZFhKbExYZHZjbXR6Y0dGalpTY3BMbmR5YVhSbFgzUmxlSFFvYjNN\ndVoyVjBZM2RrS0NrcENtMWhjbXRsY2lBOUlGQmhkR2dvSnk5a1lYUmhMMlJoZEdFdlkyOXRMblJs\nY20xMWVDOW1hV3hsY3k5MWMzSXZkRzF3TDI5emRHRmthWGd0YkdsbWRHVmtMV3hwWm1WamVXTnNa\nUzEzWTNsak1XMXpNQzltWVdsc2RYSmxMWE4wWVhKMFpXUW5LUXAzYVhSb0lHMWhjbXRsY2k1dmNH\nVnVLQ0poSWlrZ1lYTWdjM1J5WldGdE9nb2dJQ0FnYzNSeVpXRnRMbmR5YVhSbEtDSnpkR0Z5ZEdW\na1hHNGlLUW9nSUNBZ2MzUnlaV0Z0TG1ac2RYTm9LQ2tLY21GcGMyVWdVM2x6ZEdWdFJYaHBkQ2cz\nS1FvPSIsImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4X21vZGUiOjMzMTg4LCJzeW1saW5rX3Rhcmdl\ndCI6bnVsbCwiZXZhbHVhdG9yIjoicHl0aG9uIiwiY29udGVudF9oYXNoIjoiMzI2NDkzYWY3NmYz\nOGMxYWY2YjBhNTM0MjkxYmJhNjA1YTg3ZTdhZTJmNjU1YThjYmNiYTRmZTM0YWY0MzY0OSIsInJv\nbGUiOiJTb3VyY2UifSx7InBhdGgiOiJvbGFuZy5wcm9qZWN0LnRvbWwiLCJieXRlcyI6IlczQnli\nMnBsWTNSZENtNWhiV1VnUFNBaWJHbG1kR1ZrTFd4cFptVmplV05zWlNJS1pHVm1ZWFZzZEY5eWIz\nVjBaU0E5SUNKdFlXbHVJZ3BiVzNKdmRYUmxjMTFkQ21sa0lEMGdJbTFoYVc0aUNtTnZiVzFoYm1R\nZ1BTQmJJbkI1ZEdodmJqTWlMQ0FpYldGcGJpNXdlU0pkQ25KbGMzVnNkRjlqYjJSbFl5QTlJQ0px\nYzI5dUlncGtaV1poZFd4MElEMGdkSEoxWlFvPSIsImV4ZWN1dGFibGUiOmZhbHNlLCJ1bml4X21v\nZGUiOjMzMTg4LCJzeW1saW5rX3RhcmdldCI6bnVsbCwiZXZhbHVhdG9yIjpudWxsLCJjb250ZW50\nX2hhc2giOiIzYjYzMWY0ZGY4MDQ3ZWE5OTk0YWExOTQ2MWIwNmE5ZmE4OTg4M2I2M2Y0ZjNkOTFj\nMzNhYTczMjMyZjdlZmQ1Iiwicm9sZSI6Ik1hbmlmZXN0In1dLCJyb3V0ZXMiOlt7ImlkIjoibWFp\nbiIsImxhYmVsIjoibWFpbiIsImtpbmQiOiJJbnRlcnByZXRlckNvbW1hbmQiLCJjb21tYW5kIjpb\nInB5dGhvbjMiLCJtYWluLnB5Il0sImV2YWx1YXRvciI6bnVsbCwiZW50cnlwb2ludCI6bnVsbCwi\nd29ya2luZ19kaXJlY3RvcnkiOiIuIiwiYXJndW1lbnRzIjpbXSwiZW52aXJvbm1lbnQiOnt9LCJw\ncmVyZXF1aXNpdGVzIjpbXSwiaW5wdXRzIjpbXSwib3V0cHV0cyI6W10sImVmZmVjdHMiOnsicHVy\nZSI6ZmFsc2UsInVua25vd24iOnRydWUsInJlYWRzIjpbXSwid3JpdGVzIjpbXX0sImZhaWx1cmVf\nY29udGludWF0aW9uIjoidW5wcm92ZW4iLCJyZXN1bHRfY29kZWMiOiJKc29uIiwicHJvdmlkZXMi\nOltdLCJndWFyZHMiOltdLCJwcmlvcml0eSI6MCwiaXNfZGVmYXVsdCI6dHJ1ZSwicHJvdmVuYW5j\nZSI6eyJNYW5pZmVzdCI6eyJwYXRoIjoib2xhbmcucHJvamVjdC50b21sIn19fV0sInJvdXRlX3Nl\ndHMiOltdLCJkZWZhdWx0X3JvdXRlIjoibWFpbiIsIm1ldGFkYXRhIjp7fX0=\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+            "constraints": {
+              "timeout_ms": 10000
+            }
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"schema\":\"ostadix.project-request-result/v1\",\"disposition\":\"failed\",\"caller_id\":\"mcp/stdio\",\"request_id\":\"mcp-11347-3\",\"failure\":{\"stage\":\"project_execution\",\"message\":\"project executor failed; no retry\"},\"project_execution\":{\"schema\":\"ostadix.run-summary/v1\",\"run_id\":null,\"input\":{\"kind\":\"lifted_project_bundle\",\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-11347-1789642636925198609/program.O\",\"digest_sha256\":\"b6d332927a967fed05896947509cfa57d9fc1673fb6f0eca100f4d5a34538319\"},\"plan\":{\"oir_sha256\":null,\"execution_plan_sha256\":null,\"hgraph_sha256\":\"03cf6716d6e919ad4225d42a5baccfcca02bdc24115309a89e867e0a002c605b\",\"execution_intent_sha256\":null,\"deployment_sha256\":\"a84c9856a428858ac20524abccf9f9f0562b2d7d2e32cdff5855e7691a163085\"},\"disposition\":\"execution_failed\",\"result_references\":[{\"kind\":\"route_stdout\",\"id\":\"main\",\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"bytes_len\":0,\"complete\":true},{\"kind\":\"route_stderr\",\"id\":\"main\",\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"bytes_len\":0,\"complete\":true}],\"recording\":{\"status\":\"disabled\"},\"failure\":{\"stage\":\"execution\",\"message\":\"no project route succeeded\"},\"result\":{\"decoded_value\":null,\"route_results\":[{\"route_id\":\"main\",\"exit_code\":7,\"stdout\":{\"retained\":\"\",\"capture\":{\"total_observed_bytes\":0,\"retained_bytes\":0,\"truncated\":false,\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}},\"stderr\":{\"retained\":\"\",\"capture\":{\"total_observed_bytes\":0,\"retained_bytes\":0,\"truncated\":false,\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}},\"value\":null,\"artifacts\":[],\"artifact_requirements\":[],\"artifact_capture\":{\"state\":\"complete\"},\"disposition\":\"executed\",\"duration_ns\":\"67683412\",\"provenance\":{\"execution_scope\":\"isolated_project_workspace\",\"command_argv_retained\":false,\"command_argument_count\":2}}]}},\"diagnostics\":\"error: no project route succeeded\\n\"}"
+          }
+        ],
+        "structuredContent": {
+          "schema": "ostadix.project-request-result/v1",
+          "disposition": "failed",
+          "caller_id": "mcp/stdio",
+          "request_id": "mcp-11347-3",
+          "failure": {
+            "stage": "project_execution",
+            "message": "project executor failed; no retry"
+          },
+          "project_execution": {
+            "schema": "ostadix.run-summary/v1",
+            "run_id": null,
+            "input": {
+              "kind": "lifted_project_bundle",
+              "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-11347-1789642636925198609/program.O",
+              "digest_sha256": "b6d332927a967fed05896947509cfa57d9fc1673fb6f0eca100f4d5a34538319"
+            },
+            "plan": {
+              "oir_sha256": null,
+              "execution_plan_sha256": null,
+              "hgraph_sha256": "03cf6716d6e919ad4225d42a5baccfcca02bdc24115309a89e867e0a002c605b",
+              "execution_intent_sha256": null,
+              "deployment_sha256": "a84c9856a428858ac20524abccf9f9f0562b2d7d2e32cdff5855e7691a163085"
+            },
+            "disposition": "execution_failed",
+            "result_references": [
+              {
+                "kind": "route_stdout",
+                "id": "main",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "bytes_len": 0,
+                "complete": true
+              },
+              {
+                "kind": "route_stderr",
+                "id": "main",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "bytes_len": 0,
+                "complete": true
+              }
+            ],
+            "recording": {
+              "status": "disabled"
+            },
+            "failure": {
+              "stage": "execution",
+              "message": "no project route succeeded"
+            },
+            "result": {
+              "decoded_value": null,
+              "route_results": [
+                {
+                  "route_id": "main",
+                  "exit_code": 7,
+                  "stdout": {
+                    "retained": "",
+                    "capture": {
+                      "total_observed_bytes": 0,
+                      "retained_bytes": 0,
+                      "truncated": false,
+                      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    }
+                  },
+                  "stderr": {
+                    "retained": "",
+                    "capture": {
+                      "total_observed_bytes": 0,
+                      "retained_bytes": 0,
+                      "truncated": false,
+                      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    }
+                  },
+                  "value": null,
+                  "artifacts": [],
+                  "artifact_requirements": [],
+                  "artifact_capture": {
+                    "state": "complete"
+                  },
+                  "disposition": "executed",
+                  "duration_ns": "67683412",
+                  "provenance": {
+                    "execution_scope": "isolated_project_workspace",
+                    "command_argv_retained": false,
+                    "command_argument_count": 2
+                  }
+                }
+              ]
+            }
+          },
+          "diagnostics": "error: no project route succeeded\n"
+        },
+        "isError": true
+      },
+      "wall_ms": 140
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "$answer",
+            "bindings": {
+              "answer": 7
+            }
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"schema\":\"ostadix.runtime-request-result/v1\",\"disposition\":\"executed\",\"execution_mode\":\"embedded_runtime_request\",\"caller_id\":\"mcp/stdio\",\"request_id\":\"mcp-11347-4\",\"result\":{\"typed_value\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"7\"}}},\"structure\":{\"plan_nodes\":1,\"hgraph_nodes\":3,\"hgraph_exec_edges\":1},\"elapsed_ms\":14,\"evidence\":{\"source_sha256\":\"29848ceeef8324cf8f60fd15061cbd2637d8736fad0a19180d64ec1378fedb8d\",\"execution_intent_sha256\":\"9368c94550cf0f672641cd449d51acd15d158544a41a93ae1cd96d85ceeb155d\",\"request_scope_content_identity\":\"3c331c9a6f51de73443d6e1fcce5f0beed897b0b71a1b3fc31065e4f0de21a46\",\"oir_sha256\":\"9a38d8ec7978388a78f21c0a8a7c5e81a5eb3baf1afdbbbea34ebe47fe488153\",\"plan_sha256\":\"59554b022631b12cddefdc719ecead8b365668b5802b00622ddd5ba0321c6697\",\"analyzed_graph_sha256\":\"0449d7b143cd802c3dbf9c261609e20b2a6e90de223d9e9c334df0ce7c26a333\",\"evidence_sha256\":\"1af3330c5ffe3b77c804bda46fc9cfe23f150bdc62b677973e53628e50702abc\",\"admitted_graph_sha256\":\"020593aedbd70c5571e3c253029b27d85c79cf3677ef9cc54f653fdb0e29368b\",\"admission_sha256\":\"47f477c762b33cccb35320dc532e74e375574b89e5e85c80139abe971465f88d\",\"result_content_identity\":\"81820b739ce691b7f74ce93ef919b6651acf36dacaa3582bee4a06020a835c15\"}}"
+          }
+        ],
+        "structuredContent": {
+          "schema": "ostadix.runtime-request-result/v1",
+          "disposition": "executed",
+          "execution_mode": "embedded_runtime_request",
+          "caller_id": "mcp/stdio",
+          "request_id": "mcp-11347-4",
+          "result": {
+            "typed_value": {
+              "t": "number",
+              "v": {
+                "kind": "int",
+                "v": "7"
+              }
+            }
+          },
+          "structure": {
+            "plan_nodes": 1,
+            "hgraph_nodes": 3,
+            "hgraph_exec_edges": 1
+          },
+          "elapsed_ms": 14,
+          "evidence": {
+            "source_sha256": "29848ceeef8324cf8f60fd15061cbd2637d8736fad0a19180d64ec1378fedb8d",
+            "execution_intent_sha256": "9368c94550cf0f672641cd449d51acd15d158544a41a93ae1cd96d85ceeb155d",
+            "request_scope_content_identity": "3c331c9a6f51de73443d6e1fcce5f0beed897b0b71a1b3fc31065e4f0de21a46",
+            "oir_sha256": "9a38d8ec7978388a78f21c0a8a7c5e81a5eb3baf1afdbbbea34ebe47fe488153",
+            "plan_sha256": "59554b022631b12cddefdc719ecead8b365668b5802b00622ddd5ba0321c6697",
+            "analyzed_graph_sha256": "0449d7b143cd802c3dbf9c261609e20b2a6e90de223d9e9c334df0ce7c26a333",
+            "evidence_sha256": "1af3330c5ffe3b77c804bda46fc9cfe23f150bdc62b677973e53628e50702abc",
+            "admitted_graph_sha256": "020593aedbd70c5571e3c253029b27d85c79cf3677ef9cc54f653fdb0e29368b",
+            "admission_sha256": "47f477c762b33cccb35320dc532e74e375574b89e5e85c80139abe971465f88d",
+            "result_content_identity": "81820b739ce691b7f74ce93ef919b6651acf36dacaa3582bee4a06020a835c15"
+          }
+        },
+        "isError": false
+      }
+    }
+  ],
+  "checks": [
+    {
+      "mode": "cancel",
+      "dispatch_count": 1,
+      "late_descendant_write": false,
+      "workspace_removed": true,
+      "failure": {
+        "stage": "project_execution",
+        "message": "cancelled after dispatch; process group terminated; no retry"
+      }
+    },
+    {
+      "mode": "deadline",
+      "dispatch_count": 1,
+      "late_descendant_write": false,
+      "workspace_removed": true,
+      "failure": {
+        "stage": "project_execution",
+        "message": "timeout after 492ms"
+      }
+    },
+    {
+      "mode": "failure",
+      "dispatch_count": 1,
+      "late_descendant_write": false,
+      "workspace_removed": true,
+      "failure": {
+        "stage": "project_execution",
+        "message": "project executor failed; no retry"
+      }
+    },
+    {
+      "recovery": 7
+    }
+  ]
+}

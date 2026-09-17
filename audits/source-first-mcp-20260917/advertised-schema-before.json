@@ -1,0 +1,524 @@
+{
+  "binary_sha256": "b13dccf929139fbff08d4aeb635b9e11f54d8be0cf52922d205c6355da1a4ca4",
+  "exchange": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-03-26",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "ostadix-acceptance",
+            "version": "1"
+          }
+        }
+      },
+      "result": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "rmcp",
+          "version": "0.6.4"
+        },
+        "instructions": "Ostadix-lang / O-lang MCP (Rust). Supply one complete .O document as o_execute.source for the ordinary computational workflow; optional bindings are ordinary JSON and optional constraints are resource ceilings. Ostadix performs parsing, OIR lowering, planning, HGraph analysis, admission, and execution internally and returns one typed result with evidence. Use o_run for existing source files, lifted bundles, project routes, or explicit whole-document hosted placement. Use o_env/o_runtimes/o_doctor when diagnostics are needed. Set o_run.placement=node only to submit the complete document to one selected hosted node; this is not graph splitting or project mesh. Use o_analyze_intent then o_execute_intent only for an explicit review-then-execute workflow with a one-use same-intent gate. Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+      },
+      "result": {
+        "tools": [
+          {
+            "name": "o_analyze_intent",
+            "description": "Analyze a .O program without executing it and issue a bounded, expiring, one-use same-intent handle (not authorization or a capability)",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "AnalyzeIntentArgs",
+              "type": "object",
+              "properties": {
+                "path": {
+                  "description": "Path to a .O program (absolute paths default cwd to their parent; relative paths use cwd/O_LANG_ROOT)",
+                  "type": "string"
+                },
+                "cwd": {
+                  "description": "Optional working directory (relative paths use O_LANG_ROOT)",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "ttl_secs": {
+                  "description": "One-use handle lifetime in seconds (default 120; maximum 900)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                },
+                "timeout_secs": {
+                  "description": "Analysis timeout seconds (default 120)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          },
+          {
+            "name": "o_runtimes",
+            "description": "Discover executable requirements for every canonical Ostadix backend without blocking on missing optional runtimes",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "EmptyArgs",
+              "description": "No parameters",
+              "type": "object",
+              "properties": {}
+            }
+          },
+          {
+            "name": "o_execute_intent",
+            "description": "Consume a one-use o_analyze_intent handle and ask O to recompute the same stable Intent V1 before fresh V6 admission and dispatch",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "ExecuteIntentArgs",
+              "type": "object",
+              "properties": {
+                "handle": {
+                  "description": "Opaque one-use handle returned by o_analyze_intent",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Path resolving to the same canonical .O program analyzed earlier",
+                  "type": "string"
+                },
+                "cwd": {
+                  "description": "Working directory resolving to the same canonical cwd analyzed earlier",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "timeout_secs": {
+                  "description": "Execution timeout seconds (default 120)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "handle",
+                "path"
+              ]
+            }
+          },
+          {
+            "name": "o_olangc",
+            "description": "Run olangc on a .O file, or materialize an exact binary/WASM Cargo project without invoking Cargo",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "OlangcArgs",
+              "type": "object",
+              "properties": {
+                "path": {
+                  "description": "Path to a .O program (relative paths use O_LANG_ROOT)",
+                  "type": "string"
+                },
+                "target": {
+                  "description": "olangc target: binary | ir | dot | script | wasm; omitted target defaults to binary",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "output": {
+                  "description": "Optional -o output path (relative paths use O_LANG_ROOT)",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "materialize_only": {
+                  "description": "Materialize the exact binary/WASM Cargo project into a new directory beneath the MCP server cwd without invoking Cargo",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "timeout_secs": {
+                  "description": "Timeout seconds (default 180)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          },
+          {
+            "name": "o_run",
+            "description": "Execute one complete .O source document or existing path through Ostadix's unified, project-aware front door and return its structured result",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "RunOArgs",
+              "type": "object",
+              "properties": {
+                "path": {
+                  "description": "Existing .O program or project path. Supply exactly one of path or source",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "source": {
+                  "description": "Complete .O source document. Supply exactly one of source or path",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "cwd": {
+                  "description": "Optional working directory (relative paths use O_LANG_ROOT)",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "timeout_secs": {
+                  "description": "Timeout seconds (default 120)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                },
+                "placement": {
+                  "description": "Execution placement: local (default unified front door) or node (complete document on one selected hosted node)",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "node_id": {
+                  "description": "Optional discovered node identity for placement=node; omitted uses the remembered or deterministic node selection",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "route": {
+                  "description": "Optional project route ID when a project or lifted bundle has no unambiguous default",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                }
+              }
+            }
+          },
+          {
+            "name": "o_doctor",
+            "description": "Toolchain doctor: check O, olangc, backends, shims, all backend runtimes, and optional a18re search/o-run",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "EmptyArgs",
+              "description": "No parameters",
+              "type": "object",
+              "properties": {}
+            }
+          },
+          {
+            "name": "o_smoke",
+            "description": "Smoke-test O toolchain: run examples/hello.O (expect 2) with correct backends path",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "EmptyArgs",
+              "description": "No parameters",
+              "type": "object",
+              "properties": {}
+            }
+          },
+          {
+            "name": "o_information_inspect",
+            "description": "Inspect exactly one existing local Information V1 head through the fixed read-only o-info path; no cloud, network, mutation, dispatch, or arbitrary subcommands",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "InformationInspectArgs",
+              "type": "object",
+              "properties": {
+                "state": {
+                  "description": "Existing local Information V1 state directory (absolute or relative to O_LANG_ROOT; maximum 4096 UTF-8 bytes)",
+                  "type": "string"
+                },
+                "head": {
+                  "description": "Fixed local head name (default main; maximum 128 ASCII token bytes)",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "timeout_secs": {
+                  "description": "Read-only inspection timeout seconds (default 10; maximum 30)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "state"
+              ]
+            }
+          },
+          {
+            "name": "o_search_run",
+            "description": "Run a bundled O work program or an explicitly selected a18re search program with correct absolute backends",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "SearchRunArgs",
+              "type": "object",
+              "properties": {
+                "name": {
+                  "description": "Leaf O program name, with optional .O suffix; bundled names resolve under examples/, external work names under search/",
+                  "type": "string"
+                },
+                "work": {
+                  "description": "Optional a18re/work root; default A18_WORK, existing ~/a18re, or the bundled O_LANG_ROOT",
+                  "type": "string",
+                  "default": null,
+                  "nullable": true
+                },
+                "timeout_secs": {
+                  "description": "Timeout seconds (default 300)",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "default": null,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          {
+            "name": "o_execute",
+            "description": "Execute one complete .O source document through the embedded RuntimeRequest API with optional JSON bindings and constraints; returns one typed value and canonical execution evidence",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "ExecuteOArgs",
+              "type": "object",
+              "properties": {
+                "source": {
+                  "description": "One complete .O source document",
+                  "type": "string"
+                },
+                "bindings": {
+                  "description": "Optional typed input bindings expressed as ordinary JSON values",
+                  "type": "object",
+                  "additionalProperties": true,
+                  "default": {}
+                },
+                "constraints": {
+                  "description": "Optional execution deadline and lower resource ceilings",
+                  "$ref": "#/definitions/ExecuteOConstraints"
+                }
+              },
+              "required": [
+                "source"
+              ],
+              "definitions": {
+                "ExecuteOConstraints": {
+                  "type": "object",
+                  "properties": {
+                    "timeout_ms": {
+                      "description": "Wall-clock deadline in milliseconds (default 120000, maximum 900000)",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0,
+                      "default": null,
+                      "nullable": true
+                    },
+                    "max_source_bytes": {
+                      "description": "Optional lower source-size ceiling in bytes (server maximum 65536)",
+                      "type": "integer",
+                      "format": "uint",
+                      "minimum": 0,
+                      "default": null,
+                      "nullable": true
+                    },
+                    "max_bindings": {
+                      "description": "Optional lower binding-count ceiling (server maximum 64)",
+                      "type": "integer",
+                      "format": "uint",
+                      "minimum": 0,
+                      "default": null,
+                      "nullable": true
+                    },
+                    "max_binding_bytes": {
+                      "description": "Optional lower canonical binding-size ceiling in bytes (server maximum 1048576)",
+                      "type": "integer",
+                      "format": "uint",
+                      "minimum": 0,
+                      "default": null,
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "ExecuteOResponse",
+              "type": "object",
+              "properties": {
+                "schema": {
+                  "type": "string"
+                },
+                "disposition": {
+                  "type": "string"
+                },
+                "execution_mode": {
+                  "type": "string"
+                },
+                "caller_id": {
+                  "type": "string"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "result": {
+                  "$ref": "#/definitions/ExecuteOTypedResult"
+                },
+                "structure": {
+                  "$ref": "#/definitions/ExecuteOStructure"
+                },
+                "elapsed_ms": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "evidence": {
+                  "$ref": "#/definitions/ExecuteOEvidence"
+                }
+              },
+              "required": [
+                "schema",
+                "disposition",
+                "execution_mode",
+                "caller_id",
+                "request_id",
+                "result",
+                "structure",
+                "elapsed_ms",
+                "evidence"
+              ],
+              "definitions": {
+                "ExecuteOTypedResult": {
+                  "type": "object",
+                  "properties": {
+                    "typed_value": true
+                  },
+                  "required": [
+                    "typed_value"
+                  ]
+                },
+                "ExecuteOStructure": {
+                  "type": "object",
+                  "properties": {
+                    "plan_nodes": {
+                      "type": "integer",
+                      "format": "uint",
+                      "minimum": 0
+                    },
+                    "hgraph_nodes": {
+                      "type": "integer",
+                      "format": "uint",
+                      "minimum": 0
+                    },
+                    "hgraph_exec_edges": {
+                      "type": "integer",
+                      "format": "uint",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "plan_nodes",
+                    "hgraph_nodes",
+                    "hgraph_exec_edges"
+                  ]
+                },
+                "ExecuteOEvidence": {
+                  "type": "object",
+                  "properties": {
+                    "source_sha256": {
+                      "type": "string"
+                    },
+                    "execution_intent_sha256": {
+                      "type": "string"
+                    },
+                    "request_scope_content_identity": {
+                      "type": "string"
+                    },
+                    "oir_sha256": {
+                      "type": "string"
+                    },
+                    "plan_sha256": {
+                      "type": "string"
+                    },
+                    "analyzed_graph_sha256": {
+                      "type": "string"
+                    },
+                    "evidence_sha256": {
+                      "type": "string"
+                    },
+                    "admitted_graph_sha256": {
+                      "type": "string"
+                    },
+                    "admission_sha256": {
+                      "type": "string"
+                    },
+                    "result_content_identity": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "source_sha256",
+                    "execution_intent_sha256",
+                    "request_scope_content_identity",
+                    "oir_sha256",
+                    "plan_sha256",
+                    "analyzed_graph_sha256",
+                    "evidence_sha256",
+                    "admitted_graph_sha256",
+                    "admission_sha256",
+                    "result_content_identity"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "o_env",
+            "description": "Report O-lang / Ostadix-lang environment: roots, tools, shim presence, and all-runtime summary",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "EmptyArgs",
+              "description": "No parameters",
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

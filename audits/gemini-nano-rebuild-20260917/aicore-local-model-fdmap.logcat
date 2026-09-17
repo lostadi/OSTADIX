@@ -1,0 +1,16 @@
+09-17 13:09:14.606  4896  4956 W bve     : 	at iuu.g(PG:99)
+09-17 13:09:14.606  4896  4956 W bve     : 	at gle.d(PG:13)
+09-17 13:09:14.606  4896  4956 W bve     : 	at igz.bZ(PG:11)
+09-17 13:09:14.606  4896  4956 W bve     : 	at imn.run(PG:99)
+09-17 13:09:14.606  4896  4956 W bve     : 	at dzr.run(PG:5)
+09-17 13:09:14.606  4896  4956 W bve     : 	at fia.run(PG:44)
+09-17 13:09:14.606  4896  4956 W bve     : 	at x.run(PG:538)
+09-17 13:09:14.606  4896  4956 W bve     : 	at java.lang.Thread.run(Thread.java:1571)
+09-17 13:09:14.606  4896  4956 W bve     : 	at ebf.run(PG:51)
+09-17 13:09:14.606  4896  4956 W bve     : 	at idv.ab(PG:41)
+09-17 13:09:14.606  4896  4956 W bve     : 	at hwz.a(PG:28)
+09-17 13:09:14.606  4896  4956 W bve     : 	at hxl.run(PG:7)
+09-17 13:09:14.606  4896  4956 W bve     : 	at icq.run(PG:18)
+09-17 13:09:28.373  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-fdmap-20260917-1709","pid":4896,"uid":10173,"phase":"request_enter","success":true,"native_call_active":false,"elapsed_realtime_ms":54190238,"deadline_elapsed_ms":54310086,"inference_executed":false}
+09-17 13:09:28.379  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-fdmap-20260917-1709","pid":4896,"uid":10173,"phase":"request_enter_failure","success":false,"native_call_active":false,"elapsed_realtime_ms":54190242,"deadline_elapsed_ms":54310086,"inference_executed":false,"detail":"java.lang.IllegalArgumentException: invalid logical name or absolute regular file in files map"}
+09-17 13:09:28.372  4896  4896 W OstadixNanoLoca: type=1400 audit(0.0:74392): avc:  denied  { search } for  name="/" dev="loop35" ino=3 scontext=u:r:priv_app_36:s0:c512,c768 tcontext=u:object_r:intelligence_data_file:s0 tclass=dir permissive=0 app=com.google.android.aicore

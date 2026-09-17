@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/system/bin/app_process",
+    "/system/bin",
+    "org.ostadix.nano.FactoryReader",
+    "manifest.binarypb",
+    "/data/local/tmp/ostadix-nano-rebuild-20260917/manifest.decoded.pb"
+  ],
+  "zygote_environment_pid": 20185,
+  "android_environment_keys": [
+    "ANDROID_ART_ROOT",
+    "ANDROID_DATA",
+    "ANDROID_I18N_ROOT",
+    "ANDROID_ROOT",
+    "ANDROID_TZDATA_ROOT",
+    "BOOTCLASSPATH",
+    "DEX2OATBOOTCLASSPATH",
+    "SYSTEMSERVERCLASSPATH"
+  ],
+  "exit_code": 0,
+  "elapsed_ms": 1157,
+  "stdout": "event=start uid=0 file=manifest.binarypb input_bytes=61440\nevent=service_found descriptor=vendor.google.plat_security.ITrustyDecrypt\nevent=decrypt_return status=0\nevent=metadata_written bytes=54756 sha256=428c1fe30aa4483ef790e1029f48a0b231f566efc09aeba3998affc4bd0a2749\n",
+  "stderr": "",
+  "decoded_file_exists": true
+}

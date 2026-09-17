@@ -636,7 +636,7 @@ fn process_ids() -> Result<Vec<i32>, String> {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn process_ids() -> Result<Vec<i32>, String> {
     let entries = std::fs::read_dir("/proc").map_err(|error| format!("process census: {error}"))?;
     Ok(entries
@@ -645,7 +645,10 @@ fn process_ids() -> Result<Vec<i32>, String> {
         .collect())
 }
 
-#[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+#[cfg(all(
+    unix,
+    not(any(target_os = "macos", target_os = "linux", target_os = "android"))
+))]
 fn process_ids() -> Result<Vec<i32>, String> {
     Err("native session enumeration is unavailable on this Unix platform; original process-group cleanup only".into())
 }
@@ -836,7 +839,7 @@ async fn monitor(
             "session_scan_complete": cleanup.session_scan_complete,
             "session_identity_anchor": if cfg!(unix) {"unreaped_leader_until_cleanup_disarmed"} else {"direct_child_handle"},
             "child_reaped": exit.is_some(), "logs_drained": logs_drained,
-            "scope": if cfg!(any(target_os = "macos", target_os = "linux")) {"job_session_including_nested_process_groups"} else if cfg!(unix) {"verified_original_process_group"} else {"direct_child"},
+            "scope": if cfg!(any(target_os = "macos", target_os = "linux", target_os = "android")) {"job_session_including_nested_process_groups"} else if cfg!(unix) {"verified_original_process_group"} else {"direct_child"},
             "detached_new_sessions_included": false});
     });
 }

@@ -1,0 +1,6 @@
+2026-09-17T10:57:11.454929Z  INFO rmcp::handler::server: client initialized
+2026-09-17T10:57:11.455124Z  INFO serve_inner: rmcp::service: Service initialized as server peer_info=Some(InitializeRequestParam { protocol_version: ProtocolVersion("2025-03-26"), capabilities: ClientCapabilities { experimental: None, roots: None, sampling: None, elicitation: None }, client_info: Implementation { name: "lifted-lifecycle", title: None, version: "1", icons: None, website_url: None } })
+2026-09-17T10:57:11.693191Z  INFO serve_inner: rmcp::service: received notification notification=CancelledNotification(Notification { method: CancelledNotificationMethod, params: CancelledNotificationParam { request_id: Number(2), reason: Some("lifecycle probe") }, extensions: Extensions })
+2026-09-17T10:57:11.693268Z  INFO serve_inner: rmcp::service: cancelled id=2 reason="lifecycle probe"
+2026-09-17T10:57:17.095105Z  INFO serve_inner: rmcp::service: input stream terminated
+2026-09-17T10:57:17.095215Z  INFO serve_inner: rmcp::service: serve finished quit_reason=Closed

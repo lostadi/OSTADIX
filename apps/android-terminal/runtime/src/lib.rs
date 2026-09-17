@@ -9,7 +9,7 @@ use jni::sys::{jboolean, jint, jlong, jstring};
 use jni::JNIEnv;
 use ostadix_api::executor::CancellationToken;
 use ostadix_api::{OValue, Runtime, RuntimeRequest, RuntimeRequestLimits};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::ptr;
 use std::sync::Mutex;
@@ -24,6 +24,9 @@ struct AndroidRuntime {
 
 const AICORE_REPLY_POSTPROCESS: &str =
     include_str!("../../../../tests/fixtures/aicore_llm_reply_postprocess_bash.O");
+const AICORE_SMART_REPLY_POSTPROCESS: &str =
+    include_str!("../../../../tests/fixtures/aicore_smart_reply_postprocess_bash.O");
+const MAX_BINDINGS_JSON_BYTES: usize = 1024 * 1024;
 
 fn java_string(env: JNIEnv<'_>, value: String) -> jstring {
     match env.new_string(value) {
@@ -34,11 +37,63 @@ fn java_string(env: JNIEnv<'_>, value: String) -> jstring {
 
 fn error_json(stage: &str, message: impl AsRef<str>) -> String {
     json!({
+        "schema": "ostadix.runtime-request-result/v1",
+        "disposition": "failed",
         "ok": false,
         "stage": stage,
         "message": message.as_ref(),
     })
     .to_string()
+}
+
+fn json_binding_to_ovalue(value: Value) -> Result<OValue, String> {
+    match value {
+        Value::Null => Ok(OValue::null()),
+        Value::Bool(value) => Ok(OValue::bool_(value)),
+        Value::Number(value) => {
+            if let Some(value) = value.as_i64() {
+                Ok(OValue::int(value))
+            } else if let Some(value) = value.as_u64() {
+                i64::try_from(value).map(OValue::int).map_err(|_| {
+                    "JSON integer exceeds O's signed 64-bit ordinary binding range".to_string()
+                })
+            } else {
+                value
+                    .as_f64()
+                    .filter(|value| value.is_finite())
+                    .map(OValue::float)
+                    .ok_or_else(|| "JSON binding number is not finite".to_string())
+            }
+        }
+        Value::String(value) => Ok(OValue::text(value)),
+        Value::Array(values) => values
+            .into_iter()
+            .map(json_binding_to_ovalue)
+            .collect::<Result<Vec<_>, _>>()
+            .map(OValue::list),
+        Value::Object(values) => values
+            .into_iter()
+            .map(|(name, value)| json_binding_to_ovalue(value).map(|value| (name, value)))
+            .collect::<Result<HashMap<_, _>, _>>()
+            .map(OValue::map),
+    }
+}
+
+fn parse_bindings_json(value: &str) -> Result<HashMap<String, OValue>, String> {
+    if value.len() > MAX_BINDINGS_JSON_BYTES {
+        return Err(format!(
+            "bindings JSON exceeds {MAX_BINDINGS_JSON_BYTES} bytes"
+        ));
+    }
+    let parsed: Value =
+        serde_json::from_str(value).map_err(|error| format!("invalid bindings JSON: {error}"))?;
+    let Value::Object(bindings) = parsed else {
+        return Err("bindings JSON must be an object".to_string());
+    };
+    bindings
+        .into_iter()
+        .map(|(name, value)| json_binding_to_ovalue(value).map(|value| (name, value)))
+        .collect()
 }
 
 /// Create one app-owned evaluator. The handle is never shared with Java code
@@ -134,6 +189,9 @@ fn execute_bounded(
                         _ => (None, None),
                     };
                     json!({
+                        "schema": "ostadix.runtime-request-result/v1",
+                        "disposition": "executed",
+                        "executionMode": "embedded_runtime_request",
                         "ok": true,
                         "stage": "complete",
                         "callerId": result.caller_id,
@@ -144,6 +202,7 @@ fn execute_bounded(
                             OValue::Html { v } => v.clone(),
                             other => other.to_string(),
                         },
+                        "typedValue": &result.value,
                         "selectedSourceIndex": selected.0,
                         "selectedScoreMilli": selected.1,
                         "planNodes": result.plan_nodes,
@@ -152,6 +211,9 @@ fn execute_bounded(
                         "sourceSha256": result.evidence.source_sha256,
                         "executionIntentSha256": result.evidence.execution_intent_sha256,
                         "requestScopeContentIdentity": result.evidence.request_scope_content_identity,
+                        "oirSha256": result.evidence.oir_sha256,
+                        "planSha256": result.evidence.plan_sha256,
+                        "analyzedGraphSha256": result.evidence.analyzed_graph_sha256,
                         "evidenceSha256": result.evidence.evidence_sha256,
                         "admittedGraphSha256": result.evidence.admitted_graph_sha256,
                         "admissionSha256": result.evidence.admission_sha256,
@@ -172,6 +234,56 @@ fn execute_bounded(
         Err(_) => return error_json("runtime", "cancellation registry is poisoned"),
     }
     response
+}
+
+/// Execute a bounded request with ordinary JSON values exposed as typed O bindings.
+/// The original no-binding JNI entry point remains stable for existing hosts.
+#[no_mangle]
+pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluateBoundedWithBindings(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    handle: jlong,
+    source: JString<'_>,
+    bindings_json: JString<'_>,
+    caller_id: JString<'_>,
+    request_id: JString<'_>,
+    timeout_ms: jlong,
+) -> jstring {
+    if handle == 0 {
+        return java_string(env, error_json("runtime", "runtime is closed"));
+    }
+    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
+        env.get_string(value)
+            .map(String::from)
+            .map_err(|error| format!("invalid {name}: {error}"))
+    };
+    let source = match read(&mut env, &source, "source") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let bindings_json = match read(&mut env, &bindings_json, "bindings JSON") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let caller_id = match read(&mut env, &caller_id, "caller id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let request_id = match read(&mut env, &request_id, "request id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let bindings = match parse_bindings_json(&bindings_json) {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("bindings", error)),
+    };
+    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+    // released exactly once by nativeDestroy.
+    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+    java_string(
+        env,
+        execute_bounded(runtime, source, caller_id, request_id, bindings, timeout_ms),
+    )
 }
 
 /// Evaluate a complete O document and return a small JSON envelope. JNI is
@@ -356,6 +468,106 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostproces
     let response = execute_bounded(
         runtime,
         AICORE_REPLY_POSTPROCESS.into(),
+        caller_id,
+        request_id,
+        bindings,
+        timeout_ms,
+    );
+    java_string(env, response)
+}
+
+/// Select one nonempty, safety-classified Smart Reply from bounded scalar metadata.
+/// The generated reply text remains in AICore's Java object and never crosses JNI.
+#[no_mangle]
+pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostprocessAicoreSmartReplies(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    handle: jlong,
+    scores: JIntArray<'_>,
+    has_text: JIntArray<'_>,
+    safety_classifications: JIntArray<'_>,
+    caller_id: JString<'_>,
+    request_id: JString<'_>,
+    timeout_ms: jlong,
+) -> jstring {
+    if handle == 0 {
+        return java_string(env, error_json("runtime", "runtime is closed"));
+    }
+    let lengths = [
+        env.get_array_length(&scores),
+        env.get_array_length(&has_text),
+        env.get_array_length(&safety_classifications),
+    ];
+    let lengths = match lengths {
+        [Ok(a), Ok(b), Ok(c)] if a == b && b == c && (1..=3).contains(&a) => a as usize,
+        [Ok(_), Ok(_), Ok(_)] => {
+            return java_string(
+                env,
+                error_json(
+                    "request",
+                    "Smart Reply arrays must have equal length from 1 through 3",
+                ),
+            )
+        }
+        _ => return java_string(env, error_json("jni", "could not read Smart Reply arrays")),
+    };
+    let mut score_values = vec![0; lengths];
+    let mut has_text_values = vec![0; lengths];
+    let mut safety_values = vec![0; lengths];
+    if env
+        .get_int_array_region(&scores, 0, &mut score_values)
+        .is_err()
+        || env
+            .get_int_array_region(&has_text, 0, &mut has_text_values)
+            .is_err()
+        || env
+            .get_int_array_region(&safety_classifications, 0, &mut safety_values)
+            .is_err()
+    {
+        return java_string(env, error_json("jni", "could not copy Smart Reply arrays"));
+    }
+    if has_text_values.iter().any(|value| !matches!(*value, 0 | 1)) {
+        return java_string(
+            env,
+            error_json("request", "Smart Reply has_text values must be 0 or 1"),
+        );
+    }
+    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
+        env.get_string(value)
+            .map(String::from)
+            .map_err(|error| format!("invalid {name}: {error}"))
+    };
+    let caller_id = match read(&mut env, &caller_id, "caller id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let request_id = match read(&mut env, &request_id, "request id") {
+        Ok(value) => value,
+        Err(error) => return java_string(env, error_json("jni", error)),
+    };
+    let mut bindings = HashMap::new();
+    for index in 0..3 {
+        let present = usize::from(index < lengths);
+        bindings.insert(format!("present_{index}"), OValue::int(present as i64));
+        bindings.insert(
+            format!("score_{index}"),
+            OValue::int(score_values.get(index).copied().unwrap_or(0).into()),
+        );
+        bindings.insert(
+            format!("has_text_{index}"),
+            OValue::int(has_text_values.get(index).copied().unwrap_or(0).into()),
+        );
+        bindings.insert(
+            format!("safety_classification_{index}"),
+            OValue::int(safety_values.get(index).copied().unwrap_or(0).into()),
+        );
+    }
+    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+    // released exactly once by nativeDestroy.
+    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+    let response = execute_bounded(
+        runtime,
+        AICORE_SMART_REPLY_POSTPROCESS.into(),
         caller_id,
         request_id,
         bindings,

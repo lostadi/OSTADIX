@@ -1,0 +1,9 @@
+--------- beginning of main
+09-17 06:37:35.929 25188 25188 I OstadixAicoreExperiment: org.ostadix.aicore.extension: Installed one-shot OSTADIX Application.attach bootstrap
+09-17 06:37:35.974 25255 25255 I AsiSmartReplyTrigger: event=activity_created synthetic_input=true
+09-17 06:37:36.189 25255 25255 I AsiSmartReplyTrigger: event=content_capture_settle
+09-17 06:37:36.396 25188 25188 I OstadixAicoreExperiment: org.ostadix.aicore.extension: event=asi_runtime_smoke source_index=1 score_milli=950 elapsed_ms=107 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=b29e45b3f1d267ea778609058868301ea713a43f6c065fc6ea80ef8b494cca4d
+09-17 06:37:36.396 25188 25188 I OstadixAicoreExperiment: org.ostadix.aicore.extension: Installed version-pinned ASI FillResponse hook
+09-17 06:37:37.998 25255 25255 I AsiSmartReplyTrigger: event=ime_requested accepted=true
+09-17 06:37:38.900 25255 25255 I AsiSmartReplyTrigger: event=autofill_requested
+09-17 06:37:39.142 25255 25255 I AsiSmartReplyTrigger: event=autofill_event value=input_shown

@@ -1,0 +1,28 @@
+{
+  "request": {
+    "command": "scope",
+    "action": "ls",
+    "targets": [
+      "org.ostadix.aicore.extension"
+    ],
+    "options": {}
+  },
+  "response": {
+    "data": [
+      {
+        "APP_PACKAGE": "com.google.android.as",
+        "USER_ID": 0
+      },
+      {
+        "APP_PACKAGE": "com.google.android.as.oss",
+        "USER_ID": 0
+      },
+      {
+        "APP_PACKAGE": "com.google.android.googlequicksearchbox",
+        "USER_ID": 0
+      }
+    ],
+    "isFdAttached": false,
+    "success": true
+  }
+}

@@ -22,9 +22,9 @@ for coordinate in (
 ):
     require(DEPENDENCIES, coordinate)
 
-require(BUILD_SCRIPT, "VERSION_CODE=2")
-require(BUILD_SCRIPT, "VERSION_NAME=0.1.1")
-require(SOURCE, 'PROBE_VERSION = "0.1.1"')
+require(BUILD_SCRIPT, "VERSION_CODE=4")
+require(BUILD_SCRIPT, "VERSION_NAME=0.1.3")
+require(SOURCE, 'PROBE_VERSION = "0.1.3"')
 
 for required_source in (
     "SYNTHETIC_BUILD_LOG",

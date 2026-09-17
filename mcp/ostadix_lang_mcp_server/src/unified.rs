@@ -340,7 +340,11 @@ impl OstadixMcp {
         &self,
         mut args: CliArgs,
         snapshot: Option<Arc<SourceSnapshot>>,
+        context: &RequestContext<RoleServer>,
     ) -> Result<Value, String> {
+        if context.ct.is_cancelled() {
+            return Err("request cancelled before native dispatch; no retry".into());
+        }
         let background = args.background;
         args.background = true;
         let started = call_value(
@@ -356,12 +360,21 @@ impl OstadixMcp {
             id: id.clone(),
             active: true,
         };
-        if background {
+        if background && !context.ct.is_cancelled() {
             guard.active = false;
             return Ok(started);
         }
-        let _ = self.jobs.write(&id, "", true).await;
-        let mut result = self.jobs.wait(&id).await?;
+        // rmcp signals the request token without dropping handler futures.
+        // Cancel this job through its existing session owner, and wait for the
+        // native child, nested groups, and output streams to finish cleanup.
+        let mut result = tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => self.jobs.cancel(&id).await?,
+            result = async {
+                let _ = self.jobs.write(&id, "", true).await;
+                self.jobs.wait(&id).await
+            } => result?,
+        };
         guard.active = false;
         for stream in ["stdout", "stderr"] {
             result[stream] = self.jobs.read(&id, stream, 0, 65536).await?;
@@ -372,11 +385,12 @@ impl OstadixMcp {
     pub(super) async fn execute_computation(
         &self,
         args: ExecuteArgs,
+        context: &RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         if let Err(error) = args.validate() {
             return structured_failure(error);
         }
-        match self.computation(args).await {
+        match self.computation(args, context).await {
             Ok(value)
                 if (value["state"] == "running" || completed(&value))
                     && value.get("error").is_none_or(Value::is_null) =>
@@ -388,7 +402,11 @@ impl OstadixMcp {
         }
     }
 
-    async fn computation(&self, args: ExecuteArgs) -> Result<Value, String> {
+    async fn computation(
+        &self,
+        args: ExecuteArgs,
+        context: &RequestContext<RoleServer>,
+    ) -> Result<Value, String> {
         let timeout = args
             .timeout_secs
             .or(if args.background { None } else { Some(120) });
@@ -408,7 +426,7 @@ impl OstadixMcp {
                 return Err("node sends ordinary complete O documents; use native project mesh for project inputs".into());
             }
             return self
-                .execute_selected_node(&args, &input, node, deadline)
+                .execute_selected_node(&args, &input, node, deadline, context)
                 .await;
         }
         if input.project {
@@ -449,6 +467,7 @@ impl OstadixMcp {
                         pty: false,
                     },
                     None,
+                    context,
                 )
                 .await?;
             if completed(&probe) {
@@ -539,6 +558,7 @@ impl OstadixMcp {
                             pty: false,
                         },
                         input.snapshot.clone(),
+                        context,
                     )
                     .await?;
                 if !completed(&analysis_job) {
@@ -631,6 +651,7 @@ impl OstadixMcp {
                     pty: false,
                 },
                 input.snapshot.clone(),
+                context,
             )
             .await?;
         result["action"] = json!(match args.action {
@@ -703,6 +724,7 @@ impl OstadixMcp {
                                 pty: false,
                             },
                             None,
+                            context,
                         )
                         .await?;
                     let native = bounded_stdout(&job, false)

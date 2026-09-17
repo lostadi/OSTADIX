@@ -1,0 +1,168 @@
+{
+  "schema": "ostadix.aicore-process-probe-run/v1",
+  "request_id": "local-model-private-fds-20260917-1711",
+  "started_utc": "2026-09-17T17:11:37.953+00:00",
+  "deadline_seconds": 120,
+  "automatic_retry": false,
+  "generation_requested": false,
+  "broadcast_sent": true,
+  "event_source": "/data/user/0/com.google.android.aicore/files/ostadix-nano-probe/events.jsonl",
+  "evidence_files": {
+    ".json": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.json",
+    ".stdout": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.stdout",
+    ".logcat": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.logcat",
+    ".logcat.stderr": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.logcat.stderr",
+    ".broadcast.stdout": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.broadcast.stdout",
+    ".broadcast.stderr": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.broadcast.stderr"
+  },
+  "resource_snapshots": [
+    {
+      "utc": "2026-09-17T17:11:38.122+00:00",
+      "elapsed_seconds": 0.129,
+      "thermal_status": 1,
+      "MemAvailable_kB": 3477364,
+      "SwapFree_kB": 32708,
+      "VmHWM_kB": 126620,
+      "VmRSS_kB": 120288
+    },
+    {
+      "utc": "2026-09-17T17:11:39.159+00:00",
+      "elapsed_seconds": 1.18,
+      "thermal_status": 1,
+      "MemAvailable_kB": 3136520,
+      "SwapFree_kB": 33732,
+      "VmHWM_kB": 230052,
+      "VmRSS_kB": 228852
+    },
+    {
+      "utc": "2026-09-17T17:11:40.190+00:00",
+      "elapsed_seconds": 2.213,
+      "thermal_status": 1,
+      "MemAvailable_kB": 3121552,
+      "SwapFree_kB": 33732,
+      "VmHWM_kB": 247624,
+      "VmRSS_kB": 236268
+    },
+    {
+      "utc": "2026-09-17T17:11:41.240+00:00",
+      "elapsed_seconds": 3.247,
+      "thermal_status": 1,
+      "MemAvailable_kB": 3061560,
+      "SwapFree_kB": 33748,
+      "VmHWM_kB": 252428,
+      "VmRSS_kB": 252428
+    },
+    {
+      "utc": "2026-09-17T17:11:42.293+00:00",
+      "elapsed_seconds": 4.292,
+      "thermal_status": 1,
+      "MemAvailable_kB": 3026324,
+      "SwapFree_kB": 34260,
+      "VmHWM_kB": 275652,
+      "VmRSS_kB": 275652
+    },
+    {
+      "utc": "2026-09-17T17:11:43.356+00:00",
+      "elapsed_seconds": 5.346,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2303276,
+      "SwapFree_kB": 13780,
+      "VmHWM_kB": 297936,
+      "VmRSS_kB": 294032
+    },
+    {
+      "utc": "2026-09-17T17:11:44.401+00:00",
+      "elapsed_seconds": 6.416,
+      "thermal_status": 1,
+      "MemAvailable_kB": 1715828,
+      "SwapFree_kB": 36,
+      "VmHWM_kB": 299324,
+      "VmRSS_kB": 294152
+    },
+    {
+      "utc": "2026-09-17T17:11:45.539+00:00",
+      "elapsed_seconds": 7.484,
+      "thermal_status": 1,
+      "MemAvailable_kB": 979540,
+      "SwapFree_kB": 2796,
+      "VmHWM_kB": 299324,
+      "VmRSS_kB": 293176
+    },
+    {
+      "utc": "2026-09-17T17:11:46.607+00:00",
+      "elapsed_seconds": 8.596,
+      "thermal_status": 1,
+      "MemAvailable_kB": 655680,
+      "SwapFree_kB": 144,
+      "VmHWM_kB": 299324,
+      "VmRSS_kB": 293208
+    },
+    {
+      "utc": "2026-09-17T17:11:47.754+00:00",
+      "elapsed_seconds": 9.733,
+      "thermal_status": 1,
+      "MemAvailable_kB": 178516,
+      "SwapFree_kB": 44,
+      "VmHWM_kB": 315364,
+      "VmRSS_kB": 270536
+    }
+  ],
+  "signal_actions": [
+    {
+      "utc": "2026-09-17T17:11:47.767+00:00",
+      "action": "pidfd_SIGKILL",
+      "reason": "host_low_memory_guard",
+      "pid": 4896,
+      "uid": 10173,
+      "native_call_active": true,
+      "correlated_request_unfinished": true
+    }
+  ],
+  "complete_event": null,
+  "process_identity": {
+    "pid": 4896,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 5417437,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  },
+  "process_observed_utc": "2026-09-17T17:11:38.080+00:00",
+  "logcat_command": [
+    "/system/bin/logcat",
+    "--pid=4896",
+    "-T",
+    "1",
+    "-v",
+    "threadtime"
+  ],
+  "deadline_elapsed_ms": 54439819,
+  "broadcast_command": [
+    "/system/bin/am",
+    "broadcast",
+    "-a",
+    "org.ostadix.aicore.NANO_LOCAL_PROBE",
+    "-p",
+    "com.google.android.aicore",
+    "--es",
+    "request_id",
+    "local-model-private-fds-20260917-1711",
+    "--el",
+    "deadline_elapsed_ms",
+    "54439819"
+  ],
+  "broadcast_started_utc": "2026-09-17T17:11:38.124+00:00",
+  "terminated_process_exit_observed": true,
+  "observed_process_exited_at_finish": true,
+  "finished_utc": "2026-09-17T17:11:48.978+00:00",
+  "elapsed_ms": 11025,
+  "stop_reason": "host_low_memory_guard",
+  "correlated_event_count": 9,
+  "native_call_active_at_finish": false,
+  "broadcast_exit_code": 0,
+  "success": false
+}

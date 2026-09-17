@@ -18,9 +18,13 @@ import java.util.Locale;
 final class ExtensionGate {
     static final String ASOSS_PACKAGE = "com.google.android.as.oss";
     static final String ASOSS_PROCESS = "com.google.android.as.oss";
+    static final String ASI_PACKAGE = "com.google.android.as";
+    static final String ASI_PROCESS = "com.google.android.as";
+    static final String GSA_PACKAGE = "com.google.android.googlequicksearchbox";
+    static final String GSA_PROCESS = "com.google.android.googlequicksearchbox:search";
     static final String MODULE_PACKAGE = "org.ostadix.aicore.extension";
 
-    private static final String AICORE_PACKAGE = "com.google.android.aicore";
+    static final String AICORE_PACKAGE = "com.google.android.aicore";
     private static final String EXPECTED_FRAMEWORK = "Vector";
     private static final String EXPECTED_FINGERPRINT =
             "google/blazer/blazer:17/CP2A.260805.005/15828068:user/release-keys";
@@ -37,31 +41,64 @@ final class ExtensionGate {
             "c08952bafbd19a4bcb4399aaebc17ae7b1685c8b20cad033a41b435fbfe3620c";
     private static final String EXPECTED_ASOSS_SIGNER =
             "071f09456bf1a8e8ad2e808ffe6a0ebc13582a7e6f9aba13e47280ad9a85d833";
+    private static final long EXPECTED_ASI_CODE = 16934935L;
+    private static final String EXPECTED_ASI_NAME = "C.6.playstore.pixel11.961955194";
+    private static final String EXPECTED_ASI_APK =
+            "16d2b265fbea8c8abc46b537b6191628f7a855d7e3fd760b4a60bb6ea9c93e68";
+    private static final String EXPECTED_ASI_SIGNER =
+            "3af39ab967aaa5d279e49b5f769cb66e40799838bc8799343ee57ae435d2455b";
+    private static final long EXPECTED_GSA_CODE = 301803623L;
+    private static final String EXPECTED_GSA_NAME = "17.56.15.sa.arm64";
+    private static final String EXPECTED_GSA_APK =
+            "c227beb9468f1740c395e457d5f06fb780f288a89156d8487ef069953c1c359a";
+    private static final String EXPECTED_GSA_SIGNER =
+            "7ce83c1b71f3d572fed04c8d40c5cb10ff75e6d87d9df6fbd53f0468c2905053";
     private static final String ACTIVATION_SETTING = "ostadix_aicore_extension_token";
     private static final String ACTIVATION_TOKEN = EXPECTED_FINGERPRINT
-            + ":asoss-llm-result-v1:" + EXPECTED_ASOSS_APK;
+            + ":asoss-smart-reply-result-v1:" + EXPECTED_ASOSS_APK;
 
     private ExtensionGate() {}
 
     static boolean matchesEarlyProcess(String processName, String framework, int apiVersion) {
         return Build.VERSION.SDK_INT == 37
                 && EXPECTED_FINGERPRINT.equals(Build.FINGERPRINT)
-                && ASOSS_PROCESS.equals(processName)
+                && (ASOSS_PROCESS.equals(processName) || ASI_PROCESS.equals(processName)
+                        || GSA_PROCESS.equals(processName) || AICORE_PACKAGE.equals(processName))
                 && EXPECTED_FRAMEWORK.equals(framework)
                 && apiVersion == 102;
     }
 
     static boolean acceptsInstalledPackages(Context context) {
-        return context != null
-                && ASOSS_PACKAGE.equals(context.getPackageName())
-                && packageMatches(context, ASOSS_PACKAGE, EXPECTED_ASOSS_CODE,
+        if (context == null) {
+            return false;
+        }
+        boolean hostMatches;
+        if (AICORE_PACKAGE.equals(context.getPackageName())) {
+            hostMatches = packageMatches(context, AICORE_PACKAGE, EXPECTED_AICORE_CODE,
+                    EXPECTED_AICORE_NAME, EXPECTED_AICORE_APK, EXPECTED_AICORE_SIGNER);
+        } else if (ASOSS_PACKAGE.equals(context.getPackageName())) {
+            hostMatches = packageMatches(context, ASOSS_PACKAGE, EXPECTED_ASOSS_CODE,
                         EXPECTED_ASOSS_NAME, EXPECTED_ASOSS_APK, EXPECTED_ASOSS_SIGNER)
-                && packageMatches(context, AICORE_PACKAGE, EXPECTED_AICORE_CODE,
+                    && packageMatches(context, AICORE_PACKAGE, EXPECTED_AICORE_CODE,
                         EXPECTED_AICORE_NAME, EXPECTED_AICORE_APK, EXPECTED_AICORE_SIGNER);
+        } else if (ASI_PACKAGE.equals(context.getPackageName())) {
+            hostMatches = packageMatches(context, ASI_PACKAGE, EXPECTED_ASI_CODE,
+                    EXPECTED_ASI_NAME, EXPECTED_ASI_APK, EXPECTED_ASI_SIGNER);
+        } else if (GSA_PACKAGE.equals(context.getPackageName())) {
+            hostMatches = packageMatches(context, GSA_PACKAGE, EXPECTED_GSA_CODE,
+                    EXPECTED_GSA_NAME, EXPECTED_GSA_APK, EXPECTED_GSA_SIGNER);
+        } else {
+            hostMatches = false;
+        }
+        return hostMatches;
     }
 
     static boolean isExplicitlyEnabled(Context context) {
         try {
+            if (AICORE_PACKAGE.equals(context.getPackageName())) {
+                return "local-factory-234-10745-v1".equals(Settings.Global.getString(
+                        context.getContentResolver(), "ostadix_nano_local_probe_token"));
+            }
             return ACTIVATION_TOKEN.equals(Settings.Global.getString(
                     context.getContentResolver(), ACTIVATION_SETTING));
         } catch (Throwable error) {

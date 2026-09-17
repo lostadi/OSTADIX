@@ -1,0 +1,43 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"schema\":\"ostadix.runtime-request-result/v1\",\"disposition\":\"executed\",\"execution_mode\":\"embedded_runtime_request\",\"caller_id\":\"mcp/stdio\",\"request_id\":\"mcp-15334-1\",\"result\":{\"typed_value\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"42\"}}},\"structure\":{\"plan_nodes\":1,\"hgraph_nodes\":3,\"hgraph_exec_edges\":1},\"elapsed_ms\":9,\"evidence\":{\"source_sha256\":\"29848ceeef8324cf8f60fd15061cbd2637d8736fad0a19180d64ec1378fedb8d\",\"execution_intent_sha256\":\"9368c94550cf0f672641cd449d51acd15d158544a41a93ae1cd96d85ceeb155d\",\"request_scope_content_identity\":\"f43001b9609322b9218faed933030009a395eca91f9285edf14d536b421aa5fd\",\"oir_sha256\":\"9a38d8ec7978388a78f21c0a8a7c5e81a5eb3baf1afdbbbea34ebe47fe488153\",\"plan_sha256\":\"59554b022631b12cddefdc719ecead8b365668b5802b00622ddd5ba0321c6697\",\"analyzed_graph_sha256\":\"0449d7b143cd802c3dbf9c261609e20b2a6e90de223d9e9c334df0ce7c26a333\",\"evidence_sha256\":\"33c4c3c593d9b65c8865ad7752d17c94b15aa58f0e0ce1cc52862bd52e32cb86\",\"admitted_graph_sha256\":\"020593aedbd70c5571e3c253029b27d85c79cf3677ef9cc54f653fdb0e29368b\",\"admission_sha256\":\"4501bd306b4b47b739f882716b1059c4a86b2fe732753d574908fdcdf7d8a2e0\",\"result_content_identity\":\"f8f7d9a5c91ed45766da3e1021a41f7ab04442d0e4b72756bbe047fa5b7c7967\"}}"
+    }
+  ],
+  "structuredContent": {
+    "schema": "ostadix.runtime-request-result/v1",
+    "disposition": "executed",
+    "execution_mode": "embedded_runtime_request",
+    "caller_id": "mcp/stdio",
+    "request_id": "mcp-15334-1",
+    "result": {
+      "typed_value": {
+        "t": "number",
+        "v": {
+          "kind": "int",
+          "v": "42"
+        }
+      }
+    },
+    "structure": {
+      "plan_nodes": 1,
+      "hgraph_nodes": 3,
+      "hgraph_exec_edges": 1
+    },
+    "elapsed_ms": 9,
+    "evidence": {
+      "source_sha256": "29848ceeef8324cf8f60fd15061cbd2637d8736fad0a19180d64ec1378fedb8d",
+      "execution_intent_sha256": "9368c94550cf0f672641cd449d51acd15d158544a41a93ae1cd96d85ceeb155d",
+      "request_scope_content_identity": "f43001b9609322b9218faed933030009a395eca91f9285edf14d536b421aa5fd",
+      "oir_sha256": "9a38d8ec7978388a78f21c0a8a7c5e81a5eb3baf1afdbbbea34ebe47fe488153",
+      "plan_sha256": "59554b022631b12cddefdc719ecead8b365668b5802b00622ddd5ba0321c6697",
+      "analyzed_graph_sha256": "0449d7b143cd802c3dbf9c261609e20b2a6e90de223d9e9c334df0ce7c26a333",
+      "evidence_sha256": "33c4c3c593d9b65c8865ad7752d17c94b15aa58f0e0ce1cc52862bd52e32cb86",
+      "admitted_graph_sha256": "020593aedbd70c5571e3c253029b27d85c79cf3677ef9cc54f653fdb0e29368b",
+      "admission_sha256": "4501bd306b4b47b739f882716b1059c4a86b2fe732753d574908fdcdf7d8a2e0",
+      "result_content_identity": "f8f7d9a5c91ed45766da3e1021a41f7ab04442d0e4b72756bbe047fa5b7c7967"
+    }
+  },
+  "isError": false
+}

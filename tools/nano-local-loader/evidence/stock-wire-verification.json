@@ -1,0 +1,13 @@
+{
+  "started_utc": "2026-09-17T16:40:25.582095+00:00",
+  "command": [
+    "/system/bin/su",
+    "-p",
+    "10402",
+    "-c",
+    "/system/bin/app_process /system/bin org.ostadix.nanoloader.StockWireVerifier '/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk'"
+  ],
+  "exit_code": 0,
+  "stdout": "{\"parser\":\"installed_AICore_protobuf\",\"temperature\":0.25,\"max_output_tokens\":17,\"top_k\":1,\"num_samples\":1,\"top_p\":1,\"input_count\":1,\"input_mode\":1,\"text_oneof_case\":1,\"text\":\"Ostadix wire verification\",\"inference_executed\":false}\n",
+  "stderr": ""
+}

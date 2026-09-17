@@ -1,0 +1,60 @@
+PixelAiProbe foreground measurement
+action=prompt android_action=org.ostadix.pixelai.probe.RUN_PROMPT timeout_seconds=180
+inputs=probe-owned synthetic constants only; speech is readiness-only and opens no microphone
+placement_rule=TPU/NPU use requires correlated Edge TPU events/counters; API completion alone is not proof
+
+SNAPSHOT before utc=2026-09-17T14:51:08.526Z
+edgetpu_inference_count_raw=0 55016 70 total=55086
+energy_tpu_mWs=52226.17 rail_s7_tpu_mWs=18364.77 rail_s9_tpu_mWs=33861.40
+thermal_status=1
+memory_probe=pss_kb=119506 rss_kb=247912 swap_pss_kb=23
+memory_aicore=pss_kb=16703 rss_kb=113420 swap_pss_kb=2499
+memory_as_oss=pss_kb=160398 rss_kb=140808 swap_pss_kb=133095
+
+ACTIVITY_TRIGGER
+Starting: Intent { act=org.ostadix.pixelai.probe.RUN_PROMPT flg=0x20000000 cmp=org.ostadix.pixelai.probe/.MainActivity }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+Status: ok
+LaunchState: UNKNOWN (0)
+Activity: org.ostadix.pixelai.probe/.MainActivity
+TotalTime: 0
+WaitTime: 6
+Complete
+
+SNAPSHOT after utc=2026-09-17T14:51:11.801Z
+edgetpu_inference_count_raw=0 55016 70 total=55086
+energy_tpu_mWs=52226.17 rail_s7_tpu_mWs=18364.77 rail_s9_tpu_mWs=33861.40
+thermal_status=1
+memory_probe=pss_kb=122873 rss_kb=252616 swap_pss_kb=17
+memory_aicore=pss_kb=16389 rss_kb=114340 swap_pss_kb=2407
+memory_as_oss=pss_kb=156128 rss_kb=137708 swap_pss_kb=132679
+
+DELTAS wall_ms=376 edgetpu_inference_total=0.00 energy_tpu_mWs=0.00 rail_s7_tpu_mWs=0.00 rail_s9_tpu_mWs=0.00
+
+PROBE_LOGS_BEGIN
+         1789656668.762 27638 27638 I PixelAiProbe: 10:51:08.761 [lifecycle] paused elapsedMs=0
+         1789656668.762 27638 27638 I PixelAiProbe: Cancelled pending futures and closed ML clients
+         1789656668.763 27638 27638 I PixelAiProbe: 10:51:08.763 [lifecycle] resumed elapsedMs=0
+         1789656668.763 27638 27638 I PixelAiProbe: Probe calls are enabled; Activity is resumed, focused, and unlocked
+PROBE_LOGS_END
+
+EDGETPU_TRACE_SUMMARY records=2 edgetpu_events=0 lines=14
+EDGETPU_TRACE_BEGIN
+# tracer: nop
+#
+# entries-in-buffer/entries-written: 2/2   #P:8
+#
+#                                _-----=> irqs-off/BH-disabled
+#                               / _----=> need-resched
+#                              | / _---=> hardirq/softirq
+#                              || / _--=> preempt-depth
+#                              ||| / _-=> migrate-disable
+#                              |||| /     delay
+#           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
+#              | |         |   |||||     |         |
+          printf-29157   [007] ..... 34117.659967: tracing_mark_write: OSTADIX_PIXEL_AI_BEGIN action=prompt
+          printf-29210   [005] ..... 34117.974831: tracing_mark_write: OSTADIX_PIXEL_AI_END outcome=aborted_when_activity_paused
+EDGETPU_TRACE_END
+
+RESULT outcome=aborted_when_activity_paused exit_status=5 foreground_after=verified_unlocked_and_focused
+CAUTION energy and global TPU counters are cumulative and can include concurrent system workloads; correlate them with trace events and probe timing.
