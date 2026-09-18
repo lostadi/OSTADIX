@@ -26,16 +26,23 @@ final class NanoToolTurn {
 
     String run(String userText) throws Exception {
         long start = SystemClock.elapsedRealtime();
-        evidence.put("schema", "ostadix.gemini-local-tool-turn/v1").put("request_id", id)
+        evidence.put("schema", "ostadix.gemini-local-tool-turn/v2").put("request_id", id)
                 .put("ordinary_assistant_request", true).put("caller_uid", android.os.Process.myUid())
                 .put("caller_pid", android.os.Process.myPid()).put("user_text", userText)
-                .put("stock_callback_delegations", 0).put("mcp_dispatch_attempts", 0);
+                .put("stock_callback_delegations", 0).put("mcp_dispatch_attempts", 0)
+                .put("execution_dispatch_attempts", 0).put("source_correction_attempts", 0)
+                .put("source_checks", new JSONArray());
         try {
             check();
             phase = "source_generation"; save();
             JSONObject generated = NanoActionClient.generate(context, frame(
                     "Write a complete Ostadix .O program for this request. Return only source. "
                     + "The host executes it with o_execute. Do not claim you ran it. "
+                    + "You have a real local execution tool through this host. Do not tell the user to run "
+                    + "commands in Codex or claim there is no device connection. For a question or writing task, "
+                    + "produce a Python block that returns your answer as __oval_result__. "
+                    + "For a computation, execute the actual calculation in the program. "
+                    + "Use only runtimes needed for the request; the example is syntax guidance. "
                     + "Do not create compiler scripts or temporary files. Keep it within 512 tokens.\n"
                     + "Language guide: python^(code)_python returns __oval_result__. "
                     + "rust^(fn main(){...})_rust returns stdout decoded as JSON when valid. "
@@ -47,25 +54,55 @@ final class NanoToolTurn {
                     + "Bash JSON numeric output becomes a number, not a string. "
                     + "Do not use f-strings containing O splices; assign $parts first. "
                     + "No explanations, computed answer, or tool-call JSON.\n"
-                    + "COMPLETE SYNTAX EXAMPLE (different computation, replace its data and operations):\n"
-                    + "let parts = autonomous(batch(\n"
-                    + "python^(\n    __oval_result__ = sum([2,4])\n)_python,\n"
-                    + "rust^(\nfn main(){let mut n=1; for i in 1..=3 {n*=i;} println!(\"{}\",n);}\n)_rust,\n"
-                    + "bash^(\n    printf '%s\\n' apple pear apple | sort -u | wc -l\n)_bash\n))\n"
-                    + "python^(\n    a,b,c = $parts\n    __oval_result__ = a+b+c\n)_python\n"
-                    + "END EXAMPLE. The example's operations are unrelated to the actual request. "
-                    + "Re-derive each branch from the actual request, including its operators and bounds. "
-                    + "Your output must include ALL requested executable language blocks "
-                    + "and the final combining block. No bare Python outside python^(...)_python.\n"
+                    + "SMALL COMPLETE EXAMPLE for a single Python calculation:\n"
+                    + "python^(\n    __oval_result__ = 6 * 9\n)_python\n"
+                    + "END EXAMPLE. Replace that calculation with the actual request. "
+                    + "For one Python calculation return ONE python^(...)_python block. "
+                    + "Additional runtimes are optional: include them only when the request requires them. "
+                    + "Never duplicate a calculation across languages and add the duplicate results. "
+                    + "Use a combining block only when the request requires combining distinct results. "
+                    + "Implement each requested operator and bound exactly. "
+                    + "A sum of squares squares each input before adding; a sum of cubes cubes each input. "
+                    + "Every python^( MUST close with )_python, every rust^( with )_rust, "
+                    + "and every bash^( with )_bash. A bare ) does not close a language block. "
+                    + "Check the final delimiter before ending. No bare Python outside python^(...)_python.\n"
                     + "ACTUAL REQUEST:\n" + userText), cancellation);
             evidence.put("source_generation", generated);
-            String source = extractSource(candidate(generated));
+            String initialSource = extractSource(candidate(generated));
+            evidence.put("initial_source", initialSource); save();
+            NanoSourcePreparation.Prepared prepared = NanoSourcePreparation.prepare(initialSource,
+                    new NanoSourcePreparation.Operations() {
+                        public void checkActive() { check(); }
+                        public String validate(String source) throws Exception { return validateSource(source); }
+                        public String correct(String source, String error) throws Exception {
+                            check(); phase = "source_correction";
+                            evidence.put("source_correction_attempts", 1); save();
+                            JSONObject correction = NanoActionClient.generate(context, frame(
+                                    "Correct this complete Ostadix .O program before execution. "
+                                    + "Nothing has executed. This is the only correction attempt. "
+                                    + "Return the entire corrected program as source, within 512 tokens, "
+                                    + "without Markdown fences or explanation. Implement the original request exactly. "
+                                    + "A sum of squares squares each input; a sum of cubes cubes each input. "
+                                    + "python^(code)_python, rust^(code)_rust and bash^(code)_bash "
+                                    + "are executable blocks. Every opening must have its matching language suffix; "
+                                    + "a bare ) is not enough. Python returns __oval_result__. "
+                                    + "Independent blocks can use let parts = autonomous(batch(...)); "
+                                    + "final Python reads a,b,c = $parts. Preserve the requested runtimes and inputs. "
+                                    + "Do not create compiler scripts or run commands yourself.\n"
+                                    + "ORIGINAL REQUEST:\n" + userText + "\nVALIDATION ERROR:\n" + error
+                                    + "\nREJECTED PROGRAM:\n" + source), cancellation);
+                            evidence.put("source_correction", correction); save();
+                            return extractSource(candidate(correction));
+                        }
+                    });
+            String source = prepared.source;
             evidence.put("mcp_request", new JSONObject().put("method", "tools/call").put("params",
                     new JSONObject().put("name", "o_execute").put("arguments",
                             new JSONObject().put("source", source).put("timeout_secs", 120))))
                     .put("source_sha256", digest(source));
             check(); phase = "mcp_dispatch";
-            evidence.put("mcp_dispatch_attempts", 1); save();
+            evidence.put("mcp_dispatch_attempts", evidence.getInt("mcp_dispatch_attempts") + 1)
+                    .put("execution_dispatch_attempts", 1); save();
             JSONObject result;
             try (HostMcpClient host = new HostMcpClient()) {
                 result = new JSONObject(host.execute(context, source, "{}", 120000, id, cancellation));
@@ -73,12 +110,10 @@ final class NanoToolTurn {
             evidence.put("mcp_result", result); phase = "mcp_returned"; save();
             if (!"completed".equals(result.optString("state")) || result.optInt("exit_code", -1) != 0
                     || !result.has("result") || !result.getJSONObject("result").optBoolean("ok")) {
-                JSONObject nativeFailure = result.optJSONObject("result");
-                throw new IllegalStateException("o_execute "
-                        + (nativeFailure == null ? result.optString("state") : nativeFailure.optString("stage"))
-                        + " failed: " + (nativeFailure == null ? result.optString("error")
-                        : nativeFailure.optString("error", result.optString("error"))) + "; no retry");
+                throw new IllegalStateException(NanoToolOutput.failed(result));
             }
+            NanoTurnStore.publish(context, id, userText, NanoToolOutput.completed(result.getJSONObject("result"))
+                    + "\n\nNano is preparing an explanation. The execution result above is already saved.", null, false);
             check(); phase = "result_consumption"; save();
             JSONObject nativeResult = result.getJSONObject("result");
             JSONObject interpretationInput = new JSONObject().put("ok", nativeResult.getBoolean("ok"))
@@ -91,11 +126,11 @@ final class NanoToolTurn {
                     + "Do not recalculate or substitute an expected answer.\nUSER REQUEST:\n" + userText
                     + "\nACTUAL TOOL RESULT:\n" + interpretationInput.toString()), cancellation);
             evidence.put("result_consumption", consumed);
-            String answer = candidate(consumed);
+            String interpretation = candidate(consumed);
             check();
-            String identity = nativeResult.getJSONObject("execution_evidence")
-                    .getString("result_content_identity");
-            answer += "\n\nExecuted locally with Ostadix. Result identity: " + identity;
+            String answer = NanoToolOutput.completed(nativeResult)
+                    + "\n\nNano's explanation (not independently verified):\n" + interpretation;
+            if (prepared.corrected) { answer += "\n\nNano corrected the generated program before execution."; }
             evidence.put("answer", answer).put("elapsed_ms", SystemClock.elapsedRealtime() - start);
             phase = "answer_ready"; save();
             return answer;
@@ -105,15 +140,47 @@ final class NanoToolTurn {
             phase = "failed"; save();
             if ("result_consumption".equals(failedAt)) {
                 JSONObject executed = evidence.getJSONObject("mcp_result").getJSONObject("result");
-                String value = executed.get("value").toString();
-                if (value.length() > 1024) { value = value.substring(0, 1024) + " [truncated for display]"; }
-                throw new IllegalStateException("Ostadix executed successfully; actual typed result: " + value
-                        + ". Local interpretation failed: " + failure.getMessage()
-                        + ". Result identity: " + executed.getJSONObject("execution_evidence")
-                                .getString("result_content_identity"), failure);
+                check();
+                String answer = NanoToolOutput.completed(executed)
+                        + "\n\nNano could not explain this result: " + failure.getMessage();
+                evidence.put("answer", answer).put("elapsed_ms", SystemClock.elapsedRealtime() - start);
+                phase = "answer_ready_without_interpretation"; save();
+                return answer;
             }
             throw failure;
         }
+    }
+
+    private String validateSource(String source) throws Exception {
+        check(); phase = "source_validation";
+        JSONArray checks = evidence.getJSONArray("source_checks");
+        JSONObject entry = new JSONObject().put("source_sha256", digest(source))
+                .put("request", new JSONObject().put("method", "tools/call").put("params",
+                        new JSONObject().put("name", "o_execute").put("arguments", new JSONObject()
+                                .put("source", source).put("action", "check").put("timeout_secs", 15))));
+        checks.put(entry);
+        evidence.put("mcp_dispatch_attempts", evidence.getInt("mcp_dispatch_attempts") + 1); save();
+        JSONObject result;
+        try (HostMcpClient host = new HostMcpClient()) {
+            result = new JSONObject(host.check(context, source, 15000, id + "-check-" + checks.length(), cancellation));
+        }
+        entry.put("result", result); save(); check();
+        JSONObject nativeResult = result.optJSONObject("result");
+        if ("check".equals(result.optString("action")) && nativeResult != null
+                && "parse".equals(nativeResult.optString("stage"))) {
+            if ("completed".equals(result.optString("state")) && result.optInt("exit_code", -1) == 0
+                    && nativeResult.optBoolean("ok")) {
+                String contractError = NanoSourcePreparation.executableContractError(source);
+                if (contractError != null) { entry.put("source_contract_rejection", contractError); save(); }
+                return contractError;
+            }
+            if ("failed".equals(result.optString("state")) && result.optInt("exit_code", 0) != 0
+                    && nativeResult.has("ok") && !nativeResult.getBoolean("ok")
+                    && nativeResult.has("error")) { return nativeResult.getString("error"); }
+        }
+        throw new IllegalStateException("Could not validate Nano's program. Nothing was executed. "
+                + (nativeResult == null ? result.optString("error", "Unexpected validation response")
+                        : nativeResult.optString("error", "Unexpected validation response")));
     }
 
     private void check() {

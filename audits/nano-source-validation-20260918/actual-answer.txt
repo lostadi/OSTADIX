@@ -1,0 +1,7 @@
+Ostadix output:
+276
+
+Executed locally with Ostadix. Result identity: 3f6a2137568075a5f63bfdf0591651b856a003ec9a044f29d04bee0927acb657
+
+Nano's explanation:
+The Python calculation of the sum of squares (2² + 7² + 11²) results in 4 + 49 + 121 = 174. The Rust calculation of the sum of cubes (1³ + 2³ + 3³ + 4³) results in 1 + 8 + 27 + 64 = 100. The Bash calculation of distinct labels ("red blue red") yields 2.  The combined result is 174 + 100 + 2 = 276.

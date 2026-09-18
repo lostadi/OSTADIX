@@ -1,0 +1,85 @@
+{
+  "before": {
+    "route": "local-all-v1",
+    "boot_script_installed": true,
+    "supervisor_running": true,
+    "host_running": true,
+    "host_pid": 7788,
+    "host_launches": 1,
+    "listening": true
+  },
+  "before_execution": {
+    "http_status": 200,
+    "state": "completed",
+    "actual_result": {
+      "t": "number",
+      "v": {
+        "kind": "int",
+        "v": "2"
+      }
+    },
+    "execution_evidence": {
+      "admission": {
+        "admission_sha256": "27593d90f7a65c384b96298f99bf7226fe944b3c7d1c42239719440185a88c42",
+        "admitted_graph_sha256": "6562b6b94359b18e008e83e4926f962d0880df4be3d6059bde12316b31914c80",
+        "analyzed_graph_sha256": "a91043a340fa1c22bd23fb66fca07685b2b46399f8d983b232d3375100faf0b0",
+        "evidence_sha256": "efbed750136cd877bde6ccf0e5570ecafa305daa551723095bb2921fd38b92d2",
+        "oir_sha256": "1e416741f26775bbf831d25986fa6d93fa398a18e72e8d3c97cc50ec90d09228",
+        "plan_sha256": "46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67",
+        "schema": "oexec.admission/v6"
+      },
+      "execution_mode": "graph",
+      "parsed_source_sha256": "41fa07f856849a883c7904d6359084c6d54e7d2bdc3fb7fd027628307a1f84a2",
+      "result_content_identity": "137694dd901f74b673b1c4b6c6f138852a785916673984e828017e13a0fcd4ee",
+      "schema": "ostadix.native-execution-evidence/v1",
+      "source_identity_scope": "submitted_utf8_before_shebang_removal",
+      "source_intent_gate": null,
+      "source_sha256": "41fa07f856849a883c7904d6359084c6d54e7d2bdc3fb7fd027628307a1f84a2"
+    },
+    "passed": true
+  },
+  "after": {
+    "route": "local-all-v1",
+    "boot_script_installed": true,
+    "supervisor_running": true,
+    "host_running": true,
+    "host_pid": 8604,
+    "host_launches": 2,
+    "listening": true
+  },
+  "after_execution": {
+    "http_status": 200,
+    "state": "completed",
+    "actual_result": {
+      "t": "number",
+      "v": {
+        "kind": "int",
+        "v": "2"
+      }
+    },
+    "execution_evidence": {
+      "admission": {
+        "admission_sha256": "9b7cd1f395b4d1ab799acb691d954ace3d71d8793f7b38efa53637613cbcf7cb",
+        "admitted_graph_sha256": "6562b6b94359b18e008e83e4926f962d0880df4be3d6059bde12316b31914c80",
+        "analyzed_graph_sha256": "a91043a340fa1c22bd23fb66fca07685b2b46399f8d983b232d3375100faf0b0",
+        "evidence_sha256": "dd1493d8b50f3e50e050e36ca5515d02df1d20d44f4ab8576f485d807e85eb41",
+        "oir_sha256": "1e416741f26775bbf831d25986fa6d93fa398a18e72e8d3c97cc50ec90d09228",
+        "plan_sha256": "46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67",
+        "schema": "oexec.admission/v6"
+      },
+      "execution_mode": "graph",
+      "parsed_source_sha256": "41fa07f856849a883c7904d6359084c6d54e7d2bdc3fb7fd027628307a1f84a2",
+      "result_content_identity": "137694dd901f74b673b1c4b6c6f138852a785916673984e828017e13a0fcd4ee",
+      "schema": "ostadix.native-execution-evidence/v1",
+      "source_identity_scope": "submitted_utf8_before_shebang_removal",
+      "source_intent_gate": null,
+      "source_sha256": "41fa07f856849a883c7904d6359084c6d54e7d2bdc3fb7fd027628307a1f84a2"
+    },
+    "passed": true
+  },
+  "recovery_ms": 2425,
+  "repeated_start_same_pid": true,
+  "scope": "idle host killed; supervisor restarted it; no user execution replay tested or attempted",
+  "boot_entry_invoked_after_unlock": true,
+  "physical_reboot_tested": false
+}

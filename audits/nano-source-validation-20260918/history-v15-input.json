@@ -1,0 +1,10 @@
+{
+  "prompt": "Calculate seventeen plus twenty five using Python and show the actual result.",
+  "typed_at_ms": 1789775127728,
+  "provenance": "Codex invoked ordinary Gemini and typed this fresh diagnostic request after changing source validation. No automatic retry of earlier executions.",
+  "send_tapped_by": "Codex",
+  "send_time_ms": 1789775211034,
+  "first_send_tap_did_not_dispatch": true,
+  "second_send_tapped_by": "Codex, after inspecting unchanged draft and absence of a new turn record",
+  "second_send_time_ms": 1789775271549
+}

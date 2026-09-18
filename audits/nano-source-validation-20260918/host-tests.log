@@ -1,0 +1,11 @@
+test_current_structured_result_and_error_pass_through (test_appfunction_host.AppFunctionHostTests.test_current_structured_result_and_error_pass_through) ... ok
+test_ms_deadline_cancels_before_rounded_mcp_second_without_retry (test_appfunction_host.AppFunctionHostTests.test_ms_deadline_cancels_before_rounded_mcp_second_without_retry) ... ok
+test_parse_check_uses_same_tool_without_execution_options (test_appfunction_host.AppFunctionHostTests.test_parse_check_uses_same_tool_without_execution_options) ... ok
+test_preserves_source_and_input_envelope (test_appfunction_host.AppFunctionHostTests.test_preserves_source_and_input_envelope) ... ok
+test_timeout_boundaries_and_omitted_options (test_appfunction_host.AppFunctionHostTests.test_timeout_boundaries_and_omitted_options) ... ok
+test_unsupported_inputs_never_spawn_or_dispatch (test_appfunction_host.AppFunctionHostTests.test_unsupported_inputs_never_spawn_or_dispatch) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.010s
+
+OK

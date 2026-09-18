@@ -24,6 +24,17 @@ public final class HostMcpClient implements AutoCloseable {
 
     public String execute(Context context, String source, String bindingsJson, long timeoutMs,
             String requestId, CancellationSignal cancellation) throws Exception {
+        return request(context, source, bindingsJson, timeoutMs, requestId, cancellation, false);
+    }
+
+    /** Native parse-only validation: no executable language block is evaluated. */
+    public String check(Context context, String source, long timeoutMs,
+            String requestId, CancellationSignal cancellation) throws Exception {
+        return request(context, source, "{}", timeoutMs, requestId, cancellation, true);
+    }
+
+    private String request(Context context, String source, String bindingsJson, long timeoutMs,
+            String requestId, CancellationSignal cancellation, boolean checkOnly) throws Exception {
         File configuration = new File(context.getFilesDir(), "ostadix-mcp-host.json");
         if (!configuration.isFile()) {
             throw new IOException("Ostadix MCP host is not configured; nothing was dispatched");
@@ -75,6 +86,7 @@ public final class HostMcpClient implements AutoCloseable {
         JSONObject body = new JSONObject().put("source", source)
                 .put("bindings", new JSONObject(bindingsJson))
                 .put("constraints", new JSONObject().put("timeout_ms", timeoutMs));
+        if (checkOnly) { body.put("action", "check"); }
         byte[] bytes = body.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         active.setFixedLengthStreamingMode(bytes.length);
         connection = active;

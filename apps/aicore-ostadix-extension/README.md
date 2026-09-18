@@ -1,5 +1,10 @@
 # OSTADIX AICore Smart Reply experiment
 
+For the current ordinary Gemini → local Nano → Ostadix route, persistent result
+viewer, notifications and repeatable deployment, see
+[Using the assistant](ASSISTANT-USE.md). The sections below retain the earlier
+Smart Reply and diagnostic boundaries; the bounded ASI behavior is unchanged.
+
 This is an explicitly activated libxposed API 102 experiment for the
 exact installed AS.OSS/AICore versions documented in
 `audits/pixel-ai-20260915/OSTADIX-AICORE-INTEGRATION.md`.

@@ -52,6 +52,15 @@ class AppFunctionHostTests(unittest.TestCase):
         self.assertEqual(HOST.mcp_arguments({"source": "1"}, 1501),
                          ({"source": "1", "timeout_secs": 2}, 1501))
 
+    def test_parse_check_uses_same_tool_without_execution_options(self):
+        arguments, timeout = HOST.mcp_arguments(
+            {"source": "python^( invalid )", "action": "check",
+             "constraints": {"timeout_ms": 15000}}, 120000)
+        self.assertEqual(arguments, {"source": "python^( invalid )", "action": "check", "timeout_secs": 15})
+        self.assertEqual(timeout, 15000)
+        self.assertEqual(HOST.mcp_arguments({"source": "1", "action": "execute"}, 1000)[0],
+                         {"source": "1", "timeout_secs": 1})
+
     def test_unsupported_inputs_never_spawn_or_dispatch(self):
         invalid = [None, [], "source", {"source": "1", "path": "program.O"},
                    {"source": "1", "bindings": {"answer": 7}},
@@ -62,6 +71,8 @@ class AppFunctionHostTests(unittest.TestCase):
                    {"source": "1", "constraints": {"max_source_bytes": 64}}]
         invalid += [{"source": "1", "constraints": {"timeout_ms": value}}
                     for value in [True, 0, -1, 900001, 1.5, "1000", None]]
+        invalid += [{"source": "1", "action": value}
+                    for value in [None, False, [], {}, "plan", "compile", "EXECUTE"]]
         with patch.object(HOST.subprocess, "Popen") as popen, \
                 patch.object(HOST, "send") as send, patch.object(HOST, "log"):
             for body in invalid:

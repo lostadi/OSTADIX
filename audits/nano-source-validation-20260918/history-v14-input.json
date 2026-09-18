@@ -1,0 +1,7 @@
+{
+  "prompt": "Calculate seventeen plus twenty five using Python and show the actual result.",
+  "typed_at_ms": 1789774817572,
+  "provenance": "Codex opened ordinary Gemini and typed a fresh diagnostic request to test changed generation guidance; previous execution was not automatically retried.",
+  "send_tapped_by": "Codex",
+  "send_time_ms": 1789774844678
+}

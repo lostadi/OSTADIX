@@ -1,0 +1,21 @@
+{
+  "apk_sha256": "224134676a9c2dea6e6e26acbb83b530141595909aa73c10259facf2c06b76d7",
+  "installed_apk": "/data/app/~~9F9VWgLpCc9FdauPu9bMJQ==/org.ostadix.aicore.extension-04G054DwyGCHmMmiJUuhxw==/base.apk",
+  "restarted": [
+    {
+      "pid": 7579,
+      "uid": 10173,
+      "name": "com.google.android.aicore"
+    },
+    {
+      "pid": 7639,
+      "uid": 10191,
+      "name": "com.google.android.googlequicksearchbox:search"
+    }
+  ],
+  "recovery": {
+    "imported": 12,
+    "skipped": 0,
+    "execution_attempts": 0
+  }
+}

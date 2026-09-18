@@ -1,0 +1,7 @@
+{
+  "recovered_records": 12,
+  "request_id": "ostadix-turn-2a14e81b-d89f-414f-a5aa-a25c71f3c1ff",
+  "answer_contains_actual_276": true,
+  "viewer_screenshot_sha256": "c2641d653fb410220978bc737f7f2e62cdf0baaab89a36a5c2bb422906931b58",
+  "root_writer_test": "not exercised: Android content CLI could not run in this shell"
+}

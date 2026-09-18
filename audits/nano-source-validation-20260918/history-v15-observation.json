@@ -1,0 +1,23 @@
+{
+  "request_id": "ostadix-turn-8955fcaa-cfe6-4f11-a07f-d904fd371945",
+  "actual_user_text": "Calculate seventeen plus twenty five using Python and show the actual result.",
+  "actual_value": {
+    "t": "number",
+    "v": {
+      "kind": "int",
+      "v": "42"
+    }
+  },
+  "elapsed_ms": 32530,
+  "native_elapsed_ms": 212,
+  "mcp_dispatch_attempts": 3,
+  "execution_dispatch_attempts": 1,
+  "source_correction_attempts": 1,
+  "history_terminal": true,
+  "answer_matches_history": true,
+  "notification_records": [
+    "NotificationRecord(0x0f8a79b4: pkg=org.ostadix.aicore.extension user=UserHandle{0} id=1 tag=ostadix-turn-8955fcaa-cfe6-4f11-a07f-d904fd371945 importance=3 key=0|org.ostadix.aicore.extension|1|ostadix-turn-8955fcaa-cfe6-4f11-a07f-d904fd371945|10471: Notification(channel=ostadix_results shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONLY_ALERT_ONCE|AUTO_CANCEL color=0x00000000 vis=PRIVATE))"
+  ],
+  "viewer_details_screenshot_sha256": "e9717e9d9f67a56ca455d9360f6c80d96fe14fc4d22204bd8a91fa91de214a80",
+  "viewer_observed": "Installed viewer displaying details for the new native parse/execution record; recovered 276 was visually verified earlier"
+}

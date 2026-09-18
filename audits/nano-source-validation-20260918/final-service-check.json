@@ -1,0 +1,30 @@
+{
+  "http_status": 200,
+  "state": "completed",
+  "actual_result": {
+    "t": "number",
+    "v": {
+      "kind": "int",
+      "v": "2"
+    }
+  },
+  "execution_evidence": {
+    "admission": {
+      "admission_sha256": "b592a2c022256740be62a9228a0661b7840274439cb5e084cf74b3f489d66e20",
+      "admitted_graph_sha256": "6562b6b94359b18e008e83e4926f962d0880df4be3d6059bde12316b31914c80",
+      "analyzed_graph_sha256": "a91043a340fa1c22bd23fb66fca07685b2b46399f8d983b232d3375100faf0b0",
+      "evidence_sha256": "3c670b21d8ded05874bbab2e1384a672367adf38847c2b4fed5d4c2ed49f837a",
+      "oir_sha256": "1e416741f26775bbf831d25986fa6d93fa398a18e72e8d3c97cc50ec90d09228",
+      "plan_sha256": "46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67",
+      "schema": "oexec.admission/v6"
+    },
+    "execution_mode": "graph",
+    "parsed_source_sha256": "41fa07f856849a883c7904d6359084c6d54e7d2bdc3fb7fd027628307a1f84a2",
+    "result_content_identity": "137694dd901f74b673b1c4b6c6f138852a785916673984e828017e13a0fcd4ee",
+    "schema": "ostadix.native-execution-evidence/v1",
+    "source_identity_scope": "submitted_utf8_before_shebang_removal",
+    "source_intent_gate": null,
+    "source_sha256": "41fa07f856849a883c7904d6359084c6d54e7d2bdc3fb7fd027628307a1f84a2"
+  },
+  "passed": true
+}

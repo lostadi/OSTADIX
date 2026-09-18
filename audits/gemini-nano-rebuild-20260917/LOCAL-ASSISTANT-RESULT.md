@@ -1,5 +1,9 @@
 # Ordinary Gemini → local Nano → Ostadix: observed result
 
+September 18 follow-up: [source validation, default text routing and persistent
+result history](../nano-source-validation-20260918/STATUS.md). The observations
+below describe the earlier prefix-selected build.
+
 Date: 2026-09-17. Canonical repository: `lostadi/OSTADIX`.
 This report supersedes the open assistant milestone in
 [the earlier dispatch trace](ASSISTANT-DISPATCH-TRACE.md).

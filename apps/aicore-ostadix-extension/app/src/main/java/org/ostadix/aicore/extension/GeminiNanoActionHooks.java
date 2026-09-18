@@ -20,8 +20,15 @@ final class GeminiNanoActionHooks {
             java.util.Collections.synchronizedMap(new java.util.WeakHashMap<Object, Boolean>());
 
     static boolean enabled(Context context) {
-        return ExtensionGate.isExplicitlyEnabled(context) && "local-o-v1".equals(
-                Settings.Global.getString(context.getContentResolver(), SETTING));
+        String mode = Settings.Global.getString(context.getContentResolver(), SETTING);
+        return ExtensionGate.isExplicitlyEnabled(context)
+                && ("local-o-v1".equals(mode) || "local-all-v1".equals(mode));
+    }
+
+    static boolean selects(String mode, String text) {
+        return text != null && !text.trim().isEmpty() && ("local-all-v1".equals(mode)
+                || ("local-o-v1".equals(mode)
+                && text.trim().toLowerCase(java.util.Locale.ROOT).startsWith("use ostadix")));
     }
 
     static XposedInterface.HookHandle installSideStreams(XposedInterface module, Context context)
@@ -38,8 +45,9 @@ final class GeminiNanoActionHooks {
                     Object input = chain.getArg(1);
                     if (input == null || !enabled(context)) { return chain.proceed(); }
                     String text = (String) GeminiLocalResponse.field(input, "a");
-                    if (text == null || !text.trim().toLowerCase(java.util.Locale.ROOT)
-                            .startsWith("use ostadix")) { return chain.proceed(); }
+                    if (!selects(Settings.Global.getString(context.getContentResolver(), SETTING), text)) {
+                        return chain.proceed();
+                    }
                     Object audio = emptySideStream(loader);
                     Object operations = emptySideStream(loader);
                     Object streams = Proxy.newProxyInstance(loader,
@@ -195,16 +203,20 @@ final class GeminiNanoActionHooks {
                         throw new IllegalStateException("local assistant tool busy; not dispatched; no retry");
                     }
                     owned = true;
+                    NanoTurnStore.publish(context, id, text, null, null, false);
                     String answer = new NanoToolTurn(context, id, cancellation).run(text);
+                    answer = NanoTurnStore.publish(context, id, text, answer, null, true);
                     cancellation.throwIfCanceled();
                     deliver(GeminiLocalResponse.text(loader, id, answer));
                 } catch (Throwable failure) {
                     ExtensionGate.rethrowIfVmFatal(failure);
                     Log.e("OstadixGeminiNano", "event=turn_failed request_id=" + id, failure);
                     try {
+                        String savedAnswer = NanoTurnStore.publish(context, id, text, null, failure, true);
                         if (cancellation.isCanceled()) { finish(call(fail, null, failure)); }
                         else { deliver(GeminiLocalResponse.text(loader, id,
-                                "Local Ostadix request failed: " + failure.toString() + ". No retry was performed.")); }
+                                savedAnswer == null ? "Local Ostadix request failed: " + displayFailure(failure)
+                                        + " Execution was not retried." : savedAnswer)); }
                     } catch (Throwable delivery) { failure(delivery); }
                 } finally { if (owned) { BUSY.set(false); } }
             }
@@ -270,6 +282,11 @@ final class GeminiNanoActionHooks {
                 call(resume, scheduled, unit);
             }
         }
+    }
+
+    static String displayFailure(Throwable failure) {
+        String message = failure.getMessage();
+        return message == null || message.trim().isEmpty() ? "An internal error occurred." : message;
     }
 
     private static Object objectMethod(Object proxy, Method method, Object[] args) {

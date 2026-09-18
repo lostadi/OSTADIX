@@ -660,9 +660,30 @@
       "sources": [
         "audits/source-first-mcp-20260917/lifted-acceptance.O"
       ]
+    },
+    {
+      "id": "nano-source-validation-history",
+      "category": "historical-snapshot",
+      "reason": "Exact generated documents retained as positive and negative local Nano execution evidence.",
+      "coverage": [
+        {
+          "path": "audits/nano-source-validation-20260918/STATUS.md",
+          "kind": "historical",
+          "conditions": "Pinned Pixel live execution and native parse-only regression; rejected source is intentionally invalid."
+        }
+      ],
+      "sources": [
+        "audits/nano-source-validation-20260918/generated-program.O",
+        "audits/nano-source-validation-20260918/rejected-program.O"
+      ]
     }
   ],
-  "expected_parse_failures": {},
+  "expected_parse_failures": {
+    "audits/nano-source-validation-20260918/rejected-program.O": {
+      "reason": "Nano omitted the final Python closing language delimiter; retained unchanged as reported failure evidence.",
+      "diagnostic": "Unclosed expression, expected )_python"
+    }
+  },
   "mirrors": {
     "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/chained.O": "benchmarks/hgraph_hosted/chained.O",
     "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/heterogeneous.O": "benchmarks/hgraph_hosted/heterogeneous.O",

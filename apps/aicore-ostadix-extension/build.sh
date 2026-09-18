@@ -15,8 +15,8 @@ EXPECTED_API_SHA256=423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe914
 NATIVE_HASH_MANIFEST="$APP_ROOT/app/src/main/resources/META-INF/ostadix/native-sha256.txt"
 MIN_SDK=31
 TARGET_SDK=34
-VERSION_CODE=10
-VERSION_NAME=0.10.0-nano-assistant-action
+VERSION_CODE=15
+VERSION_NAME=0.15.0-nano-result-history
 
 for tool in aapt2 apksigner d8 jar javac javap keytool readelf sed sha256sum unzip; do
     command -v "$tool" >/dev/null 2>&1 || { echo "Missing build tool: $tool" >&2; exit 1; }
@@ -93,6 +93,8 @@ java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR
     org.ostadix.aicore.extension.ResultReplacementSelfTest
 java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
     org.ostadix.aicore.extension.AsiDelegationSelfTest
+java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
+    org.ostadix.aicore.extension.NanoSourcePreparationSelfTest
 jar cf "$INTERMEDIATES/module-classes.jar" -C "$INTERMEDIATES/classes" .
 d8 --min-api "$MIN_SDK" --lib "$ANDROID_JAR" --classpath "$LIBXPOSED_CLASSES" \
     --output "$INTERMEDIATES/dex" "$INTERMEDIATES/module-classes.jar"

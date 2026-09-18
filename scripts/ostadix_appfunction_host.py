@@ -34,8 +34,11 @@ def mcp_arguments(body, max_timeout_ms):
     """Validate the Android envelope and map it to the current o_execute schema."""
     if not isinstance(body, dict):
         raise ValueError('request must be a JSON object')
-    if set(body) - {'source', 'bindings', 'constraints'}:
-        raise ValueError('only source, bindings and constraints are accepted')
+    if set(body) - {'source', 'bindings', 'constraints', 'action'}:
+        raise ValueError('only source, bindings, constraints and action are accepted')
+    action = body.get('action', 'execute')
+    if action not in ('execute', 'check'):
+        raise ValueError('action must be execute or check; not dispatched')
     source = body.get('source')
     if not isinstance(source, str) or len(source.encode()) > 65536:
         raise ValueError('source must be text within the 65536-byte host limit')
@@ -53,7 +56,10 @@ def mcp_arguments(body, max_timeout_ms):
     if type(timeout) is not int or not 1 <= timeout <= max_timeout_ms:
         raise ValueError('timeout exceeds host policy')
     # MCP accepts whole seconds; the host still cancels at the exact ms budget.
-    return dict(source=source, timeout_secs=(timeout + 999) // 1000), timeout
+    arguments = dict(source=source, timeout_secs=(timeout + 999) // 1000)
+    if action == 'check':
+        arguments['action'] = 'check'
+    return arguments, timeout
 
 
 def mcp_environment(root):
@@ -180,7 +186,8 @@ class Handler(BaseHTTPRequestHandler):
                                params=dict(name='o_execute', arguments=arguments)))
             dispatched = True
             self.connection.setblocking(False)
-            log('mcp_dispatch', app_request=request_id, source_sha256=hashlib.sha256(source.encode()).hexdigest())
+            log('mcp_dispatch', app_request=request_id, action=arguments.get('action', 'execute'),
+                source_sha256=hashlib.sha256(source.encode()).hexdigest())
             cancelled = False
             while True:
                 try:
