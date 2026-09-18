@@ -122,7 +122,7 @@ rpassword  = "7.5.4"
 zeroize    = "1"
 
 # Notebook server (opt-in via --features notebook)
-axum        = { version = "0.7", optional = true }
+axum        = { version = "0.8", optional = true }
 tokio       = { version = "1", features = ["full"], optional = true }
 
 # Process-group termination for cooperative route cancellation
