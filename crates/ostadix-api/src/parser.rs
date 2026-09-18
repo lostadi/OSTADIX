@@ -306,6 +306,28 @@ impl<'a> Parser<'a> {
         self.parse_until(None)
     }
 
+    /// Current parser cursor as descriptive provenance for a failed parse.
+    /// This does not change the syntax tree, error text, or execution digests.
+    /// The position is valid after either parse entry point, including EOF.
+    pub fn diagnostic_position(&self) -> SourceSpanV1 {
+        let mut byte = self.pos.min(self.source.len());
+        while !self.source.is_char_boundary(byte) {
+            byte -= 1;
+        }
+        let prefix = &self.source[..byte];
+        let line = prefix.bytes().filter(|value| *value == b'\n').count() + 1;
+        let line_start = prefix.rfind('\n').map_or(0, |index| index + 1);
+        let column = self.source[line_start..byte].chars().count() + 1;
+        SourceSpanV1 {
+            start_byte: byte,
+            end_byte: byte,
+            start_line: line,
+            start_column: column,
+            end_line: line,
+            end_column: column,
+        }
+    }
+
     /// Parse the unchanged [`ONode`] forest and record one source span for each
     /// node that canonical OIR lowering will allocate into `ExecutionPlan`.
     pub fn parse_with_origins(&mut self) -> Result<ParsedDocumentV1> {

@@ -178,6 +178,11 @@ char *oval_to_json(const OValue *v);
 /* Deserialize JSON string to OValue (caller must oval_release) */
 OValue *oval_from_json(const char *json);
 
+/* Plain JSON object metadata accessors, independent of tagged OValue encoding.
+ * Strings are caller-owned; missing/wrong-type/malformed input returns NULL or false. */
+char *oval_json_object_string(const char *json, const char *key);
+bool oval_json_object_int(const char *json, const char *key, int64_t *out);
+
 /* Wire command/response types */
 typedef enum {
     WIRE_CMD_EXEC = 0,

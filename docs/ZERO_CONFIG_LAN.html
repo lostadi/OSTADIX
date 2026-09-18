@@ -75,6 +75,11 @@ ordinary choice exposed to the user:</p>
 <pre><code class="language-bash">o node use ostadix-example-host-12ab34cd
 </code></pre>
 <p>That preference is remembered. It is not a transport configuration.</p>
+<p>In <code>o node list</code>, the compatibility field <code>reachable</code> means that a LAN
+advertisement was observed during this discovery pass. A remembered Tailscale
+or routed peer can show <code>false</code> and still accept an authenticated connection.
+Use <code>o node doctor -n NODE_ID</code> for a fresh connection and runtime-readiness
+check; the discovery list alone does not establish either.</p>
 <h2>What pairing and automatic reuse do</h2>
 <p>The offering node generates ten uniformly distributed decimal digits and
 formats them as <code>00000-00000</code>. The offer accepts one connection attempt and
@@ -201,7 +206,7 @@ octl node profile --manual \
   --cert /secure/client-cert.pem \
   --key /secure/client-key.pem
 </code></pre>
-<p>The high-level wrapper leaves the raw server CLI available as <code>o node-host</code>.
+<p>The native front door leaves the raw server CLI available as <code>o node-host</code>.
 Manual flags are overrides and diagnostic controls, not prerequisites for
 ordinary use.</p>
 <h2>Storage</h2>

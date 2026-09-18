@@ -4,6 +4,9 @@
 //! `ostadix-api` engine.  This crate deliberately re-exports the historical
 //! module paths used by the root CLI and downstream `o_lang` embedders.
 
+pub mod cli_diagnostics;
+pub mod cli_paths;
+
 pub use ostadix_api::{
     api, backend, backend_morphism, backend_state, boot_objects, cancellation, computation,
     computation_core, effects, environment, eval, evidence, execution_contract, execution_fabric,

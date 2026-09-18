@@ -183,13 +183,13 @@ struct PairArgs {
     #[arg(long)]
     passcode_stdin: bool,
     /// Direct pairing endpoint for routed networks (for example 203.0.113.8:7340).
-    #[arg(long)]
+    #[arg(short = 'a', long)]
     address: Option<String>,
     /// Deliberately replace an existing paired pin (for renewal or interrupted-pairing recovery).
     #[arg(long)]
     replace: bool,
     /// Listener endpoint when creating an offer.
-    #[arg(long, default_value = "0.0.0.0:7340")]
+    #[arg(short = 'b', long, default_value = "0.0.0.0:7340")]
     bind: String,
     /// Local hosted service port recorded for later automatic connections.
     #[arg(long, default_value_t = DEFAULT_LAN_NODE_PORT)]

@@ -103,6 +103,12 @@ o node use ostadix-example-host-12ab34cd
 
 That preference is remembered. It is not a transport configuration.
 
+In `o node list`, the compatibility field `reachable` means that a LAN
+advertisement was observed during this discovery pass. A remembered Tailscale
+or routed peer can show `false` and still accept an authenticated connection.
+Use `o node doctor -n NODE_ID` for a fresh connection and runtime-readiness
+check; the discovery list alone does not establish either.
+
 ## What pairing and automatic reuse do
 
 The offering node generates ten uniformly distributed decimal digits and
@@ -257,7 +263,7 @@ octl node profile --manual \
   --key /secure/client-key.pem
 ```
 
-The high-level wrapper leaves the raw server CLI available as `o node-host`.
+The native front door leaves the raw server CLI available as `o node-host`.
 Manual flags are overrides and diagnostic controls, not prerequisites for
 ordinary use.
 

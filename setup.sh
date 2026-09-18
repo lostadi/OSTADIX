@@ -27,7 +27,7 @@ MINIMAL=false
 FULL=false
 YES=false
 VERIFY=false
-INSTALL_WRAPPERS=true
+INSTALL_LOCAL_BINS=true
 INSTALL_MCP=true
 DRY_RUN=false
 WITH_NIX=false
@@ -51,7 +51,6 @@ GUESTS_DIR="${OSTADIX_GUESTS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/ostadix/g
 EVALUATOR_ALIAS=ostadix-evaluator
 RUST_BIN_TARGETS=(O o-cli olangc ocorec o-link o-unlink ogit o-live-host o-node octl o-registry o-info ostadix-device)
 RUST_STALE_BINARIES=(O o o-cli olangc ocorec o-link olink o-unlink ogit o-live-host o-node octl o-registry o-info ostadix-device o-notebook "$EVALUATOR_ALIAS")
-WRAPPER_TARGETS=(O o olangc o-c olangc-c o-notebook ostadix-device)
 CARGO_BIN_DIR="${CARGO_HOME:-$HOME/.cargo}/bin"
 
 # --- Arg parsing ---
@@ -80,7 +79,8 @@ Options:
   --env-file PATH             Managed environment file (default: ~/.config/ostadix/env.sh)
   --no-env                    Do not create the managed environment file
   --persist-env               Idempotently source the env file from the current shell rc
-  --no-wrappers               Do not create convenience wrappers in ~/.local/bin
+  --no-local-bins             Do not install native commands in ~/.local/bin
+  --no-wrappers               Compatibility alias for --no-local-bins
   --no-mcp                    Do not build the ostadix-mcp server
   --dry-run                   Print exact planned commands; make no changes
 
@@ -129,7 +129,7 @@ while [[ $# -gt 0 ]]; do
     --env-file=*) ENV_FILE="${1#*=}"; [[ -n "$ENV_FILE" ]] || usage 2; shift ;;
     --no-env) WRITE_ENV=false; shift ;;
     --persist-env) PERSIST_ENV=true; shift ;;
-    --no-wrappers) INSTALL_WRAPPERS=false; shift ;;
+    --no-local-bins|--no-wrappers) INSTALL_LOCAL_BINS=false; shift ;;
     --no-mcp) INSTALL_MCP=false; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     *) echo "Unknown option: $1" >&2; usage 2 ;;
@@ -175,7 +175,7 @@ fi
 echo "=== O-lang cross-platform setup ==="
 echo "Project root: $PROJECT_ROOT"
 echo "Host: $(uname -a)"
-echo "Options: minimal=$MINIMAL full=$FULL yes=$YES verify=$VERIFY nix=$WITH_NIX ocore=$WITH_OCORE ocore_media=$WITH_OCORE_MEDIA hosted_runtimes=$WITH_HOSTED_RUNTIMES linux_kernel_tools=$WITH_LINUX_KERNEL_TOOLS guest_tools=$WITH_GUEST_TOOLS ubuntu_vm=$WITH_UBUNTU_VM verify_ocore=$VERIFY_OCORE check=$CHECK_ONLY deps_only=$DEPS_ONLY env=$WRITE_ENV persist_env=$PERSIST_ENV wrappers=$INSTALL_WRAPPERS mcp=$INSTALL_MCP dry_run=$DRY_RUN"
+echo "Options: minimal=$MINIMAL full=$FULL yes=$YES verify=$VERIFY nix=$WITH_NIX ocore=$WITH_OCORE ocore_media=$WITH_OCORE_MEDIA hosted_runtimes=$WITH_HOSTED_RUNTIMES linux_kernel_tools=$WITH_LINUX_KERNEL_TOOLS guest_tools=$WITH_GUEST_TOOLS ubuntu_vm=$WITH_UBUNTU_VM verify_ocore=$VERIFY_OCORE check=$CHECK_ONLY deps_only=$DEPS_ONLY env=$WRITE_ENV persist_env=$PERSIST_ENV local_bins=$INSTALL_LOCAL_BINS mcp=$INSTALL_MCP dry_run=$DRY_RUN"
 echo
 
 # --- OS / Distro Detection ---
@@ -350,53 +350,25 @@ clean_rust_release_binaries() {
 }
 
 refresh_cargo_bin_binaries() {
-  echo ">>> Refreshing installed Rust binaries in $CARGO_BIN_DIR..."
-  if $DRY_RUN; then
-    run_cmd mkdir -p "$CARGO_BIN_DIR"
-    for bin in "${RUST_STALE_BINARIES[@]}"; do
-      echo "[DRY] remove stale $CARGO_BIN_DIR/$bin"
-    done
-    for bin in "${RUST_BIN_TARGETS[@]}"; do
-      echo "[DRY] replace $CARGO_BIN_DIR/$bin from $PROJECT_ROOT/target/release/$bin"
-    done
-    echo "[DRY] replace $CARGO_BIN_DIR/$EVALUATOR_ALIAS from $PROJECT_ROOT/target/release/O"
-    echo "[DRY] install $CARGO_BIN_DIR/o through scripts/install-o-cli-wrapper.sh"
-    return
-  fi
-
-  mkdir -p "$CARGO_BIN_DIR"
-  for bin in "${RUST_STALE_BINARIES[@]}"; do
-    remove_managed_file "$CARGO_BIN_DIR/$bin"
-  done
-  for bin in "${RUST_BIN_TARGETS[@]}"; do
-    local src="$PROJECT_ROOT/target/release/$bin"
-    local dst="$CARGO_BIN_DIR/$bin"
-    if [[ ! -x "$src" ]]; then
-      echo "Expected freshly built binary missing: $src" >&2
-      exit 1
-    fi
-    cp "$src" "$dst"
-    chmod +x "$dst"
-  done
-  cp "$PROJECT_ROOT/target/release/O" "$CARGO_BIN_DIR/$EVALUATOR_ALIAS"
-  chmod +x "$CARGO_BIN_DIR/$EVALUATOR_ALIAS"
-  "$PROJECT_ROOT/scripts/install-o-cli-wrapper.sh" "$CARGO_BIN_DIR/o"
-  if directory_is_case_insensitive "$CARGO_BIN_DIR"; then
-    echo "  $CARGO_BIN_DIR shares O/o; both spellings use the dispatcher; raw evaluation remains available as ostadix-evaluator."
-  fi
+  echo ">>> Installing native Rust binaries in $CARGO_BIN_DIR..."
+  local options=()
+  if $DRY_RUN; then options+=(--dry-run); fi
+  if $FULL; then options+=(--include-notebook); fi
+  python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" \
+    --repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR" "${options[@]}"
 }
 
 create_rust_alias_binaries() {
   echo ">>> Recreating Rust alias binaries..."
   if $DRY_RUN; then
-    echo "[DRY] replace $PROJECT_ROOT/target/release/o from $PROJECT_ROOT/target/release/O if filesystem is case-sensitive"
+    echo "[DRY] replace $PROJECT_ROOT/target/release/o from $PROJECT_ROOT/target/release/o-cli if filesystem is case-sensitive"
     return
   fi
   if directory_is_case_insensitive "$PROJECT_ROOT/target/release"; then
-    echo "  target/release is case-insensitive; O also satisfies lowercase o."
+    echo "  target/release is case-insensitive; use o-cli for commands and O for raw evaluation. Installed O/o use the native front door."
     return
   fi
-  cp "$PROJECT_ROOT/target/release/O" "$PROJECT_ROOT/target/release/o"
+  cp "$PROJECT_ROOT/target/release/o-cli" "$PROJECT_ROOT/target/release/o"
   chmod +x "$PROJECT_ROOT/target/release/o"
 }
 
@@ -862,7 +834,7 @@ build_rust() {
   clean_rust_release_binaries
   local cargo_args=(build --release --locked --package o-lang)
   if $FULL; then
-    cargo_args+=(--features notebook)
+    cargo_args+=(--features notebook --bin o-notebook)
   fi
   for bin in "${RUST_BIN_TARGETS[@]}"; do
     cargo_args+=(--bin "$bin")
@@ -905,14 +877,15 @@ build_mcp_server() {
   # pre-1.0 and moves fast) — deliberately not folded into the root
   # workspace so its dependency set can't bleed into the main O-lang build.
   run_cmd cargo build --release --locked --manifest-path "$mcp_dir/Cargo.toml"
-  if $INSTALL_WRAPPERS && ! $DRY_RUN; then
+  if $INSTALL_LOCAL_BINS && ! $DRY_RUN; then
     local mcp_bin="$mcp_dir/target/release/ostadix-mcp"
     if [[ -f "$mcp_bin" ]]; then
       mkdir -p "$HOME/.local/bin"
-      remove_managed_file "$HOME/.local/bin/ostadix-mcp"
-      cp "$mcp_bin" "$HOME/.local/bin/ostadix-mcp"
-      chmod +x "$HOME/.local/bin/ostadix-mcp"
-      echo "  wrapper → $HOME/.local/bin/ostadix-mcp"
+      local mcp_temporary="$HOME/.local/bin/.ostadix-mcp.$$"
+      cp "$mcp_bin" "$mcp_temporary"
+      chmod +x "$mcp_temporary"
+      mv -f "$mcp_temporary" "$HOME/.local/bin/ostadix-mcp"
+      echo "  native server → $HOME/.local/bin/ostadix-mcp"
       remove_managed_file "$HOME/.local/bin/ostadix-mcp-client"
       cp "$PROJECT_ROOT/scripts/ostadix_mcp_client.py" "$HOME/.local/bin/ostadix-mcp-client"
       chmod +x "$HOME/.local/bin/ostadix-mcp-client"
@@ -920,7 +893,7 @@ build_mcp_server() {
     fi
   fi
   local gemini_mcp_bin="$mcp_dir/target/release/ostadix-mcp"
-  if $INSTALL_WRAPPERS; then
+  if $INSTALL_LOCAL_BINS; then
     gemini_mcp_bin="$HOME/.local/bin/ostadix-mcp"
   fi
   if $DRY_RUN; then
@@ -959,89 +932,15 @@ setup_python() {
   fi
 }
 
-create_wrappers() {
-  if ! $INSTALL_WRAPPERS; then return; fi
-  echo ">>> Creating convenience wrappers in ~/.local/bin (for runnable form)..."
-  local BIN_DIR="$HOME/.local/bin"
-
-  if $DRY_RUN; then
-    echo "[DRY] mkdir -p $BIN_DIR"
-    for wrapper in "${WRAPPER_TARGETS[@]}"; do
-      remove_managed_file "$BIN_DIR/$wrapper"
-      if [[ "$wrapper" == "o-notebook" ]]; then
-        echo "[DRY] recreate wrapper $BIN_DIR/$wrapper if target/release/o-notebook is built"
-      elif [[ "$wrapper" == "ostadix-device" ]]; then
-        echo "[DRY] replace $BIN_DIR/$wrapper from $PROJECT_ROOT/target/release/$wrapper"
-      else
-        echo "[DRY] recreate wrapper $BIN_DIR/$wrapper"
-      fi
-    done
-    echo "[DRY] replace $BIN_DIR/$EVALUATOR_ALIAS from $PROJECT_ROOT/target/release/O"
-    return
-  fi
-
-  mkdir -p "$BIN_DIR"
-
-  for wrapper in "${WRAPPER_TARGETS[@]}"; do
-    remove_managed_file "$BIN_DIR/$wrapper"
-  done
-  remove_managed_file "$BIN_DIR/$EVALUATOR_ALIAS"
-
-  # Stable native evaluator identity for placement fingerprinting. This name
-  # cannot collide with the O/o dispatcher on case-insensitive filesystems.
-  cp "$PROJECT_ROOT/target/release/O" "$BIN_DIR/$EVALUATOR_ALIAS"
-  chmod +x "$BIN_DIR/$EVALUATOR_ALIAS"
-
-  # Keep the native Android controller ahead of Cargo's bin directory without
-  # leaving an older shell helper shadowing the compiled executable.
-  cp "$PROJECT_ROOT/target/release/ostadix-device" "$BIN_DIR/ostadix-device"
-  chmod +x "$BIN_DIR/ostadix-device"
-
-  # Rust evaluator (prefers release).
-  cat > "$BIN_DIR/O" <<WRAP
-#!/usr/bin/env bash
-export O_BACKENDS_DIR="\${O_BACKENDS_DIR:-$PROJECT_ROOT/backends}"
-exec "$PROJECT_ROOT/target/release/O" "\$@"
-WRAP
-  chmod +x "$BIN_DIR/O"
-
-  # Lowercase `o` owns repository subcommands. On a case-insensitive host,
-  # O/o are one entry and both use the dispatcher; unknown arguments still
-  # fall through to the native evaluator.
-  "$PROJECT_ROOT/scripts/install-o-cli-wrapper.sh" "$BIN_DIR/o"
-
-  cat > "$BIN_DIR/olangc" <<WRAP
-#!/usr/bin/env bash
-exec "$PROJECT_ROOT/target/release/olangc" "\$@"
-WRAP
-  chmod +x "$BIN_DIR/olangc"
-
-  if [[ -x "$PROJECT_ROOT/target/release/o-notebook" ]]; then
-    cat > "$BIN_DIR/o-notebook" <<WRAP
-#!/usr/bin/env bash
-export O_BACKENDS_DIR="\${O_BACKENDS_DIR:-$PROJECT_ROOT/backends}"
-exec "$PROJECT_ROOT/target/release/o-notebook" "\$@"
-WRAP
-    chmod +x "$BIN_DIR/o-notebook"
-  fi
-
-  # C edition (often lighter)
-  cat > "$BIN_DIR/o-c" <<WRAP
-#!/usr/bin/env bash
-BACKENDS_DIR="\${BACKENDS_DIR:-$PROJECT_ROOT/backends}"
-exec "$PROJECT_ROOT/c_cpp/O" "\$@" "\$BACKENDS_DIR"
-WRAP
-  chmod +x "$BIN_DIR/o-c"
-
-  cat > "$BIN_DIR/olangc-c" <<WRAP
-#!/usr/bin/env bash
-exec "$PROJECT_ROOT/c_cpp/olangc" "\$@"
-WRAP
-  chmod +x "$BIN_DIR/olangc-c"
-
-  echo "Wrappers installed to $BIN_DIR"
-  echo "Add to your shell rc if needed:"
-  echo '  export PATH="$HOME/.local/bin:$PATH"'
+install_local_binaries() {
+  if ! $INSTALL_LOCAL_BINS; then return; fi
+  echo ">>> Installing native commands in ~/.local/bin..."
+  local options=()
+  if $DRY_RUN; then options+=(--dry-run); fi
+  if $FULL; then options+=(--include-notebook); fi
+  python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" \
+    --repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c "${options[@]}"
+  echo 'Add to PATH if needed: export PATH="$HOME/.local/bin:$PATH"'
 }
 
 find_tool_path() {
@@ -1675,7 +1574,7 @@ if ! $DEPS_ONLY; then
   build_c
   build_mcp_server
   setup_python
-  create_wrappers
+  install_local_binaries
   verify_runnable
   verify_ocore
 fi
@@ -1690,7 +1589,7 @@ else
 fi
 echo
 echo "Quick starts:"
-echo "  o examples/hello.O                    # Rust (if wrapper installed)"
+echo "  o examples/hello.O                    # native Rust command"
 echo "  o-c examples/hello.O                  # C edition"
 echo "  cargo run --package o-lang -- examples/hello.O"
 echo "  ./c_cpp/O examples/hello.O ./backends"

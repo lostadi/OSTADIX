@@ -478,10 +478,10 @@ struct NodeUseArgs {
 struct NodeConnectionArgs {
     /// Prefer this automatically discovered node. Omit to use the remembered
     /// preference, or choose deterministically when no preference exists.
-    #[arg(long)]
+    #[arg(short = 'n', long)]
     node: Option<String>,
     /// Expert override: connect to this exact socket instead of discovering.
-    #[arg(long)]
+    #[arg(short = 'a', long)]
     address: Option<String>,
     /// Expert override: DNS name or IP SAN pinned by the node certificate.
     #[arg(long)]
@@ -822,6 +822,14 @@ fn load_stored_peer_if_present(
     }
 }
 
+fn selection_identity<'a>(
+    requested: Option<&'a str>,
+    preferred: Option<&'a str>,
+    remembered: bool,
+) -> Option<&'a str> {
+    requested.or_else(|| preferred.filter(|_| remembered))
+}
+
 fn choose_discovered_node(
     mut nodes: Vec<DiscoveredLanNodeV1>,
     requested: Option<&str>,
@@ -944,6 +952,20 @@ fn resolve_node_connection(args: &NodeConnectionArgs) -> Result<ResolvedNodeConn
 
     let peers_root = lan_peers_config_dir();
     let preferred = read_preferred_node();
+    // A selected remembered identity outranks unrelated LAN advertisements.
+    // Discovery may update its route, but must not silently choose another
+    // computer merely because a routed peer is absent from LAN discovery.
+    let remembered_preference = preferred
+        .as_deref()
+        .filter(|_| args.node.is_none())
+        .map(|id| load_stored_peer_if_present(&peers_root, id))
+        .transpose()?
+        .flatten();
+    let selected = selection_identity(
+        args.node.as_deref(),
+        preferred.as_deref(),
+        remembered_preference.is_some(),
+    );
     let timeout = Duration::from_millis(DEFAULT_LAN_DISCOVERY_MILLIS);
     let discovered = match discover_lan_nodes(timeout) {
         Ok(nodes) => nodes,
@@ -952,9 +974,7 @@ fn resolve_node_connection(args: &NodeConnectionArgs) -> Result<ResolvedNodeConn
             Vec::new()
         }
     };
-    if let Some(node) =
-        choose_discovered_node(discovered, args.node.as_deref(), preferred.as_deref())?
-    {
+    if let Some(node) = choose_discovered_node(discovered, selected, preferred.as_deref())? {
         let node_id = node.advertisement.node_id.clone();
         let existing = load_stored_peer_if_present(&peers_root, &node_id)?;
         if let Some((mut peer, paths)) = existing
@@ -966,7 +986,6 @@ fn resolve_node_connection(args: &NodeConnectionArgs) -> Result<ResolvedNodeConn
             // identity field pinned; the subsequent mTLS handshake decides
             // whether this candidate address actually belongs to that peer.
             peer.address = node.service_address().to_string();
-            write_preferred_node(&node_id)?;
             return resolved_from_stored(peer, paths, connect_timeout, io_timeout);
         }
 
@@ -1002,15 +1021,11 @@ fn resolve_node_connection(args: &NodeConnectionArgs) -> Result<ResolvedNodeConn
         let (mut peer, paths) = enrolled.or(existing).expect("enrolled or existing peer");
         peer.address = node.service_address().to_string();
         peer.server_name = node.advertisement.server_name.clone();
-        write_preferred_node(&node_id)?;
         return resolved_from_stored(peer, paths, connect_timeout, io_timeout);
     }
 
     let remembered = list_stored_lan_peers(&peers_root)?;
-    if let Some((peer, paths)) =
-        choose_stored_peer(remembered, args.node.as_deref(), preferred.as_deref())
-    {
-        write_preferred_node(&peer.node_id)?;
+    if let Some((peer, paths)) = choose_stored_peer(remembered, selected, preferred.as_deref()) {
         return resolved_from_stored(peer, paths, connect_timeout, io_timeout);
     }
 
@@ -1099,7 +1114,14 @@ fn node_use(args: NodeUseArgs) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(error) = run_cli() {
+        eprintln!("{}", o_lang::cli_diagnostics::render_error("octl", &error));
+        std::process::exit(1);
+    }
+}
+
+fn run_cli() -> Result<()> {
     match Cli::parse().command {
         Command::Node(args) => match args.command {
             NodeCommand::List(args) => node_list(args),
@@ -3070,4 +3092,91 @@ fn fresh_id(prefix: &str) -> Result<String> {
     let mut random = [0_u8; 16];
     getrandom::fill(&mut random).context("failed to obtain entropy for operation identity")?;
     Ok(format!("{prefix}-{}", hex::encode(random)))
+}
+
+#[cfg(test)]
+mod node_selection_tests {
+    use super::*;
+    use o_lang::hosted_remote::LanNodeAdvertisementV1;
+
+    fn discovered(id: &str) -> DiscoveredLanNodeV1 {
+        DiscoveredLanNodeV1 {
+            advertisement: LanNodeAdvertisementV1::pairing_required(
+                id,
+                "localhost",
+                7337,
+                7340,
+                true,
+            )
+            .unwrap(),
+            source_ip: "192.0.2.7".parse().unwrap(),
+        }
+    }
+
+    #[test]
+    fn remembered_preference_does_not_fall_through_to_unrelated_lan_node() {
+        let selected = selection_identity(None, Some("rack"), true);
+        assert_eq!(selected, Some("rack"));
+        assert!(
+            choose_discovered_node(vec![discovered("mac-self")], selected, Some("rack"))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            choose_discovered_node(
+                vec![discovered("mac-self"), discovered("rack")],
+                selected,
+                Some("rack")
+            )
+            .unwrap()
+            .unwrap()
+            .advertisement
+            .node_id,
+            "rack"
+        );
+    }
+
+    #[test]
+    fn explicit_identity_overrides_preference_and_stale_preference_allows_discovery() {
+        assert_eq!(
+            selection_identity(Some("requested"), Some("rack"), true),
+            Some("requested")
+        );
+        let selected = selection_identity(None, Some("missing"), false);
+        assert_eq!(
+            choose_discovered_node(vec![discovered("reachable")], selected, Some("missing"))
+                .unwrap()
+                .unwrap()
+                .advertisement
+                .node_id,
+            "reachable"
+        );
+    }
+
+    #[test]
+    fn short_connection_options_preserve_exact_paired_route() {
+        let parsed = Cli::try_parse_from([
+            "octl",
+            "node",
+            "run",
+            "hello.O",
+            "-n",
+            "rack",
+            "-a",
+            "100.121.192.11:7337",
+        ])
+        .unwrap();
+        let Command::Node(NodeArgs {
+            command: NodeCommand::Run(args),
+        }) = parsed.command
+        else {
+            panic!("expected run")
+        };
+        assert_eq!(args.connection.node.as_deref(), Some("rack"));
+        assert_eq!(
+            args.connection.address.as_deref(),
+            Some("100.121.192.11:7337")
+        );
+        assert!(!args.connection.manual);
+    }
 }

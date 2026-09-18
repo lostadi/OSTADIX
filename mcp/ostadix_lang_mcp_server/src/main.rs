@@ -7,6 +7,8 @@
 
 mod capabilities;
 mod execution;
+mod installation;
+mod tool_schema;
 mod unified;
 
 use rmcp::{
@@ -66,8 +68,12 @@ struct OstadixMcp {
 
 impl OstadixMcp {
     fn new(runtime_search: RuntimeSearchPath) -> Self {
+        let mut tool_router = Self::tool_router();
+        for route in tool_router.map.values_mut() {
+            tool_schema::normalize(Arc::make_mut(&mut route.attr.input_schema));
+        }
         Self {
-            tool_router: Self::tool_router(),
+            tool_router,
             runtime_search,
             intents: Arc::new(Mutex::new(IntentStore::default())),
             jobs: execution::JobManager::new(),
@@ -298,31 +304,12 @@ fn is_lang_root(path: &Path) -> bool {
 }
 
 fn resolve_lang_root() -> PathBuf {
-    if let Some(path) = std::env::var_os("O_LANG_ROOT").map(PathBuf::from) {
-        if is_lang_root(&path) {
-            return canonical_directory(&path).unwrap_or(path);
-        }
-    }
-
-    if let Ok(current) = std::env::current_dir() {
-        for candidate in current.ancestors() {
-            if is_lang_root(candidate) {
-                return canonical_directory(candidate).unwrap_or_else(|| candidate.to_path_buf());
-            }
-        }
-    }
-
-    for candidate in [
-        PathBuf::from("/usr/src/ostadix"),
-        home_dir().join("Ostadix-lang"),
-        home_dir().join("O-lang"),
-    ] {
-        if is_lang_root(&candidate) {
-            return canonical_directory(&candidate).unwrap_or(candidate);
-        }
-    }
-
-    std::env::current_dir().unwrap_or_else(|_| home_dir().join("Ostadix-lang"))
+    installation::root(
+        std::env::var_os("O_LANG_ROOT").as_deref().map(Path::new),
+        std::env::current_exe().ok().as_deref(),
+        std::env::current_dir().ok().as_deref(),
+        &home_dir(),
+    )
 }
 
 fn resolve_backends(root: &Path) -> PathBuf {
@@ -331,6 +318,12 @@ fn resolve_backends(root: &Path) -> PathBuf {
         if let Some(canonical) = canonical_directory(&pb) {
             return canonical;
         }
+    }
+    if let Some(backends) = std::env::current_exe()
+        .ok()
+        .and_then(|executable| installation::backends(root, &executable))
+    {
+        return backends;
     }
     let backends = root.join("backends");
     canonical_directory(&backends).unwrap_or(backends)
@@ -343,11 +336,7 @@ fn resolve_o_bin(root: &Path) -> PathBuf {
             return pb;
         }
     }
-    let release = root.join("target/release/O");
-    if release.is_file() {
-        return release;
-    }
-    which::which("O").unwrap_or_else(|_| PathBuf::from("O"))
+    capabilities::binary_path(root, "O").unwrap_or_else(|| PathBuf::from("O"))
 }
 
 fn resolve_o_cli(root: &Path) -> PathBuf {
@@ -357,13 +346,9 @@ fn resolve_o_cli(root: &Path) -> PathBuf {
             return path;
         }
     }
-    let release = root.join("target/release/o-cli");
-    if release.is_file() {
-        return release;
-    }
-    which::which("o-cli")
-        .or_else(|_| which::which("o"))
-        .unwrap_or_else(|_| PathBuf::from("o-cli"))
+    capabilities::binary_path(root, "o-cli")
+        .or_else(|| which::which("o").ok())
+        .unwrap_or_else(|| PathBuf::from("o-cli"))
 }
 
 fn resolve_octl(root: &Path) -> PathBuf {
@@ -373,19 +358,11 @@ fn resolve_octl(root: &Path) -> PathBuf {
             return path;
         }
     }
-    let release = root.join("target/release/octl");
-    if release.is_file() {
-        return release;
-    }
-    which::which("octl").unwrap_or_else(|_| PathBuf::from("octl"))
+    capabilities::binary_path(root, "octl").unwrap_or_else(|| PathBuf::from("octl"))
 }
 
 fn resolve_olangc(root: &Path) -> PathBuf {
-    let release = root.join("target/release/olangc");
-    if release.is_file() {
-        return release;
-    }
-    which::which("olangc").unwrap_or_else(|_| PathBuf::from("olangc"))
+    capabilities::binary_path(root, "olangc").unwrap_or_else(|| PathBuf::from("olangc"))
 }
 
 fn resolve_o_info_with_override(
@@ -3460,10 +3437,10 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-    struct Fixture(PathBuf);
+    pub(super) struct Fixture(pub(super) PathBuf);
 
     impl Fixture {
-        fn new() -> Self {
+        pub(super) fn new() -> Self {
             let unique = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("clock is before Unix epoch")

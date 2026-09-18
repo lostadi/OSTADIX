@@ -375,7 +375,7 @@ class HostedLiveWorkstationPayloadTests(unittest.TestCase):
         self.assertIn('root_url = "http://127.0.0.1:8888/"', source)
         self.assertIn("ostadix-cargo-hello", source)
         self.assertIn("/usr/src/ostadix/Cargo.toml", source)
-        self.assertIn('/usr/src/ostadix/scripts/o-cli.sh "$@"', source)
+        self.assertIn('"$HOSTED_BIN_DIR/o-cli" "$STAGE/usr/local/bin/o"', source)
         self.assertIn("o object verify", source)
         self.assertIn(
             "python3 /usr/src/ostadix/scripts/ostadix_boot_objects.py verify", source
@@ -828,23 +828,13 @@ class HostedLiveWorkstationPayloadTests(unittest.TestCase):
         self.assertLess(ready, launch)
         self.assertIn("OSTADIX HOSTED DESKTOP: FAIL: launcher returned nonzero", source)
 
-    def test_live_o_wrapper_delegates_every_repository_route(self) -> None:
+    def test_live_native_front_door_installs_every_repository_route(self) -> None:
         source = PREPARE.read_text(encoding="utf-8")
-        self.assertIn('exec /usr/src/ostadix/scripts/o-cli.sh "$@"', source)
-        for variable in (
-            "O_LANG_OCLI_BIN",
-            "O_LANG_OLANGC_BIN",
-            "O_LANG_EVALUATOR_BIN",
-            "O_LANG_KERNEL_CLI_BIN",
-            "O_LANG_CAPACITY_BIN",
-            "O_LANG_LIVE_BIN",
-            "O_LANG_OGIT_BIN",
-            "O_LANG_NODE_BIN",
-            "O_LANG_OCTL_BIN",
-            "O_LANG_REGISTRY_BIN",
-            "O_LANG_INFO_BIN",
-        ):
-            self.assertIn(f"export {variable}=", source)
+        self.assertIn('install -m 0555 "$HOSTED_BIN_DIR/o-cli" "$STAGE/usr/local/bin/o"', source)
+        self.assertIn('"$HOSTED_BIN_DIR/O" "$STAGE/usr/local/bin/ostadix-evaluator"', source)
+        self.assertIn('"repo_root":"/usr/src/ostadix"', source)
+        self.assertIn('"backends_dir":"/opt/ostadix/backends"', source)
+        self.assertNotIn('exec /usr/src/ostadix/scripts/o-cli.sh "$@"', source)
         for route in (
             "kernel help",
             "capacity --help",

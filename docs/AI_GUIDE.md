@@ -76,6 +76,13 @@ the explicit intent tools keep their existing contracts.
 
 ### Through the CLI
 
+The native front door also provides `o check program.O`, `o eval '<source>'`,
+`o repl`, `o plan program.O`, and `o check module.oc`. Parse-only checking never
+runs hosted code; O-core checking does not type-check incomplete module units.
+Use `ostadix-evaluator` when a case-insensitive filesystem makes `O` and `o`
+resolve to the same installed command. The raw evaluator protocol below remains
+available through that unambiguous name.
+
 1. **Generate** a `.O` program (or an inline expression).
 2. **Validate** it without executing: `O --check --json program.O`.
    - Success: exit 0, stdout `{"ok":true,"stage":"parse",...}`.
@@ -194,3 +201,19 @@ under the `"value"` key, e.g. `{"t":"number","v":{"kind":"int","v":"4"}}`,
   compilers. If `rust^` fails because `rustc` is absent, either install the
   toolchain or solve the subtask in an available language such as `python^`
   or `bash^`.
+
+Human diagnostics on stderr identify the failed phase, root cause, source
+location when known, context chain and suggested next action. A parser failure
+explicitly says the HGraph was not constructed. For ordinary hosted execution,
+a retained `NodeFailed` event is attached to a source span only when the failed
+plan matches the source's canonical plan. The source-projected HGraph context
+then names the actual operation edge, its input/output IDs and adjacent Value,
+Completion or Resource nodes. It is an inspection of source structure, not an
+admitted-state or live-state snapshot. When no exact failed node is available,
+the diagnostic says so and supplies full IR/DOT inspection commands.
+
+These richer stderr messages do not add fields to the evaluator's existing JSON
+error object (`ok`, `stage`, `error`). Parse machine output from stdout and keep
+stderr as diagnostic evidence. O-core diagnostics use the native
+AST → HIR → MIR → target pipeline and their real source spans; `.oc` failures
+are not assigned hosted HGraph node IDs.

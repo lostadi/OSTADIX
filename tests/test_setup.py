@@ -459,6 +459,21 @@ class SetupScriptTests(unittest.TestCase):
                 output,
             )
 
+    def test_full_build_selects_the_notebook_target_explicitly(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_setup("--full", "--dry-run", "--no-env", home=Path(directory))
+        self.assertEqual(result.returncode, 0, self.combined_output(result))
+        self.assertIn("--features notebook --bin o-notebook", result.stdout)
+        self.assertIn("/bin/o-notebook from", result.stdout)
+
+    def test_native_install_opt_out_and_legacy_alias_have_the_same_scope(self) -> None:
+        for option in ("--no-local-bins", "--no-wrappers"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
+                result = self.run_setup("--minimal", "--dry-run", "--no-env", option, home=Path(directory))
+                self.assertEqual(result.returncode, 0, self.combined_output(result))
+                self.assertNotIn(f"replace {Path(directory) / '.local/bin/o-cli'}", result.stdout)
+                self.assertIn(f"replace {Path(directory) / 'cargo/bin/o-cli'}", result.stdout)
+
     def test_verify_preflights_installed_hosted_v2_command_surfaces_in_temp_state(self) -> None:
         setup = SETUP.read_text(encoding="utf-8")
 

@@ -1,10 +1,10 @@
 # Unified Ostadix Intent Front Door V1
 
 `o run`, `o routes`, `o optimize`, `o plan`, `o explain`, `o inspect`,
-`o object`, and `o operation` are routed by the repository-owned Bash dispatcher
-to the compiled `o-cli` orchestrator. The
-dispatcher remains necessary on case-insensitive macOS filesystems where `O`
-and `o` cannot be separate installed filenames. Direct `O`, `olangc`,
+`o object`, and `o operation` are handled by the compiled `o-cli` orchestrator,
+installed as the native `o` command. `ostadix-evaluator` gives the raw evaluator
+a distinct name on case-insensitive macOS filesystems. The repository Bash
+entry point remains available for compatibility. Direct `O`, `olangc`,
 `o-link`, node, registry, information, live, receipt, kernel, `o why`, and
 unknown-argument evaluator behavior remain compatibility surfaces.
 

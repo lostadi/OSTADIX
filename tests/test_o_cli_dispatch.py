@@ -47,10 +47,22 @@ class LowercaseCliDispatchTests(unittest.TestCase):
         *arguments: str,
         environment: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        environment = (environment or self.environment).copy()
+        # The compatibility script has no command parser: intent forms can test
+        # its exact forwarding with a capture tool, while operational routes are
+        # exercised through the actual compiled native dispatcher.
+        intent = {"run", "routes", "optimize", "plan", "explain", "inspect", "computation", "object", "operation", "realizations", "observe", "replan", "help", "--help", "-h"}
+        if arguments and arguments[0] not in intent:
+            native = os.environ.get("O_LANG_NATIVE_CLI_BIN")
+            if native is None:
+                native = str(PROJECT_ROOT / "target" / "debug" / "o-cli")
+            if not Path(native).is_file():
+                self.fail("build native o-cli or set O_LANG_NATIVE_CLI_BIN before testing native dispatch")
+            environment["O_LANG_OCLI_BIN"] = native
         return subprocess.run(
             [str(O_CLI), *arguments],
             cwd=PROJECT_ROOT,
-            env=environment or self.environment,
+            env=environment,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -91,11 +103,12 @@ class LowercaseCliDispatchTests(unittest.TestCase):
         non_device_environment["O_LANG_DEVICE_BIN"] = str(
             Path(self.temporary.name) / "missing-device-controller"
         )
-        self.assert_dispatch(
-            ("doctor", "--json"),
-            ["doctor", "--json"],
-            non_device_environment,
-        )
+        result = self.run_cli("doctor", "--json", environment=non_device_environment)
+        self.assertEqual(result.returncode, 1)
+        import json
+        report = json.loads(result.stdout)
+        self.assertEqual(report["schema"], "ostadix.installation-check/v1")
+        self.assertFalse(report["ready"])
         self.assert_dispatch(
             ("device", "doctor", "--json"),
             ["doctor", "--json"],
@@ -219,12 +232,10 @@ class LowercaseCliDispatchTests(unittest.TestCase):
         capacity_host = (
             PROJECT_ROOT / "scripts" / "prepare-x86_64-capacity-host.sh"
         ).read_text(encoding="utf-8")
-        expected = (
-            "run|routes|optimize|plan|explain|inspect|object|operation|"
-            "realizations|observe|replan"
-        )
-        self.assertIn(expected, dockerfile)
-        self.assertIn(expected, capacity_host)
+        self.assertIn("COPY --from=builder /src/target/release/o-cli /usr/local/bin/o", dockerfile)
+        self.assertIn('ENTRYPOINT ["o"]', dockerfile)
+        self.assertIn('"$HOSTED_BIN_DIR/o-cli" "$STAGE/usr/local/bin/o"', capacity_host)
+        self.assertNotIn('case "${1:-}" in', dockerfile)
 
     def test_docker_builder_copies_olangc_browser_asset_closure(self) -> None:
         dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
@@ -413,41 +424,17 @@ class NodeQuickstartDispatchTests(unittest.TestCase):
 
 
 class InstalledWrapperDispatchTests(unittest.TestCase):
-    def test_generated_wrapper_does_not_depend_on_invocation_case(self) -> None:
+    def test_installed_native_front_door_does_not_depend_on_invocation_case(self) -> None:
+        native = Path(os.environ.get("O_LANG_NATIVE_CLI_BIN", str(PROJECT_ROOT / "target" / "debug" / "o-cli")))
+        self.assertTrue(native.is_file(), "build native o-cli before installed dispatch checks")
         with tempfile.TemporaryDirectory() as temporary:
-            destination = Path(temporary) / "O"
-            result = subprocess.run(
-                [
-                    str(PROJECT_ROOT / "scripts" / "install-o-cli-wrapper.sh"),
-                    str(destination),
-                ],
-                cwd=PROJECT_ROOT,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            source = destination.read_text(encoding="utf-8")
-            self.assertTrue(source.startswith("#!/bin/sh\n"))
-            self.assertIn('exec "', source)
-            self.assertIn('/scripts/o-cli.sh" "$@"', source)
-            self.assertNotIn('${0##*/}', source)
-
-            true_command = shutil.which("true")
-            self.assertIsNotNone(true_command)
-            environment = os.environ.copy()
-            environment["O_LANG_OCLI_BIN"] = true_command
-            result = subprocess.run(
-                [str(destination), "help"],
-                cwd=PROJECT_ROOT,
-                env=environment,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            for name in ("o", "O"):
+                destination = Path(temporary) / name
+                shutil.copy2(native, destination)
+                result = subprocess.run([str(destination), "--help"], text=True, capture_output=True, check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("Ostadix", result.stdout)
+                self.assertFalse(destination.read_bytes().startswith(b"#!"))
 
     def test_repository_dispatcher_has_an_android_safe_interpreter(self) -> None:
         source = O_CLI.read_text(encoding="utf-8")

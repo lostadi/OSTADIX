@@ -4,7 +4,7 @@ version     = "0.4.0"
 edition     = "2021"
 rust-version = "1.93.1"
 description = "Ostadix-lang (O-lang): recursive evaluator composition for whole-program polyglot execution"
-repository  = "https://github.com/lostadi/Ostadix-lang"
+repository  = "https://github.com/lostadi/OSTADIX"
 authors     = ["Lee Daghlar Ostadi"]
 license     = "LGPL-2.1-only"
 # `cargo run` and the test_o_lang_examples.sh smoke suite invoke the

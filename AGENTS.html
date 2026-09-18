@@ -30,6 +30,10 @@ export PATH=&quot;$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:
 </tr>
 </thead>
 <tbody><tr>
+<td>Parse <code>.O</code> or <code>.oc</code></td>
+<td><code>o check file.O</code> or <code>o check file.oc</code> (no execution)</td>
+</tr>
+<tr>
 <td>Run <code>.O</code></td>
 <td><code>O file.O backends</code> or <code>o run file.O</code></td>
 </tr>
@@ -91,14 +95,23 @@ write API. Resources also expose the catalog and ten workflow guides. Own
 <code>Cargo.lock</code> (not a workspace member) so <code>rmcp</code>/<code>tokio full</code> stay out of the
 main O-lang build.</p>
 <p>Built by <code>setup.sh</code> (<code>build_mcp_server</code>, skip with <code>--no-mcp</code>) via
-<code>cargo build --release --locked</code>; installs the <code>ostadix-mcp</code> wrapper into
+<code>cargo build --release --locked</code>; installs the native <code>ostadix-mcp</code> executable into
 <code>~/.local/bin</code>. Registered for MCP clients (Claude Code included) via
 <code>.mcp.json</code> at repo root. Rebuild directly with:</p>
 <pre><code class="language-bash">cargo build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
 </code></pre>
 <h2>Skills</h2>
 <p>Load via skill tool when relevant: <code>olang</code>, <code>olang-runtime</code>, <code>olang-ocore</code>, <code>ostadix-control</code>, <code>ostadix-wasm</code>, <code>ostadix-term</code>.</p>
-<h2>Terminal kit</h2>
-<p><code>~/.config/ostadix/term/ostadix-term.zsh</code> — <code>o doctor</code>, <code>o plan</code>, <code>o live</code>, <code>o receipt</code>.</p>
+<h2>Native commands and validation</h2>
+<p><code>setup.sh</code> installs compiled <code>o</code> and <code>ostadix-evaluator</code> binaries. Shell completion
+or terminal configuration is optional. Use <code>o help</code>, <code>o root</code>, <code>o doctor</code>,
+<code>o plan</code>, <code>o live</code>, and <code>o receipt</code> directly. Backend adapters and build/kernel
+workflows retain their own languages and prerequisites.</p>
+<p>Run <code>python3 scripts/check_language_sources.py validate</code> after adding or moving
+tracked <code>.O</code>/<code>.oc</code> files. Run its <code>check</code> action with the current <code>O</code> and <code>ocorec</code>
+binaries for complete parse coverage. Runtime checks still follow the example
+manifest and named native build/QEMU harnesses. Regenerate tracked HTML exports
+with <code>python3 scripts/render_docs.py write</code> using the pinned marked version;
+<code>check</code> verifies complete output bytes.</p>
 <h2>Evidence</h2>
 <p>Show real command output. Smoke: <code>O examples/hello.O backends</code> → <code>2</code>.</p>

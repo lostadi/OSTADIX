@@ -1,5 +1,9 @@
 # Zero-configuration installer v2
 
+This is the historical installer-v2 repair record. Current setup installs native
+`o` and `ostadix-evaluator` commands; see [the developer guide](../DEVELOPMENT.md#native-command-reference).
+The wrapper behavior below describes that earlier overlay, not the current installation.
+
 The first source overlay exposed two integration defects that were not caught by
 source-only dispatch tests.
 

@@ -96,8 +96,14 @@ add_test(NAME fresh_environment_semantics
     COMMAND $<TARGET_FILE:fresh_env_test> ${OLANG_BACKENDS_DIR}
 )
 
+add_test(NAME installed_native_paths
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_installed_paths.py
+            --runner $<TARGET_FILE:O>
+            --compiler $<TARGET_FILE:olangc>
+)
+
 if(OLANG_WARNINGS_AS_ERRORS)
-    set_tests_properties(aot_manifest aot_path_safety PROPERTIES
+    set_tests_properties(aot_manifest aot_path_safety installed_native_paths PROPERTIES
         ENVIRONMENT "OLANGC_WARNINGS_AS_ERRORS=1"
     )
 endif()

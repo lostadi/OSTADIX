@@ -5,6 +5,7 @@
 #include "value.h"
 #include "parser.h"
 #include "eval.h"
+#include "installed_paths.h"
 
 static char *read_file(const char *path) {
     FILE *f = fopen(path, "rb");
@@ -28,11 +29,18 @@ int main(int argc, char **argv) {
         return 1;
     }
     const char *input = argv[1];
-    const char *shim_dir = (argc >= 3) ? argv[2] : "backends";
+    const char *configured_shims = getenv("O_BACKENDS_DIR");
+    if (!configured_shims || !*configured_shims) configured_shims = getenv("BACKENDS_DIR");
+    char *installed_shims = argc < 3 && (!configured_shims || !*configured_shims)
+        ? olang_installed_backends(argv[0]) : NULL;
+    const char *shim_dir = (argc >= 3) ? argv[2] :
+        (configured_shims && *configured_shims ? configured_shims :
+         (installed_shims ? installed_shims : "backends"));
 
     char *source = read_file(input);
     if (!source) {
         fprintf(stderr, "failed to read %s\n", input);
+        free(installed_shims);
         return 1;
     }
     /* strip shebang */
@@ -47,6 +55,7 @@ int main(int argc, char **argv) {
     if (!bs) {
         fprintf(stderr, "failed to create backend set\n");
         free(source);
+        free(installed_shims);
         return 1;
     }
     const char *tags[] = {"O", "python", "html", "latex", "markdown", "text", "bash", "shell",
@@ -57,6 +66,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "failed to register backend tag %s\n", tags[i]);
             string_set_free(bs);
             free(source);
+            free(installed_shims);
             return 1;
         }
     }
@@ -68,6 +78,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "parse error: %s\n", p.error_msg);
         free(source);
         string_set_free(bs);
+        free(installed_shims);
         return 1;
     }
 
@@ -77,6 +88,7 @@ int main(int argc, char **argv) {
         onode_list_free(nodes);
         string_set_free(bs);
         free(source);
+        free(installed_shims);
         return 1;
     }
     if (!olang_evaluator_set_registered(ev, bs)) {
@@ -85,6 +97,7 @@ int main(int argc, char **argv) {
         onode_list_free(nodes);
         string_set_free(bs);
         free(source);
+        free(installed_shims);
         return 1;
     }
 
@@ -109,5 +122,6 @@ int main(int argc, char **argv) {
     olang_evaluator_free(ev);
     string_set_free(bs);
     free(source);
+    free(installed_shims);
     return failed;
 }

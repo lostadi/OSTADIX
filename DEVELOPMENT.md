@@ -1,6 +1,6 @@
 # Ostadix-lang Developer Guide
 
-Practical notes for contributors to [Ostadix-lang](https://github.com/lostadi/Ostadix-lang), short name **O-lang**. The project is a polyglot language system where typed expressions choose their evaluator with `LANG^(...)_LANG`, and O-core is the separate freestanding native systems language.
+Practical notes for contributors to [Ostadix-lang](https://github.com/lostadi/OSTADIX), short name **O-lang**. The project is a polyglot language system where typed expressions choose their evaluator with `LANG^(...)_LANG`, and O-core is the separate freestanding native systems language.
 
 ## Implementations in this repository
 
@@ -65,9 +65,10 @@ c_cpp/O examples/hello.O backends
   `run`, `routes`, `optimize`, `plan`, `explain`, `inspect`, `object`, and
   `operation`; `olangc.rs`, `ocorec.rs`, `olink.rs` (`o-link`), `ounlink.rs`
   (`o-unlink`), `ogit.rs`, and `o-notebook.rs` provide compiler, native,
-  linker, Git, and notebook entry points. The Bash `scripts/o-cli.sh`
-  dispatcher remains the installed lowercase `o` front door so macOS
-  case-insensitivity cannot collapse `O` and `o`.
+  linker, Git, and notebook entry points. Setup installs the compiled `o-cli`
+  as lowercase `o` and retains `ostadix-evaluator` as the unambiguous raw
+  evaluator. `scripts/o-cli.sh` is a compatibility entry point; normal commands
+  use the native front door directly.
 
 ## Environment semantics
 
@@ -103,6 +104,151 @@ trusted-lowering vocabulary only. Source declarations cannot mint them. Device
 and accelerator keys expand to the same canonical generic governed-resource
 dependency.
 
+## Native command reference
+
+Normal setup installs compiled commands in `~/.local/bin`. No shell function or
+startup file is required for dispatch. Copied C17 commands (`o-c`, `olangc-c`)
+read the adjacent installation metadata to find backend adapters and AOT runtime
+sources even from an unrelated directory. Explicit shim paths take precedence
+over `O_BACKENDS_DIR`, then `BACKENDS_DIR`, then installation defaults. The interpreter is also installed as
+`ostadix-evaluator`, which remains distinct on a case-insensitive filesystem.
+`--no-local-bins` disables that installation; `--no-wrappers` is its compatibility
+spelling. `scripts/o-cli.sh` and `o-node-quickstart.sh` remain compatibility entry
+points for existing callers. Build, kernel, capacity and backend workflows
+continue to call their authoritative implementations.
+
+An older terminal kit may define an `o()` shell function that shadows the native
+command. Check `type -a o` (or `whence -a o` in zsh). Remove or rename that legacy
+function in the shell configuration and start a fresh shell; `unfunction o` also
+clears it for the current zsh session. Keep shell-only directory changes in a
+separate helper such as `oroot`; the native `o root` prints the configured source
+root, so `cd "$(o root)"` works from any shell. The migrated terminal kit retains shell conveniences under `o-term` and
+`oroot`.
+
+| Task | Native command |
+|---|---|
+| Evaluate a file | `o file.O` or `o run file.O` |
+| Evaluate inline source | `o eval 'text^(hello)_text'` (`o e` is equivalent) |
+| Interactive evaluator | `o repl` |
+| Parse without execution | `o check file.O` or `o check file.oc` |
+| Static hosted plan | `o plan file.O` or `o ir file.O` |
+| Hosted compiler | `o compile file.O -o app` (`o bin`, `o aot` and `o ship` accept the same compiler arguments) |
+| Other hosted targets | `o script file.O` or `o wasm file.O` |
+| Link/unlink | `o link`, `o link-project`, `o link-run`, `o unlink` |
+| O-core textual artifacts | `o ast`, `o hir`, `o mir`, `o asm` followed by the complete source unit |
+| O-core object/compiler | `o obj file.oc` or `o core --help` |
+| Repository location | `o root` |
+| Runtime environment | `o doctor`, `o which`, `o editions` (each supports `--json`) |
+| Typed Python smoke | `o smoke` |
+| Complete hosted graph | `o graph file.O -o graph.dot` (`o dot` is equivalent) |
+
+O-core textual aliases print to stdout unless `-o` selects a file. `o obj` uses
+the compiler's normal object output. `o check` parses only: it neither evaluates
+hosted blocks nor type-checks an incomplete O-core module. Use `o mir`/`o hir`
+with the complete compilation unit for native semantic checking, and the
+manifest-selected runtime suite for hosted behavior.
+
+Intent commands accept `-b`/`--backends` as aliases for `--shim-dir`, `-w` for
+workers, and `-r` for a route. Node commands accept `-n ID` and `-a ADDRESS`;
+pairing accepts `-a ADDRESS` and `-b LISTENER`. Existing long options remain
+available. Use each command's `--help` for options in its own namespace.
+
+## Diagnosing failures
+
+Native hosted diagnostics report the failed phase and preserve the root cause,
+outer context and real source location. Parser failures say that the HGraph was
+not constructed. Runtime failures include an exact source span only when a
+retained failed-node event belongs to the source's canonical plan. A displayed
+HGraph neighborhood identifies the actual operation and Value, Completion or
+Resource dependencies; it is a source projection, not proof of admission or a
+live execution snapshot. If no exact node is available, the message states
+that limitation and gives complete IR/DOT inspection commands. The raw
+interpreter's JSON error schema is unchanged; detailed human context goes to
+stderr. O-core reports its own AST/HIR/MIR/target stage and source span without
+inventing a hosted graph.
+
+For example, this command deliberately fails in Python:
+
+```bash
+ostadix-evaluator --eval 'python^( __oval_result__ = 1 / 0 )_python' backends
+```
+
+The verified stderr output includes `phase: eval`, `ZeroDivisionError: division
+by zero`, the source excerpt at `<eval>:1:1`, and this graph neighborhood:
+
+```text
+HGraph: source projection (7 nodes, 1 execution hyperedges, 2 constraint hyperedges).
+  This is the validated source structure, not a snapshot of live materialization or admission state.
+  failed P0 -> e2 Execute(EvalBackend { lang: "python", env: 4294967295 })
+  inputs:  [n1, n3, n5]
+  outputs: [n0, n2, n4, n6]
+```
+
+The raw environment number in this excerpt denotes the ephemeral evaluator
+instance. Operation and graph IDs describe this exact source projection; do not
+carry them over to a changed program or treat them as remote execution identity.
+
+## Complete language-source and document checks
+
+`ci/language-sources.json` classifies every Git-tracked `.O` and `.oc` file,
+including benchmarks, mobile assets, fixture inputs, package mirrors, native
+modules, platform demos and retained output snapshots. A newly tracked or moved
+source fails validation until it is classified; untracked work is outside the
+audit. Coverage entries name existing harnesses and the conditions under which
+they apply. Package mirrors must equal their authoritative source bytes.
+
+```bash
+python3 scripts/check_language_sources.py validate
+cargo build --locked --bin O --bin ocorec
+python3 scripts/check_language_sources.py check \
+  --o-bin target/debug/O --ocorec target/debug/ocorec \
+  --json-report target/language-sources.json
+python3 -m unittest -v tests.test_language_sources tests.test_render_docs tests.test_example_manifest
+O_BIN="$PWD/target/debug/O" bash test_o_lang_examples.sh
+```
+
+The `check` action parses every classified file through the real parsers, uses
+bounded parallel workers, and records every result without executing programs.
+It rejects a non-parse success envelope, compiler failure, timeout, stale mirror,
+missing classification, or missing coverage reference. Intentional parser
+negative fixtures must specify both a reason and an expected diagnostic; an
+unexpected success also fails. The current manifest has no parser-negative
+files. Runtime rejection probes in native modules and lossy-value witnesses in
+benchmarks are valid source and remain covered by their semantic harnesses.
+
+`examples/manifest.json` remains the runtime authority for the 50 examples:
+backend dependencies, edition support, expected outputs, timeouts, host actions
+and opt-ins are defined there. Its runner prints every skip and rejects an
+all-skipped suite. Interactive boxing, group-pipeline output, Guix guest sessions,
+NixOS virtualization and the manual Plan 9 demo retain their declared opt-ins or
+manual classification. Fixture programs may require harness-provided bindings.
+O-core build scripts choose complete target-specific units and mutually exclusive
+mode stubs; parse success does not replace type checking, native object builds,
+QEMU execution or physical-device evidence. For an already-built compiler,
+`OCOREC_BIN=/absolute/path/ocorec bash ocore/kernel/smoke-qemu.sh` uses the
+existing executable; without that override the x86 builder runs its normal
+locked Cargo build. The AArch64 G2 harness uses `OCORE_G2_OCOREC_BIN` for the
+same purpose. Invalid prebuilt paths fail instead of silently selecting another
+compiler.
+
+The generated documentation export manifest is `docs/html-exports.json`. It
+pins the renderer and covers every tracked Markdown/HTML pair. Install that
+version of `marked` through your existing Node tool setup, then use:
+
+```bash
+python3 scripts/render_docs.py validate  # inventory only; no Node required
+python3 scripts/render_docs.py write    # regenerate complete files
+python3 scripts/render_docs.py check    # compare all bytes, including long tails
+```
+
+Rendering uses `marked --output` into a regular temporary file, so a bounded
+stdout capture cannot silently truncate large documents. A renderer version
+mismatch or failed render fails the check. Markdown remains authoritative;
+non-Markdown application HTML is outside this export set. After editing current
+operational docs, regenerate exports. Preserve historical records and sealed
+evidence as historical records, and distinguish their observations from current
+validation.
+
 ## Test and validation commands
 
 CI (`.github/workflows/ci.yml`) runs all of these paths:
@@ -117,10 +263,10 @@ cargo fmt -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 
 # O-core executable milestone evidence (requires Clang, LLD, Python, and QEMU x86_64)
-./scripts/o-cli.sh kernel doctor
-./scripts/o-cli.sh kernel build
-./scripts/o-cli.sh kernel smoke
-./scripts/o-cli.sh kernel smoke-live
+o kernel doctor
+o kernel build
+o kernel smoke
+o kernel smoke-live
 python3 scripts/release_evidence.py validate
 cargo test --test world_identity_wire
 ./ocore/kernel/smoke-world-identity-qemu.sh
@@ -177,7 +323,7 @@ continuation in disposable workspaces. The continuation fixture explicitly
 declares both its executed
 prerequisite and first route `failure_continuation = "declared_idempotent"`;
 omitting that contract now fails closed before the second branch. `setup.sh`
-installs lowercase `o` as a wrapper over the dispatcher
+installs lowercase `o` as the compiled dispatcher
 while preserving evaluator fallback for non-subcommand input.
 
 `smoke-project-hgraph-exec.sh` is the separate
@@ -289,9 +435,10 @@ not execute the project or verify Ed25519 natively; QEMU TCG is not physical
 hardware. It passes neither G1 nor Workstream A acceptance, and G1 remains
 defined and unpassed.
 
-Keep the installed-wrapper directories before `target/release` in `PATH`; on a
-case-insensitive host the raw `O` release binary is otherwise also found as
-lowercase `o` and shadows the dispatcher.
+Keep the native installation directory (`~/.local/bin`) before `target/release`
+in `PATH`. On a case-insensitive host the raw build-tree `O` is also found as
+lowercase `o`; use installed `o` for native subcommands and `ostadix-evaluator`
+when the raw evaluator is specifically required.
 
 <!-- BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_DEVELOPMENT -->
 The aggregate executes all 26 required portable QEMU gates in the

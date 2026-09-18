@@ -708,34 +708,13 @@ for example in hello.O wasm_hello.O webassembly_hello.O \
   install -m 0444 "$HOSTED_SOURCE_ROOT/examples/$example" \
     "$STAGE/opt/ostadix/examples/$example"
 done
-if [[ "$ALPINE_KERNEL_FLAVOR" == lts ]]; then
-  tee "$STAGE/usr/local/bin/o" >/dev/null <<'O_WRAPPER'
-#!/bin/sh
-set -eu
-export O_LANG_OCLI_BIN=/usr/local/bin/o-cli
-export O_LANG_OLANGC_BIN=/usr/local/bin/olangc
-export O_LANG_EVALUATOR_BIN=/usr/local/bin/O
-export O_LANG_KERNEL_CLI_BIN=/usr/src/ostadix/scripts/o-kernel.sh
-export O_LANG_CAPACITY_BIN=/usr/src/ostadix/scripts/ostadix_capacity.py
-export O_LANG_LIVE_BIN=/usr/local/bin/o-live-host
-export O_LANG_OGIT_BIN=/usr/local/bin/ogit
-export O_LANG_NODE_BIN=/usr/local/bin/o-node
-export O_LANG_OCTL_BIN=/usr/local/bin/octl
-export O_LANG_REGISTRY_BIN=/usr/local/bin/o-registry
-export O_LANG_INFO_BIN=/usr/local/bin/o-info
-exec /usr/src/ostadix/scripts/o-cli.sh "$@"
-O_WRAPPER
-else
-  tee "$STAGE/usr/local/bin/o" >/dev/null <<'O_WRAPPER'
-#!/bin/sh
-set -eu
-case "${1:-}" in
-  run|routes|optimize|plan|explain|inspect|object|operation|realizations|observe|replan|help|--help|-h) exec o-cli "$@" ;;
-  *) exec O "$@" ;;
-esac
-O_WRAPPER
-fi
-chmod 0555 "$STAGE/usr/local/bin/o"
+# Install native command routing and an unambiguous raw evaluator identity.
+install -m 0555 "$HOSTED_BIN_DIR/o-cli" "$STAGE/usr/local/bin/o"
+install -m 0555 "$HOSTED_BIN_DIR/O" "$STAGE/usr/local/bin/ostadix-evaluator"
+cat >"$STAGE/usr/local/bin/ostadix-install.json" <<'INSTALL_METADATA'
+{"schema":1,"repo_root":"/usr/src/ostadix","backends_dir":"/opt/ostadix/backends"}
+INSTALL_METADATA
+chmod 0444 "$STAGE/usr/local/bin/ostadix-install.json"
 {
   if [[ "$ALPINE_KERNEL_FLAVOR" == lts ]]; then
     printf 'schema=ostadix.hosted-live/v3\n'

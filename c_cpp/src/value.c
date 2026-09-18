@@ -2203,6 +2203,23 @@ static bool parse_int64_str(const char *s, int64_t *out) {
     return true;
 }
 
+char *oval_json_object_string(const char *json, const char *key) {
+    JsonNode *root = json_parse_document(json);
+    const char *value = json_node_string(json_object_get(root, key));
+    char *copy = value != NULL ? dup_cstr(value) : NULL;
+    json_node_free(root);
+    return copy;
+}
+
+bool oval_json_object_int(const char *json, const char *key, int64_t *out) {
+    JsonNode *root = json_parse_document(json);
+    const JsonNode *value = json_object_get(root, key);
+    bool valid = value != NULL && value->type == JSON_NUMBER &&
+                 parse_int64_str(value->u.str_val, out);
+    json_node_free(root);
+    return valid;
+}
+
 static bool parse_uint32_str(const char *s, uint32_t *out) {
     char *end;
     unsigned long long val;

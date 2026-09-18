@@ -143,6 +143,10 @@ jobs:
         run: cargo +1.97.1 test --locked --package ostadix-api --lib ocore::driver::tests::ocore_object_is_byte_reproducible_across_source_directories -- --exact
       - name: Run manifest-selected Rust example semantics
         run: O_BIN="$PWD/target/debug/O" ./test_o_lang_examples.sh
+      - name: Check every tracked O and O-core source and packaged mirror
+        run: python3 scripts/check_language_sources.py check --o-bin "$PWD/target/debug/O" --ocorec "$PWD/target/debug/ocorec"
+      - name: Verify native command forwarding and installation compatibility
+        run: O_LANG_NATIVE_CLI_BIN="$PWD/target/debug/o-cli" python3 -m unittest -v tests.test_o_cli_dispatch
       - name: Prove the browser WASI host and a real Olang bundle
         run: |
           node apps/olang-browser-wasi/test-host.mjs
@@ -270,13 +274,19 @@ jobs:
         run: |
           python3 -m tests.test_parser
           python3 tests/example_manifest.py validate
+          python3 scripts/check_language_sources.py validate
+          python3 scripts/render_docs.py validate
           python3 -m unittest -v tests.test_example_manifest tests.test_benchmark_hgraph_hosted
-          python3 -m unittest -v tests.test_foreign_kernel_lab tests.test_ostadix_capacity tests.test_ostadix_capacity_iso tests.test_ostadix_boot_media tests.test_ostadix_boot_iso tests.test_ostadix_boot_info_qemu tests.test_ostadix_hosted_live_release tests.test_ostadix_ventoy_installer tests.test_ostadix_media_writer tests.test_ostadix_physical_evidence tests.test_setup tests.test_o_cli_dispatch
+          python3 -m unittest -v tests.test_foreign_kernel_lab tests.test_ostadix_capacity tests.test_ostadix_capacity_iso tests.test_ostadix_boot_media tests.test_ostadix_boot_iso tests.test_ostadix_boot_info_qemu tests.test_ostadix_hosted_live_release tests.test_ostadix_ventoy_installer tests.test_ostadix_media_writer tests.test_ostadix_physical_evidence tests.test_setup tests.test_native_install tests.test_language_sources tests.test_render_docs
           python3 -m tests.test_evaluator
           python3 -B tests/test_backend_state_protocol.py -v
           python3 -B tests/test_bundled_shim_protocol.py -v
           python3 -m unittest -v tests.test_python_native_handles tests.test_morphism_enforcement_protocol tests.test_runtime_rootfs_collection
           python3 -m compileall -q o_lang backends tests
+      - name: Verify all generated HTML exports
+        run: |
+          npm install --global marked@18.0.13
+          python3 scripts/render_docs.py check
 
   c17:
     name: C17 runtime and AOT compiler

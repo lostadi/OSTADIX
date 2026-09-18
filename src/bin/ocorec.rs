@@ -42,10 +42,36 @@ struct Cli {
     /// Place ordinary functions in separate ELF sections for linker GC.
     #[arg(long)]
     function_sections: bool,
+
+    /// Parse each input module without typechecking, executing, or writing artifacts.
+    #[arg(long, conflicts_with_all = ["emit", "target", "output", "keep_asm", "function_sections"])]
+    check: bool,
 }
 
 fn main() {
     let cli = Cli::parse();
+    if cli.check {
+        for input in &cli.inputs {
+            let file = input.display().to_string();
+            let source = match std::fs::read_to_string(input) {
+                Ok(source) => source,
+                Err(error) => {
+                    let error = anyhow::Error::new(error).context(format!("failed to read {file}"));
+                    eprintln!(
+                        "{}",
+                        o_lang::cli_diagnostics::render_error("ocorec", &error)
+                    );
+                    std::process::exit(1);
+                }
+            };
+            if let Err(error) = o_lang::ocore::parser::parse(&file, &source) {
+                eprintln!("{}", render_diagnostic(&error, Some(&source), "parse only"));
+                std::process::exit(1);
+            }
+        }
+        println!("ok");
+        return;
+    }
     let Some(target) = Target::parse(&cli.target) else {
         eprintln!(
             "ocorec: unsupported target `{}`; expected x86_64-unknown-none or aarch64-unknown-none",
@@ -79,10 +105,42 @@ fn main() {
             }
         }
         Err(error) => {
-            eprintln!("error: {error}");
+            let source = if error.file.starts_with('<') {
+                None
+            } else {
+                std::fs::read_to_string(&error.file).ok()
+            };
+            eprintln!(
+                "{}",
+                render_diagnostic(&error, source.as_deref(), "native compilation")
+            );
             std::process::exit(1);
         }
     }
+}
+
+fn render_diagnostic(
+    diagnostic: &o_lang::ocore::Diagnostic,
+    source: Option<&str>,
+    phase: &str,
+) -> String {
+    let span = diagnostic.span;
+    let location = (span.line > 0).then_some(o_lang::parser::SourceSpanV1 {
+        start_byte: span.start,
+        end_byte: span.end,
+        start_line: span.line,
+        start_column: span.column,
+        end_line: span.line,
+        end_column: span.column,
+    });
+    o_lang::cli_diagnostics::render_native_error(
+        "ocorec",
+        &diagnostic.message,
+        &diagnostic.file,
+        source,
+        location,
+        phase,
+    )
 }
 
 fn default_output(input: &std::path::Path, emit: EmitKind) -> PathBuf {

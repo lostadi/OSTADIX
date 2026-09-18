@@ -1,0 +1,627 @@
+{
+  "schema": "ostadix.language-sources/v1",
+  "groups": [
+    {
+      "id": "android-asset",
+      "category": "platform-demo",
+      "reason": "Bundled text-only terminal example for the Android embedded runtime.",
+      "coverage": [
+        {
+          "path": "apps/android-terminal/README.md",
+          "kind": "manual",
+          "conditions": "Android app/runtime build and terminal evaluation; parsing is host-independent."
+        }
+      ],
+      "sources": [
+        "apps/android-terminal/app/src/main/assets/examples/hello.O"
+      ]
+    },
+    {
+      "id": "benchmark-backend_runtime",
+      "category": "benchmark",
+      "reason": "Benchmark semantics and evaluator requirements are owned by the named benchmark harness.",
+      "coverage": [
+        {
+          "path": "benchmarks/backend_runtime/run.py",
+          "kind": "runtime",
+          "conditions": "Runtime dependencies and benchmark inputs required; fidelity witnesses intentionally demonstrate lossy crossings, not parser failures."
+        }
+      ],
+      "sources": [
+        "benchmarks/backend_runtime/javascript_cold1.O",
+        "benchmarks/backend_runtime/javascript_output_1mib.O",
+        "benchmarks/backend_runtime/javascript_warm10.O"
+      ]
+    },
+    {
+      "id": "benchmark-fidelity",
+      "category": "benchmark",
+      "reason": "Benchmark semantics and evaluator requirements are owned by the named benchmark harness.",
+      "coverage": [
+        {
+          "path": "tests/fidelity_evaluation.rs",
+          "kind": "runtime",
+          "conditions": "Runtime dependencies and benchmark inputs required; fidelity witnesses intentionally demonstrate lossy crossings, not parser failures."
+        }
+      ],
+      "sources": [
+        "benchmarks/fidelity/integer_precision.O",
+        "benchmarks/fidelity/type_tag.O"
+      ]
+    },
+    {
+      "id": "benchmark-hgraph_hosted",
+      "category": "benchmark",
+      "reason": "Benchmark semantics and evaluator requirements are owned by the named benchmark harness.",
+      "coverage": [
+        {
+          "path": "scripts/benchmark_hgraph_hosted.sh",
+          "kind": "runtime",
+          "conditions": "Runtime dependencies and benchmark inputs required; fidelity witnesses intentionally demonstrate lossy crossings, not parser failures."
+        }
+      ],
+      "sources": [
+        "benchmarks/hgraph_hosted/chained.O",
+        "benchmarks/hgraph_hosted/heterogeneous.O",
+        "benchmarks/hgraph_hosted/mixed_width.O",
+        "benchmarks/hgraph_hosted/realistic.O"
+      ]
+    },
+    {
+      "id": "benchmark-real_world",
+      "category": "benchmark",
+      "reason": "Benchmark semantics and evaluator requirements are owned by the named benchmark harness.",
+      "coverage": [
+        {
+          "path": "scripts/benchmark_real_world.sh",
+          "kind": "runtime",
+          "conditions": "Runtime dependencies and benchmark inputs required; fidelity witnesses intentionally demonstrate lossy crossings, not parser failures."
+        }
+      ],
+      "sources": [
+        "benchmarks/real_world/asset_pipeline.O",
+        "benchmarks/real_world/ci_shards.O",
+        "benchmarks/real_world/video_previews.O"
+      ]
+    },
+    {
+      "id": "embedding-fixtures",
+      "category": "fixture",
+      "reason": "Embedding harness supplies required bindings and context; these are not standalone programs.",
+      "coverage": [
+        {
+          "path": "tests/aicore_embedding_contract.rs",
+          "kind": "runtime",
+          "conditions": "Cargo integration test supplies reply bindings and runtimes; direct execution is not an oracle."
+        }
+      ],
+      "sources": [
+        "tests/fixtures/aicore_llm_reply_postprocess.O",
+        "tests/fixtures/aicore_llm_reply_postprocess_bash.O"
+      ]
+    },
+    {
+      "id": "guix-guest-entry",
+      "category": "platform-demo",
+      "reason": "Interactive package-manager session requires a disposable Linux guest.",
+      "coverage": [
+        {
+          "path": "examples/guix-wasm/README.md",
+          "kind": "manual",
+          "conditions": "OSTADIX_GUIX_SESSION_GUEST=1, guest-owned terminal/process lifetime, network and Guix prerequisites; never run as part of parse audit."
+        }
+      ],
+      "sources": [
+        "guix.O"
+      ]
+    },
+    {
+      "id": "hosted-examples",
+      "category": "example",
+      "reason": "The example manifest owns edition support, runtime dependencies, opt-ins and semantic expectations.",
+      "coverage": [
+        {
+          "path": "examples/manifest.json",
+          "kind": "runtime",
+          "conditions": "tests/example_manifest.py; honor classification, backend/program requirements and every opt-in."
+        }
+      ],
+      "sources": [
+        "examples/bash_binding.O",
+        "examples/bash_exit_code.O",
+        "examples/bash_hello.O",
+        "examples/bash_multiline.O",
+        "examples/bindings.O",
+        "examples/boxing.O",
+        "examples/computed_plot.O",
+        "examples/coordination_groups.O",
+        "examples/env_split.O",
+        "examples/ephemeral.O",
+        "examples/group_pipeline/main.O",
+        "examples/group_pipeline/main.eager.O",
+        "examples/guix-wasm/guix-package.O",
+        "examples/guix-wasm/guix-session.O",
+        "examples/guix-wasm/run.O",
+        "examples/hello.O",
+        "examples/html_basic.O",
+        "examples/html_escape.O",
+        "examples/html_python_html.O",
+        "examples/html_raw_roundtrip.O",
+        "examples/instantiate_realise_basic.O",
+        "examples/js_binding.O",
+        "examples/js_hello.O",
+        "examples/js_json.O",
+        "examples/js_multiline.O",
+        "examples/lazy_defer_attrs_basic.O",
+        "examples/lazy_request_basic.O",
+        "examples/literate_report.O",
+        "examples/meta_eval.O",
+        "examples/nested_splice.O",
+        "examples/nix_basic.O",
+        "examples/nix_python_html.O",
+        "examples/nix_storepath.O",
+        "examples/nix_storepath_python.O",
+        "examples/nixos_test.O",
+        "examples/nixos_test_two_machine.O",
+        "examples/os_as_participant_basic.O",
+        "examples/persist.O",
+        "examples/plan9_browser.O",
+        "examples/python_html_python.O",
+        "examples/script.O",
+        "examples/semantic_custody.O",
+        "examples/shell_hello.O",
+        "examples/sql_aggregation.O",
+        "examples/sql_create_insert_select.O",
+        "examples/sql_python_sql.O",
+        "examples/sql_select.O",
+        "examples/trailing_expr.O",
+        "examples/wasm_hello.O",
+        "examples/webassembly_hello.O"
+      ]
+    },
+    {
+      "id": "linker-schedule-fixtures",
+      "category": "fixture",
+      "reason": "Ordered pipeline fixtures exercise schedule width and dependency explanations.",
+      "coverage": [
+        {
+          "path": "scripts/demo_o_link_schedule_why.sh",
+          "kind": "runtime",
+          "conditions": "Uses temporary output directory and named hosted runtimes; preserves negative/nonexecuting route assertions."
+        }
+      ],
+      "sources": [
+        "tests/fixtures/o_link_schedule_why/o_pipeline/00_seed.O",
+        "tests/fixtures/o_link_schedule_why/o_pipeline/10_width_four.O",
+        "tests/fixtures/o_link_schedule_why/o_pipeline/20_width_three.O",
+        "tests/fixtures/o_link_schedule_why/o_pipeline/30_aggregate.O"
+      ]
+    },
+    {
+      "id": "ocore-aarch64-g2-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-aarch64-g2.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/g2_kernel.oc",
+        "ocore/runtime/aarch64/g2_user_a.oc",
+        "ocore/runtime/aarch64/g2_user_b.oc"
+      ]
+    },
+    {
+      "id": "ocore-aarch64-world-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-aarch64-kernel-world-linux.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/kernel_world_monitor.oc",
+        "ocore/runtime/aarch64/kernel_world_virtio.oc",
+        "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc"
+      ]
+    },
+    {
+      "id": "ocore-kernel-modes-kernel-module",
+      "category": "kernel-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/capability_boot_test.oc",
+        "ocore/kernel/capability_boot_test_stub.oc",
+        "ocore/kernel/kernel_world_execution_device_semantics.oc",
+        "ocore/kernel/kernel_world_semantics.oc",
+        "ocore/kernel/kernel_world_semantics_stub.oc",
+        "ocore/kernel/linux_personality_semantics.oc",
+        "ocore/kernel/linux_personality_semantics_stub.oc",
+        "ocore/kernel/m1.oc",
+        "ocore/kernel/m1_mode25_stub.oc",
+        "ocore/kernel/m2.oc",
+        "ocore/kernel/m2_mode25_stub.oc",
+        "ocore/kernel/m3.oc",
+        "ocore/kernel/m3_live.oc",
+        "ocore/kernel/m3_live_mode25_stub.oc",
+        "ocore/kernel/m3_mode25_stub.oc",
+        "ocore/kernel/m4.oc",
+        "ocore/kernel/m4_mode25_stub.oc",
+        "ocore/kernel/m5.oc",
+        "ocore/kernel/m5_selftest.oc",
+        "ocore/kernel/m5_selftest_stub.oc",
+        "ocore/kernel/m5_semantics.oc",
+        "ocore/kernel/m5_semantics_stub.oc",
+        "ocore/kernel/m5_stub.oc",
+        "ocore/kernel/m6.oc",
+        "ocore/kernel/m6_linux.oc",
+        "ocore/kernel/m6_mode25_diagnostics.oc",
+        "ocore/kernel/m6_mode25_diagnostics_stub.oc",
+        "ocore/kernel/m6_stub.oc",
+        "ocore/kernel/m6b_semantics.oc",
+        "ocore/kernel/m6b_semantics_stub.oc",
+        "ocore/kernel/m7b_logical_read.oc",
+        "ocore/kernel/main.oc",
+        "ocore/kernel/scheduler_bridge.oc",
+        "ocore/kernel/smp_probe.oc",
+        "ocore/kernel/smp_probe_stub.oc",
+        "ocore/kernel/world_identity_semantics.oc",
+        "ocore/kernel/world_identity_semantics_stub.oc",
+        "ocore/kernel/world_native_scalar_semantics.oc",
+        "ocore/kernel/world_native_scalar_semantics_stub.oc",
+        "ocore/kernel/world_project_receipt_semantics.oc",
+        "ocore/kernel/world_project_receipt_semantics_stub.oc",
+        "ocore/kernel/world_protocol_semantics.oc",
+        "ocore/kernel/world_protocol_semantics_stub.oc",
+        "ocore/kernel/world_receipt_semantics.oc",
+        "ocore/kernel/world_receipt_semantics_stub.oc",
+        "ocore/kernel/world_value_semantics.oc",
+        "ocore/kernel/world_value_semantics_stub.oc",
+        "ocore/kernel/x86_64/boot_info.oc",
+        "ocore/kernel/x86_64/boot_info_stub.oc"
+      ]
+    },
+    {
+      "id": "ocore-kernel-modes-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/address_space.oc",
+        "ocore/runtime/x86_64/cap_transfer.oc",
+        "ocore/runtime/x86_64/capability.oc",
+        "ocore/runtime/x86_64/delegated_resource.oc",
+        "ocore/runtime/x86_64/domain.oc",
+        "ocore/runtime/x86_64/domain_namespace.oc",
+        "ocore/runtime/x86_64/elf_loader.oc",
+        "ocore/runtime/x86_64/endpoint.oc",
+        "ocore/runtime/x86_64/endpoint_probe_stub.oc",
+        "ocore/runtime/x86_64/image_vfs.oc",
+        "ocore/runtime/x86_64/image_vfs_storage.oc",
+        "ocore/runtime/x86_64/image_vfs_storage_m7.oc",
+        "ocore/runtime/x86_64/interrupts.oc",
+        "ocore/runtime/x86_64/ipc_lifecycle.oc",
+        "ocore/runtime/x86_64/ipc_wait.oc",
+        "ocore/runtime/x86_64/kernel_world_admission.oc",
+        "ocore/runtime/x86_64/kernel_world_boot.oc",
+        "ocore/runtime/x86_64/kernel_world_boot_stub.oc",
+        "ocore/runtime/x86_64/kernel_world_device.oc",
+        "ocore/runtime/x86_64/kernel_world_device_stub.oc",
+        "ocore/runtime/x86_64/kernel_world_execution.oc",
+        "ocore/runtime/x86_64/kernel_world_execution_stub.oc",
+        "ocore/runtime/x86_64/kernel_world_record.oc",
+        "ocore/runtime/x86_64/linux_fd_table.oc",
+        "ocore/runtime/x86_64/linux_personality.oc",
+        "ocore/runtime/x86_64/live_supervisor.oc",
+        "ocore/runtime/x86_64/m1_user.oc",
+        "ocore/runtime/x86_64/m2_user.oc",
+        "ocore/runtime/x86_64/m3_user.oc",
+        "ocore/runtime/x86_64/mapping.oc",
+        "ocore/runtime/x86_64/memory_object.oc",
+        "ocore/runtime/x86_64/native_abi.oc",
+        "ocore/runtime/x86_64/native_control.oc",
+        "ocore/runtime/x86_64/package_root.oc",
+        "ocore/runtime/x86_64/pages.oc",
+        "ocore/runtime/x86_64/personality.oc",
+        "ocore/runtime/x86_64/personality_bounded_rpc.oc",
+        "ocore/runtime/x86_64/personality_memory_view.oc",
+        "ocore/runtime/x86_64/personality_rpc.oc",
+        "ocore/runtime/x86_64/personality_supervision.oc",
+        "ocore/runtime/x86_64/process.oc",
+        "ocore/runtime/x86_64/scheduler.oc",
+        "ocore/runtime/x86_64/serial.oc",
+        "ocore/runtime/x86_64/serial_control.oc",
+        "ocore/runtime/x86_64/service_registry.oc",
+        "ocore/runtime/x86_64/svm_execution.oc",
+        "ocore/runtime/x86_64/syscall.oc",
+        "ocore/runtime/x86_64/thread.oc",
+        "ocore/runtime/x86_64/trap.oc",
+        "ocore/runtime/x86_64/user.oc",
+        "ocore/runtime/x86_64/user_memory.oc",
+        "ocore/runtime/x86_64/vm_object.oc"
+      ]
+    },
+    {
+      "id": "ocore-kernel-modes-world-module",
+      "category": "world-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/world/codec.oc",
+        "ocore/world/identity.oc",
+        "ocore/world/native_scalar.oc",
+        "ocore/world/protocol.oc",
+        "ocore/world/receipt.oc",
+        "ocore/world/receipt_codec.oc",
+        "ocore/world/sha256.oc",
+        "ocore/world/value.oc",
+        "ocore/world/value_codec.oc"
+      ]
+    },
+    {
+      "id": "ocore-m4-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m4-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m4_personality_alpha.oc",
+        "ocore/runtime/x86_64/m4_personality_beta.oc"
+      ]
+    },
+    {
+      "id": "ocore-m5-control-kernel-module",
+      "category": "kernel-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/check-m5-control.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/m5_native_control_selftest.oc"
+      ]
+    },
+    {
+      "id": "ocore-m5-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m5-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m5_init.oc",
+        "ocore/runtime/x86_64/m5_pkgd.oc",
+        "ocore/runtime/x86_64/m5_repl.oc",
+        "ocore/runtime/x86_64/m5_supervisor.oc"
+      ]
+    },
+    {
+      "id": "ocore-m6-linux-live-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m6-linux-live-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m6_linux_observer.oc",
+        "ocore/runtime/x86_64/m6_linux_personalityd.oc",
+        "ocore/runtime/x86_64/m6_linux_supervisord.oc"
+      ]
+    },
+    {
+      "id": "ocore-m6-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m6-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m6_client.oc",
+        "ocore/runtime/x86_64/m6_observer.oc",
+        "ocore/runtime/x86_64/m6_personalityd.oc",
+        "ocore/runtime/x86_64/m6_supervisord.oc"
+      ]
+    },
+    {
+      "id": "ocore-m6b-live-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m6b-live-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m6b_live_client.oc",
+        "ocore/runtime/x86_64/m6b_live_observer.oc",
+        "ocore/runtime/x86_64/m6b_live_personalityd.oc",
+        "ocore/runtime/x86_64/m6b_live_supervisord.oc"
+      ]
+    },
+    {
+      "id": "ocore-m7-linux-plan9-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m7-linux-plan9-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m7_linux_9pd.oc",
+        "ocore/runtime/x86_64/m7_linux_supervisord.oc",
+        "ocore/runtime/x86_64/m7_plan9_client.oc"
+      ]
+    },
+    {
+      "id": "ocore-m7b-logical-read-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-m7b-logical-read-artifacts.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/m7b_9p_provider.oc",
+        "ocore/runtime/x86_64/m7b_logical_read_client.oc"
+      ]
+    },
+    {
+      "id": "ocore-minimal",
+      "category": "platform-demo",
+      "reason": "Standalone freestanding native compiler example.",
+      "coverage": [
+        {
+          "path": "ocore/README.md",
+          "kind": "build",
+          "conditions": "ocorec --emit mir/obj; do not execute freestanding object as a host program."
+        }
+      ],
+      "sources": [
+        "ocore/examples/minimal.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-cluster-kernel-module",
+      "category": "kernel-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native-cluster/build.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/native-cluster/main.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-cluster-runtime-module",
+      "category": "runtime-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native-cluster/build.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/rtl8139.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-cluster-world-module",
+      "category": "world-module",
+      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native-cluster/build.sh",
+          "kind": "build",
+          "conditions": "Use the harness target, source selection and prerequisites. Kernel modes 0..35 and QEMU gates include expected runtime rejection probes; individual sources must parse."
+        }
+      ],
+      "sources": [
+        "ocore/world/native_distributed.oc",
+        "ocore/world/native_session.oc"
+      ]
+    },
+    {
+      "id": "packaged-source-mirrors",
+      "category": "package-mirror",
+      "reason": "Published engine test assets must equal their tracked source originals.",
+      "coverage": [
+        {
+          "path": "scripts/build_source_release.py",
+          "kind": "contract",
+          "conditions": "Byte parity here; crate tests and source-release closure validation check consumers."
+        }
+      ],
+      "sources": [
+        "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/chained.O",
+        "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/heterogeneous.O",
+        "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/mixed_width.O",
+        "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/realistic.O",
+        "crates/ostadix-api/test-assets/ocore/runtime/x86_64/capability.oc",
+        "crates/ostadix-api/test-assets/ocore/runtime/x86_64/native_abi.oc"
+      ]
+    },
+    {
+      "id": "retained-project-snapshot",
+      "category": "historical-snapshot",
+      "reason": "Retained linked-project artifact includes deliberate marker-writing routes; preserve bytes and parse without executing.",
+      "coverage": [
+        {
+          "path": "tests/project_hgraph_exec.rs",
+          "kind": "historical",
+          "conditions": "Historical output is not current runtime evidence. Project route side-effect assertions belong to isolated test fixtures."
+        }
+      ],
+      "sources": [
+        "output/current-master/o-linked-project.O"
+      ]
+    }
+  ],
+  "expected_parse_failures": {},
+  "mirrors": {
+    "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/chained.O": "benchmarks/hgraph_hosted/chained.O",
+    "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/heterogeneous.O": "benchmarks/hgraph_hosted/heterogeneous.O",
+    "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/mixed_width.O": "benchmarks/hgraph_hosted/mixed_width.O",
+    "crates/ostadix-api/test-assets/benchmarks/hgraph_hosted/realistic.O": "benchmarks/hgraph_hosted/realistic.O",
+    "crates/ostadix-api/test-assets/ocore/runtime/x86_64/capability.oc": "ocore/runtime/x86_64/capability.oc",
+    "crates/ostadix-api/test-assets/ocore/runtime/x86_64/native_abi.oc": "ocore/runtime/x86_64/native_abi.oc"
+  }
+}

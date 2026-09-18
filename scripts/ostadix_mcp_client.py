@@ -73,6 +73,31 @@ def _positive_timeout(value: Any) -> float:
     return seconds
 
 
+def _is_language_root(path: Path) -> bool:
+    return all((path / name).is_file() for name in (
+        "Cargo.toml", "backends/python_shim.py", "examples/hello.O",
+    ))
+
+
+def _installation_metadata(binary: Path) -> dict[str, Any]:
+    try:
+        metadata = json.loads((binary.parent / "ostadix-install.json").read_text())
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(metadata, dict) or metadata.get("schema") not in (1, "ostadix.install/v1"):
+        return {}
+    return metadata
+
+
+def _default_root(metadata: dict[str, Any], current: Path, home: Path) -> Path:
+    installed = metadata.get("repo_root")
+    candidates = [Path(installed)] if isinstance(installed, str) else []
+    candidates.extend([current, *current.parents, Path("/usr/src/ostadix"),
+                       home / "OSTADIX", home / "Ostadix-lang", home / "O-lang"])
+    return next((path.resolve() for path in candidates if _is_language_root(path)),
+                home / "OSTADIX")
+
+
 @dataclass(frozen=True)
 class Configuration:
     binary: Path
@@ -86,8 +111,14 @@ class Configuration:
         requested = os.environ.get("OSTADIX_MCP", str(home / ".local/bin/ostadix-mcp"))
         located = shutil.which(requested) if os.sep not in requested else requested
         binary = Path(located or requested).expanduser().absolute()
-        root = Path(os.environ.get("O_LANG_ROOT", str(home / "Ostadix-lang"))).expanduser().resolve()
-        backends = Path(os.environ.get("O_BACKENDS_DIR", str(root / "backends"))).expanduser().resolve()
+        metadata = _installation_metadata(binary)
+        root = Path(os.environ.get("O_LANG_ROOT", _default_root(metadata, Path.cwd(), home))).expanduser().resolve()
+        default_backends = root / "backends"
+        installed_root, installed_backends = metadata.get("repo_root"), metadata.get("backends_dir")
+        if (isinstance(installed_root, str) and Path(installed_root).resolve() == root
+                and isinstance(installed_backends, str) and Path(installed_backends).is_dir()):
+            default_backends = Path(installed_backends)
+        backends = Path(os.environ.get("O_BACKENDS_DIR", default_backends)).expanduser().resolve()
         # macOS TMPDIR can be too long for sockaddr_un. Keep the default path
         # short; the directory itself is checked for owner, mode, and symlinks.
         directory = Path(os.environ.get("OSTADIX_MCP_CLIENT_DIR", f"/tmp/ostadix-mcp-client-{os.getuid()}"))

@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 #[derive(Clone, Copy)]
 enum Launch {
     Binary,
+    FrontDoor,
     Script(&'static str),
     LanguageServer,
 }
@@ -42,7 +43,11 @@ macro_rules! script {
 
 // Keep the Cargo binary coverage test below when adding a workspace command.
 static COMMANDS: &[Capability] = &[
-    script!("o", "front-door", "Repository dispatcher for execution, planning, evidence, nodes, Worlds, capacity, devices and kernels.", "scripts/o-cli.sh", "sh", "all", "AGENTS.md", "scripts/o-cli.sh"),
+    Capability {
+        id: "o", family: "front-door", summary: "Native dispatcher for execution, planning, evidence, nodes, Worlds, capacity, devices and kernels; legacy script fallback when no native CLI is installed.",
+        program: "o-cli", launch: Launch::FrontDoor, help: true,
+        docs: &["AGENTS.md", "src/bin/o-cli/native_dispatch.rs"], guide: "all",
+    },
     binary!("O", "runtime", "Evaluate or parse O source; inline expressions, JSON, REPL, graph workers, morphism contracts and crossing evidence.", true, "runtime", "src/main.rs", "README.md"),
     binary!("o-cli", "projects", "Full intent CLI: run, routes, optimize, plan, explain, inspect, computation, objects, operation, realizations, observe and replan.", true, "projects", "src/bin/o-cli.rs", "docs/OPERATION_PLANNING_V1.md"),
     binary!("olangc", "compiler", "Native AOT, WASI, browser bundles, generated-project materialization, runtime bundles, script execution, IR/DOT and schedule analysis.", true, "compiler", "src/bin/olangc.rs", "docs/EMBEDDED_RUNTIME_BUNDLES.md", "docs/LINUX_RUNTIME_ROOTFS.md"),
@@ -108,11 +113,56 @@ fn path_executable(name: &str) -> Option<PathBuf> {
     which::which(name).ok().and_then(physical_executable)
 }
 
-fn binary_path(root: &Path, name: &str) -> Option<PathBuf> {
+pub(crate) fn binary_path(root: &Path, name: &str) -> Option<PathBuf> {
+    binary_path_with(
+        root,
+        name,
+        std::env::current_exe().ok().as_deref(),
+        path_executable,
+    )
+}
+
+fn binary_path_with(
+    root: &Path,
+    name: &str,
+    executable: Option<&Path>,
+    on_path: impl Fn(&str) -> Option<PathBuf>,
+) -> Option<PathBuf> {
     let filename = format!("{name}{}", std::env::consts::EXE_SUFFIX);
+    let installed_name = if name == "O" {
+        "ostadix-evaluator"
+    } else {
+        name
+    };
+    let adjacent = executable.and_then(Path::parent).and_then(|bin| {
+        physical_executable(bin.join(format!("{installed_name}{}", std::env::consts::EXE_SUFFIX)))
+    });
+    let installed_root = executable
+        .and_then(crate::installation::metadata)
+        .and_then(|metadata| metadata["repo_root"].as_str().map(PathBuf::from))
+        .and_then(|path| path.canonicalize().ok());
+    if installed_root.is_some() && installed_root == root.canonicalize().ok() && adjacent.is_some()
+    {
+        return adjacent;
+    }
     physical_executable(root.join("target/release").join(&filename))
         .or_else(|| physical_executable(root.join("target/debug").join(&filename)))
-        .or_else(|| path_executable(name))
+        .or(adjacent)
+        .or_else(|| on_path(installed_name))
+        .or_else(|| (installed_name != name).then(|| on_path(name)).flatten())
+}
+
+fn resolve_front_door(
+    root: &Path,
+    native: Option<PathBuf>,
+) -> Result<(PathBuf, Vec<String>), String> {
+    if let Some(native) = native {
+        return Ok((native, Vec::new()));
+    }
+    let script = script_path(root, "scripts/o-cli.sh")?;
+    let interpreter = path_executable("sh")
+        .ok_or_else(|| "sh is required for the legacy o dispatcher".to_string())?;
+    Ok((interpreter, vec![script.to_string_lossy().into_owned()]))
 }
 
 fn script_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
@@ -133,6 +183,7 @@ fn script_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
 
 fn resolve(root: &Path, command: &Capability) -> Result<(PathBuf, Vec<String>), String> {
     match command.launch {
+        Launch::FrontDoor => resolve_front_door(root, binary_path(root, "o-cli")),
         Launch::Binary => binary_path(root, command.program)
             .map(|path| (path, Vec::new()))
             .ok_or_else(|| format!("{} is unavailable in repository release/debug binaries or PATH; use the canonical setup workflow", command.id)),
@@ -212,7 +263,7 @@ pub fn catalog(root: &Path, query: Option<&str>) -> Value {
         "runtime_readiness_verified": false,
         "installed_help_verified": false,
         "availability_meaning": "Executable or script/interpreter located only. Installed CLI flags may lag this source catalog; inspect explicit help before using unfamiliar flags. Discovery never executes help or checks dependencies.",
-        "resolution_order": ["repository target/release", "repository target/debug", "known program name on PATH"],
+        "resolution_order": ["adjacent native binary when install metadata matches the selected root", "repository target/release", "repository target/debug", "adjacent native binary", "known program name on PATH", "legacy dispatcher script for o only"],
         "commands": commands,
         "guide_topics": GUIDE_TOPICS,
     })
@@ -376,12 +427,9 @@ mod tests {
             let item = commands.iter().find(|entry| entry["id"] == id).unwrap();
             assert!(item["help_args"].is_null());
         }
-        let dispatcher = commands.iter().find(|entry| entry["id"] == "o").unwrap();
-        assert_eq!(dispatcher["available"], false);
-        assert!(dispatcher["unavailable_reason"]
-            .as_str()
-            .unwrap()
-            .contains("missing"));
+        // A native dispatcher may be installed even when this repository is absent.
+        let fallback = resolve_front_door(Path::new("/nonexistent-ostadix-catalog-test"), None);
+        assert!(fallback.unwrap_err().contains("missing"));
     }
 
     #[test]
@@ -403,7 +451,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn pinned_binary_precedes_path_and_script_prefix_preserves_spaces() {
+    fn native_front_door_precedes_legacy_script_and_fallback_preserves_spaces() {
         use std::os::unix::fs::PermissionsExt;
         let nonce = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -425,7 +473,12 @@ mod tests {
         std::os::unix::fs::symlink("O", &multicall).unwrap();
         let (resolved, _) = resolve_command(&root, "ocorec").unwrap();
         assert_eq!(resolved, std::path::absolute(multicall).unwrap());
-        let (interpreter, prefix) = resolve_command(&root, "o").unwrap();
+        let native = root.join("target/release/o-cli");
+        std::fs::copy(root.join("target/release/O"), &native).unwrap();
+        let (resolved, prefix) = resolve_command(&root, "o").unwrap();
+        assert_eq!(resolved, std::path::absolute(&native).unwrap());
+        assert!(prefix.is_empty());
+        let (interpreter, prefix) = resolve_front_door(&root, None).unwrap();
         assert!(interpreter.is_absolute());
         assert_eq!(
             prefix,
@@ -440,5 +493,52 @@ mod tests {
             true
         );
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[cfg(unix)]
+    #[test]
+    fn evaluator_prefers_stable_installed_alias_without_losing_repository_selection() {
+        use std::os::unix::fs::PermissionsExt;
+        let fixture = crate::tests::Fixture::new();
+        let bin = fixture.0.join("bin");
+        std::fs::create_dir(&bin).unwrap();
+        for name in ["ostadix-evaluator", "O", "o-cli"] {
+            let path = bin.join(name);
+            std::fs::write(&path, "fixture").unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let executable = bin.join("ostadix-mcp");
+        assert_eq!(
+            binary_path_with(&fixture.0, "O", Some(&executable), |_| None),
+            Some(std::path::absolute(bin.join("ostadix-evaluator")).unwrap())
+        );
+        assert_eq!(
+            binary_path_with(&fixture.0, "o-cli", Some(&executable), |_| None),
+            Some(std::path::absolute(bin.join("o-cli")).unwrap())
+        );
+        std::fs::create_dir_all(fixture.0.join("target/release")).unwrap();
+        let pinned = fixture.0.join("target/release/O");
+        std::fs::copy(bin.join("ostadix-evaluator"), &pinned).unwrap();
+        assert_eq!(
+            binary_path_with(&fixture.0, "O", Some(&executable), |_| None),
+            Some(std::path::absolute(&pinned).unwrap())
+        );
+        std::fs::write(
+            bin.join("ostadix-install.json"),
+            serde_json::to_vec(&json!({"schema":1,"repo_root":fixture.0})).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            binary_path_with(&fixture.0, "O", Some(&executable), |_| None),
+            Some(std::path::absolute(bin.join("ostadix-evaluator")).unwrap())
+        );
+        // An explicitly different checkout keeps its own runtime selection.
+        let other = crate::tests::Fixture::new();
+        std::fs::create_dir_all(other.0.join("target/release")).unwrap();
+        let other_binary = other.0.join("target/release/O");
+        std::fs::copy(&pinned, &other_binary).unwrap();
+        assert_eq!(
+            binary_path_with(&other.0, "O", Some(&executable), |_| None),
+            Some(std::path::absolute(other_binary).unwrap())
+        );
     }
 }

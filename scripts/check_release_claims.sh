@@ -563,8 +563,8 @@ require_fixed docs/HGRAPH_EXECUTOR_PLAN.md \
 require_fixed scripts/o-cli.sh \
     'exec "$OCLI_BIN" "$@"' \
     'the repository-owned intent commands no longer reach the compiled Ostadix front door'
-require_fixed scripts/o-cli.sh \
-    'inspect|object|operation|realizations|observe|replan)' \
+require_fixed src/bin/o-cli/native_dispatch.rs \
+    '"object" | "operation" | "realizations" | "observe" | "replan"' \
     'the repository dispatcher no longer routes the operation-project commands to o-cli'
 require_fixed src/bin/o-cli.rs \
     'Plan(PlanArgs)' \
@@ -575,14 +575,14 @@ require_fixed Dockerfile \
 require_fixed Dockerfile \
     'COPY --from=builder /src/target/release/o-cli  /usr/local/bin/o-cli' \
     'the runtime image no longer installs the compiled Ostadix front door'
-require_fixed scripts/o-cli.sh \
-    'exec "$OLANGC_BIN" "$source" --target ir --why "$operation" "$@"' \
+require_fixed src/bin/o-cli/native_dispatch.rs \
+    '"--why".into()' \
     'the repository-owned o why dispatcher no longer reaches the focused admission query'
 require_fixed docs/HGRAPH_EXECUTOR_PLAN.md \
     '`olangc FILE.O --target ir --why P3` projects the same evidence-bound admission' \
     'the focused schedule explanation and its non-executing boundary are undocumented'
-require_fixed scripts/o-cli.sh \
-    'exec "$KERNEL_CLI_BIN" "$@"' \
+require_fixed src/bin/o-cli/native_dispatch.rs \
+    '"kernel" => workflow("scripts/o-kernel.sh", "O_LANG_KERNEL_CLI_BIN", tail),' \
     'the repository-owned o kernel dispatcher no longer reaches the kernel operator CLI'
 require_fixed scripts/o-kernel.sh \
     'OCORE_PROBE_MODE=16' \
@@ -630,14 +630,14 @@ require_fixed README.md \
     'rejects a black or unchanged framebuffer' \
     'the hosted-live release documentation no longer requires graphical console evidence'
 require_fixed setup.sh \
-    '"$PROJECT_ROOT/scripts/install-o-cli-wrapper.sh" "$CARGO_BIN_DIR/o"' \
-    'the cargo-bin lowercase o wrapper no longer delegates to the repository installer'
+    '--repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR"' \
+    'the cargo-bin native installation no longer uses the repository installer'
 require_fixed setup.sh \
-    '"$PROJECT_ROOT/scripts/install-o-cli-wrapper.sh" "$BIN_DIR/o"' \
-    'the local-bin lowercase o wrapper no longer delegates to the repository installer'
-require_fixed scripts/install-o-cli-wrapper.sh \
-    'exec "$ROOT/scripts/o-cli.sh" "\$@"' \
-    'the installed lowercase o wrapper no longer delegates to the repository dispatcher'
+    '--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c' \
+    'the local-bin native installation no longer uses the repository installer'
+require_fixed scripts/install_native_binaries.py \
+    '(build / "o-cli", destination / "o")' \
+    'the native installer no longer installs compiled o-cli as lowercase o'
 require_fixed AGENTS.md \
     'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH"' \
     'the canonical PATH order lets the case-insensitive raw O binary shadow lowercase o'

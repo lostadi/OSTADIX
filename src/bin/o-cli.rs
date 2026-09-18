@@ -1,11 +1,10 @@
 //! Compiled intent-oriented front door for the repository-owned `o` command.
 //!
-//! The Bash dispatcher retains legacy command routing and evaluator fallthrough,
-//! but sends `run`, `routes`, `optimize`, `plan`, `explain`, `inspect`, `object`,
-//! `operation`, `realizations`, `observe`, and `replan` here so their grammar
-//! is defined once. Execution and
-//! planning call the library intent API directly;
-//! this binary never shells out to `O`, `olangc`, `o-link`, or `o-node`.
+//! Intent execution and planning use the library API directly. Operational aliases
+//! use native process dispatch to their owning compiler, node, and lifecycle tools.
+
+#[path = "o-cli/native_dispatch.rs"]
+mod native_dispatch;
 
 use anyhow::{bail, ensure, Context, Result};
 #[cfg(test)]
@@ -101,7 +100,7 @@ const OPERATION_DIAGNOSTIC_TRUNCATION_SUFFIX: &str = "...[truncated]";
 /// This permits sixteen maximum-sized semantic records while bounding aggregate
 /// metadata walks, reads, and retained decoded values independently of ARG_MAX.
 const MAX_OPERATION_VERIFICATION_TOTAL_BYTES_V1: u64 = 64 * 1024 * 1024;
-const OPERATIONAL_COMMANDS: &str = "Run highlights:\n  o run FILE.O --parallel auto          local HGraph workers only\n  o run PROJECT --parallel auto         mesh prefer with safe local fallback\n  o run PROJECT --mesh=required         authenticated remote placement required\n  o routes PROJECT                      inspect routes without executing them\n  o optimize PROJECT --route ROUTE_SET  measure and validate every alternative\n  o run PROJECT --selection-run RUN_ID  execute one exact validated winner\n  Mesh controls include --mesh-retries, --mesh-local-fallback, and --closed-registry.\n\nOperation-project vertical slice:\n  o operation PROJECT                   describe one explicitly marked project\n  o realizations PROJECT                list declared realization/route bindings\n  o plan PROJECT --explain              select and explain without dispatch\n  o run PROJECT                         plan, bind one route, execute, and record\n  o observe PROJECT                     recompute and match a content-verified run\n  o replan PROJECT --without-target ID  derive a new plan without dispatch\n\nSemantic operation records:\n  o operation inspect KIND FILE         validate and inspect one inert record\n  o operation verify --contract FILE --interface FILE --descriptor FILE --set FILE\n                                        check exact referential consistency only\n\nBoot-object commands:\n  o object root|list|stat|get|verify     typed read-only boot CAS\n\nOperational commands retained by the repository dispatcher:\n  node start|stop|status|restart|pair|list|use|profile|doctor|run|session ...\n  node-host <command> ...\n  registry <command> ...\n  info <command> ...\n  live <command> ...\n  receipt [ogit arguments]\n  kernel <command>\n  why FILE.O P<N> [olangc options]\n\nUnknown command forms retain historical evaluator behavior.";
+const OPERATIONAL_COMMANDS: &str = "Run highlights:\n  o run FILE.O --parallel auto          local HGraph workers only\n  o run PROJECT --parallel auto         mesh prefer with safe local fallback\n  o run PROJECT --mesh=required         authenticated remote placement required\n  o routes PROJECT                      inspect routes without executing them\n  o optimize PROJECT --route ROUTE_SET  measure and validate every alternative\n  o run PROJECT --selection-run RUN_ID  execute one exact validated winner\n  Mesh controls include --mesh-retries, --mesh-local-fallback, and --closed-registry.\n\nOperation-project vertical slice:\n  o operation PROJECT                   describe one explicitly marked project\n  o realizations PROJECT                list declared realization/route bindings\n  o plan PROJECT --explain              select and explain without dispatch\n  o run PROJECT                         plan, bind one route, execute, and record\n  o observe PROJECT                     recompute and match a content-verified run\n  o replan PROJECT --without-target ID  derive a new plan without dispatch\n\nSemantic operation records:\n  o operation inspect KIND FILE         validate and inspect one inert record\n  o operation verify --contract FILE --interface FILE --descriptor FILE --set FILE\n                                        check exact referential consistency only\n\nBoot-object commands:\n  o object root|list|stat|get|verify     typed read-only boot CAS\n\nNative operational commands:\n  doctor|which|editions [--json]        inspect installed tools and readiness\n  smoke                                run Python 1 + 1 (expects 2)\n  root                                 print the configured checkout\n  node start|stop|status|restart|pair|list|use|profile|doctor|run|session ...\n  node-host <command> ...\n  registry <command> ...\n  info <command> ...\n  live <command> ...\n  receipt [ogit arguments]\n  kernel <command>\n  why FILE.O P<N> [olangc options]\n  eval EXPR | repl | check FILE.O|FILE.oc  parse-only checks\n  ir|script|wasm FILE.O | aot|ship FILE.O -o OUT\n  graph|dot FILE.O [-o GRAPH.dot]       emit the complete HGraph\n  link|unlink ... | mir|hir|asm|obj FILE.oc\n\nNode shortcuts: -n ID selects an identity; -a HOST:PORT changes its route.\nUnknown command forms retain historical evaluator behavior.";
 #[derive(Debug, Parser)]
 #[command(
     name = "o",
@@ -308,7 +307,7 @@ struct RunArgs {
     project: bool,
 
     /// Shim directory used by local execution.
-    #[arg(long = "shim-dir")]
+    #[arg(short = 'b', long = "shim-dir", visible_alias = "backends")]
     shim_dir: Option<PathBuf>,
 
     /// Install one compatibility backend grant (repeatable).
@@ -320,11 +319,11 @@ struct RunArgs {
     executor: Option<ExecutorMode>,
 
     /// Bound the ordinary local HGraph worker pool.
-    #[arg(long, value_parser = parse_positive_usize)]
+    #[arg(short = 'w', long, value_parser = parse_positive_usize)]
     workers: Option<usize>,
 
     /// Select one project route or route set.
-    #[arg(long)]
+    #[arg(short = 'r', long)]
     route: Option<String>,
 
     /// Override the selected project route policy.
@@ -608,7 +607,7 @@ struct PlanArgs {
     live: bool,
 
     /// Select one project route or route set.
-    #[arg(long)]
+    #[arg(short = 'r', long)]
     route: Option<String>,
 
     /// Override the selected project route policy.
@@ -624,7 +623,7 @@ struct PlanArgs {
     route_decls: Vec<String>,
 
     /// Shim directory used for local runtime inspection.
-    #[arg(long = "shim-dir")]
+    #[arg(short = 'b', long = "shim-dir", visible_alias = "backends")]
     shim_dir: Option<PathBuf>,
 
     /// Install one compatibility backend grant in the inspected context.
@@ -977,13 +976,21 @@ fn main() {
     // Hosted backend workers relaunch the exact admitted current executable.
     // The unified front door therefore owns the same hidden backend protocol
     // entrypoint as `O`; ordinary user arguments still flow through Clap.
-    match o_lang::backend::run_backend_from_env_args() {
-        Ok(true) => return,
-        Ok(false) => {}
-        Err(error) => {
-            eprintln!("error: {error:#}");
-            std::process::exit(1);
+    // Inspect only the protocol discriminator as bytes: normal Unix path
+    // arguments must not pass through the backend helper's UTF-8 iterator.
+    if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--o-backend")) {
+        match o_lang::backend::run_backend_from_env_args() {
+            Ok(true) => return,
+            Ok(false) => {}
+            Err(error) => {
+                eprintln!("error: {error:#}");
+                std::process::exit(1);
+            }
         }
+    }
+    if let Err(error) = native_dispatch::dispatch() {
+        eprintln!("{}", o_lang::cli_diagnostics::render_error("o", &error));
+        std::process::exit(1);
     }
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -1024,10 +1031,12 @@ fn main() {
             error.exit();
         }
     };
-    match dispatch(cli.command) {
+    let result = dispatch(cli.command);
+    native_dispatch::cleanup_shims();
+    match result {
         Ok(code) => std::process::exit(code),
         Err(error) => {
-            eprintln!("error: {error:#}");
+            eprintln!("{}", o_lang::cli_diagnostics::render_error("o", &error));
             std::process::exit(1);
         }
     }
@@ -4234,11 +4243,10 @@ fn resolve_shim_dir(explicit: Option<&Path>, positional: Option<&Path>) -> Resul
     if explicit.is_some() && positional.is_some() {
         bail!("specify the shim directory either positionally or with --shim-dir, not both");
     }
-    Ok(explicit
-        .or(positional)
-        .map(Path::to_path_buf)
-        .or_else(|| env::var_os("O_BACKENDS_DIR").map(PathBuf::from))
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends")))
+    if let Some(path) = explicit.or(positional) {
+        return Ok(path.to_path_buf());
+    }
+    native_dispatch::default_shim_dir()
 }
 
 fn checked_route_policy(value: Option<&str>) -> Result<Option<RoutePolicy>> {
@@ -5220,7 +5228,26 @@ fn run_intent(args: &RunArgs, presentation: RunPresentation) -> Result<i32> {
             eprintln!("error: {detail}");
             return Ok(1);
         }
-        Err(error) => return Err(error),
+        Err(error) => {
+            if args
+                .target
+                .extension()
+                .is_some_and(|extension| extension == "O")
+            {
+                if let Ok(source) = fs::read_to_string(&args.target) {
+                    let human = o_lang::cli_diagnostics::render_o_error(
+                        "o run",
+                        &error,
+                        &args.target.display().to_string(),
+                        &source,
+                        "preflight",
+                        None,
+                    );
+                    return Err(o_lang::cli_diagnostics::with_human_diagnostic(error, human));
+                }
+            }
+            return Err(error);
+        }
     };
     // This observation is intentionally taken only after exact preflight.
     let started_unix_nanos = unix_nanos_now()?;
@@ -5468,13 +5495,45 @@ fn run_intent(args: &RunArgs, presentation: RunPresentation) -> Result<i32> {
             io::stdout().write_all(selection_reuse_footer(reuse).as_bytes())?;
         }
         io::stdout().flush()?;
-        io::stderr().write_all(&report.stderr)?;
+        // Source excerpts belong only to the human terminal presentation after
+        // recording; never add source bytes to retained run stderr or JSON.
+        if let Some(human) = ordinary_failure_diagnostic(&prepared, &report) {
+            io::stderr().write_all(human.as_bytes())?;
+        } else {
+            io::stderr().write_all(&report.stderr)?;
+        }
         io::stderr().flush()?;
     }
     if let Some(diagnostic) = recording_diagnostic {
         eprint!("{diagnostic}");
     }
     Ok(command_exit)
+}
+
+fn ordinary_failure_diagnostic(
+    prepared: &PreparedExecutionIntentV1,
+    report: &ExecutionReport,
+) -> Option<String> {
+    let PreparedExecutionIntentV1::OrdinaryO(ordinary) = prepared else {
+        return None;
+    };
+    let failure = report.failure.as_ref()?;
+    if failure.stage != "execution" {
+        return None;
+    }
+    let source = fs::read(&ordinary.input_path).ok()?;
+    if source_sha256(&source) != ordinary.identities.source_sha256 {
+        return None;
+    }
+    let source = std::str::from_utf8(&source).ok()?;
+    Some(o_lang::cli_diagnostics::render_o_error(
+        "o run",
+        &anyhow::anyhow!(failure.message.clone()),
+        &ordinary.input_path.display().to_string(),
+        source,
+        "execution",
+        None,
+    ))
 }
 
 fn optimize_progress_enabled(

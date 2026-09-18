@@ -484,7 +484,7 @@ read, verification, append/merge, atomic replacement, and directory sync, so
 cooperating CLI processes cannot silently lose one another's appends. Do not
 delete that `.lock` file while writers are running; advisory locking does not
 constrain programs that bypass the registry transaction API.
-The lowercase wrapper exposes the same operations as `o registry ...`.
+The native `o` command exposes the same operations as `o registry ...`.
 Verification rejects expired profiles by default. `--allow-stale-profiles` is
 an explicit inspection/import policy that preserves the stale marker; it does
 not turn an expired profile into current health or placement authority.
@@ -875,7 +875,7 @@ octl node doctor
 octl node run examples/hello.O
 ```
 
-The lowercase wrapper exposes the same paths as `o node-host ...` and
+The native `o` command exposes the same paths as `o node-host ...` and
 `o node ...`. Local execution remains an explicit operator choice through
 `o run examples/hello.O`; a failed remote operation is never retried locally
 without a new command.

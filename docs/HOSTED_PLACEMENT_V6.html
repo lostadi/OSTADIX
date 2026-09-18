@@ -433,7 +433,7 @@ read, verification, append/merge, atomic replacement, and directory sync, so
 cooperating CLI processes cannot silently lose one another&#39;s appends. Do not
 delete that <code>.lock</code> file while writers are running; advisory locking does not
 constrain programs that bypass the registry transaction API.
-The lowercase wrapper exposes the same operations as <code>o registry ...</code>.
+The native <code>o</code> command exposes the same operations as <code>o registry ...</code>.
 Verification rejects expired profiles by default. <code>--allow-stale-profiles</code> is
 an explicit inspection/import policy that preserves the stale marker; it does
 not turn an expired profile into current health or placement authority.</p>
@@ -802,7 +802,7 @@ o-node serve --shim-dir backends
 octl node doctor
 octl node run examples/hello.O
 </code></pre>
-<p>The lowercase wrapper exposes the same paths as <code>o node-host ...</code> and
+<p>The native <code>o</code> command exposes the same paths as <code>o node-host ...</code> and
 <code>o node ...</code>. Local execution remains an explicit operator choice through
 <code>o run examples/hello.O</code>; a failed remote operation is never retried locally
 without a new command.</p>

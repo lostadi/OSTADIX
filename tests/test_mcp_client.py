@@ -91,6 +91,51 @@ if (root / "slow-shutdown").exists():
 
 
 @unittest.skipUnless(os.name == "posix", "the bridge uses local Unix sockets")
+class InstallationConfigurationTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="omcp-config-")
+        self.addCleanup(self.temporary.cleanup)
+        self.home = Path(self.temporary.name)
+        self.binary = self.home / ".local/bin/ostadix-mcp"
+        self.binary.parent.mkdir(parents=True)
+
+    def root(self, name):
+        root = self.home / name
+        for relative in ("Cargo.toml", "backends/python_shim.py", "examples/hello.O"):
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("fixture")
+        return root.resolve()
+
+    def configuration(self, **environment):
+        with patch.dict(os.environ, environment, clear=True), patch.object(Path, "home", return_value=self.home), patch.object(Path, "cwd", return_value=self.home):
+            return client.Configuration.from_environment()
+
+    def test_metadata_root_and_backends_with_explicit_overrides_and_session_isolation(self):
+        installed, explicit = self.root("installed"), self.root("explicit")
+        backends = self.home / "installed-backends"
+        backends.mkdir()
+        (self.binary.parent / "ostadix-install.json").write_text(json.dumps({
+            "schema": 1, "repo_root": str(installed), "backends_dir": str(backends),
+        }))
+        inferred = self.configuration()
+        self.assertEqual(inferred.binary, self.binary)
+        self.assertEqual(inferred.root, installed)
+        self.assertEqual(inferred.backends, backends.resolve())
+        overridden = self.configuration(O_LANG_ROOT=str(explicit))
+        self.assertEqual(overridden.root, explicit)
+        self.assertEqual(overridden.backends, explicit / "backends")
+        self.assertNotEqual(inferred.key, overridden.key)
+        self.assertEqual(self.configuration(O_BACKENDS_DIR=str(explicit / "backends")).backends,
+                         explicit / "backends")
+
+    def test_canonical_home_root_precedes_legacy_and_bad_metadata_falls_back(self):
+        canonical, _legacy = self.root("OSTADIX"), self.root("Ostadix-lang")
+        (self.binary.parent / "ostadix-install.json").write_text("invalid json")
+        self.assertEqual(self.configuration().root, canonical)
+        self.assertEqual(self.configuration().backends, canonical / "backends")
+
+
 class PersistentBridgeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.fixture = tempfile.TemporaryDirectory(prefix="omcp-", dir="/tmp")

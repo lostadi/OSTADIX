@@ -1189,6 +1189,23 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             result = run_checker(root)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_shared_cli_presentation_modules_preserve_engine_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            shell = root / "src/lib.rs"
+            original = shell.read_text(encoding="utf-8")
+            for name in ("cli_diagnostics", "cli_paths"):
+                (root / f"src/{name}.rs").write_text("// CLI-only helper\n", encoding="utf-8")
+            declarations = "pub mod cli_diagnostics;\npub mod cli_paths;\n"
+            shell.write_text(declarations + original, encoding="utf-8")
+            self.assertEqual(run_checker(root).returncode, 0)
+            shell.write_text(declarations + declarations + original, encoding="utf-8")
+            self.assertIn("one regular source file and declaration", run_checker(root).stderr)
+            shell.write_text(declarations + original, encoding="utf-8")
+            (root / "src/cli_paths.rs").unlink()
+            self.assertIn("one regular source file and declaration", run_checker(root).stderr)
+
     def test_nested_module_cannot_escape_through_an_undeclared_path_attribute(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

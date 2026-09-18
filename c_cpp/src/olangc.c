@@ -26,6 +26,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <sys/wait.h>
+#include "installed_paths.h"
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -124,43 +125,18 @@ static char *c_byte_initializer(const char *s) {
     return out;
 }
 
-static char *get_exe_path(void) {
-#if defined(__APPLE__)
-    char first_byte;
-    uint32_t size = 1;
-    if (_NSGetExecutablePath(&first_byte, &size) != 0 && size > 1) {
-        char *buf = (char *)malloc((size_t)size);
-        if (buf && _NSGetExecutablePath(buf, &size) == 0) {
-            char *resolved = realpath(buf, NULL);
-            free(buf);
-            if (resolved) return resolved;
-        } else {
-            free(buf);
-        }
+static char *get_runtime_dir(const char *argv0) {
+    char *repo = olang_installed_path(argv0, "repo_root");
+    char *installed = repo ? path_join(repo, "c_cpp/src") : NULL;
+    char *installed_probe = installed ? path_join(installed, "value.c") : NULL;
+    free(repo);
+    if (installed_probe && path_is_file(installed_probe)) {
+        free(installed_probe);
+        return installed;
     }
-#elif defined(__linux__)
-    size_t cap = 256;
-    while (cap <= (size_t)PATH_MAX * 16U) {
-        char *buf = (char *)malloc(cap);
-        if (!buf) break;
-        ssize_t n = readlink("/proc/self/exe", buf, cap - 1U);
-        if (n >= 0 && (size_t)n < cap - 1U) {
-            buf[n] = 0;
-            return buf;
-        }
-        free(buf);
-        if (n < 0 || cap > SIZE_MAX / 2U) break;
-        cap *= 2U;
-    }
-#endif
-    /* fallback: use argv0 if we had it, or cwd */
-    char *resolved = realpath("./olangc", NULL);
-    if (resolved) return resolved;
-    return xstrdup("./olangc");
-}
-
-static char *get_runtime_dir(void) {
-    char *exe = get_exe_path();
+    free(installed_probe);
+    free(installed);
+    char *exe = olang_executable_path(argv0);
     if (!exe) return xstrdup("src");
     char *dir = path_dirname(exe);
     if (!dir) { free(exe); return NULL; }
@@ -187,10 +163,10 @@ static char *get_include_dir_from_runtime(const char *rt) {
     char *dir = path_dirname(rt);
     if (!dir) return NULL;
     /* sibling include when rt is c_cpp/src */
-    char *cand = path_join(dir, "../include");
+    char *cand = path_join(dir, "include");
     if (cand && path_is_dir(cand)) { free(dir); return cand; }
     free(cand);
-    cand = path_join(dir, "include");
+    cand = path_join(dir, "../include");
     if (cand && path_is_dir(cand)) { free(dir); return cand; }
     free(cand);
     /* try from cwd */
@@ -198,9 +174,14 @@ static char *get_include_dir_from_runtime(const char *rt) {
     return xstrdup("include");
 }
 
-static char *get_shim_search_dir(void) {
+static char *get_shim_search_dir(const char *argv0) {
+    const char *configured = getenv("O_BACKENDS_DIR");
+    if (!configured || !*configured) configured = getenv("BACKENDS_DIR");
+    if (configured && *configured) return xstrdup(configured);
+    char *installed = olang_installed_backends(argv0);
+    if (installed) return installed;
     /* prefer ../backends from olangc location, else ./backends */
-    char *exe = get_exe_path();
+    char *exe = olang_executable_path(argv0);
     if (!exe) return xstrdup("backends");
     char *dir = path_dirname(exe);
     char *cand = dir ? path_join(dir, "../backends") : NULL;
@@ -571,9 +552,9 @@ int main(int argc, char **argv) {
         output = owned_output;
     }
 
-    char *rt_dir = get_runtime_dir();
+    char *rt_dir = get_runtime_dir(argv[0]);
     char *inc_dir = rt_dir ? get_include_dir_from_runtime(rt_dir) : NULL;
-    char *sh_search = shim_dir ? xstrdup(shim_dir) : get_shim_search_dir();
+    char *sh_search = shim_dir ? xstrdup(shim_dir) : get_shim_search_dir(argv[0]);
     if (!rt_dir || !inc_dir || !sh_search) {
         fprintf(stderr, "olangc: failed to locate runtime inputs\n");
         free(src); free(owned_output); free(rt_dir); free(inc_dir); free(sh_search);

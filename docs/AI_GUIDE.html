@@ -92,6 +92,12 @@ retained through job completion; callers do not manage temporary source files.</
 administration and other expert operations. <code>o_eval</code>, <code>o_run</code>, <code>o_olangc</code>, and
 the explicit intent tools keep their existing contracts.</p>
 <h3>Through the CLI</h3>
+<p>The native front door also provides <code>o check program.O</code>, <code>o eval &#39;&lt;source&gt;&#39;</code>,
+<code>o repl</code>, <code>o plan program.O</code>, and <code>o check module.oc</code>. Parse-only checking never
+runs hosted code; O-core checking does not type-check incomplete module units.
+Use <code>ostadix-evaluator</code> when a case-insensitive filesystem makes <code>O</code> and <code>o</code>
+resolve to the same installed command. The raw evaluator protocol below remains
+available through that unambiguous name.</p>
 <ol>
 <li><strong>Generate</strong> a <code>.O</code> program (or an inline expression).</li>
 <li><strong>Validate</strong> it without executing: <code>O --check --json program.O</code>.<ul>
@@ -228,3 +234,17 @@ compilers. If <code>rust^</code> fails because <code>rustc</code> is absent, eit
 toolchain or solve the subtask in an available language such as <code>python^</code>
 or <code>bash^</code>.</li>
 </ul>
+<p>Human diagnostics on stderr identify the failed phase, root cause, source
+location when known, context chain and suggested next action. A parser failure
+explicitly says the HGraph was not constructed. For ordinary hosted execution,
+a retained <code>NodeFailed</code> event is attached to a source span only when the failed
+plan matches the source&#39;s canonical plan. The source-projected HGraph context
+then names the actual operation edge, its input/output IDs and adjacent Value,
+Completion or Resource nodes. It is an inspection of source structure, not an
+admitted-state or live-state snapshot. When no exact failed node is available,
+the diagnostic says so and supplies full IR/DOT inspection commands.</p>
+<p>These richer stderr messages do not add fields to the evaluator&#39;s existing JSON
+error object (<code>ok</code>, <code>stage</code>, <code>error</code>). Parse machine output from stdout and keep
+stderr as diagnostic evidence. O-core diagnostics use the native
+AST → HIR → MIR → target pipeline and their real source spans; <code>.oc</code> failures
+are not assigned hosted HGraph node IDs.</p>

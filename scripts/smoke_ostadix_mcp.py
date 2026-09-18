@@ -309,6 +309,17 @@ def _run_agent_surface_smoke(
     located_o = next(command for command in commands if command.get("id") == "O")
     if located_o.get("available") is not True or not Path(located_o.get("resolved_path", "")).is_file():
         raise SmokeError(f"capability discovery did not locate the installed interpreter: {located_o}")
+    front_door = next(command for command in commands if command.get("id") == "o")
+    native_cli = next(command for command in commands if command.get("id") == "o-cli")
+    if (front_door.get("available") is not True or front_door.get("prefix_args") != []
+            or front_door.get("resolved_path") != native_cli.get("resolved_path")):
+        raise SmokeError(f"o did not resolve directly to the native CLI: {front_door}")
+    evaluated = call("o_cli", {"command": "o", "args": ["e", "python^(40 + 2)_python", "--json"]})
+    if evaluated.get("exit_code") != 0:
+        raise SmokeError(f"native o eval failed: {evaluated}")
+    native_value = json.loads(evaluated.get("stdout", {}).get("text", "{}"))
+    if native_value.get("value") != {"t": "number", "v": {"kind": "int", "v": "42"}}:
+        raise SmokeError(f"native o eval changed its JSON value: {native_value}")
     guide = call("o_guide", {})
     if not isinstance(guide.get("guide"), str) or not guide["guide"].strip():
         raise SmokeError(f"o_guide omitted its agent instructions: {guide}")
@@ -1140,7 +1151,8 @@ def run_smoke(
         encoding="utf-8",
     )
     lifted_program = Path(lifted_fixture.name) / "project.O"
-    link_binary = root / "target" / "release" / "o-link"
+    link_binary = (runtime_bin_dir / "o-link" if runtime_bin_dir is not None
+                   else root / "target" / "release" / "o-link")
     linked = subprocess.run(
         [
             os.fspath(link_binary),
@@ -1250,6 +1262,13 @@ def run_smoke(
                     f"{tool.get('name', '<unnamed>')} has a non-object input schema: "
                     f"{schema!r}"
                 )
+            if "$schema" in schema or "title" in schema:
+                raise SmokeError(f"{tool['name']} still requires the compatibility schema adapter")
+            for property_schema in schema["properties"].values():
+                if isinstance(property_schema, dict) and (
+                    "nullable" in property_schema or property_schema.get("format") == "uint64"
+                ):
+                    raise SmokeError(f"{tool['name']} retained an unnormalized property schema")
         olangc_tools = [tool for tool in tools if tool.get("name") == "o_olangc"]
         if len(olangc_tools) != 1 or "materialize_only" not in olangc_tools[0][
             "inputSchema"

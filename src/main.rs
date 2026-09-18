@@ -17,6 +17,14 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if let Err(error) = run_cli() {
+        eprintln!("{}", o_lang::cli_diagnostics::render_error("O", &error));
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn run_cli() -> Result<()> {
     let mut args = env::args().skip(1).collect::<VecDeque<_>>();
     if print_version_if_requested(&args)? {
         return Ok(());
@@ -196,7 +204,7 @@ fn main() -> Result<()> {
         _ => {}
     }
 
-    let (input_path, mut source) = match eval_source {
+    let (input_path, source) = match eval_source {
         Some(src) => ("<eval>".to_string(), src),
         None => {
             let path = args.pop_front().unwrap();
@@ -214,18 +222,20 @@ fn main() -> Result<()> {
         bail!("unexpected extra argument: {}", extra);
     }
 
-    if source.starts_with("#!") {
-        source = source
+    let executable_source = if source.starts_with("#!") {
+        source
             .find('\n')
-            .map(|nl| source[nl + 1..].to_string())
-            .unwrap_or_default();
-    }
+            .map(|nl| &source[nl + 1..])
+            .unwrap_or_default()
+    } else {
+        &source
+    };
 
     let start = Instant::now();
-    let mut parser = Parser::new(&source, &backends);
+    let mut parser = Parser::new(executable_source, &backends);
     let nodes = match parser.parse() {
         Ok(nodes) => nodes,
-        Err(e) => return fail_stage(json_output, "parse", e),
+        Err(e) => return fail_stage(json_output, "parse", e, &input_path, &source, None),
     };
 
     if check_only {
@@ -299,7 +309,16 @@ fn main() -> Result<()> {
             );
             std::process::exit(1);
         }
-        Err(e) => return fail_stage(json_output, "eval", e),
+        Err(e) => {
+            return fail_stage(
+                json_output,
+                "eval",
+                e,
+                &input_path,
+                &source,
+                Some(&evaluator),
+            )
+        }
     };
 
     let elapsed = start.elapsed();
@@ -334,18 +353,33 @@ fn main() -> Result<()> {
 /// Report a parse or eval failure. In `--json` mode a structured error object
 /// is printed to stdout so agents and tooling can consume it; the process
 /// still exits non-zero in both modes.
-fn fail_stage(json_output: bool, stage: &str, err: anyhow::Error) -> Result<()> {
+fn fail_stage(
+    json_output: bool,
+    stage: &str,
+    err: anyhow::Error,
+    input: &str,
+    source: &str,
+    evaluator: Option<&Evaluator>,
+) -> Result<()> {
     if json_output {
         println!(
             "{}",
             serde_json::json!({ "ok": false, "stage": stage, "error": format!("{err:#}") })
         );
     }
-    Err(err.context(match stage {
+    let error = err.context(match stage {
         "parse" => "failed to parse .O source",
         "eval" => "failed to evaluate .O document",
         _ => "failed to run .O source",
-    }))
+    });
+    if json_output {
+        return Err(error);
+    }
+    let report =
+        o_lang::cli_diagnostics::render_o_error("O", &error, input, source, stage, evaluator);
+    Err(o_lang::cli_diagnostics::with_human_diagnostic(
+        error, report,
+    ))
 }
 
 fn print_usage(out: &mut impl Write) -> io::Result<()> {
@@ -427,8 +461,8 @@ fn resolve_shim_dir(explicit: Option<PathBuf>) -> Result<(PathBuf, Option<Extrac
         return Ok((path, None));
     }
 
-    if let Ok(path) = env::var("O_BACKENDS_DIR").or_else(|_| env::var("BACKENDS_DIR")) {
-        return Ok((PathBuf::from(path), None));
+    if let Some(path) = o_lang::cli_paths::configured_shim_dir() {
+        return Ok((path, None));
     }
 
     let extracted = o_lang::shims::extract_bundled_shims("o_shims")
@@ -563,7 +597,17 @@ fn run_repl(
                                     }
                                 }
                             }
-                            Err(e) => eprintln!("{}", fmt_err(&e.to_string(), color)),
+                            Err(error) => eprintln!(
+                                "{}",
+                                o_lang::cli_diagnostics::render_o_error(
+                                    "O",
+                                    &error,
+                                    "<repl>",
+                                    &buf,
+                                    "eval",
+                                    Some(&evaluator)
+                                )
+                            ),
                         }
                         buf.clear();
                         cont = false;
@@ -576,7 +620,12 @@ fn run_repl(
                             let _ = rl.add_history_entry(trimmed);
                             cont = true;
                         } else {
-                            eprintln!("{}", fmt_err(&msg, color));
+                            eprintln!(
+                                "{}",
+                                o_lang::cli_diagnostics::render_o_error(
+                                    "O", &e, "<repl>", &buf, "parse", None
+                                )
+                            );
                             buf.clear();
                             cont = false;
                         }
@@ -669,14 +718,6 @@ fn print_repl_help(color: bool) {
     eprintln!("  {h}  2 + 2{r}");
     eprintln!("  {h})_python{r}");
     eprintln!();
-}
-
-fn fmt_err(msg: &str, color: bool) -> String {
-    if color {
-        format!("\x1b[31merror:\x1b[0m {msg}")
-    } else {
-        format!("error: {msg}")
-    }
 }
 
 // ─── Value display ────────────────────────────────────────────────────────────

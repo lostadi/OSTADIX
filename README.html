@@ -2,8 +2,8 @@
   <img src="./assets/olang-logo.png" alt="Ostadix-lang" width="900" />
 </p><h1>Ostadix-lang</h1>
 <p><em>By Lee Daghlar Ostadi</em></p>
-<p><a href="https://github.com/lostadi/Ostadix-lang/actions/workflows/ci.yml"><img src="https://github.com/lostadi/Ostadix-lang/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-<a href="https://github.com/lostadi/Ostadix-lang/actions/workflows/fuzz.yml"><img src="https://github.com/lostadi/Ostadix-lang/actions/workflows/fuzz.yml/badge.svg" alt="Parser fuzz campaign"></a></p>
+<p><a href="https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml"><img src="https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml"><img src="https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml/badge.svg" alt="Parser fuzz campaign"></a></p>
 <blockquote>
 <p><strong>Every expression carries its evaluator as part of its syntax.</strong></p>
 </blockquote>
@@ -166,11 +166,11 @@ from source bytes to observed execution.</p>
 <a href="#running-the-tests">Tests</a></p>
 <h2>Quickstart</h2>
 <p>For a fresh checkout, build the minimal hosted profile before invoking the
-installed tools. <code>setup.sh</code> also refreshes the local wrappers, so the commands
+installed tools. <code>setup.sh</code> also refreshes the native commands, so the commands
 below exercise the source revision you just checked out rather than an older
 binary already on <code>PATH</code>:</p>
-<pre><code class="language-bash">git clone https://github.com/lostadi/Ostadix-lang.git Ostadix-lang
-cd Ostadix-lang
+<pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
+cd OSTADIX
 ./setup.sh -y --minimal
 source &quot;$HOME/.config/ostadix/env.sh&quot;
 
@@ -181,6 +181,20 @@ O version --json
 </code></pre>
 <p><code>O version --json</code> reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.</p>
+<p>The installed <code>o</code> command is a compiled native front door. Start with:</p>
+<pre><code class="language-bash">o check examples/hello.O             # parse without running any backend
+o run examples/hello.O               # execute the complete program
+o plan examples/hello.O              # inspect its static plan
+o eval &#39;python^( __oval_result__ = 2 )_python&#39;
+o check ocore/examples/minimal.oc    # parse O-core without producing an artifact
+o mir ocore/examples/minimal.oc      # type-check and print MIR
+</code></pre>
+<p><code>o help</code> lists the native commands; <code>o core --help</code> exposes the O-core compiler.
+The <a href="DEVELOPMENT.md#native-command-reference">developer guide</a> covers short aliases,
+<a href="docs/ZERO_CONFIG_LAN.md">LAN guide</a> covers nodes, and
+<a href="DEVELOPMENT.md#complete-language-source-and-document-checks">source checks</a> cover
+all tracked programs and documentation exports. <code>ostadix-evaluator</code> is the
+unambiguous raw evaluator name on filesystems where <code>O</code> and <code>o</code> share a name.</p>
 <h3>Offline AI build ZIPs</h3>
 <p>The normal source archive pins source and Cargo resolution, but deliberately
 does not pretend that one native Rust compiler can run on every host. For an AI
@@ -625,7 +639,7 @@ octl node authority init|issue ...
 octl node authority dev-mint open|execute|recover ...
 octl node session principal|open|exec|status|actors|reset|recover|close ...
 </code></pre>
-<p>After normal setup, the lowercase wrapper routes node lifecycle and pairing
+<p>After normal setup, the native <code>o</code> command routes node lifecycle and pairing
 commands to <code>o-node</code>, ordinary node use to <code>octl</code>, and <code>o node-host ...</code> to the
 raw expert server CLI. <code>o run FILE.O</code> is local; <code>o run PROJECT --parallel auto</code>
 uses already-running authenticated peers in mesh-prefer mode with safe local
@@ -634,8 +648,7 @@ nodes</a>.</p>
 <h3>Hosted V2 development quickstart</h3>
 <blockquote>
 <p><strong>Expert/manual path.</strong> Ordinary users should use <code>o node start</code>,
-<code>o node pair</code>, <code>o node list</code>, and <code>o node session run FILE.O</code>, or the
-compatibility <code>./o-node-quickstart.sh</code> front door. Pairing establishes the
+<code>o node pair</code>, <code>o node list</code>, and <code>o node session run FILE.O</code>. Pairing establishes the
 reciprocal transport identities once; later ordinary commands derive routing,
 credentials, capabilities, leases, and operation identities automatically.
 The walkthrough below deliberately exposes those internals for protocol
@@ -1063,7 +1076,7 @@ source and intent before fresh admission, so earlier analysis never substitutes
 for dispatch-time validation. The separate <code>o_analyze_intent</code> and
 <code>o_execute_intent</code> tools retain their original one-use handle contract.</p>
 <p>The normal setup builds this separate, lockfile-pinned Rust crate and, unless
-wrappers are disabled, copies the executable to
+local command installation is disabled, copies the executable to
 <code>~/.local/bin/ostadix-mcp</code>:</p>
 <pre><code class="language-bash">./setup.sh --minimal --yes
 </code></pre>
@@ -1103,7 +1116,7 @@ placement closure also includes every V2 module, including the co-located
 development authority implementation in <code>crates/ostadix-api/src/hosted_remote/v2/dev.rs</code>; release
 validation rejects an archive that omits it.</p>
 <p>The checked-in <code>.mcp.json</code> registers the server as <code>ostadix</code> using the
-<code>ostadix-mcp</code> wrapper. MCP clients that support repository-local stdio server
+native <code>ostadix-mcp</code> executable. MCP clients that support repository-local stdio server
 configuration can load that file after <code>~/.local/bin</code> is visible in the
 client&#39;s <code>PATH</code>. It deliberately contains no shell-expanded environment values:
 the server discovers a valid Ostadix root from its working directory (or its
@@ -1213,9 +1226,9 @@ mean that O-core boots, contains, or governs those foreign kernels.</p>
 <h3>Option A: Automatic setup</h3>
 <p>The included <code>setup.sh</code> script detects the host, installs the ordinary hosted
 runtime dependencies, builds the Rust and C17 editions, prepares the Python
-reference, builds the local MCP server, and creates convenience wrappers:</p>
-<pre><code class="language-bash">git clone https://github.com/lostadi/Ostadix-lang.git Ostadix-lang
-cd Ostadix-lang
+reference, builds the local MCP server, and installs native command binaries:</p>
+<pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
+cd OSTADIX
 ./setup.sh
 </code></pre>
 <p>The script supports composable setup profiles and non-installing checks:</p>
@@ -1228,7 +1241,7 @@ cd Ostadix-lang
 ./setup.sh --with-guest-tools --with-ubuntu-vm --deps-only
 ./setup.sh --with-ocore --check              # non-installing capability check
 ./setup.sh --env-file /path/to/env.sh --persist-env
-./setup.sh --no-wrappers
+./setup.sh --no-local-bins                    # old --no-wrappers spelling remains accepted
 ./setup.sh --no-mcp
 ./setup.sh --dry-run
 ./setup.sh --help
@@ -1272,7 +1285,7 @@ Ostadix/Cargo tool paths, detected Homebrew LLVM/LLD paths, and
 choose another location, <code>--no-env</code> to disable the file, or <code>--persist-env</code> to
 add an idempotent source block to <code>~/.zshrc</code> or <code>~/.bashrc</code>. Each normal setup
 run removes stale generated Ostadix-lang binaries before rebuilding them,
-refreshes installed Rust copies in <code>~/.cargo/bin</code>, and recreates wrappers in
+refreshes installed Rust copies in <code>~/.cargo/bin</code>, and installs native commands in
 <code>~/.local/bin</code>; <code>--no-mcp</code> skips the separately locked <code>ostadix-mcp</code> crate.</p>
 <p>After setup:</p>
 <pre><code class="language-bash">o examples/hello.O
@@ -1281,8 +1294,8 @@ cargo run -- examples/hello.O
 python3 -m o_lang examples/hello.O
 </code></pre>
 <h3>Option B: Manual Rust setup</h3>
-<pre><code class="language-bash">git clone https://github.com/lostadi/Ostadix-lang.git Ostadix-lang
-cd Ostadix-lang
+<pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
+cd OSTADIX
 cargo build --release
 
 ./target/release/O examples/hello.O backends
@@ -1485,7 +1498,7 @@ kernel, EFI image, EFI executable, and GRUB configuration hashes.</p>
 o kernel iso &quot;$ISO&quot;
 o kernel inspect-iso &quot;$ISO&quot;
 </code></pre>
-<p>If the <code>o</code> wrapper has not been installed, invoke the repository tools
+<p>If the native <code>o</code> command has not been installed, invoke the repository tools
 directly:</p>
 <pre><code class="language-bash">ISO=&quot;${ISO:-$PWD/target/ostadix-iso/x86_64/ostadix-x86_64-uefi.iso}&quot;
 ./ocore/kernel/build-x86_64-uefi-iso.sh &quot;$ISO&quot;
@@ -2278,8 +2291,6 @@ admission supplies authority through its own evidence path.</p>
 <code>ProjectBundle</code>. The direct IR planning commands below do not run project
 commands:</p>
 <pre><code class="language-bash">olangc tests/fixtures/project_hgraph --target ir --route main
-./scripts/o-cli.sh plan tests/fixtures/project_hgraph --route main
-# After setup.sh installs the wrapper:
 o plan tests/fixtures/project_hgraph --route main
 </code></pre>
 <p>The composite smoke checks those nonexecution properties, then compiles a
@@ -2528,7 +2539,7 @@ uses a portable ARMv8-A CPU baseline; set
 device-local APK tuned to the current SoC.</p>
 <h3>What gets built</h3>
 <p>The root Cargo package declares 15 binaries. The table also shows the installed
-lowercase wrapper, the independently locked MCP executable, and the two C17
+native <code>o</code> alias, the independently locked MCP executable, and the two C17
 products so every public command surface has an explicit home.</p>
 <table>
 <thead>
@@ -2550,8 +2561,8 @@ products so every public command surface has an explicit home.</p>
 </tr>
 <tr>
 <td><code>o</code></td>
-<td><code>scripts/o-cli.sh</code> through an installed wrapper</td>
-<td>Routes <code>run</code>, <code>routes</code>, <code>optimize</code>, <code>plan</code>, <code>explain</code>, <code>inspect</code>, <code>object</code>, and <code>operation</code> to <code>o-cli</code>; preserves the explicit <code>device</code> namespace, <code>why</code>, node, registry, information, live, receipt, and kernel tools; and retains evaluator compatibility for unknown command forms.</td>
+<td>Native copy of <code>o-cli</code> in the installation directory</td>
+<td>Handles intent commands, evaluator/compiler aliases, node, registry, information, device, live, receipt, kernel and capacity workflows; retains evaluator compatibility for unknown command forms.</td>
 </tr>
 <tr>
 <td><code>olangc</code></td>
@@ -4381,7 +4392,7 @@ route set with <code>--route</code>; an optional checked <code>--routes-policy</
 <code>benchmark_and_select</code>, or <code>benchmark_validate_and_select</code>:</p>
 <pre><code class="language-bash">olangc src/ --target ir --route main
 olangc project.O --target dot --route main &gt; project.dot
-./scripts/o-cli.sh plan src/ --route main
+o plan src/ --route main
 </code></pre>
 <p><code>benchmark_validate_and_select</code> is the evidence-gated measured policy. It
 treats the first declared alternative as the reference, runs every alternative
@@ -4533,11 +4544,10 @@ same bundle and selection. Planning validates project references and exact
 bundle/policy provenance but deliberately does not run a guard, prerequisite,
 or command.</p>
 <p><code>olangc --target ir</code> remains the direct compiler planner interface.
-<code>scripts/o-cli.sh</code> is the repository-owned lowercase dispatcher: <code>setup.sh</code>
-installs an <code>o</code> wrapper that delegates to it, and the dispatcher routes <code>run</code>,
-<code>routes</code>, <code>optimize</code>, <code>plan</code>, <code>explain</code>, <code>inspect</code>, <code>object</code>, and <code>operation</code> to
-the compiled <code>o-cli</code> orchestrator. The
-orchestrator reuses the exact <code>olangc</code> planning renderers; static planning does
+<code>setup.sh</code> installs the compiled <code>o-cli</code> orchestrator as the native <code>o</code> command.
+It owns <code>run</code>, <code>routes</code>, <code>optimize</code>, <code>plan</code>, <code>explain</code>, <code>inspect</code>, <code>object</code>, and
+<code>operation</code>, and reuses the exact <code>olangc</code> planning renderers. The repository
+<code>scripts/o-cli.sh</code> entry point remains available for compatibility. Static planning does
 not execute, discover peers, or open run history. Other command families and
 unknown arguments retain their historical compatibility behavior. Keep
 <code>~/.local/bin</code> (or <code>~/.cargo/bin</code>) before <code>target/release</code> in <code>PATH</code>: on a
@@ -6591,7 +6601,7 @@ identify the repository version and exact revision:</p>
 Whole-Program Polyglot Execution. Version 0.4.0.
 Unreleased development source; identify the exact commit used.
 Commit: `FULL_COMMIT_SHA_USED`.
-https://github.com/lostadi/Ostadix-lang
+https://github.com/lostadi/OSTADIX
 </code></pre>
 <p>Once Zenodo archives a future tagged source release, cite that separate,
 version-specific source-release DOI for the exact source snapshot used. The

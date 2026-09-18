@@ -45,7 +45,7 @@ MANIFEST_NAME = "SOURCE-MANIFEST.json"
 CHECKSUMS_NAME = "SHA256SUMS"
 FIXED_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 ROOT_LICENSE_SPDX = "LGPL-2.1-only"
-ROOT_REPOSITORY = "https://github.com/lostadi/Ostadix-lang"
+ROOT_REPOSITORY = "https://github.com/lostadi/OSTADIX"
 EXISTING_PREPRINT_DOI = "10.5281/zenodo.21544345"
 
 # `olangc` owns the generated-project writer, while the independent engine
@@ -454,6 +454,8 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "mcp/ostadix_lang_mcp_server/Cargo.toml",
         "mcp/ostadix_lang_mcp_server/README.md",
         "mcp/ostadix_lang_mcp_server/src/main.rs",
+        "mcp/ostadix_lang_mcp_server/src/installation.rs",
+        "mcp/ostadix_lang_mcp_server/src/tool_schema.rs",
         "fuzz/Cargo.lock",
         "fuzz/Cargo.toml",
         "Ostadix-lang_Technical_Whitepaper.pdf",
@@ -629,6 +631,11 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "scripts/check_architecture_boundaries.py",
         "scripts/local_ci_posture.py",
         "scripts/install-o-cli-wrapper.sh",
+        "scripts/install_native_binaries.py",
+        "scripts/check_language_sources.py",
+        "scripts/render_docs.py",
+        "ci/language-sources.json",
+        "docs/html-exports.json",
         "scripts/o-cli.sh",
         "scripts/o-kernel.sh",
         "scripts/build-x86_64-hosted-live-linux.sh",
@@ -737,6 +744,11 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "crates/ostadix-api/src/ir.rs",
         "src/lib.rs",
         "src/main.rs",
+        "src/bin/o-cli/native_dispatch.rs",
+        "src/cli_diagnostics.rs",
+        "src/cli_paths.rs",
+        "c_cpp/include/installed_paths.h",
+        "c_cpp/tests/test_installed_paths.py",
         "crates/ostadix-api/src/placement/mod.rs",
         "crates/ostadix-api/src/placement/projection.rs",
         "crates/ostadix-api/src/placement/protocol/candidate.rs",
@@ -870,6 +882,11 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "tests/o_cli_operation_planner_blackbox.rs",
         "tests/unified_plan_boundaries.rs",
         "tests/test_setup.py",
+        "tests/test_native_install.py",
+        "tests/test_language_sources.py",
+        "tests/test_render_docs.py",
+        "tests/native_cli_dispatch.rs",
+        "tests/cli_diagnostics.rs",
         "tests/test_contract_surfaces.py",
         "tests/test_attribution_policy.py",
         "tests/test_architecture_boundaries.py",
@@ -1230,12 +1247,17 @@ def _validate_release_path(path: str) -> PurePosixPath:
     return pure
 
 
+# CLI presentation and installed-path resolution belong to the command package,
+# not the independently distributable runtime engine or its AOT source closure.
+CLI_MODULE_PATHS = {"cli_diagnostics": "src/cli_diagnostics.rs", "cli_paths": "src/cli_paths.rs"}
+
+
 def is_allowed_release_path(path: str) -> bool:
     pure = _validate_release_path(path)
     parts = pure.parts
     top = parts[0]
     if top == "src" and not (
-        path in {"src/lib.rs", "src/main.rs"} or path.startswith("src/bin/")
+        path in {"src/lib.rs", "src/main.rs", *CLI_MODULE_PATHS.values()} or path.startswith("src/bin/")
     ):
         return False
     api_scoped = any(path.startswith(prefix) for prefix in OSTADIX_API_ALLOWED_PREFIXES)
@@ -2213,8 +2235,14 @@ def _validate_workspace_facade_release_surface(files: dict[str, bytes]) -> None:
 
     root_source_path = "src/lib.rs"
     root_source = _utf8_text(files[root_source_path], root_source_path)
-    if re.search(r"(?m)^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+", root_source):
+    cli_modules = set(re.findall(
+        r"(?m)^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)", root_source
+    ))
+    if cli_modules - set(CLI_MODULE_PATHS):
         raise ReleaseError(f"{root_source_path} must not compile runtime modules")
+    for module in cli_modules:
+        if CLI_MODULE_PATHS[module] not in files:
+            raise ReleaseError(f"missing CLI module: {CLI_MODULE_PATHS[module]}")
     if "#[path" in root_source or "o_lang::" in root_source:
         raise ReleaseError(f"{root_source_path} is not a minimal compatibility shell")
     compatibility_match = re.search(
@@ -2351,7 +2379,7 @@ def _released_path_for_historical_source(path: str) -> str:
     if (
         path.startswith("src/")
         and not path.startswith("src/bin/")
-        and path not in {"src/lib.rs", "src/main.rs"}
+        and path not in {"src/lib.rs", "src/main.rs", *CLI_MODULE_PATHS.values()}
     ):
         return f"{OSTADIX_API_ROOT}/{path}"
     return path

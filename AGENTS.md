@@ -35,6 +35,7 @@ Do **not** use `~/O-lang` for builds/runs on this machine.
 
 | Goal | Command |
 |------|---------|
+| Parse `.O` or `.oc` | `o check file.O` or `o check file.oc` (no execution) |
 | Run `.O` | `O file.O backends` or `o run file.O` |
 | IR / plan | `olangc file.O --target ir --shim-dir backends` or `o plan file.O` |
 | AOT | `olangc file.O -o out --shim-dir backends` or `o ship file.O` |
@@ -79,7 +80,7 @@ write API. Resources also expose the catalog and ten workflow guides. Own
 main O-lang build.
 
 Built by `setup.sh` (`build_mcp_server`, skip with `--no-mcp`) via
-`cargo build --release --locked`; installs the `ostadix-mcp` wrapper into
+`cargo build --release --locked`; installs the native `ostadix-mcp` executable into
 `~/.local/bin`. Registered for MCP clients (Claude Code included) via
 `.mcp.json` at repo root. Rebuild directly with:
 
@@ -91,9 +92,19 @@ cargo build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo
 
 Load via skill tool when relevant: `olang`, `olang-runtime`, `olang-ocore`, `ostadix-control`, `ostadix-wasm`, `ostadix-term`.
 
-## Terminal kit
+## Native commands and validation
 
-`~/.config/ostadix/term/ostadix-term.zsh` — `o doctor`, `o plan`, `o live`, `o receipt`.
+`setup.sh` installs compiled `o` and `ostadix-evaluator` binaries. Shell completion
+or terminal configuration is optional. Use `o help`, `o root`, `o doctor`,
+`o plan`, `o live`, and `o receipt` directly. Backend adapters and build/kernel
+workflows retain their own languages and prerequisites.
+
+Run `python3 scripts/check_language_sources.py validate` after adding or moving
+tracked `.O`/`.oc` files. Run its `check` action with the current `O` and `ocorec`
+binaries for complete parse coverage. Runtime checks still follow the example
+manifest and named native build/QEMU harnesses. Regenerate tracked HTML exports
+with `python3 scripts/render_docs.py write` using the pinned marked version;
+`check` verifies complete output bytes.
 
 ## Evidence
 

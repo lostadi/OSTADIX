@@ -92,6 +92,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use o_lang::api::aot_source::*;
+
+// Presentation belongs to the native CLI shell. Embed that same formatter in
+// generated runtimes without adding compiler/UI modules to the engine closure.
+const CLI_DIAGNOSTICS_RS: &str = include_str!("../cli_diagnostics.rs");
 use o_lang::eval::Evaluator;
 use o_lang::evidence::{
     admit_execution, analyze_execution, runtime_binding_from_adapter_bytes, ExecutionIntentV1,
@@ -99,7 +103,6 @@ use o_lang::evidence::{
 use o_lang::execution_contract::Policy;
 use o_lang::ir::{ExecutionMode, OIrProgram, PlanNodeId, PlanNodeKind};
 use o_lang::parser::Parser;
-use o_lang::shims::read_shims;
 use o_lang::value::OValue;
 use o_lang::world::{GroundingReport, WorldEpoch, WorldId, WorldIdentity};
 
@@ -411,11 +414,27 @@ struct Cli {
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
+fn read_shims(override_dir: Option<&Path>) -> Result<Vec<(String, Vec<u8>)>> {
+    let configured = o_lang::cli_paths::configured_shim_dir();
+    o_lang::shims::read_shims(override_dir.or(configured.as_deref()))
+}
+
 fn main() -> Result<()> {
     if o_lang::backend::run_backend_from_env_args()? {
         return Ok(());
     }
 
+    if let Err(error) = run_cli() {
+        eprintln!(
+            "{}",
+            o_lang::cli_diagnostics::render_error("olangc", &error)
+        );
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn run_cli() -> Result<()> {
     let cli = Cli::parse();
     if cli.runtime_bundle.is_some() && cli.target != CompileTarget::Binary {
         bail!("--runtime-bundle requires --target binary");
@@ -461,7 +480,8 @@ fn main() -> Result<()> {
         );
     }
 
-    match cli.target {
+    let diagnostic_input = cli.input.display().to_string();
+    let result = (|| match cli.target {
         CompileTarget::Binary | CompileTarget::Wasm => {
             if let Some(options) = container_options.as_ref() {
                 let shims = read_shims(cli.shim_dir.as_deref())?;
@@ -559,9 +579,12 @@ fn main() -> Result<()> {
                 result
             }
         }
-        CompileTarget::Script => {
-            run_as_script(&source, cli.shim_dir.as_deref(), &cli.backend_grants)
-        }
+        CompileTarget::Script => run_as_script(
+            &cli.input,
+            &source,
+            cli.shim_dir.as_deref(),
+            &cli.backend_grants,
+        ),
         CompileTarget::Ir if cli.execution_intent_json => dump_execution_intent_json(&source),
         CompileTarget::Ir if cli.why.is_some() => dump_schedule_why(
             &cli.input,
@@ -581,7 +604,18 @@ fn main() -> Result<()> {
         CompileTarget::Ir if cli.grounding => dump_ir_with_grounding(&source, grounding_world),
         CompileTarget::Ir => dump_ir(&source),
         CompileTarget::Dot => dump_dot(&source),
-    }
+    })();
+    result.map_err(|error| {
+        let report = o_lang::cli_diagnostics::render_o_error(
+            "olangc",
+            &error,
+            &diagnostic_input,
+            &source,
+            "compile / inspect",
+            None,
+        );
+        o_lang::cli_diagnostics::with_human_diagnostic(error, report)
+    })
 }
 
 fn wasm_container_options(cli: &Cli) -> Result<Option<wasm_container::Options>> {
@@ -1193,7 +1227,14 @@ fn main() -> anyhow::Result<()> {{
     if ::{lib_name}::backend::run_backend_from_env_args()? {{
         return Ok(());
     }}
+    if let Err(error) = run_project() {{
+        eprintln!("{{}}", ::{lib_name}::cli_diagnostics::render_error({bin_name:?}, &error));
+        std::process::exit(1);
+    }}
+    Ok(())
+}}
 
+fn run_project() -> anyhow::Result<()> {{
     #[cfg(not(target_family = "wasm"))]
     let _ = EMBEDDED_SHIMS;
 
@@ -2077,6 +2118,7 @@ fn write_linux_browser_bundle(
 
 fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     fs::create_dir_all(src_dir)?;
+    fs::write(src_dir.join("cli_diagnostics.rs"), CLI_DIAGNOSTICS_RS)?;
     fs::write(
         src_dir.join("computation_core.rs"),
         RUNTIME_COMPUTATION_CORE_RS,
@@ -2262,6 +2304,7 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn run_as_script(
+    input: &Path,
     source: &str,
     override_shim_dir: Option<&Path>,
     backend_grants: &[String],
@@ -2323,6 +2366,17 @@ fn run_as_script(
         evaluator
             .eval_document_with_scope(nodes, &mut scope)
             .context("failed to evaluate program")
+            .map_err(|error| {
+                let report = o_lang::cli_diagnostics::render_o_error(
+                    "olangc",
+                    &error,
+                    &input.display().to_string(),
+                    source,
+                    "execute script",
+                    Some(&evaluator),
+                );
+                o_lang::cli_diagnostics::with_human_diagnostic(error, report)
+            })
     };
 
     let result = eval_fn(&shim_dir, registered_backends, nodes, backend_grants)?;
@@ -2985,6 +3039,7 @@ fn generate_lib_rs(include_project: bool) -> String {
 // calls them directly.
 
 pub mod value;
+pub mod cli_diagnostics;
 pub(crate) mod shims {{
     pub(crate) const BUNDLED_SHIM_SUPPORT_NAMES: &[&str] = &{RUNTIME_SHIM_SUPPORT_NAMES:?};
 }}
@@ -3035,6 +3090,7 @@ fn generate_main_rs(
     backend_grants: &[String],
 ) -> String {
     let lib_name = generated_lib_name(bin_name);
+    let program_label = format!("<embedded {program_filename}>");
     let shim_entries = if shim_include_lines.is_empty() {
         "    // no shims bundled".to_string()
     } else {
@@ -3082,11 +3138,25 @@ impl Drop for ShimGuard {{
 }}
 
 fn main() -> anyhow::Result<()> {{
-    use anyhow::Context as _;
-
     if {lib_name}::backend::run_backend_from_env_args()? {{
         return Ok(());
     }}
+    if let Err(error) = run_program() {{
+        eprintln!("{{}}", {lib_name}::cli_diagnostics::render_error({bin_name:?}, &error));
+        std::process::exit(1);
+    }}
+    Ok(())
+}}
+
+fn source_error(error: anyhow::Error, phase: &str, evaluator: Option<&Evaluator>) -> anyhow::Error {{
+    let report = {lib_name}::cli_diagnostics::render_o_error(
+        {bin_name:?}, &error, {program_label:?}, PROGRAM_SOURCE, phase, evaluator,
+    );
+    {lib_name}::cli_diagnostics::with_human_diagnostic(error, report)
+}}
+
+fn run_program() -> anyhow::Result<()> {{
+    use anyhow::Context as _;
 
     #[cfg(not(target_family = "wasm"))]
     let shim_dir = {{
@@ -3127,13 +3197,15 @@ fn main() -> anyhow::Result<()> {{
     }}
 
     let mut parser = Parser::new(&source, &registered_backends);
-    let nodes = parser.parse().context("failed to parse embedded program")?;
+    let nodes = parser.parse().context("failed to parse embedded program")
+        .map_err(|error| source_error(error, "parse embedded program", None))?;
 
     let mut evaluator = Evaluator::new(shim_dir)
         .with_registered_backends(registered_backends);
     let mut scope = std::collections::HashMap::new();
     for grant in BACKEND_GRANTS {{
-        evaluator.install_backend_grant(grant, &mut scope)?;
+        evaluator.install_backend_grant(grant, &mut scope)
+            .map_err(|error| source_error(error, "install backend grant", None))?;
     }}
 
     let program = {lib_name}::ir::OIrProgram::lower(&nodes);
@@ -3144,12 +3216,14 @@ fn main() -> anyhow::Result<()> {{
     #[cfg(target_family = "wasm")]
     let result = evaluator
         .eval_ir_program_serial_with_scope(&program, &mut scope)
-        .context("failed to evaluate program")?;
+        .context("failed to evaluate program");
 
     #[cfg(not(target_family = "wasm"))]
     let result = evaluator
         .eval_ir_program_with_scope(&program, &mut scope)
-        .context("failed to evaluate program")?;
+        .context("failed to evaluate program");
+
+    let result = result.map_err(|error| source_error(error, "execute embedded program", Some(&evaluator)))?;
 
     match result {{
         OValue::Html {{ v }} => print!("{{v}}"),
@@ -4659,6 +4733,12 @@ mod tests {
         fs::write(src_dir.join("lib.rs"), generate_lib_rs(false)).unwrap();
 
         let lib_rs = fs::read_to_string(src_dir.join("lib.rs")).unwrap();
+        assert!(lib_rs.contains("pub mod cli_diagnostics;"));
+        assert_eq!(
+            fs::read_to_string(src_dir.join("cli_diagnostics.rs")).unwrap(),
+            CLI_DIAGNOSTICS_RS,
+        );
+        assert!(!lib_rs.contains("mod ocore;"));
         assert!(lib_rs.contains("pub mod computation_core;"));
         assert!(lib_rs.contains("pub mod computation;"));
         assert_eq!(
@@ -5371,6 +5451,24 @@ mod tests {
         write_project_cargo_project(&bundle, &[], build_dir.path(), "serde")
             .expect("real project fixture must generate a Cargo project");
 
+        // Exercise actual ordinary AOT entry points against this generated
+        // runtime as well. Sharing its build avoids a second dependency build;
+        // neither probe uses the project's executor or the workspace library.
+        let bin_dir = build_dir.path().join("src/bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        for (name, source) in [
+            ("diagnostic_runtime", "#!/usr/bin/env O\n$missing\n"),
+            ("diagnostic_parse", "#!/usr/bin/env O\npython^(\n"),
+        ] {
+            let source_filename = format!("{name}.O");
+            fs::write(bin_dir.join(&source_filename), source).unwrap();
+            fs::write(
+                bin_dir.join(format!("{name}.rs")),
+                generate_main_rs("serde", &source_filename, &[], &[]),
+            )
+            .unwrap();
+        }
+
         let probe_dir = build_dir.path().join("tests");
         fs::create_dir_all(&probe_dir).unwrap();
         fs::write(
@@ -5398,6 +5496,48 @@ use ostadix_generated_serde::registry::bundle::{
     BACKEND_CATALOG_CURRENT_SCHEMA, BACKEND_CATALOG_SCHEMA_V4, BACKEND_CATALOG_SCHEMA_V6,
 };
 use ostadix_generated_serde::{resource_identity, world};
+
+#[test]
+fn generated_binaries_report_exact_embedded_source_and_genuine_failure_graphs() {
+    for (binary, expected_location, expected_phase) in [
+        (env!("CARGO_BIN_EXE_diagnostic_runtime"), "<embedded diagnostic_runtime.O>:2:1", "execute embedded program"),
+        (env!("CARGO_BIN_EXE_diagnostic_parse"), "<embedded diagnostic_parse.O>:3:1", "parse"),
+    ] {
+        let working = std::env::current_dir().unwrap().join(format!("diagnostic-probe-{expected_phase}"));
+        std::fs::create_dir(&working).unwrap();
+        let output = std::process::Command::new(binary)
+            .current_dir(&working)
+            .env_remove("O_EXECUTOR")
+            .env_remove("O_BACKENDS_DIR")
+            .env_remove("BACKENDS_DIR")
+            .output().unwrap();
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        assert!(output.stdout.is_empty(), "{output:?}");
+        let text = String::from_utf8(output.stderr).unwrap();
+        assert!(text.contains(expected_location), "{text}");
+        assert!(text.contains(&format!("phase: {expected_phase}")), "{text}");
+        assert!(!text.contains('\x1b'), "{text}");
+        if expected_phase == "parse" {
+            assert!(text.contains("HGraph: not constructed"), "{text}");
+            assert!(!text.contains("failed P"), "{text}");
+        } else {
+            assert!(text.contains("failed P0 -> e"), "{text}");
+            assert!(text.contains("inputs:"), "{text}");
+            assert!(text.contains("outputs:"), "{text}");
+            assert!(text.contains("$missing"), "{text}");
+        }
+        assert_eq!(std::fs::read_dir(&working).unwrap().count(), 0,
+            "the failure boundary must let the embedded shim guard clean up");
+        std::fs::remove_dir(&working).unwrap();
+    }
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_serde"))
+        .arg("--unknown-route-option").output().unwrap();
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(output.stdout.is_empty(), "{output:?}");
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert!(text.contains("error: serde failed"), "{text}");
+    assert!(text.contains("unknown argument"), "{text}");
+}
 
 #[test]
 fn catalog_placement_and_checkpoint_sources_are_live() {

@@ -35,6 +35,8 @@ CORE_OBJS = $(CORE_SRCS:.c=.o)
 # Final binaries
 all: O olangc
 
+$(CORE_OBJS) src/main.o src/olangc.o: $(wildcard include/*.h)
+
 O: $(CORE_OBJS) src/main.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 	@echo "Built ./O (interpreter)"
@@ -81,16 +83,19 @@ olangc-test: all
 path-test: all
 	@sh tests/test_olangc_paths.sh ./olangc "$(CC)" ./O
 
+installed-path-test: all
+	@python3 tests/test_installed_paths.py --runner ./O --compiler ./olangc
+
 # Release-clean native + generated-AOT path. OLANGC_WARNINGS_AS_ERRORS makes
 # the compiler apply -Werror to the copied runtime and generated_main.c too.
 warnings-as-errors:
 	@$(MAKE) clean
 	@$(MAKE) CFLAGS="$(STRICT_CFLAGS)" all test
-	@OLANGC_WARNINGS_AS_ERRORS=1 $(MAKE) CFLAGS="$(STRICT_CFLAGS)" olangc-test path-test
+	@OLANGC_WARNINGS_AS_ERRORS=1 $(MAKE) CFLAGS="$(STRICT_CFLAGS)" olangc-test path-test installed-path-test
 
 # One-shot run helper: make run EX=hello  (uses ../examples/hello.O)
 run:
 	@if [ -z "$(EX)" ]; then echo "Usage: make run EX=hello  (or bindings, html_basic, ...)"; exit 1; fi
 	@./O ../examples/$(EX).O ../backends
 
-.PHONY: all clean test fresh-env-test olangc-test path-test warnings-as-errors run
+.PHONY: all clean test fresh-env-test olangc-test path-test installed-path-test warnings-as-errors run

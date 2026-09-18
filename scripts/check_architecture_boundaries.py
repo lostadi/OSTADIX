@@ -2354,6 +2354,25 @@ def _compatibility_shell_reexports(path: Path) -> tuple[set[str] | None, str | N
     try:
         source = production_source(path)
         tokens = _tokens(source)
+        # Shared command presentation/path helpers are CLI code, never engine
+        # implementations. Only these exact external declarations are allowed.
+        cli_names = {"cli_diagnostics", "cli_paths"}
+        filtered = []
+        seen = set()
+        index = 0
+        while index < len(tokens):
+            words = [token.text for token in tokens[index:index + 4]]
+            if len(words) == 4 and words[0:2] == ["pub", "mod"] and words[2] in cli_names and words[3] == ";":
+                name = words[2]
+                module = path.parent / f"{name}.rs"
+                if name in seen or not module.is_file() or module.is_symlink():
+                    return None, f"CLI module `{name}` must have one regular source file and declaration"
+                seen.add(name)
+                index += 4
+            else:
+                filtered.append(tokens[index])
+                index += 1
+        tokens = filtered
         matches = _delimiter_matches(tokens)
     except (OSError, UnicodeError, ValueError) as error:
         return None, str(error)
@@ -2557,7 +2576,7 @@ def _engine_shell_direction_findings(
         for path in shell_source.rglob("*.rs")
         if path.is_file()
         and not path.is_symlink()
-        and path.relative_to(shell_source).as_posix() not in {"lib.rs", "main.rs"}
+        and path.relative_to(shell_source).as_posix() not in {"lib.rs", "main.rs", "cli_diagnostics.rs", "cli_paths.rs"}
         and not path.relative_to(shell_source).as_posix().startswith("bin/")
     )
     if duplicate_sources:

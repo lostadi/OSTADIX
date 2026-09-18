@@ -61,38 +61,17 @@ COPY --from=builder /src/target/release/o-cli  /usr/local/bin/o-cli
 COPY --from=builder /src/target/release/olangc /usr/local/bin/olangc
 COPY --from=builder /src/target/release/o-link /usr/local/bin/o-link
 
-# Keep the lowercase compatibility front door as a dispatcher. Stateful intent
-# commands reach the compiled orchestrator; every other shape retains the raw
-# evaluator fallback, including shebang lines (`#!/usr/bin/env o`).
-RUN printf '%s\n' \
-    '#!/bin/sh' \
-    'set -e' \
-    'case "${1:-}" in' \
-    '  run|routes|optimize|plan|explain|inspect|object|operation|realizations|observe|replan|help|--help|-h) exec o-cli "$@" ;;' \
-    '  *) exec O "$@" ;;' \
-    'esac' \
-    > /usr/local/bin/o \
-    && chmod +x /usr/local/bin/o
+# The native front door and evaluator use distinct stable names.
+COPY --from=builder /src/target/release/o-cli /usr/local/bin/o
+COPY --from=builder /src/target/release/O /usr/local/bin/ostadix-evaluator
 
 # Backend shim adapters. The environment variable is the image-wide authority
 # for their stable path, including when callers override ENTRYPOINT with o-link.
 COPY backends /opt/o-lang/backends
 ENV O_BACKENDS_DIR=/opt/o-lang/backends
 
-# Entrypoint wrapper: defaults the shim directory to the baked-in
-# /opt/o-lang/backends so mounted work dirs don't need their own copy.
-RUN printf '%s\n' \
-    '#!/bin/sh' \
-    'set -e' \
-    'SHIMS=${O_BACKENDS_DIR:-/opt/o-lang/backends}' \
-    'if [ "$#" -eq 0 ]; then exec O --repl "$SHIMS"; fi' \
-    'case "$1" in --repl|-i) exec O "$1" "${2:-$SHIMS}";; esac' \
-    'if [ "$#" -eq 1 ] && [ -f "$1" ]; then exec O "$1" "$SHIMS"; fi' \
-    'exec o "$@"' \
-    > /usr/local/bin/o-entrypoint \
-    && chmod +x /usr/local/bin/o-entrypoint
-
 WORKDIR /work
 RUN ln -s /opt/o-lang/backends /work/backends
 
-ENTRYPOINT ["o-entrypoint"]
+ENTRYPOINT ["o"]
+CMD ["--repl"]

@@ -4,7 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 KERNEL_DIR="$ROOT/ocore/kernel"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-kernel}"
-if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
+OCOREC_PREBUILT=false
+if [[ -n "${OCOREC_BIN:-}" ]]; then
+  OCOREC_PREBUILT=true
+elif [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
   case "$CARGO_TARGET_DIR" in
     /*) OCOREC_BIN="$CARGO_TARGET_DIR/debug/ocorec" ;;
     *) OCOREC_BIN="$(pwd -P)/$CARGO_TARGET_DIR/debug/ocorec" ;;
@@ -48,9 +51,11 @@ if (( PROBE_MODE == 33 || PROBE_MODE == 34 )) && (( BOOT_INFO_ENABLED != 1 )); t
 fi
 mkdir -p "$BUILD_DIR"
 
-cargo build --locked --manifest-path "$ROOT/Cargo.toml" --package o-lang --bin ocorec
+if [[ "$OCOREC_PREBUILT" == false ]]; then
+  cargo build --locked --manifest-path "$ROOT/Cargo.toml" --package o-lang --bin ocorec
+fi
 if [[ -L "$OCOREC_BIN" || ! -f "$OCOREC_BIN" || ! -x "$OCOREC_BIN" ]]; then
-  echo "error: Cargo did not produce the expected ocorec binary: $OCOREC_BIN" >&2
+  echo "error: expected a regular executable ocorec binary: $OCOREC_BIN" >&2
   exit 1
 fi
 

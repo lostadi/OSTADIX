@@ -1,8 +1,8 @@
 /// O ◦ Notebook — a Jupyter-style interactive notebook for Ostadix-lang.
 ///
 /// Launch:  cargo run --features notebook --bin o-notebook [backends_dir]
-/// With no positional directory, `O_BACKENDS_DIR` is honored before the local
-/// `backends` fallback. The default browser opens http://localhost:8888;
+/// With no positional directory, explicit backend environment settings and
+/// adjacent installation metadata are honored before the local `backends` fallback. The default browser opens http://localhost:8888;
 /// `OSTADIX_NOTEBOOK_BROWSER` selects an explicit opener and
 /// `OSTADIX_NOTEBOOK_NO_OPEN` suppresses it for bounded headless validation.
 ///
@@ -97,9 +97,9 @@ async fn root() -> Html<&'static str> {
 async fn eval(State(state): State<AppState>, Json(req): Json<EvalRequest>) -> Json<EvalResponse> {
     let session = state.session.clone();
     let backends = state.backends.clone();
-    let code = req.code.trim().to_string();
+    let code = req.code;
 
-    if code.is_empty() {
+    if code.trim().is_empty() {
         return Json(EvalResponse {
             ok: true,
             value_type: "null".into(),
@@ -110,7 +110,17 @@ async fn eval(State(state): State<AppState>, Json(req): Json<EvalRequest>) -> Js
 
     let result = tokio::task::spawn_blocking(move || {
         let mut parser = Parser::new(&code, backends.as_ref());
-        let nodes = parser.parse()?;
+        let nodes = parser.parse().map_err(|error| {
+            let report = o_lang::cli_diagnostics::render_o_error(
+                "notebook",
+                &error,
+                "<notebook cell>",
+                &code,
+                "parse",
+                None,
+            );
+            o_lang::cli_diagnostics::with_human_diagnostic(error, report)
+        })?;
         // Lock inside spawn_blocking so we don't hold the Mutex across an
         // await point — this is fine since the closure runs on a thread pool.
         let mut guard = session.lock().unwrap();
@@ -121,7 +131,19 @@ async fn eval(State(state): State<AppState>, Json(req): Json<EvalRequest>) -> Js
             ref mut evaluator,
             ref mut scope,
         } = *guard;
-        evaluator.eval_document_with_scope(nodes, scope)
+        evaluator
+            .eval_document_with_scope(nodes, scope)
+            .map_err(|error| {
+                let report = o_lang::cli_diagnostics::render_o_error(
+                    "notebook",
+                    &error,
+                    "<notebook cell>",
+                    &code,
+                    "execution",
+                    Some(evaluator),
+                );
+                o_lang::cli_diagnostics::with_human_diagnostic(error, report)
+            })
     })
     .await;
 
@@ -150,7 +172,7 @@ async fn eval(State(state): State<AppState>, Json(req): Json<EvalRequest>) -> Js
             ok: false,
             value_type: "error".into(),
             result: None,
-            error: Some(e.to_string()),
+            error: Some(o_lang::cli_diagnostics::render_error("notebook", &e)),
         }),
         Err(e) => Json(EvalResponse {
             ok: false,
@@ -175,10 +197,8 @@ async fn main() -> Result<()> {
     }
 
     let shim_dir = select_shim_dir(
-        std::env::args().nth(1).map(PathBuf::from),
-        std::env::var_os("O_BACKENDS_DIR")
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from),
+        std::env::args_os().nth(1).map(PathBuf::from),
+        o_lang::cli_paths::configured_shim_dir(),
     );
 
     let backends = Arc::new(registered_backends());
@@ -747,6 +767,36 @@ addCell('');
 mod tests {
     use super::select_shim_dir;
     use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn cell_parse_error_keeps_original_lines_and_readable_context() {
+        use super::{eval, AppState, EvalRequest, Session};
+        use axum::{extract::State, Json};
+        use std::sync::{Arc, Mutex};
+        let backends = Arc::new(super::registered_backends());
+        let shims = Arc::new(PathBuf::from("backends"));
+        let state = AppState {
+            session: Arc::new(Mutex::new(Session::new(
+                (*shims).clone(),
+                (*backends).clone(),
+            ))),
+            shim_dir: shims,
+            backends,
+        };
+        let response = eval(
+            State(state),
+            Json(EvalRequest {
+                code: "\n\npython^(".into(),
+            }),
+        )
+        .await
+        .0;
+        assert!(!response.ok);
+        let message = response.error.unwrap();
+        assert!(message.contains("<notebook cell>:3:"), "{message}");
+        assert!(message.contains("HGraph: not constructed"), "{message}");
+        assert!(!message.contains("source diagnostic attached"), "{message}");
+    }
 
     #[test]
     fn configured_backend_directory_is_the_zero_argument_default() {
