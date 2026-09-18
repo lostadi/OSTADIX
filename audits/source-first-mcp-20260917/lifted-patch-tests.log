@@ -1,0 +1,50 @@
+   Compiling ostadix-mcp-server v0.4.0 (/data/data/com.termux/files/home/Ostadix-lang/mcp/ostadix_lang_mcp_server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.83s
+     Running unittests src/main.rs (mcp/ostadix_lang_mcp_server/target/debug/deps/ostadix_mcp-ced9aab7f4d03529)
+
+running 42 tests
+test tests::absolute_run_path_without_cwd_uses_program_parent ... ok
+test tests::empty_tool_args_emit_strict_object_schema ... ok
+test tests::information_head_arguments_are_fixed_bounded_tokens ... ok
+test tests::fixed_information_inspector_accepts_explicit_absolute_installed_binary ... ok
+test tests::information_head_output_is_strictly_parsed_and_state_path_is_not_returned ... ok
+test tests::cancelled_command_never_dispatches ... ok
+test tests::generic_prefix_environment_is_not_treated_as_termux ... ok
+test tests::fixed_information_inspector_binary_rejects_final_component_symlink ... ok
+test tests::intent_handles_use_os_entropy_and_fixed_hex_encoding ... ok
+test tests::intent_store_is_expiring_and_one_use ... ok
+test tests::intent_store_reservations_bound_in_progress_analysis_capacity ... ok
+test tests::information_state_resolution_rejects_symlink_and_missing_roots_without_creation ... ok
+test tests::dropped_intent_reservation_releases_in_progress_capacity ... ok
+test tests::intent_target_comparison_binds_program_cwd_root_and_backends ... ok
+test tests::information_inspector_clears_the_inherited_environment ... ok
+test tests::json_object_binding_is_an_ordinary_typed_map ... ok
+test tests::materialize_destination_is_new_and_contained_under_server_cwd ... ok
+test tests::recognizes_only_complete_language_roots ... ok
+test tests::parses_only_well_formed_v1_execution_intents ... ok
+test tests::resolves_relative_cwd_then_program_once ... ok
+test tests::missing_program_reports_effective_absolute_candidate ... ok
+test tests::runtime_inventory_is_a_complete_catalog_projection ... ok
+test tests::runtime_inventory_preserves_catalog_group_and_requirement_order ... ok
+test tests::runtime_manager_environment_precedes_generic_system_fallbacks ... ok
+test tests::runtime_inventory_projects_value_capabilities ... ok
+test tests::runtime_inventory_output_exposes_profiles_with_an_explicit_nonclaim ... ok
+test tests::runtime_path_mode_rejects_unknown_values ... ok
+test tests::runtime_path_deduplication_preserves_first_source ... ok
+test tests::runtime_path_finds_termux_prefix_from_home_with_restricted_path ... ok
+test tests::search_corpus_symlink_cannot_escape_selected_work_root ... ok
+test tests::runtime_path_preserves_client_order_then_adds_local_fallbacks ... ok
+test tests::search_program_symlink_cannot_escape_selected_corpus ... ok
+test tests::runtime_path_modes_have_exact_visibility_and_provenance ... ok
+test tests::search_programs_fall_back_to_search_and_cannot_escape_work ... ok
+test tests::termux_environment_prefix_obeys_mode_and_keeps_inherited_precedence ... ok
+test tests::staged_source_is_private_and_removed_with_guard ... ok
+test tests::information_inspector_kills_oversized_stdout_and_stderr ... ok
+test tests::cancellation_reaps_descendants_without_repeating_effects ... ok
+test tests::generic_runner_kills_oversized_output ... ok
+test tests::timeout_covers_pipe_drain_after_group_leader_exits ... ok
+test tests::information_inspector_timeout_kills_descendants ... ok
+test tests::timeout_kills_backend_descendants_before_they_can_commit ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s
+

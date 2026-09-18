@@ -38,9 +38,7 @@ pub(crate) fn root(
             return candidate.canonicalize().unwrap_or(candidate);
         }
     }
-    current
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| home.join("OSTADIX"))
+    home.join("OSTADIX")
 }
 
 pub(crate) fn backends(root: &Path, executable: &Path) -> Option<PathBuf> {
@@ -108,6 +106,16 @@ mod tests {
         assert_eq!(
             root(None, None, None, &home.0),
             home.0.join("OSTADIX").canonicalize().unwrap()
+        );
+    }
+
+    #[test]
+    fn missing_checkout_defaults_to_canonical_home_not_unrelated_working_directory() {
+        let home = Fixture::new();
+        let current = Path::new("/nonexistent-ostadix-mcp-working-directory");
+        assert_eq!(
+            root(None, None, Some(current), &home.0),
+            home.0.join("OSTADIX")
         );
     }
 }

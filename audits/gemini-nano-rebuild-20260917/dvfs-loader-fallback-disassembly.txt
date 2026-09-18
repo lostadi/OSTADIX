@@ -1,0 +1,156 @@
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 2e9c988:      	stp	x29, x30, [sp, #-0x30]!
+ 2e9c98c:      	stp	x22, x21, [sp, #0x10]
+ 2e9c990:      	stp	x20, x19, [sp, #0x20]
+ 2e9c994:      	sub	sp, sp, #0x2d0
+ 2e9c998:      	mov	x9, x2
+ 2e9c99c:      	mov	x20, x3
+ 2e9c9a0:      	mov	x21, x0
+ 2e9c9a4:      	mov	x19, x8
+ 2e9c9a8:      	adrp	x2, 0x10c000
+ 2e9c9ac:      	add	x2, x2, #0xc4
+ 2e9c9b0:      	add	x8, sp, #0x2b8
+ 2e9c9b4:      	mov	x0, x1
+ 2e9c9b8:      	mov	x1, x9
+ 2e9c9bc:      	mov	w3, #0x1c               // =28
+ 2e9c9c0:      	add	x22, sp, #0x2b8
+ 2e9c9c4:      	bl	0x2785da4 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x5f708>
+ 2e9c9c8:      	ldrb	w8, [sp, #0x2b8]
+ 2e9c9cc:      	ldr	x9, [x21]
+ 2e9c9d0:      	mov	x0, x21
+ 2e9c9d4:      	ldr	x10, [sp, #0x2c8]
+ 2e9c9d8:      	ldr	x11, [sp, #0x2c0]
+ 2e9c9dc:      	add	x21, sp, #0x298
+ 2e9c9e0:      	lsr	x12, x8, #1
+ 2e9c9e4:      	tst	w8, #0x1
+ 2e9c9e8:      	ldr	x9, [x9, #0x18]
+ 2e9c9ec:      	csinc	x1, x10, x22, ne
+ 2e9c9f0:      	add	x8, sp, #0x298
+ 2e9c9f4:      	csel	x2, x11, x12, ne
+ 2e9c9f8:      	blr	x9
+ 2e9c9fc:      	ldr	x8, [sp, #0x298]
+ 2e9ca00:      	cmp	x8, #0x1
+ 2e9ca04:      	b.ne	0x2e9cb78 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2083d4>
+ 2e9ca08:      	add	x0, sp, #0x298
+ 2e9ca0c:      	bl	0x251544c <.text+0xd78c>
+ 2e9ca10:      	add	x0, sp, #0x280
+ 2e9ca14:      	add	x1, x21, #0x8
+ 2e9ca18:      	bl	0x2c9d7bc <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x9018>
+ 2e9ca1c:      	add	x0, sp, #0x10
+ 2e9ca20:      	bl	0x2e948bc <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x200118>
+ 2e9ca24:      	add	x0, sp, #0x280
+ 2e9ca28:      	bl	0x2c9d858 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x90b4>
+ 2e9ca2c:      	mov	x21, x0
+ 2e9ca30:      	add	x0, sp, #0x280
+ 2e9ca34:      	bl	0x2c9d858 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x90b4>
+ 2e9ca38:      	mov	x2, x1
+ 2e9ca3c:      	add	x0, sp, #0x270
+ 2e9ca40:      	mov	x1, x21
+ 2e9ca44:      	bl	0x250ee78 <.text+0x71b8>
+ 2e9ca48:      	ldr	x1, [sp, #0x270]
+ 2e9ca4c:      	ldr	x2, [sp, #0x278]
+ 2e9ca50:      	add	x0, sp, #0x10
+ 2e9ca54:      	bl	0x30068f0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x37214c>
+ 2e9ca58:      	tbz	w0, #0x0, 0x2e9cbb0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x20840c>
+ 2e9ca5c:      	add	x0, sp, #0x148
+ 2e9ca60:      	add	x1, sp, #0x10
+ 2e9ca64:      	bl	0x2e948c4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x200120>
+ 2e9ca68:      	add	x0, sp, #0x10
+ 2e9ca6c:      	bl	0x2e94cb4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x200510>
+ 2e9ca70:      	add	x0, sp, #0x280
+ 2e9ca74:      	bl	0x2c9d834 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x9090>
+ 2e9ca78:      	add	x0, sp, #0x298
+ 2e9ca7c:      	bl	0x2ca47a8 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x10004>
+ 2e9ca80:      	add	x0, sp, #0x2b8
+ 2e9ca84:      	bl	0x386759c <JNI_OnLoad_libllm_wrapper_jni+0x5df8>
+ 2e9ca88:      	ldr	x8, [sp, #0x148]
+ 2e9ca8c:      	cmp	x8, #0x1
+ 2e9ca90:      	b.ne	0x2e9caf0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x20834c>
+ 2e9ca94:      	add	x0, sp, #0x148
+ 2e9ca98:      	add	x21, sp, #0x148
+ 2e9ca9c:      	bl	0x251544c <.text+0xd78c>
+ 2e9caa0:      	ldr	x8, [x20, #0x8]
+ 2e9caa4:      	ldr	q0, [x20]
+ 2e9caa8:      	str	q0, [sp]
+ 2e9caac:      	cbz	x8, 0x2e9cabc <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x208318>
+ 2e9cab0:      	add	x1, x8, #0x8
+ 2e9cab4:      	mov	w0, #0x1                // =1
+ 2e9cab8:      	bl	0x3891840 <JNI_OnLoad_libllm_wrapper_jni+0x3009c>
+ 2e9cabc:      	add	x0, x21, #0x8
+ 2e9cac0:      	mov	x1, sp
+ 2e9cac4:      	mov	x8, x19
+ 2e9cac8:      	bl	0x2e9c150 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2079ac>
+ 2e9cacc:      	mov	x0, sp
+ 2e9cad0:      	bl	0x254a4ec <.text+0x4282c>
+ 2e9cad4:      	add	x0, sp, #0x148
+ 2e9cad8:      	bl	0x2e947ac <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x200008>
+ 2e9cadc:      	add	sp, sp, #0x2d0
+ 2e9cae0:      	ldp	x20, x19, [sp, #0x20]
+ 2e9cae4:      	ldp	x22, x21, [sp, #0x10]
+ 2e9cae8:      	ldp	x29, x30, [sp], #0x30
+ 2e9caec:      	ret
+ 2e9caf0:      	bl	0x2e9f570 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x20adcc>
+ 2e9caf4:      	add	x0, sp, #0x10
+ 2e9caf8:      	mov	w2, #0xa5               // =165
+ 2e9cafc:      	mov	x3, xzr
+ 2e9cb00:      	add	x21, sp, #0x10
+ 2e9cb04:      	bl	0x2f74460 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfcbc>
+ 2e9cb08:      	adrp	x1, 0x2b000
+ 2e9cb0c:      	add	x1, x1, #0x6f9
+ 2e9cb10:      	add	x0, sp, #0x10
+ 2e9cb14:      	bl	0x2508c00 <.text+0xf40>
+ 2e9cb18:      	bl	0x2f746e0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dff3c>
+ 2e9cb1c:      	add	x0, sp, #0x10
+ 2e9cb20:      	bl	0x2f74470 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfccc>
+ 2e9cb24:      	bl	0x2e9c8a8 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x208104>
+ 2e9cb28:      	adrp	x8, 0x10f000
+ 2e9cb2c:      	mov	x20, x0
+ 2e9cb30:      	add	x0, x21, #0x20
+ 2e9cb34:      	ldr	q0, [x8, #0x340]
+ 2e9cb38:      	mov	w1, wzr
+ 2e9cb3c:      	mov	w2, #0xf0               // =240
+ 2e9cb40:      	strb	wzr, [sp, #0x10]
+ 2e9cb44:      	str	wzr, [sp, #0x14]
+ 2e9cb48:      	str	wzr, [sp, #0x28]
+ 2e9cb4c:      	stur	q0, [sp, #0x18]
+ 2e9cb50:      	stp	xzr, xzr, [sp, #0x130]
+ 2e9cb54:      	str	xzr, [sp, #0x128]
+ 2e9cb58:      	bl	0x3894270 <memset@plt>
+ 2e9cb5c:      	add	x1, sp, #0x10
+ 2e9cb60:      	mov	x0, x19
+ 2e9cb64:      	str	x20, [sp, #0x140]
+ 2e9cb68:      	bl	0x2e9c968 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2081c4>
+ 2e9cb6c:      	add	x0, sp, #0x10
+ 2e9cb70:      	bl	0x2e8cc8c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x1f84e8>
+ 2e9cb74:      	b	0x2e9cad4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x208330>
+ 2e9cb78:      	mov	w21, #0x37              // =55
+ 2e9cb7c:      	bl	0x2e9f598 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x20adf4>
+ 2e9cb80:      	add	x0, sp, #0x10
+ 2e9cb84:      	mov	w1, #0x31               // =49
+ 2e9cb88:      	str	x21, [sp, #0x298]
+ 2e9cb8c:      	str	x8, [sp, #0x10]
+ 2e9cb90:      	bl	0x2511454 <.text+0x9794>
+ 2e9cb94:      	ldr	x8, [sp, #0x10]
+ 2e9cb98:      	add	x0, sp, #0x148
+ 2e9cb9c:      	str	x21, [sp, #0x10]
+ 2e9cba0:      	str	x8, [sp, #0x148]
+ 2e9cba4:      	bl	0x2514d3c <.text+0xd07c>
+ 2e9cba8:      	bl	0x278c5d8 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x65f3c>
+ 2e9cbac:      	b	0x2e9ca78 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2082d4>
+ 2e9cbb0:      	bl	0x2e9f570 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x20adcc>
+ 2e9cbb4:      	adrp	x2, 0xec000
+ 2e9cbb8:      	add	x2, x2, #0xa9
+ 2e9cbbc:      	add	x8, sp, #0x258
+ 2e9cbc0:      	mov	w0, #0x34               // =52
+ 2e9cbc4:      	bl	0x3014010 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x37f86c>
+ 2e9cbc8:      	add	x0, sp, #0x148
+ 2e9cbcc:      	add	x1, sp, #0x258
+ 2e9cbd0:      	bl	0x254e7cc <.text+0x46b0c>
+ 2e9cbd4:      	add	x0, sp, #0x258
+ 2e9cbd8:      	bl	0x254a210 <.text+0x42550>
+ 2e9cbdc:      	b	0x2e9ca68 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2082c4>

@@ -1,0 +1,119 @@
+OSTADIX / ASI Smart Reply live replay evidence
+Captured 2026-09-16 on the installed Pixel build
+
+Trigger artifact identity
+-------------------------
+$ sha256sum apps/asi-smart-reply-trigger/build/outputs/apk/debug/AsiSmartReplyTrigger-debug.apk
+e0cb6c03b8eb58f967e6847257d06d86fad2018c38ab111be81ce9f584cf649f  apps/asi-smart-reply-trigger/build/outputs/apk/debug/AsiSmartReplyTrigger-debug.apk
+
+$ sha256sum <installed trigger base.apk>
+e0cb6c03b8eb58f967e6847257d06d86fad2018c38ab111be81ce9f584cf649f  <installed trigger base.apk>
+
+Caller-observation revision
+---------------------------
+The trigger was later instrumented with Android's public AutofillCallback. The
+revised build and installed APK match:
+
+cdc1af5634054a189f8c525cd09ae56cb5a878c748459a21a1ebd5456735862a  <local build>
+cdc1af5634054a189f8c525cd09ae56cb5a878c748459a21a1ebd5456735862a  <installed base.apk>
+
+The current conventional-provider smoke proves the callback observation path:
+
+09-16 13:35:52.591 <ASI> I AiAiAutofill: Autofill onFillRequest
+09-16 13:35:53.162 <trigger> I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+
+The callback records only framework availability events and does not read the
+suggestion text.
+
+Warm request log
+----------------
+09-16 13:13:56.539 30242 31423 I AiAiAutofill: Autofill onFillRequest
+09-16 13:13:56.829 30242 31423 I AiAiAutofill: (REDACTED) Candidate Providers: [%s]
+09-16 13:13:56.832 30242 31423 I AiAiAutofill: [PersonalContextService] Get candidates from PSI
+09-16 13:13:58.122 30242 31423 W AiAiAutofill: (REDACTED) CandidateProvider %s failed.
+09-16 13:13:58.122 30242 31423 W AiAiAutofill: java.lang.RuntimeException: Uninitialized service.
+09-16 13:13:58.122 30242 31423 W AiAiAutofill:     at com.google.android.apps.miphone.aiai.autofill.candidates.aicoresmartreply.AiCoreLlmService.b(PG:199)
+
+ASI service dump after the warm request
+---------------------------------------
+AiAi Augmented Autofill Handler is enabled in AiAi settings for en-us in [en,fr,de,es,ja,ar,pt].
+Service connection: connected (working)
+Active model version: 30000
+Request history has [1] records:
+  [13:13:56.539] - id=6a5f2b, slot=ContentSelector{packageName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp, activityName=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp.SmartReplyActivity, resourceId=com.google.android.apps.miphone.aiai.autofill.testapps.autofillapp/id:reply}, lang=en-us+[en-US], t=1597ms, rc=[31, 11, 1], hl=[1], cp=[12-1/1][:r 362], cp=[1-0/0][], cp=[25-0/0][], cp=[29-0/0][]
+
+Decoded values from installed enums:
+  provider 12 = SMART_REPLY
+  provider 25 = AICORE_SMART_REPLY
+  provider 1  = VISUAL_CORTEX
+  provider 29 = PERSONAL_CONTEXT
+  result 31   = HAS_VIEW_NODE_FROM_AUTOFILL_REQUEST
+  result 11   = H_RESPOND_OK
+  result 1    = RESPOND_OK
+
+Cold framework timeout
+----------------------
+09-16 13:06:16.560 <ASI> I AiAiAutofill: Autofill onFillRequest
+09-16 13:06:21.528 21644 21644 W RemoteAugmentedAutofillService: PendingAutofillRequest timed out (5000ms) for RemoteAugmentedAutofillService[com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiAugmentedAutofillService]
+09-16 13:06:21.531 21644 21644 E RemoteAugmentedAutofillService: No augmented autofill response
+
+The installed ASI bytecode sets Autofill__candidate_provider_timeout_millis to
+4700 ms. It performs screen-context work before starting that timeout and only
+records request history after every provider and response construction finish.
+
+ProtectedDownload failure in the same request path
+--------------------------------------------------
+09-16 13:16:26.582 19002 19214 I ProtectedDownloadGrpcBindableService: Starting GetManifestConfig request
+09-16 13:16:28.177 19002 19310 E ProtectedDownloadGrpcBindableService: Failed to handle GetManifestConfig
+09-16 13:16:28.177 19002 19310 E ProtectedDownloadGrpcBindableService: mer: PERMISSION_DENIED: The caller does not have permission
+09-16 13:16:28.195 19222 19292 W bwu: gkj: Failed to fetch manifest config from source for com.google.android.aicore:18103149225492435673
+09-16 13:16:38.262 19222 19289 E A: bpe: AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 234 is not available.
+
+Attestation exclusion replay
+----------------------------
+TEESimulator-RS target.txt initially contained:
+  com.android.vending
+  com.google.android.aicore
+  com.google.android.as
+  com.google.android.as.oss
+  com.google.android.gms
+  com.google.android.googlequicksearchbox
+  com.google.android.odad
+
+The list was backed up to:
+  /data/adb/tricky_store/target.txt.ostadix-pre-20260916
+
+Those seven exact entries were removed and ASI, AS.OSS, AICore, and PSI were
+restarted without clearing package data. PSI itself remained targeted. The
+no-reboot retry still returned the same PERMISSION_DENIED response.
+
+Later bytecode and live-log inspection proved that this was not a stock
+attestation retry. TEESimulator reloads target.txt live, but its KeyMint handler
+still intercepts requests with device-property attestation tags. AS.OSS sets
+those tags while regenerating the fixed PcsAttestationKey alias for every
+ProtectedDownload request. During the exclusion window:
+
+  09-16 13:18:36.733 <AS.OSS> I ProtectedDownloadGrpcBindableService: Starting GetManifestConfig request
+  09-16 13:18:37.338 <TEESimulator> I [TX_ID: 5290] Found generated response for PcsAttestationKey:
+  09-16 13:18:37.445 <AS.OSS> E ProtectedDownloadGrpcBindableService: PERMISSION_DENIED
+
+Android Keystore entry IDs and creation times for that alias changed across
+requests, proving fresh regeneration rather than reuse of an August key. A
+TEESimulator daemon restart changed its PID from 21097 to 31551, but the
+unconditional device-property interception remained. The original target file
+was restored byte-for-byte:
+
+  0236bb20ffa7eb6d63e506d3e9cfacdf401669c7d8aabcb8a82da2e9cbaa5c18  target.txt
+  0236bb20ffa7eb6d63e506d3e9cfacdf401669c7d8aabcb8a82da2e9cbaa5c18  target.txt.ostadix-pre-20260916
+
+The supported clean retry requires disabling KernelSU module tricky_store and
+a full reboot. No package data or keystore alias has been deleted.
+
+OSTADIX boundary result
+-----------------------
+AS.OSS restarted and its installed extension logged:
+  event=runtime_smoke source_index=1 score_milli=950 elapsed_ms=185
+  Installed four version-pinned active Smart Reply hooks
+
+Neither replay emitted request_enter, ostadix_selected, or result_forwarded.
+The failure occurs before ASI can call AS.OSS flw.c with a SmartReplyRequest.

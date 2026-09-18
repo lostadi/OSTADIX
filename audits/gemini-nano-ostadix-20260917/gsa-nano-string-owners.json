@@ -1,0 +1,262 @@
+[
+  {
+    "dex": "classes.dex",
+    "method": "Laqzw;->c",
+    "text": "Failed to parse incoming IPC proto as OnDeviceInferenceResult."
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjgs;->getMessage",
+    "text": " AiCore error code: "
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjid;-><clinit>",
+    "text": "PRIVILEGED_FEATURE_AICORE_ALWAYS_FALLBACK"
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjid;-><clinit>",
+    "text": "PRIVILEGED_FEATURE_AICORE_INTERNAL_DEBUG_LOGGING"
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjjr;->a",
+    "text": "Initialize Soda [locale: %s], [applicationDomain: %s], [aicore streaming: %b]"
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjkk;->a",
+    "text": " aiCoreEnforced"
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjkl;->toString",
+    "text": ", aiCoreConfig="
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjkl;->toString",
+    "text": ", aiCoreEnforced=false, requestWordTiming="
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjmo;-><clinit>",
+    "text": "ERROR_TYPE_AICORE_APP_QUOTA"
+  },
+  {
+    "dex": "classes10.dex",
+    "method": "Lfjmo;-><clinit>",
+    "text": "ERROR_TYPE_AICORE_NOT_ENABLED_RUNTIME_LIMITS"
+  },
+  {
+    "dex": "classes11.dex",
+    "method": "Ldalf;-><clinit>",
+    "text": "AICORE_ERROR"
+  },
+  {
+    "dex": "classes11.dex",
+    "method": "Ldalf;-><clinit>",
+    "text": "SODA_AICORE_ERROR"
+  },
+  {
+    "dex": "classes11.dex",
+    "method": "Leiqy;->a",
+    "text": "AICORE_ERROR"
+  },
+  {
+    "dex": "classes11.dex",
+    "method": "Leiqy;->a",
+    "text": "SODA_AICORE_ERROR"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_FAILED_TO_RETRIEVE_AUDIO"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_INTERNAL_ERROR"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_REQUEST_FAILED"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_TIMEOUT"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_TRANSCRIPT_EMPTY"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_TRANSCRIPT_EMPTY_AFTER_FILTERING"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_WER_EXCEEDED"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "Speech Enhancement not used for final recognition due to AiCore error: %s [SD]"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_AUDIO_LENGTH_INVALID"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_ENCODER_INTERNAL_ERROR"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_ENCODER_REQUEST_FAILED"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_ENCODER_TIMEOUT"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_ENCODING_EMPTY"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_ENCODING_MISSING"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_ERROR_UNSPECIFIED"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Lahvl;->fK",
+    "text": "AICORE_EXCEPTION"
+  },
+  {
+    "dex": "classes12.dex",
+    "method": "Laqug;->a",
+    "text": "Failed to parse incoming IPC proto as OnDeviceInferenceResult."
+  },
+  {
+    "dex": "classes13.dex",
+    "method": "Lbpmi;->onViewCreated",
+    "text": "#setup: enableShoppingAicoreTestMenuNonProd=%b, isDecryptionKeyValid=%b, keyLength=%d"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldjyv;->b",
+    "text": "#aicoresrg aiCoreSmartActionGenerator is not present"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldjyv;->b",
+    "text": "#aicoresrg generateBundledLlmAndAiCoreResponse"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1/models/gemini-pro-latest:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;-><clinit>",
+    "text": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldmnm;->a",
+    "text": "https://generativelanguage.googleapis.com/v1/models/gemini-pro-latest:generateContent"
+  },
+  {
+    "dex": "classes2.dex",
+    "method": "Ldnyk;-><clinit>",
+    "text": "soda_aicore_jni"
+  },
+  {
+    "dex": "classes3.dex",
+    "method": "Leirz;->a",
+    "text": "TRANSLATION_SESSION_AICORE_DOWNLOAD_END"
+  },
+  {
+    "dex": "classes3.dex",
+    "method": "Leirz;->a",
+    "text": "TRANSLATION_SESSION_AICORE_DOWNLOAD_START"
+  },
+  {
+    "dex": "classes3.dex",
+    "method": "Leirz;->a",
+    "text": "TRANSLATION_SESSION_AICORE_QUERY_END"
+  },
+  {
+    "dex": "classes3.dex",
+    "method": "Leirz;->a",
+    "text": "TRANSLATION_SESSION_AICORE_QUERY_START"
+  },
+  {
+    "dex": "classes8.dex",
+    "method": "Ldnyd;->a",
+    "text": " aiCoreEnforced"
+  },
+  {
+    "dex": "classes8.dex",
+    "method": "Ldnye;->toString",
+    "text": ", aiCoreConfig=null, aiCoreEnforced=false, languageModel="
+  },
+  {
+    "dex": "classes9.dex",
+    "method": "Leiry;->a",
+    "text": "agsa_transcription_SODA_AICORE_ERROR"
+  },
+  {
+    "dex": "classes9.dex",
+    "method": "Leiry;->a",
+    "text": "agsa_transcription_AICORE_ERROR"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "property": "vendor.edgetpu.tflite_delegate.tachyon_aicore_ready",
+  "raw_value": "",
+  "library_sha256": "62015826fb79be5f10d7d7aa9d137a1bc0a4980c2b687bcab44a9cc4c3a71823",
+  "probe_model_run_performed": false,
+  "property_changed": false
+}

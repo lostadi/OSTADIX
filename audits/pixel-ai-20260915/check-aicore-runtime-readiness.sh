@@ -26,6 +26,13 @@ odi_dump="$($DUMPSYS on_device_intelligence 2>/dev/null)"
 inference_count="$(printf '%s\n' "$odi_dump" | sed -n 's/.*inferenceInfos (\([0-9][0-9]*\) total).*/\1/p' | head -1)"
 inference_count="${inference_count:-unknown}"
 
+# ML Kit and current system clients bind the legacy multi-user service. Its
+# inference history is separate from the framework OnDeviceIntelligence store.
+# Read both so an empty framework store is not mistaken for no legacy inference.
+legacy_dump="$($DUMPSYS activity service "$AICORE_PACKAGE/com.google.android.apps.aicore.service.multiuser.AiCoreMultiUserService" 2>/dev/null || true)"
+legacy_inference_count="$(printf '%s\n' "$legacy_dump" | sed -n 's/.*Number of recent inferences collected: \([0-9][0-9]*\).*/\1/p' | head -1)"
+legacy_inference_count="${legacy_inference_count:-unknown}"
+
 private_files="$(su -c "find '$AICORE_DATA/files' -type f ! -path '*/datastore/*' ! -path '*/mdd_pds_config/*' ! -name 'gms_icing_mdd_garbage_file' 2>/dev/null" || true)"
 private_payload_count="$(printf '%s\n' "$private_files" | sed '/^$/d' | wc -l | tr -d ' ')"
 
@@ -49,12 +56,13 @@ fi
 echo "aicore_process=running pid=$pid"
 echo "on_device_intelligence_registered=$service_registered"
 echo "inference_info_count=$inference_count"
+echo "aicore_legacy_inference_count=$legacy_inference_count"
 echo "app_private_payload_candidate_count=$private_payload_count"
 echo "loaded_model_mapping_count=$loaded_model_maps"
 echo "bound_client_packages=${client_packages:-none}"
 echo "preload_model_work=$preload_work"
 
-if [[ "$inference_count" == "0" && "$loaded_model_maps" == "0" ]]; then
+if [[ "$inference_count" == "0" && "$legacy_inference_count" == "0" && "$loaded_model_maps" == "0" ]]; then
   echo "readiness=false reason=no_observed_inference_or_loaded_model"
   exit 4
 fi

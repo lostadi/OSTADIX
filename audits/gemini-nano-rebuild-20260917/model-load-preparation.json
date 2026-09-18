@@ -1,0 +1,11 @@
+{
+  "jar_sha256": "1c93d271c9976e7b53c98baab9f27e96d3f94bed81ec75488f2acd35a79f47c5",
+  "jar_path": "/data/local/tmp/ostadix-nano-rebuild-20260917/model-load-run/probe.jar",
+  "manifest": {
+    "baseDirectory": "/data/local/tmp/ostadix-nano-rebuild-20260917/model",
+    "modelName": "edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs",
+    "tokenText": "Ostadix"
+  },
+  "unix_uid": 10402,
+  "selinux_context_note": "inherited KernelSU shell context; not ordinary Android app context"
+}

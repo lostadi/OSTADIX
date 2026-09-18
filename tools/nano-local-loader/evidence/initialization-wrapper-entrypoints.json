@@ -1,0 +1,22 @@
+{
+  "started_utc": "2026-09-17T16:27:54.682887+00:00",
+  "command": [
+    "/system/bin/su",
+    "-p",
+    "10402",
+    "-c",
+    "/system/bin/app_process /system/bin org.ostadix.nanoloader.NativeLoaderProbe /data/local/tmp/ostadix-ai-audit-20260915/aicore-native"
+  ],
+  "system_environment_keys": [
+    "ANDROID_ART_ROOT",
+    "ANDROID_I18N_ROOT",
+    "ANDROID_TZDATA_ROOT",
+    "BOOTCLASSPATH",
+    "DEX2OATBOOTCLASSPATH",
+    "SYSTEMSERVERCLASSPATH"
+  ],
+  "probe_sha256": "1d8a232aa08d67c5513a8242ceab6e1ab751b95e6965b33a0db89038b6dc6a7a",
+  "exit_code": 1,
+  "stdout": "{\"schema\":\"ostadix.nano-loader-probe\\/v1\",\"phase\":\"native_library_load\",\"detail\":\"java.lang.UnsatisfiedLinkError: dlopen failed: library \\\"libgoogle3.so\\\" not found: needed by \\/data\\/local\\/tmp\\/ostadix-ai-audit-20260915\\/aicore-native\\/libruntime_edgetpu_jni.so in namespace clns-1\",\"success\":false,\"uid\":10402,\"pid\":23338,\"model_loaded\":false,\"inference_executed\":false}\n",
+  "stderr": "java.lang.UnsatisfiedLinkError: dlopen failed: library \"libgoogle3.so\" not found: needed by /data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libruntime_edgetpu_jni.so in namespace clns-1\n\tat java.lang.Runtime.load0(Runtime.java:963)\n\tat java.lang.System.load(System.java:1728)\n\tat org.ostadix.nanoloader.NativeLoaderProbe.main(NativeLoaderProbe.java:36)\n\tat com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)\n\tat com.android.internal.os.RuntimeInit.main(RuntimeInit.java:367)\n"
+}

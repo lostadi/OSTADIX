@@ -1,0 +1,17 @@
+{
+  "utc": "2026-09-17T19:00:35.233650+00:00",
+  "previous_goal_turn_classification": "no progress: hardware clarification rechecked existing evidence",
+  "current_turn_progress": "Recovered pending-turn callback contract; built and installed ten-hook observer; verified initialization in real GSA search process",
+  "gsa_search_pid": 16884,
+  "gsa_uid": 10191,
+  "ordinary_query_observed": false,
+  "nano_dispatch": false,
+  "mcp_dispatch": false,
+  "ui_test_state": "paused: screen changed independently through accessibility settings; user availability question pending",
+  "early_gate_accepted": true,
+  "startup_identity_accepted": true,
+  "startup_activation_accepted": true,
+  "spoof_gate_failure_demonstrated": false,
+  "observer_hooks_registered": 10,
+  "startup_evidence": "assistant-route-current-startup.logcat"
+}

@@ -1,0 +1,14 @@
+{
+  "source": "/data/local/tmp/ostadix-nano-rebuild-20260917/config.decoded.pb",
+  "output": "/data/user/0/com.google.android.aicore/files/ostadix-nano-probe/config-audio-disabled.binarypb",
+  "original_sha256": "2579a3a81a1c22403cf4f930581d85e743b9b33e7340ac917508b6419f1ef54e",
+  "derived_sha256": "60ebe6ed7768ea588b24993ae7ecd1229cef3dd70459e294167b72a678a8adff",
+  "original_bytes": 1703,
+  "derived_bytes": 1618,
+  "removed_field": "3/6",
+  "removed_field_bytes": 85,
+  "removed_field_sha256": "1020a5c02639c630c8d1cdc452f57fd326dd7b031cef7a83525317b2b857d5e7",
+  "all_other_nested_field_bytes_preserved": true,
+  "model_weights_modified": false,
+  "inference_executed": false
+}

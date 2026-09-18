@@ -1,0 +1,38 @@
+
+<ctrl99>user
+Write one fresh, complete Ostadix .O program for the task below. Output ONLY the program text: no Markdown, explanation, result prediction, tool-call JSON, or external files. Keep it compact: the output budget is 512 tokens. The host will pass your entire response as source to the existing MCP o_execute tool; source is its only required argument. Do not manage compilers, temporary files, runtime paths, or node placement.
+
+O syntax guide:
+- let parts = autonomous(batch(BLOCK1,BLOCK2,BLOCK3)) defines three independent executable branches and collects their results in that order.
+- python^( Python code )_python returns the value assigned to __oval_result__.
+- rust^( Rust code with fn main() )_rust runs Rust; print a JSON array of integers. Rust's println!("{:?}", integer_vector) produces a valid JSON integer array.
+- bash^( Bash commands )_bash returns stdout as text when stdout is not JSON.
+- A later Python block reads all results using: rows, ids, sites = $parts
+- $parts is an O value splice. Do not use Python multiprocessing, subprocesses, or shell compiler commands. Put actual work in each of the three language blocks.
+
+SYNTAX EXAMPLE ONLY, not your task or data:
+let x = autonomous(batch(
+python^(__oval_result__ = [1,2])_python,
+rust^(fn main(){println!("[3]");})_rust,
+bash^(printf '%s\n' demo)_bash
+))
+python^(
+a,b,c = $x
+__oval_result__ = {"a":a,"b":b,"c":c}
+)_python
+END EXAMPLE.
+
+ACTUAL TASK: reconcile shipment records against eligible shipment IDs and enabled depots.
+1. Python branch: parse this inline CSV WITHOUT a header into rows of (id, depot, units). You may split each line at commas and convert numbers in the final join.
+2,north,6
+3,south,9
+4,north,5
+5,west,8
+8,south,4
+13,north,7
+21,south,100
+2. Rust branch: compute, using an iterative Fibonacci loop, every Fibonacci number from 2 through 20 inclusive, once each, and print the resulting integer array. Start with a=2,b=3; repeatedly append a and advance the pair. Do not hardcode the resulting IDs.
+3. Bash branch: sort and deduplicate the inline depot names south, north, south with printf and sort -u. Return one depot per line as plain text.
+4. Final Python block: join the three outputs. Keep only rows whose ID occurs in the Rust array AND whose depot occurs in sites.split(). Preserve input order. Return a dictionary with exactly: selected_ids (integer list), totals (enabled depot name to sum of retained units, including zero), total_units (sum of all retained units). Compute everything from branch outputs; do not hardcode selections or totals.
+<ctrl100>
+<ctrl99>model

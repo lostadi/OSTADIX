@@ -1,0 +1,9 @@
+{
+  "changed_logical_file": "edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs/config.binarypb",
+  "previous_path": "/data/local/tmp/ostadix-nano-rebuild-20260917/model/edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs/config.binarypb",
+  "derived_path": "/data/user/0/com.google.android.aicore/files/ostadix-nano-probe/config-audio-disabled.binarypb",
+  "previous_manifest_sha256": "2a513f1b706805bc257b95e592ec553ae462bac670e9cecc11adc85cac7d9e94",
+  "derived_manifest_sha256": "b8f8f13bbc82ae9c23d929cae0f3a0aa4b33803f90ccfb58fabcd3c55c4b1b8b",
+  "filename_count": 191,
+  "original_weights_unchanged": true
+}

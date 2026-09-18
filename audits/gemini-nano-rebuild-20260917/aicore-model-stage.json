@@ -1,0 +1,17 @@
+{
+  "time_utc": "2026-09-17T16:52:51.015523+00:00",
+  "app_uid": 10173,
+  "model_base": "/data/local/tmp/ostadix-nano-rebuild-20260917/model",
+  "private_manifest": "/data/user/0/com.google.android.aicore/files/ostadix-nano-probe/manifest.json",
+  "model_files_made_readonly": 178,
+  "read_only_factory_links_unchanged": 13,
+  "restorecon_exit_code": 0,
+  "restorecon_stdout": "",
+  "restorecon_stderr": "SELinux: Loaded file context from:\n\t\t/system/etc/selinux/plat_file_contexts\n\t\t/system_ext/etc/selinux/system_ext_file_contexts\n\t\t/product/etc/selinux/product_file_contexts\n\t\t/vendor/etc/selinux/vendor_file_contexts\n\t\t/odm/etc/selinux/odm_file_contexts\n",
+  "manifest": {
+    "baseDirectory": "/data/local/tmp/ostadix-nano-rebuild-20260917/model",
+    "modelName": "edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs",
+    "tokenText": "Ostadix"
+  },
+  "inference_run": false
+}

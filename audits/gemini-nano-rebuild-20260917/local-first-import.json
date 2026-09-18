@@ -1,0 +1,1122 @@
+{
+  "local_source_checkout": "/data/data/com.termux/files/home/Ostadix-lang",
+  "canonical_checkout": "/data/data/com.termux/files/home/OSTADIX",
+  "source_head": "bf575bd9d1027a976c3e067c59689a928886d717",
+  "canonical_before_import": "5b9b3d7f0beaebd2e207a66f5e0cb7b74156f035",
+  "description": "Task source and bounded evidence imported directly from local files before reconciling rewritten remote history. Original checkout retained. MCP/core imports separately reviewed. Generated builds, SDKs, private model payloads, credentials, screenshots and raw session exports excluded.",
+  "files": [
+    {
+      "path": "apps/aicore-ostadix-extension/README.md",
+      "sha256": "6517083022fdb6c9b198f54dd03a9f24b4a641e91a3f78556d5a3cdf384d0049"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java",
+      "sha256": "6a700c6e29ecfe5405f6dd134d717ec9aa0f5be3c2a633cbc792787528e71948"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/AicoreOstadixModule.java",
+      "sha256": "3ede4a258dcb046e926c50d5aed6f7889b07a38aa3201b65487f899b46a6368d"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/AsiDelegation.java",
+      "sha256": "88e1f78a4ae9bfd136a4373710c55109753ccf485ed43694ac4ec25e6f9cffe0"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java",
+      "sha256": "11dfc602649c1252d4c1fa507142792394add78a78cb80c9489853615daee9e7"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/ExtensionGate.java",
+      "sha256": "d367454f3293a2ca643c1602a6d6698d42ba70cc8c7e5c3ac747f77c688df036"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/GeminiAppFunctionSchemaHooks.java",
+      "sha256": "be3a14266a3621dc153f7f572dcbd9c803954ca23930caac8e8850d1c48dcbce"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/NanoLocalProbe.java",
+      "sha256": "a597dba997b399d0ba5f44e4141284374aa7bd69372fb43b6a102e5c5a13e8f2"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/OstadixResultBridge.java",
+      "sha256": "7d6366bd1dfd4309e2a2f51b29c5763a53b44b8a24311fb3abd474c91fc13d9b"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/RequestCorrelations.java",
+      "sha256": "35c6a062af1a35d3e7758e5b8efe592aa94aa740a5081834b5345dae3d9cb86d"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/java/org/ostadix/aicore/extension/RequestIdentity.java",
+      "sha256": "22c9f8554dc7ddb809841eb8b273b9da2c3f1ecf49942a7823224d17a5b1cf63"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/resources/META-INF/ostadix/native-sha256.txt",
+      "sha256": "85d6b4740dd78e0a6270877ba68c205d1f56fda8ee327ee4d20c6e4e5cdcf43a"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/main/resources/META-INF/xposed/scope.list",
+      "sha256": "688e82ec90fe7c440dbdf64d271576fcb509d1b1f5531cbdbf45fdd9419b64f0"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/test/java/com/google/android/apps/aicore/aidl/SmartReplyReplyEntry.java",
+      "sha256": "aa7c733ccaf9f6fdc169596311f763f1533e87af3b18c69432893a8c16d084a3"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/test/java/com/google/android/apps/aicore/aidl/SmartReplyResult.java",
+      "sha256": "c5a6edb5a8feccc02f22669b276aac6d4b3e10fb08ae869a2d18902f020ad981"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/test/java/org/ostadix/aicore/extension/AsiDelegationSelfTest.java",
+      "sha256": "ea54a652447426c9f7dbc766cadf5d78e8b49273bd8f93791a560ae369ad0075"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/app/src/test/java/org/ostadix/aicore/extension/ResultReplacementSelfTest.java",
+      "sha256": "ab4f0493e5da6f975fd3b13e0f9c2324c62391979d15671a1928460bd78ed3b4"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/build.sh",
+      "sha256": "7ca44642de4748ddda005a71ba6bcd74c05676c755ddada64319418f44ebf740"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/verify-installed-contract.sh",
+      "sha256": "3558f1cc7f4bff2f590e84edec10b1662a06dbd2051583fba81c45a5a4f1922d"
+    },
+    {
+      "path": "apps/aicore-ostadix-extension/verify-source-policy.sh",
+      "sha256": "49ace17149768c531cab90a39ee9b1527609392b76779b76a34afd75176d5bde"
+    },
+    {
+      "path": "apps/android-terminal/app/src/main/AndroidManifest.xml",
+      "sha256": "69e8376120b4ae85a443a7f851790381636597ebbe5f864b8a45147f38fdb480"
+    },
+    {
+      "path": "apps/android-terminal/app/src/main/assets/app_functions_schema.xsd",
+      "sha256": "420d02c393c8877e037d6e0a4e32a542cae9dbd813ffa7c0f69b8d6ccf6a357f"
+    },
+    {
+      "path": "apps/android-terminal/app/src/main/assets/ostadix_app_function_service.xml",
+      "sha256": "3d559c13f24a1de7aa5fccdc2e30879a7ea84a05024242649d5b5c3dd02d563c"
+    },
+    {
+      "path": "apps/android-terminal/app/src/main/java/org/ostadix/terminal/HostMcpClient.java",
+      "sha256": "9a8a02aabb0c6b8d68d0b09d63b8f864dffeb926a107b93e6cf2d69620f7f8c2"
+    },
+    {
+      "path": "apps/android-terminal/app/src/main/java/org/ostadix/terminal/OstadixAppFunctionService.java",
+      "sha256": "8086a322838e97231850762a33294f98f03dfec532beb60a0fdbae70e28c9543"
+    },
+    {
+      "path": "apps/android-terminal/app/src/main/java/org/ostadix/terminal/OstadixRuntime.java",
+      "sha256": "bd0e68181c97ae19012bc0cf46f5111e61ef74cc1f811dc50fcb92bd1c3b29fe"
+    },
+    {
+      "path": "apps/android-terminal/app/src/test/java/org/ostadix/terminal/OstadixAppFunctionContractSelfTest.java",
+      "sha256": "64788ec8a976c09879270347881d96b0877de357b6951ffa1c2bb9d2e1ffa2e3"
+    },
+    {
+      "path": "apps/android-terminal/app/src/test/java/org/ostadix/terminal/RuntimeJniSmoke.java",
+      "sha256": "f0675ae80f57f81186de652958ae8a92e632e3bbddf8610a829e8f0bb318fe61"
+    },
+    {
+      "path": "apps/android-terminal/build.sh",
+      "sha256": "80b13d0d7d9d9fc5e4f3138918b61079da92a5bf6fac4831f913cfd7461c2fba"
+    },
+    {
+      "path": "apps/android-terminal/runtime/src/lib.rs",
+      "sha256": "e0971acce5b46222edf0f00a4c4af20672ff571c0bf4a9d6eeb047e7daa1a1e2"
+    },
+    {
+      "path": "apps/pixel-ai-probe/README.md",
+      "sha256": "70c9ceb8d4a71ed2fd36368cc536079dcc21b23a1e12cc00aba4b58d29e71d65"
+    },
+    {
+      "path": "apps/pixel-ai-probe/app/src/main/java/org/ostadix/pixelai/probe/MainActivity.java",
+      "sha256": "822b895902e9508efc238b017b4118203d3d9dab3f4d15706dbd7ab992a1059a"
+    },
+    {
+      "path": "apps/pixel-ai-probe/build.sh",
+      "sha256": "386059d41618f8eef9a54d5ed772085ba723375f68ac7d42253ce761410a5870"
+    },
+    {
+      "path": "apps/pixel-ai-probe/tests/source_contract_test.py",
+      "sha256": "1cc9409a91cedbfde1c24ef503904069aaf3877dbf514280dbfe8e9aab7bd1a3"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/GOAL-REMAINING.md",
+      "sha256": "971cd9051b4f38e806dba696d2bfef0af87afa98120c033b4f5d9137b06281f0"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/STATUS.md",
+      "sha256": "43adf25e89cbdddbcaae0d649f2469cc8b46305b4ade668833be276fafcd2449"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/aicore-legacy-inference-history.txt",
+      "sha256": "d49f0f7041171a682c49ca9c782041401f7974017b5900960d7cf551b23c1b7d"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/assistant-route-findings.md",
+      "sha256": "a55e4a05cd1950ec9c980817bd10e418a9c9004b6427f76c74945f0739f43f49"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/blocked-audit-current.json",
+      "sha256": "d6c010a65191a3e429d6e8be204b2ec5fb00e00590abbd4d50b7c4e543693fa9"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/coexistence-including-legacy.txt",
+      "sha256": "3de7a65c23dade09f8dbb33c7226a39eeeaadd37d93561e3993b99257103a9b2"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/evidence-files.json",
+      "sha256": "c53daea27f746964a90deabd7ead394b8e8272af4eac0e9fe230fc9fb2fe3bb1"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/gsa-nano-native-strings.json",
+      "sha256": "9cb10de95003f43078b7fd473a226cf7647e62d46e145acd4004d68786912169"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/gsa-nano-string-owners.json",
+      "sha256": "fe3d719d37762a02d069e23bb4a34b9efd14633074f5e851017a03de8d2e505f"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/hardware-boot-state.txt",
+      "sha256": "ada55132404c5200c4efb59686286e364fc08e88575a98d73cfa4ba4122231f4"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/installed-probe.json",
+      "sha256": "d015e67cc1a53b8ea0804b1410321b2b70931e223c2af1e629870db7aee5c761"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/installed-variants-probe.json",
+      "sha256": "d1428082743673295cfb95bd90610a6efe468a8081b63d0b1221f3a2a42c45b4"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/launch-preview_fast.txt",
+      "sha256": "482e105c01416d983232a0e595ef8549e7614698566a3eb2774c830a438c6bd1"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/launch-preview_full.txt",
+      "sha256": "1ab5cd55421d6bd76fdcde3b91dd1e6f7042a7fdeb0b6b56d1627cb22c55b599"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/launch-stable_fast.txt",
+      "sha256": "fa86d54d341488b3dd0c1eca836834f198272a485c5e204053824392b3ca9bb3"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/launch-stable_full.txt",
+      "sha256": "10de244b8260779040b732cb9570e6648c12fa4981891e51b6a5bdacc31b0072"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/launch.txt",
+      "sha256": "fc0e48882643e3991d37d9720ce425772387243667cacff7331a5ebb23a3bf77"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/model-artifacts.md",
+      "sha256": "4ea0a89c39a5907d4c4d42c34039f9971a6f78e0d1ae3d0e7104c2fad2277e37"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-preview_fast.log",
+      "sha256": "666d8b307d1afe7471400082c9a60df448d7f52bd9e88ef665aa210cd31930e7"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-preview_full.log",
+      "sha256": "3347cc8c5ef9990c4db0b3b6e5fd4624efb4309cfe343b61befd81a90e1d2ad2"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-prompt-direct.log",
+      "sha256": "a81f09ae55616209d7c60a30543aabe22612ee94178149919e818bdb3823c26d"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-prompt-measurement.txt",
+      "sha256": "872d2bfc4356c2b3ad1a1bb08cf67879158ae514935bb1dae7c5977d5c2ba2b4"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-stable_fast.log",
+      "sha256": "04b16cfeacb3a54112e25681e8dbf45d58269bf186c3056e57fb53c71201e7d0"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-stable_full.log",
+      "sha256": "ce61965b054de3dd4a0df08a6e0b27f6874c5ba81ca477a858e1850e44f9304b"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-variant-results.json",
+      "sha256": "969002f6368f7c429b9b94089d53c524d3b89915c0d8c80fde3f68cb3941c1bb"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/nano-variant-tests.json",
+      "sha256": "491e59f7097c6765e8c12066c76e7cc45e8f5df20360562250b2f863ce30e63f"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/probe-build.log",
+      "sha256": "445487a436e2ec808c1e013bba65822c825cff2f6790151482cc7d5c67628f67"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/probe-variants-build.log",
+      "sha256": "adf73326b6aae2da460423d950c2c86733a8d089987afdf2373a0c8de8fd0d60"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/readiness-after.txt",
+      "sha256": "2d8bd733ce3ba7b7f37972d6880524f511812fb9bbc563875b870f1008c1eeba"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/readiness-before.txt",
+      "sha256": "2d8bd733ce3ba7b7f37972d6880524f511812fb9bbc563875b870f1008c1eeba"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/readiness-including-legacy.txt",
+      "sha256": "f57b24a945e1496bc217e80124853625d3178dbf37cf07ef9c298b3c66583dbb"
+    },
+    {
+      "path": "audits/gemini-nano-ostadix-20260917/scan_gsa_nano_strings.py",
+      "sha256": "ae5d41ee0e875ebf41aabaecbfc55d5cfe46513a37e5f50f750e84e1f26d127a"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/DVFS-MISSING-FILE.md",
+      "sha256": "d23ade19e32670fd8fae950a4f6b75f0c06f33a02f4f454214fd6b69b8919691"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/EDGETPU-HOST-CONTEXT.md",
+      "sha256": "1c137971440b61170ffb5ec4d79b396597ebc603680176a9df1ce0433d8ec890"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/FACTORY-FORMAT-RECOVERY.md",
+      "sha256": "1182fc5e8c4f0605701ae8ea291dcbf557f7671a0c9be0aafaecda1d265fba28"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/FRONTEND-MISSING-FILE.md",
+      "sha256": "10b6d580c21bb42e7d197e169657185037226a1597262c442b917aea14c3f4ea"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/MATFORMER-SESSION-FIELD.md",
+      "sha256": "8906b13b3c0e690fd9794ebb12bb705d678a537c2cfc4c84bfc772ea25c90925"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/RUNTIME-INITIALIZATION.md",
+      "sha256": "4f32a783a0ed53970cd22352837a7b99033c311fc2f56f491fd6f85a1a4e281f"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/STATUS.md",
+      "sha256": "03ea1aed529a73cac428f04b86f37f257767774e0805907e955396f3c3744c83"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-audio-disabled-manifest.json",
+      "sha256": "0eebe30b77bffccb4b1d3a4efdeb80f80e99efaccf7aaf4632b47b1321263ba6"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-expired-lease.json",
+      "sha256": "f04520885dcd9066d367f4f78ab239feb3c075071803d3e2caee1ce7947ea6b4"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-fdmap-manifest-prepared.json",
+      "sha256": "594c279f92802d1f0bf9284e8cd444a4f3ded2adbabcc3a6f9950cc7f9addfe5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-fdmap-process-restart.json",
+      "sha256": "eb750702fa8f67850f69b1d251a30c365baf2b7b2e4cc2519248c29fb0bd2ed5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-large-file-copies.jsonl",
+      "sha256": "a944dddc905a494eb2771a6b389c6d9ccf6f27d47eca5e8e2929907d6ddc370e"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-fdmap.broadcast.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-fdmap.broadcast.stdout",
+      "sha256": "84e3dbdff8abd0394c8276578b2ea3c54ac3d00e4faecad012bdfababfca15cc"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-fdmap.json",
+      "sha256": "0f22ec73d10ae55de87e5115cb35c8bdcc77ab828539ae22dc501b5442a346de"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-fdmap.logcat",
+      "sha256": "b4db9382bf15a90a8b3717bce29345a8168599ee9d38ec50fbc965595b651d71"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-fdmap.logcat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-fdmap.stdout",
+      "sha256": "4176a63c32a8a4adce9cb1d60ea98c56a8cae655e6239da741e354e539230b26"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-load.broadcast.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-load.broadcast.stdout",
+      "sha256": "84e3dbdff8abd0394c8276578b2ea3c54ac3d00e4faecad012bdfababfca15cc"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-load.json",
+      "sha256": "2ed8720cdb4629615aa06a8999c451ce3facde78861f663e70ec044c5ffee20e"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-load.logcat",
+      "sha256": "570e1ffbca5cdada334d851119dc7b1d5827793fb80b99d566d2e79a5306cd54"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-load.logcat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-local-model-load.stdout",
+      "sha256": "89a94134c8e819354fba197b022e5778a85f09eb4ee7943f794a33eba766f6b0"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-audio-disabled.broadcast.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-audio-disabled.broadcast.stdout",
+      "sha256": "84e3dbdff8abd0394c8276578b2ea3c54ac3d00e4faecad012bdfababfca15cc"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-audio-disabled.json",
+      "sha256": "04ed232b39ce7554ab83e9d1a274bbfc2050e4358f6e1ec8cd366dd24bf6b9f5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-audio-disabled.logcat",
+      "sha256": "24d2443f843a2d1ccda96722c3d6374f69986099a4772015df18f5847b730b42"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-audio-disabled.logcat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-audio-disabled.stdout",
+      "sha256": "38257566ad9026fe7471a3c651bf8c1fd139655651926208cc85d15eb2b33182"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-reclaimed-memory.broadcast.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-reclaimed-memory.broadcast.stdout",
+      "sha256": "84e3dbdff8abd0394c8276578b2ea3c54ac3d00e4faecad012bdfababfca15cc"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-reclaimed-memory.json",
+      "sha256": "39c4617380341c34bd86d828d5f3a4bd32db2963bfc606905a46cbd8ddf8cac0"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-reclaimed-memory.logcat",
+      "sha256": "279ae78219e8887aa88af18a9984acf2ee129fb129d1e63126ce97db1a385fe6"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-reclaimed-memory.logcat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-reclaimed-memory.stdout",
+      "sha256": "57bb114e8001c1908903a7fd7479da5ceaa8aa5fbbc8160efceb928e40cd9e9d"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-model-stage.json",
+      "sha256": "189d7f1b175fd7a85f0b56c9ceded0a32aa71aa58d03f73c59011c98bbda7ea5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-path-manifest.json",
+      "sha256": "bead15a75a9e8ef395f994a8c4bcad5d95af269357953cefb0663da7b08a5bc4"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-fds-original-config-manifest.json",
+      "sha256": "2a513f1b706805bc257b95e592ec553ae462bac670e9cecc11adc85cac7d9e94"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.broadcast.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.broadcast.stdout",
+      "sha256": "84e3dbdff8abd0394c8276578b2ea3c54ac3d00e4faecad012bdfababfca15cc"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.json",
+      "sha256": "1332ec4927c37ce46353a50fd1aeb25d6f2d08465c967cb22a1f1b789953a431"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.logcat",
+      "sha256": "036446a578c101d07d3cd66ad0cca5043e5b468fa3faab35286fe9f45091aeae"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.logcat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-private-model-fds.stdout",
+      "sha256": "324751903a0eb1330cbf2ca4bbd5efa3b2f8fefeb8afea728213e155f24da15a"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/aicore-probe-process-restart.json",
+      "sha256": "d4299ba14f2b975f1b95cbeffc2fa5c6e59602c55e09331c8a1ddcd0e2dffabb"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/android-cached-process-reclaim.json",
+      "sha256": "25427b87354f445296fa596778936b579a4518a9a9225a521cb4c29ce486096b"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/audio-config-field-disassembly.txt",
+      "sha256": "6757be48a7b33bd6264d26d957ddbfd6d83e743d7318dee635207770c9a0adbd"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/config-audio-disabled-derivation.json",
+      "sha256": "9cea18e968726bea11873566c6cb0da3448cbcd167b48d07097e92a07b80e3cd"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/config-decoded-metadata.json",
+      "sha256": "664aeac9db4c70136ea4f0110cc82b835164bfdebf82b05634a3b743fe3c196c"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/decode_factory_metadata.py",
+      "sha256": "7a9e2c6c03432ebd9e4be3532b60dcfd2ad0148c95f521d4dc8d3bac733fcf7b"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/decoded-bundle-structure.json",
+      "sha256": "9d33a4fe5dbdc147149a0513c4f3361833b8604678f1ccffdba25f4a126671e1"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/dvfs-file-search.json",
+      "sha256": "f25f01bfcd20f873a6b5d95cb0e011738da5844d94908781c28837fd748a0973"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/dvfs-loader-fallback-disassembly.txt",
+      "sha256": "251e171568fd01895866ed4f8f50e88d51b686430bd56a61a1fb4fe7f8b9ce6f"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/dvfs-native-evidence.json",
+      "sha256": "fb88c9afdd175001c9323777fa0a2cc75ecf24e71af62aa49abeb8658144b0d7"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/dvfs-native-xrefs.json",
+      "sha256": "564afd088789a7d5e8ade6ed4c8fcbb9dce1fc86d426824f2ffc659ad4e46754"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/edgetpu-auth-and-open-disassembly.txt",
+      "sha256": "c3dc084fa88a256dddc10be86253dee07e1211d67f5e25b469e86dc079288dd6"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/edgetpu-host-context-readonly.json",
+      "sha256": "371244371fcb85441c50309ceba488bfab225b409153ad92288ce09dd493b77e"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/edgetpu-low-uid-disassembly.txt",
+      "sha256": "2473e35caf57f8b20baba7add6fe80746cc52c90098016c85be2a2c3f4e256a5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/expected-task-result.json",
+      "sha256": "38408457573ec111585e83666f405271952d46000d93a3db3d28a42c332b15f5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-before-native-probe.json",
+      "sha256": "1feb2ee3b07ab919a1e112d2de55e661a7b532e93631ef4ba044f0992a37c5d3"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-bounded-native-probe-build.log",
+      "sha256": "f9b6cebc165d8490d21eb91c5e90779a0354a72a713d5d06ecae5c23b7419243"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-bounded-native-probe-installed.json",
+      "sha256": "5001ab2ae17a3e40145e4e06ea9596fd3c4b173aa1348f916518b52512002bd8"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-fdmap-build.log",
+      "sha256": "1f48ab58b4f5bba9948614932e4127cfd970c4aebf7692a5eafb4d6dd091b8c6"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-fdmap-installed.json",
+      "sha256": "6eb3b68f8f6cb212052afeda177edc9ae13da88ad1d255fb89615f7a934c62af"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-native-probe-build.log",
+      "sha256": "75c54d38e9b3df33586dafa61ddb3fdc0b63f5a41c946c62f445008c1ada30b1"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/extension-native-probe-installed.json",
+      "sha256": "0dfccad1b505a33bb49284d5da7b841c03a534543f0a1fa6d78c6d96e1b7c3fd"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/factory-config-checkpoint-reader-runs.json",
+      "sha256": "a134f7032baa8bc0068e5b1248a20c56fce732200c882a298b55440db496880d"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/factory-format-observations.json",
+      "sha256": "2dc562eebd416b2f496577324a82cc35ffc5710369fc417a483d54d8cf577f2e"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/factory-manifest-reader-run.json",
+      "sha256": "8aad7ce7beef9f1120ebe6211d234e23eec953f0a160038b4069cda3133a9399"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/factory-reader-build.log",
+      "sha256": "4221da309eb3368d27e899bc7c733fef10f8a3eec2b1b1cdcc4747d6369db8d8"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/factory-reader-streaming-build.log",
+      "sha256": "47a7a9aab4efa0d307dfed0ad8410c7b848a093392eca8899e61ae38e818a323"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/frontend-apk-asset-search.json",
+      "sha256": "4b4c16d53e46125324d1db81838bc01e156fad9d155ed936e439ea9ae99c29b4"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/inspect_decoded_factory_bundle.py",
+      "sha256": "85ed236bfe8887b8b6184637ddf66cf4b70ca819354c2fe4c18e82a2cfd33eed"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/inspect_factory_format.py",
+      "sha256": "418b510268a0ea339db4a3823635199b7c172a33a7c4df0c9db64bb39ae21d30"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/inspect_matformer_xrefs.py",
+      "sha256": "67bb475d0d32f63b9dd3977d29d1decbd7af5deef412e7038857f1ed91393cf3"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/local-model-load-readonly.json",
+      "sha256": "72dfd5e84ea787b8d16915aeafb2241bb5859126ceb18d08e6486de91f3295b5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/local-model-load-readonly.stderr",
+      "sha256": "a648a210697b2eec16f6e6a3d5e634d9085789fde8352b48bddfbce94f0880a2"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/local-model-load-readonly.stdout",
+      "sha256": "719e32e3b77f42bbcd6acf1cd1ee9c345a5f0049688f0168e5b70bc1e2488459"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/local-model-load.json",
+      "sha256": "7bffa868b28496839139a06126d3f9d8938fe4256a52a65fd64590f0c15fcb3c"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/local-model-load.stderr",
+      "sha256": "6c1322fe167a8a720eb19850ba06cf830c8a4045c03b95c3c608860986b0eb80"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/local-model-load.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/manifest-before-transform.json",
+      "sha256": "5d2b85beac3455ae17eb13631c03637da8bf1f95e24183a4937ff8100e3a1cba"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/manifest-decoded-metadata.json",
+      "sha256": "12621069917020dbc3e9802855fbb66c7b285aa1a9239eae1370bbd96a2aab53"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/materialization.jsonl",
+      "sha256": "0b032506acc92d4b670ef45c3950609d71834bed3138c379f8a3212ee56c1b51"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/materialization.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/materialization.stdout",
+      "sha256": "0b032506acc92d4b670ef45c3950609d71834bed3138c379f8a3212ee56c1b51"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/matformer-native-xrefs.json",
+      "sha256": "9ff990a0690235e794cb98a4c184ee106bbf15f9cb03af83a1640cc4c787a230"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/matformer-session-field-disassembly.txt",
+      "sha256": "1b397d5d6e87e4086fdaaa587d94ed19b4f9a53f6d76f7018c9192417fdc99e6"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/metadata-decoder-checks.json",
+      "sha256": "ca2b296588dda137c4699615af3df0345c6898e88dd1a6da52c912a7affb981d"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/modality-loader-xrefs.json",
+      "sha256": "c2b043657989c5ece174d43feb2c56f2b082d3a8ab652aefebab84f90526e62d"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/model-load-preparation.json",
+      "sha256": "2e56ce00be74b772bdef0b4c475154263375cd14b388ca413b65325e20c586db"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/nano-o-generation-prompt.txt",
+      "sha256": "0f0a2714ee977a220addc5e2bfbeff17e4f38f348c9cf72c1730459f71d7a3f0"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/native-library-identities.json",
+      "sha256": "6127eb5d8f130c8a8e82a45af4a0e3757eff10423261b22e5875b9c88cbac4b9"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/prejava-writable-dex-error.txt",
+      "sha256": "bda33125ee77c0e2250cac190d47f57cc1d9385262272fffe00f8dbccb6f0478"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/runtime-init-native-xrefs.json",
+      "sha256": "c1010853044f4c95786aae7f8e763ee9252e727e53c504f1b01bb17bb4a55fd5"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/runtime-init-readonly-observations.json",
+      "sha256": "caa69b0d2c019190b40516f2bbafaea712b57b69380d8f366ec7b449062a9117"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/runtime-init-tachyon-disassembly.txt",
+      "sha256": "06207d7b1240c643a94088692c27350515a3c1c0dff6d1ff39cb20e3fdc791ba"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/vector-aicore-scope-and-activation.json",
+      "sha256": "2429119563cc641f91dc16001611669f6345fe7ff8d7bf50b6126b7f2280233a"
+    },
+    {
+      "path": "audits/gemini-nano-rebuild-20260917/vector-current-scope-readonly.json",
+      "sha256": "aa93d689618803bc31723749b1c07001c11e82c7b549ac6778a2709f671ebb78"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/STATUS-20260917.md",
+      "sha256": "005ee9f90a42323025d17fe120187c35505b02e993ce4ce8990b34b4b4ba1cee"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-42.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-42.stdout",
+      "sha256": "f784194560e457d0cc8edd0906a02834a4541ab1b4842981fc8d4be0eb3cdcd8"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-acceptance.json",
+      "sha256": "3c6e0d34730878489bb5ef95c259b1b5d7a5bb16b289910d265ddd592b0a107f"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-cancel.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-cancel.stdout",
+      "sha256": "9cfd24177651081443794f21a523d072dbed25c7dfbb7899d6d00ffe14633425"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-correlated.log",
+      "sha256": "3e3c4d1a4a22691bb9fea4ea4c360249cfa9c50078869a3c4ef8bba3902f372c"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-inventory.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-inventory.stdout",
+      "sha256": "9032cd84099824dca87cd5e7e681da6ba65196f149f3fdb1d97286cdb2b383d5"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-lifted.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-lifted.stdout",
+      "sha256": "5e785c7ac8284948f06415638b4b2c111846f548c37c99a898a1eda97bb26792"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-recovery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/appfn-mcp-recovery.stdout",
+      "sha256": "2a4643b790bd16b21f1ca224f06981f3798073a4788b7e320039f0680bcbe143"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/asi-corrected-correlated.txt",
+      "sha256": "893dd8578b0511ae1b3fd89787e959430c523f47b00094dd75d1aa9c0cacfaff"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/asi-corrected-installed.sha256",
+      "sha256": "dd427b464f209adb3c98188d73a69fd60f91441926f155691491019ef9097818"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/asi-corrected-provenance.log",
+      "sha256": "d8628c030d4be9f4ac9516435240f363032c7d88df7d1ae25e0d5d68c5ff330c"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/asi-corrected-warm.log",
+      "sha256": "eeb042a3fbc820466b2e77274178efab281c7ea85dc023013242b8ec5826bd6e"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-bash.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-bash.stdout",
+      "sha256": "ee6447cdcd8e4ce1711447c30acb752885e0241c8bc03b80cba97b7be7a6cdd1"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-bindings.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-bindings.stdout",
+      "sha256": "8fcf2503834bdd65b37a4197f0b153f63fe16320e86dcfe73e7846227f8e5773"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-cancellation.elapsed-ms",
+      "sha256": "cb5e59f3ab45e3f4094f320a44bff6cba1acf9baf75beb17196731367b6a6a87"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-cancellation.logcat",
+      "sha256": "c9302a9d24b5ceb148cd8d959bdc5afa0b0c1f4a9d1b195fa757e0a3eae1d5d9"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-cancellation.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-cancellation.stdout",
+      "sha256": "9cfd24177651081443794f21a523d072dbed25c7dfbb7899d6d00ffe14633425"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-error.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-error.stdout",
+      "sha256": "46a4434c7e455957b967460e441c60da0d0cf4bfacfc2c4c3ecfcc5e2cf49549"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-recovery.elapsed-ms",
+      "sha256": "6d7a2f973a60301a703dc052df9f1f0cf6dd261d9ffa1b5891d8c7e749ea0e50"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-recovery.logcat",
+      "sha256": "099cd8c33b4ed95070876fa6622d0da6f2b1bfb377319977c6613685659e72e3"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-recovery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-recovery.stdout",
+      "sha256": "4d7917dbdbc3415f6d260c7ae93d3731c6f44d94173ad38e9499d26a5a5e1704"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-text.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/direct-text.stdout",
+      "sha256": "515ae355dd5c436b3394a9abc6df6191038f37ae7e8736752678157ed8ec82ac"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/mcp-adapter-installed.sha256",
+      "sha256": "30480cc5325918ac05f38ab8550b567b1d3cfa0654c1aa19eb0f6f3a45d85154"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/mcp-host-direct-result.json",
+      "sha256": "373daa733a068fd28aff0ab9baf4ea28dce47a69aae451150f6e012464ee7450"
+    },
+    {
+      "path": "audits/gemini-ostadix-20260917/live/module-build-corrected.log",
+      "sha256": "30431e9c3622a811de4890307320fbb6ae3a42b6ece236a8a37afe10990a225d"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/AICORE-HOOK-COEXISTENCE-20260917.txt",
+      "sha256": "63ce20f14a64982895c05370f0f502b01a69304f001cf58d7f50d8b9f88582f4"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/ASI-SMART-REPLY-LIVE-REPLAY-20260916.txt",
+      "sha256": "5c1f3b15548af95a8793ba79e6da7aebf2eda4fe1e692d470ebe1097dbd861c5"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/OSTADIX-AICORE-INTEGRATION.md",
+      "sha256": "2f5b636c09dca980fcaac70362df0d166e843e4e6134379f8466e1aa61267e91"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/OSTADIX-ASI-ACCEPTED-REQUEST-20260917.txt",
+      "sha256": "84764791eff72ab145be7258d66b5beafdfd0daccac9132259dea79a9458a91a"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/README.md",
+      "sha256": "58f62985cbc18fab83b87b8b7ffecffa9572510846b2fadc1a3f3a9adfcb139c"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/REPORT.md",
+      "sha256": "9817eac0017bdb69fe69551d76c91f8f4f26d6da9ad771051855c8909bc69d64"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/analyze-stock-attestation-replay.py",
+      "sha256": "6ad7fa5ca600b2260435053de0ffcd3d589f7033265c25e5a83b4c34b9427af1"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/arm-stock-attestation-replay.sh",
+      "sha256": "f4bc0824e184800823833289a5a7d1eebf1a8a645d177f13a0d2992c8126676c"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/check-aicore-hook-coexistence.sh",
+      "sha256": "d2290099aabff1e17de1b80fb922e3a849109d2c36ceaa9d1083225cec637577"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/check-aicore-runtime-readiness.sh",
+      "sha256": "9505cbc4d8a119c6aa2c24fa81543e3e133dbd6d434a5534c69316e4d97b69cd"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/run-stock-attestation-replay.sh",
+      "sha256": "2659bbc209df45f9b13cd908c2483fdfa6f22e59b3ac5985909f4c6065a5551a"
+    },
+    {
+      "path": "audits/pixel-ai-20260915/test_stock_attestation_replay_analyzer.py",
+      "sha256": "1c3a572f938769d15b79915ad8d1bb75c8ddf1c4b82400c52bb935e7c4f2cd14"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/OSTADIX-MCP-HETEROGENEOUS-20260917.json",
+      "sha256": "e1754428800b3c62140640799c7fec2fb5bda2fd6bc6994bb5e202853e849509"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/README.md",
+      "sha256": "778546b7ce212b294740a07e82661b6a3a2b9ef4497b35411baf817194810511"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/advertised-schema-before.json",
+      "sha256": "2a5a397e3906a4edee40461438a7f45e5c8897b5f7be3d5f88c4ac7ad62bc9e8"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/installed-primary-tool.sha256",
+      "sha256": "e0d57010e2f617625d339408c0ec163b61c1f60658b483211a1bfc973931fb49"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-acceptance.O",
+      "sha256": "8e1c184596354c26ee4e7acd4327f2edb985da08c7beb5902c2b17cf65a0a3f5"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-cli-result.json",
+      "sha256": "69a7aa6fab876b54305d75688dd4cd7f801f3904f3d901106dd4019f2524b48f"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-fixture/main.py",
+      "sha256": "845b09758a33d5ab06e6fa1dfabcd5e5bf84e2c32db336e7bb79cdddcc1c0085"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-fixture/olang.project.toml",
+      "sha256": "dc820f3a44b5f42195bf7f26aaa566aa3720e42b6227c0f2bf5a28a6dffc11be"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-fixture/readings.json",
+      "sha256": "56fce6558c3ce2aeebecec46fc34b829fc3e4c3c7606f38cbbf90a26b11ea7ce"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-lifecycle-before-proc-fix.json",
+      "sha256": "53a0a167c668c45a875d5993f21dbf933aa5b63f2de6a71ea345f306279ab07c"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-lifecycle-exchange.json",
+      "sha256": "9cfdc69414b2f8cbef69dfb315cf30e834bcacfa8781928a0173ca6b068f5e40"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-lifecycle-exchange.stderr",
+      "sha256": "4364a943bbf18c0b72f2ed728354f56d858a32efc126c4b61a4cbf6267fc270b"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-lifecycle-procfix.stdout",
+      "sha256": "838a4dfb89fd1229eb3505b30ad0e150ee9acb372983b59aebd5f720a91c4d02"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-lifecycle.stdout",
+      "sha256": "8cdcb4bf756c73de1c74770993eb832059b9560cca0f949ba42a6d9baddc95fc"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-patch-build-final.log",
+      "sha256": "7c23598296ec900092223c292a212d20a75bc00ec8b40fb420ef705e46ea16ae"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-patch-build.log",
+      "sha256": "2ef3496c5133512b7e5fa2450f1f0133ea42c7045d0e3ad22ac2d97c89c90aa2"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-patch-clippy.log",
+      "sha256": "856e00c7245f620f83198a2a35a31a669e51ce65495f6f144afe40625b35137b"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/lifted-patch-tests.log",
+      "sha256": "c95be2f3a9979feb0ecf2e95e3a4eb05d6d66e058df5c669f2e1fe34a2a2c80f"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/schema-before.stderr",
+      "sha256": "79cc756efc377e33f81651b2638051af1defc2e20a2ed832ed2fb820ac848efe"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/source-and-lifted-exchange.json",
+      "sha256": "a48f1f15f316162584508920471dad67853fe2289de8c3def1521f60938b29ed"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/source-and-lifted-final-exchange.json",
+      "sha256": "938ee88243544f985a9ec8b1e0f8aa738bdf565e10bfff3a979b6f93d058067b"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/source-and-lifted-final.stderr",
+      "sha256": "721c0bcd20e7840cbaf4b8b3c6a89375d87e2f034e6888405cfe078815365958"
+    },
+    {
+      "path": "audits/source-first-mcp-20260917/source-and-lifted.stderr",
+      "sha256": "914a01b1237c717aa597750edfb1237b218da05af7195f1afd317d07fd3b9c53"
+    },
+    {
+      "path": "examples/ai_heterogeneous_one_call.O",
+      "sha256": "ef50d8c6c25215fa6254cfc0a16a94c334e279d04f672c7068f2c001a07b72a1"
+    },
+    {
+      "path": "examples/ai_inventory_one_call.O",
+      "sha256": "390ec5a592abe2c3906006b96d68c09077336b461f7e2405fc5df8fefb4ab15d"
+    },
+    {
+      "path": "scripts/ostadix_appfunction_host.py",
+      "sha256": "ee0eb2bf9ce95ac6b4a80053a2c7753511f8cd6fb9750405b553bd142cb7d26c"
+    },
+    {
+      "path": "tests/fixtures/aicore_smart_reply_postprocess_bash.O",
+      "sha256": "6e77b5a79c752e982702160d41d3b779a24ec9008296a6ea2e9a15c1b6be1a30"
+    },
+    {
+      "path": "tools/nano-factory-reader/.gitignore",
+      "sha256": "020c2606e8ed484089c2083e0be438b9d0736bee1558a6b76af0d58bd23f69cf"
+    },
+    {
+      "path": "tools/nano-factory-reader/README.md",
+      "sha256": "d4212f31cc25c57b5618485d71c8c948b1a103b2d6bfe6cdad0c1a3c489fc825"
+    },
+    {
+      "path": "tools/nano-factory-reader/android_pidfd.py",
+      "sha256": "b5a0358d2690dcb72568a76ab96429334019634555ffbe978d63795716aca7ae"
+    },
+    {
+      "path": "tools/nano-factory-reader/build.sh",
+      "sha256": "95f259e0ab28686305936c99f88b96c93a00e85e60982f441f674ddf22ff9e5d"
+    },
+    {
+      "path": "tools/nano-factory-reader/derive_audio_disabled_config.py",
+      "sha256": "bce3f1e15cce33001be8489800a241d0e6164af398c5bd1d0da0bdf4bc929cf4"
+    },
+    {
+      "path": "tools/nano-factory-reader/materialize.py",
+      "sha256": "8a2df2ee655797c39b2bf12ce7422ed67d43c7c980875039e95a5c685f87f117"
+    },
+    {
+      "path": "tools/nano-factory-reader/run_aicore_probe.py",
+      "sha256": "120197cbb9487ee23ad369daa652def8e5c8a837f9eff71c86ff94b153aae74c"
+    },
+    {
+      "path": "tools/nano-factory-reader/run_native_probe.py",
+      "sha256": "1e77f81475c21253bca38a92d0daf81f301602cf7f6a9f48bcb7e0cc5c302c40"
+    },
+    {
+      "path": "tools/nano-factory-reader/src/org/ostadix/nano/FactoryReader.java",
+      "sha256": "47c460f5d111c7cd44bc486fadf6e38b4b7990377eb5837fdbd212fe88d49043"
+    },
+    {
+      "path": "tools/nano-local-loader/.gitignore",
+      "sha256": "181314065df2f2fdaf920b1a8b5311daa216a2d6489a06ada5b49cc514d89417"
+    },
+    {
+      "path": "tools/nano-local-loader/GENERATION-IN-HOST.md",
+      "sha256": "4375bc9238c4a510e0abf7be43c45ab26de62455267897167ad31196deb3a26d"
+    },
+    {
+      "path": "tools/nano-local-loader/README.md",
+      "sha256": "7a62fd489666f5f8842de5ff77b2a7dd93646432139362fb19d5496464e58eb4"
+    },
+    {
+      "path": "tools/nano-local-loader/build.sh",
+      "sha256": "277acef0156640ebbf3412bfa579d093568c9fe5019abdc8e6f666487a9ddde5"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/edgetpu-authorization-before-successful-build.json",
+      "sha256": "f6172ebf54224470c6ac9f87591f9672d421837866e8cd364e32e47115294854"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/edgetpu-authorization-uid0.json",
+      "sha256": "d693708f9c3144675c07650e38cf31dcd15fcc322ba01d5d9d585eeba874f1bf"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/edgetpu-authorization-uid10402.json",
+      "sha256": "4e9a7e19c6ed65b7b31370e13d98da5eaef8281cd781c1c175d388b9ec5f4cd9"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/edgetpu-device-status-uid10402.json",
+      "sha256": "9f3a64cc43c1d3f0901ad341b1590a24878f4f0099f3a03a1bbfc1c7a7daf212"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/initialization-native-path.json",
+      "sha256": "085651723c7a9fa37a2489ff780156d1589863f0d7dce71e075db91ee050c6e1"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/initialization-system-environment.json",
+      "sha256": "c62afe7b48c9d1aa02a96109a1ab54cebf89fb10a283a625d1b3aa9f1c62e567"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/initialization-wrapper-entrypoints.json",
+      "sha256": "a2504a87089673cc23243dfe7dc8035d027cf22735c70cb8969166a4da772a4f"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/initialization.json",
+      "sha256": "351bf7c2fcbaf66b9e44d6767f4682d4ccdde1827374c11014ee6e53988aa0b1"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/native-optional-modalities.json",
+      "sha256": "559bb4c45835cef82d636978eaee024e6473fa911ad036a02489986400f5e458"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/stock-wire-verification-complete.json",
+      "sha256": "051326f6669e42ce4601edbd366e59a0fdfd4748d474145d962ac69ae03cbfe8"
+    },
+    {
+      "path": "tools/nano-local-loader/evidence/stock-wire-verification.json",
+      "sha256": "4c02b6d5007226b8ced2e7ff3c5eb2926f8474bc49e1e73e141d41098e06c0ca"
+    },
+    {
+      "path": "tools/nano-local-loader/src/com/google/android/apps/aicore/base/InferenceException.java",
+      "sha256": "ae9228b78f2ebd3bd7185e87b46eaaabe8f2af6546256a011ccc9865b8650422"
+    },
+    {
+      "path": "tools/nano-local-loader/src/com/google/android/apps/aicore/runtime/impl/edgetpu/RuntimeEdgetpu.java",
+      "sha256": "49209c757bcf52e575065ac250493eab15f6d907ab760133187929f0b5aaf0a1"
+    },
+    {
+      "path": "tools/nano-local-loader/src/com/google/android/apps/aicore/runtime/wrapper/LargeLanguageModelWrapper.java",
+      "sha256": "824d354467984ac19f67bca0519a550b0920659b7e64a01949e95881457c4c61"
+    },
+    {
+      "path": "tools/nano-local-loader/src/com/google/android/apps/aicore/runtime/wrapper/RuntimeModelLoaderWrapper.java",
+      "sha256": "47fc865cfafcce2b93ef44e2c1562be0cff0a0c8573b075e92de150704a95aac"
+    },
+    {
+      "path": "tools/nano-local-loader/src/com/google/android/apps/aicore/runtime/wrapper/StatefulSessionWrapper.java",
+      "sha256": "2d7497073325260395f7a2938f5a822040bebe0b9cce5d2f51ab734a78cb4d05"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/EdgeTpuAccessProbe.java",
+      "sha256": "dab42e78386414e437db92a7ba68afa181f7177f6adb08206dbf80e01cfb55c4"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/LocalModelProbe.java",
+      "sha256": "47ede5707494f1760d1c29b960f6abb7292431a47bb2ebc8d73bd0d4f89a7171"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/NativeLoaderProbe.java",
+      "sha256": "df4565fa7901c7a61300ef37c7b1cbfe64f2a1bbe1f501fc3dbe33631c700756"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/ResponseDecoder.java",
+      "sha256": "f0fdf3bf74a7038882f725d8840e0a5633845dbf6931a38ccff9c318827a9837"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/StockWireVerifier.java",
+      "sha256": "ca9247ac617007d265758d5fc110208efb683d1f017fa1ae448279523486490e"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/SyntheticGenerationProbe.java",
+      "sha256": "25a55b1ed3184302224f8febc9f8bba5f8a4cb983c02f266bd8790fb754da274"
+    },
+    {
+      "path": "tools/nano-local-loader/src/org/ostadix/nanoloader/Wire.java",
+      "sha256": "456f42c6cda25ef60fa82c07021e1f295f730171a731a38edea64ffa133208de"
+    }
+  ],
+  "canonical_remote_before_reconcile": "363e987d",
+  "git_identity": {
+    "author": "Lee Daghlar Ostadi <ostadi.lee@gmail.com>",
+    "committer": "Lee Daghlar Ostadi <ostadi.lee@gmail.com>"
+  }
+}

@@ -11,8 +11,8 @@ ANDROID_JAR=${ANDROID_JAR:-$ANDROID_SDK_ROOT/platforms/android-34/android.jar}
 DEBUG_KEYSTORE="$BUILD_ROOT/keystore/debug.keystore"
 MIN_SDK=26
 TARGET_SDK=34
-VERSION_CODE=2
-VERSION_NAME=0.1.1
+VERSION_CODE=4
+VERSION_NAME=0.1.3
 APP_PACKAGE=org.ostadix.pixelai.probe
 
 require_tool() {

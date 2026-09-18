@@ -1,0 +1,22 @@
+{
+  "started_utc": "2026-09-17T16:25:11.493238+00:00",
+  "command": [
+    "/system/bin/su",
+    "-p",
+    "10402",
+    "-c",
+    "CLASSPATH=/data/data/com.termux/files/home/Ostadix-lang/tools/nano-local-loader/build/nano-loader-probe.jar LD_LIBRARY_PATH=/data/local/tmp/ostadix-ai-audit-20260915/aicore-native:/system/lib64:/vendor/lib64 /system/bin/app_process /system/bin org.ostadix.nanoloader.NativeLoaderProbe /data/local/tmp/ostadix-ai-audit-20260915/aicore-native"
+  ],
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "probe_sha256": "8e05da6fe4b477cdbb111f62164e2bac4b2712460eb083b1a21ee8a537e24af0",
+  "library_sha256": {
+    "libdarwinninterpreterjni.so": "092d19f5be8bd36906304e957b416ea0bf69d471e7ff5098515014ecde86a3bf",
+    "libembedder_wrapper_jni.so": "ff7773724b0911eef714b0b0c34ab258c005b2e3b0bfa7061a66383d1898503a",
+    "libgoogle3.so": "62015826fb79be5f10d7d7aa9d137a1bc0a4980c2b687bcab44a9cc4c3a71823",
+    "libllm_wrapper_jni.so": "277737c18544482ca4297ea3e87b725c89cef1e297aab3a046d2a8092e27c2a8",
+    "libruntime_edgetpu_jni.so": "b789bdbe879e519063574a090903c3f509e0c1c68ae8dc898367672c5e254f6c",
+    "libruntime_model_loader_wrapper_jni.so": "76d93616b4d9c549de6055ba9c72d5f6bae18854f41dbed95a4640cb5ac47620"
+  }
+}

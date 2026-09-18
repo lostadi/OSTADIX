@@ -107,8 +107,12 @@ command. Check <code>type -a o</code> (or <code>whence -a o</code> in zsh). Remo
 function in the shell configuration and start a fresh shell; <code>unfunction o</code> also
 clears it for the current zsh session. Keep shell-only directory changes in a
 separate helper such as <code>oroot</code>; the native <code>o root</code> prints the configured source
-root, so <code>cd &quot;$(o root)&quot;</code> works from any shell. The migrated terminal kit retains shell conveniences under <code>o-term</code> and
-<code>oroot</code>.</p>
+root, so <code>cd &quot;$(o root)&quot;</code> works from any shell. In the migrated terminal kit,
+<code>oroot</code> changes the current shell&#39;s directory. Shell-only conveniences remain
+under <code>o-term</code>: <code>pull</code>, <code>update</code>, <code>sync</code>, <code>ssh</code>, <code>scp</code>, <code>hosts</code>, <code>new</code>, <code>ex</code>,
+<code>test</code> and the other terminal-kit helpers. For example, use <code>o-term pull</code> or
+<code>o-term sync</code>; these are not native <code>o</code> subcommands. <code>o help</code> describes the
+native executable surface; <code>o-term help</code> describes the optional shell kit.</p>
 <table>
 <thead>
 <tr>
@@ -230,7 +234,7 @@ negative fixtures must specify both a reason and an expected diagnostic; an
 unexpected success also fails. The current manifest has no parser-negative
 files. Runtime rejection probes in native modules and lossy-value witnesses in
 benchmarks are valid source and remain covered by their semantic harnesses.</p>
-<p><code>examples/manifest.json</code> remains the runtime authority for the 50 examples:
+<p><code>examples/manifest.json</code> remains the runtime authority for the 52 examples:
 backend dependencies, edition support, expected outputs, timeouts, host actions
 and opt-ins are defined there. Its runner prints every skip and rejects an
 all-skipped suite. Interactive boxing, group-pipeline output, Guix guest sessions,

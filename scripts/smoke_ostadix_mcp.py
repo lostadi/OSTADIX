@@ -477,6 +477,23 @@ def _run_unified_surface_smoke(
         native = _native_execute_result(result)
         if native.get("value") != {"t": "number", "v": {"kind": "int", "v": "42"}}:
             raise SmokeError(f"o_execute changed the native numeric value: {native}")
+        evidence = native.get("execution_evidence", {})
+        admission = evidence.get("admission")
+        identity_fields = ("oir_sha256", "plan_sha256", "analyzed_graph_sha256",
+                           "evidence_sha256", "admitted_graph_sha256", "admission_sha256")
+        if (
+            evidence.get("schema") != "ostadix.native-execution-evidence/v1"
+            or evidence.get("execution_mode") != "graph"
+            or evidence.get("source_sha256") != hashlib.sha256(source.encode()).hexdigest()
+            or evidence.get("parsed_source_sha256") != evidence.get("source_sha256")
+            or evidence.get("source_intent_gate") is not None
+            or not isinstance(admission, dict)
+            or admission.get("schema") != "oexec.admission/v6"
+            or any(re.fullmatch(r"[0-9a-f]{64}", admission.get(name, "")) is None
+                   for name in identity_fields)
+            or re.fullmatch(r"[0-9a-f]{64}", evidence.get("result_content_identity", "")) is None
+        ):
+            raise SmokeError(f"o_execute omitted actual native admission/input/result evidence: {native}")
 
     # One call must compose actual backend values. The SQL integer reaches
     # Python as an integer, and the nested text reaches it as Unicode text.

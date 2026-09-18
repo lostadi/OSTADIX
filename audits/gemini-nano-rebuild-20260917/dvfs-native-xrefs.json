@@ -1,0 +1,35 @@
+{
+  "library": "/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so",
+  "xrefs": [
+    {
+      "adrp_pc": "0x2e3adb4",
+      "add_pc": "0x2e3adb8",
+      "string_address": "0x10c0c4",
+      "string": "dvfs_manager_params.binarypb"
+    },
+    {
+      "adrp_pc": "0x2e94454",
+      "add_pc": "0x2e94458",
+      "string_address": "0xd426a",
+      "string": "DvfsManagerGen2 params not found. Falling back to "
+    },
+    {
+      "adrp_pc": "0x2e9c9a8",
+      "add_pc": "0x2e9c9ac",
+      "string_address": "0x10c0c4",
+      "string": "dvfs_manager_params.binarypb"
+    },
+    {
+      "adrp_pc": "0x2e9cb08",
+      "add_pc": "0x2e9cb0c",
+      "string_address": "0x2b6f9",
+      "string": "DvfsManager v3: Failed to load params for DvfsManager, skipping the use of DvfsManager by processing with max TPU & Memory voting power states."
+    },
+    {
+      "adrp_pc": "0x2ed498c",
+      "add_pc": "0x2ed4990",
+      "string_address": "0x10c0c4",
+      "string": "dvfs_manager_params.binarypb"
+    }
+  ]
+}

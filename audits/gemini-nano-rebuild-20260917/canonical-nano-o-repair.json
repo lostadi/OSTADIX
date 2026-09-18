@@ -1,0 +1,906 @@
+{
+  "schema": "ostadix.aicore-process-probe-run/v1",
+  "request_id": "canonical-nano-o-repair-20260917-1751",
+  "started_utc": "2026-09-17T17:49:46.269+00:00",
+  "deadline_seconds": 120,
+  "automatic_retry": false,
+  "generation_requested": true,
+  "generation_dispatched": true,
+  "generation_returned": true,
+  "generation_evidence_note": "null means native entry was observed without later dispatch/return evidence",
+  "broadcast_sent": true,
+  "event_source": "/data/user/0/com.google.android.aicore/files/ostadix-nano-probe/events.jsonl",
+  "evidence_files": {
+    ".json": "audits/gemini-nano-rebuild-20260917/canonical-nano-o-repair.json",
+    ".stdout": "audits/gemini-nano-rebuild-20260917/canonical-nano-o-repair.stdout",
+    ".logcat": "audits/gemini-nano-rebuild-20260917/canonical-nano-o-repair.logcat",
+    ".logcat.stderr": "audits/gemini-nano-rebuild-20260917/canonical-nano-o-repair.logcat.stderr",
+    ".broadcast.stdout": "audits/gemini-nano-rebuild-20260917/canonical-nano-o-repair.broadcast.stdout",
+    ".broadcast.stderr": "audits/gemini-nano-rebuild-20260917/canonical-nano-o-repair.broadcast.stderr"
+  },
+  "resource_snapshots": [
+    {
+      "utc": "2026-09-17T17:49:46.331+00:00",
+      "elapsed_seconds": 0.028,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4930972,
+      "SwapFree_kB": 1937424,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 136940
+    },
+    {
+      "utc": "2026-09-17T17:49:47.382+00:00",
+      "elapsed_seconds": 1.081,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4493764,
+      "SwapFree_kB": 1937424,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 219392
+    },
+    {
+      "utc": "2026-09-17T17:49:48.421+00:00",
+      "elapsed_seconds": 2.121,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4377444,
+      "SwapFree_kB": 1937424,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 234348
+    },
+    {
+      "utc": "2026-09-17T17:49:49.462+00:00",
+      "elapsed_seconds": 3.162,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4322700,
+      "SwapFree_kB": 1937424,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 242844
+    },
+    {
+      "utc": "2026-09-17T17:49:50.501+00:00",
+      "elapsed_seconds": 4.201,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4310588,
+      "SwapFree_kB": 1937424,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 247432
+    },
+    {
+      "utc": "2026-09-17T17:49:51.534+00:00",
+      "elapsed_seconds": 5.241,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4257408,
+      "SwapFree_kB": 1925136,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 253808
+    },
+    {
+      "utc": "2026-09-17T17:49:52.570+00:00",
+      "elapsed_seconds": 6.271,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4192928,
+      "SwapFree_kB": 1925136,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 264008
+    },
+    {
+      "utc": "2026-09-17T17:49:53.606+00:00",
+      "elapsed_seconds": 7.311,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4147028,
+      "SwapFree_kB": 1925136,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 275868
+    },
+    {
+      "utc": "2026-09-17T17:49:54.646+00:00",
+      "elapsed_seconds": 8.346,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4442984,
+      "SwapFree_kB": 1925136,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 283996
+    },
+    {
+      "utc": "2026-09-17T17:49:55.680+00:00",
+      "elapsed_seconds": 9.387,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3960292,
+      "SwapFree_kB": 1925136,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 293264
+    },
+    {
+      "utc": "2026-09-17T17:49:56.719+00:00",
+      "elapsed_seconds": 10.425,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3313924,
+      "SwapFree_kB": 1925136,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 294388
+    },
+    {
+      "utc": "2026-09-17T17:49:57.763+00:00",
+      "elapsed_seconds": 11.468,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2982992,
+      "SwapFree_kB": 1870864,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 294680
+    },
+    {
+      "utc": "2026-09-17T17:49:58.792+00:00",
+      "elapsed_seconds": 12.505,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2725880,
+      "SwapFree_kB": 1817384,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 294804
+    },
+    {
+      "utc": "2026-09-17T17:49:59.839+00:00",
+      "elapsed_seconds": 13.55,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2601904,
+      "SwapFree_kB": 1818408,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 305832
+    },
+    {
+      "utc": "2026-09-17T17:50:00.902+00:00",
+      "elapsed_seconds": 14.584,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2643976,
+      "SwapFree_kB": 1818408,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 314908
+    },
+    {
+      "utc": "2026-09-17T17:50:01.961+00:00",
+      "elapsed_seconds": 15.652,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3235384,
+      "SwapFree_kB": 1818408,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 279024
+    },
+    {
+      "utc": "2026-09-17T17:50:03.022+00:00",
+      "elapsed_seconds": 16.709,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3506212,
+      "SwapFree_kB": 1816104,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 310312
+    },
+    {
+      "utc": "2026-09-17T17:50:04.080+00:00",
+      "elapsed_seconds": 17.783,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3350928,
+      "SwapFree_kB": 1815848,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 317984
+    },
+    {
+      "utc": "2026-09-17T17:50:05.130+00:00",
+      "elapsed_seconds": 18.821,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3355368,
+      "SwapFree_kB": 1815592,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315688
+    },
+    {
+      "utc": "2026-09-17T17:50:06.175+00:00",
+      "elapsed_seconds": 19.873,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3471256,
+      "SwapFree_kB": 1816872,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315192
+    },
+    {
+      "utc": "2026-09-17T17:50:07.221+00:00",
+      "elapsed_seconds": 20.919,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3474716,
+      "SwapFree_kB": 1816360,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315392
+    },
+    {
+      "utc": "2026-09-17T17:50:08.317+00:00",
+      "elapsed_seconds": 21.986,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3466336,
+      "SwapFree_kB": 1816360,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315468
+    },
+    {
+      "utc": "2026-09-17T17:50:09.382+00:00",
+      "elapsed_seconds": 23.07,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3232632,
+      "SwapFree_kB": 1816360,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315496
+    },
+    {
+      "utc": "2026-09-17T17:50:10.461+00:00",
+      "elapsed_seconds": 24.159,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2965512,
+      "SwapFree_kB": 1816360,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315500
+    },
+    {
+      "utc": "2026-09-17T17:50:11.536+00:00",
+      "elapsed_seconds": 25.204,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2716540,
+      "SwapFree_kB": 1816360,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315500
+    },
+    {
+      "utc": "2026-09-17T17:50:12.646+00:00",
+      "elapsed_seconds": 26.309,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2438008,
+      "SwapFree_kB": 1818152,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315504
+    },
+    {
+      "utc": "2026-09-17T17:50:13.785+00:00",
+      "elapsed_seconds": 27.428,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2454480,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315772
+    },
+    {
+      "utc": "2026-09-17T17:50:14.844+00:00",
+      "elapsed_seconds": 28.54,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2777844,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315768
+    },
+    {
+      "utc": "2026-09-17T17:50:15.956+00:00",
+      "elapsed_seconds": 29.623,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2779504,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315780
+    },
+    {
+      "utc": "2026-09-17T17:50:17.054+00:00",
+      "elapsed_seconds": 30.7,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2722676,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315780
+    },
+    {
+      "utc": "2026-09-17T17:50:18.116+00:00",
+      "elapsed_seconds": 31.805,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2766180,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315788
+    },
+    {
+      "utc": "2026-09-17T17:50:19.228+00:00",
+      "elapsed_seconds": 32.872,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2813156,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315792
+    },
+    {
+      "utc": "2026-09-17T17:50:20.282+00:00",
+      "elapsed_seconds": 33.973,
+      "thermal_status": 0,
+      "MemAvailable_kB": 2801584,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315796
+    },
+    {
+      "utc": "2026-09-17T17:50:21.339+00:00",
+      "elapsed_seconds": 35.03,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2782212,
+      "SwapFree_kB": 1830636,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316244
+    },
+    {
+      "utc": "2026-09-17T17:50:22.413+00:00",
+      "elapsed_seconds": 36.108,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2762980,
+      "SwapFree_kB": 1830636,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316248
+    },
+    {
+      "utc": "2026-09-17T17:50:23.483+00:00",
+      "elapsed_seconds": 37.178,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2763124,
+      "SwapFree_kB": 1824748,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316248
+    },
+    {
+      "utc": "2026-09-17T17:50:24.546+00:00",
+      "elapsed_seconds": 38.249,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2775516,
+      "SwapFree_kB": 1824748,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316252
+    },
+    {
+      "utc": "2026-09-17T17:50:25.596+00:00",
+      "elapsed_seconds": 39.294,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2784128,
+      "SwapFree_kB": 1824748,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316252
+    },
+    {
+      "utc": "2026-09-17T17:50:26.663+00:00",
+      "elapsed_seconds": 40.358,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2795700,
+      "SwapFree_kB": 1824748,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316256
+    },
+    {
+      "utc": "2026-09-17T17:50:27.721+00:00",
+      "elapsed_seconds": 41.415,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2776868,
+      "SwapFree_kB": 1824748,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316256
+    },
+    {
+      "utc": "2026-09-17T17:50:28.791+00:00",
+      "elapsed_seconds": 42.473,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2742140,
+      "SwapFree_kB": 1824748,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316260
+    },
+    {
+      "utc": "2026-09-17T17:50:29.854+00:00",
+      "elapsed_seconds": 43.54,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2756152,
+      "SwapFree_kB": 1825004,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316264
+    },
+    {
+      "utc": "2026-09-17T17:50:30.915+00:00",
+      "elapsed_seconds": 44.61,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2767592,
+      "SwapFree_kB": 1825004,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316268
+    },
+    {
+      "utc": "2026-09-17T17:50:31.982+00:00",
+      "elapsed_seconds": 45.667,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2766700,
+      "SwapFree_kB": 1825004,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316268
+    },
+    {
+      "utc": "2026-09-17T17:50:33.084+00:00",
+      "elapsed_seconds": 46.746,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2816116,
+      "SwapFree_kB": 1825516,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316272
+    },
+    {
+      "utc": "2026-09-17T17:50:34.171+00:00",
+      "elapsed_seconds": 47.858,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2811988,
+      "SwapFree_kB": 1825516,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316272
+    },
+    {
+      "utc": "2026-09-17T17:50:35.278+00:00",
+      "elapsed_seconds": 48.934,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2804756,
+      "SwapFree_kB": 1825260,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316276
+    },
+    {
+      "utc": "2026-09-17T17:50:36.383+00:00",
+      "elapsed_seconds": 50.047,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2798444,
+      "SwapFree_kB": 1825260,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316280
+    },
+    {
+      "utc": "2026-09-17T17:50:37.462+00:00",
+      "elapsed_seconds": 51.156,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2751776,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316284
+    },
+    {
+      "utc": "2026-09-17T17:50:38.514+00:00",
+      "elapsed_seconds": 52.216,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2553008,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316284
+    },
+    {
+      "utc": "2026-09-17T17:50:39.597+00:00",
+      "elapsed_seconds": 53.276,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2444400,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316812
+    },
+    {
+      "utc": "2026-09-17T17:50:40.653+00:00",
+      "elapsed_seconds": 54.359,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2352240,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316812
+    },
+    {
+      "utc": "2026-09-17T17:50:41.714+00:00",
+      "elapsed_seconds": 55.405,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2801120,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316820
+    },
+    {
+      "utc": "2026-09-17T17:50:42.766+00:00",
+      "elapsed_seconds": 56.457,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2830432,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316840
+    },
+    {
+      "utc": "2026-09-17T17:50:43.891+00:00",
+      "elapsed_seconds": 57.534,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2830768,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316844
+    },
+    {
+      "utc": "2026-09-17T17:50:45.017+00:00",
+      "elapsed_seconds": 58.681,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2823768,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316848
+    },
+    {
+      "utc": "2026-09-17T17:50:46.076+00:00",
+      "elapsed_seconds": 59.766,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2820884,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316852
+    },
+    {
+      "utc": "2026-09-17T17:50:47.142+00:00",
+      "elapsed_seconds": 60.825,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2863396,
+      "SwapFree_kB": 1830380,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316856
+    },
+    {
+      "utc": "2026-09-17T17:50:48.208+00:00",
+      "elapsed_seconds": 61.896,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2855720,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316856
+    },
+    {
+      "utc": "2026-09-17T17:50:49.281+00:00",
+      "elapsed_seconds": 62.977,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2812796,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316912
+    },
+    {
+      "utc": "2026-09-17T17:50:50.367+00:00",
+      "elapsed_seconds": 64.028,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2790352,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316912
+    },
+    {
+      "utc": "2026-09-17T17:50:51.455+00:00",
+      "elapsed_seconds": 65.127,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2762112,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316916
+    },
+    {
+      "utc": "2026-09-17T17:50:52.522+00:00",
+      "elapsed_seconds": 66.209,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2737180,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316916
+    },
+    {
+      "utc": "2026-09-17T17:50:53.655+00:00",
+      "elapsed_seconds": 67.302,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2707428,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316920
+    },
+    {
+      "utc": "2026-09-17T17:50:54.699+00:00",
+      "elapsed_seconds": 68.398,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2680280,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316928
+    },
+    {
+      "utc": "2026-09-17T17:50:55.778+00:00",
+      "elapsed_seconds": 69.447,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2645636,
+      "SwapFree_kB": 1829868,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316928
+    },
+    {
+      "utc": "2026-09-17T17:50:56.850+00:00",
+      "elapsed_seconds": 70.546,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2622340,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316932
+    },
+    {
+      "utc": "2026-09-17T17:50:57.939+00:00",
+      "elapsed_seconds": 71.624,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2595624,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316932
+    },
+    {
+      "utc": "2026-09-17T17:50:59.044+00:00",
+      "elapsed_seconds": 72.696,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2571864,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316936
+    },
+    {
+      "utc": "2026-09-17T17:51:00.115+00:00",
+      "elapsed_seconds": 73.815,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2543956,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316936
+    },
+    {
+      "utc": "2026-09-17T17:51:01.183+00:00",
+      "elapsed_seconds": 74.866,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2488420,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316940
+    },
+    {
+      "utc": "2026-09-17T17:51:02.266+00:00",
+      "elapsed_seconds": 75.96,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2504376,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316940
+    },
+    {
+      "utc": "2026-09-17T17:51:03.338+00:00",
+      "elapsed_seconds": 77.01,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2482264,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316944
+    },
+    {
+      "utc": "2026-09-17T17:51:04.433+00:00",
+      "elapsed_seconds": 78.106,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2462920,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316944
+    },
+    {
+      "utc": "2026-09-17T17:51:05.495+00:00",
+      "elapsed_seconds": 79.186,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2449640,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316944
+    },
+    {
+      "utc": "2026-09-17T17:51:06.603+00:00",
+      "elapsed_seconds": 80.265,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2427008,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316952
+    },
+    {
+      "utc": "2026-09-17T17:51:07.743+00:00",
+      "elapsed_seconds": 81.347,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2407048,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316952
+    },
+    {
+      "utc": "2026-09-17T17:51:08.791+00:00",
+      "elapsed_seconds": 82.494,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2372016,
+      "SwapFree_kB": 1830124,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 316956
+    },
+    {
+      "utc": "2026-09-17T17:51:09.874+00:00",
+      "elapsed_seconds": 83.552,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2350916,
+      "SwapFree_kB": 1799404,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 315656
+    },
+    {
+      "utc": "2026-09-17T17:51:10.901+00:00",
+      "elapsed_seconds": 84.614,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2356840,
+      "SwapFree_kB": 1777644,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 288444
+    },
+    {
+      "utc": "2026-09-17T17:51:11.995+00:00",
+      "elapsed_seconds": 85.646,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2518632,
+      "SwapFree_kB": 1777644,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 278320
+    },
+    {
+      "utc": "2026-09-17T17:51:13.053+00:00",
+      "elapsed_seconds": 86.744,
+      "thermal_status": 1,
+      "MemAvailable_kB": 2907504,
+      "SwapFree_kB": 1777644,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 267728
+    },
+    {
+      "utc": "2026-09-17T17:51:14.125+00:00",
+      "elapsed_seconds": 87.796,
+      "thermal_status": 1,
+      "MemAvailable_kB": 3340644,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 261168
+    },
+    {
+      "utc": "2026-09-17T17:51:15.261+00:00",
+      "elapsed_seconds": 88.892,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4000748,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 260188
+    },
+    {
+      "utc": "2026-09-17T17:51:16.375+00:00",
+      "elapsed_seconds": 90.019,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4013036,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 256760
+    },
+    {
+      "utc": "2026-09-17T17:51:17.508+00:00",
+      "elapsed_seconds": 91.132,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4024148,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 256716
+    },
+    {
+      "utc": "2026-09-17T17:51:18.605+00:00",
+      "elapsed_seconds": 92.259,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4033804,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 254044
+    },
+    {
+      "utc": "2026-09-17T17:51:19.724+00:00",
+      "elapsed_seconds": 93.354,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4060300,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 251536
+    },
+    {
+      "utc": "2026-09-17T17:51:20.822+00:00",
+      "elapsed_seconds": 94.489,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4400780,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 249564
+    },
+    {
+      "utc": "2026-09-17T17:51:21.901+00:00",
+      "elapsed_seconds": 95.578,
+      "thermal_status": 1,
+      "MemAvailable_kB": 5546816,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 249124
+    },
+    {
+      "utc": "2026-09-17T17:51:23.006+00:00",
+      "elapsed_seconds": 96.659,
+      "thermal_status": 1,
+      "MemAvailable_kB": 6751140,
+      "SwapFree_kB": 1772524,
+      "VmHWM_kB": 328948,
+      "VmRSS_kB": 247456
+    }
+  ],
+  "signal_actions": [],
+  "complete_event": {
+    "schema": "ostadix.aicore-local-probe/v1",
+    "request_id": "canonical-nano-o-repair-20260917-1751",
+    "pid": 27816,
+    "uid": 10173,
+    "phase": "complete",
+    "success": true,
+    "native_call_active": false,
+    "elapsed_realtime_ms": 56705310,
+    "deadline_elapsed_ms": 56728135,
+    "inference_dispatched": true,
+    "inference_returned": true,
+    "detail": "local probe finished"
+  },
+  "deadline_elapsed_ms": 56728135,
+  "process_identity": {
+    "pid": 27816,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 5595702,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  },
+  "process_observed_utc": "2026-09-17T17:49:46.294+00:00",
+  "logcat_command": [
+    "/system/bin/logcat",
+    "--pid=27816",
+    "-T",
+    "1",
+    "-v",
+    "threadtime"
+  ],
+  "broadcast_command": [
+    "/system/bin/am",
+    "broadcast",
+    "-a",
+    "org.ostadix.aicore.NANO_LOCAL_PROBE",
+    "-p",
+    "com.google.android.aicore",
+    "--es",
+    "request_id",
+    "canonical-nano-o-repair-20260917-1751",
+    "--el",
+    "deadline_elapsed_ms",
+    "56728135",
+    "--ez",
+    "allow_generation",
+    "true"
+  ],
+  "broadcast_started_utc": "2026-09-17T17:49:46.337+00:00",
+  "observed_process_exited_at_finish": false,
+  "finished_utc": "2026-09-17T17:51:23.558+00:00",
+  "elapsed_ms": 97289,
+  "elapsed_including_suspend_ms": 97289,
+  "stop_reason": "complete",
+  "correlated_event_count": 30,
+  "native_call_active_at_finish": false,
+  "broadcast_exit_code": 0,
+  "success": true
+}

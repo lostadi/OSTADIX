@@ -1,0 +1,332 @@
+[
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 407628,
+    "text": "AiCore enabled but could not initialize processor: "
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 435031,
+    "text": "SodaAiCoreError not set."
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 490139,
+    "text": "speech.soda.AiCoreInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 534636,
+    "text": "logs.proto.speech.soda.AiCoreVersionInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 555295,
+    "text": "speech.soda.AiCoreException"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 627688,
+    "text": "speech.soda.AiCoreBiasingContext"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 627942,
+    "text": "logs.proto.speech.soda.AiCoreLog"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 631512,
+    "text": "Setting segmenter impatience for AiCore"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 710250,
+    "text": "logs.proto.speech.soda.AiCoreLog.ErrorDetails"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 761105,
+    "text": "Enabling AICore"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 780389,
+    "text": "greco.AiCoreBiasingContext"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 807209,
+    "text": "SODA was built without AiCore Processor."
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 824130,
+    "text": "speech.soda.AiCoreDiagnosticInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 886164,
+    "text": "speech.soda.SodaAiCoreError"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 917712,
+    "text": "speech.soda.AiCoreInfo.ErrorDetails"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 950578,
+    "text": "speech/greco3/tflite/aicore_decoder_stream.proto"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 950896,
+    "text": "greco.AICoreDecoderStreamParams"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 972277,
+    "text": "speech.soda.AiCoreInfo.VersionInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 992989,
+    "text": "speech.soda.AiCoreConfigInternal"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 993419,
+    "text": "speech.soda.AiCoreConfig"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 1036438,
+    "text": "logs.proto.speech.soda.AiCoreLogConfig"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 1046721,
+    "text": "AICore Exception: "
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 1056678,
+    "text": "greco.AiCoreDiagnosticInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 1148524,
+    "text": "aicore_processor"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 1202460,
+    "text": "AiCoreProcessorModule"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 1206941,
+    "text": "AiCore Processor"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2370179,
+    "text": "N6speech4soda20AiCoreBiasingContextE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2370216,
+    "text": "N6speech4soda20AiCoreDiagnosticInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2371373,
+    "text": "N5greco20AiCoreDiagnosticInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2372327,
+    "text": "N5greco20AiCoreBiasingContextE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2373658,
+    "text": "N6speech4soda20AiCoreConfigInternalE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2378386,
+    "text": "N5greco25AICoreDecoderStreamParamsE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2380659,
+    "text": "N6speech4soda15AiCoreExceptionE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2380691,
+    "text": "N6speech4soda15SodaAiCoreErrorE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2381032,
+    "text": "N4logs5proto6speech4soda22AiCoreLog_ErrorDetailsE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2381082,
+    "text": "N4logs5proto6speech4soda9AiCoreLogE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2381736,
+    "text": "N4logs5proto6speech4soda17AiCoreVersionInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2382674,
+    "text": "N4logs5proto6speech4soda15AiCoreLogConfigE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2385642,
+    "text": "N6speech4soda23AiCoreInfo_ErrorDetailsE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2385682,
+    "text": "N6speech4soda22AiCoreInfo_VersionInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2385721,
+    "text": "N6speech4soda10AiCoreInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libgoogle_speech_jni.so",
+    "offset": 2390970,
+    "text": "N6speech4soda12AiCoreConfigE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 45644,
+    "text": "AiCore enabled but could not initialize processor: "
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 55380,
+    "text": "speech.soda.AiCoreInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 61723,
+    "text": "logs.proto.speech.soda.AiCoreVersionInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 71003,
+    "text": "logs.proto.speech.soda.AiCoreLog"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 79847,
+    "text": "logs.proto.speech.soda.AiCoreLog.ErrorDetails"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 88613,
+    "text": "Enabling AICore"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 95106,
+    "text": "SODA was built without AiCore Processor."
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 108438,
+    "text": "speech.soda.AiCoreInfo.ErrorDetails"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 114815,
+    "text": "speech.soda.AiCoreInfo.VersionInfo"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 118452,
+    "text": "speech.soda.AiCoreConfigInternal"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 120275,
+    "text": "speech.soda.AiCoreConfig"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 124873,
+    "text": "logs.proto.speech.soda.AiCoreLogConfig"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 139355,
+    "text": "aicore_processor"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 155264,
+    "text": "AiCoreProcessorModule"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 157949,
+    "text": "AiCore Processor"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 161036,
+    "text": "N4logs5proto6speech4soda22AiCoreLog_ErrorDetailsE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 161086,
+    "text": "N4logs5proto6speech4soda9AiCoreLogE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 161395,
+    "text": "N4logs5proto6speech4soda17AiCoreVersionInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 162142,
+    "text": "N4logs5proto6speech4soda15AiCoreLogConfigE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 163597,
+    "text": "N6speech4soda23AiCoreInfo_ErrorDetailsE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 163637,
+    "text": "N6speech4soda22AiCoreInfo_VersionInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 163676,
+    "text": "N6speech4soda10AiCoreInfoE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 164826,
+    "text": "N6speech4soda20AiCoreConfigInternalE"
+  },
+  {
+    "library": "lib/arm64-v8a/libsoda_jni_no_terse.so",
+    "offset": 172030,
+    "text": "N6speech4soda12AiCoreConfigE"
+  }
+]

@@ -627,6 +627,33 @@ native service, boot script, overlay, or model.
 
 ## Final accounting
 
+### Stock-attestation replay (2026-09-17)
+
+A full reboot with KernelSU module `tricky_store` disabled established a new
+boot ID, no TEESimulator process or supervisor, and no simulator boot log. Three
+fresh ProtectedDownload manifest attempts still returned
+`PERMISSION_DENIED: The caller does not have permission`. This rules out
+TEESimulator's direct KeyMint substitution as the cause of the persistent
+server rejection. Play Integrity Fix remained enabled, so the experiment does
+not isolate every modification that could affect server authorization.
+
+The kernel's boot input reports an unlocked device, orange verified boot,
+`ERROR_VERIFICATION`, and `init_boot` as the failing partition. Rewritten
+Android properties report locked/green in the same boot. Hardware attestation
+can therefore expose an unacceptable real boot state even when ordinary
+property checks appear clean. The remote error does not disclose its failed
+predicate, so this is the strongest local cause candidate and not direct proof
+of the server's decision rule. The verifier now records and gates this kernel
+state explicitly.
+
+Android created real augmented-autofill sessions for the Smart Reply trigger,
+but ASI recorded `rc=[3, 2]` and no provider-25 reply. Missing AICore features
+were reported before inference. No AS.OSS OSTADIX request, selection, or
+forwarding event occurred, and the analyzer correctly classified the candidate
+end-to-end result as `incomplete`. Evidence is preserved in
+`stock-attestation-replay-20260917T004712Z/`. The one-shot removed itself and
+staged `tricky_store` enabled for the next boot.
+
 ### Foreground follow-up (2026-09-15 16:32 UTC)
 
 The device was later observed unlocked and the hardened probe reached its full

@@ -1,0 +1,78 @@
+I0000 00:00:1789663298.189941    6465 runtime_model_loader_wrapper_jni.cc:124] Initializing JNI...
+I0000 00:00:1789663298.190837    6465 llm_wrapper_jni.cc:376] Initializing JNI...
+I0000 00:00:1789663298.190940    6465 runtime_edgetpu_jni.cc:31] JNI RuntimeEdgetpu nativeCreate
+I0000 00:00:1789663298.190977    6465 runtime_model_loader_wrapper_jni.cc:88] JNI RuntimeModelLoaderWrapper nativeLoadModel
+I0000 00:00:1789663298.191000    6465 runtime_model_loader_wrapper_jni.cc:25] JNI RuntimeModelLoaderWrapper CreateModel LLM
+I0000 00:00:1789663298.191023    6465 model_loader.cc:60] RuntimeModelLoader::CreateLargeLanguageModel from package: edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs
+I0000 00:00:1789663298.191206    6465 cpu_configuration.cc:104] CpuConfiguration: threads = 5, first cpu = 2, last cpu = 6
+I0000 00:00:1789663298.238289    6465 ulm1b_ggml.cc:108] CreateModelFromCheckpoint
+W0000 00:00:1789663298.254752    6465 edgetpu_utils.cc:106] Tachyon not ready for AICore; falling back to Driver2.
+E0000 00:00:1789663298.267808    6465 remote_edgetpu_client_wrapper.cc:103] INTERNAL: Failed to open device fd from EdgeTPU service. errno=Unknown error -8.
+=== Source Location Trace: === 
+third_party/darwinn/edgetpu_service/remote_edgetpu_client_wrapper.cc:103
+
+Stack trace:
+    @       0x729a7c2f1c  (unknown)
+    @       0x729a85846c  (unknown)
+    @       0x729a85824c  (unknown)
+    @       0x7299d8f1e4  (unknown)
+    @       0x7299d937d8  (unknown)
+    @       0x729a36a7d4  (unknown)
+    @       0x729a36a03c  (unknown)
+    @       0x729a366ab0  (unknown)
+    @       0x729a366860  (unknown)
+    @       0x729a360154  (unknown)
+    @       0x729a65d080  (unknown)
+    @       0x729a66050c  (unknown)
+    @       0x729a6d4168  (unknown)
+    @       0x729a6cd818  (unknown)
+    @       0x729a6d17bc  (unknown)
+    @       0x729a641e28  (unknown)
+    @       0x729a634af4  (unknown)
+    @       0x729a633d34  (unknown)
+    @       0x729a6334bc  (unknown)
+    @       0x729a62c838  (unknown)
+    @       0x729a4d99b4  (unknown)
+    @       0x729a4d9d44  (unknown)
+    @       0x7299f6b300  (unknown)
+    @       0x72e1b08270  (unknown)
+    @       0x72e1af0fc0  (unknown)
+    @       0x72e1f247c0  (unknown)
+    @       0x72e1d21b2c  (unknown)
+    @       0x72e1d32178  (unknown)
+    @       0x72e1d31584  (unknown)
+    @       0x72e1b083a8  (unknown)
+    @       0x72e1f3f3fc  (unknown)
+    @       0x72e1f3f164  (unknown)
+    @       0x72e1af0fc0  (unknown)
+    @       0x72e1af0024  (unknown)
+    @       0x72e1ec8cf8  (unknown)
+    @       0x7580b2897c  (unknown)
+    @       0x7580bc8398  (unknown)
+    @       0x60447189b8  (unknown)
+I0000 00:00:1789663298.306670    6465 jni_utils.cc:160] INTERNAL: Failed to open device fd from EdgeTPU service. errno=Unknown error -8.
+=== Source Location Trace: === 
+third_party/darwinn/edgetpu_service/remote_edgetpu_client_wrapper.cc:103
+third_party/darwinn/edgetpu_service/remote_edgetpu_client_wrapper.cc:103
+third_party/darwinn/edgetpu_service/edgetpu_client_util.cc:53
+third_party/darwinn/tflite/edgetpu_device_factory.cc:169
+third_party/darwinn/tflite/edgetpu_device_factory.cc:78
+third_party/darwinn/tflite/darwinn_delegate.cc:606
+java/com/google/android/apps/aicore/native/executor/edgetpu/common/edgetpu_graph.cc:784
+java/com/google/android/apps/aicore/native/executor/edgetpu/v3/gem_executor_context.cc:342
+java/com/google/android/apps/aicore/native/executor/edgetpu/v3/gem_executor.cc:440
+java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:286
+java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:468
+java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:605
+java/com/google/android/apps/aicore/native/executor/edgetpu/llm_edgetpu.cc:416
+java/com/google/android/apps/aicore/runtime/impl/edgetpu/runtime_edgetpu_jni.cc:57
+android/aicore/runtime/model_loader.cc:66
+java/com/google/android/apps/aicore/runtime/wrapper/runtime_model_loader_wrapper_jni.cc:28
+com.google.android.apps.aicore.base.InferenceException: INTERNAL: Failed to open device fd from EdgeTPU service. errno=Unknown error -8.
+	at com.google.android.apps.aicore.runtime.wrapper.RuntimeModelLoaderWrapper.nativeLoadModel(Native Method)
+	at com.google.android.apps.aicore.runtime.wrapper.RuntimeModelLoaderWrapper.loadModel(RuntimeModelLoaderWrapper.java:10)
+	at org.ostadix.nanoloader.LocalModelProbe.execute(LocalModelProbe.java:114)
+	at org.ostadix.nanoloader.LocalModelProbe.main(LocalModelProbe.java:45)
+	at com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)
+	at com.android.internal.os.RuntimeInit.main(RuntimeInit.java:367)
+I0000 00:00:1789663298.308148    6465 runtime_model_loader_wrapper_jni.cc:107] JNI RuntimeModelLoaderWrapper nativeFree

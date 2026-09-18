@@ -2,6 +2,79 @@
   "schema_version": 1,
   "examples": [
 {
+  "path": "ai_heterogeneous_one_call.O",
+  "editions": [
+    "rust"
+  ],
+  "classification": "integration",
+  "requirements": {
+    "backends": [
+      "bash",
+      "python",
+      "rust"
+    ],
+    "programs": [
+      "bash",
+      "date",
+      "python3",
+      "rustc",
+      "sleep"
+    ],
+    "authorities": [
+      "process",
+      "fs_write"
+    ]
+  },
+  "expected": {
+    "rust": {
+      "patterns": [
+        "\"sum\": [number] 42",
+        "\"all_three_overlap\":",
+        "\"bash\"",
+        "\"python\"",
+        "\"rust\""
+      ]
+    }
+  },
+  "timeout_seconds": 90
+},
+{
+  "path": "ai_inventory_one_call.O",
+  "editions": [
+    "rust"
+  ],
+  "classification": "integration",
+  "requirements": {
+    "backends": [
+      "bash",
+      "python",
+      "rust"
+    ],
+    "programs": [
+      "bash",
+      "python3",
+      "rustc",
+      "sort"
+    ],
+    "authorities": [
+      "process",
+      "fs_write"
+    ]
+  },
+  "expected": {
+    "rust": {
+      "patterns": [
+        "\"total\": [number] 50",
+        "\"name\": \"bolt\"",
+        "\"name\": \"gear\"",
+        "\"line_total\": [number] 28",
+        "\"line_total\": [number] 22"
+      ]
+    }
+  },
+  "timeout_seconds": 90
+},
+{
       "path": "bash_binding.O",
       "editions": ["rust"],
       "classification": "integration",

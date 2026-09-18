@@ -1,0 +1,9 @@
+aicore_process=running pid=26387
+on_device_intelligence_registered=1
+inference_info_count=0
+aicore_legacy_inference_count=0
+app_private_payload_candidate_count=0
+loaded_model_mapping_count=0
+bound_client_packages=com.google.android.aicore,com.google.android.apps.pixel.agent,com.google.android.apps.pixel.support,com.google.android.as.oss,com.google.android.dialer,com.google.android.inputmethod.latin,com.google.android.inputmethod.latin:train,com.google.android.settings.intelligence,com.google.android.tts
+preload_model_work=state=FAILED(3),attempts=12,stop_reason=-256
+readiness=false reason=no_observed_inference_or_loaded_model

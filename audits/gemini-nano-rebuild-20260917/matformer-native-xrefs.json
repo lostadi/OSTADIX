@@ -1,0 +1,370 @@
+{
+  "library": "/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so",
+  "sha256": "62015826fb79be5f10d7d7aa9d137a1bc0a4980c2b687bcab44a9cc4c3a71823",
+  "limitation": "Adjacent ADRP/ADD only; absence is not proof of no reference.",
+  "strings": {
+    "0x14283": "DvfsManager v3: matformer index cannot be >= ",
+    "0x1b8ca": "latency_lut_combo.relative_latencies().size() == num_matformer_signatures",
+    "0x1b94d": " for matformer signature ",
+    "0x23693": "The execution mode [matformer_signature: %s, branch_index: %d] is not supported.",
+    "0x23a83": "params.prefix_scales().size() == num_matformer_signatures",
+    "0x23ddb": "reset_params.matformer_signature.empty()",
+    "0x2b664": "it != latency_lut_[matformer_index].end()",
+    "0x2b68e": "DvfsManager v3: matformer_signature is not set correctly.",
+    "0x32ee0": "GemNanoV2 global_attention: %s, local_attention: %s, attention_sequence: %s, layer_size: %s, matformer: %s, inference_priority: %d num_layers: %d, ee_branch: %d, skip_last_layer: %d",
+    "0x330d9": "latency_lut_combo.absolute_energies().size() == num_matformer_signatures",
+    "0x43512": "options.matformer_signature.substr( 0, index_position) == \"matformer\"",
+    "0x45a86": "matformer_2",
+    "0x4ae3b": "additional_states.has_matformer_signature()",
+    "0x4b218": "GemNanoV3 global_attention: %s, local_attention: %s, attention_sequence: %s, layer_size: %s, matformer: %s, inference_priority: %d num_layers: %d, skip_last_layer: %d, request_stage: %d",
+    "0x61c3d": "params.decode_scales().size() == num_matformer_signatures",
+    "0x80e92": "The execution mode [matformer_signature: %s] is not supported.",
+    "0x883dc": "state.matformer_signature() == session_config_.matformer_signature()",
+    "0x88f4b": "latency_lut_combo.relative_energies().size() == num_matformer_signatures",
+    "0x8b7b8": "Unsupported matformer signature: ",
+    "0xa95ea": "absl::SimpleAtoi( options.matformer_signature.substr(index_position + 1), &matformer_index)",
+    "0xb1254": "extended_dvfs_config_options.matformer_signature.substr( 0, index_position) == \"matformer\"",
+    "0xcb8a0": "matformer",
+    "0xdc084": "latency_lut_combo.absolute_latencies().size() == num_matformer_signatures",
+    "0xe3d11": "matformer_1",
+    "0xe4252": "DvfsManager v3: matformer index cannot be negative.",
+    "0xfc143": "matformer_index >= 0",
+    "0x104331": "matformer_signature.empty()",
+    "0x104b05": "matformer_index < config_->matformer_signature().size()",
+    "0x104bdc": "absl::SimpleAtoi( extended_dvfs_config_options.matformer_signature.substr(index_position + 1), &matformer_index)",
+    "0x10eaa4": "config.matformer_signature() == \"matformer_1\" || config.matformer_signature() == \"matformer_2\"",
+    "0x1ee5d89": "matformer_0"
+  },
+  "xrefs": [
+    {
+      "adrp_pc": "0x2d7963c",
+      "add_pc": "0x2d79640",
+      "string_address": "0x883dc",
+      "string": "state.matformer_signature() == session_config_.matformer_signature()"
+    },
+    {
+      "adrp_pc": "0x2deb088",
+      "add_pc": "0x2deb08c",
+      "string_address": "0x104331",
+      "string": "matformer_signature.empty()"
+    },
+    {
+      "adrp_pc": "0x2e2c6d0",
+      "add_pc": "0x2e2c6d4",
+      "string_address": "0x4ae3b",
+      "string": "additional_states.has_matformer_signature()"
+    },
+    {
+      "adrp_pc": "0x2e4032c",
+      "add_pc": "0x2e40330",
+      "string_address": "0x23693",
+      "string": "The execution mode [matformer_signature: %s, branch_index: %d] is not supported."
+    },
+    {
+      "adrp_pc": "0x2e6a180",
+      "add_pc": "0x2e6a184",
+      "string_address": "0x32ee0",
+      "string": "GemNanoV2 global_attention: %s, local_attention: %s, attention_sequence: %s, layer_size: %s, matformer: %s, inference_priority: %d num_layers: %d, ee_branch: %d, skip_last_layer: %d"
+    },
+    {
+      "adrp_pc": "0x2e790e4",
+      "add_pc": "0x2e790e8",
+      "string_address": "0x23693",
+      "string": "The execution mode [matformer_signature: %s, branch_index: %d] is not supported."
+    },
+    {
+      "adrp_pc": "0x2e8a430",
+      "add_pc": "0x2e8a434",
+      "string_address": "0xe3d11",
+      "string": "matformer_1"
+    },
+    {
+      "adrp_pc": "0x2e8bb70",
+      "add_pc": "0x2e8bb74",
+      "string_address": "0xe3d11",
+      "string": "matformer_1"
+    },
+    {
+      "adrp_pc": "0x2e8c3f0",
+      "add_pc": "0x2e8c3f4",
+      "string_address": "0x4ae3b",
+      "string": "additional_states.has_matformer_signature()"
+    },
+    {
+      "adrp_pc": "0x2e95ac0",
+      "add_pc": "0x2e95ac4",
+      "string_address": "0x23a83",
+      "string": "params.prefix_scales().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e95b28",
+      "add_pc": "0x2e95b2c",
+      "string_address": "0x61c3d",
+      "string": "params.decode_scales().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e95e10",
+      "add_pc": "0x2e95e14",
+      "string_address": "0xdc084",
+      "string": "latency_lut_combo.absolute_latencies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e95e34",
+      "add_pc": "0x2e95e38",
+      "string_address": "0x1b8ca",
+      "string": "latency_lut_combo.relative_latencies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e95e58",
+      "add_pc": "0x2e95e5c",
+      "string_address": "0x330d9",
+      "string": "latency_lut_combo.absolute_energies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e95e7c",
+      "add_pc": "0x2e95e80",
+      "string_address": "0x88f4b",
+      "string": "latency_lut_combo.relative_energies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e980c0",
+      "add_pc": "0x2e980c4",
+      "string_address": "0x2b664",
+      "string": "it != latency_lut_[matformer_index].end()"
+    },
+    {
+      "adrp_pc": "0x2e988b8",
+      "add_pc": "0x2e988bc",
+      "string_address": "0xcb8a0",
+      "string": "matformer"
+    },
+    {
+      "adrp_pc": "0x2e988c0",
+      "add_pc": "0x2e988c4",
+      "string_address": "0x43512",
+      "string": "options.matformer_signature.substr( 0, index_position) == \"matformer\""
+    },
+    {
+      "adrp_pc": "0x2e988e0",
+      "add_pc": "0x2e988e4",
+      "string_address": "0x2b68e",
+      "string": "DvfsManager v3: matformer_signature is not set correctly."
+    },
+    {
+      "adrp_pc": "0x2e98938",
+      "add_pc": "0x2e9893c",
+      "string_address": "0x104b05",
+      "string": "matformer_index < config_->matformer_signature().size()"
+    },
+    {
+      "adrp_pc": "0x2e98958",
+      "add_pc": "0x2e9895c",
+      "string_address": "0x14283",
+      "string": "DvfsManager v3: matformer index cannot be >= "
+    },
+    {
+      "adrp_pc": "0x2e98984",
+      "add_pc": "0x2e98988",
+      "string_address": "0xfc143",
+      "string": "matformer_index >= 0"
+    },
+    {
+      "adrp_pc": "0x2e989a4",
+      "add_pc": "0x2e989a8",
+      "string_address": "0xe4252",
+      "string": "DvfsManager v3: matformer index cannot be negative."
+    },
+    {
+      "adrp_pc": "0x2e98a04",
+      "add_pc": "0x2e98a08",
+      "string_address": "0xa95ea",
+      "string": "absl::SimpleAtoi( options.matformer_signature.substr(index_position + 1), &matformer_index)"
+    },
+    {
+      "adrp_pc": "0x2e9967c",
+      "add_pc": "0x2e99680",
+      "string_address": "0xdc084",
+      "string": "latency_lut_combo.absolute_latencies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e99688",
+      "add_pc": "0x2e9968c",
+      "string_address": "0x330d9",
+      "string": "latency_lut_combo.absolute_energies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e996a8",
+      "add_pc": "0x2e996ac",
+      "string_address": "0x1b8ca",
+      "string": "latency_lut_combo.relative_latencies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e9973c",
+      "add_pc": "0x2e99740",
+      "string_address": "0x88f4b",
+      "string": "latency_lut_combo.relative_energies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e998cc",
+      "add_pc": "0x2e998d0",
+      "string_address": "0x1b94d",
+      "string": " for matformer signature "
+    },
+    {
+      "adrp_pc": "0x2e9c38c",
+      "add_pc": "0x2e9c390",
+      "string_address": "0x23a83",
+      "string": "params.prefix_scales().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e9c3f4",
+      "add_pc": "0x2e9c3f8",
+      "string_address": "0x61c3d",
+      "string": "params.decode_scales().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e9c814",
+      "add_pc": "0x2e9c818",
+      "string_address": "0xdc084",
+      "string": "latency_lut_combo.absolute_latencies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e9c838",
+      "add_pc": "0x2e9c83c",
+      "string_address": "0x1b8ca",
+      "string": "latency_lut_combo.relative_latencies().size() == num_matformer_signatures"
+    },
+    {
+      "adrp_pc": "0x2e9d074",
+      "add_pc": "0x2e9d078",
+      "string_address": "0x1b94d",
+      "string": " for matformer signature "
+    },
+    {
+      "adrp_pc": "0x2e9d824",
+      "add_pc": "0x2e9d828",
+      "string_address": "0x2b664",
+      "string": "it != latency_lut_[matformer_index].end()"
+    },
+    {
+      "adrp_pc": "0x2e9d9f8",
+      "add_pc": "0x2e9d9fc",
+      "string_address": "0x2b664",
+      "string": "it != latency_lut_[matformer_index].end()"
+    },
+    {
+      "adrp_pc": "0x2e9e968",
+      "add_pc": "0x2e9e96c",
+      "string_address": "0xcb8a0",
+      "string": "matformer"
+    },
+    {
+      "adrp_pc": "0x2e9e970",
+      "add_pc": "0x2e9e974",
+      "string_address": "0xb1254",
+      "string": "extended_dvfs_config_options.matformer_signature.substr( 0, index_position) == \"matformer\""
+    },
+    {
+      "adrp_pc": "0x2e9e990",
+      "add_pc": "0x2e9e994",
+      "string_address": "0x2b68e",
+      "string": "DvfsManager v3: matformer_signature is not set correctly."
+    },
+    {
+      "adrp_pc": "0x2e9e9e8",
+      "add_pc": "0x2e9e9ec",
+      "string_address": "0x104b05",
+      "string": "matformer_index < config_->matformer_signature().size()"
+    },
+    {
+      "adrp_pc": "0x2e9ea08",
+      "add_pc": "0x2e9ea0c",
+      "string_address": "0x14283",
+      "string": "DvfsManager v3: matformer index cannot be >= "
+    },
+    {
+      "adrp_pc": "0x2e9ea34",
+      "add_pc": "0x2e9ea38",
+      "string_address": "0xfc143",
+      "string": "matformer_index >= 0"
+    },
+    {
+      "adrp_pc": "0x2e9ea54",
+      "add_pc": "0x2e9ea58",
+      "string_address": "0xe4252",
+      "string": "DvfsManager v3: matformer index cannot be negative."
+    },
+    {
+      "adrp_pc": "0x2e9eab8",
+      "add_pc": "0x2e9eabc",
+      "string_address": "0x104bdc",
+      "string": "absl::SimpleAtoi( extended_dvfs_config_options.matformer_signature.substr(index_position + 1), &matformer_index)"
+    },
+    {
+      "adrp_pc": "0x2ea0250",
+      "add_pc": "0x2ea0254",
+      "string_address": "0x1ee5d89",
+      "string": "matformer_0"
+    },
+    {
+      "adrp_pc": "0x2ea0654",
+      "add_pc": "0x2ea0658",
+      "string_address": "0x80e92",
+      "string": "The execution mode [matformer_signature: %s] is not supported."
+    },
+    {
+      "adrp_pc": "0x2ea2118",
+      "add_pc": "0x2ea211c",
+      "string_address": "0x1ee5d89",
+      "string": "matformer_0"
+    },
+    {
+      "adrp_pc": "0x2ea7420",
+      "add_pc": "0x2ea7424",
+      "string_address": "0x4b218",
+      "string": "GemNanoV3 global_attention: %s, local_attention: %s, attention_sequence: %s, layer_size: %s, matformer: %s, inference_priority: %d num_layers: %d, skip_last_layer: %d, request_stage: %d"
+    },
+    {
+      "adrp_pc": "0x2ea85a8",
+      "add_pc": "0x2ea85ac",
+      "string_address": "0xe3d11",
+      "string": "matformer_1"
+    },
+    {
+      "adrp_pc": "0x2ebae60",
+      "add_pc": "0x2ebae64",
+      "string_address": "0x80e92",
+      "string": "The execution mode [matformer_signature: %s] is not supported."
+    },
+    {
+      "adrp_pc": "0x2ec6bc0",
+      "add_pc": "0x2ec6bc4",
+      "string_address": "0x23ddb",
+      "string": "reset_params.matformer_signature.empty()"
+    },
+    {
+      "adrp_pc": "0x385d18c",
+      "add_pc": "0x385d190",
+      "string_address": "0x10eaa4",
+      "string": "config.matformer_signature() == \"matformer_1\" || config.matformer_signature() == \"matformer_2\""
+    },
+    {
+      "adrp_pc": "0x385d204",
+      "add_pc": "0x385d208",
+      "string_address": "0x45a86",
+      "string": "matformer_2"
+    },
+    {
+      "adrp_pc": "0x385d220",
+      "add_pc": "0x385d224",
+      "string_address": "0x8b7b8",
+      "string": "Unsupported matformer signature: "
+    },
+    {
+      "adrp_pc": "0x385d26c",
+      "add_pc": "0x385d270",
+      "string_address": "0xe3d11",
+      "string": "matformer_1"
+    }
+  ]
+}

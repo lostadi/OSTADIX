@@ -1,0 +1,278 @@
+
+/system_ext/bin/hw/vendor.google.edgetpu_app_service@1.0-service:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+000000000000c000 <.text>:
+    c590:      	paciasp
+    c594:      	sub	sp, sp, #0x60
+    c598:      	stp	x29, x30, [sp, #0x30]
+    c59c:      	str	x21, [sp, #0x40]
+    c5a0:      	stp	x20, x19, [sp, #0x50]
+    c5a4:      	add	x29, sp, #0x30
+    c5a8:      	mov	x20, x0
+    c5ac:      	mov	x19, x8
+    c5b0:      	stp	xzr, xzr, [sp]
+    c5b4:      	bl	0xc760 <.text+0x760>
+    c5b8:      	mov	w21, w0
+    c5bc:      	bl	0x27fa8 <_ZN7android14IPCThreadState4selfEv@plt>
+    c5c0:      	bl	0x27fc0 <_ZNK7android14IPCThreadState13getCallingUidEv@plt>
+    c5c4:      	mov	w1, w0
+    c5c8:      	mov	x8, sp
+    c5cc:      	add	x0, x20, #0x50
+    c5d0:      	and	w2, w21, #0x1
+    c5d4:      	mov	w3, wzr
+    c5d8:      	bl	0x12fc0 <.text+0x6fc0>
+    c5dc:      	ldr	x8, [sp]
+    c5e0:      	cbz	x8, 0xc62c <.text+0x62c>
+    c5e4:      	add	x8, sp, #0x10
+    c5e8:      	mov	x0, sp
+    c5ec:      	add	x20, sp, #0x10
+    c5f0:      	bl	0x268a0 <.text+0x1a8a0>
+    c5f4:      	ldrb	w8, [sp, #0x10]
+    c5f8:      	mov	w0, #0xd                // =13
+    c5fc:      	ldr	x9, [sp, #0x20]
+    c600:      	tst	w8, #0x1
+    c604:      	csinc	x1, x9, x20, ne
+    c608:      	bl	0x277e0 <AStatus_fromServiceSpecificErrorWithMessage@plt>
+    c60c:      	ldrb	w8, [sp, #0x10]
+    c610:      	str	x0, [x19]
+    c614:      	tbz	w8, #0x0, 0xc6c0 <.text+0x6c0>
+    c618:      	ldr	x8, [sp, #0x10]
+    c61c:      	ldr	x0, [sp, #0x20]
+    c620:      	and	x1, x8, #0xfffffffffffffffe
+    c624:      	bl	0x27738 <_ZdlPvm@plt>
+    c628:      	b	0xc6c0 <.text+0x6c0>
+    c62c:      	ldrb	w8, [sp, #0x8]
+    c630:      	tbnz	w8, #0x0, 0xc6a4 <.text+0x6a4>
+    c634:      	mov	w0, #0x30               // =48
+    c638:      	bl	0x276f0 <_Znwm@plt>
+    c63c:      	adrp	x8, 0x4000
+    c640:      	add	x8, x8, #0x2dd
+    c644:      	index	z0.d, #0x0, #-0x8
+    c648:      	str	x0, [sp, #0x20]
+    c64c:      	add	z0.d, z0.d, #0x31       // =49
+    c650:      	strb	wzr, [x0, #0x29]
+    c654:      	ldp	q1, q2, [x8]
+    c658:      	str	q0, [sp, #0x10]
+    c65c:      	mov	w1, wzr
+    c660:      	ldur	q0, [x8, #0x19]
+    c664:      	stp	q1, q2, [x0]
+    c668:      	stur	q0, [x0, #0x19]
+    c66c:      	add	x0, sp, #0x10
+    c670:      	bl	0x27810 <_ZN7android4base15GetBoolPropertyERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEb@plt>
+    c674:      	ldrb	w8, [sp, #0x10]
+    c678:      	mov	w20, w0
+    c67c:      	tbz	w8, #0x0, 0xc690 <.text+0x690>
+    c680:      	ldr	x8, [sp, #0x10]
+    c684:      	ldr	x0, [sp, #0x20]
+    c688:      	and	x1, x8, #0xfffffffffffffffe
+    c68c:      	bl	0x27738 <_ZdlPvm@plt>
+    c690:      	tbz	w20, #0x0, 0xc6ac <.text+0x6ac>
+    c694:      	mov	w0, #0x3                // =3
+    c698:      	mov	x1, xzr
+    c69c:      	bl	0x27570 <_ZN7android4base9ShouldLogENS0_11LogSeverityEPKc@plt>
+    c6a0:      	tbnz	w0, #0x0, 0xc704 <.text+0x704>
+    c6a4:      	bl	0x27828 <AStatus_newOk@plt>
+    c6a8:      	b	0xc6bc <.text+0x6bc>
+    c6ac:      	adrp	x1, 0x5000
+    c6b0:      	add	x1, x1, #0x1dd
+    c6b4:      	mov	w0, #0x10               // =16
+    c6b8:      	bl	0x277e0 <AStatus_fromServiceSpecificErrorWithMessage@plt>
+    c6bc:      	str	x0, [x19]
+    c6c0:      	ldr	x19, [sp]
+    c6c4:      	str	xzr, [sp]
+    c6c8:      	cbz	x19, 0xc6f0 <.text+0x6f0>
+    c6cc:      	ldrb	w8, [x19, #0x8]
+    c6d0:      	tbz	w8, #0x0, 0xc6e4 <.text+0x6e4>
+    c6d4:      	ldr	x8, [x19, #0x8]
+    c6d8:      	ldr	x0, [x19, #0x18]
+    c6dc:      	and	x1, x8, #0xfffffffffffffffe
+    c6e0:      	bl	0x27738 <_ZdlPvm@plt>
+    c6e4:      	mov	x0, x19
+    c6e8:      	mov	w1, #0x20               // =32
+    c6ec:      	bl	0x27738 <_ZdlPvm@plt>
+    c6f0:      	ldp	x20, x19, [sp, #0x50]
+    c6f4:      	ldp	x29, x30, [sp, #0x30]
+    c6f8:      	ldr	x21, [sp, #0x40]
+    c6fc:      	add	sp, sp, #0x60
+    c700:      	retaa
+    c704:      	bl	0x275e8 <__errno@plt>
+    c708:      	mov	x20, x0
+    c70c:      	ldr	w21, [x0]
+    c710:      	adrp	x1, 0x6000
+    c714:      	add	x1, x1, #0x20a
+    c718:      	add	x0, sp, #0x10
+    c71c:      	mov	w2, #0xe4               // =228
+    c720:      	mov	w3, #0x3                // =3
+    c724:      	mov	x4, xzr
+    c728:      	mov	w5, #-0x1               // =-1
+    c72c:      	bl	0x27588 <_ZN7android4base10LogMessageC1EPKcjNS0_11LogSeverityES3_i@plt>
+    c730:      	add	x0, sp, #0x10
+    c734:      	bl	0x275a0 <_ZN7android4base10LogMessage6streamEv@plt>
+    c738:      	adrp	x1, 0x4000
+    c73c:      	add	x1, x1, #0x816
+    c740:      	mov	w2, #0x75               // =117
+    c744:      	bl	0x10110 <.text+0x4110>
+    c748:      	add	x0, sp, #0x10
+    c74c:      	bl	0x275b8 <_ZN7android4base10LogMessageD1Ev@plt>
+    c750:      	str	w21, [x20]
+    c754:      	b	0xc6a4 <.text+0x6a4>
+		...
+    c760:      	paciasp
+    c764:      	sub	sp, sp, #0x70
+    c768:      	stp	x29, x30, [sp, #0x50]
+    c76c:      	str	x19, [sp, #0x60]
+    c770:      	add	x29, sp, #0x50
+    c774:      	adrp	x8, 0x5000
+    c778:      	add	x8, x8, #0x44e
+    c77c:      	mov	w9, #0x1a               // =26
+    c780:      	add	x0, sp, #0x20
+    c784:      	add	x1, sp, #0x8
+    c788:      	stp	xzr, xzr, [x29, #-0x18]
+    c78c:      	ldr	x10, [x8]
+    c790:      	stur	xzr, [x29, #-0x8]
+    c794:      	ldur	x8, [x8, #0x5]
+    c798:      	strb	w9, [sp, #0x20]
+    c79c:      	strb	wzr, [sp, #0x2e]
+    c7a0:      	stur	x10, [sp, #0x21]
+    c7a4:      	stur	x8, [sp, #0x26]
+    c7a8:      	sub	x8, x29, #0x18
+    c7ac:      	strh	wzr, [sp, #0x8]
+    c7b0:      	bl	0x277b0 <_ZN7android4base11GetPropertyERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_@plt>
+    c7b4:      	ldrb	w8, [sp, #0x8]
+    c7b8:      	tbz	w8, #0x0, 0xc7cc <.text+0x7cc>
+    c7bc:      	ldr	x8, [sp, #0x8]
+    c7c0:      	ldr	x0, [sp, #0x18]
+    c7c4:      	and	x1, x8, #0xfffffffffffffffe
+    c7c8:      	bl	0x27738 <_ZdlPvm@plt>
+    c7cc:      	ldrb	w8, [sp, #0x20]
+    c7d0:      	tbz	w8, #0x0, 0xc7e4 <.text+0x7e4>
+    c7d4:      	ldr	x8, [sp, #0x20]
+    c7d8:      	ldr	x0, [sp, #0x30]
+    c7dc:      	and	x1, x8, #0xfffffffffffffffe
+    c7e0:      	bl	0x27738 <_ZdlPvm@plt>
+    c7e4:      	ldurb	w8, [x29, #-0x18]
+    c7e8:      	ldur	x9, [x29, #-0x10]
+    c7ec:      	ubfx	w10, w8, #1, #7
+    c7f0:      	tst	w8, #0x1
+    c7f4:      	csel	x9, x10, x9, eq
+    c7f8:      	cmp	x9, #0x8
+    c7fc:      	b.ne	0xc834 <.text+0x834>
+    c800:      	ldur	x9, [x29, #-0x8]
+    c804:      	tst	w8, #0x1
+    c808:      	sub	x10, x29, #0x18
+    c80c:      	csinc	x9, x9, x10, ne
+    c810:      	mov	x10, #0x6564            // =25956
+    c814:      	movk	x10, #0x2d76, lsl #16
+    c818:      	movk	x10, #0x656b, lsl #32
+    c81c:      	ldr	x9, [x9]
+    c820:      	movk	x10, #0x7379, lsl #48
+    c824:      	cmp	x9, x10
+    c828:      	cset	w19, eq
+    c82c:      	tbnz	w8, #0x0, 0xc83c <.text+0x83c>
+    c830:      	b	0xc84c <.text+0x84c>
+    c834:      	mov	w19, wzr
+    c838:      	tbz	w8, #0x0, 0xc84c <.text+0x84c>
+    c83c:      	ldur	x8, [x29, #-0x18]
+    c840:      	ldur	x0, [x29, #-0x8]
+    c844:      	and	x1, x8, #0xfffffffffffffffe
+    c848:      	bl	0x27738 <_ZdlPvm@plt>
+    c84c:      	mov	w0, w19
+    c850:      	ldp	x29, x30, [sp, #0x50]
+    c854:      	ldr	x19, [sp, #0x60]
+    c858:      	add	sp, sp, #0x70
+    c85c:      	retaa
+    c860:      	paciasp
+    c864:      	sub	sp, sp, #0x50
+    c868:      	stp	x29, x30, [sp, #0x10]
+    c86c:      	stp	x24, x23, [sp, #0x20]
+    c870:      	stp	x22, x21, [sp, #0x30]
+    c874:      	stp	x20, x19, [sp, #0x40]
+    c878:      	add	x29, sp, #0x10
+    c87c:      	mov	x19, x8
+    c880:      	add	x8, sp, #0x8
+    c884:      	mov	x21, x1
+    c888:      	bl	0xc590 <.text+0x590>
+    c88c:      	ldr	x20, [sp, #0x8]
+    c890:      	cbz	x20, 0xc900 <.text+0x900>
+    c894:      	mov	x0, x20
+    c898:      	bl	0x27840 <AStatus_isOk@plt>
+    c89c:      	tbz	w0, #0x0, 0xc908 <.text+0x908>
+    c8a0:      	adrp	x0, 0x6000
+    c8a4:      	add	x0, x0, #0xff
+    c8a8:      	mov	w1, #0x2                // =2
+    c8ac:      	bl	0x27858 <__open_2@plt>
+    c8b0:      	tbnz	w0, #0x1f, 0xc914 <.text+0x914>
+    c8b4:      	ldr	w23, [x21]
+    c8b8:      	mov	w22, w0
+    c8bc:      	cmn	w23, #0x1
+    c8c0:      	b.eq	0xc8f4 <.text+0x8f4>
+    c8c4:      	mov	w0, w23
+    c8c8:      	bl	0x27888 <close@plt>
+    c8cc:      	cbz	w0, 0xc8f4 <.text+0x8f4>
+    c8d0:      	bl	0x275e8 <__errno@plt>
+    c8d4:      	ldr	w0, [x0]
+    c8d8:      	bl	0x275d0 <strerror@plt>
+    c8dc:      	mov	x3, x0
+    c8e0:      	adrp	x1, 0x4000
+    c8e4:      	add	x1, x1, #0x6e8
+    c8e8:      	mov	w0, #0x3                // =3
+    c8ec:      	mov	w2, w23
+    c8f0:      	bl	0x278a0 <syslog@plt>
+    c8f4:      	str	w22, [x21]
+    c8f8:      	bl	0x27828 <AStatus_newOk@plt>
+    c8fc:      	b	0xc938 <.text+0x938>
+    c900:      	mov	x0, xzr
+    c904:      	b	0xc938 <.text+0x938>
+    c908:      	mov	x0, x20
+    c90c:      	mov	x20, xzr
+    c910:      	b	0xc938 <.text+0x938>
+    c914:      	mov	w0, #0x4                // =4
+    c918:      	mov	x1, xzr
+    c91c:      	bl	0x27570 <_ZN7android4base9ShouldLogENS0_11LogSeverityEPKc@plt>
+    c920:      	mov	w21, w0
+    c924:      	bl	0x275e8 <__errno@plt>
+    c928:      	mov	x8, x0
+    c92c:      	ldr	w0, [x0]
+    c930:      	tbnz	w21, #0x0, 0xc95c <.text+0x95c>
+    c934:      	bl	0x27870 <AStatus_fromServiceSpecificError@plt>
+    c938:      	str	x0, [x19]
+    c93c:      	mov	x0, x20
+    c940:      	bl	0x277f8 <AStatus_delete@plt>
+    c944:      	ldp	x20, x19, [sp, #0x40]
+    c948:      	ldp	x22, x21, [sp, #0x30]
+    c94c:      	ldp	x24, x23, [sp, #0x20]
+    c950:      	ldp	x29, x30, [sp, #0x10]
+    c954:      	add	sp, sp, #0x50
+    c958:      	retaa
+    c95c:      	adrp	x1, 0x6000
+    c960:      	add	x1, x1, #0x20a
+    c964:      	mov	w23, w0
+    c968:      	mov	x0, sp
+    c96c:      	mov	w2, #0xfe               // =254
+    c970:      	mov	w3, #0x4                // =4
+    c974:      	mov	x4, xzr
+    c978:      	mov	w5, #-0x1               // =-1
+    c97c:      	mov	x24, x8
+    c980:      	bl	0x27588 <_ZN7android4base10LogMessageC1EPKcjNS0_11LogSeverityES3_i@plt>
+    c984:      	mov	x0, sp
+    c988:      	bl	0x275a0 <_ZN7android4base10LogMessage6streamEv@plt>
+    c98c:      	adrp	x1, 0x3000
+    c990:      	add	x1, x1, #0xda8
+    c994:      	mov	w2, #0x22               // =34
+    c998:      	bl	0x10110 <.text+0x4110>
+    c99c:      	mov	x21, x0
+    c9a0:      	ldr	w0, [x24]
+    c9a4:      	bl	0x275d0 <strerror@plt>
+    c9a8:      	mov	x22, x0
+    c9ac:      	bl	0x27720 <strlen@plt>
+    c9b0:      	mov	x2, x0
+    c9b4:      	mov	x0, x21
+    c9b8:      	mov	x1, x22
+    c9bc:      	bl	0x10110 <.text+0x4110>
+    c9c0:      	mov	x0, sp
+    c9c4:      	bl	0x275b8 <_ZN7android4base10LogMessageD1Ev@plt>
+    c9c8:      	mov	w0, w23
+    c9cc:      	str	w23, [x24]
+    c9d0:      	b	0xc934 <.text+0x934>

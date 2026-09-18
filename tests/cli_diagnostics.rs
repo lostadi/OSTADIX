@@ -71,6 +71,49 @@ fn json_failure_remains_one_machine_readable_envelope() {
 }
 
 #[test]
+fn json_execution_evidence_preserves_submitted_and_parsed_source_identities() {
+    let directory = tempfile::tempdir().unwrap();
+    let executable = "text^(héllo)_text\n";
+    for (file, source) in [
+        ("ordinary.O", executable.to_string()),
+        ("shebang.O", format!("#!/usr/bin/env O\n{executable}")),
+    ] {
+        std::fs::write(directory.path().join(file), &source).unwrap();
+        for mode in ["graph", "serial"] {
+            let output = run(
+                env!("CARGO_BIN_EXE_O"),
+                &["--json", "--executor", mode, file],
+                directory.path(),
+            );
+            assert!(output.status.success(), "{output:?}");
+            assert!(output.stderr.is_empty(), "{output:?}");
+            let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert_eq!(value["ok"], true);
+            let evidence = &value["execution_evidence"];
+            assert_eq!(evidence["schema"], "ostadix.native-execution-evidence/v1");
+            assert_eq!(evidence["execution_mode"], mode);
+            assert_eq!(
+                evidence["source_sha256"],
+                o_lang::evidence::source_sha256(source.as_bytes())
+            );
+            assert_eq!(
+                evidence["parsed_source_sha256"],
+                o_lang::evidence::source_sha256(executable.as_bytes())
+            );
+            assert_eq!(
+                evidence["source_identity_scope"],
+                "submitted_utf8_before_shebang_removal"
+            );
+            assert!(evidence["source_intent_gate"].is_null());
+            assert!(evidence["admission"].is_object());
+            if file == "shebang.O" {
+                assert_ne!(evidence["source_sha256"], evidence["parsed_source_sha256"]);
+            }
+        }
+    }
+}
+
+#[test]
 fn o_runtime_failure_reports_the_real_failed_operation_and_directed_hyperedge() {
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(

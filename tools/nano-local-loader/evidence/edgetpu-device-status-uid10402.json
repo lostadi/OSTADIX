@@ -1,0 +1,14 @@
+{
+  "started_utc": "2026-09-17T16:49:55.429085+00:00",
+  "command": [
+    "/system/bin/su",
+    "-p",
+    "10402",
+    "-c",
+    "/system/bin/app_process /system/bin org.ostadix.nanoloader.EdgeTpuAccessProbe get-fd"
+  ],
+  "probe_sha256": "30f33b347274067cd846d0dd4e7b33861cc92ea329a03489abd70fb9c038d9d8",
+  "exit_code": 1,
+  "stdout": "{\"schema\":\"ostadix.edgetpu-access-probe\\/v1\",\"uid\":10402,\"pid\":16437,\"selinux_context\":\"u:r:ksu:s0\",\"operation\":\"getEdgeTpuFd\",\"inference_executed\":false,\"service_present\":true,\"interface_descriptor\":\"com.google.edgetpu.IEdgeTpuAppService\",\"transaction_handled\":true,\"success\":false,\"exception\":\"android.os.ServiceSpecificException\",\"message\":\"Current application should not be allowed to access EdgeTPU.\",\"service_specific_error\":16}\n",
+  "stderr": ""
+}

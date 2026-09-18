@@ -33,7 +33,11 @@ import com.google.mlkit.genai.prompt.CountTokensResponse;
 import com.google.mlkit.genai.prompt.GenerateContentRequest;
 import com.google.mlkit.genai.prompt.GenerateContentResponse;
 import com.google.mlkit.genai.prompt.Generation;
+import com.google.mlkit.genai.prompt.GenerationConfig;
 import com.google.mlkit.genai.prompt.GenerativeModel;
+import com.google.mlkit.genai.prompt.ModelConfig;
+import com.google.mlkit.genai.prompt.ModelPreference;
+import com.google.mlkit.genai.prompt.ModelReleaseStage;
 import com.google.mlkit.genai.prompt.TextPart;
 import com.google.mlkit.genai.prompt.java.GenerativeModelFutures;
 import com.google.mlkit.genai.speechrecognition.SpeechRecognition;
@@ -75,7 +79,7 @@ import kotlin.coroutines.intrinsics.IntrinsicsKt;
  */
 public final class MainActivity extends Activity {
     private static final String TAG = "PixelAiProbe";
-    private static final String PROBE_VERSION = "0.1.1";
+    private static final String PROBE_VERSION = "0.1.3";
 
     public static final String ACTION_RUN_PROMPT =
             "org.ostadix.pixelai.probe.RUN_PROMPT";
@@ -383,7 +387,44 @@ public final class MainActivity extends Activity {
         closePrompt();
         final long suiteStart = SystemClock.elapsedRealtime();
         try {
-            promptClient = Generation.INSTANCE.getClient();
+            String requestedModel = getIntent() == null ? null
+                    : getIntent().getStringExtra("nano_model");
+            if (requestedModel == null) {
+                requestedModel = "stable_full";
+            }
+            final int releaseStage;
+            final int preference;
+            switch (requestedModel) {
+                case "stable_full":
+                    releaseStage = ModelReleaseStage.STABLE;
+                    preference = ModelPreference.FULL;
+                    break;
+                case "stable_fast":
+                    releaseStage = ModelReleaseStage.STABLE;
+                    preference = ModelPreference.FAST;
+                    break;
+                case "preview_full":
+                    releaseStage = ModelReleaseStage.PREVIEW;
+                    preference = ModelPreference.FULL;
+                    break;
+                case "preview_fast":
+                    releaseStage = ModelReleaseStage.PREVIEW;
+                    preference = ModelPreference.FAST;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown Nano model configuration");
+            }
+            ModelConfig.Builder modelConfig = new ModelConfig.Builder();
+            modelConfig.setReleaseStage(releaseStage);
+            modelConfig.setPreference(preference);
+            GenerationConfig.Builder generationConfig = new GenerationConfig.Builder();
+            generationConfig.setModelConfig(modelConfig.build());
+            append("prompt", "target",
+                    "provider=AICore; modelFamily=Gemini Nano; configuration="
+                            + requestedModel + "; cloudFallback=false; "
+                            + "requested configuration, not proof of inference",
+                    elapsed(suiteStart));
+            promptClient = Generation.INSTANCE.getClient(generationConfig.build());
             final GenerativeModel client = promptClient;
             final GenerativeModelFutures futures = GenerativeModelFutures.from(client);
 

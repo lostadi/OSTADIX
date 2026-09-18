@@ -122,8 +122,12 @@ command. Check `type -a o` (or `whence -a o` in zsh). Remove or rename that lega
 function in the shell configuration and start a fresh shell; `unfunction o` also
 clears it for the current zsh session. Keep shell-only directory changes in a
 separate helper such as `oroot`; the native `o root` prints the configured source
-root, so `cd "$(o root)"` works from any shell. The migrated terminal kit retains shell conveniences under `o-term` and
-`oroot`.
+root, so `cd "$(o root)"` works from any shell. In the migrated terminal kit,
+`oroot` changes the current shell's directory. Shell-only conveniences remain
+under `o-term`: `pull`, `update`, `sync`, `ssh`, `scp`, `hosts`, `new`, `ex`,
+`test` and the other terminal-kit helpers. For example, use `o-term pull` or
+`o-term sync`; these are not native `o` subcommands. `o help` describes the
+native executable surface; `o-term help` describes the optional shell kit.
 
 | Task | Native command |
 |---|---|
@@ -216,7 +220,7 @@ unexpected success also fails. The current manifest has no parser-negative
 files. Runtime rejection probes in native modules and lossy-value witnesses in
 benchmarks are valid source and remain covered by their semantic harnesses.
 
-`examples/manifest.json` remains the runtime authority for the 50 examples:
+`examples/manifest.json` remains the runtime authority for the 52 examples:
 backend dependencies, edition support, expected outputs, timeouts, host actions
 and opt-ins are defined there. Its runner prints every skip and rejects an
 all-skipped suite. Interactive boxing, group-pipeline output, Guix guest sessions,

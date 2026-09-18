@@ -1,0 +1,5 @@
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+e543b4568c5d84d267a2ad5dbf8f30bbc1f4efd3200ab79c927e993aa23017f7  /data/data/com.termux/files/home/Ostadix-lang/tools/nano-factory-reader/build/factory-reader.jar

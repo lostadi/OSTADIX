@@ -1,0 +1,57 @@
+{
+  "schema": "ostadix.native-json-evidence-test/v1",
+  "status": "failed",
+  "failure": {
+    "type": "AssertionError",
+    "message": ""
+  },
+  "utc": "20260917T175244.567236Z",
+  "binary": "/data/data/com.termux/files/home/OSTADIX/target/release/O",
+  "binary_sha256": "2a4de73595fa62b9e71f9a2ea5d20950c8447c14b2560d64e1dc33aef6e23ebe",
+  "source_main_sha256": "8703a670415570a9a9093a82e4e6cb2eabb372063092c4d0f05f154fe79a20b6",
+  "records": [
+    {
+      "label": "graph",
+      "argv": [
+        "--json",
+        "--executor",
+        "graph",
+        "--eval",
+        "1 + 1\n"
+      ],
+      "returncode": 0,
+      "stdout": "{\"ok\":true,\"value\":{\"t\":\"text\",\"v\":{\"utf8\":\"1 + 1\\n\",\"encoding\":\"utf-8\"}},\"type\":\"text\",\"elapsed_ms\":2,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"admitted_graph\",\"source_sha256\":\"cd626bdd714dc3c2e1c69489ec753104ee212a829b3494f1044cff3ba849737f\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"cd626bdd714dc3c2e1c69489ec753104ee212a829b3494f1044cff3ba849737f\",\"result_content_identity\":\"8e722d5c4a9ac32e07da9877def0316f433bc1b8a543a52ae1ad7902b7706eff\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"8853fed39f172da2e1f8ae67677a623d1c66c070f39a8f62ce98882fdfbae91c\",\"plan_sha256\":\"5888016cfd6d54a24e827d78dec74e7ca78f103706837c67e47241b1d0f017be\",\"analyzed_graph_sha256\":\"baf6eaea597d49d8cb3961114c1a871cc2d05f60eeb005b8d0870e7259e85423\",\"evidence_sha256\":\"5a5903412e1d85f7e743fc2d797dea433f320268f962a53247bf2a2cb03448da\",\"admitted_graph_sha256\":\"baf6eaea597d49d8cb3961114c1a871cc2d05f60eeb005b8d0870e7259e85423\",\"admission_sha256\":\"419e42cc05a1ca41e5b869f03178e23bce6e9166b0c0f59bdbaf49ed39790341\"}}}\n",
+      "stderr": "",
+      "result": {
+        "ok": true,
+        "value": {
+          "t": "text",
+          "v": {
+            "utf8": "1 + 1\n",
+            "encoding": "utf-8"
+          }
+        },
+        "type": "text",
+        "elapsed_ms": 2,
+        "execution_evidence": {
+          "schema": "ostadix.native-execution-evidence/v1",
+          "execution_mode": "admitted_graph",
+          "source_sha256": "cd626bdd714dc3c2e1c69489ec753104ee212a829b3494f1044cff3ba849737f",
+          "source_identity_scope": "submitted_utf8_before_shebang_removal",
+          "parsed_source_sha256": "cd626bdd714dc3c2e1c69489ec753104ee212a829b3494f1044cff3ba849737f",
+          "result_content_identity": "8e722d5c4a9ac32e07da9877def0316f433bc1b8a543a52ae1ad7902b7706eff",
+          "source_intent_gate": null,
+          "admission": {
+            "schema": "oexec.admission/v6",
+            "oir_sha256": "8853fed39f172da2e1f8ae67677a623d1c66c070f39a8f62ce98882fdfbae91c",
+            "plan_sha256": "5888016cfd6d54a24e827d78dec74e7ca78f103706837c67e47241b1d0f017be",
+            "analyzed_graph_sha256": "baf6eaea597d49d8cb3961114c1a871cc2d05f60eeb005b8d0870e7259e85423",
+            "evidence_sha256": "5a5903412e1d85f7e743fc2d797dea433f320268f962a53247bf2a2cb03448da",
+            "admitted_graph_sha256": "baf6eaea597d49d8cb3961114c1a871cc2d05f60eeb005b8d0870e7259e85423",
+            "admission_sha256": "419e42cc05a1ca41e5b869f03178e23bce6e9166b0c0f59bdbaf49ed39790341"
+          }
+        }
+      }
+    }
+  ]
+}

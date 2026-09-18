@@ -1,0 +1,9 @@
+--------- beginning of main
+09-17 10:40:29.913 17242 17975 I OstadixAppFunction: event=request_enter caller=android-appfunction/platform-agent request=appfn-1789656029911-1 tool=o_execute
+09-17 10:40:31.387 17242 17975 I OstadixAppFunction: event=result_returned caller=android-appfunction/platform-agent request=appfn-1789656029911-1 tool=o_execute
+09-17 10:40:31.636 17242 18052 I OstadixAppFunction: event=request_enter caller=android-appfunction/platform-agent request=appfn-1789656031636-1 tool=o_execute
+09-17 10:40:31.874 17242 18052 I OstadixAppFunction: event=result_returned caller=android-appfunction/platform-agent request=appfn-1789656031636-1 tool=o_execute
+09-17 10:40:32.060 17242 18079 I OstadixAppFunction: event=request_enter caller=android-appfunction/platform-agent request=appfn-1789656032056-1 tool=o_execute
+09-17 10:40:33.007 17242 18079 I OstadixAppFunction: event=request_cancelled caller=android-appfunction/platform-agent request=appfn-1789656032056-1
+09-17 10:40:33.195 17242 18110 I OstadixAppFunction: event=request_enter caller=android-appfunction/platform-agent request=appfn-1789656033194-1 tool=o_execute
+09-17 10:40:33.276 17242 18110 I OstadixAppFunction: event=result_returned caller=android-appfunction/platform-agent request=appfn-1789656033194-1 tool=o_execute

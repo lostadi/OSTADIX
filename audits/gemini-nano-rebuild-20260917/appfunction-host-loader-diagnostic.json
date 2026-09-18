@@ -1,0 +1,81 @@
+{
+  "schema": "ostadix.appfunction-host-loader-diagnostic/v1",
+  "scope": "private same-UID subprocesses, no running host service requests",
+  "results": [
+    {
+      "mode": "inherited",
+      "uid": 10402,
+      "selinux_context": "u:r:ksu:s0",
+      "mcp_pid": 9077,
+      "source": "python^(__oval_result__ = 42)_python",
+      "state": "failed",
+      "result": {
+        "error": "[python[*ephemeral*]]: backend `python[4294967295]` recv_step failed: backend process closed stdout unexpectedly",
+        "ok": false,
+        "stage": "eval"
+      },
+      "stderr": "error: expected absolute path: \"--o-backend\"\nError: failed to evaluate .O document\n\nCaused by:\n    0: [python[*ephemeral*]]\n    1: backend `python[4294967295]` recv_step failed\n    2: backend process closed stdout unexpectedly\n",
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": true,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 9092,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 1,
+        "session_scan_complete": true
+      }
+    },
+    {
+      "mode": "context_direct_fix",
+      "uid": 10402,
+      "selinux_context": "u:r:ksu:s0",
+      "mcp_pid": 9096,
+      "source": "python^(__oval_result__ = 42)_python",
+      "state": "completed",
+      "result": {
+        "elapsed_ms": 188,
+        "execution_evidence": {
+          "admission": {
+            "admission_sha256": "d8e7ebd4cc4cf57be436218b3e6b8dd094b62cd8994ea3c36834fe35a397642a",
+            "admitted_graph_sha256": "fba8f1ea5ed621eb66a4b4fb324a3ba86852cc065312999d95a3dc42569dc7be",
+            "analyzed_graph_sha256": "a25f96736abadcf9671bce7109e701836b7ea6e25b33db1fa014cb755aa8bd8a",
+            "evidence_sha256": "27292e410b0fcb60133f38b89d4cd0ad535d5100d8b3f2880cdba4320f6dcb63",
+            "oir_sha256": "95c1c2f94c672eb70c2132fae25a0635db004450d676510ee5f2827e0d852fea",
+            "plan_sha256": "46217cd4bd0435bbe7a1959a260372470098f5d18924143884a08fe9c81c3d67",
+            "schema": "oexec.admission/v6"
+          },
+          "execution_mode": "graph",
+          "parsed_source_sha256": "1f9e9c3da251ed9e48d67fc6d10d58d9d38e0cd66f4f2efc26e0939b937ff648",
+          "result_content_identity": "f8f7d9a5c91ed45766da3e1021a41f7ab04442d0e4b72756bbe047fa5b7c7967",
+          "schema": "ostadix.native-execution-evidence/v1",
+          "source_identity_scope": "submitted_utf8_before_shebang_removal",
+          "source_intent_gate": null,
+          "source_sha256": "1f9e9c3da251ed9e48d67fc6d10d58d9d38e0cd66f4f2efc26e0939b937ff648"
+        },
+        "ok": true,
+        "type": "number",
+        "value": {
+          "t": "number",
+          "v": {
+            "kind": "int",
+            "v": "42"
+          }
+        }
+      },
+      "stderr": "",
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": false,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 9107,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 0,
+        "session_scan_complete": false
+      }
+    }
+  ]
+}

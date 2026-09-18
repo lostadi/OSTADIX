@@ -1,0 +1,58 @@
+09-17 13:11:33.382  4896  4954 W bve     : 	at iuu.g(PG:99)
+09-17 13:11:33.382  4896  4954 W bve     : 	at gle.d(PG:13)
+09-17 13:11:33.382  4896  4954 W bve     : 	at igz.bZ(PG:11)
+09-17 13:11:33.382  4896  4954 W bve     : 	at imn.run(PG:99)
+09-17 13:11:33.382  4896  4954 W bve     : 	at dzr.run(PG:5)
+09-17 13:11:33.382  4896  4954 W bve     : 	at fia.run(PG:44)
+09-17 13:11:33.382  4896  4954 W bve     : 	at x.run(PG:538)
+09-17 13:11:33.382  4896  4954 W bve     : 	at java.lang.Thread.run(Thread.java:1571)
+09-17 13:11:33.382  4896  4954 W bve     : 	at ebf.run(PG:51)
+09-17 13:11:33.382  4896  4954 W bve     : 	at idv.ab(PG:41)
+09-17 13:11:33.382  4896  4954 W bve     : 	at hwz.a(PG:28)
+09-17 13:11:33.382  4896  4954 W bve     : 	at hxl.run(PG:7)
+09-17 13:11:33.382  4896  4954 W bve     : 	at icq.run(PG:18)
+09-17 13:11:38.205  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"request_enter","success":true,"native_call_active":false,"elapsed_realtime_ms":54320070,"deadline_elapsed_ms":54439819,"inference_executed":false}
+09-17 13:11:38.263  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"descriptors_open_enter","success":true,"native_call_active":false,"elapsed_realtime_ms":54320129,"deadline_elapsed_ms":54439819,"inference_executed":false,"detail":{"file_map_sha256":"c05d46db90caae25d8bc0472ce18d9a9e9fc099da57eb1ccb3b8cd227bf6cca2","filename_count":191}}
+09-17 13:11:38.308  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"descriptors_open_return","success":true,"native_call_active":false,"elapsed_realtime_ms":54320173,"deadline_elapsed_ms":54439819,"inference_executed":false,"detail":{"file_map_sha256":"c05d46db90caae25d8bc0472ce18d9a9e9fc099da57eb1ccb3b8cd227bf6cca2","filename_count":191,"opened_descriptor_count":191,"total_stat_bytes":5747350183}}
+09-17 13:11:38.308  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"validation_complete","success":true,"native_call_active":false,"elapsed_realtime_ms":54320174,"deadline_elapsed_ms":54439819,"inference_executed":false,"detail":{"manifest_sha256":"2a513f1b706805bc257b95e592ec553ae462bac670e9cecc11adc85cac7d9e94","native_config_sha256":"cc280add7316afbc906dfc0b377cd808af6c9e056bbb9bd656de99e5e6648e96","model_name":"edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs","loader_mode":"file_descriptors","file_map_sha256":"c05d46db90caae25d8bc0472ce18d9a9e9fc099da57eb1ccb3b8cd227bf6cca2","opened_descriptor_count":191}}
+09-17 13:11:38.309  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"library_init_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":54320174,"deadline_elapsed_ms":54439819,"inference_executed":false}
+09-17 13:11:38.359  4896  5179 D nativeloader: Load /data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libruntime_edgetpu_jni.so using class loader ns clns-9 (caller=/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk!classes2.dex): ok
+09-17 13:11:38.360  4896  5179 D nativeloader: Load /data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libruntime_model_loader_wrapper_jni.so using class loader ns clns-9 (caller=/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk!classes2.dex): ok
+09-17 13:11:38.362  4896  5179 I aicore  : I0000 00:00:1789665098.360832    5179 runtime_model_loader_wrapper_jni.cc:124] Initializing JNI...
+09-17 13:11:38.366  4896  5179 D nativeloader: Load /data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libllm_wrapper_jni.so using class loader ns clns-9 (caller=/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk!classes2.dex): ok
+09-17 13:11:38.366  4896  5179 I aicore  : I0000 00:00:1789665098.366253    5179 llm_wrapper_jni.cc:376] Initializing JNI...
+09-17 13:11:38.366  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"library_init_return","success":true,"native_call_active":false,"elapsed_realtime_ms":54320232,"deadline_elapsed_ms":54439819,"inference_executed":false}
+09-17 13:11:38.367  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"runtime_create_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":54320233,"deadline_elapsed_ms":54439819,"inference_executed":false}
+09-17 13:11:38.367  4896  5179 I aicore  : I0000 00:00:1789665098.367706    5179 runtime_edgetpu_jni.cc:31] JNI RuntimeEdgetpu nativeCreate
+09-17 13:11:38.367  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"runtime_create_return","success":true,"native_call_active":false,"elapsed_realtime_ms":54320233,"deadline_elapsed_ms":54439819,"inference_executed":false}
+09-17 13:11:38.368  4896  5179 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-private-fds-20260917-1711","pid":4896,"uid":10173,"phase":"model_load_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":54320234,"deadline_elapsed_ms":54439819,"inference_executed":false}
+09-17 13:11:38.369  4896  5179 I aicore  : I0000 00:00:1789665098.369516    5179 runtime_model_loader_wrapper_jni.cc:88] JNI RuntimeModelLoaderWrapper nativeLoadModel
+09-17 13:11:38.369  4896  5179 I aicore  : I0000 00:00:1789665098.369901    5179 runtime_model_loader_wrapper_jni.cc:25] JNI RuntimeModelLoaderWrapper CreateModel LLM
+09-17 13:11:38.369  4896  5179 I aicore  : I0000 00:00:1789665098.369938    5179 model_loader.cc:60] RuntimeModelLoader::CreateLargeLanguageModel from package: edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs
+09-17 13:11:38.432  4896  5179 W aicore  : W0000 00:00:1789665098.432378    5179 edgetpu_utils.cc:106] Tachyon not ready for AICore; falling back to Driver2.
+09-17 13:11:38.543  4896  6697 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 0 (main).
+09-17 13:11:38.543  4896  6697 I aicore  : I0000 00:00:1789665098.543696    6697 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##g+mA0w3k. Tachyon: no
+09-17 13:11:38.587  4896  6698 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 0 (ple_proj_1x1).
+09-17 13:11:38.587  4896  6698 I aicore  : I0000 00:00:1789665098.587771    6698 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##p5w3RpzA_0. Tachyon: no
+09-17 13:11:38.587  4896  6698 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 1 (ple_proj_1x128).
+09-17 13:11:38.587  4896  6698 I aicore  : I0000 00:00:1789665098.587934    6698 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##p5w3RpzA_1. Tachyon: no
+09-17 13:11:38.587  4896  6698 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 2 (ple_proj_1x32).
+09-17 13:11:38.588  4896  6698 I aicore  : I0000 00:00:1789665098.588013    6698 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##p5w3RpzA_2. Tachyon: no
+09-17 13:11:38.588  4896  6698 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 3 (ple_proj_1x4).
+09-17 13:11:38.588  4896  6698 I aicore  : I0000 00:00:1789665098.588057    6698 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##p5w3RpzA_3. Tachyon: no
+09-17 13:11:38.588  4896  6698 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 4 (ple_proj_1x8).
+09-17 13:11:38.588  4896  6698 I aicore  : I0000 00:00:1789665098.588099    6698 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##p5w3RpzA_4. Tachyon: no
+09-17 13:11:38.661  4896  6696 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 0 (decode_softmax_1x1_cluster_0).
+09-17 13:11:38.661  4896  6696 I aicore  : I0000 00:00:1789665098.661857    6696 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: Unknown. Tachyon: no
+09-17 13:11:38.661  4896  6696 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 1 (decode_softmax_1x1_cluster_1).
+09-17 13:11:38.661  4896  6696 I aicore  : I0000 00:00:1789665098.661989    6696 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: Unknown. Tachyon: no
+09-17 13:11:38.662  4896  6696 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 2 (decode_softmax_1x4_cluster_0).
+09-17 13:11:38.662  4896  6696 I aicore  : I0000 00:00:1789665098.662053    6696 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: Unknown. Tachyon: no
+09-17 13:11:38.662  4896  6696 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 3 (decode_softmax_1x4_cluster_1).
+09-17 13:11:38.662  4896  6696 I aicore  : I0000 00:00:1789665098.662119    6696 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: Unknown. Tachyon: no
+09-17 13:11:38.662  4896  6696 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 4 (decode_softmax_1x8_cluster_0).
+09-17 13:11:38.662  4896  6696 I aicore  : I0000 00:00:1789665098.662191    6696 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: Unknown. Tachyon: no
+09-17 13:11:38.662  4896  6696 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 5 (decode_softmax_1x8_cluster_1).
+09-17 13:11:38.662  4896  6696 I aicore  : I0000 00:00:1789665098.662237    6696 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: Unknown. Tachyon: no
+09-17 13:11:47.324  4896  6945 I tflite  : Replacing 1 out of 1 node(s) with delegate (edgetpu-custom-op-2) node, yielding 1 partitions for subgraph 0 (main).
+09-17 13:11:47.325  4896  6945 I aicore  : I0000 00:00:1789665107.325487    6945 common_delegate_kernel_internal.cc:313] Successfully loaded offline-compiled model: unknown##RO0OddHq. Tachyon: no

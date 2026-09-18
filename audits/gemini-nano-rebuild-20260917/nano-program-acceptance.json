@@ -1,0 +1,25 @@
+{
+  "utc": "2026-09-17T17:58:50.665125+00:00",
+  "actual_result": {
+    "selected_ids": [
+      2,
+      3,
+      8,
+      13
+    ],
+    "total_units": 26,
+    "totals": {
+      "north": 13,
+      "south": 13
+    }
+  },
+  "matches_independent_expected_result": true,
+  "source_sha256": "58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a",
+  "native_result_identity": "7a06fec778a8fdf1970f466793a268c660c0bb3238ffb35844b83e7a1e33f193",
+  "native_elapsed_ms": 802,
+  "model_attempts_for_program": 4,
+  "model_code_repair_responses": 2,
+  "markdown_wrapper_removed": true,
+  "general_zero_unit_depot_case_verified": false,
+  "ordinary_gemini_assistant_invocation": false
+}

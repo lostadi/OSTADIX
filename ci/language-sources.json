@@ -97,7 +97,8 @@
       ],
       "sources": [
         "tests/fixtures/aicore_llm_reply_postprocess.O",
-        "tests/fixtures/aicore_llm_reply_postprocess_bash.O"
+        "tests/fixtures/aicore_llm_reply_postprocess_bash.O",
+        "tests/fixtures/aicore_smart_reply_postprocess_bash.O"
       ]
     },
     {
@@ -127,6 +128,8 @@
         }
       ],
       "sources": [
+        "examples/ai_heterogeneous_one_call.O",
+        "examples/ai_inventory_one_call.O",
         "examples/bash_binding.O",
         "examples/bash_exit_code.O",
         "examples/bash_hello.O",
@@ -600,6 +603,30 @@
       ]
     },
     {
+      "id": "retained-nano-generation-snapshots",
+      "category": "historical-snapshot",
+      "reason": "Immutable model-generation captures: an empty raw candidate, an extracted repaired program, raw fenced repairs, and the assistant program. The first repair records a hosted Python IndentationError; the second returns closing-fence text. These are valid O documents, not expected parser rejections or current runnable examples.",
+      "coverage": [
+        {
+          "path": "audits/gemini-nano-rebuild-20260917/STATUS.md",
+          "kind": "historical",
+          "conditions": "Preserve exact captured bytes and the recorded generation/execution outcome. Parse every capture, including empty/literal text, without repairing or rerunning historical device/model experiments."
+        },
+        {
+          "path": "audits/gemini-nano-rebuild-20260917/LOCAL-ASSISTANT-RESULT.md",
+          "kind": "historical",
+          "conditions": "Assistant-program source and its execution belong to the dated Android audit, not current runtime qualification."
+        }
+      ],
+      "sources": [
+        "audits/gemini-nano-rebuild-20260917/nano-assistant-generated-program.O",
+        "audits/gemini-nano-rebuild-20260917/nano-generated-shipment-program.O",
+        "audits/gemini-nano-rebuild-20260917/nano-generated-shipment-repair.O",
+        "audits/gemini-nano-rebuild-20260917/nano-generated-shipment-repair2.O",
+        "audits/gemini-nano-rebuild-20260917/nano-generated-shipment.O"
+      ]
+    },
+    {
       "id": "retained-project-snapshot",
       "category": "historical-snapshot",
       "reason": "Retained linked-project artifact includes deliberate marker-writing routes; preserve bytes and parse without executing.",
@@ -612,6 +639,26 @@
       ],
       "sources": [
         "output/current-master/o-linked-project.O"
+      ]
+    },
+    {
+      "id": "retained-source-first-lifted-snapshot",
+      "category": "historical-snapshot",
+      "reason": "Captured lifted project bundle from the earlier MCP source-first acceptance. Loading the document itself does not execute its embedded project route.",
+      "coverage": [
+        {
+          "path": "audits/source-first-mcp-20260917/README.md",
+          "kind": "historical",
+          "conditions": "Preserve original bundle/evidence identities; the dated audit schema is not the current MCP contract."
+        },
+        {
+          "path": "scripts/check_lifted_mcp_lifecycle.py",
+          "kind": "runtime",
+          "conditions": "Current lifecycle harness constructs isolated fixtures and validates its own compiled server. This retained snapshot receives parse coverage only."
+        }
+      ],
+      "sources": [
+        "audits/source-first-mcp-20260917/lifted-acceptance.O"
       ]
     }
   ],

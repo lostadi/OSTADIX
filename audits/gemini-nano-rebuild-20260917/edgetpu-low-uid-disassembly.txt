@@ -1,0 +1,109 @@
+
+/system_ext/bin/hw/vendor.google.edgetpu_app_service@1.0-service:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+000000000000c000 <.text>:
+   12fc0:      	paciasp
+   12fc4:      	sub	sp, sp, #0x150
+   12fc8:      	stp	x29, x30, [sp, #0x100]
+   12fcc:      	str	x28, [sp, #0x110]
+   12fd0:      	stp	x24, x23, [sp, #0x120]
+   12fd4:      	stp	x22, x21, [sp, #0x130]
+   12fd8:      	stp	x20, x19, [sp, #0x140]
+   12fdc:      	add	x29, sp, #0x100
+   12fe0:      	mov	x20, x8
+   12fe4:      	lsr	w8, w1, #4
+   12fe8:      	cmp	w8, #0x270
+   12fec:      	b.hi	0x13050 <.text+0x7050>
+   12ff0:      	movi	v0.2d, #0000000000000000
+   12ff4:      	adrp	x0, 0x4000
+   12ff8:      	add	x0, x0, #0x659
+   12ffc:      	sub	x1, x29, #0x60
+   13000:      	stur	q0, [x29, #-0x14]
+   13004:      	stp	q0, q0, [x29, #-0x50]
+   13008:      	stp	q0, q0, [x29, #-0x30]
+   1300c:      	stur	q0, [x29, #-0x60]
+   13010:      	bl	0x27f48 <__system_property_get@plt>
+   13014:      	mov	x10, #0x7375            // =29557
+   13018:      	ldur	x8, [x29, #-0x60]
+   1301c:      	movk	x10, #0x7265, lsl #16
+   13020:      	ldurh	w9, [x29, #-0x58]
+   13024:      	movk	x10, #0x6564, lsl #32
+   13028:      	movk	x10, #0x7562, lsl #48
+   1302c:      	cmp	x8, x10
+   13030:      	mov	w8, #0x67               // =103
+   13034:      	ccmp	w9, w8, #0x0, eq
+   13038:      	b.eq	0x1314c <.text+0x714c>
+   1303c:      	ldur	w8, [x29, #-0x60]
+   13040:      	sub	w8, w8, #0x676, lsl #12 // =0x676000
+   13044:      	cmp	w8, #0xe65
+   13048:      	cset	w8, eq
+   1304c:      	b	0x13150 <.text+0x7150>
+   13050:      	sub	x8, x29, #0x70
+   13054:      	mov	w21, w2
+   13058:      	mov	w22, w1
+   1305c:      	mov	w24, w3
+   13060:      	mov	x23, x0
+   13064:      	stp	xzr, xzr, [x29, #-0x70]
+   13068:      	bl	0x12e20 <.text+0x6e20>
+   1306c:      	ldur	x8, [x29, #-0x70]
+   13070:      	cbnz	x8, 0x13414 <.text+0x7414>
+   13074:      	ldur	x19, [x29, #-0x68]
+   13078:      	mov	w0, #0x4                // =4
+   1307c:      	stur	xzr, [x29, #-0x68]
+   13080:      	str	x19, [x29, #0x18]
+   13084:      	bl	0x276f0 <_Znwm@plt>
+   13088:      	stp	xzr, xzr, [sp, #0x60]
+   1308c:      	add	x1, sp, #0x78
+   13090:      	stp	xzr, x0, [sp, #0x70]
+   13094:      	add	x2, sp, #0x60
+   13098:      	str	w22, [x0], #0x4
+   1309c:      	stp	x0, x0, [sp, #0x80]
+   130a0:      	mov	x0, x19
+   130a4:      	stp	xzr, xzr, [sp, #0x50]
+   130a8:      	ldr	x8, [x19]
+   130ac:      	ldr	x9, [x8, #0x20]
+   130b0:      	add	x8, sp, #0x50
+   130b4:      	blr	x9
+   130b8:      	ldr	w1, [sp, #0x50]
+   130bc:      	cbz	w1, 0x1315c <.text+0x715c>
+   130c0:      	ldr	x2, [sp, #0x58]
+   130c4:      	adrp	x0, 0x5000
+   130c8:      	add	x0, x0, #0x658
+   130cc:      	add	x8, sp, #0x38
+   130d0:      	mov	w3, w22
+   130d4:      	bl	0x26d30 <.text+0x1ad30>
+   130d8:      	sub	x8, x29, #0x60
+   130dc:      	add	x0, sp, #0x38
+   130e0:      	bl	0x19190 <.text+0xd190>
+   130e4:      	add	x0, sp, #0x28
+   130e8:      	sub	x2, x29, #0x60
+   130ec:      	mov	w1, #0xd                // =13
+   130f0:      	bl	0x266d0 <.text+0x1a6d0>
+   130f4:      	ldurb	w8, [x29, #-0x60]
+   130f8:      	tbz	w8, #0x0, 0x1310c <.text+0x710c>
+   130fc:      	ldur	x8, [x29, #-0x60]
+   13100:      	ldur	x0, [x29, #-0x50]
+   13104:      	and	x1, x8, #0xfffffffffffffffe
+   13108:      	bl	0x27738 <_ZdlPvm@plt>
+   1310c:      	ldr	x22, [sp, #0x28]
+   13110:      	cbz	x22, 0x1319c <.text+0x719c>
+   13114:      	mov	w0, #0x20               // =32
+   13118:      	bl	0x276f0 <_Znwm@plt>
+   1311c:      	ldr	w9, [x22]
+   13120:      	mov	x8, x22
+   13124:      	mov	x21, x0
+   13128:      	str	w9, [x0], #0x8
+   1312c:      	ldrb	w9, [x8, #0x8]!
+   13130:      	tbnz	w9, #0x0, 0x131ac <.text+0x71ac>
+   13134:      	ldr	x9, [x8, #0x10]
+   13138:      	ldr	q0, [x8]
+   1313c:      	str	x21, [x20]
+   13140:      	str	x9, [x0, #0x10]
+   13144:      	str	q0, [x0]
+   13148:      	b	0x131b8 <.text+0x71b8>
+   1314c:      	mov	w8, #0x1                // =1
+   13150:      	strb	w8, [x20, #0x8]
+   13154:      	str	xzr, [x20]
+   13158:      	b	0x13448 <.text+0x7448>

@@ -2424,8 +2424,9 @@ impl OstadixMcp {
     async fn o_execute(
         &self,
         Parameters(args): Parameters<unified::ExecuteArgs>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
-        self.execute_computation(args).await
+        self.execute_computation(args, &context).await
     }
 
     #[tool(
@@ -3316,7 +3317,7 @@ impl ServerHandler for OstadixMcp {
                 name: "ostadix-mcp".into(),
                 title: Some("Ostadix runtime and toolchain".into()),
                 version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.2").into(),
-                website_url: Some("https://github.com/lostadi/Ostadix-lang".into()),
+                website_url: Some("https://github.com/lostadi/OSTADIX".into()),
                 icons: None,
             },
             instructions: Some(

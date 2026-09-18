@@ -1,0 +1,63 @@
+bash^(
+set -eu
+
+best_index=-1
+best_score=0
+
+is_unsigned_integer() {
+    case "\$1" in
+        ''|*[!0-9]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+is_signed_integer() {
+    case "\$1" in
+        -*) is_unsigned_integer "\${1#-}" ;;
+        *) is_unsigned_integer "\$1" ;;
+    esac
+}
+
+consider_reply() {
+    index=\$1
+    present=\$2
+    score=\$3
+    has_text=\$4
+    safety_classification=\$5
+
+    is_unsigned_integer "\$index" || {
+        printf '%s\n' 'invalid Smart Reply source index' >&2
+        exit 2
+    }
+    case "\$present:\$has_text" in
+        0:0|0:1|1:0|1:1) ;;
+        *) printf '%s\n' 'invalid Smart Reply presence metadata' >&2; exit 2 ;;
+    esac
+    is_signed_integer "\$score" || {
+        printf '%s\n' 'invalid Smart Reply score' >&2
+        exit 2
+    }
+    is_signed_integer "\$safety_classification" || {
+        printf '%s\n' 'invalid Smart Reply safety classification' >&2
+        exit 2
+    }
+
+    [ "\$present" -eq 1 ] || return 0
+    [ "\$has_text" -eq 1 ] || return 0
+    [ "\$safety_classification" -eq 0 ] || return 0
+    if [ "\$best_index" -eq -1 ] || [ "\$score" -gt "\$best_score" ]; then
+        best_index=\$index
+        best_score=\$score
+    fi
+}
+
+consider_reply 0 $present_0 $score_0 $has_text_0 $safety_classification_0
+consider_reply 1 $present_1 $score_1 $has_text_1 $safety_classification_1
+consider_reply 2 $present_2 $score_2 $has_text_2 $safety_classification_2
+
+if [ "\$best_index" -eq -1 ]; then
+    printf '%s\n' 'SmartReplyResult has no safe nonempty reply' >&2
+    exit 2
+fi
+printf '{"source_index":%s,"score_milli":%s}\n' "\$best_index" "\$best_score"
+)_bash

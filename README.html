@@ -1287,6 +1287,13 @@ add an idempotent source block to <code>~/.zshrc</code> or <code>~/.bashrc</code
 run removes stale generated Ostadix-lang binaries before rebuilding them,
 refreshes installed Rust copies in <code>~/.cargo/bin</code>, and installs native commands in
 <code>~/.local/bin</code>; <code>--no-mcp</code> skips the separately locked <code>ostadix-mcp</code> crate.</p>
+<p>The optional terminal kit keeps shell-only conveniences under <code>o-term</code>,
+including <code>pull</code>, <code>update</code>, <code>sync</code>, <code>ssh</code>, <code>scp</code>, <code>hosts</code>, <code>new</code>, <code>ex</code> and
+<code>test</code>. Use <code>o-term pull</code> or <code>o-term sync</code> for those helpers. <code>oroot</code> changes
+the current shell&#39;s directory; native <code>o root</code> prints the configured repository
+path. <code>o help</code> lists native commands and <code>o-term help</code> lists shell conveniences.
+See the <a href="DEVELOPMENT.md#native-command-reference">native command reference</a> for
+migrating a legacy <code>o()</code> shell function that shadows the compiled executable.</p>
 <p>After setup:</p>
 <pre><code class="language-bash">o examples/hello.O
 cargo run -- examples/hello.O

@@ -1,0 +1,93 @@
+{
+  "utc": "2026-09-17T18:00:26.626932+00:00",
+  "caller": "controlled local HTTPS test caller, not Android AppFunction or Gemini",
+  "host_uid": 10402,
+  "request_id": "canonical-nano-program-broker-20260917",
+  "source_sha256": "58f4f49e8fa4a7481800dafe158564e67f30fc18a6bc5d36c4313ba67765fe0a",
+  "http_status": 200,
+  "certificate_pin_verified": true,
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"action\":\"execute\",\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":true,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":6943,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":1,\"session_scan_complete\":true},\"error\":\"process exited unsuccessfully: exit status: 1\",\"exit_code\":1,\"initial_input_state\":\"not_supplied\",\"input\":{\"cwd\":\"/data/data/com.termux/files/home/OSTADIX\",\"kind\":\"ordinary\",\"path\":null,\"source_inline\":true,\"temporary_source\":false},\"input_error\":null,\"job_id\":\"job-6931-1789668026381661567-1-1\",\"mode\":\"direct\",\"pid\":6943,\"placement\":{\"requested\":\"auto\",\"route\":\"ordinary-local\"},\"pty\":false,\"restart_persistence\":false,\"result\":{\"error\":\"backend process closed stdout unexpectedly: backend process closed stdout unexpectedly\",\"ok\":false,\"stage\":\"eval\"},\"session_scoped\":true,\"signal\":null,\"state\":\"failed\",\"stderr\":{\"bytes_read\":285,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-6931-1789668026381661567-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":285,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-6931-1789668026381661567-1/job-6931-1789668026381661567-1-1/stderr.log\",\"stream\":\"stderr\",\"text\":\"error: expected absolute path: \\\"--o-backend\\\"\\nerror: expected absolute path: \\\"--o-backend\\\"\\nerror: expected absolute path: \\\"--o-backend\\\"\\nError: failed to evaluate .O document\\n\\nCaused by:\\n    0: backend process closed stdout unexpectedly\\n    1: backend process closed stdout unexpectedly\\n\",\"total_bytes\":285},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":125,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-6931-1789668026381661567-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":125,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-6931-1789668026381661567-1/job-6931-1789668026381661567-1-1/stdout.log\",\"stream\":\"stdout\",\"text\":\"{\\\"ok\\\":false,\\\"stage\\\":\\\"eval\\\",\\\"error\\\":\\\"backend process closed stdout unexpectedly: backend process closed stdout unexpectedly\\\"}\\n\",\"total_bytes\":125},\"timeout_secs\":120}"
+      }
+    ],
+    "structuredContent": {
+      "action": "execute",
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": true,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 6943,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 1,
+        "session_scan_complete": true
+      },
+      "error": "process exited unsuccessfully: exit status: 1",
+      "exit_code": 1,
+      "initial_input_state": "not_supplied",
+      "input": {
+        "cwd": "/data/data/com.termux/files/home/OSTADIX",
+        "kind": "ordinary",
+        "path": null,
+        "source_inline": true,
+        "temporary_source": false
+      },
+      "input_error": null,
+      "job_id": "job-6931-1789668026381661567-1-1",
+      "mode": "direct",
+      "pid": 6943,
+      "placement": {
+        "requested": "auto",
+        "route": "ordinary-local"
+      },
+      "pty": false,
+      "restart_persistence": false,
+      "result": {
+        "error": "backend process closed stdout unexpectedly: backend process closed stdout unexpectedly",
+        "ok": false,
+        "stage": "eval"
+      },
+      "session_scoped": true,
+      "signal": null,
+      "state": "failed",
+      "stderr": {
+        "bytes_read": 285,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-6931-1789668026381661567-1-1",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 285,
+        "offset": 0,
+        "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-6931-1789668026381661567-1/job-6931-1789668026381661567-1-1/stderr.log",
+        "stream": "stderr",
+        "text": "error: expected absolute path: \"--o-backend\"\nerror: expected absolute path: \"--o-backend\"\nerror: expected absolute path: \"--o-backend\"\nError: failed to evaluate .O document\n\nCaused by:\n    0: backend process closed stdout unexpectedly\n    1: backend process closed stdout unexpectedly\n",
+        "total_bytes": 285
+      },
+      "stdin_eof_mode": "pipe_close",
+      "stdin_open": false,
+      "stdout": {
+        "bytes_read": 125,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-6931-1789668026381661567-1-1",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 125,
+        "offset": 0,
+        "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-6931-1789668026381661567-1/job-6931-1789668026381661567-1-1/stdout.log",
+        "stream": "stdout",
+        "text": "{\"ok\":false,\"stage\":\"eval\",\"error\":\"backend process closed stdout unexpectedly: backend process closed stdout unexpectedly\"}\n",
+        "total_bytes": 125
+      },
+      "timeout_secs": 120
+    },
+    "isError": true
+  }
+}

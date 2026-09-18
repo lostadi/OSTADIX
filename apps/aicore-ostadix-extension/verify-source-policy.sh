@@ -19,4 +19,24 @@ for expected in \
     }
 done
 
-echo 'source_policy_match=true fields=8'
+for expected in \
+        '16934935L' 'C.6.playstore.pixel11.961955194' \
+        '16d2b265fbea8c8abc46b537b6191628f7a855d7e3fd760b4a60bb6ea9c93e68' \
+        '3af39ab967aaa5d279e49b5f769cb66e40799838bc8799343ee57ae435d2455b'; do
+    grep -Fq "$expected" "$GATE" || {
+        echo "source_policy_match=false missing_asi=$expected"
+        exit 3
+    }
+done
+
+for expected in \
+        '301803623L' '17.56.15.sa.arm64' \
+        'c227beb9468f1740c395e457d5f06fb780f288a89156d8487ef069953c1c359a' \
+        '7ce83c1b71f3d572fed04c8d40c5cb10ff75e6d87d9df6fbd53f0468c2905053'; do
+    grep -Fq "$expected" "$GATE" || {
+        echo "source_policy_match=false missing_gsa=$expected"
+        exit 3
+    }
+done
+
+echo 'source_policy_match=true fields=16'

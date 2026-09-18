@@ -1,0 +1,14 @@
+09-17 06:38:11.639 26030 26030 I OstadixAicoreExperiment: org.ostadix.aicore.extension: Installed version-pinned Gemini AppFunction schema inventory hook
+09-17 06:38:24.785 26997 26997 I AsiSmartReplyTrigger: event=activity_created synthetic_input=true
+09-17 06:38:25.147 26997 26997 I AsiSmartReplyTrigger: event=content_capture_settle
+09-17 06:38:26.965 26997 26997 I AsiSmartReplyTrigger: event=ime_requested accepted=true
+09-17 06:38:27.253 25188 25523 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-1 candidate_count=1 caller_provenance=asi_process_local original_client_uid=unobserved
+09-17 06:38:27.623 25188 25523 I OstadixAicoreExperiment: event=asi_ostadix_selected request_id=asi-autofill-10201-1 candidate_count=1 source_index=0 score_milli=1000 elapsed_ms=364 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=e6a76b9d0cf4b1b068d8db6941441908659f8e45827bd6899ea029d6b8ee562b
+09-17 06:38:27.623 25188 25523 I OstadixAicoreExperiment: event=asi_result_selected_for_forwarding request_id=asi-autofill-10201-1 selected_source_index=0
+09-17 06:38:27.634 25188 25523 I OstadixAicoreExperiment: event=asi_result_forwarded request_id=asi-autofill-10201-1
+09-17 06:38:27.699 25188 25523 I OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-2 candidate_count=1 caller_provenance=asi_process_local original_client_uid=unobserved
+09-17 06:38:27.870 26997 26997 I AsiSmartReplyTrigger: event=autofill_requested
+09-17 06:38:27.988 26997 26997 I AsiSmartReplyTrigger: event=autofill_event value=input_shown
+09-17 06:38:28.005 25188 25523 I OstadixAicoreExperiment: event=asi_ostadix_selected request_id=asi-autofill-10201-2 candidate_count=1 source_index=0 score_milli=1000 elapsed_ms=293 intent_sha256=3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790 result_identity=e6a76b9d0cf4b1b068d8db6941441908659f8e45827bd6899ea029d6b8ee562b
+09-17 06:38:28.005 25188 25523 I OstadixAicoreExperiment: event=asi_result_selected_for_forwarding request_id=asi-autofill-10201-2 selected_source_index=0
+09-17 06:38:28.006 25188 25523 I OstadixAicoreExperiment: event=asi_result_forwarded request_id=asi-autofill-10201-2

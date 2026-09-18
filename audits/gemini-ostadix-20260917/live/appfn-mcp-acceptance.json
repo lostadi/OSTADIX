@@ -1,0 +1,375 @@
+{
+  "requests": [
+    {
+      "name": "inventory",
+      "parameters": {
+        "source": "# Generated for the 2026-09-17 source-first acceptance test.\n# Three runtimes supply independent inputs to one dependent inventory decision.\nlet parts = autonomous(batch(\npython^(\nimport csv\nimport io\nrows = csv.DictReader(io.StringIO(\"id,name,quantity,unit_price\\n2,bolt,7,4\\n4,washer,20,1\\n5,gear,2,11\\n7,belt,3,9\\n\"))\n__oval_result__ = [dict(id=int(r[\"id\"]), name=r[\"name\"], quantity=int(r[\"quantity\"]), unit_price=int(r[\"unit_price\"])) for r in rows]\n)_python,\nrust^(\nfn main() {\n    let ids: Vec<String> = (2..=9)\n        .filter(|n| (2..*n).all(|d| n % d != 0))\n        .map(|n| n.to_string())\n        .collect();\n    println!(\"[{}]\", ids.join(\",\"));\n}\n)_rust,\nbash^(\nreadarray -t allowed < <(printf '%s\\n' gear bolt | sort)\nprintf '[\"%s\",\"%s\"]\\n' \"\\${allowed[0]}\" \"\\${allowed[1]}\"\n)_bash\n))\n\npython^(\nrows, eligible_ids, allowed_names = $parts\nchosen = [dict(row, line_total=row[\"quantity\"] * row[\"unit_price\"])\n          for row in rows if row[\"id\"] in eligible_ids and row[\"name\"] in allowed_names]\n__oval_result__ = {\n    \"selected_items\": chosen,\n    \"total\": sum(row[\"line_total\"] for row in chosen),\n    \"excluded_ids\": sorted(row[\"id\"] for row in rows if row[\"id\"] not in [r[\"id\"] for r in chosen]),\n    \"prime_ids_from_rust\": eligible_ids,\n    \"allowed_names_from_bash\": allowed_names,\n}\n)_python\n",
+        "timeoutMs": 30000
+      },
+      "stdout": "{\n  \"androidAppfunctionsReturnValue\": [\n    \"{\\\"schema\\\":\\\"ostadix.runtime-request-result\\\\\\/v1\\\",\\\"disposition\\\":\\\"executed\\\",\\\"execution_mode\\\":\\\"embedded_runtime_request\\\",\\\"caller_id\\\":\\\"mcp\\\\\\/stdio\\\",\\\"request_id\\\":\\\"mcp-17977-1\\\",\\\"result\\\":{\\\"typed_value\\\":{\\\"t\\\":\\\"map\\\",\\\"v\\\":{\\\"excluded_ids\\\":{\\\"t\\\":\\\"list\\\",\\\"v\\\":[{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"4\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"7\\\"}}]},\\\"selected_items\\\":{\\\"t\\\":\\\"list\\\",\\\"v\\\":[{\\\"t\\\":\\\"map\\\",\\\"v\\\":{\\\"line_total\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"28\\\"}},\\\"unit_price\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"4\\\"}},\\\"name\\\":{\\\"t\\\":\\\"text\\\",\\\"v\\\":{\\\"utf8\\\":\\\"bolt\\\",\\\"encoding\\\":\\\"utf-8\\\"}},\\\"id\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"2\\\"}},\\\"quantity\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"7\\\"}}}},{\\\"t\\\":\\\"map\\\",\\\"v\\\":{\\\"name\\\":{\\\"t\\\":\\\"text\\\",\\\"v\\\":{\\\"utf8\\\":\\\"gear\\\",\\\"encoding\\\":\\\"utf-8\\\"}},\\\"quantity\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"2\\\"}},\\\"unit_price\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"11\\\"}},\\\"line_total\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"22\\\"}},\\\"id\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"5\\\"}}}}]},\\\"total\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"50\\\"}},\\\"prime_ids_from_rust\\\":{\\\"t\\\":\\\"list\\\",\\\"v\\\":[{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"2\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"3\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"5\\\"}},{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"7\\\"}}]},\\\"allowed_names_from_bash\\\":{\\\"t\\\":\\\"list\\\",\\\"v\\\":[{\\\"t\\\":\\\"text\\\",\\\"v\\\":{\\\"utf8\\\":\\\"bolt\\\",\\\"encoding\\\":\\\"utf-8\\\"}},{\\\"t\\\":\\\"text\\\",\\\"v\\\":{\\\"utf8\\\":\\\"gear\\\",\\\"encoding\\\":\\\"utf-8\\\"}}]}}}},\\\"structure\\\":{\\\"plan_nodes\\\":17,\\\"hgraph_nodes\\\":33,\\\"hgraph_exec_edges\\\":8},\\\"elapsed_ms\\\":1339,\\\"evidence\\\":{\\\"source_sha256\\\":\\\"390ec5a592abe2c3906006b96d68c09077336b461f7e2405fc5df8fefb4ab15d\\\",\\\"execution_intent_sha256\\\":\\\"98eba46d4a9c83f580dc1af0f12ab74a35bf1e0a8e9d3b208148abb23a9f1ba9\\\",\\\"request_scope_content_identity\\\":\\\"18127eb361263ede4dbb30543c38387d976823db47e02a99ec181c5b91a5c86e\\\",\\\"oir_sha256\\\":\\\"cd8cca54421b88ef72e40370bbc1950820764e7670a48aafb2a0dd1faa2ecd16\\\",\\\"plan_sha256\\\":\\\"f7ec013c81b85f3cdc065bc217ec06da47bb61065fde476f877953f731f9374f\\\",\\\"analyzed_graph_sha256\\\":\\\"2aae6589ce78e3458fead660359f9691adf94ea5bab95bea769bbc5feb133569\\\",\\\"evidence_sha256\\\":\\\"43316e081899e9bd0fc21261389cde8c94ecbfa526feb502867df4de161e9fc8\\\",\\\"admitted_graph_sha256\\\":\\\"d4fe669553ba39cada64641b9dc98c694b348438bc08c1569843b9ededdad025\\\",\\\"admission_sha256\\\":\\\"76e930f898500a288f891d61a23c6fafe8595ed86eabac7fc780d365877a80f6\\\",\\\"result_content_identity\\\":\\\"78cda9c4414d8aecfd4715b5641854755b96e7fcfbcb0b6a0d535731f722c2ea\\\"}}\"\n  ]\n}\n",
+      "stderr": "",
+      "exit_code": 0,
+      "wall_ms": 1590,
+      "structured_result": {
+        "schema": "ostadix.runtime-request-result/v1",
+        "disposition": "executed",
+        "execution_mode": "embedded_runtime_request",
+        "caller_id": "mcp/stdio",
+        "request_id": "mcp-17977-1",
+        "result": {
+          "typed_value": {
+            "t": "map",
+            "v": {
+              "excluded_ids": {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "4"
+                    }
+                  },
+                  {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "7"
+                    }
+                  }
+                ]
+              },
+              "selected_items": {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "map",
+                    "v": {
+                      "line_total": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "28"
+                        }
+                      },
+                      "unit_price": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "4"
+                        }
+                      },
+                      "name": {
+                        "t": "text",
+                        "v": {
+                          "utf8": "bolt",
+                          "encoding": "utf-8"
+                        }
+                      },
+                      "id": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "2"
+                        }
+                      },
+                      "quantity": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "7"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "t": "map",
+                    "v": {
+                      "name": {
+                        "t": "text",
+                        "v": {
+                          "utf8": "gear",
+                          "encoding": "utf-8"
+                        }
+                      },
+                      "quantity": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "2"
+                        }
+                      },
+                      "unit_price": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "11"
+                        }
+                      },
+                      "line_total": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "22"
+                        }
+                      },
+                      "id": {
+                        "t": "number",
+                        "v": {
+                          "kind": "int",
+                          "v": "5"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "total": {
+                "t": "number",
+                "v": {
+                  "kind": "int",
+                  "v": "50"
+                }
+              },
+              "prime_ids_from_rust": {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "2"
+                    }
+                  },
+                  {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "3"
+                    }
+                  },
+                  {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "5"
+                    }
+                  },
+                  {
+                    "t": "number",
+                    "v": {
+                      "kind": "int",
+                      "v": "7"
+                    }
+                  }
+                ]
+              },
+              "allowed_names_from_bash": {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "text",
+                    "v": {
+                      "utf8": "bolt",
+                      "encoding": "utf-8"
+                    }
+                  },
+                  {
+                    "t": "text",
+                    "v": {
+                      "utf8": "gear",
+                      "encoding": "utf-8"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "structure": {
+          "plan_nodes": 17,
+          "hgraph_nodes": 33,
+          "hgraph_exec_edges": 8
+        },
+        "elapsed_ms": 1339,
+        "evidence": {
+          "source_sha256": "390ec5a592abe2c3906006b96d68c09077336b461f7e2405fc5df8fefb4ab15d",
+          "execution_intent_sha256": "98eba46d4a9c83f580dc1af0f12ab74a35bf1e0a8e9d3b208148abb23a9f1ba9",
+          "request_scope_content_identity": "18127eb361263ede4dbb30543c38387d976823db47e02a99ec181c5b91a5c86e",
+          "oir_sha256": "cd8cca54421b88ef72e40370bbc1950820764e7670a48aafb2a0dd1faa2ecd16",
+          "plan_sha256": "f7ec013c81b85f3cdc065bc217ec06da47bb61065fde476f877953f731f9374f",
+          "analyzed_graph_sha256": "2aae6589ce78e3458fead660359f9691adf94ea5bab95bea769bbc5feb133569",
+          "evidence_sha256": "43316e081899e9bd0fc21261389cde8c94ecbfa526feb502867df4de161e9fc8",
+          "admitted_graph_sha256": "d4fe669553ba39cada64641b9dc98c694b348438bc08c1569843b9ededdad025",
+          "admission_sha256": "76e930f898500a288f891d61a23c6fafe8595ed86eabac7fc780d365877a80f6",
+          "result_content_identity": "78cda9c4414d8aecfd4715b5641854755b96e7fcfbcb0b6a0d535731f722c2ea"
+        }
+      }
+    },
+    {
+      "name": "lifted",
+      "parameters": {
+        "source": "# Ostadix-lang lifted project\n# project: mcp-lifted-acceptance\n# root_fingerprint: 7de8e34d1a2c47fb7f06731d54eeee8627277afdbdb9f31df5373f6707ab1fea\n# files: 3   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: mcp-lifted-acceptance  (1 route, 0 route sets)\n# * summarize  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6Im1jcC1saWZ0ZWQtYWNjZXB0YW5jZSIsInJvb3Rf\nZmluZ2VycHJpbnQiOiI3ZGU4ZTM0ZDFhMmM0N2ZiN2YwNjczMWQ1NGVlZWU4NjI3Mjc3YWZkYmRi\nOWYzMWRmNTM3M2Y2NzA3YWIxZmVhIiwiZmlsZXMiOlt7InBhdGgiOiJtYWluLnB5IiwiYnl0ZXMi\nOiJhVzF3YjNKMElHcHpiMjRLWm5KdmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DZ3B5WldG\na2FXNW5jeUE5SUdwemIyNHViRzloWkhNb1VHRjBhQ2dpY21WaFpHbHVaM011YW5OdmJpSXBMbkps\nWVdSZmRHVjRkQ2dwS1Fwd2NtbHVkQ2hxYzI5dUxtUjFiWEJ6S0hzS0lDQWdJQ0p6ZEdGMGFXOXVj\neUk2SUhOdmNuUmxaQ2g3Y205M1d5SnpkR0YwYVc5dUlsMGdabTl5SUhKdmR5QnBiaUJ5WldGa2FX\nNW5jMzBwTEFvZ0lDQWdJblJ2ZEdGc0lqb2djM1Z0S0hKdmQxc2lZMjkxYm5RaVhTQm1iM0lnY205\nM0lHbHVJSEpsWVdScGJtZHpLU3dLSUNBZ0lDSnliM2R6SWpvZ2JHVnVLSEpsWVdScGJtZHpLU3dL\nZlNrcENnPT0iLCJleGVjdXRhYmxlIjpmYWxzZSwidW5peF9tb2RlIjozMzE4OCwic3ltbGlua190\nYXJnZXQiOm51bGwsImV2YWx1YXRvciI6InB5dGhvbiIsImNvbnRlbnRfaGFzaCI6Ijg0NWIwOTc1\nOGEzM2Q1YWIwNmU2ZmExZGZhYmNkNWU1YmY4NGUyYzMyZGIzMzZlN2JiNzljZGRkY2MxYzAwODUi\nLCJyb2xlIjoiU291cmNlIn0seyJwYXRoIjoib2xhbmcucHJvamVjdC50b21sIiwiYnl0ZXMiOiJX\nM0J5YjJwbFkzUmRDbTVoYldVZ1BTQWliV053TFd4cFpuUmxaQzFoWTJObGNIUmhibU5sSWdwa1pX\nWmhkV3gwWDNKdmRYUmxJRDBnSW5OMWJXMWhjbWw2WlNJS0NsdGJjbTkxZEdWelhWMEthV1FnUFNB\naWMzVnRiV0Z5YVhwbElncGpiMjF0WVc1a0lEMGdXeUp3ZVhSb2IyNHpJaXdnSW0xaGFXNHVjSGtp\nWFFwcGJuQjFkSE1nUFNCYkltMWhhVzR1Y0hraUxDQWljbVZoWkdsdVozTXVhbk52YmlKZENuSmxj\nM1ZzZEY5amIyUmxZeUE5SUNKcWMyOXVJZ3BrWldaaGRXeDBJRDBnZEhKMVpRbz0iLCJleGVjdXRh\nYmxlIjpmYWxzZSwidW5peF9tb2RlIjozMzE4OCwic3ltbGlua190YXJnZXQiOm51bGwsImV2YWx1\nYXRvciI6bnVsbCwiY29udGVudF9oYXNoIjoiZGM4MjBmM2E0NGI1ZjQyMTk1YmY3ZjI2YWFhNTY2\nYWEzNzIwZTQyYjYyMjdjMGYyYmY1YTI4YTZkZmZjMTFiZSIsInJvbGUiOiJNYW5pZmVzdCJ9LHsi\ncGF0aCI6InJlYWRpbmdzLmpzb24iLCJieXRlcyI6Ilczc2ljM1JoZEdsdmJpSTZJbTV2Y25Sb0lp\nd2lZMjkxYm5RaU9qRTNmU3g3SW5OMFlYUnBiMjRpT2lKemIzVjBhQ0lzSW1OdmRXNTBJam95Tlgx\nZENnPT0iLCJleGVjdXRhYmxlIjpmYWxzZSwidW5peF9tb2RlIjozMzE4OCwic3ltbGlua190YXJn\nZXQiOm51bGwsImV2YWx1YXRvciI6bnVsbCwiY29udGVudF9oYXNoIjoiNTZmY2U2NTU4YzNjZTJh\nZWViZWNlYzQ2ZmMzNGI4MjlmYzNlNGMzYzc2MDZmMzhjYmJmOTBhMjZiMTFlYTdjZSIsInJvbGUi\nOiJPdGhlciJ9XSwicm91dGVzIjpbeyJpZCI6InN1bW1hcml6ZSIsImxhYmVsIjoic3VtbWFyaXpl\nIiwia2luZCI6IkludGVycHJldGVyQ29tbWFuZCIsImNvbW1hbmQiOlsicHl0aG9uMyIsIm1haW4u\ncHkiXSwiZXZhbHVhdG9yIjpudWxsLCJlbnRyeXBvaW50IjpudWxsLCJ3b3JraW5nX2RpcmVjdG9y\neSI6Ii4iLCJhcmd1bWVudHMiOltdLCJlbnZpcm9ubWVudCI6e30sInByZXJlcXVpc2l0ZXMiOltd\nLCJpbnB1dHMiOlsibWFpbi5weSIsInJlYWRpbmdzLmpzb24iXSwib3V0cHV0cyI6W10sImVmZmVj\ndHMiOnsicHVyZSI6ZmFsc2UsInVua25vd24iOnRydWUsInJlYWRzIjpbXSwid3JpdGVzIjpbXX0s\nImZhaWx1cmVfY29udGludWF0aW9uIjoidW5wcm92ZW4iLCJyZXN1bHRfY29kZWMiOiJKc29uIiwi\ncHJvdmlkZXMiOltdLCJndWFyZHMiOltdLCJwcmlvcml0eSI6MCwiaXNfZGVmYXVsdCI6dHJ1ZSwi\ncHJvdmVuYW5jZSI6eyJNYW5pZmVzdCI6eyJwYXRoIjoib2xhbmcucHJvamVjdC50b21sIn19fV0s\nInJvdXRlX3NldHMiOltdLCJkZWZhdWx0X3JvdXRlIjoic3VtbWFyaXplIiwibWV0YWRhdGEiOnt9\nfQ==\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+        "timeoutMs": 30000
+      },
+      "stdout": "{\n  \"androidAppfunctionsReturnValue\": [\n    \"{\\\"schema\\\":\\\"ostadix.project-request-result\\\\\\/v1\\\",\\\"disposition\\\":\\\"executed\\\",\\\"execution_mode\\\":\\\"lifted_project_existing_executor\\\",\\\"caller_id\\\":\\\"mcp\\\\\\/stdio\\\",\\\"request_id\\\":\\\"mcp-18054-1\\\",\\\"result\\\":{\\\"decoded_value\\\":{\\\"stations\\\":[\\\"north\\\",\\\"south\\\"],\\\"total\\\":42,\\\"rows\\\":2},\\\"route_results\\\":[{\\\"route_id\\\":\\\"summarize\\\",\\\"exit_code\\\":0,\\\"stdout\\\":{\\\"retained\\\":\\\"eyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0K\\\",\\\"capture\\\":{\\\"total_observed_bytes\\\":57,\\\"retained_bytes\\\":57,\\\"truncated\\\":false,\\\"sha256\\\":\\\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\\\"}},\\\"stderr\\\":{\\\"retained\\\":\\\"\\\",\\\"capture\\\":{\\\"total_observed_bytes\\\":0,\\\"retained_bytes\\\":0,\\\"truncated\\\":false,\\\"sha256\\\":\\\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\\\"}},\\\"value\\\":{\\\"stations\\\":[\\\"north\\\",\\\"south\\\"],\\\"total\\\":42,\\\"rows\\\":2},\\\"artifacts\\\":[],\\\"artifact_requirements\\\":[],\\\"artifact_capture\\\":{\\\"state\\\":\\\"complete\\\"},\\\"disposition\\\":\\\"executed\\\",\\\"duration_ns\\\":\\\"76836120\\\",\\\"provenance\\\":{\\\"execution_scope\\\":\\\"isolated_project_workspace\\\",\\\"command_argv_retained\\\":false,\\\"command_argument_count\\\":2}}]},\\\"elapsed_ms\\\":144,\\\"evidence\\\":{\\\"source_sha256\\\":\\\"8e1c184596354c26ee4e7acd4327f2edb985da08c7beb5902c2b17cf65a0a3f5\\\",\\\"input\\\":{\\\"kind\\\":\\\"lifted_project_bundle\\\",\\\"path\\\":\\\"\\\\\\/data\\\\\\/data\\\\\\/com.termux\\\\\\/files\\\\\\/usr\\\\\\/tmp\\\\\\/ostadix-mcp-source-18054-1789656031723106757\\\\\\/program.O\\\",\\\"digest_sha256\\\":\\\"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\\\"},\\\"plan\\\":{\\\"oir_sha256\\\":null,\\\"execution_plan_sha256\\\":null,\\\"hgraph_sha256\\\":\\\"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\\\",\\\"execution_intent_sha256\\\":null,\\\"deployment_sha256\\\":\\\"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\\\"},\\\"result_references\\\":[{\\\"kind\\\":\\\"route_stdout\\\",\\\"id\\\":\\\"summarize\\\",\\\"sha256\\\":\\\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\\\",\\\"bytes_len\\\":57,\\\"complete\\\":true},{\\\"kind\\\":\\\"route_stderr\\\",\\\"id\\\":\\\"summarize\\\",\\\"sha256\\\":\\\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\\\",\\\"bytes_len\\\":0,\\\"complete\\\":true}]}}\"\n  ]\n}\n",
+      "stderr": "",
+      "exit_code": 0,
+      "wall_ms": 375,
+      "structured_result": {
+        "schema": "ostadix.project-request-result/v1",
+        "disposition": "executed",
+        "execution_mode": "lifted_project_existing_executor",
+        "caller_id": "mcp/stdio",
+        "request_id": "mcp-18054-1",
+        "result": {
+          "decoded_value": {
+            "stations": [
+              "north",
+              "south"
+            ],
+            "total": 42,
+            "rows": 2
+          },
+          "route_results": [
+            {
+              "route_id": "summarize",
+              "exit_code": 0,
+              "stdout": {
+                "retained": "eyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0K",
+                "capture": {
+                  "total_observed_bytes": 57,
+                  "retained_bytes": 57,
+                  "truncated": false,
+                  "sha256": "b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b"
+                }
+              },
+              "stderr": {
+                "retained": "",
+                "capture": {
+                  "total_observed_bytes": 0,
+                  "retained_bytes": 0,
+                  "truncated": false,
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                }
+              },
+              "value": {
+                "stations": [
+                  "north",
+                  "south"
+                ],
+                "total": 42,
+                "rows": 2
+              },
+              "artifacts": [],
+              "artifact_requirements": [],
+              "artifact_capture": {
+                "state": "complete"
+              },
+              "disposition": "executed",
+              "duration_ns": "76836120",
+              "provenance": {
+                "execution_scope": "isolated_project_workspace",
+                "command_argv_retained": false,
+                "command_argument_count": 2
+              }
+            }
+          ]
+        },
+        "elapsed_ms": 144,
+        "evidence": {
+          "source_sha256": "8e1c184596354c26ee4e7acd4327f2edb985da08c7beb5902c2b17cf65a0a3f5",
+          "input": {
+            "kind": "lifted_project_bundle",
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-18054-1789656031723106757/program.O",
+            "digest_sha256": "30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3"
+          },
+          "plan": {
+            "oir_sha256": null,
+            "execution_plan_sha256": null,
+            "hgraph_sha256": "cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b",
+            "execution_intent_sha256": null,
+            "deployment_sha256": "89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc"
+          },
+          "result_references": [
+            {
+              "kind": "route_stdout",
+              "id": "summarize",
+              "sha256": "b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b",
+              "bytes_len": 57,
+              "complete": true
+            },
+            {
+              "kind": "route_stderr",
+              "id": "summarize",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "bytes_len": 0,
+              "complete": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cancel",
+      "parameters": {
+        "source": "bash^(printf start > /data/data/com.termux/files/home/.cache/ostadix/gemini-tests/appfn-mcp-start; sleep 3; printf late > /data/data/com.termux/files/home/.cache/ostadix/gemini-tests/appfn-mcp-late)_bash",
+        "timeoutMs": 10000
+      },
+      "stdout": "Timed out\n",
+      "stderr": "",
+      "exit_code": 255,
+      "wall_ms": 1029
+    },
+    {
+      "name": "recovery",
+      "parameters": {
+        "source": "$answer",
+        "bindingsJson": "{\"answer\":7}",
+        "timeoutMs": 10000
+      },
+      "stdout": "{\n  \"androidAppfunctionsReturnValue\": [\n    \"{\\\"schema\\\":\\\"ostadix.runtime-request-result\\\\\\/v1\\\",\\\"disposition\\\":\\\"executed\\\",\\\"execution_mode\\\":\\\"embedded_runtime_request\\\",\\\"caller_id\\\":\\\"mcp\\\\\\/stdio\\\",\\\"request_id\\\":\\\"mcp-18112-1\\\",\\\"result\\\":{\\\"typed_value\\\":{\\\"t\\\":\\\"number\\\",\\\"v\\\":{\\\"kind\\\":\\\"int\\\",\\\"v\\\":\\\"7\\\"}}},\\\"structure\\\":{\\\"plan_nodes\\\":1,\\\"hgraph_nodes\\\":3,\\\"hgraph_exec_edges\\\":1},\\\"elapsed_ms\\\":11,\\\"evidence\\\":{\\\"source_sha256\\\":\\\"29848ceeef8324cf8f60fd15061cbd2637d8736fad0a19180d64ec1378fedb8d\\\",\\\"execution_intent_sha256\\\":\\\"9368c94550cf0f672641cd449d51acd15d158544a41a93ae1cd96d85ceeb155d\\\",\\\"request_scope_content_identity\\\":\\\"3c331c9a6f51de73443d6e1fcce5f0beed897b0b71a1b3fc31065e4f0de21a46\\\",\\\"oir_sha256\\\":\\\"9a38d8ec7978388a78f21c0a8a7c5e81a5eb3baf1afdbbbea34ebe47fe488153\\\",\\\"plan_sha256\\\":\\\"59554b022631b12cddefdc719ecead8b365668b5802b00622ddd5ba0321c6697\\\",\\\"analyzed_graph_sha256\\\":\\\"0449d7b143cd802c3dbf9c261609e20b2a6e90de223d9e9c334df0ce7c26a333\\\",\\\"evidence_sha256\\\":\\\"9ff9b932d6c880ed98269da65c502130a4ab1b3b94079d6560fef75ec0830950\\\",\\\"admitted_graph_sha256\\\":\\\"020593aedbd70c5571e3c253029b27d85c79cf3677ef9cc54f653fdb0e29368b\\\",\\\"admission_sha256\\\":\\\"a913dbf7f8610c751a797f13b7a215fe6f34a8375f16783c50caa8ff6cc7f320\\\",\\\"result_content_identity\\\":\\\"81820b739ce691b7f74ce93ef919b6651acf36dacaa3582bee4a06020a835c15\\\"}}\"\n  ]\n}\n",
+      "stderr": "",
+      "exit_code": 0,
+      "wall_ms": 179,
+      "structured_result": {
+        "schema": "ostadix.runtime-request-result/v1",
+        "disposition": "executed",
+        "execution_mode": "embedded_runtime_request",
+        "caller_id": "mcp/stdio",
+        "request_id": "mcp-18112-1",
+        "result": {
+          "typed_value": {
+            "t": "number",
+            "v": {
+              "kind": "int",
+              "v": "7"
+            }
+          }
+        },
+        "structure": {
+          "plan_nodes": 1,
+          "hgraph_nodes": 3,
+          "hgraph_exec_edges": 1
+        },
+        "elapsed_ms": 11,
+        "evidence": {
+          "source_sha256": "29848ceeef8324cf8f60fd15061cbd2637d8736fad0a19180d64ec1378fedb8d",
+          "execution_intent_sha256": "9368c94550cf0f672641cd449d51acd15d158544a41a93ae1cd96d85ceeb155d",
+          "request_scope_content_identity": "3c331c9a6f51de73443d6e1fcce5f0beed897b0b71a1b3fc31065e4f0de21a46",
+          "oir_sha256": "9a38d8ec7978388a78f21c0a8a7c5e81a5eb3baf1afdbbbea34ebe47fe488153",
+          "plan_sha256": "59554b022631b12cddefdc719ecead8b365668b5802b00622ddd5ba0321c6697",
+          "analyzed_graph_sha256": "0449d7b143cd802c3dbf9c261609e20b2a6e90de223d9e9c334df0ce7c26a333",
+          "evidence_sha256": "9ff9b932d6c880ed98269da65c502130a4ab1b3b94079d6560fef75ec0830950",
+          "admitted_graph_sha256": "020593aedbd70c5571e3c253029b27d85c79cf3677ef9cc54f653fdb0e29368b",
+          "admission_sha256": "a913dbf7f8610c751a797f13b7a215fe6f34a8375f16783c50caa8ff6cc7f320",
+          "result_content_identity": "81820b739ce691b7f74ce93ef919b6651acf36dacaa3582bee4a06020a835c15"
+        }
+      }
+    }
+  ],
+  "cancellation_markers": {
+    "start_observed": true,
+    "late_write_observed": false
+  }
+}

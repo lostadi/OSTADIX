@@ -1,0 +1,72 @@
+[
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk",
+    "entries": [
+      {
+        "name": "assets/decision_rules.bin",
+        "bytes": 76
+      },
+      {
+        "name": "assets/dexopt/baseline.prof",
+        "bytes": 548
+      },
+      {
+        "name": "assets/dexopt/baseline.profm",
+        "bytes": 52
+      },
+      {
+        "name": "assets/empty_asset_generated_by_bazel~",
+        "bytes": 0
+      },
+      {
+        "name": "assets/phenotype/com_google_android_gms_clearcut_client_package_metadata.binarypb",
+        "bytes": 123
+      },
+      {
+        "name": "assets/phenotype/com_google_android_libraries_abuse_hades_moirai_package_metadata.binarypb",
+        "bytes": 59
+      },
+      {
+        "name": "assets/phenotype/com_google_android_libraries_consentverifier_package_metadata.binarypb",
+        "bytes": 56
+      },
+      {
+        "name": "assets/phenotype/mobserve_package_metadata.binarypb",
+        "bytes": 38
+      }
+    ]
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+    "entries": []
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.en.apk",
+    "entries": []
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.es.apk",
+    "entries": []
+  },
+  {
+    "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.xxhdpi.apk",
+    "entries": []
+  },
+  {
+    "apk": "/product/priv-app/AICorePrebuilt-aicore_20260302.01_RC00/AICorePrebuilt-aicore_20260302.01_RC00.apk",
+    "entries": [
+      {
+        "name": "assets/dexopt/baseline.prof",
+        "bytes": 105
+      },
+      {
+        "name": "assets/dexopt/baseline.profm",
+        "bytes": 47
+      },
+      {
+        "name": "assets/empty_asset_generated_by_bazel~",
+        "bytes": 0
+      }
+    ]
+  }
+]

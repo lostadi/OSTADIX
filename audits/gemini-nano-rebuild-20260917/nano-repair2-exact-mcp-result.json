@@ -1,0 +1,120 @@
+{
+  "tool": "o_execute",
+  "arguments": {
+    "source": "```ostadix\nlet parts = autonomous(batch(\npython^(\n    csv_data = '2,north,6\\n3,south,9\\n4,north,5\\n5,west,8\\n8,south,4\\n13,north,7\\n21,south,100'\n    rows = []\n    for line in csv_data.splitlines():\n        row = line.split(',')\n        id = int(row[0])\n        depot = row[1]\n        units = int(row[2])\n        rows.append((id, depot, units))\n    __oval_result__ = rows\n)_python,\nrust^(\n    fn main() {\n        let mut a = 2;\n        let mut b = 3;\n        let mut fib_numbers: Vec<i32> = Vec::new();\n        fib_numbers.push(a);\n        fib_numbers.push(b);\n\n        loop {\n            let next = a + b;\n            if next > 20 {\n                break;\n            }\n            fib_numbers.push(next);\n            a = b;\n            b = next;\n        }\n\n        println!(\"{:?}\", fib_numbers);\n    }\n)_rust,\nbash^(\n    printf '%s\\n' 'south' 'north' 'south' | sort -u\n)_bash\n))\npython^(\n    rows, ids, sites = $parts\n    enabled = set(sites.split())\n    selected_ids = []\n    totals = {}\n    total_units = 0\n\n    for id, depot, units in rows:\n        if id in ids and depot in enabled:\n            selected_ids.append(id)\n            if depot in totals:\n                totals[depot] += units\n            else:\n                totals[depot] = units\n            total_units += units\n\n    __oval_result__ = {\n        \"selected_ids\": selected_ids,\n        \"totals\": totals,\n        \"total_units\": total_units\n    }\n)_python\n```"
+  },
+  "source_sha256": "c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55",
+  "native_binary_sha256": "2a4de73595fa62b9e71f9a2ea5d20950c8447c14b2560d64e1dc33aef6e23ebe",
+  "mcp_binary_sha256": "b879c51f6480cf8b1e7a0f1d24a519519f7ae6263ad6a7e5749524b274ce88e6",
+  "model_response_unmodified": true,
+  "caller": "controlled local test host; not ordinary Gemini assistant",
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"action\":\"execute\",\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":5671,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input\":{\"cwd\":\"/data/data/com.termux/files/home/OSTADIX\",\"kind\":\"ordinary\",\"path\":null,\"source_inline\":true,\"temporary_source\":false},\"input_error\":null,\"job_id\":\"job-5656-1789667800873323036-1-1\",\"mode\":\"direct\",\"pid\":5671,\"placement\":{\"requested\":\"auto\",\"route\":\"ordinary-local\"},\"pty\":false,\"restart_persistence\":false,\"result\":{\"elapsed_ms\":698,\"execution_evidence\":{\"admission\":{\"admission_sha256\":\"1ae9de583d996ad30ae4725db6f06c7fcd129886d4d91eb83d0e0c86151072e3\",\"admitted_graph_sha256\":\"ae57978cdf56a5ad2d89094c1aa3806c62dbff65724bfec6cb3f321cf7d038c1\",\"analyzed_graph_sha256\":\"9719237cd5afd58f2ba4fcf1197219163f4d01fb1e83e5ce42ebedad79908a75\",\"evidence_sha256\":\"4d1f91b1107d4ca50a1ed9164354d31ce439d66ef507f522c2ddd4c7a8112381\",\"oir_sha256\":\"9c1dd2c514a91594ad6cfa14e59f7765410f645dbce89134c929cf08f366ed3e\",\"plan_sha256\":\"c55a8d63db9a346f76f7f7c1b5ed11f7652b24b4d95e07cac5b3461ad92ede8d\",\"schema\":\"oexec.admission/v6\"},\"execution_mode\":\"admitted_graph\",\"parsed_source_sha256\":\"c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55\",\"result_content_identity\":\"8cbece81d3ecd215aa386012c491c9fa3e17f3abd1b85e0b5b715d87bcb2192b\",\"schema\":\"ostadix.native-execution-evidence/v1\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"source_intent_gate\":null,\"source_sha256\":\"c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55\"},\"ok\":true,\"type\":\"text\",\"value\":{\"t\":\"text\",\"v\":{\"encoding\":\"utf-8\",\"utf8\":\"\\n```\"}}},\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-5656-1789667800873323036-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-5656-1789667800873323036-1/job-5656-1789667800873323036-1-1/stderr.log\",\"stream\":\"stderr\",\"text\":\"\",\"total_bytes\":0},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":1123,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-5656-1789667800873323036-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":1123,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-5656-1789667800873323036-1/job-5656-1789667800873323036-1-1/stdout.log\",\"stream\":\"stdout\",\"text\":\"{\\\"ok\\\":true,\\\"value\\\":{\\\"t\\\":\\\"text\\\",\\\"v\\\":{\\\"utf8\\\":\\\"\\\\n```\\\",\\\"encoding\\\":\\\"utf-8\\\"}},\\\"type\\\":\\\"text\\\",\\\"elapsed_ms\\\":698,\\\"execution_evidence\\\":{\\\"schema\\\":\\\"ostadix.native-execution-evidence/v1\\\",\\\"execution_mode\\\":\\\"admitted_graph\\\",\\\"source_sha256\\\":\\\"c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55\\\",\\\"source_identity_scope\\\":\\\"submitted_utf8_before_shebang_removal\\\",\\\"parsed_source_sha256\\\":\\\"c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55\\\",\\\"result_content_identity\\\":\\\"8cbece81d3ecd215aa386012c491c9fa3e17f3abd1b85e0b5b715d87bcb2192b\\\",\\\"source_intent_gate\\\":null,\\\"admission\\\":{\\\"schema\\\":\\\"oexec.admission/v6\\\",\\\"oir_sha256\\\":\\\"9c1dd2c514a91594ad6cfa14e59f7765410f645dbce89134c929cf08f366ed3e\\\",\\\"plan_sha256\\\":\\\"c55a8d63db9a346f76f7f7c1b5ed11f7652b24b4d95e07cac5b3461ad92ede8d\\\",\\\"analyzed_graph_sha256\\\":\\\"9719237cd5afd58f2ba4fcf1197219163f4d01fb1e83e5ce42ebedad79908a75\\\",\\\"evidence_sha256\\\":\\\"4d1f91b1107d4ca50a1ed9164354d31ce439d66ef507f522c2ddd4c7a8112381\\\",\\\"admitted_graph_sha256\\\":\\\"ae57978cdf56a5ad2d89094c1aa3806c62dbff65724bfec6cb3f321cf7d038c1\\\",\\\"admission_sha256\\\":\\\"1ae9de583d996ad30ae4725db6f06c7fcd129886d4d91eb83d0e0c86151072e3\\\"}}}\\n\",\"total_bytes\":1123},\"timeout_secs\":120}"
+      }
+    ],
+    "structuredContent": {
+      "action": "execute",
+      "cleanup": {
+        "child_reaped": true,
+        "detached_new_sessions_included": false,
+        "logs_drained": true,
+        "process_group_signaled": false,
+        "scope": "job_session_including_nested_process_groups",
+        "session_id": 5671,
+        "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+        "session_processes_signaled": 0,
+        "session_scan_complete": false
+      },
+      "error": null,
+      "exit_code": 0,
+      "initial_input_state": "not_supplied",
+      "input": {
+        "cwd": "/data/data/com.termux/files/home/OSTADIX",
+        "kind": "ordinary",
+        "path": null,
+        "source_inline": true,
+        "temporary_source": false
+      },
+      "input_error": null,
+      "job_id": "job-5656-1789667800873323036-1-1",
+      "mode": "direct",
+      "pid": 5671,
+      "placement": {
+        "requested": "auto",
+        "route": "ordinary-local"
+      },
+      "pty": false,
+      "restart_persistence": false,
+      "result": {
+        "elapsed_ms": 698,
+        "execution_evidence": {
+          "admission": {
+            "admission_sha256": "1ae9de583d996ad30ae4725db6f06c7fcd129886d4d91eb83d0e0c86151072e3",
+            "admitted_graph_sha256": "ae57978cdf56a5ad2d89094c1aa3806c62dbff65724bfec6cb3f321cf7d038c1",
+            "analyzed_graph_sha256": "9719237cd5afd58f2ba4fcf1197219163f4d01fb1e83e5ce42ebedad79908a75",
+            "evidence_sha256": "4d1f91b1107d4ca50a1ed9164354d31ce439d66ef507f522c2ddd4c7a8112381",
+            "oir_sha256": "9c1dd2c514a91594ad6cfa14e59f7765410f645dbce89134c929cf08f366ed3e",
+            "plan_sha256": "c55a8d63db9a346f76f7f7c1b5ed11f7652b24b4d95e07cac5b3461ad92ede8d",
+            "schema": "oexec.admission/v6"
+          },
+          "execution_mode": "admitted_graph",
+          "parsed_source_sha256": "c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55",
+          "result_content_identity": "8cbece81d3ecd215aa386012c491c9fa3e17f3abd1b85e0b5b715d87bcb2192b",
+          "schema": "ostadix.native-execution-evidence/v1",
+          "source_identity_scope": "submitted_utf8_before_shebang_removal",
+          "source_intent_gate": null,
+          "source_sha256": "c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55"
+        },
+        "ok": true,
+        "type": "text",
+        "value": {
+          "t": "text",
+          "v": {
+            "encoding": "utf-8",
+            "utf8": "\n```"
+          }
+        }
+      },
+      "session_scoped": true,
+      "signal": null,
+      "state": "completed",
+      "stderr": {
+        "bytes_read": 0,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-5656-1789667800873323036-1-1",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 0,
+        "offset": 0,
+        "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-5656-1789667800873323036-1/job-5656-1789667800873323036-1-1/stderr.log",
+        "stream": "stderr",
+        "text": "",
+        "total_bytes": 0
+      },
+      "stdin_eof_mode": "pipe_close",
+      "stdin_open": false,
+      "stdout": {
+        "bytes_read": 1123,
+        "complete": true,
+        "encoding": "utf8_lossy",
+        "eof": true,
+        "job_id": "job-5656-1789667800873323036-1-1",
+        "limit_bytes": 65536,
+        "merged_into": null,
+        "next_offset": 1123,
+        "offset": 0,
+        "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-5656-1789667800873323036-1/job-5656-1789667800873323036-1-1/stdout.log",
+        "stream": "stdout",
+        "text": "{\"ok\":true,\"value\":{\"t\":\"text\",\"v\":{\"utf8\":\"\\n```\",\"encoding\":\"utf-8\"}},\"type\":\"text\",\"elapsed_ms\":698,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"admitted_graph\",\"source_sha256\":\"c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"c9701b8499b554ab6b661620bc66967a8b95d0bf63eb4a6b63969b653c433f55\",\"result_content_identity\":\"8cbece81d3ecd215aa386012c491c9fa3e17f3abd1b85e0b5b715d87bcb2192b\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"9c1dd2c514a91594ad6cfa14e59f7765410f645dbce89134c929cf08f366ed3e\",\"plan_sha256\":\"c55a8d63db9a346f76f7f7c1b5ed11f7652b24b4d95e07cac5b3461ad92ede8d\",\"analyzed_graph_sha256\":\"9719237cd5afd58f2ba4fcf1197219163f4d01fb1e83e5ce42ebedad79908a75\",\"evidence_sha256\":\"4d1f91b1107d4ca50a1ed9164354d31ce439d66ef507f522c2ddd4c7a8112381\",\"admitted_graph_sha256\":\"ae57978cdf56a5ad2d89094c1aa3806c62dbff65724bfec6cb3f321cf7d038c1\",\"admission_sha256\":\"1ae9de583d996ad30ae4725db6f06c7fcd129886d4d91eb83d0e0c86151072e3\"}}}\n",
+        "total_bytes": 1123
+      },
+      "timeout_secs": 120
+    },
+    "isError": false
+  }
+}

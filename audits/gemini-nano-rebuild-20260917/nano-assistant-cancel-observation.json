@@ -1,0 +1,17 @@
+{
+  "request_id": "ostadix-turn-bfac279e-4276-4133-bc87-7a06ffe67032",
+  "native_request_id": "nano-action-f3c0fdb1-4466-460f-81ae-21118d576108",
+  "assistant_cancelled": true,
+  "mcp_dispatch_attempts": 0,
+  "native_complete_success": false,
+  "native_generated_finished_candidate_before_cleanup": true,
+  "native_controller_cancel_requested_in_result": false,
+  "result_discarded": true,
+  "model_unloaded": true,
+  "runtime_freed": true,
+  "descriptors_closed": 191,
+  "cancellation_acknowledged_at_completion": true,
+  "same_aicore_pid_as_success": true,
+  "immediate_native_interruption_proven": false,
+  "post_cancel_recovery_not_tested": true
+}

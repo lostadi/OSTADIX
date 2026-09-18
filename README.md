@@ -1391,6 +1391,14 @@ run removes stale generated Ostadix-lang binaries before rebuilding them,
 refreshes installed Rust copies in `~/.cargo/bin`, and installs native commands in
 `~/.local/bin`; `--no-mcp` skips the separately locked `ostadix-mcp` crate.
 
+The optional terminal kit keeps shell-only conveniences under `o-term`,
+including `pull`, `update`, `sync`, `ssh`, `scp`, `hosts`, `new`, `ex` and
+`test`. Use `o-term pull` or `o-term sync` for those helpers. `oroot` changes
+the current shell's directory; native `o root` prints the configured repository
+path. `o help` lists native commands and `o-term help` lists shell conveniences.
+See the [native command reference](DEVELOPMENT.md#native-command-reference) for
+migrating a legacy `o()` shell function that shadows the compiled executable.
+
 After setup:
 
 ```bash

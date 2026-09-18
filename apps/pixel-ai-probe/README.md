@@ -1,6 +1,6 @@
 # Pixel AI Probe
 
-Current probe release: `0.1.1` (`versionCode=2`).
+Current probe release: `0.1.3` (`versionCode=4`).
 
 Foreground-only probe for the public ML Kit GenAI interfaces. Prompt, summarization, and image
 description exercise the documented AICore route; advanced speech readiness is recorded separately
@@ -19,6 +19,15 @@ Pinned official APIs:
 - `com.google.mlkit:genai-summarization:1.0.0-beta1`
 - `com.google.mlkit:genai-image-description:1.0.0-beta1`
 - `com.google.mlkit:genai-speech-recognition:1.0.0-alpha1`
+
+The prompt explicitly requests Gemini Nano through AICore with `STABLE` / `FULL`
+model configuration by default. The controlled `RUN_PROMPT` intent accepts an
+optional `nano_model` string: `stable_full`, `stable_fast`, `preview_full`, or
+`preview_fast`. Unknown values fail before creating a client. Each explicit
+choice checks only that variant and never enrolls in preview or downloads a
+model automatically. It has no cloud model fallback. The requested configuration
+is logged separately from returned model metadata and successful inference;
+opening the Gemini assistant app alone does not establish Nano execution.
 
 The prompt reports status, base-model name, token limit, synthetic request token count, and a
 synthetic build-log analysis. Summarization uses an `ARTICLE` input over 400 characters. Image
@@ -50,7 +59,24 @@ artifacts, compiles and merges their resources, generates library `R` classes, c
 needed, signs the APK with an isolated debug key, verifies v2/v3 signatures and package metadata,
 then prints its SHA-256 digest.
 
-Audited version 2 artifact:
+Audited version 4 artifact (four explicit Nano configurations):
+
+```text
+SHA-256 9e19524868997f11b43fa5fb5ca2b55edffe1f630581095d951df42764a09806
+APK Signature Scheme v2=true, v3=true
+```
+
+Earlier version 3 artifact (explicit stable/full Nano target):
+
+```text
+SHA-256 ee0369e3fe2e7a01d7ed5dab2f17cf065d855672060e22d04a7a84126305b772
+APK Signature Scheme v2=true, v3=true
+```
+
+The installed build and direct Nano availability result are recorded in
+`audits/gemini-nano-ostadix-20260917/STATUS.md` at the repository root.
+
+Earlier audited version 2 artifact:
 
 ```text
 SHA-256 da54cae70993a62b1a52257dda36707cff4e5d0920ff9ea8d4f088cc62f9d50e

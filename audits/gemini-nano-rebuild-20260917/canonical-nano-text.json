@@ -1,0 +1,375 @@
+{
+  "schema": "ostadix.aicore-process-probe-run/v1",
+  "request_id": "canonical-nano-text-20260917-1737",
+  "started_utc": "2026-09-17T17:35:44.928+00:00",
+  "deadline_seconds": 90,
+  "automatic_retry": false,
+  "generation_requested": true,
+  "generation_dispatched": true,
+  "generation_returned": true,
+  "generation_evidence_note": "null means native entry was observed without later dispatch/return evidence",
+  "broadcast_sent": true,
+  "event_source": "/data/user/0/com.google.android.aicore/files/ostadix-nano-probe/events.jsonl",
+  "evidence_files": {
+    ".json": "audits/gemini-nano-rebuild-20260917/canonical-nano-text.json",
+    ".stdout": "audits/gemini-nano-rebuild-20260917/canonical-nano-text.stdout",
+    ".logcat": "audits/gemini-nano-rebuild-20260917/canonical-nano-text.logcat",
+    ".logcat.stderr": "audits/gemini-nano-rebuild-20260917/canonical-nano-text.logcat.stderr",
+    ".broadcast.stdout": "audits/gemini-nano-rebuild-20260917/canonical-nano-text.broadcast.stdout",
+    ".broadcast.stderr": "audits/gemini-nano-rebuild-20260917/canonical-nano-text.broadcast.stderr"
+  },
+  "resource_snapshots": [
+    {
+      "utc": "2026-09-17T17:35:45.037+00:00",
+      "elapsed_seconds": 0.036,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6943184,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 121180,
+      "VmRSS_kB": 119332
+    },
+    {
+      "utc": "2026-09-17T17:35:46.110+00:00",
+      "elapsed_seconds": 1.148,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6598580,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 189972,
+      "VmRSS_kB": 189972
+    },
+    {
+      "utc": "2026-09-17T17:35:47.158+00:00",
+      "elapsed_seconds": 2.194,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6549872,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 242024,
+      "VmRSS_kB": 236820
+    },
+    {
+      "utc": "2026-09-17T17:35:48.204+00:00",
+      "elapsed_seconds": 3.244,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6542664,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 248724,
+      "VmRSS_kB": 238212
+    },
+    {
+      "utc": "2026-09-17T17:35:49.253+00:00",
+      "elapsed_seconds": 4.285,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6522668,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 248724,
+      "VmRSS_kB": 245028
+    },
+    {
+      "utc": "2026-09-17T17:35:50.302+00:00",
+      "elapsed_seconds": 5.332,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6522764,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 252768,
+      "VmRSS_kB": 252768
+    },
+    {
+      "utc": "2026-09-17T17:35:51.345+00:00",
+      "elapsed_seconds": 6.385,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6497736,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 267472,
+      "VmRSS_kB": 260920
+    },
+    {
+      "utc": "2026-09-17T17:35:52.389+00:00",
+      "elapsed_seconds": 7.426,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6509172,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 273704,
+      "VmRSS_kB": 273588
+    },
+    {
+      "utc": "2026-09-17T17:35:53.432+00:00",
+      "elapsed_seconds": 8.472,
+      "thermal_status": 0,
+      "MemAvailable_kB": 6477968,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 286468,
+      "VmRSS_kB": 286148
+    },
+    {
+      "utc": "2026-09-17T17:35:54.484+00:00",
+      "elapsed_seconds": 9.517,
+      "thermal_status": 0,
+      "MemAvailable_kB": 5517084,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 293904,
+      "VmRSS_kB": 293240
+    },
+    {
+      "utc": "2026-09-17T17:35:55.559+00:00",
+      "elapsed_seconds": 10.588,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4873584,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 293904,
+      "VmRSS_kB": 286488
+    },
+    {
+      "utc": "2026-09-17T17:35:56.627+00:00",
+      "elapsed_seconds": 11.655,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4294992,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 293904,
+      "VmRSS_kB": 287068
+    },
+    {
+      "utc": "2026-09-17T17:35:57.726+00:00",
+      "elapsed_seconds": 12.731,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4122416,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 293904,
+      "VmRSS_kB": 288092
+    },
+    {
+      "utc": "2026-09-17T17:35:58.845+00:00",
+      "elapsed_seconds": 13.863,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4010176,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 300476,
+      "VmRSS_kB": 300476
+    },
+    {
+      "utc": "2026-09-17T17:35:59.949+00:00",
+      "elapsed_seconds": 14.967,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3887256,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 314412,
+      "VmRSS_kB": 314276
+    },
+    {
+      "utc": "2026-09-17T17:36:01.049+00:00",
+      "elapsed_seconds": 16.067,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3880796,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 281616
+    },
+    {
+      "utc": "2026-09-17T17:36:02.132+00:00",
+      "elapsed_seconds": 17.138,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3577784,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 279728
+    },
+    {
+      "utc": "2026-09-17T17:36:03.230+00:00",
+      "elapsed_seconds": 18.234,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3605772,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 272232
+    },
+    {
+      "utc": "2026-09-17T17:36:04.322+00:00",
+      "elapsed_seconds": 19.332,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3600004,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 272316
+    },
+    {
+      "utc": "2026-09-17T17:36:05.398+00:00",
+      "elapsed_seconds": 20.424,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3612936,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 272316
+    },
+    {
+      "utc": "2026-09-17T17:36:06.455+00:00",
+      "elapsed_seconds": 21.49,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3801500,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 265068
+    },
+    {
+      "utc": "2026-09-17T17:36:07.492+00:00",
+      "elapsed_seconds": 22.536,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3851960,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 259280
+    },
+    {
+      "utc": "2026-09-17T17:36:08.538+00:00",
+      "elapsed_seconds": 23.568,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3872708,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 252516
+    },
+    {
+      "utc": "2026-09-17T17:36:09.656+00:00",
+      "elapsed_seconds": 24.627,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3891072,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 246920
+    },
+    {
+      "utc": "2026-09-17T17:36:10.746+00:00",
+      "elapsed_seconds": 25.754,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3855816,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 246384
+    },
+    {
+      "utc": "2026-09-17T17:36:11.872+00:00",
+      "elapsed_seconds": 26.843,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3869672,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 240948
+    },
+    {
+      "utc": "2026-09-17T17:36:13.028+00:00",
+      "elapsed_seconds": 27.982,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3880320,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 237012
+    },
+    {
+      "utc": "2026-09-17T17:36:14.130+00:00",
+      "elapsed_seconds": 29.135,
+      "thermal_status": 0,
+      "MemAvailable_kB": 3890908,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 237028
+    },
+    {
+      "utc": "2026-09-17T17:36:15.252+00:00",
+      "elapsed_seconds": 30.24,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4029356,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 233440
+    },
+    {
+      "utc": "2026-09-17T17:36:16.368+00:00",
+      "elapsed_seconds": 31.359,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4270548,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 231236
+    },
+    {
+      "utc": "2026-09-17T17:36:17.471+00:00",
+      "elapsed_seconds": 32.471,
+      "thermal_status": 0,
+      "MemAvailable_kB": 4931212,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 229996
+    },
+    {
+      "utc": "2026-09-17T17:36:18.604+00:00",
+      "elapsed_seconds": 33.575,
+      "thermal_status": 0,
+      "MemAvailable_kB": 5952808,
+      "SwapFree_kB": 2227540,
+      "VmHWM_kB": 320684,
+      "VmRSS_kB": 227400
+    }
+  ],
+  "signal_actions": [],
+  "complete_event": {
+    "schema": "ostadix.aicore-local-probe/v1",
+    "request_id": "canonical-nano-text-20260917-1737",
+    "pid": 22419,
+    "uid": 10173,
+    "phase": "complete",
+    "success": true,
+    "native_call_active": false,
+    "elapsed_realtime_ms": 55801322,
+    "deadline_elapsed_ms": 55856794,
+    "inference_dispatched": true,
+    "inference_returned": true,
+    "detail": "local probe finished"
+  },
+  "deadline_elapsed_ms": 55856794,
+  "process_identity": {
+    "pid": 22419,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 5554035,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  },
+  "process_observed_utc": "2026-09-17T17:35:44.962+00:00",
+  "logcat_command": [
+    "/system/bin/logcat",
+    "--pid=22419",
+    "-T",
+    "1",
+    "-v",
+    "threadtime"
+  ],
+  "broadcast_command": [
+    "/system/bin/am",
+    "broadcast",
+    "-a",
+    "org.ostadix.aicore.NANO_LOCAL_PROBE",
+    "-p",
+    "com.google.android.aicore",
+    "--es",
+    "request_id",
+    "canonical-nano-text-20260917-1737",
+    "--el",
+    "deadline_elapsed_ms",
+    "55856794",
+    "--ez",
+    "allow_generation",
+    "true"
+  ],
+  "broadcast_started_utc": "2026-09-17T17:35:45.047+00:00",
+  "observed_process_exited_at_finish": false,
+  "finished_utc": "2026-09-17T17:36:19.547+00:00",
+  "elapsed_ms": 34619,
+  "elapsed_including_suspend_ms": 34619,
+  "stop_reason": "complete",
+  "correlated_event_count": 30,
+  "native_call_active_at_finish": false,
+  "broadcast_exit_code": 0,
+  "success": true
+}

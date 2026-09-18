@@ -128,6 +128,21 @@ oversized record lookup is reported separately from execution status.
 Process status, stdout/stderr logs and cleanup evidence remain available. Plans,
 compiler output, native receipts, and successful execution are distinct.
 There is no synthetic receipt claiming more than the invoked runtime reports.
+
+Successful native `O --json` execution also returns `execution_evidence` with
+identities read from the actual last V6 admission and the typed result's content
+identity. The submitted source digest is taken before shebang removal; a separate
+parsed-source digest identifies the bytes parsed. A verified source/intent gate
+is reported only when the native required-digest checks ran. These descriptive
+identities are not signed caller receipts, and absent graph admission stays null.
+
+Primary `o_execute` observes MCP cancellation notifications and awaits its
+managed job's native process cleanup before returning. Linux and Android use
+`/proc` to enumerate the owned session, including nested backend process groups.
+A subprocess that creates a separate session remains outside this boundary.
+Run `python3 scripts/check_lifted_mcp_lifecycle.py` for actual transport
+cancellation, deadline, single-dispatch failure, and recovery evidence. The test
+writes a fresh evidence file and accepts an explicit `--evidence-output` path.
 Inline result projection is bounded to 1 MiB. Larger results remain in full
 through `o_job_read`; `result_retrieval` identifies the log and cursor. This
 limits response size without limiting execution or discarding program output.
@@ -253,9 +268,11 @@ python3 scripts/ostadix_mcp_client.py --status
 python3 scripts/ostadix_mcp_client.py --stop
 ```
 
-The bridge uses `OSTADIX_MCP` for the server executable, `O_LANG_ROOT` and
-`O_BACKENDS_DIR` for the installation, and optional `OSTADIX_MCP_CLIENT_DIR`
-for its private directory. The default directory is
+The bridge uses `OSTADIX_MCP` for the server executable and honors explicit
+`O_LANG_ROOT` and `O_BACKENDS_DIR`. Without those overrides it reads adjacent
+`ostadix-install.json`, then uses the checkout discovery described below.
+Installed backend defaults apply only when the metadata names the selected
+root. Optional `OSTADIX_MCP_CLIENT_DIR` selects its private directory. The default directory is
 `/tmp/ostadix-mcp-client-<uid>`, mode 0700, with mode 0600 lock and log files.
 Binary path, root, and backends determine session identity. Startup is locked;
 concurrent calls share one MCP child and route replies by JSON-RPC request ID.
@@ -455,14 +472,22 @@ mode the adapter disables LAN discovery, keeps the registry path out of model
 arguments, requires remote placement, and attaches the engine-produced mesh
 trace (including dispatched node identities) to the structured tool response.
 
-The checked-in `.mcp.json` contains no shell expressions. When explicit
-environment paths are absent, the server recognizes the repository from its
-working directory or an ancestor by checking the root Cargo package, Python
-shim, and hello example. Installed media also recognizes the validated
-`/usr/src/ostadix` source root, so launching from `/workspace` does not depend
-on current-directory accident. It does not contain a developer-specific
-fallback. The crate is distributed under `LGPL-2.1-only`, matching the root
-license shipped in the source release.
+The checked-in `.mcp.json` contains no shell expressions. The server prefers an
+explicit `O_LANG_ROOT`, then the root in `ostadix-install.json` beside its
+executable. It validates candidate checkouts using the root Cargo package,
+Python shim and hello example. Remaining candidates are the working directory
+and ancestors, `/usr/src/ostadix`, `~/OSTADIX`, then the legacy
+`~/Ostadix-lang` and `~/O-lang` locations. This lets an installed binary launched
+outside the checkout find the installation recorded by setup. Explicit backend
+configuration wins; metadata backends are used only for the selected root.
+
+Catalog command `o` resolves the compiled native front door, retaining
+`scripts/o-cli.sh` as a compatibility fallback. Evaluator discovery recognizes
+installed `ostadix-evaluator` when checkout binaries are absent; this stable
+name stays distinct from lowercase `o` on case-insensitive filesystems.
+`o_cli` accepts native commands, not the optional terminal kit's shell-only
+`o-term` conveniences. The crate is distributed under `LGPL-2.1-only`, matching
+the root license shipped in the source release.
 
 ## Runtime discovery
 

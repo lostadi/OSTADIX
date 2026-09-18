@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/system/bin/su",
+    "-p",
+    "10402",
+    "-c",
+    "/system/bin/app_process -Djava.library.path=/data/local/tmp/ostadix-ai-audit-20260915/aicore-native /system/bin org.ostadix.nanoloader.LocalModelProbe /data/local/tmp/ostadix-ai-audit-20260915/aicore-native /data/local/tmp/ostadix-nano-rebuild-20260917/model-load-run/manifest.json"
+  ],
+  "java_pid": null,
+  "exit_code": 134,
+  "stop_reason": null,
+  "elapsed_ms": 1041,
+  "resource_snapshots": [
+    {
+      "elapsed_seconds": 0.001,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4520528,
+      "SwapFree_kB": 680000
+    },
+    {
+      "elapsed_seconds": 0.521,
+      "thermal_status": 1,
+      "MemAvailable_kB": 4453280,
+      "SwapFree_kB": 680256
+    }
+  ],
+  "stdout_file": "audits/gemini-nano-rebuild-20260917/local-model-load.stdout",
+  "stderr_file": "audits/gemini-nano-rebuild-20260917/local-model-load.stderr",
+  "automatic_retry": false
+}

@@ -20,6 +20,7 @@ impl OstadixMcp {
         input: &Input,
         node: &str,
         deadline: Option<Instant>,
+        context: &RequestContext<RoleServer>,
     ) -> Result<Value, String> {
         // Pin the submitted bytes even for path input; no later read of the
         // caller's mutable file can change the document sent by this request.
@@ -69,6 +70,7 @@ impl OstadixMcp {
                     pty: false,
                 },
                 Some(snapshot),
+                context,
             )
             .await?;
         result["action"] = json!("execute");

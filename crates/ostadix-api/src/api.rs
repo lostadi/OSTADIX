@@ -301,6 +301,21 @@ impl Runtime {
         self
     }
 
+    /// Realize admitted trusted-inline renderer attempts through one exact
+    /// host-configured Fabric V1 target.
+    ///
+    /// This only installs the existing pure-renderer physical-attempt adapter.
+    /// It does not add placement fields to [`RuntimeRequest`], discover nodes,
+    /// widen the supported renderer profile, retry, or fall back to a local
+    /// renderer when the configured target fails.
+    pub fn with_remote_pure_execution(
+        mut self,
+        config: crate::hosted_remote::fabric::RemotePureExecutionConfigV1,
+    ) -> Self {
+        self.evaluator = self.evaluator.with_remote_pure_execution(config);
+        self
+    }
+
     /// Parse and evaluate one complete O source document. A leading shebang
     /// is excluded from executable syntax by the same rule as the O CLI. Each
     /// call receives a fresh lexical scope, while this owned runtime retains
@@ -494,6 +509,79 @@ fn strip_initial_shebang(source: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use std::any::TypeId;
+    use std::collections::HashMap;
+    use std::net::TcpListener;
+    use std::path::PathBuf;
+
+    use crate::execution_fabric::{ExecutionIdV1, ExecutionLimitsV1};
+    use crate::execution_fabric_authority::{
+        ExecutionCellIncarnationV1, FabricSigningKeyV1, FabricTargetBindingV1,
+    };
+    use crate::hosted_remote::fabric::{
+        trusted_inline_fabric_realization_pipeline_sha256_v1, RemotePureExecutionConfigV1,
+    };
+    use crate::hosted_remote::ClientTlsIdentity;
+    use crate::placement::{GenerationV1, SemanticDigestV1};
+
+    fn semantic_digest(seed: u8) -> SemanticDigestV1 {
+        SemanticDigestV1::from_sha256(hex::encode([seed; 32])).unwrap()
+    }
+
+    fn unavailable_remote_text_config() -> RemotePureExecutionConfigV1 {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+
+        let realization_pipeline =
+            trusted_inline_fabric_realization_pipeline_sha256_v1("text").unwrap();
+        let target = FabricTargetBindingV1::new(
+            semantic_digest(1),
+            "runtime-api-test-node",
+            GenerationV1::new(2).unwrap(),
+            ExecutionCellIncarnationV1::new(3).unwrap(),
+            semantic_digest(4),
+            GenerationV1::new(5).unwrap(),
+            GenerationV1::new(6).unwrap(),
+            semantic_digest(7),
+            semantic_digest(8),
+            semantic_digest(9),
+            semantic_digest(10),
+            semantic_digest(11),
+            semantic_digest(12),
+            realization_pipeline,
+        )
+        .unwrap();
+        let authority = FabricSigningKeyV1::from_secret_bytes([0x41; 32]);
+        let node = FabricSigningKeyV1::from_secret_bytes([0x42; 32]);
+        let (_tls_directory, tls_server) =
+            crate::hosted_remote::test_server_tls_identity().unwrap();
+        RemotePureExecutionConfigV1::new(
+            address.to_string(),
+            ClientTlsIdentity {
+                ca_path: tls_server.client_ca_path,
+                cert_path: tls_server.cert_path,
+                key_path: tls_server.key_path,
+                server_name: "localhost".to_string(),
+            },
+            semantic_digest(13),
+            authority,
+            target,
+            node.public_key(),
+            ExecutionIdV1::new([0x43; 32]).unwrap(),
+        )
+        .unwrap()
+        .with_limits(
+            ExecutionLimitsV1::new(100, 16 * 1024, crate::world::MAX_OVALUE_RECORD_BYTES).unwrap(),
+        )
+        .unwrap()
+        .with_timeouts(
+            std::time::Duration::from_millis(100),
+            std::time::Duration::from_millis(100),
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_millis(250),
+        )
+        .unwrap()
+    }
 
     #[test]
     fn curated_policy_is_the_canonical_execution_contract_type() {
@@ -552,5 +640,30 @@ mod tests {
             TypeId::of::<crate::evidence::AdmittedExecutionV6<'static>>()
         );
         let _: fn(&crate::hgraph::HGraph) -> String = super::graph_sha256_v2;
+    }
+
+    #[test]
+    fn runtime_remote_pure_builder_reaches_graph_adapter_without_local_fallback() {
+        let mut runtime = super::Runtime::new(PathBuf::new())
+            .with_remote_pure_execution(unavailable_remote_text_config());
+        assert!(runtime.evaluator.physical_attempt_adapter().is_some());
+
+        let prepared = runtime
+            .prepare_request(super::RuntimeRequest {
+                caller_id: "runtime-api-test".to_string(),
+                request_id: "remote-text".to_string(),
+                source: "text^(must-not-render-locally)_text".to_string(),
+                bindings: HashMap::new(),
+                limits: super::RuntimeRequestLimits::default(),
+                cancellation: crate::executor::CancellationToken::new(),
+            })
+            .unwrap();
+        let error = runtime.execute_request(prepared).unwrap_err();
+
+        assert_eq!(error.stage(), super::RuntimeStage::Evaluate);
+        assert!(
+            error.message().contains("Fabric connection failed"),
+            "configured remote attempt did not reach Fabric transport: {error}"
+        );
     }
 }

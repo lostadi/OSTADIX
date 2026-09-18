@@ -84,6 +84,41 @@ public final class RuntimeJniSmoke {
             }
             System.out.println(boundedResponse);
 
+            Method boundedWithBindings = OstadixRuntime.class.getDeclaredMethod(
+                    "nativeEvaluateBoundedWithBindings", long.class, String.class,
+                    String.class, String.class, String.class, long.class);
+            boundedWithBindings.setAccessible(true);
+            String boundResponse = (String) boundedWithBindings.invoke(
+                    null,
+                    handle,
+                    "$answer",
+                    "{\"answer\":42}",
+                    "jni-smoke/uid-test",
+                    "jni-request-bound",
+                    5_000L);
+            if (!boundResponse.contains("\"ok\":true")
+                    || !boundResponse.contains("\"output\":\"42\"")
+                    || !boundResponse.contains("\"typedValue\"")
+                    || !boundResponse.contains("\"oirSha256\"")
+                    || !boundResponse.contains("\"planSha256\"")
+                    || !boundResponse.contains("\"analyzedGraphSha256\"")) {
+                throw new AssertionError("unexpected bound response: " + boundResponse);
+            }
+            String invalidBindings = (String) boundedWithBindings.invoke(
+                    null,
+                    handle,
+                    "$answer",
+                    "[]",
+                    "jni-smoke/uid-test",
+                    "jni-request-invalid-bindings",
+                    5_000L);
+            if (!invalidBindings.contains("\"ok\":false")
+                    || !invalidBindings.contains("bindings JSON must be an object")) {
+                throw new AssertionError("invalid bindings were accepted: " + invalidBindings);
+            }
+            System.out.println(boundResponse);
+            System.out.println(invalidBindings);
+
             Method cancel = OstadixRuntime.class.getDeclaredMethod(
                     "nativeCancelRequest", long.class, String.class, String.class);
             cancel.setAccessible(true);
@@ -172,6 +207,58 @@ public final class RuntimeJniSmoke {
             System.out.println(selected);
             System.out.println(changed);
             System.out.println(rejected);
+
+            Method smartReplies = OstadixRuntime.class.getDeclaredMethod(
+                    "nativePostprocessAicoreSmartReplies", long.class, int[].class,
+                    int[].class, int[].class, String.class, String.class, long.class);
+            smartReplies.setAccessible(true);
+            String smartSelected = (String) smartReplies.invoke(null, handle,
+                    new int[] {600, 950, 990}, new int[] {1, 0, 1},
+                    new int[] {0, 0, 1},
+                    "asoss/uid-1000", "smart-reply-1", 5_000L);
+            if (!smartSelected.contains("\"ok\":true")
+                    || !smartSelected.contains("\"selectedSourceIndex\":0")
+                    || !smartSelected.contains("\"selectedScoreMilli\":600")) {
+                throw new AssertionError(
+                        "unexpected Smart Reply selection: " + smartSelected);
+            }
+            String smartChanged = (String) smartReplies.invoke(null, handle,
+                    new int[] {600, 950, 990}, new int[] {1, 1, 1},
+                    new int[] {0, 0, 1},
+                    "asoss/uid-1000", "smart-reply-2", 5_000L);
+            if (!smartChanged.contains("\"ok\":true")
+                    || !smartChanged.contains("\"selectedSourceIndex\":1")
+                    || !smartChanged.contains("\"selectedScoreMilli\":950")
+                    || !jsonStringField(smartSelected, "executionIntentSha256").equals(
+                            jsonStringField(smartChanged, "executionIntentSha256"))
+                    || jsonStringField(smartSelected, "requestScopeContentIdentity").equals(
+                            jsonStringField(smartChanged, "requestScopeContentIdentity"))
+                    || jsonStringField(selected, "executionIntentSha256").equals(
+                            jsonStringField(smartSelected, "executionIntentSha256"))) {
+                throw new AssertionError(
+                        "Smart Reply result did not use its dedicated O contract: "
+                                + smartChanged);
+            }
+            String smartRejected = (String) smartReplies.invoke(null, handle,
+                    new int[] {999}, new int[] {1}, new int[] {2},
+                    "asoss/uid-1000", "smart-reply-rejected", 5_000L);
+            if (!smartRejected.contains("\"ok\":false")
+                    || !smartRejected.contains("no safe nonempty reply")) {
+                throw new AssertionError(
+                        "unsafe Smart Reply was not rejected: " + smartRejected);
+            }
+            String invalidPresence = (String) smartReplies.invoke(null, handle,
+                    new int[] {999}, new int[] {2}, new int[] {0},
+                    "asoss/uid-1000", "smart-reply-invalid-presence", 5_000L);
+            if (!invalidPresence.contains("\"ok\":false")
+                    || !invalidPresence.contains("has_text values must be 0 or 1")) {
+                throw new AssertionError(
+                        "invalid Smart Reply presence was not rejected: " + invalidPresence);
+            }
+            System.out.println(smartSelected);
+            System.out.println(smartChanged);
+            System.out.println(smartRejected);
+            System.out.println(invalidPresence);
         } finally {
             runtime.close();
         }

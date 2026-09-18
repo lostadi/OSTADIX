@@ -1,0 +1,22 @@
+{
+  "started_utc": "2026-09-17T16:28:13.822007+00:00",
+  "command": [
+    "/system/bin/su",
+    "-p",
+    "10402",
+    "-c",
+    "/system/bin/app_process -Djava.library.path=/data/local/tmp/ostadix-ai-audit-20260915/aicore-native /system/bin org.ostadix.nanoloader.NativeLoaderProbe /data/local/tmp/ostadix-ai-audit-20260915/aicore-native"
+  ],
+  "system_environment_keys": [
+    "ANDROID_ART_ROOT",
+    "ANDROID_I18N_ROOT",
+    "ANDROID_TZDATA_ROOT",
+    "BOOTCLASSPATH",
+    "DEX2OATBOOTCLASSPATH",
+    "SYSTEMSERVERCLASSPATH"
+  ],
+  "probe_sha256": "1d8a232aa08d67c5513a8242ceab6e1ab751b95e6965b33a0db89038b6dc6a7a",
+  "exit_code": 0,
+  "stdout": "{\"schema\":\"ostadix.nano-loader-probe\\/v1\",\"phase\":\"native_library_load\",\"detail\":\"libruntime_edgetpu_jni.so\",\"success\":true,\"uid\":10402,\"pid\":24519,\"model_loaded\":false,\"inference_executed\":false}\n{\"schema\":\"ostadix.nano-loader-probe\\/v1\",\"phase\":\"native_library_load\",\"detail\":\"libruntime_model_loader_wrapper_jni.so\",\"success\":true,\"uid\":10402,\"pid\":24519,\"model_loaded\":false,\"inference_executed\":false}\n{\"schema\":\"ostadix.nano-loader-probe\\/v1\",\"phase\":\"runtime_create\",\"detail\":\"nonzero native runtime handle\",\"success\":true,\"uid\":10402,\"pid\":24519,\"model_loaded\":false,\"inference_executed\":false}\n{\"schema\":\"ostadix.nano-loader-probe\\/v1\",\"phase\":\"runtime_free\",\"detail\":\"nativeFree returned\",\"success\":true,\"uid\":10402,\"pid\":24519,\"model_loaded\":false,\"inference_executed\":false}\n",
+  "stderr": "I0000 00:00:1789662494.061940   24519 runtime_model_loader_wrapper_jni.cc:124] Initializing JNI...\nI0000 00:00:1789662494.066211   24519 runtime_edgetpu_jni.cc:31] JNI RuntimeEdgetpu nativeCreate\nI0000 00:00:1789662494.066285   24519 runtime_model_loader_wrapper_jni.cc:107] JNI RuntimeModelLoaderWrapper nativeFree\n"
+}

@@ -99,6 +99,11 @@ or terminal configuration is optional. Use `o help`, `o root`, `o doctor`,
 `o plan`, `o live`, and `o receipt` directly. Backend adapters and build/kernel
 workflows retain their own languages and prerequisites.
 
+The optional terminal kit retains shell conveniences as `o-term pull`,
+`o-term update`, `o-term sync`, `o-term ssh`, `o-term scp`, `o-term hosts`,
+`o-term new`, `o-term ex` and `o-term test`. `oroot` changes directory;
+native `o root` prints the path. Do not shadow compiled `o` with a shell function.
+
 Run `python3 scripts/check_language_sources.py validate` after adding or moving
 tracked `.O`/`.oc` files. Run its `check` action with the current `O` and `ocorec`
 binaries for complete parse coverage. Runtime checks still follow the example

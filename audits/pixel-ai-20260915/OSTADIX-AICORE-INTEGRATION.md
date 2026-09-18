@@ -1,13 +1,15 @@
 # OSTADIX ↔ AICore integration status
 
-Evidence refreshed: 2026-09-15 UTC. This file distinguishes a reusable OSTADIX
+Evidence refreshed: 2026-09-16 UTC. This file distinguishes a reusable OSTADIX
 embedding contract from integration into Google's installed AICore package.
 
 ## Current result
 
-Direct AICore integration is **not complete**. No installed AICore request has
-yet delegated computation to OSTADIX. The public ML Kit probe is an AICore
-client only and is not represented as OSTADIX integration.
+Direct AICore integration is **not complete**. A real framework request now
+reaches Android System Intelligence's active Smart Reply handler, but AICore
+does not produce a result for the installed OSTADIX callback to transform. The
+public ML Kit probe is an AICore client only and is not represented as OSTADIX
+integration.
 
 The installed active AICore is exactly:
 
@@ -226,78 +228,308 @@ in-process admitted backend.
   contract was found. A separately launched broker would be only an external
   harness until AICore itself invokes it.
 
-## Disabled build-only AS.OSS experiment
+## Activated AS.OSS Smart Reply experiment
 
-`apps/aicore-ostadix-extension` is now a narrow libxposed API 102 experiment
-for this exact AS.OSS build. It is **not installed, enabled, activated, or
-present in Vector's module/scope database**. Its APK statically names only
-`com.google.android.as.oss`, rejects any firmware, AICore/AS.OSS version,
-base-APK hash, or signer mismatch, and installs no hook unless the exact
-`ostadix_aicore_extension_token` global value is explicitly present. On an
-incompatible update, only this experiment remains detached; AICore and AS.OSS
-are untouched.
-The token is rechecked at request entry and completion, so removing it disables
-result transformation immediately even if installed hooks remain until the
-next AS.OSS restart.
+## Accepted local ASI Smart Reply path
 
-The planned internal path is:
+The extension now also targets the conventional ASI Smart Reply provider that
+already succeeds without an AICore model download. Installed enum and class
+recovery identifies provider `12` as `SMART_REPLY`, provider `25` as
+`AICORE_SMART_REPLY`, `jfk` as the conventional provider, `ish` as its candidate
+object, and `jht.d` as the seam that converts the final candidate list into
+Android `Dataset` and `FillResponse` objects.
+
+The version-pinned hook intercepts `jht.d(ksf,isj,ffg,ffg,List)`. It projects at
+most three already accepted candidates into order score, text-presence, and
+safety scalars, runs the same bounded OSTADIX intent, then supplies the selected
+original candidate as a singleton list to the original `jht.d`. Candidate text
+never crosses JNI. Reflection, JNI, timeout, or invalid-selection failures call
+the original method with its untouched list.
+
+The post-reboot live request produced this correlated sequence:
 
 ```text
-fls.a(LLMRequest, flr) on the incoming ASI Binder thread
-  -> capture Binder.getCallingUid and correlate flr/flo request objects
-  -> existing ILLMService.runCancellableInference (unchanged)
-  -> fmz.onLLMInferenceSuccess(LLMResult)
-  -> copy at most 3 replies' score/stop/max-policy scalar metadata
-  -> bounded OSTADIX JNI -> Parser/OIR/ExecutionPlan/HGraph/V6 admission/Bash
-  -> typed {source_index, score_milli}
-  -> construct LLMResult with selected reply and original trace/Legion/thought
-  -> invoke existing flr.b(replacement) exactly once
+AiAiAutofill: Autofill onFillRequest
+OstadixAicoreExperiment: event=asi_candidates_enter request_id=asi-autofill-10201-2 candidate_count=1
+OstadixAicoreExperiment: event=asi_ostadix_selected ... source_index=0 score_milli=1000 elapsed_ms=342
+OstadixAicoreExperiment: event=asi_result_forwarded ... selected_source_index=0
+AsiSmartReplyTrigger: event=autofill_event value=input_shown
 ```
 
-`flo.a()` first propagates the matching request token into OSTADIX and then
-continues through AICore's existing `ICancellationCallback`. Severe thermal
-status, an unsupported reply count, timeout, JNI/reflection error, or OSTADIX
-error all retain the original `LLMResult`; generated text, citations, FDs,
-sessions, and native buffers are never copied into OSTADIX or logged. The
-module loads the pinned JNI library by its absolute package-owned path and uses
-the package-owned O/Bash executables directly. Initialization writes nothing
-into AS.OSS private storage, so detach/disable/uninstall leaves no runtime
-infrastructure there.
+ASI's service history records a normal response with `cp=[12-1/1]`, while the
+same request records provider 25 failing because its service is uninitialized.
+The exact installed/local module SHA-256 is
+`92d541ebbdaf53c5648470ceb2f050238e3583e960dddb0aa389fda4fe88c02f`.
+Raw logs, package identities, Vector scope, service history, and process mappings
+are in `OSTADIX-ASI-ACCEPTED-REQUEST-20260917.txt`.
 
-The six-stage module build verifies its static scope, v3 signature, seven-file
-hash-pinned native closure with an embedded manifest, explicit activation
-guard, and result replacement. A host fake
-`LLMResult` test proves that the selected index narrows the reply list while
-preserving trace, Legion metadata, and thought-process objects by identity and
-that out-of-range output fails closed. The read-only installed-contract check
-verifies the exact `fls`/`fmz`/`flo`, `LLMResult`, and `LLMReply` shapes after
-first passing the live version/APK/signer policy. The build additionally checks
-that all eight in-process version/APK/signer constants remain byte-for-byte
-present in the shared compatibility policy. Artifact:
+This proves a Google-server-independent system request path through OSTADIX and
+back to the framework caller. It does not prove the AICore inference chain:
+provider 12 generated the candidate locally, and provider 25 still had no model.
+
+Live ASI configuration enables AICore Smart Reply and disables the open-prompt
+route, so the deployed module now targets transaction 6 and this exact path:
+
+```text
+flw.c(SmartReplyRequest, flv)
+  -> ISmartReplyService.runCancellableInference
+  -> fna.onSmartReplyInferenceSuccess(SmartReplyResult)
+  -> bounded OSTADIX JNI over score/has-text/safety scalars
+  -> construct SmartReplyResult with the selected original entry and trace
+  -> flv.b(replacement) exactly once
+```
+
+The installed DEX descriptors for the obfuscated host classes are `Lflv;`,
+`Lflw;`, `Lfna;`, and `Lflo;`. JADX's `defpackage` directory is synthetic and
+cannot be used as the runtime class prefix. AS.OSS also has no current
+`Application` during libxposed `onPackageReady`; the module therefore installs
+a one-shot `Application.attach` bootstrap and resolves host classes through the
+attached package class loader. The bootstrap unhooks itself. Partial host-hook
+installation unhooks every earlier handle in reverse order and closes the
+OSTADIX runtime.
+
+The module is installed as Vector module 319, enabled, and scoped only to user
+0 `com.google.android.as.oss`. Its exact activation token is present. Current
+APK evidence is:
 
 ```text
 OstadixAicoreExtension-debug.apk
-SHA-256 262bdc3b7b75f076f2cfd3448e602d59652123d9b8546993c5be277fd9f3ef04
+SHA-256 f025e13fe0d2fd1b83ea4aad18745eeef1d5d0bec2ae7d7f01fa1485f85a59a6
 ```
 
-This is stronger deployment preparation, not direct integration evidence.
-Running it still requires explicit authorization to install/scope/activate,
-and actual AS.OSS fork/exec, linker-namespace behavior, and module-native
-loading remain untested. Read-only policy inspection does remove one suspected
-categorical blocker: both live AICore and AS.OSS processes are
-`u:r:priv_app_36:s0:c512,c768`, and platform CIL grants `appdomain`
-read/open/map/execute/`execute_no_trans` on `apk_data_file`. This permits the
-shape of package-owned execution but does not prove this module's cross-package
-native closure can run. More fundamentally, the installed AICore preload is
-terminal `FAILED(3)`, so there
-is no working inference result on which to prove that AS.OSS consumed the
-replacement.
+AS.OSS PID 24327 loaded `libostadix_runtime.so` from the module's extracted
+native directory. A fixed in-process scalar smoke then selected source 1 at
+score 950 in 204 ms with Smart Reply execution intent
+`3a044ddbad08687073ec95031f0de36649149da20e225c5fac050829a3de7790`,
+after which all four version-pinned Smart Reply hooks installed. This proves
+native loading, package-owned backend execution, and OSTADIX selection under
+the live AS.OSS process context. SELinux was permissive for this measurement;
+audit denials for cgroup and shell-test paths mean the same result under
+enforcing mode remains unproven.
 
-The JNI host smoke was also rerun with the `.so` O and Bash paths directly,
-not terminal command symlinks. It cancelled a post-dispatch Bash request in
-102 ms, then selected index 0 in 84 ms and index 1 in 98 ms on the same runtime.
-This proves the no-write launcher configuration on the current host, not under
-the AS.OSS linker namespace or SELinux process.
+The callback correlation latches cancellation and atomically commits
+replacement delivery. Cancellation or activation-token removal before that
+commit forwards the original result. Severe thermal status, unsupported reply
+count, timeout, JNI/reflection error, or OSTADIX error also forwards the
+original Smart Reply result unchanged. The replacement keeps the original
+selected entry and inference trace; generated reply text never crosses JNI.
+
+### Live framework-to-provider replay
+
+The installed synthetic trigger has APK SHA-256
+`cdc1af5634054a189f8c525cd09ae56cb5a878c748459a21a1ebd5456735862a`.
+Its installed APK and the local build artifact match. The activity ran over the
+secure keyguard without dismissing it. Android Autofill recorded the exact
+allow-listed component, an empty focused reply field, a suggestion area, and
+inline suggestions enabled. ASI then logged `Autofill onFillRequest` and
+entered its registered candidate providers. The concise command output is in
+`ASI-SMART-REPLY-LIVE-REPLAY-20260916.txt`.
+
+Recovered bytecode fixes the active internal route before AS.OSS:
+
+```text
+AiAiAugmentedAutofillService.onFillRequest
+  -> jhh.e / jhh.f
+  -> jix.b (screen-context preparation)
+  -> jix.i (parallel candidate providers)
+  -> jct.n / jct.m / jct.l (AICore Smart Reply provider)
+  -> AiCoreLlmService.b
+  -> AS.OSS flw.c only after AICore service initialization succeeds
+```
+
+`jix.e` gives each provider the live
+`Autofill__candidate_provider_timeout_millis=4700` timeout, while Android's
+augmented-autofill service deadline is 5000 ms. Screen-context preparation
+runs before that provider timeout. The first cold replay entered ASI at
+13:06:16.560 and lost the race with Android's 5-second deadline, leaving no ASI
+history record. A warm replay is more diagnostic: it completed in 1597 ms and
+recorded result codes `31,11,1` (view node present, handler responded, response
+completed). Conventional provider 12 produced one candidate in 362 ms. Provider
+25 (`AICORE_SMART_REPLY`) failed at
+`AiCoreLlmService.b(PG:199)` with `RuntimeException: Uninitialized service`.
+Providers 1 and 29 returned no candidates. ASI therefore completed without an
+AICore Smart Reply, and no `OstadixAicoreExperiment request_enter` event was
+emitted. This locates the recurring failure before AS.OSS `flw.c`, rather than
+inside the installed OSTADIX hook.
+
+The trigger was then instrumented with Android's public `AutofillCallback`.
+The rebuilt and installed APK hashes match, and a live conventional-provider
+smoke recorded `event=autofill_event value=input_shown`. This supplies a caller
+side observation for the prepared clean replay without reading reply text.
+
+### Provisioning cause and factory payload
+
+AICore's catalog is empty because the official AS.OSS ProtectedDownload call
+to `google.internal.abuse.ondevicesafety.v2.ProtectedDownloadService/
+GetManifestConfig` returns `PERMISSION_DENIED` for client
+`com.google.android.aicore:18103149225492435673`. The request includes the
+client/rollout labels, an encryption public key, and attestation/integrity
+material. It does not use an account OAuth token. Package versions, granted
+permissions, the active August 2026 Play system train, network state, scheduler
+state, and the relevant enablement flags are coherent. The remaining remote
+causes are rejection of the attestation/client tuple or absent server
+entitlement for this rollout.
+
+The 5.36 GiB read-only `/data/vendor/intelligence` partition is the official
+Pixel AI preload payload, not evidence of a populated AICore catalog.
+`/vendor/bin/storage_intelligence.sh` identifies it as the Gemini/AICore preload
+feature, and live flags point BASE_MODEL feature 234 at it. AICore must first
+receive an authorized server manifest that defines feature groups, build IDs,
+checksums, and URLs. It can then replace matching URLs with local
+`preloadedfile:sha1:` assets and decrypt/copy the factory payload. The partition
+cannot bootstrap feature 234 or Smart Reply feature 103 without that manifest.
+
+The local partition does contain files named `manifest.binarypb`,
+`config.binarypb`, and `checkpoint.binarypb`. Direct inspection does not make
+them a substitute catalog: their leading bytes are high-entropy data, generic
+protobuf decoding yields no fields, and strings do not expose file mappings or
+feature definitions. AICore's recovered preload code first requests configured
+feature 234 from its own service; only after a feature definition supplies
+`preloadedfile:sha1:` URLs does `bwn` map those URLs to factory files. The
+preload worker therefore fails with feature 234 unavailable before it can use
+the payload. The factory `manifest.binarypb` SHA-256 is
+`bd045d18a0ac1ce8321d7fd8b58bc74c124dea489fe8ebf763cd92b6807e90e9`.
+
+This device also runs Play Integrity Fix and TEESimulator-RS. TEESimulator's
+target list included AICore, ASI, AS.OSS, PSI, GMS, ODAD, Play Store, and the
+Google app, so green/locked boot properties alone do not prove that
+ProtectedDownload received stock hardware attestation. A reversible test
+backed up the list to
+`/data/adb/tricky_store/target.txt.ostadix-pre-20260916` and removed the seven
+entries other than PSI. After restarting ASI, AS.OSS, AICore, and PSI, the same
+remote denial persisted.
+
+Decompilation and live logs show why that exclusion was not a stock-attestation
+test. TEESimulator reloads `target.txt` immediately, but its KeyMint pre-handler
+still handles any request containing device-property attestation tags even
+when the caller is absent from the target map. AS.OSS creates the fixed
+`PcsAttestationKey` alias with
+`setDevicePropertiesAttestationIncluded(true)` and a fresh server challenge on
+every ProtectedDownload request. During the exclusion window the key's Android
+Keystore entry changed, then TEESimulator logged `Found generated response for
+PcsAttestationKey`; its forwarded hardware path uses the distinct `Found TEE
+response` log. Restarting only the supervised TEESimulator daemon also left
+this unconditional interception in place. The original target file was
+restored byte-for-byte with SHA-256
+`0236bb20ffa7eb6d63e506d3e9cfacdf401669c7d8aabcb8a82da2e9cbaa5c18`.
+
+The decisive reboot test was run on 2026-09-17. Boot ID changed from
+`150938be-c605-4848-8416-9db5a408eaad` to
+`3d6e1607-3649-4b77-9fe2-aaf7831a10ab`. KernelSU reported `tricky_store`
+disabled, its disable marker was present, and neither the TEESimulator process
+nor its supervisor was running. No TEESimulator boot activity was recorded.
+This establishes that its native KeyMint interceptor was absent for the test.
+
+Stock hardware attestation did not recover ProtectedDownload. Three observed
+manifest downloads used fresh public-key hashes and each ended with
+`GetManifestConfig` `PERMISSION_DENIED: The caller does not have permission`.
+The later two hashes were
+`b48330ea8731b6c09fa9dc400a7474ce4e18c2b663113501c2c8eccdf8c9526e` and
+`0e3a34f77f0eedb7d558b8d545d21bba3d62f237da857442685d7f68a1ac5532`.
+This disproves TEESimulator's direct substitution of `PcsAttestationKey` as the
+cause of the persistent server rejection. It does not distinguish absent
+server entitlement, rejection of another part of the client/integrity tuple,
+or rollout configuration.
+
+Kernel boot parameters provide the missing trust-state evidence. In the clean
+boot, `/proc/bootconfig` reports `androidboot.vbmeta.device_state="unlocked"`,
+`androidboot.verifiedbootstate="orange"`,
+`androidboot.verifiedbooterror="ERROR_VERIFICATION"`, and
+`androidboot.verifyerrorpart="init_boot"`. At the same time, `getprop` reports
+locked/green, showing that Android-visible properties were rewritten and were
+not authoritative for hardware attestation. The server response does not name
+which check failed, so the unlocked and failed verified-boot state is a strong
+cause candidate rather than a proven server-side diagnosis. It explains why
+removing the simulator did not create an acceptable stock attestation.
+
+The other client inputs are coherent. Decompilation maps this request to
+`AI_CORE_CLIENT_37`, the installed OS is SDK 37, the selected client ID is
+`com.google.android.aicore:18103149225492435673`, and its live
+`AicDataRelease__build_id_18103149225492435673` value is `21590`. Build labels
+are present, ProtectedDownload and attestation are enabled, and AS.OSS and
+AICore are Play Store installed updated system packages. These checks make a
+random client-ID selection or missing build flag less likely.
+
+The request ownership is also explicit. AICore's `dsh` accepts only
+`client_group`, `device_tier`, `variant`, and `build_id`, constructs the local
+`GetManifestConfig` protobuf, and supplies its bundled production API key for
+`ondevicesafety-pa.googleapis.com`. AS.OSS receives that protobuf over its
+private Binder gRPC service, derives the selected client configuration, adds a
+fresh encryption public key plus attestation/integrity response, and calls the
+remote v2 service. The returned status contains only `PERMISSION_DENIED: The
+caller does not have permission`; no captured status detail identifies an API
+key, rollout, client-label, or verified-boot predicate. This prevents a more
+specific server-side conclusion from the available evidence.
+
+The framework created augmented-autofill sessions and the trigger callback
+reported `input_shown`, but ASI history contained only `rc=[3, 2]`, with no
+nonempty provider-25 result. AICore also reported missing features including
+607, 614, 703, 2007, and 2008. Consequently AS.OSS never reached the installed
+OSTADIX hook and there was no correlated
+`request_enter`/selection/result-forwarded chain. The end-to-end result is
+therefore incomplete for a specifically measured pre-inference provisioning
+failure, rather than an OSTADIX execution error.
+
+### Live coexistence gate
+
+The hook half of the remaining prerequisite is now proven from the live AS.OSS
+process rather than inferred from Vector configuration. In boot
+`3d6e1607-3649-4b77-9fe2-aaf7831a10ab`, AS.OSS PID 1443 maps both
+`/data/adb/modules/zygisk_vector/zygisk/arm64-v8a.so` and the installed
+extension's `libostadix_runtime.so`. The global activation value hashes to the
+exact token derived by the pinned extension, without recording the token.
+
+`check-aicore-hook-coexistence.sh` repeats these checks alongside AICore's live
+model and inference state. Its recorded run proves Vector loaded, OSTADIX
+runtime loaded, and activation matched, while AICore still had zero inference
+records and zero loaded model mappings. It exits 4 until both halves are true,
+then permits the correlated system-request replay. This narrows the missing
+condition to usable AICore model state; reinjecting or reinstalling the hook is
+not currently required.
+
+The live rollout tuple is structurally valid. Base64 decoding
+`AicDataRelease__build_labels=CAMQDg` yields protobuf fields `08 03 10 0e`:
+device tier 3 (`MID`) and recognized variant 14 (`VARIANT_14`). AICore's
+`brl` gate rejects unknown or unspecified tier/variant before any download,
+while this request proceeded to the remote service. `buf` constructs the four
+labels as client group, `VARIANT_14`, `Mid`, and build ID `21590`. No local
+evidence maps the obfuscated variant number to a marketing device name, but it
+is a valid configured enum rather than missing or malformed input.
+
+The gate then followed the same live `PreloadModelWorker` rather than forcing a
+new job. Work ID `fd17750d-b007-4944-b01e-96009f874aeb` advanced from attempt 8
+to attempt 9. During that execution AICore made multiple fresh
+`GetManifestConfig` calls through the already hooked AS.OSS process; each was
+denied, and the worker reported feature 234 unavailable before returning to
+`ENQUEUED`. The post-attempt gate still proved both injected libraries and the
+activation token while reporting zero model mappings and zero inference
+records. This directly demonstrates hook/catalog coexistence at request time,
+with authorization as the remaining failed condition.
+
+`run-stock-attestation-replay.sh` is the prepared one-shot verifier. After the
+first post-reboot unlock it refuses to run if the module disable marker is
+missing or a TEESimulator process still exists, performs the cold and warm
+synthetic requests, waits for provisioning when the manifest is not denied,
+and captures only the relevant logs and service state. Its candidate pass gate
+requires no manifest denial or TEESimulator activity, correlated OSTADIX entry,
+selection and forwarding events, a nonempty ASI provider-25 result, and the
+trigger activity's public `AutofillCallback` reporting that the framework
+showed the returned input suggestion. On exit it stages `tricky_store` enabled
+for the following reboot.
+
+`arm-stock-attestation-replay.sh` atomically copies that verifier into
+KernelSU's `service.d`, disables only `tricky_store`, and stops before reboot.
+Its `--undo` path removes the one-shot service and stages the module enabled.
+The service waits for the first user unlock, detaches from KernelSU's serial
+boot scripts, removes itself after capture, and leaves the module staged to
+load again on the following reboot.
+
+The clean retry disabled only the component proven to replace AS.OSS's KeyMint
+result. Play Integrity Fix remained enabled and targeted GMS/Play Store, so the
+run isolated TEESimulator's direct attestation substitution; it was not a claim
+that every device-integrity modification was absent. The one-shot runner
+staged `tricky_store` enabled for the following reboot and removed its service
+file. The module is staged but is not loaded in the current test boot.
 
 ## Measured overhead and remaining proof
 

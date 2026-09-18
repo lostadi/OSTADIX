@@ -107,6 +107,10 @@ main O-lang build.</p>
 or terminal configuration is optional. Use <code>o help</code>, <code>o root</code>, <code>o doctor</code>,
 <code>o plan</code>, <code>o live</code>, and <code>o receipt</code> directly. Backend adapters and build/kernel
 workflows retain their own languages and prerequisites.</p>
+<p>The optional terminal kit retains shell conveniences as <code>o-term pull</code>,
+<code>o-term update</code>, <code>o-term sync</code>, <code>o-term ssh</code>, <code>o-term scp</code>, <code>o-term hosts</code>,
+<code>o-term new</code>, <code>o-term ex</code> and <code>o-term test</code>. <code>oroot</code> changes directory;
+native <code>o root</code> prints the path. Do not shadow compiled <code>o</code> with a shell function.</p>
 <p>Run <code>python3 scripts/check_language_sources.py validate</code> after adding or moving
 tracked <code>.O</code>/<code>.oc</code> files. Run its <code>check</code> action with the current <code>O</code> and <code>ocorec</code>
 binaries for complete parse coverage. Runtime checks still follow the example

@@ -5,9 +5,21 @@
 - `measure-foreground.sh` — one-route-at-a-time ML Kit probe measurement with lock/focus refusal,
   private Edge TPU trace instance, counters, power, memory, and thermal snapshots.
 - `check-aicore-runtime-readiness.sh` — read-only live service/model/inference readiness check.
+- `check-aicore-hook-coexistence.sh` — proves from live process mappings that Vector and the
+  pinned OSTADIX runtime are loaded in AS.OSS, then requires simultaneous AICore model or
+  inference readiness before allowing the correlated system replay.
+- `AICORE-HOOK-COEXISTENCE-20260917.txt` — recorded live gate: hook and activation true,
+  AICore model state false, exit 4.
 - `check-extension-compatibility.sh` — live AICore/AS.OSS version, APK, and signer gate.
 - `extension-compatibility-policy.sh` — pure fail-closed snapshot decision policy.
 - `test-extension-compatibility-policy.sh` — compatible, malformed, and per-field drift tests.
+- `stock-attestation-replay-20260917T004712Z/` — clean reboot evidence with TEESimulator absent;
+  the kernel reports unlocked/orange verified boot while rewritten properties report
+  locked/green, ProtectedDownload remained `PERMISSION_DENIED`, provider 25 returned no reply,
+  and the candidate end-to-end result is `incomplete`.
+- `run-stock-attestation-replay.sh`, `arm-stock-attestation-replay.sh`, and
+  `analyze-stock-attestation-replay.py` — one-shot reboot verifier, arming helper, and strict
+  correlation analyzer for the system-request chain.
 - `native/edgetpu_sb_probe.c` — minimal root-context `libedgetpu_litert.so` initialization probe.
 - `native/build-and-run.sh` — builds and runs that native probe.
 - `../../apps/pixel-ai-probe/` — source, tests, build instructions, and signed foreground Android

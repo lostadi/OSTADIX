@@ -1,0 +1,51 @@
+[
+  {
+    "schema": "hid",
+    "hex": "0a060a0408011820",
+    "decoded": {
+      "1:variant_hhz": [
+        {
+          "1:b": [
+            {
+              "1:batch_bound_b": [
+                1
+              ],
+              "3:context_bound_c": [
+                32
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "schema": "edd",
+    "hex": "0a0712050a03616263",
+    "decoded": {
+      "1:entries": [
+        {
+          "2:file_group": [
+            {
+              "1:group_name": [
+                "abc"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "malformed_hex": "00",
+    "error": "invalid field number"
+  },
+  {
+    "malformed_hex": "0aff",
+    "error": "truncated varint"
+  },
+  {
+    "malformed_hex": "08ffffffffffffffffffff",
+    "error": "varint exceeds uint64"
+  }
+]

@@ -1,0 +1,63 @@
+--------- beginning of main
+09-17 11:00:42.665  5656  5656 I PixelAiProbe: 11:00:42.665 [probe] created elapsedMs=0
+09-17 11:00:42.665  5656  5656 I PixelAiProbe: version=0.1.3; no private input; no automatic model download; no background run
+09-17 11:00:42.665  5656  5656 I PixelAiProbe: 11:00:42.665 [versions] resolved elapsedMs=0
+09-17 11:00:42.665  5656  5656 I PixelAiProbe: genai-prompt:1.0.0-beta4; genai-summarization:1.0.0-beta1; genai-image-description:1.0.0-beta1; genai-speech-recognition:1.0.0-alpha1
+09-17 11:00:42.669  5656  5656 I PixelAiProbe: 11:00:42.669 [lifecycle] resumed elapsedMs=0
+09-17 11:00:42.669  5656  5656 I PixelAiProbe: Probe calls disabled; resumed=true; windowFocus=false; deviceLocked=false
+09-17 11:00:42.727  5656  5656 I PixelAiProbe: 11:00:42.727 [lifecycle] windowFocused elapsedMs=0
+09-17 11:00:42.727  5656  5656 I PixelAiProbe: Probe calls are enabled; Activity is resumed, focused, and unlocked
+09-17 11:00:42.728  5656  5656 I PixelAiProbe: 11:00:42.728 [automation] intent elapsedMs=0
+09-17 11:00:42.728  5656  5656 I PixelAiProbe: action=org.ostadix.pixelai.probe.RUN_PROMPT
+09-17 11:00:42.730  5656  5656 I PixelAiProbe: 11:00:42.729 [prompt] start elapsedMs=0
+09-17 11:00:42.730  5656  5656 I PixelAiProbe: genai-prompt:1.0.0-beta4
+09-17 11:00:42.730  5656  5656 I PixelAiProbe: 11:00:42.730 [prompt] target elapsedMs=0
+09-17 11:00:42.730  5656  5656 I PixelAiProbe: provider=AICore; modelFamily=Gemini Nano; configuration=preview_fast; cloudFallback=false; requested configuration, not proof of inference
+09-17 11:00:42.753  5656  5656 I PixelAiProbe: 11:00:42.752 [prompt] tokenLimit elapsedMs=22
+09-17 11:00:42.753  5656  5656 I PixelAiProbe: tokens=8192
+09-17 11:00:42.768  5656  5656 I PixelAiProbe: 11:00:42.768 [prompt] baseModel.failure elapsedMs=38
+09-17 11:00:42.768  5656  5656 I PixelAiProbe: com.google.mlkit.genai.common.GenAiException; message="[ErrorCode 606] AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.768  5656  5656 I PixelAiProbe:   causedBy=com.google.android.gms.internal.mlkit_genai_prompt.zzdo; message="AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.768  5656  5656 I PixelAiProbe:   genAiErrorCode=606; retryDelay=PT0S; retryDelayMs=0
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: [prompt] baseModel failed; com.google.mlkit.genai.common.GenAiException; message="[ErrorCode 606] AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.769  5656  5656 E PixelAiProbe:   causedBy=com.google.android.gms.internal.mlkit_genai_prompt.zzdo; message="AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.769  5656  5656 E PixelAiProbe:   genAiErrorCode=606; retryDelay=PT0S; retryDelayMs=0
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: com.google.mlkit.genai.common.GenAiException: [ErrorCode 606] AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available.
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzauc.zza(com.google.mlkit:genai-prompt@@1.0.0-beta4:5)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzoa.zzb(com.google.mlkit:genai-prompt@@1.0.0-beta4:2)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzob.run(com.google.mlkit:genai-prompt@@1.0.0-beta4:10)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at java.lang.Thread.run(Thread.java:1571)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: Caused by: com.google.android.gms.internal.mlkit_genai_prompt.zzdo: AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available.
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzgl.zzk(com.google.mlkit:genai-prompt@@1.0.0-beta4:9)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzgi.zza(com.google.mlkit:genai-prompt@@1.0.0-beta4:5)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzog.zzb(com.google.mlkit:genai-prompt@@1.0.0-beta4:2)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzoi.run(com.google.mlkit:genai-prompt@@1.0.0-beta4:8)
+09-17 11:00:42.769  5656  5656 E PixelAiProbe: 	... 3 more
+09-17 11:00:42.769  5656  5656 I PixelAiProbe: 11:00:42.769 [prompt] syntheticInference elapsedMs=39
+09-17 11:00:42.769  5656  5656 I PixelAiProbe: skipped; status=UNAVAILABLE
+09-17 11:00:42.770  5656  5656 I PixelAiProbe: 11:00:42.770 [prompt] status elapsedMs=40
+09-17 11:00:42.770  5656  5656 I PixelAiProbe: value=0 (UNAVAILABLE)
+09-17 11:00:42.770  5656  5656 I PixelAiProbe: 11:00:42.770 [prompt] syntheticTokenCount.failure elapsedMs=40
+09-17 11:00:42.770  5656  5656 I PixelAiProbe: com.google.mlkit.genai.common.GenAiException; message="[ErrorCode 606] AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.770  5656  5656 I PixelAiProbe:   causedBy=com.google.android.gms.internal.mlkit_genai_prompt.zzdo; message="AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.770  5656  5656 I PixelAiProbe:   genAiErrorCode=606; retryDelay=PT0S; retryDelayMs=0
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: [prompt] syntheticTokenCount failed; com.google.mlkit.genai.common.GenAiException; message="[ErrorCode 606] AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.770  5656  5656 E PixelAiProbe:   causedBy=com.google.android.gms.internal.mlkit_genai_prompt.zzdo; message="AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available."
+09-17 11:00:42.770  5656  5656 E PixelAiProbe:   genAiErrorCode=606; retryDelay=PT0S; retryDelayMs=0
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: com.google.mlkit.genai.common.GenAiException: [ErrorCode 606] AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available.
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzauc.zza(com.google.mlkit:genai-prompt@@1.0.0-beta4:5)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzoa.zzb(com.google.mlkit:genai-prompt@@1.0.0-beta4:2)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzob.run(com.google.mlkit:genai-prompt@@1.0.0-beta4:10)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at java.lang.Thread.run(Thread.java:1571)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: Caused by: com.google.android.gms.internal.mlkit_genai_prompt.zzdo: AICore failed with error type 3-PREPARATION_ERROR and error code 606-FEATURE_NOT_FOUND: Feature 646 is not available.
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzgl.zzk(com.google.mlkit:genai-prompt@@1.0.0-beta4:9)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzgi.zza(com.google.mlkit:genai-prompt@@1.0.0-beta4:5)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzog.zzb(com.google.mlkit:genai-prompt@@1.0.0-beta4:2)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	at com.google.android.gms.internal.mlkit_genai_prompt.zzoi.run(com.google.mlkit:genai-prompt@@1.0.0-beta4:8)
+09-17 11:00:42.770  5656  5656 E PixelAiProbe: 	... 3 more
+09-17 11:00:42.771  5656  5656 I PixelAiProbe: 11:00:42.771 [prompt] complete elapsedMs=41
+09-17 11:00:42.771  5656  5656 I PixelAiProbe: client closed

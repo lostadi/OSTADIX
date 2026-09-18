@@ -1,0 +1,52 @@
+let branches = autonomous(batch(
+python^(
+import time
+start_ns = time.time_ns()
+time.sleep(1.2)
+end_ns = time.time_ns()
+__oval_result__ = {
+    "runtime": "python",
+    "value": sum([1, 2, 3]),
+    "start_ns": start_ns,
+    "end_ns": end_ns,
+}
+)_python,
+rust^(
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+fn now_ns() -> u128 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+}
+
+fn main() {
+    let start_ns = now_ns();
+    thread::sleep(Duration::from_millis(1200));
+    let end_ns = now_ns();
+    println!(
+        "{{\"runtime\":\"rust\",\"value\":21,\"start_ns\":{},\"end_ns\":{}}}",
+        start_ns,
+        end_ns
+    );
+}
+)_rust,
+bash^(
+start_ns=\$(date +%s%N)
+sleep 1.2
+end_ns=\$(date +%s%N)
+printf '{"runtime":"bash","value":%s,"start_ns":%s,"end_ns":%s}\n' 15 "\$start_ns" "\$end_ns"
+)_bash
+))
+
+python^(
+branches = $branches
+starts = [branch["start_ns"] for branch in branches]
+ends = [branch["end_ns"] for branch in branches]
+__oval_result__ = {
+    "sum": sum(branch["value"] for branch in branches),
+    "runtimes": sorted(branch["runtime"] for branch in branches),
+    "all_three_overlap": max(starts) < min(ends),
+    "overlap_ns": max(0, min(ends) - max(starts)),
+    "branches": branches,
+}
+)_python

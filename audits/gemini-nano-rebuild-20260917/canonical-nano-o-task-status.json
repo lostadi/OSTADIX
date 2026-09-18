@@ -1,0 +1,10 @@
+{
+  "request_id": "canonical-nano-o-20260917-1739",
+  "native_call_returned": true,
+  "native_cleanup_complete": true,
+  "candidate_text": "",
+  "finish_reason_enum": 1,
+  "complete_program_generated": false,
+  "mcp_dispatch": false,
+  "reason": "First candidate empty; do not label native completion as task success."
+}

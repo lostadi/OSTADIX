@@ -1,0 +1,252 @@
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000003860228 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession>:
+ 3860228:      	sub	sp, sp, #0x1f0
+ 386022c:      	stp	x29, x30, [sp, #0x1c0]
+ 3860230:      	stp	x22, x21, [sp, #0x1d0]
+ 3860234:      	stp	x20, x19, [sp, #0x1e0]
+ 3860238:      	bl	0x3861cf0 <JNI_OnLoad_libllm_wrapper_jni+0x54c>
+ 386023c:      	add	x0, sp, #0xf8
+ 3860240:      	mov	x1, x20
+ 3860244:      	mov	w2, #0x6a               // =106
+ 3860248:      	bl	0x25b8528 <.text+0xb0868>
+ 386024c:      	adrp	x1, 0x16000
+ 3860250:      	add	x1, x1, #0xb3a
+ 3860254:      	add	x0, sp, #0xf8
+ 3860258:      	bl	0x2508c00 <.text+0xf40>
+ 386025c:      	bl	0x2f746e0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dff3c>
+ 3860260:      	add	x0, sp, #0xf8
+ 3860264:      	bl	0x2f74470 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfccc>
+ 3860268:      	cbz	x21, 0x3860300 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0xd8>
+ 386026c:      	add	x8, sp, #0xf8
+ 3860270:      	mov	x0, x19
+ 3860274:      	mov	x1, x22
+ 3860278:      	add	x22, sp, #0xf8
+ 386027c:      	bl	0x38603a0 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0x178>
+ 3860280:      	ldr	x8, [sp, #0xf8]
+ 3860284:      	cmp	x8, #0x1
+ 3860288:      	b.ne	0x386030c <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0xe4>
+ 386028c:      	add	x0, sp, #0xf8
+ 3860290:      	bl	0x251544c <.text+0xd78c>
+ 3860294:      	add	x0, sp, #0x38
+ 3860298:      	add	x1, x22, #0x8
+ 386029c:      	bl	0x2d735cc <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0xdee28>
+ 38602a0:      	ldr	x8, [x21]
+ 38602a4:      	add	x1, sp, #0x38
+ 38602a8:      	mov	x0, x21
+ 38602ac:      	ldr	x9, [x8, #0x18]
+ 38602b0:      	add	x8, sp, #0x28
+ 38602b4:      	blr	x9
+ 38602b8:      	bl	0x2b19f5c <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3f38c0>
+ 38602bc:      	b.ne	0x3860360 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0x138>
+ 38602c0:      	add	x0, sp, #0x28
+ 38602c4:      	bl	0x251544c <.text+0xd78c>
+ 38602c8:      	ldr	x19, [sp, #0x30]
+ 38602cc:      	str	xzr, [sp, #0x30]
+ 38602d0:      	add	x0, sp, #0x28
+ 38602d4:      	bl	0x256710c <.text+0x5f44c>
+ 38602d8:      	add	x0, sp, #0x38
+ 38602dc:      	bl	0x301e290 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389aec>
+ 38602e0:      	add	x0, sp, #0xf8
+ 38602e4:      	bl	0x3860448 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0x220>
+ 38602e8:      	mov	x0, x19
+ 38602ec:      	ldp	x20, x19, [sp, #0x1e0]
+ 38602f0:      	ldp	x22, x21, [sp, #0x1d0]
+ 38602f4:      	ldp	x29, x30, [sp, #0x1c0]
+ 38602f8:      	add	sp, sp, #0x1f0
+ 38602fc:      	ret
+ 3860300:      	bl	0x2725fe8 <Java_com_google_android_apps_aicore_runtime_wrapper_EmbedderWrapper_nativeUnload+0x9c>
+ 3860304:      	mov	x19, xzr
+ 3860308:      	b	0x38602e8 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0xc0>
+ 386030c:      	mov	w9, #0x37               // =55
+ 3860310:      	str	x8, [sp, #0x10]
+ 3860314:      	mov	w8, #0x72               // =114
+ 3860318:      	add	x0, sp, #0x10
+ 386031c:      	str	x9, [sp, #0xf8]
+ 3860320:      	stp	x8, x20, [sp, #0x38]
+ 3860324:      	bl	0x254d468 <.text+0x457a8>
+ 3860328:      	ldr	x8, [sp, #0x10]
+ 386032c:      	str	x0, [sp, #0x48]
+ 3860330:      	bl	0x26dfe70 <.text+0x1d81b0>
+ 3860334:      	add	x0, sp, #0x38
+ 3860338:      	bl	0x2f7bd70 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2e75cc>
+ 386033c:      	str	x0, [sp, #0x10]
+ 3860340:      	add	x1, sp, #0x10
+ 3860344:      	bl	0x27267e8 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x14c>
+ 3860348:      	ldr	x0, [sp, #0x10]
+ 386034c:      	bl	0x25114cc <.text+0x980c>
+ 3860350:      	add	x0, sp, #0x38
+ 3860354:      	bl	0x254a210 <.text+0x42550>
+ 3860358:      	mov	x19, xzr
+ 386035c:      	b	0x38602e0 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0xb8>
+ 3860360:      	bl	0x3861cb4 <JNI_OnLoad_libllm_wrapper_jni+0x510>
+ 3860364:      	mov	w8, #0x76               // =118
+ 3860368:      	add	x0, sp, #0x8
+ 386036c:      	str	x9, [sp, #0x28]
+ 3860370:      	stp	x8, x20, [sp, #0x10]
+ 3860374:      	bl	0x254d468 <.text+0x457a8>
+ 3860378:      	ldr	x8, [sp, #0x8]
+ 386037c:      	str	x0, [sp, #0x20]
+ 3860380:      	bl	0x26dfe70 <.text+0x1d81b0>
+ 3860384:      	bl	0x3861c4c <JNI_OnLoad_libllm_wrapper_jni+0x4a8>
+ 3860388:      	bl	0x3861ba0 <JNI_OnLoad_libllm_wrapper_jni+0x3fc>
+ 386038c:      	ldr	x0, [sp, #0x8]
+ 3860390:      	bl	0x25114cc <.text+0x980c>
+ 3860394:      	bl	0x2ba8e68 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x4827cc>
+ 3860398:      	mov	x19, xzr
+ 386039c:      	b	0x38602d0 <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0xa8>
+ 38603a0:      	sub	sp, sp, #0x120
+ 38603a4:      	str	x29, [sp, #0xf0]
+ 38603a8:      	stp	x30, x21, [sp, #0x100]
+ 38603ac:      	stp	x20, x19, [sp, #0x110]
+ 38603b0:      	mov	x21, x0
+ 38603b4:      	add	x0, sp, #0x30
+ 38603b8:      	mov	x20, x1
+ 38603bc:      	mov	x19, x8
+ 38603c0:      	bl	0x2c9e584 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x9de0>
+ 38603c4:      	add	x1, sp, #0x30
+ 38603c8:      	mov	x0, x21
+ 38603cc:      	mov	x2, x20
+ 38603d0:      	bl	0x30b67cc <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x422028>
+ 38603d4:      	mov	w8, #0x6c               // =108
+ 38603d8:      	mov	x20, x0
+ 38603dc:      	stp	x0, x8, [sp, #0x18]
+ 38603e0:      	adrp	x8, 0x4f000
+ 38603e4:      	add	x8, x8, #0x8f1
+ 38603e8:      	mov	w0, #0x37               // =55
+ 38603ec:      	str	x8, [sp, #0x28]
+ 38603f0:      	bl	0x25114cc <.text+0x980c>
+ 38603f4:      	cmp	x20, #0x1
+ 38603f8:      	b.ne	0x386040c <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0x1e4>
+ 38603fc:      	add	x1, sp, #0x30
+ 3860400:      	mov	x0, x19
+ 3860404:      	bl	0x3861ad0 <JNI_OnLoad_libllm_wrapper_jni+0x32c>
+ 3860408:      	b	0x386042c <Java_com_google_android_apps_aicore_runtime_wrapper_LargeLanguageModelWrapper_nativeCreateSession+0x204>
+ 386040c:      	mov	x8, sp
+ 3860410:      	add	x0, sp, #0x18
+ 3860414:      	bl	0x254d268 <.text+0x455a8>
+ 3860418:      	mov	x1, sp
+ 386041c:      	mov	x0, x19
+ 3860420:      	bl	0x254e7cc <.text+0x46b0c>
+ 3860424:      	mov	x0, sp
+ 3860428:      	bl	0x254a210 <.text+0x42550>
+ 386042c:      	add	x0, sp, #0x30
+ 3860430:      	bl	0x301e290 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389aec>
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 301e208:      	adrp	x8, 0x390e000
+ 301e20c:      	add	x8, x8, #0xf60
+ 301e210:      	add	x8, x8, #0x10
+ 301e214:      	stp	x8, x1, [x0]
+ 301e218:      	b	0x301e21c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389a78>
+ 301e21c:      	fmov	d0, xzr
+ 301e220:      	adrp	x8, 0x1ef1000
+ 301e224:      	add	x8, x8, #0xab8
+ 301e228:      	str	wzr, [x0, #0xa0]
+ 301e22c:      	mov	v0.d[1], v0.d[0]
+ 301e230:      	stp	xzr, x8, [x0, #0x20]
+ 301e234:      	stp	x8, x8, [x0, #0x30]
+ 301e238:      	stp	x8, x8, [x0, #0x40]
+ 301e23c:      	mov	w8, #0x7fffffff         // =2147483647
+ 301e240:      	stp	x8, xzr, [x0, #0xa8]
+ 301e244:      	mov	x8, #0xff5800000000     // =280753422204928
+ 301e248:      	str	q0, [x0, #0x10]
+ 301e24c:      	movi	v0.2d, #0000000000000000
+ 301e250:      	movk	x8, #0xffff, lsl #48
+ 301e254:      	str	x8, [x0, #0xb8]
+ 301e258:      	stp	q0, q0, [x0, #0x50]
+ 301e25c:      	stp	q0, q0, [x0, #0x70]
+ 301e260:      	str	q0, [x0, #0x90]
+ 301e264:      	ret
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 301e568:      	tbnz	w23, #0xd, 0x301e63c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389e98>
+ 301e56c:      	tbnz	w23, #0xe, 0x301e654 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389eb0>
+ 301e570:      	tbnz	w23, #0xc, 0x301e66c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389ec8>
+ 301e574:      	tbnz	w23, #0x1, 0x301e684 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389ee0>
+ 301e578:      	tbnz	w23, #0x2, 0x301e6a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389f00>
+ 301e57c:      	tbnz	w23, #0x3, 0x301e6c4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389f20>
+ 301e580:      	tbnz	w23, #0x7, 0x301e6e4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389f40>
+ 301e584:      	tbnz	w23, #0x11, 0x301e700 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389f5c>
+ 301e588:      	tbnz	w23, #0x4, 0x301e718 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389f74>
+ 301e58c:      	tbnz	w23, #0x15, 0x301e738 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389f94>
+ 301e590:      	tbnz	w23, #0xf, 0x301e750 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389fac>
+ 301e594:      	tbnz	w23, #0x8, 0x301e768 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389fc4>
+ 301e598:      	tbnz	w23, #0x12, 0x301e784 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389fe0>
+ 301e59c:      	tbnz	w23, #0x9, 0x301e79c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389ff8>
+ 301e5a0:      	tbnz	w23, #0x14, 0x301e7b8 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x38a014>
+ 301e5a4:      	tbnz	w23, #0x10, 0x301e7d0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x38a02c>
+ 301e5a8:      	tbnz	w23, #0x13, 0x301e7e8 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x38a044>
+ 301e5ac:      	tbz	w23, #0xa, 0x301e5c8 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389e24>
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 301e684:      	ldr	x8, [x20, #0x30]
+ 301e688:      	mov	x0, x19
+ 301e68c:      	mov	w1, #0x9                // =9
+ 301e690:      	bl	0x25a2718 <.text+0x9aa58>
+ 301e694:      	csel	x3, x11, x12, ne
+ 301e698:      	bl	0x254c8c8 <.text+0x44c08>
+ 301e69c:      	mov	x21, x0
+ 301e6a0:      	tbz	w23, #0x2, 0x301e57c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389dd8>
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 2d733b0:      	ldr	x8, [x29]
+ 2d733b4:      	str	xzr, [x29]
+ 2d733b8:      	str	x8, [x19, #0x70]!
+ 2d733bc:      	add	x0, x19, #0x18
+ 2d733c0:      	str	w28, [x19, #0x8]
+ 2d733c4:      	stur	x24, [x19, #0xc]
+ 2d733c8:      	str	w23, [x19, #0x14]
+ 2d733cc:      	bl	0x2d735cc <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0xdee28>
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 2d735cc:      	mov	x2, x1
+ 2d735d0:      	mov	x1, xzr
+ 2d735d4:      	b	0x2d7cfc8 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0xe8824>
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 2d736fc:      	add	x0, x19, #0x148
+ 2d73700:      	bl	0x2d73754 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0xdefb0>
+ 2d73704:      	add	x0, x19, #0x88
+ 2d73708:      	bl	0x301e290 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x389aec>
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 2d79634:      	ldr	x8, [x20, #0x58]
+ 2d79638:      	ldr	x9, [x19, #0xb8]
+ 2d7963c:      	adrp	x2, 0x88000
+ 2d79640:      	add	x2, x2, #0x3dc
+ 2d79644:      	and	x0, x8, #0xfffffffffffffffc
+ 2d79648:      	and	x1, x9, #0xfffffffffffffffc
+ 2d7964c:      	bl	0x2d7c5d0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0xe7e2c>
+ 2d79650:      	cbz	x0, 0x2d79688 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0xe4ee4>

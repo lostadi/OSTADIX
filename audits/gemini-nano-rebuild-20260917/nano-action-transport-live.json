@@ -1,0 +1,17 @@
+{
+  "started_utc": "2026-09-17T19:20:07.783924+00:00",
+  "gsa_pid": 32082,
+  "gsa_uid": 10191,
+  "aicore_pid": 32034,
+  "aicore_uid": 10173,
+  "prompt_sha256": "c20a10f08b09f9b1714b28e6dbac27e5515066f1991cd24d6782b10b73ae1960",
+  "ordinary_assistant_request": false,
+  "dispatch_count": 1,
+  "retried": false,
+  "broadcast_exit": 0,
+  "broadcast_stdout": "Broadcasting: Intent { act=org.ostadix.gemini.NANO_ACTION_PROBE flg=0x400000 pkg=com.google.android.googlequicksearchbox (has extras) }\nBroadcast completed: result=0\n",
+  "broadcast_stderr": "",
+  "aicore_complete_seen": true,
+  "terminal": "observation_deadline",
+  "elapsed_ms": 140313
+}

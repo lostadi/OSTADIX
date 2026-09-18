@@ -1,0 +1,210 @@
+aicore-tachyon-choice
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+0000000002c947a4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate>:
+ 2ded228: d10083ff     	sub	sp, sp, #0x20
+ 2ded22c: f9000bfe     	str	x30, [sp, #0x10]
+ 2ded230: d0005e68     	adrp	x8, 0x39bb000
+ 2ded234: 91190108     	add	x8, x8, #0x640
+ 2ded238: 08dffd08     	ldarb	w8, [x8]
+ 2ded23c: 360000c8     	tbz	w8, #0x0, 0x2ded254 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x158ab0>
+ 2ded240: d0005e68     	adrp	x8, 0x39bb000
+ 2ded244: f9400bfe     	ldr	x30, [sp, #0x10]
+ 2ded248: 3958e100     	ldrb	w0, [x8, #0x638]
+ 2ded24c: 910083ff     	add	sp, sp, #0x20
+ 2ded250: d65f03c0     	ret
+ 2ded254: d0005e60     	adrp	x0, 0x39bb000
+ 2ded258: 91190000     	add	x0, x0, #0x640
+ 2ded25c: 942a559a     	bl	0x38828c4 <JNI_OnLoad_libllm_wrapper_jni+0x21120>
+ 2ded260: 34ffff00     	cbz	w0, 0x2ded240 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x158a9c>
+ 2ded264: 97f52f91     	bl	0x2b390a8 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x412a0c>
+ 2ded268: 36000240     	tbz	w0, #0x0, 0x2ded2b0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x158b0c>
+ 2ded26c: 97f471bd     	bl	0x2b09960 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e32c4>
+ 2ded270: 36000060     	tbz	w0, #0x0, 0x2ded27c <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x158ad8>
+ 2ded274: 52800028     	mov	w8, #0x1                // =1
+ 2ded278: 1400000f     	b	0x2ded2b4 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x158b10>
+ 2ded27c: d0fe9821     	adrp	x1, 0xf3000
+ 2ded280: 91334c21     	add	x1, x1, #0xcd3
+ 2ded284: 910003e0     	mov	x0, sp
+ 2ded288: 52800d42     	mov	w2, #0x6a               // =106
+ 2ded28c: aa1f03e3     	mov	x3, xzr
+ 2ded290: 94061c76     	bl	0x2f74468 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfcc4>
+ 2ded294: d0fe9161     	adrp	x1, 0x1b000
+ 2ded298: 910c2021     	add	x1, x1, #0x308
+ 2ded29c: 910003e0     	mov	x0, sp
+ 2ded2a0: 97dc6e58     	bl	0x2508c00 <.text+0xf40>
+ 2ded2a4: 94061d0f     	bl	0x2f746e0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dff3c>
+ 2ded2a8: 910003e0     	mov	x0, sp
+ 2ded2ac: 94061c71     	bl	0x2f74470 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfccc>
+ 2ded2b0: 2a1f03e8     	mov	w8, wzr
+ 2ded2b4: d0005e60     	adrp	x0, 0x39bb000
+ 2ded2b8: 9118e000     	add	x0, x0, #0x638
+ 2ded2bc: 38008408     	strb	w8, [x0], #0x8
+ 2ded2c0: 942a55cb     	bl	0x38829ec <JNI_OnLoad_libllm_wrapper_jni+0x21248>
+ 2ded2c4: 17ffffdf     	b	0x2ded240 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x158a9c>
+tachyon-readiness-property
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+000000000272669c <JNI_OnLoad_libruntime_model_loader_wrapper_jni>:
+ 2b09960: d100c3ff     	sub	sp, sp, #0x30
+ 2b09964: a9024ffe     	stp	x30, x19, [sp, #0x20]
+ 2b09968: 90feaf40     	adrp	x0, 0xf1000
+ 2b0996c: 912d6800     	add	x0, x0, #0xb5a
+ 2b09970: 910043e8     	add	x8, sp, #0x10
+ 2b09974: 52800661     	mov	w1, #0x33               // =51
+ 2b09978: 2a1f03e2     	mov	w2, wzr
+ 2b0997c: 940000a6     	bl	0x2b09c14 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3578>
+ 2b09980: f9400be8     	ldr	x8, [sp, #0x10]
+ 2b09984: f100051f     	cmp	x8, #0x1
+ 2b09988: 54000121     	b.ne	0x2b099ac <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3310>
+ 2b0998c: 910043e0     	add	x0, sp, #0x10
+ 2b09990: 97e82eaf     	bl	0x251544c <.text+0xd78c>
+ 2b09994: 394063f3     	ldrb	w19, [sp, #0x18]
+ 2b09998: f9400be0     	ldr	x0, [sp, #0x10]
+ 2b0999c: 97e81ecc     	bl	0x25114cc <.text+0x980c>
+ 2b099a0: 12000260     	and	w0, w19, #0x1
+ 2b099a4: a9424ffe     	ldp	x30, x19, [sp, #0x20]
+ 2b099a8: 17e834e9     	b	0x2516d4c <.text+0xf08c>
+ 2b099ac: 94000069     	bl	0x2b09b50 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e34b4>
+ 2b099b0: 52803082     	mov	w2, #0x184              // =388
+ 2b099b4: aa1f03e3     	mov	x3, xzr
+ 2b099b8: 9402cb5c     	bl	0x2bbc728 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x49608c>
+ 2b099bc: 94000061     	bl	0x2b09b40 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e34a4>
+ 2b099c0: 90feaf41     	adrp	x1, 0xf1000
+ 2b099c4: 912d6821     	add	x1, x1, #0xb5a
+ 2b099c8: 52800662     	mov	w2, #0x33               // =51
+ 2b099cc: 9411ab29     	bl	0x2f74670 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfecc>
+ 2b099d0: 94000064     	bl	0x2b09b60 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e34c4>
+ 2b099d4: 910043e1     	add	x1, sp, #0x10
+ 2b099d8: 97e934e7     	bl	0x2556d74 <.text+0x4f0b4>
+ 2b099dc: 9411ab41     	bl	0x2f746e0 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dff3c>
+ 2b099e0: 910003e0     	mov	x0, sp
+ 2b099e4: 9411aaa3     	bl	0x2f74470 <Java_com_google_android_apps_aicore_runtime_impl_edgetpu_RuntimeEdgetpu_nativeCreate+0x2dfccc>
+ 2b099e8: f9400be0     	ldr	x0, [sp, #0x10]
+ 2b099ec: f100041f     	cmp	x0, #0x1
+ 2b099f0: 54fffce0     	b.eq	0x2b0998c <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e32f0>
+ 2b099f4: 2a1f03f3     	mov	w19, wzr
+ 2b099f8: 17ffffe9     	b	0x2b0999c <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3300>
+system-property-get
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+000000000272669c <JNI_OnLoad_libruntime_model_loader_wrapper_jni>:
+ 2b09b6c: d10243ff     	sub	sp, sp, #0x90
+ 2b09b70: f9003bfe     	str	x30, [sp, #0x70]
+ 2b09b74: a9084ff4     	stp	x20, x19, [sp, #0x80]
+ 2b09b78: d53bd054     	mrs	x20, TPIDR_EL0
+ 2b09b7c: aa0803f3     	mov	x19, x8
+ 2b09b80: 91002fe1     	add	x1, sp, #0xb
+ 2b09b84: f9401688     	ldr	x8, [x20, #0x28]
+ 2b09b88: f90037e8     	str	x8, [sp, #0x68]
+ 2b09b8c: 94362b19     	bl	0x38947f0 <__system_property_get@plt>
+ 2b09b90: 7100041f     	cmp	w0, #0x1
+ 2b09b94: 540000ab     	b.lt	0x2b09ba8 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e350c>
+ 2b09b98: 91002fe1     	add	x1, sp, #0xb
+ 2b09b9c: aa1303e0     	mov	x0, x19
+ 2b09ba0: 97e7fc5c     	bl	0x2508d10 <.text+0x1050>
+ 2b09ba4: 14000003     	b	0x2b09bb0 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3514>
+ 2b09ba8: a9007e7f     	stp	xzr, xzr, [x19]
+ 2b09bac: f9000a7f     	str	xzr, [x19, #0x10]
+ 2b09bb0: f9401688     	ldr	x8, [x20, #0x28]
+ 2b09bb4: f94037e9     	ldr	x9, [sp, #0x68]
+ 2b09bb8: eb09011f     	cmp	x8, x9
+ 2b09bbc: 540000a1     	b.ne	0x2b09bd0 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3534>
+ 2b09bc0: a9484ff4     	ldp	x20, x19, [sp, #0x80]
+ 2b09bc4: f9403bfe     	ldr	x30, [sp, #0x70]
+ 2b09bc8: 910243ff     	add	sp, sp, #0x90
+ 2b09bcc: d65f03c0     	ret
+ 2b09bd0: 943629c8     	bl	0x38942f0 <__stack_chk_fail@plt>
+boolean-property-parse
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+000000000272669c <JNI_OnLoad_libruntime_model_loader_wrapper_jni>:
+ 2b09c14: d102c3ff     	sub	sp, sp, #0xb0
+ 2b09c18: a90957fe     	stp	x30, x21, [sp, #0x90]
+ 2b09c1c: a90a4ff4     	stp	x20, x19, [sp, #0xa0]
+ 2b09c20: aa0803f3     	mov	x19, x8
+ 2b09c24: 9101a3e8     	add	x8, sp, #0x68
+ 2b09c28: 2a0203f4     	mov	w20, w2
+ 2b09c2c: a90807e0     	stp	x0, x1, [sp, #0x80]
+ 2b09c30: 9101a3f5     	add	x21, sp, #0x68
+ 2b09c34: 97ffffce     	bl	0x2b09b6c <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e34d0>
+ 2b09c38: 3941a3e8     	ldrb	w8, [sp, #0x68]
+ 2b09c3c: f9403be9     	ldr	x9, [sp, #0x70]
+ 2b09c40: d341fd0a     	lsr	x10, x8, #1
+ 2b09c44: 7200011f     	tst	w8, #0x1
+ 2b09c48: 9a8a1121     	csel	x1, x9, x10, ne
+ 2b09c4c: b40002c1     	cbz	x1, 0x2b09ca4 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3608>
+ 2b09c50: f9403fe9     	ldr	x9, [sp, #0x78]
+ 2b09c54: 7200011f     	tst	w8, #0x1
+ 2b09c58: 910143e8     	add	x8, sp, #0x50
+ 2b09c5c: 9a951520     	csinc	x0, x9, x21, ne
+ 2b09c60: 97e82959     	bl	0x25141c4 <.text+0xc504>
+ 2b09c64: d0feab81     	adrp	x1, 0x7b000
+ 2b09c68: 912f5821     	add	x1, x1, #0xbd6
+ 2b09c6c: 910143e0     	add	x0, sp, #0x50
+ 2b09c70: 97e82243     	bl	0x251257c <.text+0xa8bc>
+ 2b09c74: 370000c0     	tbnz	w0, #0x0, 0x2b09c8c <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e35f0>
+ 2b09c78: f0feac41     	adrp	x1, 0x94000
+ 2b09c7c: 912d1021     	add	x1, x1, #0xb44
+ 2b09c80: 9101a3e0     	add	x0, sp, #0x68
+ 2b09c84: 97e8223e     	bl	0x251257c <.text+0xa8bc>
+ 2b09c88: 36000220     	tbz	w0, #0x0, 0x2b09ccc <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3630>
+ 2b09c8c: 52800028     	mov	w8, #0x1                // =1
+ 2b09c90: 39002268     	strb	w8, [x19, #0x8]
+ 2b09c94: f9000268     	str	x8, [x19]
+ 2b09c98: 910143e0     	add	x0, sp, #0x50
+ 2b09c9c: 94357640     	bl	0x386759c <JNI_OnLoad_libllm_wrapper_jni+0x5df8>
+ 2b09ca0: 14000005     	b	0x2b09cb4 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3618>
+ 2b09ca4: 12000288     	and	w8, w20, #0x1
+ 2b09ca8: 52800029     	mov	w9, #0x1                // =1
+ 2b09cac: 39002268     	strb	w8, [x19, #0x8]
+ 2b09cb0: f9000269     	str	x9, [x19]
+ 2b09cb4: 9101a3e0     	add	x0, sp, #0x68
+ 2b09cb8: 94357639     	bl	0x386759c <JNI_OnLoad_libllm_wrapper_jni+0x5df8>
+ 2b09cbc: a94a4ff4     	ldp	x20, x19, [sp, #0xa0]
+ 2b09cc0: a94957fe     	ldp	x30, x21, [sp, #0x90]
+ 2b09cc4: 9102c3ff     	add	sp, sp, #0xb0
+ 2b09cc8: d65f03c0     	ret
+ 2b09ccc: d0fea821     	adrp	x1, 0xf000
+ 2b09cd0: 91073c21     	add	x1, x1, #0x1cf
+ 2b09cd4: 910143e0     	add	x0, sp, #0x50
+ 2b09cd8: 97e82229     	bl	0x251257c <.text+0xa8bc>
+ 2b09cdc: 370000c0     	tbnz	w0, #0x0, 0x2b09cf4 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3658>
+ 2b09ce0: d0feade1     	adrp	x1, 0xc7000
+ 2b09ce4: 910d8021     	add	x1, x1, #0x360
+ 2b09ce8: 9101a3e0     	add	x0, sp, #0x68
+ 2b09cec: 97e82224     	bl	0x251257c <.text+0xa8bc>
+ 2b09cf0: 36000080     	tbz	w0, #0x0, 0x2b09d00 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e3664>
+ 2b09cf4: 52800028     	mov	w8, #0x1                // =1
+ 2b09cf8: 3900227f     	strb	wzr, [x19, #0x8]
+ 2b09cfc: 17ffffe6     	b	0x2b09c94 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e35f8>
+hardware-type-condition
+
+/data/local/tmp/ostadix-ai-audit-20260915/aicore-native/libgoogle3.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+000000000272669c <JNI_OnLoad_libruntime_model_loader_wrapper_jni>:
+ 2b390a8: f81f0ffe     	str	x30, [sp, #-0x10]!
+ 2b390ac: 97ff40dd     	bl	0x2b09420 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e2d84>
+ 2b390b0: 71001c1f     	cmp	w0, #0x7
+ 2b390b4: 54000061     	b.ne	0x2b390c0 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x412a24>
+ 2b390b8: 2a1f03e0     	mov	w0, wzr
+ 2b390bc: 14000004     	b	0x2b390cc <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x412a30>
+ 2b390c0: 97ff40d8     	bl	0x2b09420 <JNI_OnLoad_libruntime_model_loader_wrapper_jni+0x3e2d84>
+ 2b390c4: 71000c1f     	cmp	w0, #0x3
+ 2b390c8: 1a9fd7e0     	cset	w0, gt
+ 2b390cc: f84107fe     	ldr	x30, [sp], #0x10
+ 2b390d0: d65f03c0     	ret

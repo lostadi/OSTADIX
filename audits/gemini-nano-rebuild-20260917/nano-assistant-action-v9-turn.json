@@ -1,0 +1,180 @@
+{
+  "schema": "ostadix.gemini-local-tool-turn/v1",
+  "request_id": "ostadix-turn-3ffc2247-b1ae-4fcd-8355-9408ea99e982",
+  "ordinary_assistant_request": true,
+  "caller_uid": 10191,
+  "caller_pid": 19359,
+  "user_text": "Use Ostadix to run one O program combining Python Rust and Bash. Python sums squares of 3 9 8. Rust sums cubes from 1 through 4. Bash counts unique labels red blue red. Final Python adds the three results. Return the actual result and execution evidence.",
+  "stock_callback_delegations": 0,
+  "mcp_dispatch_attempts": 1,
+  "phase": "failed",
+  "source_generation": {
+    "schema": "ostadix.nano-action-result/v1",
+    "ok": true,
+    "request_id": "nano-action-f77d0080-aa69-450a-8e94-5351cc7f2543",
+    "pid": 19426,
+    "uid": 10173,
+    "inference_dispatched": true,
+    "inference_returned": true,
+    "cancel_requested": false,
+    "result": {
+      "artifact": "nano-action-f77d0080-aa69-450a-8e94-5351cc7f2543.generation-response.be0435c7eb14fa237f053cef897049cd9398ce24da8350f76083f8792c09f783.json",
+      "artifact_sha256": "b4b3f2aa863de1520e589bc2b0ba3bdbc15414525bc6ff8401c87c1cafe0a71d",
+      "protobuf_sha256": "be0435c7eb14fa237f053cef897049cd9398ce24da8350f76083f8792c09f783",
+      "protobuf_bytes": 439,
+      "candidates": [
+        {
+          "text": "```ostadix\nlet parts = autonomous(batch(\npython^(\n    __oval_result__ = sum([3**2, 9**2, 8**2])\n)_python,\nrust^(\nfn main(){let mut n=1; for i in 1..=4 {n*=i;} println!(\"{}\",n);}\n)_rust,\nbash^(\n    printf '%s\\n' red blue red | sort -u | wc -l\n)_bash\n))\npython^(\n    a,b,c = $parts\n    __oval_result__ = a+b+c\n)_python\n```",
+          "text_truncated_in_event": false,
+          "score": 0,
+          "finish_reason_enum": 1
+        }
+      ],
+      "callback_count": 411,
+      "cancel_requested": false,
+      "deadline_exceeded": false
+    },
+    "error": null
+  },
+  "mcp_request": {
+    "method": "tools/call",
+    "params": {
+      "name": "o_execute",
+      "arguments": {
+        "source": "let parts = autonomous(batch(\npython^(\n    __oval_result__ = sum([3**2, 9**2, 8**2])\n)_python,\nrust^(\nfn main(){let mut n=1; for i in 1..=4 {n*=i;} println!(\"{}\",n);}\n)_rust,\nbash^(\n    printf '%s\\n' red blue red | sort -u | wc -l\n)_bash\n))\npython^(\n    a,b,c = $parts\n    __oval_result__ = a+b+c\n)_python\n",
+        "timeout_secs": 120
+      }
+    }
+  },
+  "source_sha256": "8cb234758c4fc6a54797714414cdc5c3654cefa6442775749fa0fd80f70c1a5d",
+  "mcp_result": {
+    "action": "execute",
+    "cleanup": {
+      "child_reaped": true,
+      "detached_new_sessions_included": false,
+      "logs_drained": true,
+      "process_group_signaled": false,
+      "scope": "job_session_including_nested_process_groups",
+      "session_id": 20388,
+      "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+      "session_processes_signaled": 0,
+      "session_scan_complete": false
+    },
+    "error": null,
+    "exit_code": 0,
+    "initial_input_state": "not_supplied",
+    "input": {
+      "cwd": "/data/data/com.termux/files/home/OSTADIX",
+      "kind": "ordinary",
+      "path": null,
+      "source_inline": true,
+      "temporary_source": false
+    },
+    "input_error": null,
+    "job_id": "job-20366-1789674987374865451-1-1",
+    "mode": "direct",
+    "pid": 20388,
+    "placement": {
+      "requested": "auto",
+      "route": "ordinary-local"
+    },
+    "pty": false,
+    "restart_persistence": false,
+    "result": {
+      "elapsed_ms": 1438,
+      "execution_evidence": {
+        "admission": {
+          "admission_sha256": "53ab85672556652dae25a8e04c53798975057335bf1a621ca117b3e791c97302",
+          "admitted_graph_sha256": "e33a4226ef3f2059e62be336283efe543390464adb29e904657ee8654c902052",
+          "analyzed_graph_sha256": "2cc940c7a2a8d195a6b899612745a470abe262410188467e58de4db7efb5cba5",
+          "evidence_sha256": "10247bd26a5685da69b6da1806c1a3a526f5c35519c8b3afcb87d35d7f4e59a7",
+          "oir_sha256": "35b44cafa4cc50afac79c40896bf9587727c67d37d103a94514329105f0a0cca",
+          "plan_sha256": "37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1",
+          "schema": "oexec.admission/v6"
+        },
+        "execution_mode": "graph",
+        "parsed_source_sha256": "8cb234758c4fc6a54797714414cdc5c3654cefa6442775749fa0fd80f70c1a5d",
+        "result_content_identity": "98b9e69af215776b60221f42b7ffa23774b2cf90375e16a9f3cccf660abe8554",
+        "schema": "ostadix.native-execution-evidence/v1",
+        "source_identity_scope": "submitted_utf8_before_shebang_removal",
+        "source_intent_gate": null,
+        "source_sha256": "8cb234758c4fc6a54797714414cdc5c3654cefa6442775749fa0fd80f70c1a5d"
+      },
+      "ok": true,
+      "type": "number",
+      "value": {
+        "t": "number",
+        "v": {
+          "kind": "int",
+          "v": "180"
+        }
+      }
+    },
+    "session_scoped": true,
+    "signal": null,
+    "state": "completed",
+    "stderr": {
+      "bytes_read": 0,
+      "complete": true,
+      "encoding": "utf8_lossy",
+      "eof": true,
+      "job_id": "job-20366-1789674987374865451-1-1",
+      "limit_bytes": 65536,
+      "merged_into": null,
+      "next_offset": 0,
+      "offset": 0,
+      "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-20366-1789674987374865451-1/job-20366-1789674987374865451-1-1/stderr.log",
+      "stream": "stderr",
+      "text": "",
+      "total_bytes": 0
+    },
+    "stdin_eof_mode": "pipe_close",
+    "stdin_open": false,
+    "stdout": {
+      "bytes_read": 1108,
+      "complete": true,
+      "encoding": "utf8_lossy",
+      "eof": true,
+      "job_id": "job-20366-1789674987374865451-1-1",
+      "limit_bytes": 65536,
+      "merged_into": null,
+      "next_offset": 1108,
+      "offset": 0,
+      "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-20366-1789674987374865451-1/job-20366-1789674987374865451-1-1/stdout.log",
+      "stream": "stdout",
+      "text": "{\"ok\":true,\"value\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"180\"}},\"type\":\"number\",\"elapsed_ms\":1438,\"execution_evidence\":{\"schema\":\"ostadix.native-execution-evidence/v1\",\"execution_mode\":\"graph\",\"source_sha256\":\"8cb234758c4fc6a54797714414cdc5c3654cefa6442775749fa0fd80f70c1a5d\",\"source_identity_scope\":\"submitted_utf8_before_shebang_removal\",\"parsed_source_sha256\":\"8cb234758c4fc6a54797714414cdc5c3654cefa6442775749fa0fd80f70c1a5d\",\"result_content_identity\":\"98b9e69af215776b60221f42b7ffa23774b2cf90375e16a9f3cccf660abe8554\",\"source_intent_gate\":null,\"admission\":{\"schema\":\"oexec.admission/v6\",\"oir_sha256\":\"35b44cafa4cc50afac79c40896bf9587727c67d37d103a94514329105f0a0cca\",\"plan_sha256\":\"37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1\",\"analyzed_graph_sha256\":\"2cc940c7a2a8d195a6b899612745a470abe262410188467e58de4db7efb5cba5\",\"evidence_sha256\":\"10247bd26a5685da69b6da1806c1a3a526f5c35519c8b3afcb87d35d7f4e59a7\",\"admitted_graph_sha256\":\"e33a4226ef3f2059e62be336283efe543390464adb29e904657ee8654c902052\",\"admission_sha256\":\"53ab85672556652dae25a8e04c53798975057335bf1a621ca117b3e791c97302\"}}}\n",
+      "total_bytes": 1108
+    },
+    "timeout_secs": 120
+  },
+  "result_consumption": {
+    "schema": "ostadix.nano-action-result/v1",
+    "ok": true,
+    "request_id": "nano-action-229cf280-ba31-496b-a0f5-95230f203c33",
+    "pid": 19426,
+    "uid": 10173,
+    "inference_dispatched": true,
+    "inference_returned": true,
+    "cancel_requested": false,
+    "result": {
+      "artifact": "nano-action-229cf280-ba31-496b-a0f5-95230f203c33.generation-response.7e2c064c417c3c2037bd0db1018513386397479d749d06bf380aca6c98e3cbc6.json",
+      "artifact_sha256": "a96b81f75c729161fa555a99818142d60757b973cf88d9eaba2be06123d6ed7b",
+      "protobuf_sha256": "7e2c064c417c3c2037bd0db1018513386397479d749d06bf380aca6c98e3cbc6",
+      "protobuf_bytes": 895,
+      "candidates": [
+        {
+          "text": "The final Python result is 180.\n\nExecution evidence:\n\n```json\n{\"elapsed_ms\":1438,\"execution_evidence\":{\"admission\":{\"admission_sha256\":\"53ab85672556652dae25a8e04c53798975057335bf1a621ca117b3e791c97302\",\"admitted_graph_sha256\":\"e33a4226ef3f2059e62be336283efe543390464adb29e904657ee8654c902052\",\"analyzed_graph_sha256\":\"2cc940c7a2a8d195a6b899612745a470abe262410188467e58de4db7efb5cba5\",\"evidence_sha256\":\"10247bd26a5685da69b6da1806c1a3a526f5c35519c8b3afcb87d35d7f4e59a7\",\"oir_sha256\":\"35b44cafa4cc50afac79c40896bf9587727c67d37d103a94514329105f0a0cca\",\"plan_sha256\":\"37c156a94ff4eb65d49fda433c16d17ee836989b46bf4b0d6aabafc8e21db7e1\",\"schema\":\"oexec.admission\\/v6\"},\"execution_mode\":\"graph\",\"parsed_source_sha256\":\"8cb234758c4fc6a54797714414cdc5c3654cefa6442775749fa0fd80f70c1a",
+          "text_truncated_in_event": false,
+          "score": 0,
+          "finish_reason_enum": 2
+        }
+      ],
+      "callback_count": 1545,
+      "cancel_requested": false,
+      "deadline_exceeded": false
+    },
+    "error": null
+  },
+  "failure_phase": "result_consumption",
+  "error": "java.lang.IllegalStateException: local Nano candidate unfinished or truncated; no execution"
+}

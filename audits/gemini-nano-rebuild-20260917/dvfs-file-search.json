@@ -1,0 +1,46 @@
+{
+  "roots": [
+    "/vendor",
+    "/product",
+    "/system",
+    "/system_ext"
+  ],
+  "expected_bytes": 3364,
+  "expected_sha1": "bfd24cec8734ca9ed8ebd2ad81b36b3ff2f9d694",
+  "regular_files_inspected": 7988,
+  "filename_matches": [],
+  "exact_size_candidates": [],
+  "errors": [],
+  "aicore_apks": [
+    {
+      "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk",
+      "entries": 194,
+      "candidate_entries": []
+    },
+    {
+      "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk",
+      "entries": 16,
+      "candidate_entries": []
+    },
+    {
+      "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.en.apk",
+      "entries": 3,
+      "candidate_entries": []
+    },
+    {
+      "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.es.apk",
+      "entries": 3,
+      "candidate_entries": []
+    },
+    {
+      "apk": "/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.xxhdpi.apk",
+      "entries": 38,
+      "candidate_entries": []
+    },
+    {
+      "apk": "/product/priv-app/AICorePrebuilt-aicore_20260302.01_RC00/AICorePrebuilt-aicore_20260302.01_RC00.apk",
+      "entries": 217,
+      "candidate_entries": []
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "apk_sha256": "5766bd0a5e5522d6b886d6c8e8491a031a0e2197478e952aaf29cc389ef6c568",
+  "source_checkout": "/data/data/com.termux/files/home/OSTADIX",
+  "native_payloads": "Reused prior local build artifacts, all seven pinned hashes verified; Java compiled in canonical checkout.",
+  "previous_process": {
+    "pid": 7088,
+    "cmdline": "com.google.android.aicore",
+    "uids": [
+      10173,
+      10173,
+      10173,
+      10173
+    ],
+    "starttime_ticks": 5433446,
+    "selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+  },
+  "previous_process_exited": true,
+  "installation_stdout": "Success",
+  "installed_package_paths": [
+    "package:/data/app/~~nSGbXKT-mkrdzinGTCV5gg==/org.ostadix.aicore.extension-Hfl8kWXLDsuw5ZJScA62-w==/base.apk"
+  ],
+  "replacement_aicore_pid": 22419,
+  "replacement_uid": "10173\t10173\t10173\t10173",
+  "replacement_selinux_context": "u:r:priv_app_36:s0:c512,c768\u0000"
+}

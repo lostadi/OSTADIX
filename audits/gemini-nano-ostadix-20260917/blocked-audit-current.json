@@ -1,0 +1,30 @@
+{
+  "utc": "2026-09-17T15:06:10.693228+00:00",
+  "purpose": "third consecutive Nano prerequisite audit",
+  "installed_artifacts": [
+    {
+      "package": "org.ostadix.aicore.extension",
+      "path": "/data/app/~~ZdyqhZEHZqhP9PT0iyrb3A==/org.ostadix.aicore.extension-RM28uTZxpDpo3rf-y4TfDg==/base.apk",
+      "sha256": "bbb12fd906787e6720a74d3634f95f2346da1864f838662aa7fd1cbd8f8e64a5"
+    },
+    {
+      "package": "org.ostadix.terminal",
+      "path": "/data/app/~~5Ew4MIpWhbP7DogQgm19Hw==/org.ostadix.terminal-66ipOB93Eu1r5jFQGizjZA==/base.apk",
+      "sha256": "0329bb0fcff1f8a83b03aa2af71ba73926811e7d60837e1f7958e74008600f6b"
+    },
+    {
+      "package": "org.ostadix.pixelai.probe",
+      "path": "/data/app/~~ROGVHN8rIJCp6IvyjtUupQ==/org.ostadix.pixelai.probe-frCH6HSYhjZPhkUbDkM6Kg==/base.apk",
+      "sha256": "9e19524868997f11b43fa5fb5ca2b55edffe1f630581095d951df42764a09806"
+    }
+  ],
+  "mcp": {
+    "path": "/data/data/com.termux/files/home/.local/bin/ostadix-mcp",
+    "sha256": "c63c8533d0c8714bb83f91eb2f1a1137f16bfa7fd37d43f7ba600a59506a122d"
+  },
+  "readiness": {
+    "exit_code": 4,
+    "stdout": "aicore_process=running pid=26387\non_device_intelligence_registered=1\ninference_info_count=0\naicore_legacy_inference_count=0\napp_private_payload_candidate_count=0\nloaded_model_mapping_count=0\nbound_client_packages=com.google.android.aicore,com.google.android.apps.pixel.agent,com.google.android.apps.pixel.support,com.google.android.as.oss,com.google.android.dialer,com.google.android.inputmethod.latin,com.google.android.inputmethod.latin:train,com.google.android.settings.intelligence,com.google.android.tts\npreload_model_work=state=FAILED(3),attempts=12,stop_reason=-256\nreadiness=false reason=no_observed_inference_or_loaded_model\n",
+    "stderr": ""
+  }
+}

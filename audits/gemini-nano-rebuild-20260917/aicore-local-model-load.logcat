@@ -1,0 +1,51 @@
+09-17 13:04:09.998 31623 31690 W bve     : 	at iuu.g(PG:99)
+09-17 13:04:09.998 31623 31690 W bve     : 	at gle.d(PG:13)
+09-17 13:04:09.998 31623 31690 W bve     : 	at igz.bZ(PG:11)
+09-17 13:04:09.998 31623 31690 W bve     : 	at imn.run(PG:99)
+09-17 13:04:09.998 31623 31690 W bve     : 	at dzr.run(PG:5)
+09-17 13:04:09.998 31623 31690 W bve     : 	at fia.run(PG:44)
+09-17 13:04:09.998 31623 31690 W bve     : 	at x.run(PG:538)
+09-17 13:04:09.998 31623 31690 W bve     : 	at java.lang.Thread.run(Thread.java:1571)
+09-17 13:04:09.998 31623 31690 W bve     : 	at ebf.run(PG:51)
+09-17 13:04:09.998 31623 31690 W bve     : 	at idv.ab(PG:41)
+09-17 13:04:09.998 31623 31690 W bve     : 	at hwz.a(PG:28)
+09-17 13:04:09.998 31623 31690 W bve     : 	at hxl.run(PG:7)
+09-17 13:04:09.998 31623 31690 W bve     : 	at icq.run(PG:18)
+09-17 13:04:22.323 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"request_enter","success":true,"native_call_active":false,"elapsed_realtime_ms":53884185,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.327 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"validation_complete","success":true,"native_call_active":false,"elapsed_realtime_ms":53884192,"deadline_elapsed_ms":54004060,"inference_executed":false,"detail":{"manifest_sha256":"bead15a75a9e8ef395f994a8c4bcad5d95af269357953cefb0663da7b08a5bc4","native_config_sha256":"563636d75da0688b326832ef2cad1b30f55c98622e1c4bc457308434a7f3d2d9","model_name":"edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs"}}
+09-17 13:04:22.327 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"library_init_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":53884193,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.384 31623 32437 D nativeloader: Load /data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libruntime_edgetpu_jni.so using class loader ns clns-9 (caller=/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk!classes2.dex): ok
+09-17 13:04:22.386 31623 32437 D nativeloader: Load /data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libruntime_model_loader_wrapper_jni.so using class loader ns clns-9 (caller=/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk!classes2.dex): ok
+09-17 13:04:22.387 31623 32437 I aicore  : I0000 00:00:1789664662.386883   32437 runtime_model_loader_wrapper_jni.cc:124] Initializing JNI...
+09-17 13:04:22.393 31623 32437 D nativeloader: Load /data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libllm_wrapper_jni.so using class loader ns clns-9 (caller=/data/app/~~XH4Rx504gqy1prd02fZ9gQ==/com.google.android.aicore-DrOVrPGGfyiqh-p7aR6T_A==/base.apk!classes2.dex): ok
+09-17 13:04:22.393 31623 32437 I aicore  : I0000 00:00:1789664662.393448   32437 llm_wrapper_jni.cc:376] Initializing JNI...
+09-17 13:04:22.394 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"library_init_return","success":true,"native_call_active":false,"elapsed_realtime_ms":53884259,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.395 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"runtime_create_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":53884261,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.395 31623 32437 I aicore  : I0000 00:00:1789664662.395926   32437 runtime_edgetpu_jni.cc:31] JNI RuntimeEdgetpu nativeCreate
+09-17 13:04:22.396 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"runtime_create_return","success":true,"native_call_active":false,"elapsed_realtime_ms":53884261,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.396 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"model_load_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":53884262,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.397 31623 32437 I aicore  : I0000 00:00:1789664662.397075   32437 runtime_model_loader_wrapper_jni.cc:88] JNI RuntimeModelLoaderWrapper nativeLoadModel
+09-17 13:04:22.397 31623 32437 I aicore  : I0000 00:00:1789664662.397146   32437 runtime_model_loader_wrapper_jni.cc:25] JNI RuntimeModelLoaderWrapper CreateModel LLM
+09-17 13:04:22.397 31623 32437 I aicore  : I0000 00:00:1789664662.397213   32437 model_loader.cc:60] RuntimeModelLoader::CreateLargeLanguageModel from package: edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs
+09-17 13:04:22.460 31623 31623 W OstadixNanoLoca: type=1400 audit(0.0:74044): avc:  denied  { read } for  name="data0" dev="dm-65" ino=765954 scontext=u:r:priv_app_36:s0:c512,c768 tcontext=u:object_r:shell_data_file:s0 tclass=lnk_file permissive=0 app=com.google.android.aicore
+09-17 13:04:22.546 31623 32437 I aicore  : I0000 00:00:1789664662.545925   32437 jni_utils.cc:160] PERMISSION_DENIED: file:/data/local/tmp/ostadix-nano-rebuild-20260917/model/edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs/data0: Permission denied
+09-17 13:04:22.546 31623 32437 I aicore  : === Source Location Trace: ===
+09-17 13:04:22.546 31623 32437 I aicore  : third_party/mobstore/file/backends/error.cc:67
+09-17 13:04:22.546 31623 32437 I aicore  : third_party/mobstore/file/backends/posix-backend.cc:242
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/common/mobstore_model_provider.cc:152
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/ulm1b_ggml/ulm1b_ggml.cc:448
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:84
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:258
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:272
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:468
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/executor/edgetpu/common/model_loading_utils.cc:605
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/native/executor/edgetpu/llm_edgetpu.cc:416
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/runtime/impl/edgetpu/runtime_edgetpu_jni.cc:57
+09-17 13:04:22.546 31623 32437 I aicore  : android/aicore/runtime/model_loader.cc:66
+09-17 13:04:22.546 31623 32437 I aicore  : java/com/google/android/apps/aicore/runtime/wrapper/runtime_model_loader_wrapper_jni.cc:28
+09-17 13:04:22.548 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"model_load_failure","success":false,"native_call_active":false,"elapsed_realtime_ms":53884413,"deadline_elapsed_ms":54004060,"inference_executed":false,"detail":"com.google.android.apps.aicore.base.InferenceException: PERMISSION_DENIED: file:\/data\/local\/tmp\/ostadix-nano-rebuild-20260917\/model\/edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs\/data0: Permission denied (statusCode = 5)"}
+09-17 13:04:22.548 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"model_load_failure","success":false,"native_call_active":false,"elapsed_realtime_ms":53884414,"deadline_elapsed_ms":54004060,"inference_executed":false,"detail":"com.google.android.apps.aicore.base.InferenceException: PERMISSION_DENIED: file:\/data\/local\/tmp\/ostadix-nano-rebuild-20260917\/model\/edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs\/data0: Permission denied (statusCode = 5)"}
+09-17 13:04:22.549 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"runtime_free_enter","success":true,"native_call_active":true,"elapsed_realtime_ms":53884414,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.549 31623 32437 I aicore  : I0000 00:00:1789664662.549237   32437 runtime_model_loader_wrapper_jni.cc:107] JNI RuntimeModelLoaderWrapper nativeFree
+09-17 13:04:22.549 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"runtime_free_return","success":true,"native_call_active":false,"elapsed_realtime_ms":53884415,"deadline_elapsed_ms":54004060,"inference_executed":false}
+09-17 13:04:22.549 31623 32437 I OstadixNanoLocalProbe: {"schema":"ostadix.aicore-local-probe\/v1","request_id":"local-model-load-20260917-1704","pid":31623,"uid":10173,"phase":"complete","success":false,"native_call_active":false,"elapsed_realtime_ms":53884415,"deadline_elapsed_ms":54004060,"inference_executed":false,"detail":"com.google.android.apps.aicore.base.InferenceException: PERMISSION_DENIED: file:\/data\/local\/tmp\/ostadix-nano-rebuild-20260917\/model\/edgetpu_gem3_it_final_20250505_opt_with_audio_20250525_buenos_dvfs\/data0: Permission denied (statusCode = 5)"}

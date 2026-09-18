@@ -1,0 +1,30 @@
+[
+  {
+    "command": [
+      "/system/bin/app_process",
+      "/system/bin",
+      "org.ostadix.nano.FactoryReader",
+      "config.binarypb",
+      "/data/local/tmp/ostadix-nano-rebuild-20260917/config.decoded.pb"
+    ],
+    "exit_code": 0,
+    "elapsed_ms": 1098,
+    "stdout": "event=start uid=0 file=config.binarypb input_bytes=8192\nevent=service_found descriptor=vendor.google.plat_security.ITrustyDecrypt\nevent=decrypt_return status=0\nevent=metadata_written bytes=1703 sha256=2579a3a81a1c22403cf4f930581d85e743b9b33e7340ac917508b6419f1ef54e\n",
+    "stderr": "",
+    "decoded_file_exists": true
+  },
+  {
+    "command": [
+      "/system/bin/app_process",
+      "/system/bin",
+      "org.ostadix.nano.FactoryReader",
+      "checkpoint.binarypb",
+      "/data/local/tmp/ostadix-nano-rebuild-20260917/checkpoint.decoded.pb"
+    ],
+    "exit_code": 0,
+    "elapsed_ms": 1151,
+    "stdout": "event=start uid=0 file=checkpoint.binarypb input_bytes=4689920\nevent=service_found descriptor=vendor.google.plat_security.ITrustyDecrypt\nevent=decrypt_return status=0\nevent=metadata_written bytes=4683648 sha256=50f79aa10d36bf5f9d81e9dcec1d0aeef83ffeaea8662c7d9b5b17cc87c80291\n",
+    "stderr": "",
+    "decoded_file_exists": true
+  }
+]

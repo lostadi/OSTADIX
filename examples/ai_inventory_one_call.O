@@ -1,0 +1,40 @@
+# Generated for the 2026-09-17 source-first acceptance test.
+# Three runtimes supply independent inputs to one dependent inventory decision.
+let parts = autonomous(batch(
+python^(
+import csv
+import io
+rows = csv.DictReader(io.StringIO("id,name,quantity,unit_price\n2,bolt,7,4\n4,washer,20,1\n5,gear,2,11\n7,belt,3,9\n"))
+__oval_result__ = [dict(id=int(r["id"]), name=r["name"], quantity=int(r["quantity"]), unit_price=int(r["unit_price"])) for r in rows]
+)_python,
+rust^(
+fn main() {
+    let ids: Vec<String> = (2..=9)
+        .filter(|n| (2..*n).all(|d| n % d != 0))
+        .map(|n| n.to_string())
+        .collect();
+    println!("[{}]", ids.join(","));
+}
+)_rust,
+bash^(
+set -eu
+allowed=()
+while IFS= read -r name; do
+    allowed+=("\$name")
+done < <(printf '%s\n' gear bolt | sort)
+printf '["%s","%s"]\n' "\${allowed[0]}" "\${allowed[1]}"
+)_bash
+))
+
+python^(
+rows, eligible_ids, allowed_names = $parts
+chosen = [dict(row, line_total=row["quantity"] * row["unit_price"])
+          for row in rows if row["id"] in eligible_ids and row["name"] in allowed_names]
+__oval_result__ = {
+    "selected_items": chosen,
+    "total": sum(row["line_total"] for row in chosen),
+    "excluded_ids": sorted(row["id"] for row in rows if row["id"] not in [r["id"] for r in chosen]),
+    "prime_ids_from_rust": eligible_ids,
+    "allowed_names_from_bash": allowed_names,
+}
+)_python

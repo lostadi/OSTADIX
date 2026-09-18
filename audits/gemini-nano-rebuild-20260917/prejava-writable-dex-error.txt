@@ -1,0 +1,31 @@
+*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+Build fingerprint: 'google/blazer/blazer:17/CP2A.260805.005/15828068:user/release-keys'
+Kernel Release: '6.6.118-android15-8-g1831c2a45d9b-ab15739706-4k'
+Revision: 'MP1.0'
+ABI: 'arm64'
+Timestamp: 2026-09-17 12:40:09.530550953-0400
+Process uptime: 1s
+Executable: /system/bin/app_process64
+Cmdline: /system/bin/app_process -Djava.library.path=/data/local/tmp/ostadix-ai-audit-20260915/aicore-native /system/bin org.ostadix.nanoloader.LocalModelProbe /data/local/tmp/ostadix-ai-audit-20260915/aicore-native /data/local/tmp/ostadix-nano-rebuild-20260917/model-load-run/manifest.json
+pid: 5093, ppid: 5088, tid: 5093, name: main  >>> /system/bin/app_process <<<
+uid: 10402
+tagged_addr_ctrl: 0000000000000001 (PR_TAGGED_ADDR_ENABLE)
+pac_enabled_keys: 000000000000000f (PR_PAC_APIAKEY, PR_PAC_APIBKEY, PR_PAC_APDAKEY, PR_PAC_APDBKEY)
+signal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------
+Abort message: 'Check failed: system_class_loader != nullptr java.lang.ExceptionInInitializerError: 
+  at java.lang.ClassLoader java.lang.ClassLoader.getSystemClassLoader() (ClassLoader.java:1915)
+Caused by: java.lang.SecurityException: Writable dex file '/data/local/tmp/ostadix-nano-rebuild-20260917/model-load-run/probe.jar' is not allowed.
+  at java.lang.Object dalvik.system.DexFile.openDexFileNative(java.lang.String, java.lang.String, int, java.lang.ClassLoader, dalvik.system.DexPathList$Element[]) (DexFile.java:-2)
+  at java.lang.Object dalvik.system.DexFile.openDexFile(java.lang.String, java.lang.String, int, java.lang.ClassLoader, dalvik.system.DexPathList$Element[]) (DexFile.java:404)
+  at void dalvik.system.DexFile.<init>(java.lang.String, java.lang.ClassLoader, dalvik.system.DexPathList$Element[]) (DexFile.java:127)
+  at void dalvik.system.DexFile.<init>(java.io.File, java.lang.ClassLoader, dalvik.system.DexPathList$Element[]) (DexFile.java:100)
+  at dalvik.system.DexFile dalvik.system.DexPathList.loadDexFile(java.io.File, java.io.File, java.lang.ClassLoader, dalvik.system.DexPathList$Element[]) (DexPathList.java:435)
+  at dalvik.system.DexPathList$Element[] dalvik.system.DexPathList.makeDexElements(java.util.List, java.io.File, java.util.List, java.lang.ClassLoader, boolean) (DexPathList.java:384)
+  at void dalvik.system.DexPathList.<init>(java.lang.ClassLoader, java.lang.String, java.lang.String, java.io.File, boolean) (DexPathList.java:167)
+  at void dalvik.system.BaseDexClassLoader.<init>(java.lang.String, java.lang.String, java.lang.ClassLoader, java.lang.ClassLoader[], java.lang.ClassLoader[], boolean) (BaseDexClassLoader.java:152)
+  at void dalvik.system.BaseDexClassLoader.<init>(java.lang.String, java.io.File, java.lang.String, java.lang.ClassLoader) (BaseDexClassLoader.java:104)
+  at void dalvik.system.PathClassLoader.<init>(java.lang.String, java.lang.String, java.lang.ClassLoader) (PathClassLoader.java:71)
+  at java.lang.ClassLoader java.lang.ClassLoader.createSystemClassLoader() (ClassLoader.java:269)
+  at java.lang.ClassLoader java.lang.ClassLoader.-$$Nest$smcreateSystemClassLoader() (ClassLoader.java:-1)
+  at void java.lang.ClassLoader$SystemClassLoader.<clinit>() (ClassLoader.java:219)
+  at java.lang.ClassLoader java.lang.ClassLoader.getSystemClassLoader() (ClassLoader.java:1915)'

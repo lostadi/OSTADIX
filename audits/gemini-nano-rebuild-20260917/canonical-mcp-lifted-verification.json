@@ -1,0 +1,1140 @@
+{
+  "utc": "2026-09-17T20:15:16.969457+00:00",
+  "binary_sha256": "b879c51f6480cf8b1e7a0f1d24a519519f7ae6263ad6a7e5749524b274ce88e6",
+  "status": "passed",
+  "exchange": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-03-26",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "assistant-completion-audit",
+            "version": "1"
+          }
+        }
+      },
+      "result": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {
+          "resources": {},
+          "tools": {}
+        },
+        "serverInfo": {
+          "name": "ostadix-mcp",
+          "title": "Ostadix runtime and toolchain",
+          "version": "0.4.0+source-surface.2",
+          "websiteUrl": "https://github.com/lostadi/OSTADIX"
+        },
+        "instructions": "Ostadix-lang / O-lang MCP. Prefer o_execute with one complete polyglot O source or existing program/project path. Its action defaults to execute; check is parse-only, plan is static inspection, compile explicitly requests an artifact. Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. Jobs run concurrently, full logs stay on disk, and a job start is not success. Jobs end on MCP server shutdown; no restart persistence is claimed. Use o_env/o_runtimes/o_doctor to check the environment. Source capability discovery is not installed-version or runtime-health proof; inspect the catalog's safe help invocation when needed. Use o_run with source or path for the structured unified front door. o_run.mode=check performs non-executing static planning and graph validation; it never contacts a node or mesh. Set o_run.placement=node for whole-document selected-node submission or project_mesh for required authenticated project-route placement with local fallback disabled. Use o_analyze_intent then o_execute_intent for explicit inspect-then-execute with a one-use same-intent gate. Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list"
+      },
+      "result": {
+        "tools": [
+          {
+            "name": "o_run",
+            "description": "Execute one complete .O source document or existing path through Ostadix's unified, project-aware front door and return its structured result",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "cwd": {
+                  "default": null,
+                  "description": "Optional working directory (relative paths use O_LANG_ROOT)",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "mode": {
+                  "default": null,
+                  "description": "Operation mode: execute (default) or check (non-executing unified static plan and graph validation)",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "node_id": {
+                  "default": null,
+                  "description": "Optional discovered node identity for placement=node; omitted uses the remembered or deterministic node selection",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "path": {
+                  "default": null,
+                  "description": "Existing .O program or project path. Supply exactly one of path or source",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "placement": {
+                  "default": null,
+                  "description": "Execution placement: local (default unified front door), node (complete document on one selected hosted node), or project_mesh (project route on authenticated peers; never ordinary OIR graph splitting)",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "route": {
+                  "default": null,
+                  "description": "Optional project route ID when a project or lifted bundle has no unambiguous default",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "source": {
+                  "default": null,
+                  "description": "Complete .O source document. Supply exactly one of source or path",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "default": null,
+                  "description": "Timeout seconds (default 120)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "title": "RunOArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_smoke",
+            "description": "Smoke-test O toolchain: run examples/hello.O (expect 2) with correct backends path",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "description": "No parameters",
+              "properties": {},
+              "title": "EmptyArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_runtimes",
+            "description": "Discover executable requirements for every canonical Ostadix backend without blocking on missing optional runtimes",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "description": "No parameters",
+              "properties": {},
+              "title": "EmptyArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_job_status",
+            "description": "Inspect a managed job's state, exit code, log paths, and cleanup evidence. A started job is not a successful result.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "job_id": {
+                  "description": "Job ID returned by this MCP session. Jobs do not survive server shutdown.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "job_id"
+              ],
+              "title": "JobArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "o_job_read",
+            "description": "Read a bounded stdout or stderr page using byte cursors. Complete output remains in disk logs; reading does not block or stop execution.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "encoding": {
+                  "description": "utf8_lossy (default) for text previews, or base64 for lossless binary/UTF-8 byte retrieval.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "job_id": {
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Maximum bytes in this page, default 65536, maximum 262144. Full logs remain on disk.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                },
+                "offset": {
+                  "description": "Byte cursor from a previous read; default zero.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                },
+                "stream": {
+                  "description": "stdout (default) or stderr; PTY output is merged in stdout.",
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "job_id"
+              ],
+              "title": "JobReadArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "o_doctor",
+            "description": "Toolchain doctor: check O, olangc, backends, shims, all backend runtimes, and optional a18re search/o-run",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "description": "No parameters",
+              "properties": {},
+              "title": "EmptyArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_env",
+            "description": "Report O-lang / Ostadix-lang environment: roots, tools, shim presence, and all-runtime summary",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "description": "No parameters",
+              "properties": {},
+              "title": "EmptyArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_olangc",
+            "description": "Run olangc on a .O file, or materialize an exact binary/WASM Cargo project without invoking Cargo",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "materialize_only": {
+                  "default": null,
+                  "description": "Materialize the exact binary/WASM Cargo project into a new directory beneath the MCP server cwd without invoking Cargo",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "output": {
+                  "default": null,
+                  "description": "Optional -o output path (relative paths use O_LANG_ROOT)",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Path to a .O program (relative paths use O_LANG_ROOT)",
+                  "type": "string"
+                },
+                "target": {
+                  "default": null,
+                  "description": "olangc target: ir | dot | script | wasm | binary. Omitted target defaults to binary and builds an executable; script executes the program. Use ir or dot for non-executing analysis.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "default": null,
+                  "description": "Timeout seconds (default 180)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "title": "OlangcArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_search_run",
+            "description": "Run a bundled O work program or an explicitly selected a18re search program with correct absolute backends",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "name": {
+                  "description": "Leaf O program name, with optional .O suffix; bundled names resolve under examples/, external work names under search/",
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "default": null,
+                  "description": "Timeout seconds (default 300)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                },
+                "work": {
+                  "default": null,
+                  "description": "Optional a18re/work root; default A18_WORK, existing ~/a18re, or the bundled O_LANG_ROOT",
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "title": "SearchRunArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_execute_intent",
+            "description": "Consume a one-use o_analyze_intent handle and ask O to recompute the same stable Intent V1 before fresh V6 admission and dispatch",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "cwd": {
+                  "default": null,
+                  "description": "Working directory resolving to the same canonical cwd analyzed earlier",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "handle": {
+                  "description": "Opaque one-use handle returned by o_analyze_intent",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Path resolving to the same canonical .O program analyzed earlier",
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "default": null,
+                  "description": "Execution timeout seconds (default 120)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "handle",
+                "path"
+              ],
+              "title": "ExecuteIntentArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_capabilities",
+            "description": "Discover every Ostadix command family, resolved executables, help invocations, and task guides. Filter with query to keep context compact.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "query": {
+                  "description": "Optional case-insensitive capability, command, or family search.",
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "title": "CapabilityArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "o_job_cancel",
+            "description": "Cancel one managed job and wait for its owned process cleanup. Other jobs continue independently.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "job_id": {
+                  "description": "Job ID returned by this MCP session. Jobs do not survive server shutdown.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "job_id"
+              ],
+              "title": "JobArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "o_eval",
+            "description": "Execute inline polyglot O source via O --eval without a temporary source file. Supports interpreter options, cwd, per-call env, stdin, PTY, and background jobs; hosted code has the same capabilities as normal O execution.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "args": {
+                  "default": [],
+                  "description": "Interpreter options, such as --json, --executor graph, --workers, or backend grants.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "background": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "cwd": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "env": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "type": "object"
+                },
+                "pty": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "source": {
+                  "description": "Complete inline O source, including nested hosted languages. Passed literally to O --eval.",
+                  "type": "string"
+                },
+                "stdin": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "source"
+              ],
+              "title": "EvalArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "o_analyze_intent",
+            "description": "Analyze a .O program without executing it and issue a bounded, expiring, one-use same-intent handle (not authorization or a capability)",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "cwd": {
+                  "default": null,
+                  "description": "Optional working directory (relative paths use O_LANG_ROOT)",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Path to a .O program (absolute paths default cwd to their parent; relative paths use cwd/O_LANG_ROOT)",
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "default": null,
+                  "description": "Analysis timeout seconds (default 120)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                },
+                "ttl_secs": {
+                  "default": null,
+                  "description": "One-use handle lifetime in seconds (default 120; maximum 900)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "title": "AnalyzeIntentArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_cli",
+            "description": "Run any cataloged Ostadix CLI with full literal argv, cwd, per-child env, stdin, optional PTY, and background jobs. Includes compiler/linker, projects, node/session/registry, O-core, live, capacity, and device operations. The selected CLI retains its own admission rules; this is direct execution and may mutate local or remote state.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "args": {
+                  "default": [],
+                  "description": "Literal argument array. All CLI options/subcommands are available; no shell expansion is performed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "background": {
+                  "default": false,
+                  "description": "Return a job_id immediately. Use status/read/write/cancel across calls in this MCP session.",
+                  "type": "boolean"
+                },
+                "command": {
+                  "description": "Exact Ostadix command ID from o_capabilities, such as O, o, olangc, o-link, octl, or ocorec.",
+                  "type": "string"
+                },
+                "cwd": {
+                  "description": "Working directory; relative paths resolve against O_LANG_ROOT.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "env": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "description": "Per-child environment overrides; never changes another job or the MCP process environment.",
+                  "type": "object"
+                },
+                "pty": {
+                  "default": false,
+                  "description": "Allocate a Unix terminal for REPLs and terminal programs. Terminal output is merged in stdout.",
+                  "type": "boolean"
+                },
+                "stdin": {
+                  "description": "Initial stdin text. Foreground pipe jobs receive EOF after this text; background jobs keep input open.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "description": "Foreground default 120 seconds, background default no deadline. Zero explicitly disables the deadline.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "title": "CliArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "o_information_inspect",
+            "description": "Inspect exactly one existing local Information V1 head through the fixed read-only o-info path; no cloud, network, mutation, dispatch, or arbitrary subcommands",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "head": {
+                  "default": null,
+                  "description": "Fixed local head name (default main; maximum 128 ASCII token bytes)",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "state": {
+                  "description": "Existing local Information V1 state directory (absolute or relative to O_LANG_ROOT; maximum 4096 UTF-8 bytes)",
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "default": null,
+                  "description": "Read-only inspection timeout seconds (default 10; maximum 30)",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "state"
+              ],
+              "title": "InformationInspectArgs",
+              "type": "object"
+            }
+          },
+          {
+            "name": "o_execute",
+            "description": "Primary Ostadix computation interface. Supply exactly one complete O source or existing program/project path. Execute by default, or check syntax, plan, or compile an artifact. Preserves native runtime admission, project placement, structured results and job evidence; route selects project work and node sends a complete ordinary document to one authenticated peer. mode admitted binds local ordinary O source and intent before fresh admission. Expert CLI tools remain available.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "additionalProperties": false,
+              "definitions": {
+                "Action": {
+                  "enum": [
+                    "execute",
+                    "check",
+                    "plan",
+                    "compile"
+                  ],
+                  "type": "string"
+                },
+                "Mode": {
+                  "enum": [
+                    "direct",
+                    "admitted"
+                  ],
+                  "type": "string"
+                },
+                "Placement": {
+                  "enum": [
+                    "auto",
+                    "local",
+                    "mesh-required"
+                  ],
+                  "type": "string"
+                }
+              },
+              "properties": {
+                "action": {
+                  "$ref": "#/definitions/Action",
+                  "description": "execute (default), check (parse only), plan (non-executing schedule), or compile."
+                },
+                "background": {
+                  "default": false,
+                  "description": "Return the managed execution job immediately after any required analysis.",
+                  "type": "boolean"
+                },
+                "cwd": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "env": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {},
+                  "description": "Per-child environment overrides, isolated from other calls.",
+                  "type": "object"
+                },
+                "mode": {
+                  "$ref": "#/definitions/Mode",
+                  "description": "admitted executes through native fresh admission. Ordinary source also\nbinds an internally analyzed source/intent digest; no client handle is needed."
+                },
+                "node": {
+                  "description": "Send an ordinary complete document to this native node. This is not\ngraph partitioning. env/cwd configure the local client, not the remote\nworkspace. Cancelling the client cannot cancel remote effects.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "output": {
+                  "description": "Required destination for binary/wasm compilation, relative to cwd.\nir/dot return their text in result and do not accept output.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "path": {
+                  "description": "Existing .O file or project directory. Absolute paths default cwd to\nthe file's parent or the project directory; relative paths use cwd/root.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "placement": {
+                  "$ref": "#/definitions/Placement",
+                  "description": "auto uses the local O runtime for ordinary source and native mesh-prefer\nplacement for projects. mesh-required is supported only for project execution."
+                },
+                "route": {
+                  "description": "Explicit project route or route-set for execute, plan, or IR/DOT output.\nMarked operation projects retain their native planner's route selection.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "source": {
+                  "description": "Complete O source. Supply exactly one of source or path.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "stdin": {
+                  "description": "Initial stdin. Foreground sends EOF; background keeps the pipe open.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "target": {
+                  "description": "For compile: ir, dot, binary (default), or wasm. script is an execution\ntarget and belongs to action execute or the expert o_cli interface.",
+                  "nullable": true,
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "description": "Overall operation budget in seconds. Foreground default 120; background\ndefault unlimited. Zero disables the local deadline. Selected-node\nexecution also retains native IO/publication deadlines (see its result).",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                },
+                "workers": {
+                  "description": "Positive ordinary-O graph worker capacity; also supported for ordinary plans.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "title": "ExecuteArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "o_guide",
+            "description": "Read concise Ostadix workflows for runtime, compiler, projects, mesh, core, live, capacity, device, or agents. Defaults to topic all.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "topic": {
+                  "description": "Workflow topic: all, runtime, compiler, projects, mesh, core, live, capacity, device, agents.",
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "title": "GuideArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "o_job_list",
+            "description": "List managed jobs in this MCP server session, including completion and exit status. Does not wait for running work.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "description": "No parameters",
+              "properties": {},
+              "title": "EmptyArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "o_job_write",
+            "description": "Send literal input or EOF to a running managed job, including REPLs and PTY terminal programs. Input can cause the selected program to perform actions.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "close": {
+                  "default": false,
+                  "description": "Close pipe stdin after writing; on a canonical PTY send terminal EOF.",
+                  "type": "boolean"
+                },
+                "input": {
+                  "default": "",
+                  "description": "Literal stdin text, including newlines or terminal control characters when needed.",
+                  "type": "string"
+                },
+                "job_id": {
+                  "type": "string"
+                },
+                "timeout_secs": {
+                  "description": "Maximum seconds to wait for input acceptance, including any earlier write; default 30. Zero disables the deadline.",
+                  "format": "uint64",
+                  "minimum": 0,
+                  "nullable": true,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "job_id"
+              ],
+              "title": "JobWriteArgs",
+              "type": "object"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "o_execute",
+          "arguments": {
+            "source": "# Ostadix-lang lifted project\n# project: mcp-lifted-acceptance\n# root_fingerprint: 7de8e34d1a2c47fb7f06731d54eeee8627277afdbdb9f31df5373f6707ab1fea\n# files: 3   routes: 1   route_sets: 0\n#\n# \u2500\u2500 route table \u2500\u2500\n# Project: mcp-lifted-acceptance  (1 route, 0 route sets)\n# * summarize  [InterpreterCommand]  provides=-  manifest:olang.project.toml\n#       $ python3 main.py\n#\n# The complete project (all files + routes) is embedded losslessly below.\n# Extract it with the project tooling; run it through its routes.\n\n# O-PROJECT-BUNDLE-V1 BEGIN\ntext^(\n#olang-bundle-payload-begin\neyJmb3JtYXRfdmVyc2lvbiI6MiwibmFtZSI6Im1jcC1saWZ0ZWQtYWNjZXB0YW5jZSIsInJvb3Rf\nZmluZ2VycHJpbnQiOiI3ZGU4ZTM0ZDFhMmM0N2ZiN2YwNjczMWQ1NGVlZWU4NjI3Mjc3YWZkYmRi\nOWYzMWRmNTM3M2Y2NzA3YWIxZmVhIiwiZmlsZXMiOlt7InBhdGgiOiJtYWluLnB5IiwiYnl0ZXMi\nOiJhVzF3YjNKMElHcHpiMjRLWm5KdmJTQndZWFJvYkdsaUlHbHRjRzl5ZENCUVlYUm9DZ3B5WldG\na2FXNW5jeUE5SUdwemIyNHViRzloWkhNb1VHRjBhQ2dpY21WaFpHbHVaM011YW5OdmJpSXBMbkps\nWVdSZmRHVjRkQ2dwS1Fwd2NtbHVkQ2hxYzI5dUxtUjFiWEJ6S0hzS0lDQWdJQ0p6ZEdGMGFXOXVj\neUk2SUhOdmNuUmxaQ2g3Y205M1d5SnpkR0YwYVc5dUlsMGdabTl5SUhKdmR5QnBiaUJ5WldGa2FX\nNW5jMzBwTEFvZ0lDQWdJblJ2ZEdGc0lqb2djM1Z0S0hKdmQxc2lZMjkxYm5RaVhTQm1iM0lnY205\nM0lHbHVJSEpsWVdScGJtZHpLU3dLSUNBZ0lDSnliM2R6SWpvZ2JHVnVLSEpsWVdScGJtZHpLU3dL\nZlNrcENnPT0iLCJleGVjdXRhYmxlIjpmYWxzZSwidW5peF9tb2RlIjozMzE4OCwic3ltbGlua190\nYXJnZXQiOm51bGwsImV2YWx1YXRvciI6InB5dGhvbiIsImNvbnRlbnRfaGFzaCI6Ijg0NWIwOTc1\nOGEzM2Q1YWIwNmU2ZmExZGZhYmNkNWU1YmY4NGUyYzMyZGIzMzZlN2JiNzljZGRkY2MxYzAwODUi\nLCJyb2xlIjoiU291cmNlIn0seyJwYXRoIjoib2xhbmcucHJvamVjdC50b21sIiwiYnl0ZXMiOiJX\nM0J5YjJwbFkzUmRDbTVoYldVZ1BTQWliV053TFd4cFpuUmxaQzFoWTJObGNIUmhibU5sSWdwa1pX\nWmhkV3gwWDNKdmRYUmxJRDBnSW5OMWJXMWhjbWw2WlNJS0NsdGJjbTkxZEdWelhWMEthV1FnUFNB\naWMzVnRiV0Z5YVhwbElncGpiMjF0WVc1a0lEMGdXeUp3ZVhSb2IyNHpJaXdnSW0xaGFXNHVjSGtp\nWFFwcGJuQjFkSE1nUFNCYkltMWhhVzR1Y0hraUxDQWljbVZoWkdsdVozTXVhbk52YmlKZENuSmxj\nM1ZzZEY5amIyUmxZeUE5SUNKcWMyOXVJZ3BrWldaaGRXeDBJRDBnZEhKMVpRbz0iLCJleGVjdXRh\nYmxlIjpmYWxzZSwidW5peF9tb2RlIjozMzE4OCwic3ltbGlua190YXJnZXQiOm51bGwsImV2YWx1\nYXRvciI6bnVsbCwiY29udGVudF9oYXNoIjoiZGM4MjBmM2E0NGI1ZjQyMTk1YmY3ZjI2YWFhNTY2\nYWEzNzIwZTQyYjYyMjdjMGYyYmY1YTI4YTZkZmZjMTFiZSIsInJvbGUiOiJNYW5pZmVzdCJ9LHsi\ncGF0aCI6InJlYWRpbmdzLmpzb24iLCJieXRlcyI6Ilczc2ljM1JoZEdsdmJpSTZJbTV2Y25Sb0lp\nd2lZMjkxYm5RaU9qRTNmU3g3SW5OMFlYUnBiMjRpT2lKemIzVjBhQ0lzSW1OdmRXNTBJam95Tlgx\nZENnPT0iLCJleGVjdXRhYmxlIjpmYWxzZSwidW5peF9tb2RlIjozMzE4OCwic3ltbGlua190YXJn\nZXQiOm51bGwsImV2YWx1YXRvciI6bnVsbCwiY29udGVudF9oYXNoIjoiNTZmY2U2NTU4YzNjZTJh\nZWViZWNlYzQ2ZmMzNGI4MjlmYzNlNGMzYzc2MDZmMzhjYmJmOTBhMjZiMTFlYTdjZSIsInJvbGUi\nOiJPdGhlciJ9XSwicm91dGVzIjpbeyJpZCI6InN1bW1hcml6ZSIsImxhYmVsIjoic3VtbWFyaXpl\nIiwia2luZCI6IkludGVycHJldGVyQ29tbWFuZCIsImNvbW1hbmQiOlsicHl0aG9uMyIsIm1haW4u\ncHkiXSwiZXZhbHVhdG9yIjpudWxsLCJlbnRyeXBvaW50IjpudWxsLCJ3b3JraW5nX2RpcmVjdG9y\neSI6Ii4iLCJhcmd1bWVudHMiOltdLCJlbnZpcm9ubWVudCI6e30sInByZXJlcXVpc2l0ZXMiOltd\nLCJpbnB1dHMiOlsibWFpbi5weSIsInJlYWRpbmdzLmpzb24iXSwib3V0cHV0cyI6W10sImVmZmVj\ndHMiOnsicHVyZSI6ZmFsc2UsInVua25vd24iOnRydWUsInJlYWRzIjpbXSwid3JpdGVzIjpbXX0s\nImZhaWx1cmVfY29udGludWF0aW9uIjoidW5wcm92ZW4iLCJyZXN1bHRfY29kZWMiOiJKc29uIiwi\ncHJvdmlkZXMiOltdLCJndWFyZHMiOltdLCJwcmlvcml0eSI6MCwiaXNfZGVmYXVsdCI6dHJ1ZSwi\ncHJvdmVuYW5jZSI6eyJNYW5pZmVzdCI6eyJwYXRoIjoib2xhbmcucHJvamVjdC50b21sIn19fV0s\nInJvdXRlX3NldHMiOltdLCJkZWZhdWx0X3JvdXRlIjoic3VtbWFyaXplIiwibWV0YWRhdGEiOnt9\nfQ==\n#olang-bundle-payload-end\n)_text\n# O-PROJECT-BUNDLE-V1 END\n\ntext^(\nOstadix project bundle loaded safely. No project route was executed.\nUse `o-link --list-routes <bundle.O>` and `o-link <bundle.O> --run --route <id>`.\n)_text\n",
+            "placement": "local",
+            "timeout_secs": 30
+          }
+        }
+      },
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"action\":\"execute\",\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":32559,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input\":{\"cwd\":\"/data/data/com.termux/files/home/OSTADIX\",\"kind\":\"project\",\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\",\"source_inline\":true,\"temporary_source\":true},\"input_error\":null,\"job_id\":\"job-32547-1789676117002697352-1-1\",\"mode\":\"direct\",\"pid\":32559,\"placement\":{\"requested\":\"local\",\"route\":\"project-local\"},\"pty\":false,\"record\":{\"record\":{\"decoded_value\":{\"rows\":2,\"stations\":[\"north\",\"south\"],\"total\":42},\"disposition\":\"succeeded\",\"elapsed_nanos\":124959506,\"failure\":null,\"finished_unix_nanos\":1789676117191626962,\"input\":{\"digest_sha256\":\"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\",\"kind\":\"lifted_project_bundle\",\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\"},\"integrity\":\"unsigned_observation\",\"intent\":{\"engine\":\"project_hgraph\",\"local_worker_limit\":null,\"mesh_closed_registry\":null,\"mesh_discovery_timeout_ms\":null,\"mesh_fallback\":null,\"mesh_max_retries\":null,\"mesh_mode\":null,\"mesh_peer_root\":null,\"parallel_policy\":\"project_policy\",\"route_declarations\":[],\"route_policy\":\"explicit:summarize\",\"selected_route\":null,\"target\":\"summarize\"},\"plan\":{\"deployment_sha256\":\"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\",\"execution_intent_sha256\":null,\"execution_plan_sha256\":null,\"hgraph_sha256\":\"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\",\"oir_sha256\":null},\"result_references\":[{\"bytes_len\":57,\"complete\":true,\"id\":\"summarize\",\"kind\":\"route_stdout\",\"sha256\":\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\"},{\"bytes_len\":0,\"complete\":true,\"id\":\"summarize\",\"kind\":\"route_stderr\",\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}],\"route_results\":[{\"artifact_capture\":{\"state\":\"complete\"},\"artifact_requirements\":[],\"artifacts\":[],\"disposition\":\"executed\",\"duration_ns\":\"88496537\",\"exit_code\":0,\"provenance\":{\"command_argument_count\":2,\"command_argv_retained\":false,\"execution_scope\":\"isolated_project_workspace\"},\"route_id\":\"summarize\",\"stderr\":{\"capture\":{\"retained_bytes\":0,\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"total_observed_bytes\":0,\"truncated\":false},\"retained\":\"\"},\"stdout\":{\"capture\":{\"retained_bytes\":57,\"sha256\":\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\",\"total_observed_bytes\":57,\"truncated\":false},\"retained\":\"eyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0K\"},\"value\":{\"rows\":2,\"stations\":[\"north\",\"south\"],\"total\":42}}],\"run_id\":\"ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346\",\"schema\":\"ostadix.run-record/v1\",\"sequence\":7,\"started_unix_nanos\":1789676117066396363,\"stderr\":{\"capture\":{\"retained_bytes\":0,\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"total_observed_bytes\":0,\"truncated\":false},\"retained\":\"\"},\"stdout\":{\"capture\":{\"retained_bytes\":162,\"sha256\":\"59a6576d4a1e6482d2143bc4edaee7740997e61a85c8147d2f960b8296178445\",\"total_observed_bytes\":162,\"truncated\":false},\"retained\":\"cm91dGUgc3VtbWFyaXplIOKGkiBvayAoODggbXMpCiAgc3Rkb3V0OgogICAgeyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0KICB2YWx1ZTogeyJzdGF0aW9ucyI6WyJub3J0aCIsInNvdXRoIl0sInRvdGFsIjo0Miwicm93cyI6Mn0K\"},\"trace\":{\"availability\":\"attached\",\"object\":{\"bytes_len\":2546,\"kind\":\"trace\",\"sha256\":\"e00b23f870ca94155e64406ed6f91d074ab3f84f42fe5c76a6c7403ae0fca9dc\"}}},\"state\":\"terminal\"},\"record_job\":{\"cleanup\":{\"child_reaped\":true,\"detached_new_sessions_included\":false,\"logs_drained\":true,\"process_group_signaled\":false,\"scope\":\"job_session_including_nested_process_groups\",\"session_id\":32571,\"session_identity_anchor\":\"unreaped_leader_until_cleanup_disarmed\",\"session_processes_signaled\":0,\"session_scan_complete\":false},\"error\":null,\"exit_code\":0,\"initial_input_state\":\"not_supplied\",\"input_error\":null,\"job_id\":\"job-32547-1789676117002697352-1-2\",\"pid\":32571,\"pty\":false,\"restart_persistence\":false,\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-32547-1789676117002697352-1-2\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-2/stderr.log\",\"stream\":\"stderr\",\"text\":\"\",\"total_bytes\":0},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":4274,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-32547-1789676117002697352-1-2\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":4274,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-2/stdout.log\",\"stream\":\"stdout\",\"text\":\"{\\n  \\\"state\\\": \\\"terminal\\\",\\n  \\\"record\\\": {\\n    \\\"schema\\\": \\\"ostadix.run-record/v1\\\",\\n    \\\"run_id\\\": \\\"ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346\\\",\\n    \\\"sequence\\\": 7,\\n    \\\"input\\\": {\\n      \\\"kind\\\": \\\"lifted_project_bundle\\\",\\n      \\\"path\\\": \\\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\\\",\\n      \\\"digest_sha256\\\": \\\"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\\\"\\n    },\\n    \\\"intent\\\": {\\n      \\\"engine\\\": \\\"project_hgraph\\\",\\n      \\\"target\\\": \\\"summarize\\\",\\n      \\\"selected_route\\\": null,\\n      \\\"route_policy\\\": \\\"explicit:summarize\\\",\\n      \\\"route_declarations\\\": [],\\n      \\\"parallel_policy\\\": \\\"project_policy\\\",\\n      \\\"local_worker_limit\\\": null,\\n      \\\"mesh_mode\\\": null,\\n      \\\"mesh_max_retries\\\": null,\\n      \\\"mesh_fallback\\\": null,\\n      \\\"mesh_discovery_timeout_ms\\\": null,\\n      \\\"mesh_closed_registry\\\": null,\\n      \\\"mesh_peer_root\\\": null\\n    },\\n    \\\"plan\\\": {\\n      \\\"oir_sha256\\\": null,\\n      \\\"execution_plan_sha256\\\": null,\\n      \\\"hgraph_sha256\\\": \\\"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\\\",\\n      \\\"execution_intent_sha256\\\": null,\\n      \\\"deployment_sha256\\\": \\\"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\\\"\\n    },\\n    \\\"started_unix_nanos\\\": 1789676117066396363,\\n    \\\"finished_unix_nanos\\\": 1789676117191626962,\\n    \\\"elapsed_nanos\\\": 124959506,\\n    \\\"disposition\\\": \\\"succeeded\\\",\\n    \\\"stdout\\\": {\\n      \\\"retained\\\": \\\"cm91dGUgc3VtbWFyaXplIOKGkiBvayAoODggbXMpCiAgc3Rkb3V0OgogICAgeyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0KICB2YWx1ZTogeyJzdGF0aW9ucyI6WyJub3J0aCIsInNvdXRoIl0sInRvdGFsIjo0Miwicm93cyI6Mn0K\\\",\\n      \\\"capture\\\": {\\n        \\\"total_observed_bytes\\\": 162,\\n        \\\"retained_bytes\\\": 162,\\n        \\\"truncated\\\": false,\\n        \\\"sha256\\\": \\\"59a6576d4a1e6482d2143bc4edaee7740997e61a85c8147d2f960b8296178445\\\"\\n      }\\n    },\\n    \\\"stderr\\\": {\\n      \\\"retained\\\": \\\"\\\",\\n      \\\"capture\\\": {\\n        \\\"total_observed_bytes\\\": 0,\\n        \\\"retained_bytes\\\": 0,\\n        \\\"truncated\\\": false,\\n        \\\"sha256\\\": \\\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\\\"\\n      }\\n    },\\n    \\\"decoded_value\\\": {\\n      \\\"rows\\\": 2,\\n      \\\"total\\\": 42,\\n      \\\"stations\\\": [\\n        \\\"north\\\",\\n        \\\"south\\\"\\n      ]\\n    },\\n    \\\"route_results\\\": [\\n      {\\n        \\\"route_id\\\": \\\"summarize\\\",\\n        \\\"exit_code\\\": 0,\\n        \\\"stdout\\\": {\\n          \\\"retained\\\": \\\"eyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0K\\\",\\n          \\\"capture\\\": {\\n            \\\"total_observed_bytes\\\": 57,\\n            \\\"retained_bytes\\\": 57,\\n            \\\"truncated\\\": false,\\n            \\\"sha256\\\": \\\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\\\"\\n          }\\n        },\\n        \\\"stderr\\\": {\\n          \\\"retained\\\": \\\"\\\",\\n          \\\"capture\\\": {\\n            \\\"total_observed_bytes\\\": 0,\\n            \\\"retained_bytes\\\": 0,\\n            \\\"truncated\\\": false,\\n            \\\"sha256\\\": \\\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\\\"\\n          }\\n        },\\n        \\\"value\\\": {\\n          \\\"rows\\\": 2,\\n          \\\"total\\\": 42,\\n          \\\"stations\\\": [\\n            \\\"north\\\",\\n            \\\"south\\\"\\n          ]\\n        },\\n        \\\"artifacts\\\": [],\\n        \\\"artifact_requirements\\\": [],\\n        \\\"artifact_capture\\\": {\\n          \\\"state\\\": \\\"complete\\\"\\n        },\\n        \\\"disposition\\\": \\\"executed\\\",\\n        \\\"duration_ns\\\": \\\"88496537\\\",\\n        \\\"provenance\\\": {\\n          \\\"execution_scope\\\": \\\"isolated_project_workspace\\\",\\n          \\\"command_argv_retained\\\": false,\\n          \\\"command_argument_count\\\": 2\\n        }\\n      }\\n    ],\\n    \\\"result_references\\\": [\\n      {\\n        \\\"kind\\\": \\\"route_stdout\\\",\\n        \\\"id\\\": \\\"summarize\\\",\\n        \\\"sha256\\\": \\\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\\\",\\n        \\\"bytes_len\\\": 57,\\n        \\\"complete\\\": true\\n      },\\n      {\\n        \\\"kind\\\": \\\"route_stderr\\\",\\n        \\\"id\\\": \\\"summarize\\\",\\n        \\\"sha256\\\": \\\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\\\",\\n        \\\"bytes_len\\\": 0,\\n        \\\"complete\\\": true\\n      }\\n    ],\\n    \\\"trace\\\": {\\n      \\\"availability\\\": \\\"attached\\\",\\n      \\\"object\\\": {\\n        \\\"kind\\\": \\\"trace\\\",\\n        \\\"sha256\\\": \\\"e00b23f870ca94155e64406ed6f91d074ab3f84f42fe5c76a6c7403ae0fca9dc\\\",\\n        \\\"bytes_len\\\": 2546\\n      }\\n    },\\n    \\\"failure\\\": null,\\n    \\\"integrity\\\": \\\"unsigned_observation\\\"\\n  }\\n}\\n\",\"total_bytes\":4274},\"timeout_secs\":30},\"restart_persistence\":false,\"result\":{\"disposition\":\"succeeded\",\"failure\":null,\"input\":{\"digest_sha256\":\"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\",\"kind\":\"lifted_project_bundle\",\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\"},\"plan\":{\"deployment_sha256\":\"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\",\"execution_intent_sha256\":null,\"execution_plan_sha256\":null,\"hgraph_sha256\":\"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\",\"oir_sha256\":null},\"recording\":{\"record_sha256\":\"267c2a458be7f431848fa663b9fc056f33b0854b67d910cf88a2db355a9064a2\",\"sequence\":7,\"status\":\"recorded\"},\"result_references\":[{\"bytes_len\":57,\"complete\":true,\"id\":\"summarize\",\"kind\":\"route_stdout\",\"sha256\":\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\"},{\"bytes_len\":0,\"complete\":true,\"id\":\"summarize\",\"kind\":\"route_stderr\",\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}],\"run_id\":\"ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346\",\"schema\":\"ostadix.run-summary/v1\"},\"session_scoped\":true,\"signal\":null,\"state\":\"completed\",\"stderr\":{\"bytes_read\":0,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-32547-1789676117002697352-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":0,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-1/stderr.log\",\"stream\":\"stderr\",\"text\":\"\",\"total_bytes\":0},\"stdin_eof_mode\":\"pipe_close\",\"stdin_open\":false,\"stdout\":{\"bytes_read\":1124,\"complete\":true,\"encoding\":\"utf8_lossy\",\"eof\":true,\"job_id\":\"job-32547-1789676117002697352-1-1\",\"limit_bytes\":65536,\"merged_into\":null,\"next_offset\":1124,\"offset\":0,\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-1/stdout.log\",\"stream\":\"stdout\",\"text\":\"{\\\"schema\\\":\\\"ostadix.run-summary/v1\\\",\\\"run_id\\\":\\\"ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346\\\",\\\"input\\\":{\\\"kind\\\":\\\"lifted_project_bundle\\\",\\\"path\\\":\\\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\\\",\\\"digest_sha256\\\":\\\"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\\\"},\\\"plan\\\":{\\\"oir_sha256\\\":null,\\\"execution_plan_sha256\\\":null,\\\"hgraph_sha256\\\":\\\"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\\\",\\\"execution_intent_sha256\\\":null,\\\"deployment_sha256\\\":\\\"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\\\"},\\\"disposition\\\":\\\"succeeded\\\",\\\"result_references\\\":[{\\\"kind\\\":\\\"route_stdout\\\",\\\"id\\\":\\\"summarize\\\",\\\"sha256\\\":\\\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\\\",\\\"bytes_len\\\":57,\\\"complete\\\":true},{\\\"kind\\\":\\\"route_stderr\\\",\\\"id\\\":\\\"summarize\\\",\\\"sha256\\\":\\\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\\\",\\\"bytes_len\\\":0,\\\"complete\\\":true}],\\\"recording\\\":{\\\"status\\\":\\\"recorded\\\",\\\"sequence\\\":7,\\\"record_sha256\\\":\\\"267c2a458be7f431848fa663b9fc056f33b0854b67d910cf88a2db355a9064a2\\\"},\\\"failure\\\":null}\\n\",\"total_bytes\":1124},\"timeout_secs\":30,\"value\":{\"rows\":2,\"stations\":[\"north\",\"south\"],\"total\":42}}"
+          }
+        ],
+        "structuredContent": {
+          "action": "execute",
+          "cleanup": {
+            "child_reaped": true,
+            "detached_new_sessions_included": false,
+            "logs_drained": true,
+            "process_group_signaled": false,
+            "scope": "job_session_including_nested_process_groups",
+            "session_id": 32559,
+            "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+            "session_processes_signaled": 0,
+            "session_scan_complete": false
+          },
+          "error": null,
+          "exit_code": 0,
+          "initial_input_state": "not_supplied",
+          "input": {
+            "cwd": "/data/data/com.termux/files/home/OSTADIX",
+            "kind": "project",
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O",
+            "source_inline": true,
+            "temporary_source": true
+          },
+          "input_error": null,
+          "job_id": "job-32547-1789676117002697352-1-1",
+          "mode": "direct",
+          "pid": 32559,
+          "placement": {
+            "requested": "local",
+            "route": "project-local"
+          },
+          "pty": false,
+          "record": {
+            "record": {
+              "decoded_value": {
+                "rows": 2,
+                "stations": [
+                  "north",
+                  "south"
+                ],
+                "total": 42
+              },
+              "disposition": "succeeded",
+              "elapsed_nanos": 124959506,
+              "failure": null,
+              "finished_unix_nanos": 1789676117191626962,
+              "input": {
+                "digest_sha256": "30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3",
+                "kind": "lifted_project_bundle",
+                "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O"
+              },
+              "integrity": "unsigned_observation",
+              "intent": {
+                "engine": "project_hgraph",
+                "local_worker_limit": null,
+                "mesh_closed_registry": null,
+                "mesh_discovery_timeout_ms": null,
+                "mesh_fallback": null,
+                "mesh_max_retries": null,
+                "mesh_mode": null,
+                "mesh_peer_root": null,
+                "parallel_policy": "project_policy",
+                "route_declarations": [],
+                "route_policy": "explicit:summarize",
+                "selected_route": null,
+                "target": "summarize"
+              },
+              "plan": {
+                "deployment_sha256": "89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc",
+                "execution_intent_sha256": null,
+                "execution_plan_sha256": null,
+                "hgraph_sha256": "cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b",
+                "oir_sha256": null
+              },
+              "result_references": [
+                {
+                  "bytes_len": 57,
+                  "complete": true,
+                  "id": "summarize",
+                  "kind": "route_stdout",
+                  "sha256": "b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b"
+                },
+                {
+                  "bytes_len": 0,
+                  "complete": true,
+                  "id": "summarize",
+                  "kind": "route_stderr",
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                }
+              ],
+              "route_results": [
+                {
+                  "artifact_capture": {
+                    "state": "complete"
+                  },
+                  "artifact_requirements": [],
+                  "artifacts": [],
+                  "disposition": "executed",
+                  "duration_ns": "88496537",
+                  "exit_code": 0,
+                  "provenance": {
+                    "command_argument_count": 2,
+                    "command_argv_retained": false,
+                    "execution_scope": "isolated_project_workspace"
+                  },
+                  "route_id": "summarize",
+                  "stderr": {
+                    "capture": {
+                      "retained_bytes": 0,
+                      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "total_observed_bytes": 0,
+                      "truncated": false
+                    },
+                    "retained": ""
+                  },
+                  "stdout": {
+                    "capture": {
+                      "retained_bytes": 57,
+                      "sha256": "b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b",
+                      "total_observed_bytes": 57,
+                      "truncated": false
+                    },
+                    "retained": "eyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0K"
+                  },
+                  "value": {
+                    "rows": 2,
+                    "stations": [
+                      "north",
+                      "south"
+                    ],
+                    "total": 42
+                  }
+                }
+              ],
+              "run_id": "ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346",
+              "schema": "ostadix.run-record/v1",
+              "sequence": 7,
+              "started_unix_nanos": 1789676117066396363,
+              "stderr": {
+                "capture": {
+                  "retained_bytes": 0,
+                  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                  "total_observed_bytes": 0,
+                  "truncated": false
+                },
+                "retained": ""
+              },
+              "stdout": {
+                "capture": {
+                  "retained_bytes": 162,
+                  "sha256": "59a6576d4a1e6482d2143bc4edaee7740997e61a85c8147d2f960b8296178445",
+                  "total_observed_bytes": 162,
+                  "truncated": false
+                },
+                "retained": "cm91dGUgc3VtbWFyaXplIOKGkiBvayAoODggbXMpCiAgc3Rkb3V0OgogICAgeyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0KICB2YWx1ZTogeyJzdGF0aW9ucyI6WyJub3J0aCIsInNvdXRoIl0sInRvdGFsIjo0Miwicm93cyI6Mn0K"
+              },
+              "trace": {
+                "availability": "attached",
+                "object": {
+                  "bytes_len": 2546,
+                  "kind": "trace",
+                  "sha256": "e00b23f870ca94155e64406ed6f91d074ab3f84f42fe5c76a6c7403ae0fca9dc"
+                }
+              }
+            },
+            "state": "terminal"
+          },
+          "record_job": {
+            "cleanup": {
+              "child_reaped": true,
+              "detached_new_sessions_included": false,
+              "logs_drained": true,
+              "process_group_signaled": false,
+              "scope": "job_session_including_nested_process_groups",
+              "session_id": 32571,
+              "session_identity_anchor": "unreaped_leader_until_cleanup_disarmed",
+              "session_processes_signaled": 0,
+              "session_scan_complete": false
+            },
+            "error": null,
+            "exit_code": 0,
+            "initial_input_state": "not_supplied",
+            "input_error": null,
+            "job_id": "job-32547-1789676117002697352-1-2",
+            "pid": 32571,
+            "pty": false,
+            "restart_persistence": false,
+            "session_scoped": true,
+            "signal": null,
+            "state": "completed",
+            "stderr": {
+              "bytes_read": 0,
+              "complete": true,
+              "encoding": "utf8_lossy",
+              "eof": true,
+              "job_id": "job-32547-1789676117002697352-1-2",
+              "limit_bytes": 65536,
+              "merged_into": null,
+              "next_offset": 0,
+              "offset": 0,
+              "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-2/stderr.log",
+              "stream": "stderr",
+              "text": "",
+              "total_bytes": 0
+            },
+            "stdin_eof_mode": "pipe_close",
+            "stdin_open": false,
+            "stdout": {
+              "bytes_read": 4274,
+              "complete": true,
+              "encoding": "utf8_lossy",
+              "eof": true,
+              "job_id": "job-32547-1789676117002697352-1-2",
+              "limit_bytes": 65536,
+              "merged_into": null,
+              "next_offset": 4274,
+              "offset": 0,
+              "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-2/stdout.log",
+              "stream": "stdout",
+              "text": "{\n  \"state\": \"terminal\",\n  \"record\": {\n    \"schema\": \"ostadix.run-record/v1\",\n    \"run_id\": \"ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346\",\n    \"sequence\": 7,\n    \"input\": {\n      \"kind\": \"lifted_project_bundle\",\n      \"path\": \"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\",\n      \"digest_sha256\": \"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\"\n    },\n    \"intent\": {\n      \"engine\": \"project_hgraph\",\n      \"target\": \"summarize\",\n      \"selected_route\": null,\n      \"route_policy\": \"explicit:summarize\",\n      \"route_declarations\": [],\n      \"parallel_policy\": \"project_policy\",\n      \"local_worker_limit\": null,\n      \"mesh_mode\": null,\n      \"mesh_max_retries\": null,\n      \"mesh_fallback\": null,\n      \"mesh_discovery_timeout_ms\": null,\n      \"mesh_closed_registry\": null,\n      \"mesh_peer_root\": null\n    },\n    \"plan\": {\n      \"oir_sha256\": null,\n      \"execution_plan_sha256\": null,\n      \"hgraph_sha256\": \"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\",\n      \"execution_intent_sha256\": null,\n      \"deployment_sha256\": \"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\"\n    },\n    \"started_unix_nanos\": 1789676117066396363,\n    \"finished_unix_nanos\": 1789676117191626962,\n    \"elapsed_nanos\": 124959506,\n    \"disposition\": \"succeeded\",\n    \"stdout\": {\n      \"retained\": \"cm91dGUgc3VtbWFyaXplIOKGkiBvayAoODggbXMpCiAgc3Rkb3V0OgogICAgeyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0KICB2YWx1ZTogeyJzdGF0aW9ucyI6WyJub3J0aCIsInNvdXRoIl0sInRvdGFsIjo0Miwicm93cyI6Mn0K\",\n      \"capture\": {\n        \"total_observed_bytes\": 162,\n        \"retained_bytes\": 162,\n        \"truncated\": false,\n        \"sha256\": \"59a6576d4a1e6482d2143bc4edaee7740997e61a85c8147d2f960b8296178445\"\n      }\n    },\n    \"stderr\": {\n      \"retained\": \"\",\n      \"capture\": {\n        \"total_observed_bytes\": 0,\n        \"retained_bytes\": 0,\n        \"truncated\": false,\n        \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n      }\n    },\n    \"decoded_value\": {\n      \"rows\": 2,\n      \"total\": 42,\n      \"stations\": [\n        \"north\",\n        \"south\"\n      ]\n    },\n    \"route_results\": [\n      {\n        \"route_id\": \"summarize\",\n        \"exit_code\": 0,\n        \"stdout\": {\n          \"retained\": \"eyJzdGF0aW9ucyI6IFsibm9ydGgiLCAic291dGgiXSwgInRvdGFsIjogNDIsICJyb3dzIjogMn0K\",\n          \"capture\": {\n            \"total_observed_bytes\": 57,\n            \"retained_bytes\": 57,\n            \"truncated\": false,\n            \"sha256\": \"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\"\n          }\n        },\n        \"stderr\": {\n          \"retained\": \"\",\n          \"capture\": {\n            \"total_observed_bytes\": 0,\n            \"retained_bytes\": 0,\n            \"truncated\": false,\n            \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n          }\n        },\n        \"value\": {\n          \"rows\": 2,\n          \"total\": 42,\n          \"stations\": [\n            \"north\",\n            \"south\"\n          ]\n        },\n        \"artifacts\": [],\n        \"artifact_requirements\": [],\n        \"artifact_capture\": {\n          \"state\": \"complete\"\n        },\n        \"disposition\": \"executed\",\n        \"duration_ns\": \"88496537\",\n        \"provenance\": {\n          \"execution_scope\": \"isolated_project_workspace\",\n          \"command_argv_retained\": false,\n          \"command_argument_count\": 2\n        }\n      }\n    ],\n    \"result_references\": [\n      {\n        \"kind\": \"route_stdout\",\n        \"id\": \"summarize\",\n        \"sha256\": \"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\",\n        \"bytes_len\": 57,\n        \"complete\": true\n      },\n      {\n        \"kind\": \"route_stderr\",\n        \"id\": \"summarize\",\n        \"sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n        \"bytes_len\": 0,\n        \"complete\": true\n      }\n    ],\n    \"trace\": {\n      \"availability\": \"attached\",\n      \"object\": {\n        \"kind\": \"trace\",\n        \"sha256\": \"e00b23f870ca94155e64406ed6f91d074ab3f84f42fe5c76a6c7403ae0fca9dc\",\n        \"bytes_len\": 2546\n      }\n    },\n    \"failure\": null,\n    \"integrity\": \"unsigned_observation\"\n  }\n}\n",
+              "total_bytes": 4274
+            },
+            "timeout_secs": 30
+          },
+          "restart_persistence": false,
+          "result": {
+            "disposition": "succeeded",
+            "failure": null,
+            "input": {
+              "digest_sha256": "30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3",
+              "kind": "lifted_project_bundle",
+              "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O"
+            },
+            "plan": {
+              "deployment_sha256": "89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc",
+              "execution_intent_sha256": null,
+              "execution_plan_sha256": null,
+              "hgraph_sha256": "cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b",
+              "oir_sha256": null
+            },
+            "recording": {
+              "record_sha256": "267c2a458be7f431848fa663b9fc056f33b0854b67d910cf88a2db355a9064a2",
+              "sequence": 7,
+              "status": "recorded"
+            },
+            "result_references": [
+              {
+                "bytes_len": 57,
+                "complete": true,
+                "id": "summarize",
+                "kind": "route_stdout",
+                "sha256": "b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b"
+              },
+              {
+                "bytes_len": 0,
+                "complete": true,
+                "id": "summarize",
+                "kind": "route_stderr",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ],
+            "run_id": "ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346",
+            "schema": "ostadix.run-summary/v1"
+          },
+          "session_scoped": true,
+          "signal": null,
+          "state": "completed",
+          "stderr": {
+            "bytes_read": 0,
+            "complete": true,
+            "encoding": "utf8_lossy",
+            "eof": true,
+            "job_id": "job-32547-1789676117002697352-1-1",
+            "limit_bytes": 65536,
+            "merged_into": null,
+            "next_offset": 0,
+            "offset": 0,
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-1/stderr.log",
+            "stream": "stderr",
+            "text": "",
+            "total_bytes": 0
+          },
+          "stdin_eof_mode": "pipe_close",
+          "stdin_open": false,
+          "stdout": {
+            "bytes_read": 1124,
+            "complete": true,
+            "encoding": "utf8_lossy",
+            "eof": true,
+            "job_id": "job-32547-1789676117002697352-1-1",
+            "limit_bytes": 65536,
+            "merged_into": null,
+            "next_offset": 1124,
+            "offset": 0,
+            "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-jobs-32547-1789676117002697352-1/job-32547-1789676117002697352-1-1/stdout.log",
+            "stream": "stdout",
+            "text": "{\"schema\":\"ostadix.run-summary/v1\",\"run_id\":\"ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346\",\"input\":{\"kind\":\"lifted_project_bundle\",\"path\":\"/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O\",\"digest_sha256\":\"30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3\"},\"plan\":{\"oir_sha256\":null,\"execution_plan_sha256\":null,\"hgraph_sha256\":\"cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b\",\"execution_intent_sha256\":null,\"deployment_sha256\":\"89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc\"},\"disposition\":\"succeeded\",\"result_references\":[{\"kind\":\"route_stdout\",\"id\":\"summarize\",\"sha256\":\"b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b\",\"bytes_len\":57,\"complete\":true},{\"kind\":\"route_stderr\",\"id\":\"summarize\",\"sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"bytes_len\":0,\"complete\":true}],\"recording\":{\"status\":\"recorded\",\"sequence\":7,\"record_sha256\":\"267c2a458be7f431848fa663b9fc056f33b0854b67d910cf88a2db355a9064a2\"},\"failure\":null}\n",
+            "total_bytes": 1124
+          },
+          "timeout_secs": 30,
+          "value": {
+            "rows": 2,
+            "stations": [
+              "north",
+              "south"
+            ],
+            "total": 42
+          }
+        },
+        "isError": false
+      }
+    }
+  ],
+  "lifted_result": {
+    "disposition": "succeeded",
+    "failure": null,
+    "input": {
+      "digest_sha256": "30c1daffce745f7a8496783c9e62324923cba4c949616dcf4c18bf632c6988a3",
+      "kind": "lifted_project_bundle",
+      "path": "/data/data/com.termux/files/usr/tmp/ostadix-mcp-source-87623392c7c64f9faa824833c4dc652945d8dbee17077550cb9e6cb73f98fb70/computation.O"
+    },
+    "plan": {
+      "deployment_sha256": "89759e61464c246c63e6ab4ffbe95ea45d7b7f2a3c7ad47a6b8b6b9f0438f3cc",
+      "execution_intent_sha256": null,
+      "execution_plan_sha256": null,
+      "hgraph_sha256": "cf2ec4fb4b8fd72b97411aae62ed95c03a671f232261772b71adfff13a21277b",
+      "oir_sha256": null
+    },
+    "recording": {
+      "record_sha256": "267c2a458be7f431848fa663b9fc056f33b0854b67d910cf88a2db355a9064a2",
+      "sequence": 7,
+      "status": "recorded"
+    },
+    "result_references": [
+      {
+        "bytes_len": 57,
+        "complete": true,
+        "id": "summarize",
+        "kind": "route_stdout",
+        "sha256": "b87ee83c50dad0c940d2949fd90303a5c2f9d9d44eaff66c0d42d91d996aa51b"
+      },
+      {
+        "bytes_len": 0,
+        "complete": true,
+        "id": "summarize",
+        "kind": "route_stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "run_id": "ee328c80a110fb865b3ca376b2037985ec9c35de13b90026c44928a71ff29346",
+    "schema": "ostadix.run-summary/v1"
+  }
+}

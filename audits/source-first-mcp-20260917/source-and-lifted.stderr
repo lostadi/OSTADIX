@@ -1,0 +1,4 @@
+2026-09-17T10:45:52.894872Z  INFO rmcp::handler::server: client initialized
+2026-09-17T10:45:52.895078Z  INFO serve_inner: rmcp::service: Service initialized as server peer_info=Some(InitializeRequestParam { protocol_version: ProtocolVersion("2025-03-26"), capabilities: ClientCapabilities { experimental: None, roots: None, sampling: None, elicitation: None }, client_info: Implementation { name: "source-lifted-acceptance", title: None, version: "1", icons: None, website_url: None } })
+2026-09-17T10:45:53.960055Z  INFO serve_inner: rmcp::service: input stream terminated
+2026-09-17T10:45:53.960218Z  INFO serve_inner: rmcp::service: serve finished quit_reason=Closed

@@ -1,0 +1,22 @@
+{
+  "time_utc": "2026-09-17T16:59:59.370193+00:00",
+  "request": {
+    "command": "scope",
+    "action": "add",
+    "targets": [
+      "org.ostadix.aicore.extension",
+      "com.google.android.aicore/0"
+    ],
+    "options": {}
+  },
+  "response": {
+    "data": "Successfully appended 1 apps to org.ostadix.aicore.extension scope.",
+    "isFdAttached": false,
+    "success": true
+  },
+  "activation": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}

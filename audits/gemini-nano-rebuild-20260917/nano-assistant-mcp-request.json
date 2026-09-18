@@ -1,0 +1,10 @@
+{
+  "method": "tools/call",
+  "params": {
+    "name": "o_execute",
+    "arguments": {
+      "source": "let parts = autonomous(batch(\npython^(\n    __oval_result__ = sum([2**2, 7**2, 11**2])\n)_python,\nrust^(\nfn main(){\n    let mut sum_cubes: i32 = 0;\n    for i in 1..=4 {\n        sum_cubes += i * i * i;\n    }\n    println!(\"{}\", sum_cubes);\n}\n)_rust,\nbash^(\n    printf '%s\\n' red blue red | sort -u | wc -l\n)_bash\n))\npython^(\n    a,b,c = $parts\n    __oval_result__ = a + b + c\n)_python\n",
+      "timeout_secs": 120
+    }
+  }
+}

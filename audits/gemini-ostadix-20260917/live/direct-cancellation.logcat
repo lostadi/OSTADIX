@@ -1,0 +1,4 @@
+--------- beginning of main
+09-17 02:40:26.590 14419 14677 I OstadixAppFunction: event=request_enter caller=android-appfunction/platform-agent request=appfn-1789627226574-1
+09-17 02:40:27.530 14419 14682 I OstadixAppFunction: event=cancellation_forwarded caller=android-appfunction/platform-agent request=appfn-1789627226574-1
+09-17 02:40:27.573 14419 14677 I OstadixAppFunction: event=request_cancelled caller=android-appfunction/platform-agent request=appfn-1789627226574-1
