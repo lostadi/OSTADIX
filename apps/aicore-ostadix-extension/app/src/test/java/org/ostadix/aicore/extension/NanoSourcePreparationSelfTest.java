@@ -24,10 +24,26 @@ public final class NanoSourcePreparationSelfTest {
     }
 
     public static void main(String[] args) throws Exception {
-        require(NanoSourcePreparation.executableContractError("__oval_result__ = 17 + 25") != null,
+        require(NanoSourcePreparation.executableContractError(true, new String[0], 0) != null,
                 "bare Python admitted as executable O");
-        require(NanoSourcePreparation.executableContractError("python^( __oval_result__ = 17 + 25 )_python") == null,
+        require(NanoSourcePreparation.executableContractError(false, new String[0], 1) == null,
                 "O executable block rejected");
+        require(NanoSourcePreparation.executableContractError(false, new String[]{"parts"}, 1) != null,
+                "missing binding admitted");
+        require(NanoSourcePreparation.executableContractError(true, new String[0], 1) != null,
+                "literal script containing a block admitted");
+        require(NanoSourcePreparation.executableContractError(false, new String[0], 0) != null,
+                "nonexecuting document admitted");
+        require(NanoSourcePreparation.pythonResultContractError("valid", "none") != null,
+                "confirmed missing Python answer was admitted");
+        for (String capture : new String[]{"explicit_result", "trailing_expression", "stdout", "unknown", ""}) {
+            require(NanoSourcePreparation.pythonResultContractError("valid", capture) == null,
+                    "valid/unknown Python return contract was rejected: " + capture);
+        }
+        for (String state : new String[]{"skipped", "unavailable", "invalid", ""}) {
+            require(NanoSourcePreparation.pythonResultContractError(state, "none") == null,
+                    "unconfirmed Python return contract was rejected: " + state);
+        }
         Probe valid = new Probe();
         NanoSourcePreparation.Prepared first = NanoSourcePreparation.prepare("valid", valid);
         require(first.source.equals("valid") && !first.corrected && valid.validations == 1
@@ -59,8 +75,8 @@ public final class NanoSourcePreparationSelfTest {
         }
         require("missing delimiter".equals(GeminiNanoActionHooks.displayFailure(
                 new IllegalStateException("missing delimiter"))), "raw Java exception shown");
-        require(GeminiNanoActionHooks.selects("local-all-v1", "What is two plus two?")
-                && GeminiNanoActionHooks.selects("local-all-v1", "explain the last error")
+        require(!GeminiNanoActionHooks.selects("local-all-v1", "What is two plus two?")
+                && !GeminiNanoActionHooks.selects("local-all-v1", "explain the last error")
                 && !GeminiNanoActionHooks.selects("local-o-v1", "What is two plus two?")
                 && GeminiNanoActionHooks.selects("local-o-v1", "Use Ostadix for this")
                 && !GeminiNanoActionHooks.selects("off", "Use Ostadix for this")

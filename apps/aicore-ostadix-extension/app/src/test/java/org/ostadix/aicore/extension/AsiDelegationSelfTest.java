@@ -1,7 +1,12 @@
 package org.ostadix.aicore.extension;
 
+import java.lang.reflect.Proxy;
+
+import io.github.libxposed.api.XposedInterface;
+
 public final class AsiDelegationSelfTest {
     public static void main(String[] args) throws Throwable {
+        verifyDisabledFillResponse();
         for (boolean transformThrows : new boolean[]{false, true}) {
             for (boolean originalThrows : new boolean[]{false, true}) {
                 int[] invocations = {0};
@@ -56,5 +61,33 @@ public final class AsiDelegationSelfTest {
             if (error != fatal || invocations[0] != 0) throw new AssertionError("fatal delegated");
         }
         System.out.println("ASI delegation: four success/failure combinations called original once; fatal called zero times");
+    }
+
+    private static void verifyDisabledFillResponse() throws Throwable {
+        AsiHooks hooks = new AsiHooks(null, null);
+        for (boolean originalThrows : new boolean[] {false, true}) {
+            int[] calls = {0};
+            Object expected = new Object();
+            Throwable failure = new IllegalStateException("original failed");
+            XposedInterface.Chain chain = (XposedInterface.Chain) Proxy.newProxyInstance(
+                    XposedInterface.Chain.class.getClassLoader(),
+                    new Class<?>[] {XposedInterface.Chain.class}, (proxy, method, args) -> {
+                        if (!"proceed".equals(method.getName()) || method.getParameterCount() != 0) {
+                            throw new AssertionError("disabled ASI hook inspected or changed candidates");
+                        }
+                        calls[0]++;
+                        if (originalThrows) throw failure;
+                        return expected;
+                    });
+            try {
+                if (hooks.interceptFillResponse(chain) != expected || originalThrows) {
+                    throw new AssertionError("disabled ASI hook changed original outcome");
+                }
+            } catch (Throwable error) {
+                if (!originalThrows || error != failure) throw error;
+            }
+            if (calls[0] != 1) throw new AssertionError("disabled ASI hook repeated original");
+        }
+        System.out.println("Disabled ASI hook: original result/error preserved with no candidate inspection");
     }
 }

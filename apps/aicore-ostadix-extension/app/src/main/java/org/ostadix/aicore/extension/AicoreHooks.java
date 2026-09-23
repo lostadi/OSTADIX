@@ -28,7 +28,7 @@ final class AicoreHooks {
     }
 
     Object interceptForward(XposedInterface.Chain chain) throws Throwable {
-        if (!ExtensionGate.isExplicitlyEnabled(context)) {
+        if (!ExtensionGate.isSmartReplyExperimentEnabled(context)) {
             return chain.proceed();
         }
         Object callback = chain.getArg(1);
@@ -59,7 +59,7 @@ final class AicoreHooks {
             return chain.proceed();
         }
         RequestIdentity identity = state.identity;
-        if (!ExtensionGate.isExplicitlyEnabled(context)) {
+        if (!ExtensionGate.isSmartReplyExperimentEnabled(context)) {
             CORRELATIONS.complete(state);
             Log.w(TAG, "event=result_fallback request_id=" + identity.requestId
                     + " reason=activation_gate");
@@ -98,7 +98,7 @@ final class AicoreHooks {
                 + " scope_identity=" + safe(evaluation.requestScopeContentIdentity)
                 + " admission_sha256=" + safe(evaluation.admissionSha256)
                 + " result_identity=" + safe(evaluation.resultContentIdentity));
-        if (!ExtensionGate.isExplicitlyEnabled(context)) {
+        if (!ExtensionGate.isSmartReplyExperimentEnabled(context)) {
             CORRELATIONS.complete(state);
             Log.w(TAG, "event=result_fallback request_id=" + identity.requestId
                     + " reason=activation_gate");

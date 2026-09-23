@@ -12,6 +12,7 @@ import os
 import struct
 import traceback
 import textwrap
+import tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from o_shim_common import (
@@ -74,13 +75,20 @@ def _int_to_decimal_text(value):
 def dump_generated_python(source):
     try:
         override = os.environ.get("O_PYTHON_DUMP_FILE")
-        path = (
-            Path(override)
-            if override
-            else Path(os.environ.get("TMPDIR", "/tmp")) / f"O-python-failing-{os.getpid()}.py"
-        )
-        path.write_text(source, encoding="utf-8")
-        return str(path)
+        if override:
+            path = Path(override)
+            path.write_text(source, encoding="utf-8")
+            return str(path)
+        # PIDs are reused across users. A shared, predictable filename can
+        # collide with an older user's dump or follow a planted symlink.
+        # NamedTemporaryFile creates each retained diagnostic exclusively,
+        # owned by this process's user and private even under a loose umask.
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", prefix=f"O-python-failing-{os.getpid()}-",
+            suffix=".py", dir=os.environ.get("TMPDIR") or None, delete=False,
+        ) as output:
+            output.write(source)
+            return output.name
     except Exception as exc:
         return f"<failed to write generated Python source: {exc}>"
 

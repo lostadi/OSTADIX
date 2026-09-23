@@ -108,6 +108,11 @@ public final class AicoreOstadixModule extends XposedModule {
             return;
         }
         if (ExtensionGate.ASI_PACKAGE.equals(context.getPackageName())) {
+            if (!ExtensionGate.isAsiAutofillExperimentEnabled(context)) {
+                log(Log.INFO, TAG, "ASI autofill experiment disabled; original behavior retained");
+                detach();
+                return;
+            }
             initializeAsi(context);
             return;
         }
@@ -123,6 +128,11 @@ public final class AicoreOstadixModule extends XposedModule {
                 ExtensionGate.rethrowIfVmFatal(error);
                 log(Log.ERROR, TAG, "Local Nano probe registration failed", error);
             }
+            detach();
+            return;
+        }
+        if (!ExtensionGate.isSmartReplyExperimentEnabled(context)) {
+            log(Log.INFO, TAG, "Smart Reply experiment disabled; original behavior retained");
             detach();
             return;
         }
@@ -282,6 +292,8 @@ public final class AicoreOstadixModule extends XposedModule {
         XposedInterface.HookHandle nanoSideStreams = null;
         List<XposedInterface.HookHandle> observations = null;
         try {
+            GeminiHostSymbols.configure(context.getPackageManager().getPackageInfo(
+                    ExtensionGate.GSA_PACKAGE, 0).getLongVersionCode());
             ClassLoader loader = context.getClassLoader();
             Class<?> inventory = Class.forName(
                     "com.google.android.appfunctions.schema.agent.internal."

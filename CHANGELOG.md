@@ -212,6 +212,19 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Fixed
 
+- Gemini's local Ostadix integration now requires an explicit `Use Ostadix`
+  typed request, preserving normal assistant responses and device actions.
+  Voice, attachments, selected suggestions and device context retain Google's
+  original handling. Smart Reply and autofill experiments require separate
+  opt-ins. Reviewed Google 17.58.16 and AICore RC13 builds are supported without
+  weakening package, signature or firmware checks.
+- Assistant execution now preserves timeout results, cancels disconnected
+  callers without replay, validates generated Python source and result capture
+  before dispatch, and retains private Python failure diagnostics. A permission
+  doctor checks the installed integration, host ownership and authenticated
+  transport. See [the assistant guide](apps/aicore-ostadix-extension/ASSISTANT-USE.md)
+  for setup, validation and platform limitations.
+
 - Splice renderers and diagnostics now abbreviate public or deserialized
   fingerprints without panicking on short or non-ASCII input. The renderer
   classifier now limits Nix typed integers to the signed 64-bit range and typed

@@ -31,16 +31,31 @@ final class NanoSourcePreparation {
         return new Prepared(corrected, true);
     }
 
-    /** A negative contract check, not a parser: native O also accepts plain text.
-     * This tool requires an executable language block. Native validation still
-     * checks its syntax; this check does not prove intent or successful execution. */
-    static String executableContractError(String source) {
-        if (java.util.regex.Pattern.compile("[A-Za-z_][A-Za-z0-9_]*\\^\\s*\\(").matcher(source).find()) {
-            return null;
+    /** Enforces this adapter's empty-bindings executable-source contract using native plan metadata.
+     * O itself still permits literal documents and callers that supply initial bindings. */
+    static String executableContractError(boolean literalText, String[] requiredBindings, int languages) {
+        if (literalText) {
+            return "Bare top-level text/code is outside an O executable block. Put Python inside "
+                    + "python^(...)_python and Bash inside bash^(...)_bash; O declarations belong outside.";
         }
-        return "The document has no O executable language block. Bare Python is treated as text. "
-                + "Return the complete O program, including python^( before the Python body and )_python after it. "
-                + "For example: python^( __oval_result__ = 6 * 9 )_python. Use the actual request's calculation.";
+        if (requiredBindings.length != 0) {
+            return "Undefined O bindings: " + java.util.Arrays.toString(requiredBindings)
+                    + ". This request has no initial bindings. Define every value with let before its $splice; "
+                    + "do not refer to $parts unless an earlier O declaration created parts.";
+        }
+        if (languages == 0) {
+            return "No parsed executable language block. Return a complete O program with "
+                    + "python^(...)_python, rust^(...)_rust or bash^(...)_bash containing the actual task.";
+        }
+        return null;
+    }
+
+    /** Applies only to a sole static Python block; unknown/dynamic cases stay unknown. */
+    static String pythonResultContractError(String state, String resultCapture) {
+        if (!"valid".equals(state) || !"none".equals(resultCapture)) { return null; }
+        return "This Python block does not publish an answer. After computing the actual requested result, "
+                + "assign __oval_result__ = result, or end with the actual result expression. "
+                + "Assigning result or answer alone returns null. Nothing was executed.";
     }
 
     private NanoSourcePreparation() {}

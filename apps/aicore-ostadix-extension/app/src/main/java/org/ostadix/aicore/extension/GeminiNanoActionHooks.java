@@ -16,19 +16,15 @@ import io.github.libxposed.api.XposedInterface;
 final class GeminiNanoActionHooks {
     static final String SETTING = "ostadix_gemini_nano_tool_mode";
     private static final AtomicBoolean BUSY = new AtomicBoolean();
-    private static final java.util.Map<Object, Boolean> LOCAL_INPUTS =
-            java.util.Collections.synchronizedMap(new java.util.WeakHashMap<Object, Boolean>());
+    private static final GeminiLocalRoute.Claims LOCAL_INPUTS = new GeminiLocalRoute.Claims();
 
     static boolean enabled(Context context) {
         String mode = Settings.Global.getString(context.getContentResolver(), SETTING);
-        return ExtensionGate.isExplicitlyEnabled(context)
-                && ("local-o-v1".equals(mode) || "local-all-v1".equals(mode));
+        return GeminiLocalRoute.enabledMode(mode) && ExtensionGate.isExplicitlyEnabled(context);
     }
 
     static boolean selects(String mode, String text) {
-        return text != null && !text.trim().isEmpty() && ("local-all-v1".equals(mode)
-                || ("local-o-v1".equals(mode)
-                && text.trim().toLowerCase(java.util.Locale.ROOT).startsWith("use ostadix")));
+        return GeminiLocalRoute.selects(mode, text);
     }
 
     static XposedInterface.HookHandle installSideStreams(XposedInterface module, Context context)
@@ -42,29 +38,80 @@ final class GeminiNanoActionHooks {
         return module.hook(method).setId("ostadix-gemini/local-turn-side-streams-v1")
                 .setExceptionMode(XposedInterface.ExceptionMode.PASSTHROUGH)
                 .intercept(chain -> {
-                    Object input = chain.getArg(1);
-                    if (input == null || !enabled(context)) { return chain.proceed(); }
-                    String text = (String) GeminiLocalResponse.field(input, "a");
-                    if (!selects(Settings.Global.getString(context.getContentResolver(), SETTING), text)) {
-                        return chain.proceed();
+                    Prepared prepared = prepare(chain, context, loader, parameters);
+                    if (prepared == null) { return chain.proceed(); }
+                    LOCAL_INPUTS.put(prepared.input, prepared.conversation);
+                    try {
+                        Log.i("OstadixGeminiNano", "event=local_side_streams input_sha256="
+                                + NanoToolTurn.digest(prepared.text));
+                        return chain.proceed(prepared.arguments);
+                    } catch (Throwable original) {
+                        LOCAL_INPUTS.remove(prepared.input);
+                        throw original;
                     }
-                    Object audio = emptySideStream(loader);
-                    Object operations = emptySideStream(loader);
-                    Object streams = Proxy.newProxyInstance(loader,
-                            new Class<?>[]{GeminiLocalResponse.type(loader, "asfw")}, (p, m, a) -> {
-                        if (m.getDeclaringClass() == Object.class) { return objectMethod(p, m, a); }
-                        if ("l".equals(m.getName())) { return audio; }
-                        if ("m".equals(m.getName())) { return operations; }
-                        if ("n".equals(m.getName())) { return null; }
-                        throw new UnsupportedOperationException(m.toString());
-                    });
-                    Object[] arguments = new Object[parameters.length];
-                    for (int i = 0; i < arguments.length; i++) { arguments[i] = chain.getArg(i); }
-                    arguments[3] = streams;
-                    LOCAL_INPUTS.put(input, Boolean.TRUE);
-                    Log.i("OstadixGeminiNano", "event=local_side_streams input_sha256=" + NanoToolTurn.digest(text));
-                    return chain.proceed(arguments);
                 });
+    }
+
+    /** Any unsupported input or failed preparation retains the original arguments. */
+    private static Prepared prepare(XposedInterface.Chain chain, Context context, ClassLoader loader,
+            Class<?>[] parameters) throws Throwable {
+        try {
+            Object input = chain.getArg(1);
+            if (input == null) { return null; }
+            Object value = GeminiLocalResponse.field(input, "a");
+            if (!(value instanceof String) || !GeminiLocalRoute.explicitRequest((String) value)) {
+                return null;
+            }
+            String text = (String) value;
+            if (!enabled(context)) { return null; }
+            String rejected = GeminiPlainTextInput.rejectionReason(input, parameters[1]);
+            if (rejected != null) {
+                Log.i("OstadixGeminiNano", "event=explicit_request_delegated reason=" + rejected
+                        + " input_sha256=" + NanoToolTurn.digest(text));
+                return null;
+            }
+            Object audio = emptySideStream(loader);
+            Object operations = emptySideStream(loader);
+            Object streams = Proxy.newProxyInstance(loader,
+                    new Class<?>[]{GeminiLocalResponse.type(loader, "asfw")}, (p, m, a) -> {
+                if (m.getDeclaringClass() == Object.class) { return objectMethod(p, m, a); }
+                if ("l".equals(m.getName())) { return audio; }
+                if ("m".equals(m.getName())) { return operations; }
+                if ("n".equals(m.getName())) { return null; }
+                throw new UnsupportedOperationException(m.toString());
+            });
+            Object[] arguments = new Object[parameters.length];
+            for (int i = 0; i < arguments.length; i++) { arguments[i] = chain.getArg(i); }
+            arguments[3] = streams;
+            String conversation;
+            try {
+                Object store = GeminiLocalResponse.field(chain.getThisObject(), "c");
+                Object controller = GeminiLocalResponse.field(store, "a");
+                Object uuid = GeminiLocalResponse.field(controller, "a");
+                if (!(uuid instanceof UUID)) { throw new IllegalStateException("chat identity type changed"); }
+                conversation = NanoToolTurn.digest(uuid.toString());
+            } catch (ReflectiveOperationException | IllegalStateException failure) {
+                // Never use another chat's context if the pinned identity is unavailable.
+                conversation = "unavailable-" + UUID.randomUUID();
+                Log.w("OstadixGeminiNano", "event=conversation_identity_unavailable", failure);
+            }
+            return new Prepared(input, text, conversation, arguments);
+        } catch (Throwable failure) {
+            ExtensionGate.rethrowIfVmFatal(failure);
+            Log.w("OstadixGeminiNano", "event=local_preparation_skipped error_class="
+                    + failure.getClass().getName());
+            return null;
+        }
+    }
+
+    private static final class Prepared {
+        final Object input;
+        final String text, conversation;
+        final Object[] arguments;
+        Prepared(Object input, String text, String conversation, Object[] arguments) {
+            this.input = input; this.text = text; this.conversation = conversation;
+            this.arguments = arguments;
+        }
     }
 
     private static Object emptySideStream(ClassLoader loader) throws Throwable {
@@ -90,15 +137,23 @@ final class GeminiNanoActionHooks {
                 .setExceptionMode(XposedInterface.ExceptionMode.PASSTHROUGH)
                 .intercept(new XposedInterface.Hooker() {
                     @Override public Object intercept(XposedInterface.Chain chain) throws Throwable {
-                        Object input = GeminiLocalResponse.field(chain.getThisObject(), "f");
-                        if (LOCAL_INPUTS.remove(input) == null) { return chain.proceed(); }
+                        Object input;
+                        try { input = GeminiLocalResponse.field(chain.getThisObject(), "f"); }
+                        catch (Throwable failure) {
+                            ExtensionGate.rethrowIfVmFatal(failure);
+                            Log.w("OstadixGeminiNano", "event=unclaimed_callback_skipped error_class="
+                                    + failure.getClass().getName());
+                            return chain.proceed();
+                        }
+                        String conversation = LOCAL_INPUTS.remove(input);
+                        if (conversation == null) { return chain.proceed(); }
                         String text = (String) GeminiLocalResponse.field(input, "a");
                         String id = "ostadix-turn-" + UUID.randomUUID();
                         Log.i("OstadixGeminiNano", "event=callback_claimed request_id=" + id
                                 + " input_sha256=" + NanoToolTurn.digest(text)
                                 + " stock_callback_delegations=0");
                         // Once claimed, any error belongs to this local turn. Never delegate/retry it.
-                        return contract.flow(context, id, text);
+                        return contract.flow(context, id, text, conversation);
                     }
                 });
     }
@@ -120,7 +175,7 @@ final class GeminiNanoActionHooks {
             emit = type("heac").getMethod("a", Object.class, continuation);
             contextGet = type("hdkp").getMethod("get", type("hdko"));
             jobListen = type("hdwc").getMethod("l", boolean.class, boolean.class, function);
-            dispose = type("hdvj").getMethod("jg");
+            dispose = type("hdvj").getMethod(GeminiHostSymbols.current() ? "jj" : "jg");
             fail = type("hdhg").getMethod("b", Throwable.class);
             checkFailure = type("hdhg").getMethod("a", Object.class);
             intercept = type("hdkl").getMethod("g", continuation);
@@ -135,21 +190,23 @@ final class GeminiNanoActionHooks {
             return GeminiLocalResponse.call(m, owner, args);
         }
 
-        Object flow(Context context, String id, String text) {
+        Object flow(Context context, String id, String text, String conversation) {
             AtomicBoolean collected = new AtomicBoolean();
             return Proxy.newProxyInstance(loader, new Class<?>[]{flow}, (proxy, method, args) -> {
                 if (method.getDeclaringClass() == Object.class) { return objectMethod(proxy, method, args); }
-                if (!"jw".equals(method.getName())) { throw new UnsupportedOperationException(method.toString()); }
+                if (!(GeminiHostSymbols.current() ? "jz" : "jw").equals(method.getName())) {
+                    throw new UnsupportedOperationException(method.toString());
+                }
                 if (!collected.compareAndSet(false, true)) {
                     throw new IllegalStateException("local assistant flow already collected; no retry");
                 }
-                return new Collection(context, id, text, args[0], args[1]).start();
+                return new Collection(context, id, text, conversation, args[0], args[1]).start();
             });
         }
 
         private final class Collection {
             final Context context;
-            final String id, text;
+            final String id, text, conversation;
             final Object collector, completion, coroutineContext, dispatcher;
             final CancellationSignal cancellation = new CancellationSignal();
             final AtomicBoolean finished = new AtomicBoolean();
@@ -157,9 +214,9 @@ final class GeminiNanoActionHooks {
             final AtomicReference<Object> terminal = new AtomicReference<>();
             Object registration;
 
-            Collection(Context context, String id, String text, Object collector, Object completion)
+            Collection(Context context, String id, String text, String conversation, Object collector, Object completion)
                     throws Throwable {
-                this.context = context; this.id = id; this.text = text;
+                this.context = context; this.id = id; this.text = text; this.conversation = conversation;
                 this.collector = collector; this.completion = completion;
                 coroutineContext = call(getContext, completion);
                 dispatcher = call(contextGet, coroutineContext, dispatcherKey);
@@ -204,7 +261,7 @@ final class GeminiNanoActionHooks {
                     }
                     owned = true;
                     NanoTurnStore.publish(context, id, text, null, null, false);
-                    String answer = new NanoToolTurn(context, id, cancellation).run(text);
+                    String answer = new NanoToolTurn(context, id, conversation, cancellation).run(text);
                     answer = NanoTurnStore.publish(context, id, text, answer, null, true);
                     cancellation.throwIfCanceled();
                     deliver(GeminiLocalResponse.text(loader, id, answer));

@@ -5,11 +5,16 @@ import com.google.android.apps.aicore.aidl.SmartReplyReplyEntry;
 import com.google.android.apps.aicore.aidl.SmartReplyResult;
 
 import java.util.Arrays;
+import java.lang.reflect.Proxy;
+
+import io.github.libxposed.api.XposedInterface;
 
 public final class ResultReplacementSelfTest {
     private ResultReplacementSelfTest() {}
 
-    public static void main(String[] arguments) throws Exception {
+    public static void main(String[] arguments) throws Throwable {
+        verifyExperimentIsolation();
+        verifyDisabledForward();
         Object first = new Object();
         Object selected = new Object();
         InferenceEventTraceResult trace = new InferenceEventTraceResult();
@@ -79,5 +84,79 @@ public final class ResultReplacementSelfTest {
             throw new AssertionError("terminal correlation accepted a late cancellation handle");
         }
         System.out.println("SmartReplyResult replacement self-test passed");
+    }
+
+    private static void verifyExperimentIsolation() {
+        String[] packages = {ExtensionGate.ASOSS_PACKAGE, ExtensionGate.ASI_PACKAGE,
+                ExtensionGate.GSA_PACKAGE, ExtensionGate.AICORE_PACKAGE, "unknown", null};
+        String[] settings = {ExtensionGate.SMART_REPLY_EXPERIMENT_SETTING,
+                ExtensionGate.ASI_AUTOFILL_EXPERIMENT_SETTING, "unknown", null};
+        for (String hostPackage : packages) {
+            for (String setting : settings) {
+                for (String value : new String[] {null, "", "true", "1", "disabled"}) {
+                    assertExperiment(false, hostPackage, true, setting, value);
+                }
+                assertExperiment(false, hostPackage, false, setting, "enabled-v1");
+            }
+        }
+        assertExperiment(true, ExtensionGate.ASOSS_PACKAGE, true,
+                ExtensionGate.SMART_REPLY_EXPERIMENT_SETTING, "enabled-v1");
+        assertExperiment(true, ExtensionGate.ASI_PACKAGE, true,
+                ExtensionGate.ASI_AUTOFILL_EXPERIMENT_SETTING, "enabled-v1");
+        assertExperiment(false, ExtensionGate.ASOSS_PACKAGE, true,
+                ExtensionGate.ASI_AUTOFILL_EXPERIMENT_SETTING, "enabled-v1");
+        assertExperiment(false, ExtensionGate.ASI_PACKAGE, true,
+                ExtensionGate.SMART_REPLY_EXPERIMENT_SETTING, "enabled-v1");
+        for (String hostPackage : new String[] {ExtensionGate.GSA_PACKAGE,
+                ExtensionGate.AICORE_PACKAGE, "unknown", null}) {
+            for (String setting : settings) {
+                assertExperiment(false, hostPackage, true, setting, "enabled-v1");
+            }
+        }
+        if (ExtensionGate.isSmartReplyExperimentEnabled(null)
+                || ExtensionGate.isAsiAutofillExperimentEnabled(null)) {
+            throw new AssertionError("missing context enabled a candidate experiment");
+        }
+        System.out.println("Candidate experiment isolation: default-off, activation and package separation passed");
+    }
+
+    private static void assertExperiment(boolean expected, String hostPackage,
+            boolean activated, String setting, String value) {
+        if (ExtensionGate.candidateExperimentAllows(hostPackage, activated, setting, value)
+                != expected) {
+            throw new AssertionError("candidate experiment leaked across activation/host/setting");
+        }
+    }
+
+    private static void verifyDisabledForward() throws Throwable {
+        AicoreHooks hooks = new AicoreHooks(null, null, Callback.class);
+        for (boolean originalThrows : new boolean[] {false, true}) {
+            int[] calls = {0};
+            Object expected = new Object();
+            Throwable failure = new IllegalStateException("original failed");
+            XposedInterface.Chain chain = (XposedInterface.Chain) Proxy.newProxyInstance(
+                    XposedInterface.Chain.class.getClassLoader(),
+                    new Class<?>[] {XposedInterface.Chain.class}, (proxy, method, args) -> {
+                        if (!"proceed".equals(method.getName()) || method.getParameterCount() != 0) {
+                            throw new AssertionError("disabled Smart Reply hook inspected or changed request");
+                        }
+                        calls[0]++;
+                        if (originalThrows) throw failure;
+                        return expected;
+                    });
+            try {
+                if (hooks.interceptForward(chain) != expected || originalThrows) {
+                    throw new AssertionError("disabled Smart Reply hook changed original outcome");
+                }
+            } catch (Throwable error) {
+                if (!originalThrows || error != failure) throw error;
+            }
+            if (calls[0] != 1) throw new AssertionError("disabled Smart Reply hook repeated original");
+        }
+        System.out.println("Disabled Smart Reply hook: original result/error preserved with no request inspection");
+    }
+
+    private static final class Callback {
+        Object a;
     }
 }

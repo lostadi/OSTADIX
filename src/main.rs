@@ -12,6 +12,8 @@ use o_lang::parser::Parser;
 use o_lang::shims::ExtractedShims;
 use o_lang::value::OValue;
 
+mod cli_source_structure;
+
 fn main() -> Result<()> {
     if o_lang::backend::run_backend_from_env_args()? {
         return Ok(());
@@ -244,7 +246,8 @@ fn run_cli() -> Result<()> {
         if json_output {
             println!(
                 "{}",
-                serde_json::json!({ "ok": true, "stage": "parse", "input": input_path })
+                serde_json::json!({ "ok": true, "stage": "parse", "input": input_path,
+                    "source_structure": cli_source_structure::describe(&nodes) })
             );
         } else {
             println!("ok");

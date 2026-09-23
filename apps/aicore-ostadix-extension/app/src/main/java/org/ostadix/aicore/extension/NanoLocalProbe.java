@@ -44,6 +44,13 @@ import org.json.JSONObject;
 
 /** Explicit local Nano experiment in the original AICore process. */
 public final class NanoLocalProbe {
+    // Host policy, not measured model capacity. Cancellation remains cooperative
+    // at native controller callbacks; the client has a separate bounded wait.
+    static final int MAX_OUTPUT_TOKENS = 2048;
+    static final int MAX_GENERATION_CALLBACKS = 16384;
+    static final long GENERATION_TIMEOUT_MS = 180000L;
+    static final long ACTION_TIMEOUT_MS = GENERATION_TIMEOUT_MS + 30000L;
+    static final long CLIENT_REPLY_TIMEOUT_MS = ACTION_TIMEOUT_MS + 5000L;
     private static final String TAG = "OstadixNanoLocalProbe";
     private static final String ACTION = "org.ostadix.aicore.NANO_LOCAL_PROBE";
     private static final String SETTING = "ostadix_nano_local_probe_token";
@@ -116,12 +123,12 @@ public final class NanoLocalProbe {
 
     static void submitAction(Context context, String requestId, String prompt, ResultReceiver reply) {
         final Probe probe = new Probe(context, requestId,
-                SystemClock.elapsedRealtime() + 120000L, true);
+                SystemClock.elapsedRealtime() + ACTION_TIMEOUT_MS, true);
         probe.reply = reply;
         try {
             // All generation policy remains owned here. The caller supplies text only.
             probe.requestGeneration = new Generation(new JSONObject().put("prompt", prompt)
-                    .put("maxOutputTokens", 512).put("timeoutMs", 90000)
+                    .put("maxOutputTokens", MAX_OUTPUT_TOKENS).put("timeoutMs", GENERATION_TIMEOUT_MS)
                     .put("matformerSignature", "matformer_0"));
             probe.checkGates();
             if (!BUSY.compareAndSet(false, true)) {
@@ -155,6 +162,11 @@ public final class NanoLocalProbe {
         if (probe != null && probe.requestId.equals(requestId)) {
             probe.externalCancellation.set(true);
         }
+    }
+
+    static boolean shouldCancelGeneration(boolean externalCancellation, int callbacks,
+                                          long now, long deadline) {
+        return externalCancellation || callbacks > MAX_GENERATION_CALLBACKS || now >= deadline;
     }
 
     private static void checkEntryGates(Context context) {
@@ -215,7 +227,7 @@ public final class NanoLocalProbe {
                 throw new java.util.concurrent.CancellationException("local model action cancelled");
             }
             long remaining = deadlineElapsedMs - SystemClock.elapsedRealtime();
-            if (remaining <= 0 || remaining > 120000) {
+            if (remaining <= 0 || remaining > ACTION_TIMEOUT_MS) {
                 throw new IllegalStateException("probe deadline expired or invalid");
             }
             checkEntryGates(context);
@@ -397,6 +409,9 @@ public final class NanoLocalProbe {
             prepared.put("request_protobuf_sha256", sha256(request));
             prepared.put("max_output_tokens", parameters.maxOutputTokens);
             prepared.put("timeout_ms", parameters.timeoutMs);
+            prepared.put("max_callbacks", MAX_GENERATION_CALLBACKS);
+            prepared.put("action_deadline_elapsed_ms", deadlineElapsedMs);
+            prepared.put("budget_scope", "host_configuration_not_measured_model_capacity");
             prepared.put("rng_seed", 123);
             prepared.put("temperature", 0);
             prepared.put("top_k", 1);
@@ -430,8 +445,8 @@ public final class NanoLocalProbe {
                                     || method.getParameterTypes()[0] != float.class) {
                                 throw new UnsupportedOperationException(method.toString());
                             }
-                            if (externalCancellation.get() || callbacks.incrementAndGet() > 4096
-                                    || SystemClock.elapsedRealtime() >= deadline) cancel.set(true);
+                            if (shouldCancelGeneration(externalCancellation.get(), callbacks.incrementAndGet(),
+                                    SystemClock.elapsedRealtime(), deadline)) cancel.set(true);
                             return cancel.get() ? 2 : 0;
                         }
                     });
@@ -450,6 +465,9 @@ public final class NanoLocalProbe {
                 raw.put("response_protobuf_sha256", sha256(response));
                 raw.put("response_protobuf_base64", Base64.encodeToString(response, Base64.NO_WRAP));
                 raw.put("callback_count", callbacks.get());
+                raw.put("max_callbacks", MAX_GENERATION_CALLBACKS);
+                raw.put("callback_limit_exceeded", callbacks.get() > MAX_GENERATION_CALLBACKS);
+                raw.put("external_cancellation_requested", externalCancellation.get());
                 raw.put("cancel_requested", cancel.get());
                 raw.put("deadline_elapsed_ms", deadline);
                 raw.put("returned_elapsed_ms", returnedAt);
@@ -460,13 +478,18 @@ public final class NanoLocalProbe {
                 JSONArray candidates = ResponseDecoder.candidates(response);
                 result.put("candidates", candidates);
                 result.put("callback_count", callbacks.get());
+                result.put("max_output_tokens", parameters.maxOutputTokens);
+                result.put("timeout_ms", parameters.timeoutMs);
+                result.put("max_callbacks", MAX_GENERATION_CALLBACKS);
+                result.put("callback_limit_exceeded", callbacks.get() > MAX_GENERATION_CALLBACKS);
                 result.put("cancel_requested", cancel.get());
                 boolean deadlineExceeded = returnedAt >= deadline;
                 result.put("deadline_exceeded", deadlineExceeded);
                 record("generation_result", !cancel.get() && !deadlineExceeded && candidates.length() > 0,
                         false, result);
                 if (cancel.get() || deadlineExceeded) {
-                    throw new IllegalStateException("generation cancelled or exceeded its deadline; returned data is partial");
+                    throw new IllegalStateException("generation cancelled or exceeded its callback/time budget; "
+                            + "returned data is partial");
                 }
                 if (candidates.length() == 0) throw new IllegalStateException("native response has no candidates");
                 generationResult = result;
@@ -691,7 +714,7 @@ public final class NanoLocalProbe {
         }
     }
 
-    private static final class Generation {
+    static final class Generation {
         final String prompt;
         final int maxOutputTokens;
         final long timeoutMs;
@@ -705,8 +728,8 @@ public final class NanoLocalProbe {
             timeoutMs = (long) requestedTimeout;
             matformerSignature = input.has("matformerSignature") ? input.getString("matformerSignature") : null;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > 16384
-                    || maxOutputTokens < 1 || maxOutputTokens > 512
-                    || timeoutMs < 1 || timeoutMs > 90000
+                    || maxOutputTokens < 1 || maxOutputTokens > MAX_OUTPUT_TOKENS
+                    || timeoutMs < 1 || timeoutMs > GENERATION_TIMEOUT_MS
                     || requestedMax != maxOutputTokens || requestedTimeout != timeoutMs
                     || (matformerSignature != null && !matformerSignature.equals("matformer_0")
                         && !matformerSignature.equals("matformer_1"))) {

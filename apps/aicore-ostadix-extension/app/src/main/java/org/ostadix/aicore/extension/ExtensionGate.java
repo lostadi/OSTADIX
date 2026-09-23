@@ -35,6 +35,13 @@ final class ExtensionGate {
             "67aa6c6cc457163d18b8cff35706eeffd60ac234fa10bf4f3b4b7bd8e1d45f57";
     private static final String EXPECTED_AICORE_SIGNER =
             "b7971ccc10a03932e14a3557a1b4c2a84be0ecb506777f0c72dd46cf5d7093c6";
+    // RC13 retains the reviewed Java/native seams and byte-identical Nano
+    // runtime libraries. Keep the previous reviewed release in the allowlist.
+    private static final long REVIEWED_AICORE_RC13_CODE = 494585L;
+    private static final String REVIEWED_AICORE_RC13_NAME =
+            "0.release.prod_aicore_20260723.00_RC13.981368508";
+    private static final String REVIEWED_AICORE_RC13_APK =
+            "d3f749159f6d4b691093d6c8118b64fe3e7892b77180e8d473577e79114c864e";
     private static final long EXPECTED_ASOSS_CODE = 143685L;
     private static final String EXPECTED_ASOSS_NAME = "1.0.release.962568596";
     private static final String EXPECTED_ASOSS_APK =
@@ -51,11 +58,17 @@ final class ExtensionGate {
     private static final String EXPECTED_GSA_NAME = "17.56.15.sa.arm64";
     private static final String EXPECTED_GSA_APK =
             "c227beb9468f1740c395e457d5f06fb780f288a89156d8487ef069953c1c359a";
+    private static final long REVIEWED_GSA_CODE = 301806951L;
+    private static final String REVIEWED_GSA_NAME = "17.58.16.sa.arm64";
+    private static final String REVIEWED_GSA_APK =
+            "711714ac6df264bf5d319358f9dc8bae867f8a89ee13e7fc5d0e4d3df2611ff9";
     private static final String EXPECTED_GSA_SIGNER =
             "7ce83c1b71f3d572fed04c8d40c5cb10ff75e6d87d9df6fbd53f0468c2905053";
     private static final String ACTIVATION_SETTING = "ostadix_aicore_extension_token";
     private static final String ACTIVATION_TOKEN = EXPECTED_FINGERPRINT
             + ":asoss-smart-reply-result-v1:" + EXPECTED_ASOSS_APK;
+    static final String SMART_REPLY_EXPERIMENT_SETTING = "ostadix_asoss_smart_reply_experiment";
+    static final String ASI_AUTOFILL_EXPERIMENT_SETTING = "ostadix_asi_autofill_experiment";
 
     private ExtensionGate() {}
 
@@ -74,31 +87,42 @@ final class ExtensionGate {
         }
         boolean hostMatches;
         if (AICORE_PACKAGE.equals(context.getPackageName())) {
-            hostMatches = packageMatches(context, AICORE_PACKAGE, EXPECTED_AICORE_CODE,
-                    EXPECTED_AICORE_NAME, EXPECTED_AICORE_APK, EXPECTED_AICORE_SIGNER);
+            hostMatches = aicorePackageMatches(context);
         } else if (ASOSS_PACKAGE.equals(context.getPackageName())) {
             hostMatches = packageMatches(context, ASOSS_PACKAGE, EXPECTED_ASOSS_CODE,
                         EXPECTED_ASOSS_NAME, EXPECTED_ASOSS_APK, EXPECTED_ASOSS_SIGNER)
-                    && packageMatches(context, AICORE_PACKAGE, EXPECTED_AICORE_CODE,
-                        EXPECTED_AICORE_NAME, EXPECTED_AICORE_APK, EXPECTED_AICORE_SIGNER);
+                    && aicorePackageMatches(context);
         } else if (ASI_PACKAGE.equals(context.getPackageName())) {
             hostMatches = packageMatches(context, ASI_PACKAGE, EXPECTED_ASI_CODE,
                     EXPECTED_ASI_NAME, EXPECTED_ASI_APK, EXPECTED_ASI_SIGNER);
         } else if (GSA_PACKAGE.equals(context.getPackageName())) {
-            hostMatches = packageMatches(context, GSA_PACKAGE, EXPECTED_GSA_CODE,
-                    EXPECTED_GSA_NAME, EXPECTED_GSA_APK, EXPECTED_GSA_SIGNER);
+            hostMatches = gsaMatches(context);
         } else {
             hostMatches = false;
         }
         return hostMatches;
     }
 
+    private static boolean aicorePackageMatches(Context context) {
+        return packageMatches(context, AICORE_PACKAGE, EXPECTED_AICORE_CODE,
+                EXPECTED_AICORE_NAME, EXPECTED_AICORE_APK, EXPECTED_AICORE_SIGNER)
+                || packageMatches(context, AICORE_PACKAGE, REVIEWED_AICORE_RC13_CODE,
+                        REVIEWED_AICORE_RC13_NAME, REVIEWED_AICORE_RC13_APK,
+                        EXPECTED_AICORE_SIGNER);
+    }
+
+    private static boolean gsaMatches(Context context) {
+        return packageMatches(context, GSA_PACKAGE, EXPECTED_GSA_CODE,
+                EXPECTED_GSA_NAME, EXPECTED_GSA_APK, EXPECTED_GSA_SIGNER)
+                || packageMatches(context, GSA_PACKAGE, REVIEWED_GSA_CODE,
+                REVIEWED_GSA_NAME, REVIEWED_GSA_APK, EXPECTED_GSA_SIGNER);
+    }
+
     static boolean acceptsGsaCaller(Context context, int uid, String packageName) {
         if (!GSA_PACKAGE.equals(packageName) || uid < 0) { return false; }
         try {
             return context.getPackageManager().getApplicationInfo(GSA_PACKAGE, 0).uid == uid
-                    && packageMatches(context, GSA_PACKAGE, EXPECTED_GSA_CODE,
-                            EXPECTED_GSA_NAME, EXPECTED_GSA_APK, EXPECTED_GSA_SIGNER);
+                    && gsaMatches(context);
         } catch (PackageManager.NameNotFoundException missing) { return false; }
     }
 
@@ -114,6 +138,38 @@ final class ExtensionGate {
             rethrowIfVmFatal(error);
             return false;
         }
+    }
+
+    static boolean isSmartReplyExperimentEnabled(Context context) {
+        return candidateExperimentEnabled(context, SMART_REPLY_EXPERIMENT_SETTING);
+    }
+
+    static boolean isAsiAutofillExperimentEnabled(Context context) {
+        return candidateExperimentEnabled(context, ASI_AUTOFILL_EXPERIMENT_SETTING);
+    }
+
+    private static boolean candidateExperimentEnabled(Context context, String setting) {
+        try {
+            if (context == null || !isExplicitlyEnabled(context)) {
+                return false;
+            }
+            return candidateExperimentAllows(context.getPackageName(), true, setting,
+                    Settings.Global.getString(context.getContentResolver(), setting));
+        } catch (Throwable error) {
+            rethrowIfVmFatal(error);
+            return false;
+        }
+    }
+
+    // Candidate selection is a separate experiment. Enabling the Assistant
+    // integration or local Nano receiver must never opt into replacing replies.
+    static boolean candidateExperimentAllows(String hostPackage, boolean activated,
+            String setting, String value) {
+        return activated && "enabled-v1".equals(value)
+                && ((ASOSS_PACKAGE.equals(hostPackage)
+                        && SMART_REPLY_EXPERIMENT_SETTING.equals(setting))
+                    || (ASI_PACKAGE.equals(hostPackage)
+                        && ASI_AUTOFILL_EXPERIMENT_SETTING.equals(setting)));
     }
 
     static boolean thermalPolicyAllows(Context context) {

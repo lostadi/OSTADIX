@@ -33,16 +33,40 @@ final class NanoToolOutput {
         JSONObject nativeResult = result.optJSONObject("result");
         String error = nativeResult == null ? result.optString("error", "No result was returned")
                 : nativeResult.optString("error", result.optString("error", "Execution failed"));
-        StringBuilder text = new StringBuilder("Ostadix execution failed: ").append(error);
+        String summary = diagnosticSummary(error);
+        StringBuilder text = new StringBuilder("Ostadix execution failed: ").append(summary);
         for (String name : new String[]{"stdout", "stderr"}) {
             JSONObject stream = result.optJSONObject(name);
-            if (stream != null && !stream.optString("text").isEmpty()) {
-                text.append("\n\n").append(name).append(":\n").append(stream.optString("text"));
-                if (!stream.optBoolean("complete")) { text.append("\n[Output excerpt; full output retained by Ostadix.]"); }
+            String output = stream == null ? "" : stream.optString("text").trim();
+            // The raw MCP response is already saved as evidence. Error streams often
+            // repeat its traceback or serialize the entire native result again.
+            if (!output.isEmpty() && !error.contains(output) && !output.contains(error)
+                    && !("stderr".equals(name) && output.contains(summary))) {
+                text.append("\n\n").append(name).append(":\n").append(excerpt(output, 600));
+                if (!stream.optBoolean("complete")) { text.append("\n[Output excerpt.]"); }
             }
         }
+        text.append("\n\nOpen Show program and execution details in Ostadix Results for the saved error and output.");
         text.append("\nExecution was not retried; completed effects were not rolled back.");
         return text.toString();
+    }
+
+    private static String diagnosticSummary(String error) {
+        // Keep the actual terminal Python exception, not backend paths and frames.
+        // For other diagnostics retain the beginning verbatim and mark excerpts.
+        String terminalException = null;
+        for (String line : error.split("\\r?\\n")) {
+            String trimmed = line.trim();
+            if (trimmed.matches("(?:[A-Za-z_][A-Za-z0-9_.]*)?(?:Error|Exception|Interrupt|Exit)(?::.*)?")) {
+                terminalException = trimmed;
+            }
+        }
+        return excerpt(terminalException == null ? error.trim() : terminalException, 600);
+    }
+
+    private static String excerpt(String text, int limit) {
+        if (text.codePointCount(0, text.length()) <= limit) { return text; }
+        return text.substring(0, text.offsetByCodePoints(0, limit)) + "\n[Excerpt; see execution details.]";
     }
 
     private NanoToolOutput() {}

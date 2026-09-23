@@ -10,7 +10,7 @@ import java.util.List;
 /** Minimal plain-text wire adapter for the exact Google APK pinned by ExtensionGate. */
 final class GeminiLocalResponse {
     static Class<?> type(ClassLoader loader, String name) throws ClassNotFoundException {
-        return Class.forName(name, false, loader);
+        return Class.forName(GeminiHostSymbols.name(name), false, loader);
     }
 
     static Object field(Object owner, String name) throws ReflectiveOperationException {

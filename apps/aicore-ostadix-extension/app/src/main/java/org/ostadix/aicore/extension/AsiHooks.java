@@ -23,6 +23,9 @@ final class AsiHooks {
     }
 
     Object interceptFillResponse(final XposedInterface.Chain chain) throws Throwable {
+        if (!ExtensionGate.isAsiAutofillExperimentEnabled(context)) {
+            return chain.proceed();
+        }
         final String[] selectedRequest = new String[1];
         return AsiDelegation.invoke(new AsiDelegation.Preparation() {
             public Object[] prepare() throws Throwable {
@@ -50,7 +53,7 @@ final class AsiHooks {
             return null;
         }
         List<?> candidates = (List<?>) value;
-        if (candidates.isEmpty() || !ExtensionGate.isExplicitlyEnabled(context)
+        if (candidates.isEmpty() || !ExtensionGate.isAsiAutofillExperimentEnabled(context)
                 || !ExtensionGate.thermalPolicyAllows(context)) {
             return null;
         }
@@ -70,7 +73,7 @@ final class AsiHooks {
                     + " elapsed_ms=" + evaluation.elapsedMs
                     + " intent_sha256=" + evaluation.executionIntentSha256
                     + " result_identity=" + evaluation.resultContentIdentity);
-            if (!ExtensionGate.isExplicitlyEnabled(context)) {
+            if (!ExtensionGate.isAsiAutofillExperimentEnabled(context)) {
                 Log.w(TAG, "event=asi_result_fallback request_id=" + identity.requestId
                         + " reason=activation_gate");
                 return null;

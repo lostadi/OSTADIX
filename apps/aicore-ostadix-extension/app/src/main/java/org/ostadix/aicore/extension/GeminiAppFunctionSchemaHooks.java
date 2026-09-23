@@ -24,7 +24,7 @@ final class GeminiAppFunctionSchemaHooks {
     private final Object schemaMetadata;
 
     GeminiAppFunctionSchemaHooks(ClassLoader loader) throws ReflectiveOperationException {
-        Class<?> keyClass = Class.forName("vko", false, loader);
+        Class<?> keyClass = GeminiLocalResponse.type(loader, "vko");
         Constructor<?> keyConstructor = keyClass.getDeclaredConstructor(
                 String.class, String.class, int.class);
         keyConstructor.setAccessible(true);
@@ -59,15 +59,18 @@ final class GeminiAppFunctionSchemaHooks {
         Object source = parameterConstructor.newInstance(
                 "ostadix.schema.v1#executeO#source", CATEGORY, "source",
                 "One complete UTF-8 .O source document. Generate the program and pass its source "
-                        + "directly; do not pass a path, OIR, HGraph, or command line.",
+                        + "directly, including its input values; do not pass a path, OIR, HGraph, "
+                        + "or command line.",
                 sourceType);
         Object bindings = parameterConstructor.newInstance(
                 "ostadix.schema.v1#executeO#bindingsJson", CATEGORY, "bindingsJson",
-                "Optional JSON object containing external typed values referenced by $name.",
+                "Omit this parameter or pass the empty JSON object {}. Nonempty bindings are "
+                        + "unsupported and rejected before execution; include input values in source.",
                 bindingsType);
         Object timeout = parameterConstructor.newInstance(
                 "ostadix.schema.v1#executeO#timeoutMs", CATEGORY, "timeoutMs",
-                "Optional deadline from 1 through 900000 milliseconds.", timeoutType);
+                "Optional deadline from 1 through 900000 milliseconds, subject to the configured "
+                        + "host limit. Default is 120000.", timeoutType);
         List<Object> parameters = Arrays.asList(source, bindings, timeout);
 
         Class<?> metadataClass = Class.forName(
@@ -77,11 +80,12 @@ final class GeminiAppFunctionSchemaHooks {
         metadataConstructor.setAccessible(true);
         schemaMetadata = metadataConstructor.newInstance(
                 "ostadix.schema.v1#executeO", CATEGORY, true,
-                "Execute a complete Ostadix .O program locally and return its typed output and "
-                        + "execution evidence as JSON. Use this function whenever the user asks "
+                "Execute a complete Ostadix .O program locally and return the structured MCP "
+                        + "result as JSON. Use this function whenever the user asks "
                         + "to use Ostadix, run .O source, perform computation through Ostadix, or "
                         + "combine supported runtimes. Generate a complete .O program, pass it in "
-                        + "source, and read output and resultContentIdentity from the response.",
+                        + "source, and read the execution state, actual result and execution evidence "
+                        + "from the response. Report failures; do not automatically repeat execution.",
                 parameters, returnType);
     }
 

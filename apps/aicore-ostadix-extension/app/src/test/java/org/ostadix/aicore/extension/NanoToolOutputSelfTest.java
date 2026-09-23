@@ -24,7 +24,32 @@ public final class NanoToolOutputSelfTest {
         require(failure.contains("partial output") && failure.contains("compiler error")
                 && failure.contains("not retried") && !failure.contains("Nothing was executed"),
                 "execution failure hid output or implied rollback");
-        String report = "Actual tool output: number, identity, long text and failure streams passed\n";
+        String traceback = "[python[*ephemeral*]]: backend recv_step failed: Traceback (most recent call last):\n"
+                + "  File \"/private/backend.py\", line 100, in handle_exec\n"
+                + "  File \"<O-python>\", line 3, in <module>\n"
+                + "TypeError: 'int' object is not iterable\n\nGenerated Python source: /private/generated.py";
+        failed.getJSONObject("result").put("error", traceback);
+        failed.getJSONObject("stderr").put("text", traceback);
+        String saved = failed.toString();
+        failure = NanoToolOutput.failed(failed);
+        require(failure.startsWith("Ostadix execution failed: TypeError: 'int' object is not iterable")
+                && !failure.contains("Traceback") && !failure.contains("/private/")
+                && failure.contains("Show program and execution details")
+                && failure.contains("partial output") && failure.contains("not rolled back"),
+                "traceback summary lost the actual error, output or effect warning");
+        require(saved.equals(failed.toString()), "formatting modified the full saved evidence");
+        failed.getJSONObject("result").put("error", "compiler: " + longText);
+        failed.getJSONObject("stdout").put("text", longText.toString());
+        failed.getJSONObject("stderr").put("text", "diagnostic: " + longText);
+        failure = NanoToolOutput.failed(failed);
+        require(failure.length() < 2500 && failure.contains("Excerpt"), "large diagnostics were not explicitly bounded");
+        StringBuilder emoji = new StringBuilder();
+        for (int i = 0; i < 1000; i++) { emoji.append("\ud83d\ude80"); }
+        failed.getJSONObject("result").put("error", emoji.toString());
+        failure = NanoToolOutput.failed(failed);
+        require(!failure.contains("\ud83d\n"), "Unicode diagnostic excerpt split a surrogate pair");
+        String report = "Actual tool output: number, identity, long text, failure streams, concise diagnostics "
+                + "and preserved raw evidence passed\n";
         try (java.io.FileOutputStream out = new java.io.FileOutputStream(args[0])) {
             out.write(report.getBytes(java.nio.charset.StandardCharsets.UTF_8)); out.getFD().sync();
         }

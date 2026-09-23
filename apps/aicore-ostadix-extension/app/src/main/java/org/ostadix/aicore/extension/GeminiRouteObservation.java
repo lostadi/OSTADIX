@@ -64,9 +64,9 @@ final class GeminiRouteObservation {
         Class<?>[] types = new Class<?>[parameters.length];
         for (int i = 0; i < types.length; i++) {
             types[i] = "boolean".equals(parameters[i]) ? boolean.class
-                    : Class.forName(parameters[i], false, loader);
+                    : GeminiLocalResponse.type(loader, parameters[i]);
         }
-        Method method = Class.forName(owner, false, loader).getDeclaredMethod(name, types);
+        Method method = GeminiLocalResponse.type(loader, owner).getDeclaredMethod(name, types);
         method.setAccessible(true);
         handles.add(module.hook(method).setId("ostadix-gemini/observe-" + owner + "-" + name)
                 .setExceptionMode(XposedInterface.ExceptionMode.PASSTHROUGH)
@@ -104,9 +104,9 @@ final class GeminiRouteObservation {
             } else if (inputIndex < 0) {
                 Object query = chain.getArg(0);
                 queryClass = query.getClass().getName();
-                if ("aykm".equals(queryClass)) {
+                if (GeminiHostSymbols.name("aykm").equals(queryClass)) {
                     input = field(query, "a"); store = field(query, "l");
-                } else if ("aylb".equals(queryClass)) {
+                } else if (GeminiHostSymbols.name("aylb").equals(queryClass)) {
                     input = field(query, "c"); store = field(query, "b");
                 } else { return null; }
             } else { input = chain.getArg(inputIndex); }

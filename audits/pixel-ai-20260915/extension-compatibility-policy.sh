@@ -7,6 +7,9 @@ EXPECTED_AICORE_VERSION_CODE=494417
 EXPECTED_AICORE_VERSION_NAME=0.release.prod_aicore_20260723.00_RC11.964081323
 EXPECTED_AICORE_APK_SHA256=67aa6c6cc457163d18b8cff35706eeffd60ac234fa10bf4f3b4b7bd8e1d45f57
 EXPECTED_AICORE_SIGNER_SHA256=b7971ccc10a03932e14a3557a1b4c2a84be0ecb506777f0c72dd46cf5d7093c6
+REVIEWED_AICORE_RC13_VERSION_CODE=494585
+REVIEWED_AICORE_RC13_VERSION_NAME=0.release.prod_aicore_20260723.00_RC13.981368508
+REVIEWED_AICORE_RC13_APK_SHA256=d3f749159f6d4b691093d6c8118b64fe3e7892b77180e8d473577e79114c864e
 
 EXPECTED_ASOSS_VERSION_CODE=143685
 EXPECTED_ASOSS_VERSION_NAME=1.0.release.962568596
@@ -21,9 +24,16 @@ evaluate_extension_snapshot() {
     local aicore_code=$1 aicore_name=$2 aicore_apk=$3 aicore_signer=$4
     local asoss_code=$5 asoss_name=$6 asoss_apk=$7 asoss_signer=$8
 
-    if [[ $aicore_code != "$EXPECTED_AICORE_VERSION_CODE" ||
-          $aicore_name != "$EXPECTED_AICORE_VERSION_NAME" ||
-          $aicore_apk != "$EXPECTED_AICORE_APK_SHA256" ||
+    local aicore_release_matches=false
+    if [[ $aicore_code == "$EXPECTED_AICORE_VERSION_CODE" &&
+          $aicore_name == "$EXPECTED_AICORE_VERSION_NAME" &&
+          $aicore_apk == "$EXPECTED_AICORE_APK_SHA256" ]] ||
+       [[ $aicore_code == "$REVIEWED_AICORE_RC13_VERSION_CODE" &&
+          $aicore_name == "$REVIEWED_AICORE_RC13_VERSION_NAME" &&
+          $aicore_apk == "$REVIEWED_AICORE_RC13_APK_SHA256" ]]; then
+        aicore_release_matches=true
+    fi
+    if [[ $aicore_release_matches != true ||
           $aicore_signer != "$EXPECTED_AICORE_SIGNER_SHA256" ||
           $asoss_code != "$EXPECTED_ASOSS_VERSION_CODE" ||
           $asoss_name != "$EXPECTED_ASOSS_VERSION_NAME" ||

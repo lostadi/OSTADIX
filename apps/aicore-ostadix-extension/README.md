@@ -1,9 +1,13 @@
 # OSTADIX AICore Smart Reply experiment
 
-For the current ordinary Gemini → local Nano → Ostadix route, persistent result
-viewer, notifications and repeatable deployment, see
-[Using the assistant](ASSISTANT-USE.md). The sections below retain the earlier
-Smart Reply and diagnostic boundaries; the bounded ASI behavior is unchanged.
+Normal Gemini requests retain Google’s original behavior. Start a plain typed
+request with `Use Ostadix` to select the local Nano → Ostadix route. For the
+persistent result viewer and repeatable deployment, see
+[Using the assistant](ASSISTANT-USE.md). Smart Reply candidate selection and ASI
+autofill experiments are disabled by default; they separately require the global
+settings `ostadix_asoss_smart_reply_experiment` and
+`ostadix_asi_autofill_experiment`, respectively, to equal `enabled-v1`, in addition
+to the existing activation and compatibility gates.
 
 This is an explicitly activated libxposed API 102 experiment for the
 exact installed AS.OSS/AICore versions documented in
@@ -25,10 +29,10 @@ to OSTADIX. Generated text stays in the original ASI candidate object. A valid
 selection is returned as a singleton list to ASI's original response builder;
 an error calls the original method with the original list.
 At runtime it rejects any firmware, version, base-APK hash, or signer mismatch
-and requires the exact `ostadix_aicore_extension_token` global setting before
-installing hooks.
-The token is rechecked at request entry and completion, so removing it stops
-result transformation immediately even before AS.OSS is restarted.
+and requires both the exact `ostadix_aicore_extension_token` global setting and
+the corresponding candidate-experiment opt-in before installing hooks.
+Both settings are rechecked at request entry and completion, so removing either
+stops result transformation even before the host process is restarted.
 
 Reverse engineering of the live ASI flags selects its enabled Smart Reply route
 (GenAiInferenceService transaction 6), rather than the disabled open-prompt LLM
@@ -60,17 +64,19 @@ original AS.OSS completion unchanged. Generated text, model sessions, FDs, and
 native buffers never enter OSTADIX; only bounded scalar reply metadata does.
 The JNI library and O/Bash launchers run directly from immutable module package
 storage; module initialization creates no file in AS.OSS private storage.
-An activated process also runs one fixed scalar Smart Reply smoke before hook
-registration. Hooks are installed only when that in-process OSTADIX execution
-selects source 1 at score 950.
+An explicitly enabled candidate experiment runs one fixed scalar Smart Reply
+smoke before hook registration. Hooks are installed only when that in-process
+OSTADIX execution selects source 1 at score 950. With its experiment opt-in
+absent, ASI or AS.OSS detaches before loading the native runtime or running the smoke.
 
 The Gemini hook adds the `ostadix/executeO/1` schema to the installed Google
 AppFunctions agent inventory. The stock lister drops a function whose schema
 is absent from that compiled inventory, even when Android has indexed and
 enabled it. The hook returns a copied immutable map with one source-first
-Ostadix descriptor. Android still brokers execution to the standalone
-`org.ostadix.terminal` AppFunctionService, so Ostadix code executes under that
-app's UID and SELinux domain.
+Ostadix descriptor. Android brokers the AppFunction request to the standalone
+`org.ostadix.terminal` AppFunctionService, which delegates over pinned local HTTPS
+to the configured MCP host. Ostadix code executes under that host's Termux UID
+and SELinux domain. The explicit local Nano route uses the same host directly.
 
 ## Local Nano loading diagnostic
 

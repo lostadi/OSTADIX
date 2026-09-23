@@ -17,3 +17,9 @@ java -classpath "$JSON_JAR:$CLASSES/test-classes:$CLASSES/classes:$ANDROID_JAR" 
 cat "$REPORT"
 java -classpath "$JSON_JAR:$CLASSES/test-classes:$CLASSES/classes:$ANDROID_JAR" \
     org.ostadix.aicore.extension.ResultHistorySelfTest
+java -classpath "$JSON_JAR:$CLASSES/test-classes:$CLASSES/classes:$ANDROID_JAR" \
+    org.ostadix.aicore.extension.NanoGenerationBudgetSelfTest
+java -classpath "$JSON_JAR:$CLASSES/test-classes:$CLASSES/classes:$ANDROID_JAR" \
+    org.ostadix.aicore.extension.NanoProgramPromptSelfTest
+java -classpath "$JSON_JAR:$CLASSES/test-classes:$CLASSES/classes:$ANDROID_JAR" \
+    org.ostadix.aicore.extension.NanoCandidateSelfTest

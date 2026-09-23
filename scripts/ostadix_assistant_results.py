@@ -87,11 +87,14 @@ def install():
     if actual != expected:
         raise SystemExit('Installed APK identity mismatch')
     command('/system/bin/pm', 'grant', PACKAGE, 'android.permission.POST_NOTIFICATIONS')
-    # Restart only the exact owned experiment host processes, using pidfds to avoid PID reuse.
+    # Restart the exact scoped hosts so no previously installed candidate hook survives
+    # an upgrade that disables it. Use pidfds to avoid PID reuse.
     sys.path.insert(0, str(ROOT / 'tools/nano-factory-reader'))
     from android_pidfd import open_pidfd, send_pidfd_signal
     restarted = []
-    for package, suffix in [('com.google.android.aicore', ''), ('com.google.android.googlequicksearchbox', ':search')]:
+    for package, suffix in [('com.google.android.aicore', ''),
+                            ('com.google.android.googlequicksearchbox', ':search'),
+                            ('com.google.android.as.oss', ''), ('com.google.android.as', '')]:
         uid = package_uid(package); name = package + suffix
         for proc in Path('/proc').iterdir():
             if not proc.name.isdigit():

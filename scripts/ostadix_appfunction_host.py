@@ -142,6 +142,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         process = None
         dispatched = False
+        caller_disconnected = False
         request_id = self.headers.get('X-Ostadix-Request', '')[:100]
         try:
             self.connection.settimeout(5)
@@ -188,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             self.connection.setblocking(False)
             log('mcp_dispatch', app_request=request_id, action=arguments.get('action', 'execute'),
                 source_sha256=hashlib.sha256(source.encode()).hexdigest())
-            cancelled = False
+            cancellation_sent = False
             while True:
                 try:
                     frame = frames.get(timeout=0.05)
@@ -205,33 +206,40 @@ class Handler(BaseHTTPRequestHandler):
                         structured = {}
                     log('mcp_result', app_request=request_id,
                         job_id=structured.get('job_id'), state=structured.get('state'),
-                        is_error=result.get('isError', False), cancelled=cancelled)
-                    if not cancelled:
+                        is_error=result.get('isError', False), cancelled=cancellation_sent)
+                    # A host deadline still has a caller awaiting the real result.
+                    if not caller_disconnected:
                         self.respond(200, result)
                     break
-                readable, _, _ = select.select([self.connection], [], [], 0)
-                disconnected = False
-                if readable:
-                    try:
-                        disconnected = not self.connection.recv(1)
-                    except (ssl.SSLWantReadError, BlockingIOError):
-                        pass
-                if not cancelled and (disconnected or time.monotonic() > deadline):
+                if not cancellation_sent:
+                    readable, _, _ = select.select([self.connection], [], [], 0)
+                    if readable:
+                        try:
+                            caller_disconnected = not self.connection.recv(1)
+                        except (ssl.SSLWantReadError, BlockingIOError):
+                            pass
+                        except (ConnectionResetError, BrokenPipeError, ssl.SSLEOFError):
+                            # Android may abort TLS without a close_notify alert.
+                            # Forward cancellation, then stop reading this socket.
+                            caller_disconnected = True
+                if not cancellation_sent and (caller_disconnected or time.monotonic() > deadline):
                     send(process, dict(jsonrpc='2.0', method='notifications/cancelled',
                                        params=dict(requestId=2, reason='Android caller cancellation or host deadline')))
-                    log('mcp_cancel', app_request=request_id)
-                    cancelled = True
+                    log('mcp_cancel', app_request=request_id,
+                        cause='caller_disconnect' if caller_disconnected else 'host_deadline')
+                    cancellation_sent = True
                     deadline = time.monotonic() + 5
-                elif cancelled and time.monotonic() > deadline:
+                elif cancellation_sent and time.monotonic() > deadline:
                     raise TimeoutError('MCP did not settle cancellation; no retry')
         except Exception as error:
             log('host_failure', app_request=request_id, dispatched=dispatched,
                 error_class=type(error).__name__)
-            try:
-                self.respond(502 if dispatched else 400, dict(
-                    error=str(error), dispatched=dispatched, retry=False))
-            except OSError:
-                pass
+            if not caller_disconnected:
+                try:
+                    self.respond(502 if dispatched else 400, dict(
+                        error=str(error), dispatched=dispatched, retry=False))
+                except OSError:
+                    pass
         finally:
             if process is not None:
                 try:

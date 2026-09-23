@@ -99,7 +99,7 @@ final class NanoActionClient {
             sent.set(true);
             context.sendBroadcast(request, null, BroadcastOptions.makeBasic()
                     .setShareIdentityEnabled(true).toBundle());
-            long deadline = SystemClock.elapsedRealtime() + 125000L;
+            long deadline = SystemClock.elapsedRealtime() + NanoLocalProbe.CLIENT_REPLY_TIMEOUT_MS;
             while (!ready.await(Math.min(1000L, Math.max(1L,
                     deadline - SystemClock.elapsedRealtime())), TimeUnit.MILLISECONDS)) {
                 if (SystemClock.elapsedRealtime() >= deadline) {

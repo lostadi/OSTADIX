@@ -117,14 +117,15 @@ class AppFunctionHostTests(unittest.TestCase):
                 self.assertIs(handler.respond.call_args.args[1], result)
 
     def test_ms_deadline_cancels_before_rounded_mcp_second_without_retry(self):
-        handler, frames = self.run_mock_exchange(1, {"isError": True}, cancel=True)
+        result = {"isError": True, "structuredContent": {"state": "timed_out"}}
+        handler, frames = self.run_mock_exchange(1, result, cancel=True)
         calls = [frame for frame in frames if frame["method"] == "tools/call"]
         cancellations = [frame for frame in frames if frame["method"] == "notifications/cancelled"]
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["params"]["arguments"]["timeout_secs"], 1)
         self.assertEqual(len(cancellations), 1)
         self.assertEqual(cancellations[0]["params"]["requestId"], 2)
-        handler.respond.assert_not_called()
+        handler.respond.assert_called_once_with(200, result)
 
 
 if __name__ == "__main__":

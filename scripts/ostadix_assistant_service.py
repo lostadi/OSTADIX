@@ -121,7 +121,9 @@ def start():
             time.sleep(0.2)
         else:
             raise SystemExit('Service did not start; inspect the private service logs')
-    system('/system/bin/settings', 'put', 'global', SETTING, 'local-all-v1')
+    # Keep ordinary Gemini requests on Google's flow, including after repeated
+    # starts or migration from an older catch-all configuration.
+    system('/system/bin/settings', 'put', 'global', SETTING, 'local-o-v1')
     return status()
 
 

@@ -16,59 +16,32 @@ import java.util.Locale;
 final class NanoToolTurn {
     private final Context context;
     private final String id;
+    private final String conversation;
     private final CancellationSignal cancellation;
     private final JSONObject evidence = new JSONObject();
     private String phase = "not_dispatched";
 
-    NanoToolTurn(Context context, String id, CancellationSignal cancellation) {
-        this.context = context; this.id = id; this.cancellation = cancellation;
+    NanoToolTurn(Context context, String id, String conversation, CancellationSignal cancellation) {
+        this.context = context; this.id = id; this.conversation = conversation; this.cancellation = cancellation;
     }
 
     String run(String userText) throws Exception {
         long start = SystemClock.elapsedRealtime();
+        final JSONArray history = NanoConversationContext.load(context.getFilesDir(), conversation, id);
         evidence.put("schema", "ostadix.gemini-local-tool-turn/v2").put("request_id", id)
                 .put("ordinary_assistant_request", true).put("caller_uid", android.os.Process.myUid())
                 .put("caller_pid", android.os.Process.myPid()).put("user_text", userText)
+                .put("conversation_key", conversation).put("context_turns", history)
                 .put("stock_callback_delegations", 0).put("mcp_dispatch_attempts", 0)
                 .put("execution_dispatch_attempts", 0).put("source_correction_attempts", 0)
                 .put("source_checks", new JSONArray());
         try {
             check();
             phase = "source_generation"; save();
-            JSONObject generated = NanoActionClient.generate(context, frame(
-                    "Write a complete Ostadix .O program for this request. Return only source. "
-                    + "The host executes it with o_execute. Do not claim you ran it. "
-                    + "You have a real local execution tool through this host. Do not tell the user to run "
-                    + "commands in Codex or claim there is no device connection. For a question or writing task, "
-                    + "produce a Python block that returns your answer as __oval_result__. "
-                    + "For a computation, execute the actual calculation in the program. "
-                    + "Use only runtimes needed for the request; the example is syntax guidance. "
-                    + "Do not create compiler scripts or temporary files. Keep it within 512 tokens.\n"
-                    + "Language guide: python^(code)_python returns __oval_result__. "
-                    + "rust^(fn main(){...})_rust returns stdout decoded as JSON when valid. "
-                    + "bash^(commands)_bash returns stdout, decoded as JSON when valid, else text. "
-                    + "let parts = autonomous(batch(python^(...)_python,rust^(...)_rust,bash^(...)_bash)) "
-                    + "runs independent branches. A final python block can use a,b,c = $parts. "
-                    + "Use real work in every requested language. Embed all supplied input data. "
-                    + "Use Bash printf '%s\\n' with separate arguments, not escaped newline strings. "
-                    + "Bash JSON numeric output becomes a number, not a string. "
-                    + "Do not use f-strings containing O splices; assign $parts first. "
-                    + "No explanations, computed answer, or tool-call JSON.\n"
-                    + "SMALL COMPLETE EXAMPLE for a single Python calculation:\n"
-                    + "python^(\n    __oval_result__ = 6 * 9\n)_python\n"
-                    + "END EXAMPLE. Replace that calculation with the actual request. "
-                    + "For one Python calculation return ONE python^(...)_python block. "
-                    + "Additional runtimes are optional: include them only when the request requires them. "
-                    + "Never duplicate a calculation across languages and add the duplicate results. "
-                    + "Use a combining block only when the request requires combining distinct results. "
-                    + "Implement each requested operator and bound exactly. "
-                    + "A sum of squares squares each input before adding; a sum of cubes cubes each input. "
-                    + "Every python^( MUST close with )_python, every rust^( with )_rust, "
-                    + "and every bash^( with )_bash. A bare ) does not close a language block. "
-                    + "Check the final delimiter before ending. No bare Python outside python^(...)_python.\n"
-                    + "ACTUAL REQUEST:\n" + userText), cancellation);
+            JSONObject generated = NanoActionClient.generate(context,
+                    NanoProgramPrompt.generation(userText, history), cancellation);
             evidence.put("source_generation", generated);
-            String initialSource = extractSource(candidate(generated));
+            String initialSource = extractSource(candidate(generated, true));
             evidence.put("initial_source", initialSource); save();
             NanoSourcePreparation.Prepared prepared = NanoSourcePreparation.prepare(initialSource,
                     new NanoSourcePreparation.Operations() {
@@ -77,22 +50,10 @@ final class NanoToolTurn {
                         public String correct(String source, String error) throws Exception {
                             check(); phase = "source_correction";
                             evidence.put("source_correction_attempts", 1); save();
-                            JSONObject correction = NanoActionClient.generate(context, frame(
-                                    "Correct this complete Ostadix .O program before execution. "
-                                    + "Nothing has executed. This is the only correction attempt. "
-                                    + "Return the entire corrected program as source, within 512 tokens, "
-                                    + "without Markdown fences or explanation. Implement the original request exactly. "
-                                    + "A sum of squares squares each input; a sum of cubes cubes each input. "
-                                    + "python^(code)_python, rust^(code)_rust and bash^(code)_bash "
-                                    + "are executable blocks. Every opening must have its matching language suffix; "
-                                    + "a bare ) is not enough. Python returns __oval_result__. "
-                                    + "Independent blocks can use let parts = autonomous(batch(...)); "
-                                    + "final Python reads a,b,c = $parts. Preserve the requested runtimes and inputs. "
-                                    + "Do not create compiler scripts or run commands yourself.\n"
-                                    + "ORIGINAL REQUEST:\n" + userText + "\nVALIDATION ERROR:\n" + error
-                                    + "\nREJECTED PROGRAM:\n" + source), cancellation);
+                            JSONObject correction = NanoActionClient.generate(context,
+                                    NanoProgramPrompt.correction(userText, history, source, error), cancellation);
                             evidence.put("source_correction", correction); save();
-                            return extractSource(candidate(correction));
+                            return extractSource(candidate(correction, true));
                         }
                     });
             String source = prepared.source;
@@ -126,7 +87,7 @@ final class NanoToolTurn {
                     + "Do not recalculate or substitute an expected answer.\nUSER REQUEST:\n" + userText
                     + "\nACTUAL TOOL RESULT:\n" + interpretationInput.toString()), cancellation);
             evidence.put("result_consumption", consumed);
-            String interpretation = candidate(consumed);
+            String interpretation = candidate(consumed, false);
             check();
             String answer = NanoToolOutput.completed(nativeResult)
                     + "\n\nNano's explanation (not independently verified):\n" + interpretation;
@@ -170,7 +131,19 @@ final class NanoToolTurn {
                 && "parse".equals(nativeResult.optString("stage"))) {
             if ("completed".equals(result.optString("state")) && result.optInt("exit_code", -1) == 0
                     && nativeResult.optBoolean("ok")) {
-                String contractError = NanoSourcePreparation.executableContractError(source);
+                JSONObject structure = nativeResult.optJSONObject("source_structure");
+                if (structure == null || !"ostadix.source-structure/v1".equals(structure.optString("schema"))) {
+                    throw new IllegalStateException("Native runtime lacks the source preflight contract. "
+                            + "Rebuild/install current Ostadix. Nothing was executed.");
+                }
+                JSONArray bindings = structure.getJSONArray("required_initial_bindings");
+                String[] missing = new String[bindings.length()];
+                for (int i = 0; i < missing.length; i++) { missing[i] = bindings.getString(i); }
+                String contractError = NanoSourcePreparation.executableContractError(
+                        structure.getBoolean("top_level_literal_text"), missing,
+                        structure.getJSONArray("languages").length());
+                if (contractError == null) { contractError = pythonSyntaxContractError(structure); }
+                if (contractError == null) { contractError = pythonResultContractError(structure); }
                 if (contractError != null) { entry.put("source_contract_rejection", contractError); save(); }
                 return contractError;
             }
@@ -199,16 +172,51 @@ final class NanoToolTurn {
     }
 
     private static String frame(String text) { return "\n<ctrl99>user\n" + text + "<ctrl100>\n<ctrl99>model\n"; }
-    private static String candidate(JSONObject result) throws Exception {
-        if (!result.optBoolean("ok")) { throw new IllegalStateException("local Nano: " + result.opt("error")); }
+    static String pythonSyntaxContractError(JSONObject structure) {
+        JSONArray diagnostics = structure.optJSONArray("backend_syntax_checks");
+        if (diagnostics == null) { return null; }
+        for (int i = 0; i < diagnostics.length(); i++) {
+            JSONObject diagnostic = diagnostics.optJSONObject(i);
+            if (diagnostic == null || !"python".equals(diagnostic.optString("language"))
+                    || !"invalid".equals(diagnostic.optString("state"))) { continue; }
+            String location = "Python syntax error in block " + (i + 1);
+            if (diagnostic.optInt("line", -1) > 0) { location += ", line " + diagnostic.optInt("line"); }
+            if (diagnostic.optInt("column", -1) > 0) { location += ", column " + diagnostic.optInt("column"); }
+            return location + ": " + diagnostic.optString("message", "invalid Python syntax")
+                    + ". Correct the complete source. Nothing was executed.";
+        }
+        return null;
+    }
+
+    static String pythonResultContractError(JSONObject structure) {
+        JSONArray languages = structure.optJSONArray("languages");
+        JSONArray diagnostics = structure.optJSONArray("backend_syntax_checks");
+        if (structure.optInt("plan_nodes", -1) != 2
+                || languages == null || languages.length() != 1 || !"python".equals(languages.optString(0))
+                || diagnostics == null || diagnostics.length() != 1) { return null; }
+        JSONObject diagnostic = diagnostics.optJSONObject(0);
+        if (diagnostic == null || !"python".equals(diagnostic.optString("language"))) { return null; }
+        return NanoSourcePreparation.pythonResultContractError(
+                diagnostic.optString("state"), diagnostic.optString("result_capture"));
+    }
+
+    static String candidate(JSONObject result, boolean beforeExecution) throws Exception {
+        String status = beforeExecution ? " Nothing was executed." : " The Ostadix result is already saved.";
+        if (!result.optBoolean("ok")) { throw new IllegalStateException("Local Nano failed: " + result.opt("error") + status); }
         JSONArray candidates = result.getJSONObject("result").getJSONArray("candidates");
-        if (candidates.length() != 1) { throw new IllegalStateException("local Nano requires one finished candidate"); }
+        if (candidates.length() != 1) {
+            throw new IllegalStateException("Nano returned " + candidates.length()
+                    + " candidates; one complete response is required." + status);
+        }
         JSONObject first = candidates.getJSONObject(0);
         if (first.optBoolean("text_truncated_in_event") || first.optInt("finish_reason_enum") != 1) {
-            throw new IllegalStateException("local Nano candidate unfinished or truncated; no retry");
+            throw new IllegalStateException("Nano returned incomplete text (finish reason "
+                    + first.optInt("finish_reason_enum", -1)
+                    + (first.optBoolean("text_truncated_in_event") ? ", truncated" : "")
+                    + ")." + status);
         }
         String text = first.getString("text");
-        if (text.trim().isEmpty()) { throw new IllegalStateException("local Nano candidate empty"); }
+        if (text.trim().isEmpty()) { throw new IllegalStateException("Nano returned an empty response." + status); }
         return text;
     }
     private static String extractSource(String text) {

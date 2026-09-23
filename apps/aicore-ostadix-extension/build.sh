@@ -15,8 +15,8 @@ EXPECTED_API_SHA256=423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe914
 NATIVE_HASH_MANIFEST="$APP_ROOT/app/src/main/resources/META-INF/ostadix/native-sha256.txt"
 MIN_SDK=31
 TARGET_SDK=34
-VERSION_CODE=15
-VERSION_NAME=0.15.0-nano-result-history
+VERSION_CODE=21
+VERSION_NAME=0.21.0-gemini-coexistence
 
 for tool in aapt2 apksigner d8 jar javac javap keytool readelf sed sha256sum unzip; do
     command -v "$tool" >/dev/null 2>&1 || { echo "Missing build tool: $tool" >&2; exit 1; }
@@ -95,6 +95,10 @@ java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR
     org.ostadix.aicore.extension.AsiDelegationSelfTest
 java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
     org.ostadix.aicore.extension.NanoSourcePreparationSelfTest
+java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
+    org.ostadix.aicore.extension.GeminiLocalRouteSelfTest
+java -classpath "$INTERMEDIATES/test-classes:$INTERMEDIATES/classes:$ANDROID_JAR:$LIBXPOSED_CLASSES" \
+    org.ostadix.aicore.extension.GeminiPlainTextInputSelfTest
 jar cf "$INTERMEDIATES/module-classes.jar" -C "$INTERMEDIATES/classes" .
 d8 --min-api "$MIN_SDK" --lib "$ANDROID_JAR" --classpath "$LIBXPOSED_CLASSES" \
     --output "$INTERMEDIATES/dex" "$INTERMEDIATES/module-classes.jar"
@@ -165,7 +169,7 @@ grep -Fq 'event=schema_inventory_injected' \
     "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/GeminiAppFunctionSchemaHooks.java"
 grep -Fq 'chain.proceed(arguments)' \
     "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java"
-[[ $(grep -Fc 'ExtensionGate.isExplicitlyEnabled(context)' \
+[[ $(grep -Fc 'ExtensionGate.isAsiAutofillExperimentEnabled(context)' \
     "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java") -ge 2 ]] || exit 1
 grep -Fq 'ExtensionGate.thermalPolicyAllows(context)' \
     "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AsiHooks.java"
@@ -202,7 +206,7 @@ for event in request_enter request_dispatched ostadix_selected result_forwarded 
     grep -Fq "event=$event" \
         "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java"
 done
-[[ $(grep -Fc 'ExtensionGate.isExplicitlyEnabled(context)' \
+[[ $(grep -Fc 'ExtensionGate.isSmartReplyExperimentEnabled(context)' \
         "$APP_ROOT/app/src/main/java/org/ostadix/aicore/extension/AicoreHooks.java") -ge 3 ]] || exit 1
 aapt2 dump badging "$OUTPUT_APK" | sed -n '1,8p'
 sha256sum "$OUTPUT_APK"

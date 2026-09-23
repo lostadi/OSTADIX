@@ -30,6 +30,24 @@ for index in "${!expected[@]}"; do
     [[ $output == 'extension_compatible=false action=disable_experimental_extension_only' ]]
 done
 
+reviewed=("${expected[@]}")
+reviewed[0]=$REVIEWED_AICORE_RC13_VERSION_CODE
+reviewed[1]=$REVIEWED_AICORE_RC13_VERSION_NAME
+reviewed[2]=$REVIEWED_AICORE_RC13_APK_SHA256
+output=$(evaluate_extension_snapshot "${reviewed[@]}")
+[[ $output == 'extension_compatible=true action=extension_may_continue' ]]
+for index in 0 1 2 3; do
+    snapshot=("${reviewed[@]}")
+    snapshot[$index]="${expected[$index]}"
+    [[ $index == 3 ]] && snapshot[$index]='untrusted-signer'
+    set +e
+    output=$(evaluate_extension_snapshot "${snapshot[@]}")
+    status=$?
+    set -e
+    [[ $status == 3 ]]
+    [[ $output == 'extension_compatible=false action=disable_experimental_extension_only' ]]
+done
+
 set +e
 output=$(evaluate_extension_snapshot)
 status=$?
@@ -37,4 +55,4 @@ set -e
 [[ $status == 3 ]]
 [[ $output == 'extension_compatible=false reason=invalid_snapshot action=disable_experimental_extension_only' ]]
 
-echo 'compatibility_policy_tests=passed cases=10'
+echo 'compatibility_policy_tests=passed cases=15'
