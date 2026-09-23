@@ -35,7 +35,7 @@ tools = {}
 for name in [
     "idevice_id", "ideviceinfo", "idevicesyslog", "iproxy", "idevicebackup2",
     "idevicecrashreport", "idevicepair", "afctool", "idevicedebug",
-    "idevicescreenshot", "ideviceproxy", "nc",
+    "idevicescreenshot", "ideviceproxy", "afcclient", "afctool", "nc",
 ]:
     tools[name] = bool(shutil.which(name))
 
@@ -44,12 +44,17 @@ udids = [line for line in enumeration.get("out", "").splitlines() if line.strip(
 
 devices = {}
 for udid in udids:
-    info = run(["ideviceinfo", "-u", udid, "-p"])
+    info = run(["ideviceinfo", "-u", udid])
     props = {}
     for line in info.get("out", "").splitlines():
-        if "=" in line:
-            key, _, value = line.partition("=")
-            props[key.strip()] = value.strip()
+        parsed = None
+        for sep in (" = ", ": "):
+            if sep in line:
+                key, _, value = line.partition(sep)
+                parsed = (key, value)
+                break
+        if parsed:
+            props[parsed[0].strip()] = parsed[1].strip()
     devices[udid] = {
         "name": props.get("DeviceName"),
         "product_type": props.get("ProductType"),
