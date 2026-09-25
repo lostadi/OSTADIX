@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use base64::{engine::general_purpose::STANDARD, Engine};
+use o_lang::project::{ValidatedSelectionDispositionV1, ValidatedSelectionReceiptV1};
 use serde_json::Value;
 
 const PRIVATE_STDOUT: &str = "PRIVATE_CANDIDATE_STDOUT_42891";
@@ -130,6 +131,54 @@ fn assert_progress_is_not_recorded(record: &Value) {
     }
 }
 
+fn assert_measured_selection(value: &Value) -> String {
+    let receipt: ValidatedSelectionReceiptV1 =
+        serde_json::from_value(value.clone()).expect("typed validated-selection receipt");
+    assert_eq!(receipt.reference_route_id, "reference");
+    assert_eq!(
+        receipt
+            .candidates
+            .iter()
+            .map(|candidate| candidate.route_id.as_str())
+            .collect::<Vec<_>>(),
+        ["reference", "fast", "divergent"],
+    );
+    for candidate in &receipt.candidates[..2] {
+        assert_eq!(
+            candidate.disposition,
+            ValidatedSelectionDispositionV1::Eligible,
+            "{} must match the reference output",
+            candidate.route_id,
+        );
+    }
+    assert!(matches!(
+        receipt.candidates[2].disposition,
+        ValidatedSelectionDispositionV1::RejectedOutput { .. }
+    ));
+
+    // Real branch measurements include process startup and scheduling. The
+    // shorter requested sleep does not guarantee a particular observed winner.
+    // Independently check the measured objective and declaration-order tie-break.
+    let (_, winner) = receipt
+        .candidates
+        .iter()
+        .enumerate()
+        .filter(|(_, candidate)| candidate.disposition == ValidatedSelectionDispositionV1::Eligible)
+        .min_by_key(|(index, candidate)| {
+            (
+                candidate
+                    .branch_elapsed_ns
+                    .parse::<u128>()
+                    .expect("complete-branch duration must be unsigned nanoseconds"),
+                *index,
+            )
+        })
+        .expect("the successful reference must remain eligible");
+    assert_eq!(receipt.selected_route_id, winner.route_id);
+    receipt.validate().expect("retained receipt must validate");
+    receipt.selected_route_id
+}
+
 #[test]
 fn optimize_progress_is_safe_json_clean_and_rejected_before_json_execution() {
     let temporary = tempfile::tempdir().unwrap();
@@ -160,7 +209,6 @@ fn optimize_progress_is_safe_json_clean_and_rejected_before_json_execution() {
 
     let stdout = String::from_utf8(human.stdout).unwrap();
     assert!(stdout.contains("Ostadix optimization evidence"));
-    assert!(stdout.contains("Selected route: fast"));
     assert!(
         !stdout.contains("o optimize:"),
         "progress escaped onto final-evidence stdout: {stdout}",
@@ -212,6 +260,15 @@ fn optimize_progress_is_safe_json_clean_and_rejected_before_json_execution() {
     );
     let inspection: Value = serde_json::from_slice(&inspection.stdout).unwrap();
     assert_progress_is_not_recorded(&inspection["record"]);
+    let selected = assert_measured_selection(&inspection["record"]["validated_selection_receipt"]);
+    assert_eq!(
+        stdout
+            .lines()
+            .filter(|line| line.starts_with("Selected route: "))
+            .collect::<Vec<_>>(),
+        [format!("Selected route: {selected}")],
+        "human selection must agree with the retained measured winner",
+    );
 
     let json_root = root.join("json-default");
     let json_home = json_root.join("home");
@@ -233,6 +290,7 @@ fn optimize_progress_is_safe_json_clean_and_rejected_before_json_execution() {
     let envelope = single_json(&json);
     assert_eq!(envelope["schema"], "ostadix.optimize-summary/v1");
     assert_eq!(envelope["run"]["disposition"], "succeeded");
+    assert_measured_selection(&envelope["receipt"]);
     assert!(
         !String::from_utf8_lossy(&json.stderr).contains("o optimize:"),
         "JSON mode emitted progress: {}",

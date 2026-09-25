@@ -474,7 +474,7 @@ fn run_mixed_group_without_nix(mode: &str) -> (Output, bool) {
     let marker = temp.path().join("activation.marker");
     write_executable(
         &closure.join("bin/switch-to-configuration"),
-        &format!("#!/bin/sh\nprintf activated > {:?}\n", marker),
+        &format!("#!/bin/sh\n: > {:?}\n", marker),
     );
     let program = temp.path().join("mixed.O");
     let opener = if mode == "autonomous-batch" {

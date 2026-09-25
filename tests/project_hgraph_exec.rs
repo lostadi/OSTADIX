@@ -3171,59 +3171,149 @@ fn validated_progress_callbacks_do_not_enter_branch_measurements_or_delay_prereq
         execute_project_hgraph_selection_with_contract_and_progress, ProjectExecutionContract,
         ValidatedSelectionProgressEventV1,
     };
+    use std::fs;
     use std::sync::Mutex;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
+
+    struct ReleaseCallback(PathBuf);
+    impl Drop for ReleaseCallback {
+        fn drop(&mut self) {
+            // Release the fixture even if a callback assertion fails. Route
+            // execution also has a finite deadline independent of this marker.
+            let _ = fs::write(&self.0, b"released");
+        }
+    }
+
     for delay_start in [true, false] {
         let coordinator = tempfile::tempdir().unwrap();
         let mut bundle = concurrent_bundle(
             RoutePolicy::BenchmarkValidateAndSelect,
             coordinator.path(),
             &[
-                ("reference", "sleep .04; printf expected"),
-                ("candidate", "sleep .04; printf expected"),
+                (
+                    "reference",
+                    "printf reference > \"$COORD/reference-done\"; printf expected",
+                ),
+                (
+                    "candidate",
+                    "test -f \"$COORD/prepare-done\" || exit 91; printf candidate > \"$COORD/candidate-done\"; printf expected",
+                ),
             ],
         );
         let mut prepare = RouteSpec::new("prepare", RouteProvenance::CliOverride);
-        prepare.command = vec!["sh".into(), "-c".into(), "sleep .08".into()];
+        let prepare_script = if delay_start {
+            "printf prepared > \"$COORD/prepare-done\""
+        } else {
+            "while [ ! -f \"$COORD/callback-entered\" ]; do [ ! -f \"$COORD/callback-released\" ] || exit 92; sleep .01; done; test ! -f \"$COORD/callback-released\" || exit 93; printf prepared > \"$COORD/prepare-done\""
+        };
+        prepare.command = vec!["sh".into(), "-c".into(), prepare_script.into()];
+        prepare.environment.insert(
+            "COORD".into(),
+            coordinator.path().to_string_lossy().into_owned(),
+        );
         bundle.routes.push(prepare);
         bundle.routes[1].prerequisites.push("prepare".into());
         let project = build_project_hgraph(&bundle, Some("application"), None).unwrap();
         let observed = Mutex::new(Vec::new());
+        let started_released = Mutex::new([None; 2]);
+        let finished = Mutex::new(Vec::new());
         let observer = |event: ValidatedSelectionProgressEventV1| {
-            let slow = match &event {
+            let entered = Instant::now();
+            match &event {
                 ValidatedSelectionProgressEventV1::CandidateStarted {
-                    declaration_index: 0,
-                    ..
-                } => delay_start,
+                    declaration_index, ..
+                } => {
+                    if delay_start && *declaration_index == 0 {
+                        std::thread::sleep(Duration::from_millis(500));
+                        for name in ["reference-done", "prepare-done", "candidate-done"] {
+                            assert!(
+                                !coordinator.path().join(name).exists(),
+                                "route work started before start-callback release: {name}",
+                            );
+                        }
+                    }
+                    started_released.lock().unwrap()[*declaration_index] = Some(Instant::now());
+                }
                 ValidatedSelectionProgressEventV1::CandidateFinished {
-                    declaration_index: 0,
+                    declaration_index,
+                    branch_elapsed_ns,
                     ..
-                } => !delay_start,
-                _ => false,
-            };
-            if slow {
-                std::thread::sleep(Duration::from_millis(500));
+                } => {
+                    finished.lock().unwrap().push((
+                        *declaration_index,
+                        entered,
+                        *branch_elapsed_ns,
+                    ));
+                    if !delay_start && *declaration_index == 0 {
+                        let release = ReleaseCallback(coordinator.path().join("callback-released"));
+                        assert!(!coordinator.path().join("prepare-done").exists());
+                        fs::write(coordinator.path().join("callback-entered"), b"entered").unwrap();
+                        let deadline = Instant::now() + Duration::from_secs(10);
+                        while ["prepare-done", "candidate-done"]
+                            .iter()
+                            .any(|name| !coordinator.path().join(name).exists())
+                        {
+                            assert!(
+                                Instant::now() < deadline,
+                                "prerequisite/payload did not progress while finish callback was blocked",
+                            );
+                            std::thread::sleep(Duration::from_millis(10));
+                        }
+                        assert!(!release.0.exists());
+                        // Both real route markers exist before this callback
+                        // returns; synchronous finish delivery would deadlock.
+                        drop(release);
+                    }
+                }
+                _ => {}
             }
             observed.lock().unwrap().push(event);
         };
+        let mut options = RunOptions::default();
+        options.limits.wall_clock_timeout = Duration::from_secs(10);
         let execution = execute_project_hgraph_selection_with_contract_and_progress(
             &bundle,
             &project,
-            &RunOptions::default(),
+            &options,
             ProjectExecutionContract::Strict,
             Some(&observer),
         )
         .unwrap();
         let receipt = execution.validated_selection_receipt.unwrap();
-        assert_eq!(receipt.selected_route_id, "reference");
-        for candidate in &receipt.candidates {
+        receipt.validate().unwrap();
+        assert_eq!(receipt.candidates.len(), 2);
+        let starts = started_released.lock().unwrap();
+        let finishes = finished.lock().unwrap();
+        assert_eq!(finishes.len(), 2);
+        for (index, candidate) in receipt.candidates.iter().enumerate() {
+            assert!(candidate.disposition.is_eligible());
+            let entries = finishes
+                .iter()
+                .filter(|(candidate_index, _, _)| *candidate_index == index)
+                .collect::<Vec<_>>();
+            assert_eq!(entries.len(), 1);
+            let (_, finish_entry, published_ns) = *entries[0];
+            let measured_ns = candidate.branch_elapsed_ns.parse::<u128>().unwrap();
+            assert_eq!(measured_ns, published_ns);
+            let post_start_window = finish_entry.duration_since(starts[index].unwrap());
             assert!(
-                candidate.branch_elapsed_ns.parse::<u128>().unwrap() < 400_000_000,
-                "presentation delay entered {} measurement: {} ns",
+                measured_ns <= post_start_window.as_nanos(),
+                "{} measurement exceeds its actual post-start-callback window: {} > {} ns",
                 candidate.route_id,
-                candidate.branch_elapsed_ns
+                measured_ns,
+                post_start_window.as_nanos(),
             );
         }
+        let expected = receipt
+            .candidates
+            .iter()
+            .enumerate()
+            .min_by_key(|(index, candidate)| {
+                (candidate.branch_elapsed_ns.parse::<u128>().unwrap(), *index)
+            })
+            .unwrap()
+            .1;
+        assert_eq!(receipt.selected_route_id, expected.route_id);
         assert!(matches!(
             observed.lock().unwrap().last(),
             Some(ValidatedSelectionProgressEventV1::ValidationStarted { .. })

@@ -155,6 +155,43 @@ __oval_result__ = "right"
 ))
 "#;
 
+fn rendezvous_interval_batch() -> String {
+    let mut source = String::from("autonomous(batch(\n");
+    for (index, (name, peer)) in [("left", "right"), ("right", "left")]
+        .into_iter()
+        .enumerate()
+    {
+        if index != 0 {
+            source.push_str(",\n");
+        }
+        source.push_str(&format!(
+            r#"python^(
+from pathlib import Path
+import os
+import time
+workdir = Path(os.environ["O_TEST_WORKDIR"])
+def await_peer(phase, seconds):
+    deadline = time.monotonic() + seconds
+    while not (workdir / ("{peer}." + phase)).exists():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("{name} timed out waiting for {peer}." + phase)
+        time.sleep(0.01)
+(workdir / "{name}.ready").write_text("ready\n", encoding="utf-8")
+await_peer("ready", 5)
+start = time.monotonic_ns()
+(workdir / "{name}.started").write_text("started\n", encoding="utf-8")
+await_peer("started", 3)
+time.sleep(0.75)
+end = time.monotonic_ns()
+(workdir / "{name}.interval").write_text(f"{{start}} {{end}}\n", encoding="utf-8")
+__oval_result__ = "{name}"
+)_python"#
+        ));
+    }
+    source.push_str("\n))\n");
+    source
+}
+
 const STRESS_TASK_COUNT: usize = 24;
 const STRESS_WORKERS: usize = 4;
 
@@ -373,7 +410,10 @@ fn explicit_autonomous_ephemeral_python_blocks_overlap() {
 
     for workers in [2, 4] {
         for repetition in 1..=2 {
-            let run = run_graph_bounded(INTERVAL_BATCH, workers);
+            // Bootstrap both real actors before measuring. The second handshake
+            // requires each interval to begin before its peer can finish, so
+            // startup skew cannot masquerade as serialized execution.
+            let run = run_graph_bounded(&rendezvous_interval_batch(), workers);
             assert_success(
                 &run,
                 &format!("autonomous Python batch, workers={workers}, repetition={repetition}"),

@@ -142,10 +142,16 @@ fn catalog_tool_preserves_binary_and_script_argv_environment_cwd_stdin_and_statu
     for path in [&bin, &interpreters, &working, &root.join("scripts")] {
         fs::create_dir_all(path).unwrap();
     }
-    let capture =
-        "#!/bin/sh\nprintf '%s\\0' \"$PWD\" \"$CATALOG_LITERAL_ENV\" \"$@\"\n/bin/cat\nexit 29\n";
-    executable(&bin.join("olangc"), capture);
-    executable(&interpreters.join("python3"), capture);
+    // Some shells resolve printf externally; this fixture deliberately replaces PATH.
+    let printf = ["/usr/bin/printf", "/bin/printf"]
+        .into_iter()
+        .find(|path| std::path::Path::new(path).is_file())
+        .expect("test host must provide printf at a standard absolute path");
+    let capture = format!(
+        "#!/bin/sh\n'{printf}' '%s\\0' \"$PWD\" \"$CATALOG_LITERAL_ENV\" \"$@\"\n/bin/cat\nexit 29\n"
+    );
+    executable(&bin.join("olangc"), &capture);
+    executable(&interpreters.join("python3"), &capture);
     fs::write(
         root.join("scripts/ostadix_capacity.py"),
         "# interpreter owns this script\n",

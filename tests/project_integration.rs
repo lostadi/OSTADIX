@@ -1600,15 +1600,23 @@ fn process_is_active(pid: libc::pid_t) -> bool {
 fn project_runtime_output_retention_is_bounded_but_fully_drained() {
     const ITERATIONS: usize = 20_000;
     const CHUNK: &[u8] = b"0123456789abcdef";
-    let route = shell_route(
-        "flood",
-        "i=0; while [ \"$i\" -lt 20000 ]; do printf '0123456789abcdef'; i=$((i + 1)); done; i=0; while [ \"$i\" -lt 20000 ]; do printf '0123456789abcdef' >&2; i=$((i + 1)); done",
-    );
-    let bundle = bundle_with_routes(vec![route]);
+    let expected = CHUNK.repeat(ITERATIONS);
+    // Drain the same full streams without depending on printf being a shell builtin.
+    let route = shell_route("flood", "cat flood.payload; cat flood.payload >&2");
+    let mut bundle = bundle_with_routes(vec![route]);
+    bundle.files.push(ProjectFile {
+        path: "flood.payload".into(),
+        bytes: expected.clone(),
+        executable: false,
+        unix_mode: None,
+        symlink_target: None,
+        evaluator: None,
+        content_hash: hex::encode(Sha256::digest(&expected)),
+        role: FileRole::Asset,
+    });
     let mut options = bounded_runtime_options(Duration::from_secs(15));
     options.limits.max_retained_stdout_bytes = 1_024;
     options.limits.max_retained_stderr_bytes = 2_048;
-    let expected = CHUNK.repeat(ITERATIONS);
 
     let result = run_route(&bundle, "flood", &options).unwrap();
     assert!(result.succeeded(), "stderr: {}", result.stderr_text());
