@@ -16,7 +16,8 @@ Semantics:
   * render_child reuses the Nix-syntax renderer so that values from prior
     nix^() or nix_store^() blocks can be spliced into test node configs.
 
-  * The backend is stateless; each nixos_test^(...) block spawns fresh VMs.
+  * The backend is stateless; each block invokes nix build. Nix can reuse a
+    previously built test derivation instead of starting new VMs.
 
 Single-machine example (Milestone E):
 
@@ -71,6 +72,7 @@ NIXPKGS_PATH env variable to an absolute path).
 from __future__ import annotations
 
 import os
+import math
 import subprocess
 from typing import Any
 
@@ -96,6 +98,7 @@ class NixOSTestBackend:
         return _render_nix(v)
 
     def evaluate(self, body: str, env: Any) -> OValue:
+        timeout = nixos_test_timeout_seconds()
         nixpkgs = os.environ.get("NIXPKGS_PATH", "<nixpkgs>")
         expr = _NIX_TEST_WRAPPER.format(nixpkgs=nixpkgs, body=body)
 
@@ -117,8 +120,10 @@ class NixOSTestBackend:
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=600,  # VM tests can take minutes
+                timeout=timeout,
             )
+        except subprocess.TimeoutExpired as error:
+            raise nixos_test_timeout_error(error, timeout) from error
         except FileNotFoundError:
             raise RuntimeError(
                 "nix executable not found. Install Nix to use nixos_test^(...)_nixos_test blocks."
@@ -150,3 +155,28 @@ class NixOSTestBackend:
             ("log",        OStr(log_text)),
             ("store_path", OStorePath(store_path)),
         ))
+
+
+def nixos_test_timeout_seconds():
+    name = "O_NIXOS_TEST_TIMEOUT_SECONDS"
+    raw = os.environ.get(name, "600")
+    try:
+        seconds = float(raw)
+    except ValueError as error:
+        raise ValueError(f"{name} must be a positive finite number of seconds") from error
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError(f"{name} must be a positive finite number of seconds")
+    return seconds
+
+
+def nixos_test_timeout_error(error, seconds):
+    def text(value):
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return value or ""
+
+    return RuntimeError(
+        f"nixos_test timed out after {seconds:g} seconds "
+        "(O_NIXOS_TEST_TIMEOUT_SECONDS); completion of daemon-side builds is unknown.\n"
+        f"PARTIAL STDERR:\n{text(error.stderr)}\nPARTIAL STDOUT:\n{text(error.stdout)}"
+    )

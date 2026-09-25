@@ -17,6 +17,7 @@ Returns OMap:
 """
 
 import json
+import math
 import os
 import platform
 import subprocess
@@ -82,9 +83,9 @@ def oval_to_nix(v):
 # ---------------------------------------------------------------------------
 
 def run_nixos_test(code):
+    timeout = nixos_test_timeout_seconds()
     # On non-Linux (e.g. macOS darwin), full NixOS VM tests cannot run
-    # without a linux remote builder + KVM. Return a stub success so the
-    # .O document itself evaluates flawlessly for demo/CI purposes.
+    # without a Linux builder. Return an explicitly unsuccessful stub value.
     # Set NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM=1 (and have a linux builder) to force.
     if platform.system() != "Linux" and os.environ.get("NIXPKGS_ALLOW_UNSUPPORTED_SYSTEM") != "1":
         return {
@@ -110,13 +111,16 @@ def run_nixos_test(code):
         expr,
     ]
 
-    completed = subprocess.run(
-        cmd,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=600,
-    )
+    try:
+        completed = subprocess.run(
+            cmd,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise nixos_test_timeout_error(error, timeout) from error
 
     if completed.returncode != 0:
         raise RuntimeError(
@@ -147,6 +151,31 @@ def run_nixos_test(code):
             "store_path": {"t": "store_path", "path": store_path},
         },
     }
+
+
+def nixos_test_timeout_seconds():
+    name = "O_NIXOS_TEST_TIMEOUT_SECONDS"
+    raw = os.environ.get(name, "600")
+    try:
+        seconds = float(raw)
+    except ValueError as error:
+        raise ValueError(f"{name} must be a positive finite number of seconds") from error
+    if not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError(f"{name} must be a positive finite number of seconds")
+    return seconds
+
+
+def nixos_test_timeout_error(error, seconds):
+    def text(value):
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return value or ""
+
+    return RuntimeError(
+        f"nixos_test timed out after {seconds:g} seconds "
+        "(O_NIXOS_TEST_TIMEOUT_SECONDS); completion of daemon-side builds is unknown.\n"
+        f"PARTIAL STDERR:\n{text(error.stderr)}\nPARTIAL STDOUT:\n{text(error.stdout)}"
+    )
 
 
 # ---------------------------------------------------------------------------

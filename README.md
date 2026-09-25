@@ -3721,6 +3721,21 @@ request is built, checked again when it is forced, and can be revoked.
 
 `current_system()` returns the current profile as a referential OSystem value.
 
+`nixos_test^(...)_nixos_test` runs a NixOS test derivation with a default
+600-second wait for `nix build`. Set `O_NIXOS_TEST_TIMEOUT_SECONDS` to a positive,
+finite number of seconds when a cold build or emulated guest needs longer:
+
+```sh
+O_NIXOS_TEST_TIMEOUT_SECONDS=3600 o run examples/nixos_test.O
+```
+
+The same setting applies to the Python edition, external shims, and embedded
+shims. MCP callers can supply it through the command's child environment.
+Invalid values fail before launching Nix. Timeout errors retain partial stdout
+and stderr; they do not establish whether a daemon-side build has stopped.
+Nix can reuse a previously built test derivation, so a returned store path does
+not by itself establish that a new VM booted during this invocation.
+
 ### Autonomous scheduling
 
 Inside `autonomous(...)`, schedulable Nix requests and dry activations are
