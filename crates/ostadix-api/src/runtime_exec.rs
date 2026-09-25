@@ -11,10 +11,10 @@
 //! bind interpreters selected by shebangs, compiler drivers' subordinate tools,
 //! dynamic libraries, or descendants launched by user code. The retained
 //! handle plus path/file-identity checks close ambient `PATH` reselection and
-//! detect drift immediately before spawn. They do not make executable bytes
-//! immutable or eliminate the final same-principal verification-to-path-exec
-//! micro-window for foreign launchers. On Linux, the runtime-owned O backend
-//! proxy is executed opportunistically through its retained `/proc` file
+//! detect identity-visible drift; equal identities can hide byte rewrites.
+//! They do not make bytes immutable or eliminate the final same-principal
+//! verification-to-path-exec window for foreign launchers. On Linux, the
+//! runtime-owned O proxy opportunistically uses its retained `/proc` file
 //! descriptor while preserving the admitted invocation name as `argv[0]`.
 //! That closes pathname substitution for the proxy without copying bytes or
 //! changing worker capacity. Foreign launchers remain path-executed because
@@ -127,8 +127,8 @@ fn ensure_native_executable_image(file: &File, path: &Path) -> Result<()> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ExecutableGuaranteeV1 {
-    /// The bytes were hashed once at capture; retained-file and canonical-path
-    /// identities are compared immediately before each direct spawn.
+    /// Hash once at capture; recheck retained-file/path identities immediately before each spawn.
+    /// Same-identity byte rewrites remain undetected; executable bytes are not immutable.
     DirectLauncherPathAndOpenFileIdentity,
     /// Portable fallback for platforms without stable Unix file identity.
     /// The canonical target is re-hashed immediately before every launch.
@@ -1932,10 +1932,10 @@ fn file_identity(metadata: &Metadata) -> Result<ExecutableFileIdentityV1> {
 }
 
 /// Capacity-safe authority for a command discovered only when an operation is
-/// actually performed. Unlike the plan manifest this does not make an
-/// unforced lazy Request a host-readiness requirement. The open target, hash,
-/// invocation name, and file identity are retained and rechecked before each
-/// subprocess in that performed operation or autonomous batch.
+/// actually performed. An unforced lazy Request adds no readiness requirement.
+/// The target handle and capture-time hash are retained; invocation/path/file
+/// identities are rechecked before each operation or batch subprocess. On Unix,
+/// metadata checks can miss same-identity byte rewrites.
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeCommandLease {
     inner: Arc<RuntimeCommandLeaseInner>,
@@ -2352,7 +2352,7 @@ mod tests {
     }
 
     #[test]
-    fn retained_lease_rejects_in_place_mutation() {
+    fn retained_lease_rejects_identity_visible_in_place_mutation() {
         let temp = tempfile::tempdir().unwrap();
         let admitted = temp.path().join("tool");
         fs::write(&admitted, b"#!/bin/sh\nexit 0\n").unwrap();
@@ -2379,8 +2379,32 @@ mod tests {
             retained,
         };
         let mut writer = fs::OpenOptions::new().write(true).open(&admitted).unwrap();
+        let before = file_identity(&writer.metadata().unwrap()).unwrap();
+        assert_eq!(
+            leases.manifest.artifacts[0].file_identity.as_ref(),
+            Some(&before)
+        );
+        let changed_mtime =
+            writer.metadata().unwrap().modified().unwrap() + std::time::Duration::from_secs(2);
         writer.write_all(b"#!/bin/sh\nexit 9\n").unwrap();
         writer.flush().unwrap();
+        // A same-length write can share the original filesystem timestamp tick.
+        // Exercise the declared identity check with an explicit visible change.
+        writer
+            .set_times(fs::FileTimes::new().set_modified(changed_mtime))
+            .unwrap();
+        let after = file_identity(&writer.metadata().unwrap()).unwrap();
+        assert_eq!(
+            (before.device, before.inode, before.size, before.mode),
+            (after.device, after.inode, after.size, after.mode),
+        );
+        assert_ne!(
+            (before.mtime_seconds, before.mtime_nanoseconds),
+            (after.mtime_seconds, after.mtime_nanoseconds),
+            "fixture must make the in-place mutation visible to the identity check",
+        );
+        assert_ne!(before, after);
+        assert_eq!(fs::read(&admitted).unwrap(), b"#!/bin/sh\nexit 9\n");
         let error = format!("{:#}", leases.verify_backend("shell").unwrap_err());
         assert!(
             error.contains("admitted invocation path is stale for backend `shell` command `sh`"),
