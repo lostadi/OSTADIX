@@ -4,7 +4,8 @@ use crate::{
     backend_catalog::{BackendInterface, ExecutionMode},
     effects::{effect_summary_for_plan_node, EffectSummary, ResourceKey},
     ir::{
-        ExecutionPlan, OIr, OIrProgram, PlanEdgeKind, PlanNodeId, PlanNodeKind, PlanScheduleKind,
+        ExecutionPlan, ExecutionPlanIndex, OIr, OIrProgram, PlanEdgeKind, PlanNodeId, PlanNodeKind,
+        PlanScheduleKind,
     },
     value::{GroupMode, OValue},
 };
@@ -43,6 +44,7 @@ pub fn build_program_with_plan(
     plan: &ExecutionPlan,
 ) -> Result<HGraph, String> {
     plan.validate(program.nodes.len())?;
+    let index = ExecutionPlanIndex::new(plan)?;
 
     // A caller may supply alternate dependency edges for analysis/testing, but
     // node identity and root identity must still describe this exact OIR tree.
@@ -112,8 +114,8 @@ pub fn build_program_with_plan(
         ));
     }
 
-    add_plan_semantics(&mut graph, plan, &node_map);
-    add_execute_edges(&mut graph, plan, &node_map, &oir_nodes)?;
+    add_plan_semantics(&mut graph, plan, &index, &node_map);
+    add_execute_edges(&mut graph, plan, &index, &node_map, &oir_nodes)?;
     graph.validate_execution_graph()?;
     Ok(graph)
 }
@@ -125,6 +127,7 @@ pub fn build_program_with_plan(
 fn add_execute_edges(
     graph: &mut HGraph,
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     node_map: &HashMap<PlanNodeId, NodeId>,
     oir_nodes: &[&OIr],
 ) -> Result<(), String> {
@@ -144,7 +147,7 @@ fn add_execute_edges(
     // source ids here would create A -> C state edges against C -> A structural
     // edges for a nested effect and make the executable graph cyclic.
     let mut state = StateLowering::default();
-    for (ordinal, id) in plan.topological_order()?.into_iter().enumerate() {
+    for (ordinal, &id) in index.topological_order().iter().enumerate() {
         let plan_node = &plan.nodes[id.0];
         let Some(op) = executable_op(&plan_node.kind) else {
             continue;
@@ -156,12 +159,12 @@ fn add_execute_edges(
         let completion = graph
             .completion_node(id)
             .ok_or_else(|| format!("missing completion node for plan node {}", id.0))?;
-        let mut inputs = operation_value_inputs(plan, node_map, id);
+        let mut inputs = operation_value_inputs(index, node_map, id);
         let mut outputs = vec![value_output, completion];
 
-        let preserved_sequences = executable_sequence_predecessors(plan, id)
+        let preserved_sequences = executable_sequence_predecessors(plan, index, id)
             .into_iter()
-            .filter(|predecessor| !sequence_can_relax(plan, *predecessor, id, &summaries))
+            .filter(|predecessor| !sequence_can_relax(plan, index, *predecessor, id, &summaries))
             .collect::<Vec<_>>();
         for predecessor in &preserved_sequences {
             let predecessor_completion = graph.completion_node(*predecessor).ok_or_else(|| {
@@ -177,7 +180,14 @@ fn add_execute_edges(
         // explicit autonomous region may opt into unordered overlap. Ordinary ephemeral
         // blocks retain HostWorld/EvaluatorState state chains and strict source
         // sequencing exactly like the serial reference executor.
-        if crate::dispatch_model::autonomous_ephemeral_group(plan, id, oir_nodes[id.0]).is_none() {
+        if crate::dispatch_model::autonomous_ephemeral_group_indexed(
+            plan,
+            index,
+            id,
+            oir_nodes[id.0],
+        )
+        .is_none()
+        {
             add_resource_state_transitions(
                 graph,
                 &mut state,
@@ -294,16 +304,15 @@ impl StateLowering {
 /// by additional lexical/data predecessors. State and completion inputs are
 /// appended separately by `add_execute_edges`.
 fn operation_value_inputs(
-    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     node_map: &HashMap<PlanNodeId, NodeId>,
     parent: PlanNodeId,
 ) -> Vec<NodeId> {
     let mut seen = HashSet::new();
     let mut ordered: Vec<(usize, NodeId)> = Vec::new();
 
-    for edge in &plan.edges {
-        let is_input =
-            matches!(edge.kind, PlanEdgeKind::Structural | PlanEdgeKind::Data) && edge.to == parent;
+    for edge in index.incoming(parent) {
+        let is_input = matches!(edge.kind, PlanEdgeKind::Structural | PlanEdgeKind::Data);
         if is_input && seen.insert(edge.from) {
             ordered.push((edge.from.0, node_map[&edge.from]));
         }
@@ -319,14 +328,13 @@ fn operation_value_inputs(
 /// validated custom plans with more than one incoming sequence edge.
 pub(super) fn executable_sequence_predecessors(
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     target: PlanNodeId,
 ) -> BTreeSet<PlanNodeId> {
-    let mut pending = plan
-        .edges
+    let mut pending = index
+        .incoming(target)
         .iter()
-        .filter_map(|edge| {
-            (edge.kind == PlanEdgeKind::Sequence && edge.to == target).then_some(edge.from)
-        })
+        .filter_map(|edge| (edge.kind == PlanEdgeKind::Sequence).then_some(edge.from))
         .collect::<Vec<_>>();
     let mut visited = HashSet::new();
     let mut executable = BTreeSet::new();
@@ -339,25 +347,29 @@ pub(super) fn executable_sequence_predecessors(
             executable.insert(source);
             continue;
         }
-        pending.extend(plan.edges.iter().filter_map(|edge| {
-            (edge.kind == PlanEdgeKind::Sequence && edge.to == source).then_some(edge.from)
-        }));
+        pending.extend(
+            index
+                .incoming(source)
+                .iter()
+                .filter_map(|edge| (edge.kind == PlanEdgeKind::Sequence).then_some(edge.from)),
+        );
     }
     executable
 }
 
 pub(super) fn sequence_can_relax(
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     predecessor: PlanNodeId,
     successor: PlanNodeId,
     summaries: &HashMap<PlanNodeId, EffectSummary>,
 ) -> bool {
-    if direct_members_of_concurrent_group(plan, predecessor, successor) {
+    if direct_members_of_concurrent_group(plan, index, predecessor, successor) {
         return true;
     }
     if let (Some((left_group, left_member)), Some((right_group, right_member))) = (
-        crate::dispatch_model::autonomous_member(plan, predecessor),
-        crate::dispatch_model::autonomous_member(plan, successor),
+        crate::dispatch_model::autonomous_member_indexed(plan, index, predecessor),
+        crate::dispatch_model::autonomous_member_indexed(plan, index, successor),
     ) {
         if left_group == right_group && left_member != right_member {
             // Explicit unordered semantics apply across complete member
@@ -372,8 +384,8 @@ pub(super) fn sequence_can_relax(
     let Some(right) = summaries.get(&successor) else {
         return false;
     };
-    if inside_left_to_right_region(plan, predecessor)
-        || inside_left_to_right_region(plan, successor)
+    if inside_left_to_right_region(plan, index, predecessor)
+        || inside_left_to_right_region(plan, index, successor)
     {
         return false;
     }
@@ -392,8 +404,8 @@ pub(super) fn sequence_can_relax(
     }
     left.is_verified_pure_infallible()
         && right.is_verified_pure_infallible()
-        && verified_reorderable_inline(plan, predecessor, summaries, &mut HashSet::new())
-        && verified_reorderable_inline(plan, successor, summaries, &mut HashSet::new())
+        && verified_reorderable_inline(plan, index, predecessor, summaries, &mut HashSet::new())
+        && verified_reorderable_inline(plan, index, successor, summaries, &mut HashSet::new())
 }
 
 fn verified_read_only(summary: &EffectSummary) -> bool {
@@ -410,10 +422,15 @@ fn verified_read_only(summary: &EffectSummary) -> bool {
 /// of otherwise reorderable inline renders keeps its completion dependency
 /// there. Explicit concurrent groups are handled before this check and retain
 /// their own topology.
-fn inside_left_to_right_region(plan: &ExecutionPlan, node: PlanNodeId) -> bool {
-    plan.edges
+fn inside_left_to_right_region(
+    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
+    node: PlanNodeId,
+) -> bool {
+    index
+        .outgoing(node)
         .iter()
-        .filter(|edge| edge.kind == PlanEdgeKind::Structural && edge.from == node)
+        .filter(|edge| edge.kind == PlanEdgeKind::Structural)
         .map(|edge| &plan.nodes[edge.to.0].kind)
         .any(|kind| {
             matches!(
@@ -427,23 +444,27 @@ fn inside_left_to_right_region(plan: &ExecutionPlan, node: PlanNodeId) -> bool {
 
 fn direct_members_of_concurrent_group(
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     left: PlanNodeId,
     right: PlanNodeId,
 ) -> bool {
-    plan.edges
+    index
+        .outgoing(left)
         .iter()
-        .filter(|edge| edge.kind == PlanEdgeKind::Structural && edge.from == left)
+        .filter(|edge| edge.kind == PlanEdgeKind::Structural)
         .map(|edge| edge.to)
         .any(|parent| {
             matches!(plan.nodes[parent.0].kind, PlanNodeKind::Group { .. })
-                && plan.edges.iter().any(|edge| {
-                    edge.kind == PlanEdgeKind::Structural && edge.from == right && edge.to == parent
-                })
+                && index
+                    .outgoing(right)
+                    .iter()
+                    .any(|edge| edge.kind == PlanEdgeKind::Structural && edge.to == parent)
         })
 }
 
 fn verified_reorderable_inline(
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     node: PlanNodeId,
     summaries: &HashMap<PlanNodeId, EffectSummary>,
     visited: &mut HashSet<PlanNodeId>,
@@ -466,18 +487,17 @@ fn verified_reorderable_inline(
     // hosted evaluation that fails or mutates state while its body is forced.
     // Relaxation is therefore justified only when the complete structural
     // subtree consists of literals and recursively verified renderers.
-    plan.edges
+    index
+        .incoming(node)
         .iter()
-        .filter_map(|edge| {
-            (edge.kind == PlanEdgeKind::Structural && edge.to == node).then_some(edge.from)
-        })
+        .filter_map(|edge| (edge.kind == PlanEdgeKind::Structural).then_some(edge.from))
         .all(|child| match &plan.nodes[child.0].kind {
             PlanNodeKind::Text => true,
             PlanNodeKind::Exec { .. } => {
                 summaries
                     .get(&child)
                     .is_some_and(EffectSummary::is_verified_pure_infallible)
-                    && verified_reorderable_inline(plan, child, summaries, visited)
+                    && verified_reorderable_inline(plan, index, child, summaries, visited)
             }
             _ => false,
         })
@@ -542,11 +562,12 @@ fn hnode_for_oir(node: &OIr) -> HNode {
 fn add_plan_semantics(
     graph: &mut HGraph,
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     node_map: &HashMap<PlanNodeId, NodeId>,
 ) {
     for plan_node in &plan.nodes {
         let output = node_map[&plan_node.id];
-        let inputs = structural_inputs(plan, node_map, plan_node.id);
+        let inputs = structural_inputs(index, node_map, plan_node.id);
 
         match &plan_node.kind {
             PlanNodeKind::Exec { backend, .. } => {
@@ -643,14 +664,14 @@ fn add_plan_semantics(
 }
 
 fn structural_inputs(
-    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     node_map: &HashMap<PlanNodeId, NodeId>,
     parent: PlanNodeId,
 ) -> Vec<NodeId> {
-    let mut children = plan
-        .edges
+    let mut children = index
+        .incoming(parent)
         .iter()
-        .filter(|edge| edge.kind == PlanEdgeKind::Structural && edge.to == parent)
+        .filter(|edge| edge.kind == PlanEdgeKind::Structural)
         .map(|edge| (edge.from.0, node_map[&edge.from]))
         .collect::<Vec<_>>();
     children.sort_by_key(|(id, _)| *id);
@@ -700,6 +721,76 @@ mod world_resource_key_tests {
         NodeGeneration, NodeId, NodeIdentity, ResourceGeneration, ResourceId, ResourceIdentity,
         ResourceOwner, WorldId,
     };
+
+    #[test]
+    fn indexed_sequence_frontiers_match_scans_across_literals_and_branches() {
+        fn scan(plan: &ExecutionPlan, target: PlanNodeId) -> BTreeSet<PlanNodeId> {
+            let mut pending = vec![target];
+            let mut visited = HashSet::new();
+            let mut result = BTreeSet::new();
+            while let Some(to) = pending.pop() {
+                for edge in plan
+                    .edges
+                    .iter()
+                    .filter(|edge| edge.to == to && edge.kind == PlanEdgeKind::Sequence)
+                {
+                    if !visited.insert(edge.from) {
+                        continue;
+                    }
+                    if executable_op(&plan.nodes[edge.from.0].kind).is_some() {
+                        result.insert(edge.from);
+                    } else {
+                        pending.push(edge.from);
+                    }
+                }
+            }
+            result
+        }
+        for seed in 0..16usize {
+            let count = 20;
+            let mut plan = ExecutionPlan {
+                roots: (0..count).map(PlanNodeId).collect(),
+                nodes: (0..count)
+                    .map(|id| crate::ir::PlanNode {
+                        id: PlanNodeId(id),
+                        kind: if (id + seed) % 3 == 0 {
+                            PlanNodeKind::Text
+                        } else {
+                            PlanNodeKind::Load {
+                                name: format!("v{id}"),
+                            }
+                        },
+                    })
+                    .collect(),
+                edges: Vec::new(),
+            };
+            for to in 1..count {
+                for from in 0..to {
+                    if (from * 7 + to + seed) % 5 == 0 || from + 1 == to {
+                        let edge = crate::ir::PlanEdge {
+                            from: PlanNodeId(from),
+                            to: PlanNodeId(to),
+                            kind: PlanEdgeKind::Sequence,
+                        };
+                        plan.edges.push(edge.clone());
+                        if from % 2 == 0 {
+                            plan.edges.push(edge);
+                        }
+                    }
+                }
+            }
+            if seed % 2 == 0 {
+                plan.edges.reverse();
+            }
+            let index = ExecutionPlanIndex::new(&plan).unwrap();
+            for target in (0..count).map(PlanNodeId) {
+                assert_eq!(
+                    executable_sequence_predecessors(&plan, &index, target),
+                    scan(&plan, target)
+                );
+            }
+        }
+    }
 
     #[test]
     fn world_resource_keys_share_the_generic_hgraph_state_chain() {

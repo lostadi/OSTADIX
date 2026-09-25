@@ -24,7 +24,7 @@
 use crate::environment::EnvironmentRefV2;
 use crate::parser::ONode;
 use crate::value::GroupMode;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 pub use crate::backend_catalog::{
     BackendAdapterKind, BackendInterface, BackendMorphismProfileV1, BackendRegistry, BackendSpec,
@@ -369,7 +369,7 @@ impl From<PlanNodeId> for usize {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlanEdgeKind {
     Structural,
     Sequence,
@@ -508,6 +508,67 @@ pub struct ExecutionPlan {
     pub roots: Vec<PlanNodeId>,
     pub nodes: Vec<PlanNode>,
     pub edges: Vec<PlanEdge>,
+}
+
+/// Per-pass lookup data for an immutable, validated execution plan. This is
+/// deliberately separate from the public mutable plan and never participates
+/// in its semantic identity, serialization, or edge ordering.
+#[derive(Debug)]
+pub(crate) struct ExecutionPlanIndex {
+    incoming: Vec<Vec<PlanEdge>>,
+    outgoing: Vec<Vec<PlanEdge>>,
+    order: Vec<PlanNodeId>,
+    children: Vec<Vec<PlanNodeId>>,
+}
+
+impl ExecutionPlanIndex {
+    pub(crate) fn new(plan: &ExecutionPlan) -> Result<Self, String> {
+        // Keep identity, roots, edge bounds and cycle rejection at the same
+        // authority boundary as the unindexed plan operations.
+        plan.validate(plan.roots.len())?;
+        let order = plan.topological_order()?;
+        let mut incoming = vec![Vec::new(); plan.nodes.len()];
+        let mut outgoing = vec![Vec::new(); plan.nodes.len()];
+        for edge in &plan.edges {
+            incoming[edge.to.0].push(edge.clone());
+            outgoing[edge.from.0].push(edge.clone());
+        }
+        let mut children = vec![Vec::new(); plan.nodes.len()];
+        for &child in &order {
+            for edge in &outgoing[child.0] {
+                if edge.kind == PlanEdgeKind::Structural
+                    && children[edge.to.0].last() != Some(&child)
+                {
+                    children[edge.to.0].push(child);
+                }
+            }
+        }
+        Ok(Self {
+            incoming,
+            outgoing,
+            order,
+            children,
+        })
+    }
+
+    pub(crate) fn incoming(&self, node: PlanNodeId) -> &[PlanEdge] {
+        &self.incoming[node.0]
+    }
+
+    pub(crate) fn outgoing(&self, node: PlanNodeId) -> &[PlanEdge] {
+        &self.outgoing[node.0]
+    }
+
+    pub(crate) fn topological_order(&self) -> &[PlanNodeId] {
+        &self.order
+    }
+
+    pub(crate) fn child_schedule(&self, parent: PlanNodeId) -> Result<&[PlanNodeId], String> {
+        self.children
+            .get(parent.0)
+            .map(Vec::as_slice)
+            .ok_or_else(|| format!("execution plan parent {} is out of bounds", parent.0))
+    }
 }
 
 impl ExecutionPlan {
@@ -760,6 +821,7 @@ fn parse_eval_cache_policy(attr: Option<&str>) -> Option<CachePolicy> {
 struct PlanBuilder {
     nodes: Vec<PlanNode>,
     edges: Vec<PlanEdge>,
+    edge_membership: HashSet<(PlanNodeId, PlanNodeId, PlanEdgeKind)>,
 }
 
 impl PlanBuilder {
@@ -767,6 +829,7 @@ impl PlanBuilder {
         Self {
             nodes: Vec::new(),
             edges: Vec::new(),
+            edge_membership: HashSet::new(),
         }
     }
 
@@ -779,11 +842,7 @@ impl PlanBuilder {
     }
 
     fn add_edge(&mut self, from: PlanNodeId, to: PlanNodeId, kind: PlanEdgeKind) {
-        if !self
-            .edges
-            .iter()
-            .any(|edge| edge.from == from && edge.to == to && edge.kind == kind)
-        {
+        if self.edge_membership.insert((from, to, kind)) {
             self.edges.push(PlanEdge { from, to, kind });
         }
     }
@@ -1279,6 +1338,148 @@ mod tests {
             visible_stores,
             BTreeSet::from([PlanNodeId(0), PlanNodeId(2)])
         );
+    }
+
+    #[test]
+    fn plan_index_matches_scans_for_permuted_dags_with_duplicate_edges() {
+        // Keep this oracle scan-based: it checks ordering and multiplicity
+        // against the original public operations, not against the index.
+        for seed in 0..32usize {
+            let count = 2 + seed % 15;
+            let mut order = (0..count).collect::<Vec<_>>();
+            order.rotate_left(seed % count);
+            if seed % 2 == 1 {
+                order.reverse();
+            }
+            let mut edges = Vec::new();
+            for from in 0..count {
+                for to in from + 1..count {
+                    let code = (from * 17 + to * 7 + seed) % 7;
+                    if code < 3 {
+                        let edge = PlanEdge {
+                            from: PlanNodeId(order[from]),
+                            to: PlanNodeId(order[to]),
+                            kind: [
+                                PlanEdgeKind::Structural,
+                                PlanEdgeKind::Sequence,
+                                PlanEdgeKind::Data,
+                            ][code],
+                        };
+                        edges.push(edge.clone());
+                        if (from + to + seed) % 3 == 0 {
+                            edges.push(edge);
+                        }
+                    }
+                }
+            }
+            if seed % 2 == 0 {
+                edges.reverse();
+            }
+            let plan = ExecutionPlan {
+                roots: (0..count).map(PlanNodeId).collect(),
+                nodes: (0..count)
+                    .map(|id| PlanNode {
+                        id: PlanNodeId(id),
+                        kind: PlanNodeKind::Text,
+                    })
+                    .collect(),
+                edges,
+            };
+            let index = ExecutionPlanIndex::new(&plan).unwrap();
+            assert_eq!(index.topological_order(), plan.topological_order().unwrap());
+            for node in (0..count).map(PlanNodeId) {
+                assert_eq!(
+                    index.incoming(node),
+                    plan.edges
+                        .iter()
+                        .filter(|edge| edge.to == node)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                );
+                assert_eq!(
+                    index.outgoing(node),
+                    plan.edges
+                        .iter()
+                        .filter(|edge| edge.from == node)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                );
+                assert_eq!(
+                    index.child_schedule(node).unwrap(),
+                    plan.child_schedule(node).unwrap()
+                );
+            }
+            assert_eq!(
+                index.child_schedule(PlanNodeId(count)).unwrap_err(),
+                plan.child_schedule(PlanNodeId(count)).unwrap_err()
+            );
+        }
+    }
+
+    #[test]
+    fn plan_index_preserves_identity_bounds_root_and_cycle_rejections() {
+        let valid = ExecutionPlan {
+            roots: vec![PlanNodeId(1)],
+            nodes: (0..2)
+                .map(|id| PlanNode {
+                    id: PlanNodeId(id),
+                    kind: PlanNodeKind::Text,
+                })
+                .collect(),
+            edges: vec![PlanEdge {
+                from: PlanNodeId(0),
+                to: PlanNodeId(1),
+                kind: PlanEdgeKind::Structural,
+            }],
+        };
+        let mut cases = Vec::new();
+        let mut identity = valid.clone();
+        identity.nodes[0].id = PlanNodeId(7);
+        cases.push(identity);
+        let mut bounds = valid.clone();
+        bounds.edges[0].from = PlanNodeId(2);
+        cases.push(bounds);
+        let mut root = valid.clone();
+        root.roots.push(root.roots[0]);
+        cases.push(root);
+        let mut cycle = valid;
+        cycle.edges.push(PlanEdge {
+            from: PlanNodeId(1),
+            to: PlanNodeId(0),
+            kind: PlanEdgeKind::Data,
+        });
+        cases.push(cycle);
+        for plan in cases {
+            assert_eq!(
+                ExecutionPlanIndex::new(&plan).unwrap_err(),
+                plan.validate(plan.roots.len()).unwrap_err()
+            );
+        }
+    }
+
+    #[test]
+    fn plan_builder_membership_keeps_first_edge_order_and_distinct_kinds() {
+        let mut builder = PlanBuilder::new();
+        let mut expected = Vec::new();
+        for round in 0..3 {
+            for from in (0..32).rev() {
+                for kind in [
+                    PlanEdgeKind::Structural,
+                    PlanEdgeKind::Data,
+                    PlanEdgeKind::Sequence,
+                ] {
+                    builder.add_edge(PlanNodeId(from), PlanNodeId(from + 1), kind);
+                    if round == 0 {
+                        expected.push(PlanEdge {
+                            from: PlanNodeId(from),
+                            to: PlanNodeId(from + 1),
+                            kind,
+                        });
+                    }
+                }
+            }
+        }
+        assert_eq!(builder.finish(Vec::new()).edges, expected);
     }
 
     #[test]

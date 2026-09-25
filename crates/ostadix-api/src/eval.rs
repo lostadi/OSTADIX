@@ -52,8 +52,8 @@ use crate::executor::CancellationToken;
 #[cfg(test)]
 use crate::ir::lower_node;
 use crate::ir::{
-    reconstruct_source as reconstruct_ir_source, ExecutionPlan, InvokeMode, OIr, OIrProgram,
-    PlanNodeId, PlanNodeKind,
+    reconstruct_source as reconstruct_ir_source, ExecutionPlan, ExecutionPlanIndex, InvokeMode,
+    OIr, OIrProgram, PlanNodeId, PlanNodeKind,
 };
 use crate::nix_ops;
 use crate::nixos_ops;
@@ -2924,14 +2924,18 @@ impl Evaluator {
         validate_execution_metadata(&flat)?;
 
         let base_policy = self.policy;
+        let plan_index = ExecutionPlanIndex::new(plan).map_err(anyhow::Error::msg)?;
+        let node_policy = derive_policy_contexts(plan, &plan_index, &flat, base_policy)?;
         let mut frame = GraphEvalFrame {
+            plan_index,
             values: vec![None; plan.nodes.len()],
             base_scope: scope.clone(),
-            node_policy: derive_policy_contexts(plan, &flat, base_policy)?,
+            node_policy,
             trace: ExecutionTrace::new(),
         };
 
-        for id in plan.topological_order().map_err(anyhow::Error::msg)? {
+        let execution_order = frame.plan_index.topological_order().to_vec();
+        for id in execution_order {
             if let Err(error) = self.check_request_control() {
                 self.last_execution_trace = Some(frame.trace.clone());
                 return Err(error);
@@ -3027,8 +3031,11 @@ impl Evaluator {
     ) -> Result<OValue> {
         match node {
             OIr::Store { expr, .. } => {
-                let children =
-                    planned_children(plan, node_id, std::slice::from_ref(expr.as_ref()))?;
+                let children = planned_children(
+                    &frame.plan_index,
+                    node_id,
+                    std::slice::from_ref(expr.as_ref()),
+                )?;
                 let (expr_id, _) = children[0];
                 Ok(frame.value(expr_id)?.clone())
             }
@@ -3067,7 +3074,7 @@ impl Evaluator {
         plan: &ExecutionPlan,
         frame: &GraphEvalFrame,
     ) -> Result<OValue> {
-        let store_sources = data_predecessors(plan, node_id)
+        let store_sources = data_predecessors(&frame.plan_index, node_id)
             .into_iter()
             .filter(|source| matches!(plan.nodes[source.0].kind, PlanNodeKind::Store { .. }))
             .collect::<Vec<_>>();
@@ -3090,7 +3097,7 @@ impl Evaluator {
         plan: &ExecutionPlan,
         frame: &mut GraphEvalFrame,
     ) -> Result<OValue> {
-        let planned_args = planned_children(plan, node_id, args)?;
+        let planned_args = planned_children(&frame.plan_index, node_id, args)?;
         let arg_vals = planned_args
             .iter()
             .map(|(id, _)| frame.value(*id).cloned())
@@ -3161,7 +3168,7 @@ impl Evaluator {
             return Ok(OValue::Expr { src });
         }
 
-        let planned_body = planned_children(plan, node_id, body)?;
+        let planned_body = planned_children(&frame.plan_index, node_id, body)?;
 
         if backend.execution == ExecutionMode::InlineAst && backend.canonical == "O" {
             if attr.is_some() {
@@ -4036,11 +4043,11 @@ fn unique_admitted_sha256<'a>(
 /// sorted copy provides the stable mapping back to the child payloads while
 /// `child_schedule` remains free to reorder independent work later.
 fn planned_children<'a>(
-    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     parent: PlanNodeId,
     children: &'a [OIr],
 ) -> Result<Vec<(PlanNodeId, &'a OIr)>> {
-    let scheduled = plan.child_schedule(parent).map_err(anyhow::Error::msg)?;
+    let scheduled = index.child_schedule(parent).map_err(anyhow::Error::msg)?;
     if scheduled.len() != children.len() {
         bail!(
             "OIR plan node {} schedules {} children for {} instructions",
@@ -4049,10 +4056,11 @@ fn planned_children<'a>(
             children.len()
         );
     }
-    let mut source_ids = scheduled.clone();
+    let mut source_ids = scheduled.to_vec();
     source_ids.sort_by_key(|id| id.0);
     scheduled
-        .into_iter()
+        .iter()
+        .copied()
         .map(|id| {
             let source_index = source_ids
                 .binary_search_by_key(&id.0, |candidate| candidate.0)
@@ -8900,8 +8908,20 @@ python[0]^(O.eval($q, $captured))_python[0]
         let plan = program.plan();
         plan.validate(program.nodes.len()).unwrap();
         let flat = program.flatten_for_plan();
-        let autonomous_policies = derive_policy_contexts(&plan, &flat, Policy::Autonomous).unwrap();
-        let eager_policies = derive_policy_contexts(&plan, &flat, Policy::Eager).unwrap();
+        let autonomous_policies = derive_policy_contexts(
+            &plan,
+            &ExecutionPlanIndex::new(&plan).unwrap(),
+            &flat,
+            Policy::Autonomous,
+        )
+        .unwrap();
+        let eager_policies = derive_policy_contexts(
+            &plan,
+            &ExecutionPlanIndex::new(&plan).unwrap(),
+            &flat,
+            Policy::Eager,
+        )
+        .unwrap();
         let request_ids = plan
             .nodes
             .iter()

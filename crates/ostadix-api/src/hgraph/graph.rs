@@ -1588,7 +1588,7 @@ impl HGraph {
         let Some(plan) = &self.source_plan else {
             return Ok(());
         };
-        plan.validate(plan.roots.len())?;
+        let index = crate::ir::ExecutionPlanIndex::new(plan)?;
 
         let mut value_for_plan = BTreeMap::new();
         for (node_id, node) in &self.nodes {
@@ -1693,13 +1693,12 @@ impl HGraph {
                 ));
             }
 
-            let expected_value_inputs = plan
-                .edges
+            let expected_value_inputs = index
+                .incoming(plan_node.id)
                 .iter()
                 .filter_map(|edge| {
-                    (edge.to == plan_node.id
-                        && matches!(edge.kind, PlanEdgeKind::Structural | PlanEdgeKind::Data))
-                    .then_some(value_for_plan[&edge.from])
+                    matches!(edge.kind, PlanEdgeKind::Structural | PlanEdgeKind::Data)
+                        .then_some(value_for_plan[&edge.from])
                 })
                 .collect::<BTreeSet<_>>();
             let actual_value_inputs = info
@@ -1721,9 +1720,12 @@ impl HGraph {
             if super::from_oir::executable_op(&plan.nodes[target.0].kind).is_none() {
                 continue;
             }
-            for predecessor in super::from_oir::executable_sequence_predecessors(plan, target) {
+            for predecessor in
+                super::from_oir::executable_sequence_predecessors(plan, &index, target)
+            {
                 if !super::from_oir::sequence_can_relax(
                     plan,
+                    &index,
                     predecessor,
                     target,
                     &self.effect_summaries,
@@ -1759,7 +1761,7 @@ impl HGraph {
                 actual_sequences, expected_sequences
             ));
         }
-        self.validate_source_resource_frontiers(plan)?;
+        self.validate_source_resource_frontiers(plan, &index)?;
         Ok(())
     }
 
@@ -1767,7 +1769,11 @@ impl HGraph {
     /// source effects. Local version monotonicity alone cannot prove that a
     /// writer drains every earlier reader completion, so this closes that
     /// omission attack at validation time.
-    fn validate_source_resource_frontiers(&self, plan: &ExecutionPlan) -> Result<(), String> {
+    fn validate_source_resource_frontiers(
+        &self,
+        plan: &ExecutionPlan,
+        index: &crate::ir::ExecutionPlanIndex,
+    ) -> Result<(), String> {
         #[derive(Default)]
         struct ExpectedFrontier {
             last_write: Option<NodeId>,
@@ -1792,7 +1798,7 @@ impl HGraph {
         }
 
         let mut frontiers: BTreeMap<ResourceKey, ExpectedFrontier> = BTreeMap::new();
-        for plan_node in plan.topological_order()? {
+        for &plan_node in index.topological_order() {
             let Some(info) = self.op_map.get(&plan_node) else {
                 continue;
             };
@@ -1800,7 +1806,11 @@ impl HGraph {
             let oir = self.ir_map.get(&info.value_output).ok_or_else(|| {
                 format!("operation {} has no recorded OIR value node", plan_node.0)
             })?;
-            if crate::dispatch_model::autonomous_ephemeral_group(plan, plan_node, oir).is_some() {
+            if crate::dispatch_model::autonomous_ephemeral_group_indexed(
+                plan, index, plan_node, oir,
+            )
+            .is_some()
+            {
                 continue;
             }
             let (reads, writes) = summary.scheduling_accesses();

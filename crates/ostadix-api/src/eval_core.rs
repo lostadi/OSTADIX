@@ -17,7 +17,9 @@ use crate::backend_catalog::{BackendInterface, SpliceRenderer};
 use crate::capability::BackendSandboxPolicy;
 use crate::evidence::AdmittedExecution;
 use crate::execution_contract::Policy;
-use crate::ir::{ExecutionPlan, InvokeMode, OIr, PlanEdgeKind, PlanNodeId, PlanNodeKind};
+use crate::ir::{
+    ExecutionPlan, ExecutionPlanIndex, InvokeMode, OIr, PlanEdgeKind, PlanNodeId, PlanNodeKind,
+};
 use crate::value::{fingerprint_preview, DecimalSpecial, FloatFormat, ONumber, OValue, SeqKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +67,7 @@ pub enum TraceEvent {
 
 /// Materialized values and policy context for one graph evaluation.
 pub(crate) struct GraphEvalFrame {
+    pub(crate) plan_index: ExecutionPlanIndex,
     pub(crate) values: Vec<Option<OValue>>,
     pub(crate) base_scope: HashMap<String, OValue>,
     pub(crate) node_policy: Vec<Policy>,
@@ -94,7 +97,7 @@ impl GraphEvalFrame {
         plan: &ExecutionPlan,
     ) -> Result<HashMap<String, OValue>> {
         let mut scope = self.base_scope.clone();
-        for source in data_predecessors(plan, node_id) {
+        for source in data_predecessors(&self.plan_index, node_id) {
             if let PlanNodeKind::Store { name } = &plan.nodes[source.0].kind {
                 scope.insert(name.clone(), self.value(source)?.clone());
             }
@@ -108,7 +111,7 @@ impl GraphEvalFrame {
         plan: &ExecutionPlan,
     ) -> Result<HashMap<String, OValue>> {
         let mut scope = self.scope_from_data_edges(node_id, plan)?;
-        for child in structural_children(plan, node_id) {
+        for child in structural_children(&self.plan_index, node_id) {
             if let PlanNodeKind::Store { name } = &plan.nodes[child.0].kind {
                 scope.insert(name.clone(), self.value(child)?.clone());
             }
@@ -241,25 +244,24 @@ pub(crate) fn trace_fingerprint(value: &OValue) -> Option<String> {
     }
 }
 
-pub(crate) fn data_predecessors(plan: &ExecutionPlan, node_id: PlanNodeId) -> Vec<PlanNodeId> {
-    let mut sources = plan
-        .edges
+pub(crate) fn data_predecessors(
+    index: &ExecutionPlanIndex,
+    node_id: PlanNodeId,
+) -> Vec<PlanNodeId> {
+    let mut sources = index
+        .incoming(node_id)
         .iter()
-        .filter_map(|edge| {
-            (edge.kind == PlanEdgeKind::Data && edge.to == node_id).then_some(edge.from)
-        })
+        .filter_map(|edge| (edge.kind == PlanEdgeKind::Data).then_some(edge.from))
         .collect::<Vec<_>>();
     sources.sort_by_key(|id| id.0);
     sources
 }
 
-fn structural_children(plan: &ExecutionPlan, parent: PlanNodeId) -> Vec<PlanNodeId> {
-    let mut children = plan
-        .edges
+fn structural_children(index: &ExecutionPlanIndex, parent: PlanNodeId) -> Vec<PlanNodeId> {
+    let mut children = index
+        .incoming(parent)
         .iter()
-        .filter_map(|edge| {
-            (edge.kind == PlanEdgeKind::Structural && edge.to == parent).then_some(edge.from)
-        })
+        .filter_map(|edge| (edge.kind == PlanEdgeKind::Structural).then_some(edge.from))
         .collect::<Vec<_>>();
     children.sort_by_key(|id| id.0);
     children
@@ -267,6 +269,7 @@ fn structural_children(plan: &ExecutionPlan, parent: PlanNodeId) -> Vec<PlanNode
 
 pub(crate) fn derive_policy_contexts(
     plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
     flat: &[&OIr],
     base_policy: Policy,
 ) -> Result<Vec<Policy>> {
@@ -302,7 +305,7 @@ pub(crate) fn derive_policy_contexts(
             _ => parent_policy,
         };
 
-        for child in structural_children(plan, id) {
+        for child in structural_children(index, id) {
             policies[child.0] = child_policy;
         }
     }

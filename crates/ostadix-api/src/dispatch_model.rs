@@ -9,7 +9,10 @@ use std::collections::HashSet;
 use crate::backend_catalog::{ExecutionMode, SpliceRenderer};
 use crate::effects::{EffectConfidence, EffectSummary, Fallibility, ResourceKey};
 use crate::environment::EnvironmentRefV2;
-use crate::ir::{ExecutionPlan, OIr, PlanEdgeKind, PlanNodeId, PlanNodeKind, PlanScheduleKind};
+use crate::ir::{
+    ExecutionPlan, ExecutionPlanIndex, OIr, PlanEdgeKind, PlanNodeId, PlanNodeKind,
+    PlanScheduleKind,
+};
 
 /// Stable preparation adapter selected by evidence analysis. The runtime may
 /// validate the bound adapter against admitted OIR, but may not choose a
@@ -119,6 +122,24 @@ pub(crate) fn autonomous_ephemeral_group(
     node: PlanNodeId,
     oir: &OIr,
 ) -> Option<PlanNodeId> {
+    autonomous_ephemeral_group_with_index(plan, None, node, oir)
+}
+
+pub(crate) fn autonomous_ephemeral_group_indexed(
+    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
+    node: PlanNodeId,
+    oir: &OIr,
+) -> Option<PlanNodeId> {
+    autonomous_ephemeral_group_with_index(plan, Some(index), node, oir)
+}
+
+fn autonomous_ephemeral_group_with_index(
+    plan: &ExecutionPlan,
+    index: Option<&ExecutionPlanIndex>,
+    node: PlanNodeId,
+    oir: &OIr,
+) -> Option<PlanNodeId> {
     let OIr::Exec {
         env_id,
         attr,
@@ -135,7 +156,11 @@ pub(crate) fn autonomous_ephemeral_group(
         return None;
     }
 
-    autonomous_member(plan, node).map(|(group, _)| group)
+    match index {
+        Some(index) => autonomous_member_indexed(plan, index, node),
+        None => autonomous_member(plan, node),
+    }
+    .map(|(group, _)| group)
 }
 
 /// Find the direct member containing this operation in an explicit autonomous
@@ -145,19 +170,43 @@ pub(crate) fn autonomous_member(
     plan: &ExecutionPlan,
     node: PlanNodeId,
 ) -> Option<(PlanNodeId, PlanNodeId)> {
+    autonomous_member_with_index(plan, None, node)
+}
+
+pub(crate) fn autonomous_member_indexed(
+    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
+    node: PlanNodeId,
+) -> Option<(PlanNodeId, PlanNodeId)> {
+    autonomous_member_with_index(plan, Some(index), node)
+}
+
+fn structural_parents(
+    plan: &ExecutionPlan,
+    index: Option<&ExecutionPlanIndex>,
+    node: PlanNodeId,
+) -> Vec<PlanNodeId> {
+    let edges = index.map_or(plan.edges.as_slice(), |index| index.outgoing(node));
+    edges
+        .iter()
+        .filter_map(|edge| {
+            (edge.kind == PlanEdgeKind::Structural && edge.from == node).then_some(edge.to)
+        })
+        .collect()
+}
+
+fn autonomous_member_with_index(
+    plan: &ExecutionPlan,
+    index: Option<&ExecutionPlanIndex>,
+    node: PlanNodeId,
+) -> Option<(PlanNodeId, PlanNodeId)> {
     let mut current = node;
     let mut visited = HashSet::new();
     let (group, member) = loop {
         if !visited.insert(current) {
             return None;
         }
-        let parents = plan
-            .edges
-            .iter()
-            .filter_map(|edge| {
-                (edge.kind == PlanEdgeKind::Structural && edge.from == current).then_some(edge.to)
-            })
-            .collect::<Vec<_>>();
+        let parents = structural_parents(plan, index, current);
         let [parent] = parents.as_slice() else {
             return None;
         };
@@ -179,23 +228,21 @@ pub(crate) fn autonomous_member(
             _ => return None,
         }
     };
-    nearest_policy_schedule_is_autonomous(plan, group).then_some((group, member))
+    nearest_policy_schedule_is_autonomous(plan, index, group).then_some((group, member))
 }
 
-fn nearest_policy_schedule_is_autonomous(plan: &ExecutionPlan, node: PlanNodeId) -> bool {
+fn nearest_policy_schedule_is_autonomous(
+    plan: &ExecutionPlan,
+    index: Option<&ExecutionPlanIndex>,
+    node: PlanNodeId,
+) -> bool {
     let mut current = node;
     let mut visited = HashSet::new();
     loop {
         if !visited.insert(current) {
             return false;
         }
-        let parents = plan
-            .edges
-            .iter()
-            .filter_map(|edge| {
-                (edge.kind == PlanEdgeKind::Structural && edge.from == current).then_some(edge.to)
-            })
-            .collect::<Vec<_>>();
+        let parents = structural_parents(plan, index, current);
         let [parent] = parents.as_slice() else {
             return false;
         };
@@ -388,6 +435,44 @@ mod tests {
                 case == 0 || case == 5,
                 "restricted ancestor case {case}"
             );
+            // The indexed path must preserve policy boundaries and the exact
+            // ambiguity caused by duplicate structural parents. Edge order
+            // cannot change classification either.
+            for variant in 0..4 {
+                let mut candidate = plan.clone();
+                if variant & 1 != 0 {
+                    candidate.edges.reverse();
+                }
+                if variant & 2 != 0 {
+                    let edge = candidate
+                        .edges
+                        .iter()
+                        .find(|edge| edge.kind == PlanEdgeKind::Structural)
+                        .unwrap()
+                        .clone();
+                    candidate.edges.push(edge);
+                }
+                let index = ExecutionPlanIndex::new(&candidate).unwrap();
+                for node in &candidate.nodes {
+                    assert_eq!(
+                        autonomous_member_indexed(&candidate, &index, node.id),
+                        autonomous_member(&candidate, node.id),
+                        "member case {case} variant {variant} node {}",
+                        node.id.0
+                    );
+                    assert_eq!(
+                        autonomous_ephemeral_group_indexed(
+                            &candidate,
+                            &index,
+                            node.id,
+                            flat[node.id.0]
+                        ),
+                        autonomous_ephemeral_group(&candidate, node.id, flat[node.id.0]),
+                        "shim case {case} variant {variant} node {}",
+                        node.id.0
+                    );
+                }
+            }
         }
     }
 }

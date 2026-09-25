@@ -460,10 +460,10 @@ pub(crate) fn render_inputs_pure(
     if matches!(plan.nodes[id.0].kind, PlanNodeKind::Load { .. }) {
         return true;
     }
-    let Ok(children) = plan.child_schedule(id) else {
+    let Ok(children) = frame.plan_index.child_schedule(id) else {
         return false;
     };
-    for child in children {
+    for &child in children {
         if matches!(plan.nodes[child.0].kind, PlanNodeKind::Store { .. }) {
             continue;
         }
@@ -507,7 +507,10 @@ fn build_task(
             } = shim_runtime.ok_or_else(|| {
                 anyhow::anyhow!("ephemeral shim adapter requires an authorized runtime binding")
             })?;
-            let children = plan.child_schedule(id).map_err(anyhow::Error::msg)?;
+            let children = frame
+                .plan_index
+                .child_schedule(id)
+                .map_err(anyhow::Error::msg)?;
             let bindings = frame.exec_scope(id, plan)?;
             if let Some(contract) = morphism_contract {
                 contract
@@ -515,7 +518,7 @@ fn build_task(
                     .map_err(anyhow::Error::msg)?;
             }
             let mut code = String::new();
-            for child in children {
+            for &child in children {
                 match &plan.nodes[child.0].kind {
                     PlanNodeKind::Store { .. } => {}
                     PlanNodeKind::Text => {
@@ -550,9 +553,12 @@ fn build_task(
             renderer,
             canonical,
         } => {
-            let children = plan.child_schedule(id).map_err(anyhow::Error::msg)?;
+            let children = frame
+                .plan_index
+                .child_schedule(id)
+                .map_err(anyhow::Error::msg)?;
             let mut parts = Vec::new();
-            for child in children {
+            for &child in children {
                 match &plan.nodes[child.0].kind {
                     // Store children contribute only to the (unused for inline
                     // value output) local scope.
@@ -814,6 +820,7 @@ mod tests {
         let plan = program.plan();
         let id = plan.roots[0];
         let frame = GraphEvalFrame {
+            plan_index: crate::ir::ExecutionPlanIndex::new(&plan).unwrap(),
             values: vec![None; plan.nodes.len()],
             base_scope: HashMap::from([("bound".to_string(), OValue::str_("value"))]),
             node_policy: vec![Policy::Eager; plan.nodes.len()],

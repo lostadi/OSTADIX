@@ -769,7 +769,10 @@ fn build_admission_derived_projection(
     implementation_sha256: Sha256DigestV1,
     base_policy: crate::execution_contract::Policy,
 ) -> Result<AdmissionDerivedProjectionV1> {
-    let children = plan.child_schedule(id).map_err(anyhow::Error::msg)?;
+    let children = frame
+        .plan_index
+        .child_schedule(id)
+        .map_err(anyhow::Error::msg)?;
     if children.len() != admitted_body_len {
         bail!("admitted renderer body and plan child projection differ");
     }
@@ -778,7 +781,7 @@ fn build_admission_derived_projection(
     let mut source = format!("{backend}^(");
     let mut parts = Vec::with_capacity(children.len());
     let mut bindings = Vec::new();
-    for child in children {
+    for &child in children {
         let child_oir = *flat
             .get(child.0)
             .ok_or_else(|| anyhow!("renderer child {} is out of OIR bounds", child.0))?;

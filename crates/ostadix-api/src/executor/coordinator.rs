@@ -185,7 +185,8 @@ impl<'a> Coordinator<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let node_policy = derive_policy_contexts(plan, &flat, base_policy)?;
+        let plan_index = crate::ir::ExecutionPlanIndex::new(plan).map_err(anyhow::Error::msg)?;
+        let node_policy = derive_policy_contexts(plan, &plan_index, &flat, base_policy)?;
         let materialized = hgraph
             .nodes
             .iter()
@@ -193,6 +194,7 @@ impl<'a> Coordinator<'a> {
             .collect();
 
         let frame = GraphEvalFrame {
+            plan_index,
             values: vec![None; plan.nodes.len()],
             base_scope: std::collections::HashMap::new(),
             node_policy,
@@ -560,8 +562,9 @@ impl<'a> Coordinator<'a> {
                         self.materialized.contains(input)
                             && self.provisional_groups.get(input).is_none_or(|group| {
                                 op.dispatch_lane == DispatchLaneV1::LocalWorker
-                                    && crate::dispatch_model::autonomous_member(
+                                    && crate::dispatch_model::autonomous_member_indexed(
                                         self.plan,
+                                        &self.frame.plan_index,
                                         op.plan_node,
                                     )
                                     .is_some_and(|(consumer_group, _)| consumer_group == *group)
@@ -617,8 +620,9 @@ impl<'a> Coordinator<'a> {
         }
         match op.dispatch_adapter {
             DispatchAdapterV1::AutonomousEphemeralShimV1 => {
-                crate::dispatch_model::autonomous_ephemeral_group(
+                crate::dispatch_model::autonomous_ephemeral_group_indexed(
                     self.plan,
+                    &self.frame.plan_index,
                     op.plan_node,
                     self.flat[op.plan_node.0],
                 )
@@ -626,8 +630,12 @@ impl<'a> Coordinator<'a> {
             DispatchAdapterV1::OScopeLoadV1
                 if parallel::effect_contract_worker_safe(&op.effect, self.flat[op.plan_node.0]) =>
             {
-                crate::dispatch_model::autonomous_member(self.plan, op.plan_node)
-                    .map(|(group, _)| group)
+                crate::dispatch_model::autonomous_member_indexed(
+                    self.plan,
+                    &self.frame.plan_index,
+                    op.plan_node,
+                )
+                .map(|(group, _)| group)
             }
             _ => None,
         }
@@ -673,8 +681,9 @@ impl<'a> Coordinator<'a> {
                     || (self.ops[index].dispatch_lane == DispatchLaneV1::LocalWorker
                         && (self.autonomous_worker_group(index) == Some(group)
                             || self.ops[index].failure_class == FailureClassV1::Infallible)
-                        && crate::dispatch_model::autonomous_member(
+                        && crate::dispatch_model::autonomous_member_indexed(
                             self.plan,
+                            &self.frame.plan_index,
                             self.ops[index].plan_node,
                         )
                         .is_some_and(|(candidate_group, _)| candidate_group == group))
