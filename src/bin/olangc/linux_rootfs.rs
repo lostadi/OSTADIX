@@ -63,7 +63,14 @@ fn prepare_mount_filter() -> std::io::Result<Vec<libc::sock_filter>> {
     const ARCH: u32 = 0xc000003e;
     #[cfg(target_arch = "aarch64")]
     const ARCH: u32 = 0xc00000b7;
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+    // Linux UAPI audit.h: EM_RISCV (243) | __AUDIT_ARCH_64BIT | __AUDIT_ARCH_LE.
+    #[cfg(target_arch = "riscv64")]
+    const ARCH: u32 = 0xc00000f3;
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64"
+    )))]
     const ARCH: u32 = 0;
     if ARCH == 0 {
         return Err(std::io::Error::from_raw_os_error(libc::ENOTSUP));
@@ -622,4 +629,129 @@ pub fn exit_like(status: ExitStatus) -> ! {
         }
     }
     std::process::exit(status.code().unwrap_or(125));
+}
+
+#[cfg(all(
+    test,
+    target_os = "linux",
+    any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64"
+    )
+))]
+mod tests {
+    use super::prepare_mount_filter;
+
+    // Interpret the emitted classic-BPF control flow rather than only checking
+    // that particular constants occur in it. The full rootfs qualification
+    // separately installs this filter in the real kernel.
+    fn decision(filter: &[libc::sock_filter], architecture: u32, syscall: u32) -> u32 {
+        let mut accumulator = 0;
+        let mut pc = 0;
+        for _ in 0..filter.len() {
+            let instruction = filter.get(pc).expect("filter jumped outside its program");
+            match instruction.code {
+                0x20 => {
+                    accumulator = match instruction.k {
+                        0 => syscall,
+                        4 => architecture,
+                        offset => panic!("unexpected seccomp_data load offset {offset}"),
+                    };
+                    pc += 1;
+                }
+                0x15 | 0x35 => {
+                    let condition = if instruction.code == 0x15 {
+                        accumulator == instruction.k
+                    } else {
+                        accumulator >= instruction.k
+                    };
+                    pc += 1 + usize::from(if condition {
+                        instruction.jt
+                    } else {
+                        instruction.jf
+                    });
+                }
+                0x06 => return instruction.k,
+                code => panic!("unexpected classic-BPF instruction {code:#x}"),
+            }
+        }
+        panic!("filter did not return a decision");
+    }
+
+    fn native_audit_architecture() -> u32 {
+        match std::env::consts::ARCH {
+            "x86_64" => 0xc000003e,
+            "aarch64" => 0xc00000b7,
+            "riscv64" => 0xc00000f3,
+            other => panic!("unexpected qualified architecture {other}"),
+        }
+    }
+
+    #[test]
+    fn mount_filter_preserves_execution_and_rejects_mount_changes_and_foreign_abi() {
+        let filter =
+            prepare_mount_filter().expect("native Linux ABI must support the rootfs filter");
+        let architecture = native_audit_architecture();
+        for syscall in [
+            libc::SYS_read,
+            libc::SYS_write,
+            libc::SYS_openat,
+            libc::SYS_execve,
+            libc::SYS_clone,
+            libc::SYS_socket,
+            libc::SYS_connect,
+            libc::SYS_futex,
+        ] {
+            assert_eq!(
+                decision(&filter, architecture, syscall as u32),
+                0x7fff0000,
+                "ordinary execution syscall {syscall} must remain allowed"
+            );
+        }
+        for syscall in [
+            libc::SYS_mount,
+            libc::SYS_umount2,
+            libc::SYS_pivot_root,
+            libc::SYS_chroot,
+            libc::SYS_setns,
+            libc::SYS_open_tree,
+            libc::SYS_move_mount,
+            libc::SYS_fsopen,
+            libc::SYS_fsconfig,
+            libc::SYS_fsmount,
+            libc::SYS_mount_setattr,
+        ] {
+            assert_eq!(
+                decision(&filter, architecture, syscall as u32),
+                0x00050000 | libc::EPERM as u32,
+                "mount-changing syscall {syscall} must remain unavailable"
+            );
+        }
+        for foreign_architecture in [architecture ^ 1, architecture ^ 0x40000000, 0] {
+            for syscall in [libc::SYS_read, libc::SYS_mount] {
+                assert_eq!(
+                    decision(&filter, foreign_architecture, syscall as u32),
+                    0x80000000,
+                    "foreign ABI must be rejected before interpreting syscall numbers"
+                );
+            }
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn mount_filter_still_rejects_the_x32_syscall_namespace() {
+        let filter = prepare_mount_filter().unwrap();
+        for syscall in [libc::SYS_read, libc::SYS_mount] {
+            assert_eq!(
+                decision(
+                    &filter,
+                    native_audit_architecture(),
+                    syscall as u32 | 0x40000000
+                ),
+                0x00050000 | libc::ENOSYS as u32
+            );
+        }
+    }
 }

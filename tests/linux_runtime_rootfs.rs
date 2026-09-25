@@ -4,6 +4,12 @@
 use std::fs;
 use std::process::{Command, Output};
 
+// The launcher is embedded as source by olangc. Compile its filter regressions
+// here as well, so they run without the heavyweight ignored rootfs fixture.
+#[allow(dead_code)]
+#[path = "../src/bin/olangc/linux_rootfs.rs"]
+mod linux_rootfs;
+
 fn successful(output: Output) -> Output {
     assert!(
         output.status.success(),
