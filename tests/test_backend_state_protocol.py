@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKENDS = ROOT / "backends"
+EMBEDDED_PYTHON_SHIM = ROOT / "crates/ostadix-api/backends/python_shim.py"
 sys.path.insert(0, str(BACKENDS))
 import o_shim_common as wire  # noqa: E402
 
@@ -68,8 +69,17 @@ class ShimProcess:
 class BackendStateProtocolTests(unittest.TestCase):
     maxDiff = None
 
+    def test_python_embedded_shim_matches_explicit_backend_source(self):
+        self.assertEqual((BACKENDS / "python_shim.py").read_bytes(),
+                         EMBEDDED_PYTHON_SHIM.read_bytes())
+
     def test_python_builtin_collections_do_not_attempt_optional_image_imports(self):
-        shim = ShimProcess("python_shim.py")
+        for path in ("python_shim.py", EMBEDDED_PYTHON_SHIM):
+            with self.subTest(shim=path):
+                self._assert_python_builtin_collections_avoid_image_imports(path)
+
+    def _assert_python_builtin_collections_avoid_image_imports(self, path):
+        shim = ShimProcess(path)
         try:
             response = shim.request({"cmd": "exec", "bindings": {}, "code": """
 import sys
@@ -102,7 +112,12 @@ sys.meta_path.insert(0, RejectOptionalImages())
 
     @unittest.skipUnless(importlib.util.find_spec("PIL"), "Pillow unavailable")
     def test_python_nested_rich_images_and_collection_subclasses_keep_wire_types(self):
-        shim = ShimProcess("python_shim.py")
+        for path in ("python_shim.py", EMBEDDED_PYTHON_SHIM):
+            with self.subTest(shim=path):
+                self._assert_python_nested_rich_images_keep_wire_types(path)
+
+    def _assert_python_nested_rich_images_keep_wire_types(self, path):
+        shim = ShimProcess(path)
         try:
             response = shim.request({"cmd": "exec", "bindings": {}, "code": """
 from PIL import Image

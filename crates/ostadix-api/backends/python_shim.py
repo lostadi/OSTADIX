@@ -494,6 +494,25 @@ def py_number_to_oval_payload(x):
     raise TypeError(f"not a supported numeric value: {type(x).__name__}")
 
 
+def _py_container_to_oval(x):
+    if isinstance(x, tuple):
+        return {"t": "seq", "kind": "tuple", "items": [py_to_oval(i) for i in x]}
+    if isinstance(x, list):
+        return {"t": "list", "v": [py_to_oval(i) for i in x]}
+    if isinstance(x, (set, frozenset)):
+        return {
+            "t": "set",
+            "kind": "unordered",
+            "items": [py_to_oval(i) for i in x],
+        }
+    if all(isinstance(k, str) for k in x):
+        return {"t": "map", "v": {k: py_to_oval(v) for k, v in x.items()}}
+    return {
+        "t": "entries_map",
+        "entries": [[py_to_oval(k), py_to_oval(v)] for k, v in x.items()],
+    }
+
+
 def py_to_oval(x):
     if x is None:
         return {"t": "null"}
@@ -548,6 +567,12 @@ def py_to_oval(x):
             },
         }
 
+    # Exact built-in containers cannot be rich image subclasses. Convert their
+    # elements recursively without importing optional image packages for the
+    # container itself; rich elements still take the image path below.
+    if type(x) in (tuple, list, set, frozenset, dict):
+        return _py_container_to_oval(x)
+
     # matplotlib.figure.Figure -> PNG blob (for computed plots etc in HTML)
     try:
         import matplotlib.figure
@@ -576,26 +601,8 @@ def py_to_oval(x):
     except Exception:
         pass
 
-    if isinstance(x, tuple):
-        return {"t": "seq", "kind": "tuple", "items": [py_to_oval(i) for i in x]}
-
-    if isinstance(x, list):
-        return {"t": "list", "v": [py_to_oval(i) for i in x]}
-
-    if isinstance(x, (set, frozenset)):
-        return {
-            "t": "set",
-            "kind": "unordered",
-            "items": [py_to_oval(i) for i in x],
-        }
-
-    if isinstance(x, dict):
-        if all(isinstance(k, str) for k in x):
-            return {"t": "map", "v": {k: py_to_oval(v) for k, v in x.items()}}
-        return {
-            "t": "entries_map",
-            "entries": [[py_to_oval(k), py_to_oval(v)] for k, v in x.items()],
-        }
+    if isinstance(x, (tuple, list, set, frozenset, dict)):
+        return _py_container_to_oval(x)
 
     # Never turn an unknown Python object into apparently lossless O text.
     # Explicit owner-process retention is available through O.native(value).
