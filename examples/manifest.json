@@ -128,6 +128,7 @@
     },
 {
       "path": "bindings.O",
+      "compile_timeout_seconds": 120,
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
       "requirements": {
@@ -215,6 +216,7 @@
     },
 {
       "path": "ephemeral.O",
+      "compile_timeout_seconds": 120,
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
       "requirements": {
@@ -308,6 +310,7 @@
     },
 {
       "path": "hello.O",
+      "compile_timeout_seconds": 120,
       "editions": ["rust", "c17", "python"],
       "classification": "unit",
       "requirements": {

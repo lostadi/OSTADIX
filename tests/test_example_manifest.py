@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import contextlib
+import io
 import os
 from pathlib import Path
+import sys
 import tempfile
 import time
 import unittest
@@ -73,6 +76,73 @@ class ExampleManifestTests(unittest.TestCase):
         example = entry()
         example["timeout_second"] = 99
         self.assert_invalid(example, "unknown fields.*timeout_second")
+
+    def test_timeout_budgets_require_positive_integers(self) -> None:
+        for field in ("timeout_seconds", "compile_timeout_seconds"):
+            for value in (True, False, 0, -1, 1.5, "3", None):
+                with self.subTest(field=field, value=value):
+                    example = entry(edition="c17")
+                    example["expected"]["c17"]["modes"] = ["aot"]
+                    example[field] = value
+                    self.assert_invalid(example, field + " must be a positive integer")
+
+    def test_compile_budget_requires_a_compilation_phase(self) -> None:
+        for edition in manifest.EDITIONS:
+            with self.subTest(edition=edition):
+                example = entry(edition=edition)
+                example["compile_timeout_seconds"] = 3
+                self.assert_invalid(example, "requires a c17 AOT expectation")
+
+    @unittest.skipUnless(os.name == "posix", "executable fixture scripts are POSIX")
+    def test_aot_compile_and_execution_budgets_are_independent(self) -> None:
+        # Real compiler/payload subprocesses exercise both deadline paths. A
+        # larger compile budget must not accidentally relax execution, and the
+        # execution budget must not permit a compiler to overrun its own bound.
+        cases = (
+            (3, 1, 1.25, 0, 0, "[PASS] hello.O (AOT)", True),
+            (1, 3, 1.25, 0, 1, "AOT compile: exceeded 1s", False),
+            (3, 1, 0, 1.25, 1, "AOT: exceeded 1s", False),
+            (None, 1, 1.25, 0, 1, "AOT compile: exceeded 1s", False),
+        )
+        for compile_budget, run_budget, compile_delay, run_delay, expected_status, diagnostic, ran in cases:
+            with self.subTest(compile_budget=compile_budget, run_budget=run_budget,
+                              compile_delay=compile_delay, run_delay=run_delay):
+                example = entry(edition="c17")
+                example["expected"]["c17"]["modes"] = ["aot"]
+                example["timeout_seconds"] = run_budget
+                if compile_budget is not None:
+                    example["compile_timeout_seconds"] = compile_budget
+                fixture = ManifestFixture(example)
+                original_root = manifest.ROOT
+                try:
+                    compiler = fixture.root / "compiler"
+                    completed = fixture.root / "payload-completed"
+                    payload = (
+                        f"#!{sys.executable}\nimport pathlib, time\n"
+                        f"time.sleep({run_delay!r})\n"
+                        f"pathlib.Path({str(completed)!r}).write_text('completed')\n"
+                        "print('2')\n"
+                    )
+                    compiler.write_text(
+                        f"#!{sys.executable}\nimport pathlib, sys, time\n"
+                        f"time.sleep({compile_delay!r})\n"
+                        "output = pathlib.Path(sys.argv[sys.argv.index('-o') + 1])\n"
+                        f"output.write_text({payload!r})\noutput.chmod(0o700)\n",
+                        encoding="utf-8",
+                    )
+                    compiler.chmod(0o700)
+                    manifest.ROOT = fixture.root
+                    output = io.StringIO()
+                    with contextlib.redirect_stdout(output):
+                        status = manifest.run_c17_aot_suite(
+                            compiler, fixture.root / "backends", {"unit"}
+                        )
+                    self.assertEqual(status, expected_status, output.getvalue())
+                    self.assertIn(diagnostic, output.getvalue())
+                    self.assertEqual(completed.exists(), ran, output.getvalue())
+                finally:
+                    manifest.ROOT = original_root
+                    fixture.close()
 
     def test_unknown_top_level_field_is_rejected(self) -> None:
         fixture = ManifestFixture(entry())
@@ -158,6 +228,9 @@ class ExampleManifestTests(unittest.TestCase):
             and "aot" in example["expected"]["c17"].get("modes", [])
         ]
         self.assertGreaterEqual(len(c17_aot), 2)
+        for example in c17_aot:
+            self.assertGreater(example["compile_timeout_seconds"],
+                               example.get("timeout_seconds", 10))
 
 
 if __name__ == "__main__":

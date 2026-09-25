@@ -50,6 +50,7 @@ ENTRY_FIELDS = {
     "requirements",
     "expected",
     "timeout_seconds",
+    "compile_timeout_seconds",
 }
 PROGRAM_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*\Z")
 PYTHON_PACKAGE_RE = re.compile(
@@ -270,8 +271,18 @@ def load_manifest(root: Path | None = None) -> list[dict]:
                 raise ManifestError(f"{expectation_owner}: only c17 examples use the AOT smoke")
 
         timeout = entry.get("timeout_seconds", 10)
-        if not isinstance(timeout, int) or timeout <= 0:
+        if type(timeout) is not int or timeout <= 0:
             raise ManifestError(f"{owner}.timeout_seconds must be a positive integer")
+        if "compile_timeout_seconds" in entry:
+            compile_timeout = entry["compile_timeout_seconds"]
+            if type(compile_timeout) is not int or compile_timeout <= 0:
+                raise ManifestError(
+                    f"{owner}.compile_timeout_seconds must be a positive integer"
+                )
+            if "aot" not in expected.get("c17", {}).get("modes", []):
+                raise ManifestError(
+                    f"{owner}.compile_timeout_seconds requires a c17 AOT expectation"
+                )
 
     if declared_paths != sorted(declared_paths):
         raise ManifestError("examples must be sorted by path")
@@ -506,6 +517,12 @@ def run_c17_aot_suite(
                 continue
 
             output_path = temp_path / f"example-{index}"
+            # Compilation has its own declared budget. The emitted program still
+            # uses the ordinary execution budget below; omitted fields retain the
+            # previous behavior for manifests outside this repository.
+            compile_timeout = entry.get(
+                "compile_timeout_seconds", entry.get("timeout_seconds", 10)
+            )
             try:
                 compile_result = _run_command(
                     [
@@ -518,10 +535,13 @@ def run_c17_aot_suite(
                     ],
                     cwd=ROOT,
                     env=env,
-                    timeout=entry.get("timeout_seconds", 10),
+                    timeout=compile_timeout,
                 )
             except CommandTimeout as exc:
-                print(f"[FAIL] {path} AOT compile: timed out\n{exc.stdout}{exc.stderr}")
+                print(
+                    f"[FAIL] {path} AOT compile: exceeded {compile_timeout}s\n"
+                    f"{exc.stdout}{exc.stderr}"
+                )
                 failed += 1
                 continue
             if compile_result.returncode != 0:
@@ -539,7 +559,10 @@ def run_c17_aot_suite(
                     timeout=entry.get("timeout_seconds", 10),
                 )
             except CommandTimeout as exc:
-                print(f"[FAIL] {path} AOT: timed out\n{exc.stdout}{exc.stderr}")
+                print(
+                    f"[FAIL] {path} AOT: exceeded {entry.get('timeout_seconds', 10)}s\n"
+                    f"{exc.stdout}{exc.stderr}"
+                )
                 failed += 1
                 continue
             output = run_result.stdout + run_result.stderr
