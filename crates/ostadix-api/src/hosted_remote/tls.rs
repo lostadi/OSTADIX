@@ -41,6 +41,35 @@ pub struct ServerTlsIdentity {
     pub key_path: PathBuf,
 }
 
+/// Deadline fixtures must also finish when the client expires before connect.
+#[cfg(test)]
+pub(crate) fn test_accept_until(
+    listener: &std::net::TcpListener,
+    deadline: Instant,
+) -> std::io::Result<TcpStream> {
+    listener.set_nonblocking(true)?;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(std::io::Error::new(
+                ErrorKind::TimedOut,
+                "test client did not connect before the server deadline",
+            ));
+        }
+        match listener.accept() {
+            Ok((stream, _)) => {
+                stream.set_nonblocking(false)?;
+                return Ok(stream);
+            }
+            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                thread::sleep(remaining.min(Duration::from_millis(5)));
+            }
+            Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) fn test_server_tls_identity() -> Result<(tempfile::TempDir, ServerTlsIdentity)> {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-assets/hosted_tls");
@@ -828,6 +857,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_server_accept_finishes_when_client_never_connects() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let deadline = Instant::now() + Duration::from_millis(10);
+        let server = thread::spawn(move || test_accept_until(&listener, deadline));
+
+        let error = server.join().unwrap().unwrap_err();
+
+        assert_eq!(error.kind(), ErrorKind::TimedOut);
+    }
+
+    #[test]
     fn socket_timeout_retry_returns_immediate_success_without_delay() {
         let mut attempts = 0;
         let mut delays = Vec::new();
@@ -946,10 +986,23 @@ mod tests {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let stalled_peer = std::thread::spawn(move || {
-            let (mut socket, _) = listener.accept().unwrap();
+            let peer_deadline = Instant::now() + Duration::from_secs(5);
+            let mut socket = test_accept_until(&listener, peer_deadline).unwrap();
             let mut bytes = [0_u8; 4096];
             loop {
+                let remaining = peer_deadline.saturating_duration_since(Instant::now());
+                assert!(
+                    !remaining.is_zero(),
+                    "test peer did not close its connection"
+                );
+                retry_socket_timeout(|| socket.set_read_timeout(Some(remaining)), thread::sleep)
+                    .unwrap();
                 match std::io::Read::read(&mut socket, &mut bytes) {
+                    Err(error)
+                        if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) =>
+                    {
+                        panic!("test peer did not close its connection: {error}");
+                    }
                     Ok(0) | Err(_) => return,
                     Ok(_) => {}
                 }

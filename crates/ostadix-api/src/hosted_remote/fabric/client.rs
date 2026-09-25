@@ -289,6 +289,33 @@ mod tests {
     }
 
     #[test]
+    fn expired_exchange_never_connects_to_the_test_server() {
+        let (_directory, server_identity) =
+            super::super::super::tls::test_server_tls_identity().unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let client = FabricAttemptClientV1::new(
+            listener.local_addr().unwrap(),
+            test_client_identity(&server_identity),
+            "00".repeat(32),
+            Duration::from_secs(5),
+            Duration::from_secs(5),
+        )
+        .unwrap();
+
+        let result = client.exchange(
+            &super::super::wire::tests::request_fixture(),
+            Instant::now() - Duration::from_millis(1),
+        );
+
+        assert!(matches!(result, Err(FabricClientFailureV1::Deadline)));
+        assert_eq!(
+            listener.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+    }
+
+    #[test]
     fn wrong_server_pin_sends_zero_fabric_application_bytes() {
         let (_directory, server_identity) =
             super::super::super::tls::test_server_tls_identity().unwrap();
@@ -365,7 +392,14 @@ mod tests {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let server = std::thread::spawn(move || {
-            let (tcp, _) = listener.accept().unwrap();
+            // The client's deadline can expire before connect under load.
+            // Keep this fixture joinable and report that missed phase rather
+            // than waiting forever for a connection that will never arrive.
+            let tcp = super::super::super::tls::test_accept_until(
+                &listener,
+                Instant::now() + Duration::from_secs(5),
+            )
+            .unwrap();
             let (mut stream, route) =
                 super::super::super::tls::accept_mutual_tls_with_execution_fabric_v1(
                     tcp,
