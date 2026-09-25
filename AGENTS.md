@@ -60,7 +60,16 @@ it is distinct from project mesh and does not partition the ordinary graph.
 Node cwd/env configure the local client; cancelling it cannot stop remote
 effects. Preserve receipt evidence and do not retry unknown completion.
 Use `o_capabilities` (optional query) and `o_guide` (workflow topic) to discover
-the full expert command surface. `o_cli` accepts exact native argument arrays,
+the full expert command surface. Humans use `o capabilities [QUERY] [--json]`
+(alias `o discover`) and `o guide [TOPIC] [--json]` from the same compiled
+`src/command_catalog.rs`. `o tool COMMAND [ARGS...]` invokes every catalog
+entry through the same resolver as `o_cli`, including supported scripts.
+Use `o_operation` with a marked-project `path` and
+`action` describe/realizations/plan/explain/run/observe/replan. Only explicit
+`run` dispatches; observation retains the native original decision, and replan
+requires `without_targets` and never dispatches. Preserve exact `run` IDs for
+observation/replanning. Read `o guide operations` for paired human/MCP calls.
+`o_cli` accepts exact native argument arrays,
 cwd, per-child environment, stdin, optional Unix PTY, and background execution.
 `o_eval` runs inline polyglot O source. Long or interactive work uses
 `o_job_list`, `o_job_status`, `o_job_read`, `o_job_write`, and `o_job_cancel`;
@@ -75,7 +84,7 @@ Existing `o_env`, `o_runtimes`, `o_doctor`, `o_smoke`, `o_run`, `o_olangc`,
 version, health, or admission proof; use the listed supported help invocation
 to inspect the selected CLI. Complete CLI access retains each command's native
 admission rules and does not turn the read-only Information inspector into a
-write API. Resources also expose the catalog and ten workflow guides. Own
+write API. Resources also expose the catalog and its workflow guides. Own
 `Cargo.lock` (not a workspace member) so `rmcp`/`tokio full` stay out of the
 main O-lang build.
 

@@ -88,6 +88,14 @@ Use <code>background: true</code> for long work and the existing <code>o_job_*</
 it. Compiler and admitted inline operations use server-owned source snapshots
 retained through job completion; callers do not manage temporary source files.</p>
 <p>Use <code>o_capabilities</code> and <code>o_guide</code> when additional capabilities are needed.
+Humans use <code>o capabilities</code> (also <code>o discover</code>) and <code>o guide</code> from the same
+compiled catalog. For a declared operation, call <code>o_operation</code> with <code>path</code>
+and <code>action</code>: <code>describe</code> (default), <code>realizations</code>, <code>plan</code>, <code>explain</code>, <code>run</code>,
+<code>observe</code>, or <code>replan</code>. Only explicit <code>run</code> executes. Preserve its native
+<code>result.run_id</code> and pass that exact ID as <code>run</code> when observing or replanning.
+Replan requires <code>without_targets</code> and produces an alternative without
+dispatch. <code>o_guide({&quot;topic&quot;:&quot;operations&quot;})</code> and the
+<a href="HUMAN_LLM_WORKFLOWS.md">paired human/LLM guide</a> explain the complete lifecycle.
 <code>o_cli</code> retains full native arguments for route policies, compiler options, placement
 administration and other expert operations. <code>o_eval</code>, <code>o_run</code>, <code>o_olangc</code>, and
 the explicit intent tools keep their existing contracts.</p>

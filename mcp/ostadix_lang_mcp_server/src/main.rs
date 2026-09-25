@@ -8,6 +8,7 @@
 mod capabilities;
 mod execution;
 mod installation;
+mod operation;
 mod tool_schema;
 mod unified;
 
@@ -1895,7 +1896,7 @@ struct CapabilityArgs {
 
 #[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
 struct GuideArgs {
-    /// Workflow topic: all, runtime, compiler, projects, mesh, core, live, capacity, device, agents.
+    /// Workflow topic: all, operations, runtime, compiler, projects, mesh, core, live, capacity, device, agents.
     topic: Option<String>,
 }
 
@@ -2399,7 +2400,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Read concise Ostadix workflows for runtime, compiler, projects, mesh, core, live, capacity, device, or agents. Defaults to topic all.",
+        description = "Read shared human and LLM workflows for operations, runtime, compiler, projects, mesh, core, live, capacity, device, or agents. Defaults to topic all; the human CLI exposes the same content with o guide.",
         annotations(read_only_hint = true, open_world_hint = false)
     )]
     async fn o_guide(
@@ -2409,7 +2410,7 @@ impl OstadixMcp {
         let topic = args.topic.as_deref().unwrap_or("all");
         match capabilities::guide(topic) {
             Some(guide) => structured_result(serde_json::json!({"topic": topic, "guide": guide})),
-            None => structured_failure("unknown guide topic; use all, runtime, compiler, projects, mesh, core, live, capacity, device, or agents"),
+            None => structured_failure("unknown guide topic; use all, operations, runtime, compiler, projects, mesh, core, live, capacity, device, or agents"),
         }
     }
 
@@ -2427,6 +2428,22 @@ impl OstadixMcp {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         self.execute_computation(args, &context).await
+    }
+
+    #[tool(
+        description = "Manage a declared operation through the same native planner, executor and retained records as the human o CLI. Describe by default; list realizations, plan or explain compatibility and selection, explicitly run, observe an exact retained run, or replan with caller-supplied target exclusions. Replanning does not dispatch. Returns the unchanged native JSON report plus job evidence. Use o_guide topic operations for the full workflow and o_cli for expert record inspection/verification.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn o_operation(
+        &self,
+        Parameters(args): Parameters<operation::OperationArgs>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        self.execute_operation(args, &context).await
     }
 
     #[tool(
@@ -3316,7 +3333,7 @@ impl ServerHandler for OstadixMcp {
             server_info: rmcp::model::Implementation {
                 name: "ostadix-mcp".into(),
                 title: Some("Ostadix runtime and toolchain".into()),
-                version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.2").into(),
+                version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.3").into(),
                 website_url: Some("https://github.com/lostadi/OSTADIX".into()),
                 icons: None,
             },
@@ -3325,6 +3342,7 @@ impl ServerHandler for OstadixMcp {
 Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. \
 Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. \
 Use o_capabilities(query) and o_guide(topic) to discover expert capabilities without loading every guide. \
+Humans use o capabilities and o guide from the same source catalog. Use o_operation for marked operation describe/realizations/plan/explain/run/observe/replan; only run dispatches, and observation reads the retained original decision. \
 Use o_cli for all canonical CLI arguments, per-call env/cwd/stdin, compiler/linker/project/mesh/node/session/core/live/capacity/device operations. \
 Use o_eval for inline polyglot O. background=true returns a session job; use o_job_list/status/read/write/cancel. pty=true supports Unix terminals. \
 Jobs run concurrently, full logs stay on disk, and a job start is not success. Jobs end on MCP server shutdown; no restart persistence is claimed. \
@@ -3351,10 +3369,7 @@ Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (
             "Ostadix command capability catalog",
         )
         .no_annotation()];
-        for topic in [
-            "all", "runtime", "compiler", "projects", "mesh", "core", "live", "capacity", "device",
-            "agents",
-        ] {
+        for topic in capabilities::GUIDE_TOPICS {
             resources.push(
                 RawResource::new(
                     format!("ostadix://guide/{topic}"),

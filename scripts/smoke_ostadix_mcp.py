@@ -37,6 +37,7 @@ EXPECTED_TOOLS = {
     "o_job_status",
     "o_job_write",
     "o_olangc",
+    "o_operation",
     "o_run",
     "o_runtimes",
     "o_search_run",
@@ -323,10 +324,29 @@ def _run_agent_surface_smoke(
     guide = call("o_guide", {})
     if not isinstance(guide.get("guide"), str) or not guide["guide"].strip():
         raise SmokeError(f"o_guide omitted its agent instructions: {guide}")
+    # Human and MCP discovery are projections of the same compiled catalog.
+    human_catalog_job = call("o_cli", {
+        "command": "o", "args": ["capabilities", "--json"],
+    })
+    human_catalog = json.loads(read_all(human_catalog_job["job_id"], "stdout"))
+    for field in ("guide_topics", "recipes"):
+        if human_catalog.get(field) != capabilities.get(field):
+            raise SmokeError(f"human and MCP catalogs disagree on {field}")
+    fields = ("id", "family", "summary", "docs", "guide_topic", "help_args")
+    projected = lambda catalog: [{key: item.get(key) for key in fields}
+                                 for item in catalog.get("commands", [])]
+    if projected(human_catalog) != projected(capabilities):
+        raise SmokeError("human and MCP command catalogs disagree")
+    operations_guide = call("o_guide", {"topic": "operations"})
+    human_guide_job = call("o_cli", {
+        "command": "o", "args": ["guide", "operations", "--json"],
+    })
+    if json.loads(read_all(human_guide_job["job_id"], "stdout")) != operations_guide:
+        raise SmokeError("human and MCP operation guides disagree")
     resource_list = request("resources/list", {})
     resources = resource_list.get("resources", [])
     uris = {resource.get("uri") for resource in resources if isinstance(resource, dict)}
-    if not {"ostadix://capabilities", "ostadix://guide/all", "ostadix://guide/mesh"}.issubset(uris):
+    if not {"ostadix://capabilities", "ostadix://guide/all", "ostadix://guide/mesh", "ostadix://guide/operations"}.issubset(uris):
         raise SmokeError("MCP resources omitted the capability catalog or task guides")
     for uri, expected in (
         ("ostadix://capabilities", capabilities),
@@ -468,6 +488,36 @@ def _run_unified_surface_smoke(
 
     def execute(arguments: dict[str, Any], *, error: bool = False) -> dict[str, Any]:
         return call("o_execute", arguments, error=error)
+
+    def read_all(job_id: str, stream: str) -> str:
+        chunks: list[str] = []
+        offset = 0
+        while True:
+            page = call("o_job_read", {
+                "job_id": job_id, "stream": stream, "offset": offset, "limit": 65536,
+            })
+            text = page.get("text")
+            advance = page.get("next_offset")
+            if (not isinstance(text, str) or not isinstance(advance, int)
+                    or page.get("offset") != offset):
+                raise SmokeError(f"operation log omitted valid pagination: {page}")
+            chunks.append(text)
+            if page.get("eof") is True:
+                return "".join(chunks)
+            if advance <= offset:
+                raise SmokeError("operation log pagination stalled")
+            offset = advance
+
+    def wait_job(job_id: str) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            status = call("o_job_status", {"job_id": job_id})
+            if status.get("state") != "running":
+                if status.get("state") != "completed" or status.get("exit_code") != 0:
+                    raise SmokeError(f"operation job did not complete successfully: {status}")
+                return
+            time.sleep(0.05)
+        raise SmokeError(f"operation job {job_id} did not finish within {timeout}s")
 
     source = "python^( __oval_result__ = 6 * 7 )_python\n"
     program = fixture / "source with spaces.O"
@@ -980,6 +1030,72 @@ def _run_unified_surface_smoke(
         or _snapshot_tree(operation_project) != operation_before
     ):
         raise SmokeError(f"default auto placement bypassed the marked-operation planner: {operation}")
+
+    def operate(action: str, *, error: bool = False, **options: Any) -> dict[str, Any]:
+        return call("o_operation", {
+            "path": os.fspath(operation_project), "action": action, **options,
+        }, error=error)
+
+    # Typed operations preserve native reports, exact run identities, and
+    # nonexecuting planning. They must never become generic project dispatch.
+    described = operate("describe")
+    if described.get("result", {}).get("status") != "valid_marked_operation_project":
+        raise SmokeError(f"typed operation description failed: {described}")
+    candidates = operate("realizations")
+    if len(candidates.get("result", {}).get("realizations", [])) != 2:
+        raise SmokeError(f"typed operation lost declared alternatives: {candidates}")
+    planned = operate("explain")
+    if (planned.get("result", {}).get("status") != "planned_without_dispatch"
+            or planned.get("result", {}).get("explain_requested") is not True
+            or _snapshot_tree(operation_project) != operation_before):
+        raise SmokeError(f"typed operation plan mutated or failed: {planned}")
+    native_plan = call("o_cli", {"command": "o", "args": [
+        "plan", os.fspath(operation_project), "--explain", "--json",
+    ]})
+    if json.loads(read_all(native_plan["job_id"], "stdout")) != planned["result"]:
+        raise SmokeError("typed operation and human native plan disagree")
+    default_dispatch_before = project_marker.read_text(encoding="utf-8")
+    for action in ("plan", "run"):
+        rejected = call("o_operation", {"path": os.fspath(project), "action": action}, error=True)
+        if (rejected.get("exit_code") in (None, 0)
+                or project_marker.read_text(encoding="utf-8") != default_dispatch_before):
+            raise SmokeError(f"typed operation accepted or dispatched an unmarked project: {rejected}")
+    bad_options = operate("run", error=True, without_targets=["Ambient Python Primary"])
+    if bad_options.get("job_id") is not None:
+        raise SmokeError(f"invalid typed operation options reached dispatch: {bad_options}")
+    executed = operate("run")
+    run_id = executed.get("result", {}).get("run_id")
+    if executed.get("exit_code") != 0 or not isinstance(run_id, str):
+        raise SmokeError(f"typed operation did not retain the native run: {executed}")
+    observed = operate("observe", run=run_id)
+    report = observed.get("result", {})
+    if (report.get("run", {}).get("id") != run_id
+            or report.get("status") != "retained_original_plan_matched_content_verified_run"
+            or report.get("execution", {}).get("value") != {"values": [0.2, 0.4, 0.6, 0.8, 1.0]}):
+        raise SmokeError(f"typed operation lost original selection or observed result: {observed}")
+    replanned = operate("replan", run=run_id, without_targets=["Ambient Python Primary"])
+    report = replanned.get("result", {})
+    if (report.get("source_run_id") != run_id
+            or report.get("status") != "planned_without_dispatch"
+            or report.get("selection_changed") is not True
+            or report.get("recovery_execution") != "not_performed"
+            or _snapshot_tree(operation_project) != operation_before):
+        raise SmokeError(f"typed replanning failed or dispatched a replacement: {replanned}")
+    observed_again = operate("observe", run=run_id)
+    if observed_again.get("result") != observed.get("result"):
+        raise SmokeError("replanning changed the retained original observation")
+    background = operate("plan", background=True)
+    wait_job(background["job_id"])
+    if json.loads(read_all(background["job_id"], "stdout")).get("status") != "planned_without_dispatch":
+        raise SmokeError("background operation did not retain complete native JSON")
+    # A stale implementation is rejected by the same descriptor/file join.
+    stale_file = operation_project / "normalize_chunked.py"
+    original_bytes = stale_file.read_bytes()
+    stale_file.write_bytes(original_bytes + b"\n# changed implementation\n")
+    stale = operate("plan", error=True)
+    stale_file.write_bytes(original_bytes)
+    if stale.get("result", {}).get("schema") != "ostadix.operation-command-error/v1":
+        raise SmokeError(f"typed operation lost the native incompatibility report: {stale}")
 
 
 def run_smoke(

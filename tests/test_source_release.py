@@ -681,6 +681,8 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
         self.assertTrue(release.is_allowed_release_path("src/lib.rs"))
         self.assertTrue(release.is_allowed_release_path("src/bin/o-cli.rs"))
         self.assertTrue(release.is_allowed_release_path("src/bin/olangc.rs"))
+        for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
+            self.assertTrue(release.is_allowed_release_path(path), path)
         self.assertTrue(
             release.is_allowed_release_path("apps/olang-browser-wasi/index.html")
         )
@@ -1275,6 +1277,7 @@ class SourceReleaseTests(unittest.TestCase):
             "tests/native_cli_dispatch.rs": "// release surface fixture\n",
             "tests/cli_diagnostics.rs": "// release surface fixture\n",
             "src/bin/o-cli/native_dispatch.rs": "// release surface fixture\n",
+            "src/command_catalog.rs": "// shared command catalog fixture\n",
             "src/cli_diagnostics.rs": "// CLI fixture\n",
             "src/cli_paths.rs": "// CLI fixture\n",
             "c_cpp/include/installed_paths.h": "// C installed path fixture\n",
@@ -1434,6 +1437,8 @@ class SourceReleaseTests(unittest.TestCase):
             contents.setdefault(path, b"fixture hosted TLS test identity\n")
         for path in release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS:
             contents.setdefault(path, b"fixture native source closure\n")
+        for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
+            contents.setdefault(path, b"fixture human and LLM interface source\n")
         if files:
             contents.update(files)
         for index in range(FIXTURE_EVIDENCE_GATE_COUNT):
@@ -2034,6 +2039,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "tests/native_cli_dispatch.rs",
                 "tests/cli_diagnostics.rs",
                 "src/bin/o-cli/native_dispatch.rs",
+                "src/command_catalog.rs",
                 "src/cli_diagnostics.rs",
                 "src/cli_paths.rs",
                 "c_cpp/include/installed_paths.h",
@@ -2171,6 +2177,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.OSTADIX_API_RELEASE_PATHS)
             included.update(release.OSTADIX_API_ROOT_MODULE_PATHS.values())
             included.update(release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS)
+            included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
             excluded = {
                 ".DS_Store",
                 ".ocore-repair-backups/run/typeck.rs",
@@ -2654,6 +2661,13 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("commit", "-q", "-m", "remove engine package README")
 
         self._assert_missing_required_paths("missing-engine-readme.zip", (path,))
+
+    def test_human_llm_interface_source_closure_is_required(self) -> None:
+        self._commit()
+        paths = sorted(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
+        self._git("rm", *paths)
+        self._git("commit", "-q", "-m", "remove shared interface source closure")
+        self._assert_missing_required_paths("missing-interface-closure.zip", paths)
 
     def test_root_citation_is_a_required_release_member(self) -> None:
         self._commit()

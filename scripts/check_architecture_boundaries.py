@@ -2348,6 +2348,19 @@ def _cargo_dependency_entries(
     return entries
 
 
+# Exact root-level CLI support files, rather than a prefix/directory exemption.
+# source_structure describes canonical engine output and backend syntax;
+# command_catalog is shared discovery data and read-only executable resolution.
+# Neither binary-only helper is a public compatibility-library module or an
+# engine root. Engine source/import and shell re-export checks remain separate.
+CLI_SHELL_SUPPORT_SOURCES = frozenset({
+    "cli_diagnostics.rs",
+    "cli_paths.rs",
+    "cli_source_structure.rs",
+    "command_catalog.rs",
+})
+
+
 def _compatibility_shell_reexports(path: Path) -> tuple[set[str] | None, str | None]:
     """Parse the shell's one permitted explicit engine-module re-export."""
 
@@ -2576,7 +2589,8 @@ def _engine_shell_direction_findings(
         for path in shell_source.rglob("*.rs")
         if path.is_file()
         and not path.is_symlink()
-        and path.relative_to(shell_source).as_posix() not in {"lib.rs", "main.rs", "cli_diagnostics.rs", "cli_paths.rs"}
+        and path.relative_to(shell_source).as_posix()
+        not in {"lib.rs", "main.rs"} | CLI_SHELL_SUPPORT_SOURCES
         and not path.relative_to(shell_source).as_posix().startswith("bin/")
     )
     if duplicate_sources:

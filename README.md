@@ -97,6 +97,38 @@ The current M3 boundary is specified separately by [OIR Execution Fabric
 V1](docs/OIR_EXECUTION_FABRIC_V1.md) and the [authenticated pure
 remote-execution design note](docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md).
 
+## One workflow for developers and LLMs
+
+Start with `o capabilities` to find commands and task recipes, then
+`o guide operations` for the declared-operation lifecycle. LLM clients use
+`o_capabilities` and `o_guide` from the **same compiled catalog and guides**.
+`o discover QUERY` is an alias for `o capabilities QUERY`; `--json` exposes
+the machine-readable catalog to terminal scripts. `o tool COMMAND [ARGS...]`
+invokes any catalog entry with its full native arguments, using the same
+executable resolver as MCP `o_cli`. See the
+[human and LLM workflow guide](docs/HUMAN_LLM_WORKFLOWS.md) for paired examples.
+
+```sh
+o capabilities operation
+o guide operations
+o operation examples/normalize
+o realizations examples/normalize
+o plan examples/normalize --explain
+o run examples/normalize --json
+```
+
+The corresponding `o_operation` MCP tool accepts a project `path` and an
+`action`: `describe` (default), `realizations`, `plan`, `explain`, `run`,
+`observe`, or `replan`. It invokes the native CLI and returns its report under
+`result`, together with process status and retained logs. Both interfaces use
+the same operation records, deterministic planner, execution admission, and
+run store. Retain the returned `run_id` for observation and replanning.
+
+For complete cross-language computations, use `o run program.O` or
+`o_execute` with the full nested source. Expert commands remain available
+through `o_cli` with literal argument arrays, including compiler, node,
+project, kernel, World, capacity, and device workflows.
+
 ## How to read Ostadix-lang
 
 Read the system from left to right:
@@ -4708,7 +4740,7 @@ Ostadix-lang/
 │   ├── lib.rs                  # 42 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
-├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 20 tools
+├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 21 tools
 ├── backends/                   # compatibility hosted-language adapters
 ├── ocore/                      # freestanding runtime and kernel proof
 ├── c_cpp/                      # standalone C17 hosted implementation

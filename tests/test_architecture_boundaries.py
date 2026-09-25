@@ -1206,6 +1206,65 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             (root / "src/cli_paths.rs").unlink()
             self.assertIn("one regular source file and declaration", run_checker(root).stderr)
 
+    def test_binary_only_cli_helpers_have_exact_source_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            for name in ("cli_source_structure", "command_catalog"):
+                (root / f"src/{name}.rs").write_text(
+                    "// Binary-only CLI support.\n", encoding="utf-8"
+                )
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for relative in (
+                "src/cli_source_structure_extra.rs",
+                "src/command_catalog_extra.rs",
+                "src/cli_helpers/command_catalog.rs",
+            ):
+                with self.subTest(relative=relative):
+                    source = root / relative
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    source.write_text("pub struct DuplicateRuntime;\n", encoding="utf-8")
+                    result = run_checker(root)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(
+                        f"runtime implementation source outside its entrypoints: {relative}",
+                        result.stderr,
+                    )
+                    source.unlink()
+
+    def test_binary_only_cli_helpers_are_not_public_engine_facades(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            shell = root / "src/lib.rs"
+            original = shell.read_text(encoding="utf-8")
+            for name in ("cli_source_structure", "command_catalog"):
+                with self.subTest(name=name):
+                    (root / f"src/{name}.rs").write_text("// CLI support\n", encoding="utf-8")
+                    shell.write_text(f"pub mod {name};\n" + original, encoding="utf-8")
+                    result = run_checker(root)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(
+                        "must contain only one explicit `pub use ostadix_api::{...};`",
+                        result.stderr,
+                    )
+
+    def test_engine_cannot_import_binary_only_cli_helper_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            for name in ("cli_source_structure", "command_catalog"):
+                with self.subTest(name=name):
+                    (root / f"src/{name}.rs").write_text("// CLI support\n", encoding="utf-8")
+                    relative = f"../../../src/{name}.rs"
+                    (root / "crates/ostadix-api/src/parser.rs").write_text(
+                        f'#[path = "{relative}"]\nmod hidden;\n', encoding="utf-8"
+                    )
+                    result = run_checker(root)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(f"undeclared #[path = '{relative}']", result.stderr)
+
     def test_nested_module_cannot_escape_through_an_undeclared_path_attribute(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

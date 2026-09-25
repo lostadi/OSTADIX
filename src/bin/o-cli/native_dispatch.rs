@@ -189,6 +189,28 @@ fn run(path: PathBuf, args: &[OsString]) -> Result<()> {
     }
 }
 
+/// Human counterpart of MCP o_cli: resolve one catalog ID and preserve argv.
+pub(super) fn run_catalog_command(id: &str, args: &[OsString]) -> Result<()> {
+    let root = match repository_root() {
+        Some(root) => root,
+        None => env::current_dir().context("could not locate the working directory")?,
+    };
+    let (program, prefix) =
+        super::command_catalog::resolve_command(&root, id).map_err(anyhow::Error::msg)?;
+    // Explicit o/o-cli dispatch removes the `tool COMMAND` prefix and is safe.
+    // Other identities must not masquerade as this front door and recurse via
+    // its historical evaluator/specialist fallback behavior.
+    if !matches!(id, "o" | "o-cli") && same_file(&program, &env::current_exe()?) {
+        bail!("catalog command `{id}` resolves to the native front door; refusing recursive execution");
+    }
+    let argv = prefix
+        .into_iter()
+        .map(OsString::from)
+        .chain(args.iter().cloned())
+        .collect::<Vec<_>>();
+    run(program, &argv)
+}
+
 fn delegate(name: &str, override_name: &str, args: &[OsString]) -> Result<()> {
     run(tool(name, override_name)?, args)
 }
@@ -377,9 +399,9 @@ fn dispatch_arguments(arguments: &[OsString]) -> Result<()> {
         );
     }
     match command {
-        "run" | "routes" | "optimize" | "plan" | "explain" | "inspect" | "computation"
-        | "object" | "operation" | "realizations" | "observe" | "replan" | "--help" | "-h"
-        | "--version" | "-V" => Ok(()),
+        "capabilities" | "discover" | "guide" | "tool" | "run" | "routes" | "optimize" | "plan"
+        | "explain" | "inspect" | "computation" | "object" | "operation" | "realizations"
+        | "observe" | "replan" | "--help" | "-h" | "--version" | "-V" => Ok(()),
         "help" if tail.is_empty() => Ok(()),
         "help" => {
             let mut args = tail.to_vec();

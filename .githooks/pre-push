@@ -1,0 +1,5 @@
+#!/bin/sh
+# One policy implementation serves local publication and CI.
+set -eu
+root=$(git rev-parse --show-toplevel)
+exec python3 "$root/scripts/check_attribution.py" --pre-push

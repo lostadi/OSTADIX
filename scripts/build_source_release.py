@@ -283,6 +283,20 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
     "wire": f"{OSTADIX_API_SOURCE_ROOT}/wire.rs",
     "world": f"{OSTADIX_API_SOURCE_ROOT}/world/mod.rs",
 }
+# Both front doors compile the shared catalog, and operation dispatch depends
+# on the managed-job and complete-program helpers. Keep this source closure in
+# release validation as well as the generally allowed mcp/docs directories.
+HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
+    {
+        "src/command_catalog.rs",
+        "mcp/ostadix_lang_mcp_server/src/capabilities.rs",
+        "mcp/ostadix_lang_mcp_server/src/execution.rs",
+        "mcp/ostadix_lang_mcp_server/src/operation.rs",
+        "mcp/ostadix_lang_mcp_server/src/selected_node.rs",
+        "mcp/ostadix_lang_mcp_server/src/unified.rs",
+        "docs/HUMAN_LLM_WORKFLOWS.md",
+    }
+)
 ALLOWED_EXACT_PATHS = frozenset(
     {
         "benchmarks/fidelity/README.md",
@@ -299,6 +313,7 @@ ALLOWED_EXACT_PATHS = frozenset(
     | CPU_RUNTIME_BENCHMARK_PATHS
     | REAL_WORLD_BENCHMARK_PATHS
     | OSTADIX_API_RELEASE_PATHS
+    | HUMAN_LLM_INTERFACE_RELEASE_PATHS
 )
 
 ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
@@ -745,6 +760,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "src/lib.rs",
         "src/main.rs",
         "src/bin/o-cli/native_dispatch.rs",
+        "src/command_catalog.rs",
         "src/cli_diagnostics.rs",
         "src/cli_paths.rs",
         "c_cpp/include/installed_paths.h",
@@ -928,6 +944,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
     | OSTADIX_API_RELEASE_PATHS
     | frozenset(OSTADIX_API_ROOT_MODULE_PATHS.values())
     | NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS
+    | HUMAN_LLM_INTERFACE_RELEASE_PATHS
 )
 VALID_GIT_MODES = frozenset({"100644", "100755"})
 REQUIRED_EXECUTABLE_RELEASE_PATHS = frozenset(
@@ -1257,7 +1274,14 @@ def is_allowed_release_path(path: str) -> bool:
     parts = pure.parts
     top = parts[0]
     if top == "src" and not (
-        path in {"src/lib.rs", "src/main.rs", *CLI_MODULE_PATHS.values()} or path.startswith("src/bin/")
+        path
+        in {
+            "src/lib.rs",
+            "src/main.rs",
+            "src/command_catalog.rs",
+            *CLI_MODULE_PATHS.values(),
+        }
+        or path.startswith("src/bin/")
     ):
         return False
     api_scoped = any(path.startswith(prefix) for prefix in OSTADIX_API_ALLOWED_PREFIXES)

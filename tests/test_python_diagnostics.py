@@ -1,6 +1,8 @@
 """Python error dumps remain private and survive shared-temp PID reuse."""
 
 import importlib.util
+import contextlib
+import io
 import os
 from pathlib import Path
 import subprocess
@@ -8,6 +10,8 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+
+from o_lang import cli
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +26,52 @@ def load_shim():
     with patch.object(wire, "command_loop"):
         spec.loader.exec_module(shim)
     return shim
+
+
+class PythonCliFileDiagnosticTests(unittest.TestCase):
+    def test_module_entry_point_reports_missing_file_and_directory_without_traceback(self):
+        with tempfile.TemporaryDirectory(prefix="ostadix-python-cli-") as directory:
+            for path, message in [
+                (Path(directory) / "missing file.O", "No such file or directory"),
+                (Path(directory), "Expected a file but got a directory"),
+            ]:
+                with self.subTest(path=path):
+                    result = subprocess.run(
+                        [sys.executable, "-B", "-m", "o_lang", str(path)],
+                        cwd=ROOT, capture_output=True, text=True, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn(str(path), result.stderr)
+                    self.assertIn(message, result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_read_failure_returns_status_without_parsing_or_evaluation(self):
+        for error, message in [
+            (PermissionError("private"), "Permission denied"),
+            (OSError("device unavailable"), "device unavailable"),
+        ]:
+            with self.subTest(error=error), \
+                    patch.object(cli.Path, "read_text", side_effect=error), \
+                    patch.object(cli, "parse") as parse, \
+                    patch.object(cli, "evaluate_document") as evaluate, \
+                    contextlib.redirect_stderr(io.StringIO()) as stderr:
+                self.assertEqual(cli.main(["source file.O"]), 1)
+                self.assertIn("source file.O", stderr.getvalue())
+                self.assertIn(message, stderr.getvalue())
+                parse.assert_not_called()
+                evaluate.assert_not_called()
+
+    def test_successful_file_still_renders_through_module_entry_point(self):
+        with tempfile.TemporaryDirectory(prefix="ostadix-python-cli-") as directory:
+            source = Path(directory) / "source file.O"
+            source.write_text("text^(still works)_text", encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, "-B", "-m", "o_lang", str(source)],
+                cwd=ROOT, capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "still works\n")
 
 
 class PythonDiagnosticTests(unittest.TestCase):

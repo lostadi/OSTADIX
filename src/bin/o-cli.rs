@@ -3,6 +3,8 @@
 //! Intent execution and planning use the library API directly. Operational aliases
 //! use native process dispatch to their owning compiler, node, and lifecycle tools.
 
+#[path = "../command_catalog.rs"]
+mod command_catalog;
 #[path = "o-cli/native_dispatch.rs"]
 mod native_dispatch;
 
@@ -100,7 +102,7 @@ const OPERATION_DIAGNOSTIC_TRUNCATION_SUFFIX: &str = "...[truncated]";
 /// This permits sixteen maximum-sized semantic records while bounding aggregate
 /// metadata walks, reads, and retained decoded values independently of ARG_MAX.
 const MAX_OPERATION_VERIFICATION_TOTAL_BYTES_V1: u64 = 64 * 1024 * 1024;
-const OPERATIONAL_COMMANDS: &str = "Run highlights:\n  o run FILE.O --parallel auto          local HGraph workers only\n  o run PROJECT --parallel auto         mesh prefer with safe local fallback\n  o run PROJECT --mesh=required         authenticated remote placement required\n  o routes PROJECT                      inspect routes without executing them\n  o optimize PROJECT --route ROUTE_SET  measure and validate every alternative\n  o run PROJECT --selection-run RUN_ID  execute one exact validated winner\n  Mesh controls include --mesh-retries, --mesh-local-fallback, and --closed-registry.\n\nOperation-project vertical slice:\n  o operation PROJECT                   describe one explicitly marked project\n  o realizations PROJECT                list declared realization/route bindings\n  o plan PROJECT --explain              select and explain without dispatch\n  o run PROJECT                         plan, bind one route, execute, and record\n  o observe PROJECT                     recompute and match a content-verified run\n  o replan PROJECT --without-target ID  derive a new plan without dispatch\n\nSemantic operation records:\n  o operation inspect KIND FILE         validate and inspect one inert record\n  o operation verify --contract FILE --interface FILE --descriptor FILE --set FILE\n                                        check exact referential consistency only\n\nBoot-object commands:\n  o object root|list|stat|get|verify     typed read-only boot CAS\n\nNative operational commands:\n  doctor|which|editions [--json]        inspect installed tools and readiness\n  smoke                                run Python 1 + 1 (expects 2)\n  root                                 print the configured checkout\n  node start|stop|status|restart|pair|list|use|profile|doctor|run|session ...\n  node-host <command> ...\n  registry <command> ...\n  info <command> ...\n  live <command> ...\n  receipt [ogit arguments]\n  kernel <command>\n  why FILE.O P<N> [olangc options]\n  eval EXPR | repl | check FILE.O|FILE.oc  parse-only checks\n  ir|script|wasm FILE.O | aot|ship FILE.O -o OUT\n  graph|dot FILE.O [-o GRAPH.dot]       emit the complete HGraph\n  link|unlink ... | mir|hir|asm|obj FILE.oc\n\nNode shortcuts: -n ID selects an identity; -a HOST:PORT changes its route.\nUnknown command forms retain historical evaluator behavior.";
+const OPERATIONAL_COMMANDS: &str = "Shared discovery:\n  o capabilities [QUERY] [--json]       commands and human/MCP task recipes\n  o guide [TOPIC] [--json]              embedded workflow guides\n  o tool COMMAND [ARGS...]             full native argv for any catalog command\n\nRun highlights:\n  o run FILE.O --parallel auto          local HGraph workers only\n  o run PROJECT --parallel auto         mesh prefer with safe local fallback\n  o run PROJECT --mesh=required         authenticated remote placement required\n  o routes PROJECT                      inspect routes without executing them\n  o optimize PROJECT --route ROUTE_SET  measure and validate every alternative\n  o run PROJECT --selection-run RUN_ID  execute one exact validated winner\n  Mesh controls include --mesh-retries, --mesh-local-fallback, and --closed-registry.\n\nOperation-project vertical slice:\n  o operation PROJECT                   describe one explicitly marked project\n  o realizations PROJECT                list declared realization/route bindings\n  o plan PROJECT --explain              select and explain without dispatch\n  o run PROJECT                         plan, bind one route, execute, and record\n  o observe PROJECT                     inspect a content-verified retained decision\n  o replan PROJECT --without-target ID  derive a new plan without dispatch\n\nSemantic operation records:\n  o operation inspect KIND FILE         validate and inspect one inert record\n  o operation verify --contract FILE --interface FILE --descriptor FILE --set FILE\n                                        check exact referential consistency only\n\nBoot-object commands:\n  o object root|list|stat|get|verify     typed read-only boot CAS\n\nNative operational commands:\n  doctor|which|editions [--json]        inspect installed tools and readiness\n  smoke                                run Python 1 + 1 (expects 2)\n  root                                 print the configured checkout\n  node start|stop|status|restart|pair|list|use|profile|doctor|run|session ...\n  node-host <command> ...\n  registry <command> ...\n  info <command> ...\n  live <command> ...\n  receipt [ogit arguments]\n  kernel <command>\n  why FILE.O P<N> [olangc options]\n  eval EXPR | repl | check FILE.O|FILE.oc  parse-only checks\n  ir|script|wasm FILE.O | aot|ship FILE.O -o OUT\n  graph|dot FILE.O [-o GRAPH.dot]       emit the complete HGraph\n  link|unlink ... | mir|hir|asm|obj FILE.oc\n\nNode shortcuts: -n ID selects an identity; -a HOST:PORT changes its route.\nUnknown command forms retain historical evaluator behavior.";
 #[derive(Debug, Parser)]
 #[command(
     name = "o",
@@ -119,6 +121,13 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum IntentCommand {
+    /// Discover every command family and task recipe shared with the MCP.
+    #[command(visible_alias = "discover")]
+    Capabilities(CapabilitiesArgs),
+    /// Read the same task guide exposed to LLMs through o_guide.
+    Guide(GuideArgs),
+    /// Run any cataloged command with its complete native argument interface.
+    Tool(ToolArgs),
     /// Run a local .O document or a route-preserving heterogeneous project.
     Run(RunArgs),
     /// Inspect declared project routes and optimization-ready route sets.
@@ -151,10 +160,39 @@ enum IntentCommand {
     Operation(OperationArgs),
     /// List the realization candidates declared by one marked operation project.
     Realizations(OperationTargetArgs),
-    /// Recompute a marked operation plan and match one content-verified retained run.
+    /// Inspect a retained operation decision and its content-verified execution record.
     Observe(OperationObserveArgs),
     /// Derive a new non-executing plan from one current-binary run observation.
     Replan(OperationReplanArgs),
+}
+
+#[derive(Debug, Args)]
+struct CapabilitiesArgs {
+    /// Case-insensitive command, family, capability or task search.
+    query: Option<String>,
+    /// Emit the catalog shared with o_capabilities as structured JSON.
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct GuideArgs {
+    /// Topic from `o capabilities`: operations, runtime, compiler, mesh, and more.
+    #[arg(default_value = "all")]
+    topic: String,
+    /// Emit the same topic/guide object returned by o_guide.
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(override_usage = "o tool COMMAND [ARGS]...")]
+struct ToolArgs {
+    /// Exact catalog ID followed by literal native arguments; no shell expansion.
+    // Including COMMAND in the trailing positional starts forwarding before a
+    // native --help/--version flag. Before COMMAND, --help remains tool help.
+    #[arg(value_name = "COMMAND", required = true, num_args = 1.., trailing_var_arg = true)]
+    argv: Vec<OsString>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -241,6 +279,9 @@ struct ProjectReportOptions {
 
 #[derive(Clone, Debug, Args)]
 struct RunArgs {
+    /// Require the captured input to be a marked operation project.
+    #[arg(long, hide = true)]
+    operation_required: bool,
     /// A .O source/lifted bundle or project directory.
     #[arg(value_name = "TARGET")]
     target: PathBuf,
@@ -434,6 +475,7 @@ struct OptimizeArgs {
 impl OptimizeArgs {
     fn run_args(&self) -> RunArgs {
         RunArgs {
+            operation_required: false,
             target: self.target.clone(),
             legacy_backends: None,
             parallel: None,
@@ -594,6 +636,9 @@ struct OperationRoutePipelineProjectionV1<'a> {
 
 #[derive(Debug, Args)]
 struct PlanArgs {
+    /// Require the captured input to be a marked operation project.
+    #[arg(long, hide = true)]
+    operation_required: bool,
     /// A .O source/lifted bundle or project directory.
     #[arg(value_name = "TARGET")]
     target: PathBuf,
@@ -1127,11 +1172,93 @@ fn json_safe_receipt_export_path(path: Option<&Path>) -> Option<&str> {
     path.and_then(Path::to_str)
 }
 
+fn capabilities_command(args: &CapabilitiesArgs) -> Result<i32> {
+    let root = native_dispatch::repository_root().unwrap_or(env::current_dir()?);
+    let catalog = command_catalog::catalog(&root, args.query.as_deref());
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&catalog)?);
+        return Ok(0);
+    }
+    println!("Ostadix commands and workflows");
+    println!("Source catalog: {}", root.display());
+    for command in catalog["commands"].as_array().into_iter().flatten() {
+        let state = if command["available"] == true {
+            "located"
+        } else {
+            "unavailable"
+        };
+        println!(
+            "\n{} [{}; {state}]\n  {}",
+            command["id"].as_str().unwrap_or_default(),
+            command["family"].as_str().unwrap_or_default(),
+            command["summary"].as_str().unwrap_or_default()
+        );
+        if command["help_args"].is_array() {
+            println!(
+                "  Help: o tool {} --help",
+                command["id"].as_str().unwrap_or_default()
+            );
+        }
+        println!(
+            "  Guide: o guide {}",
+            command["guide_topic"].as_str().unwrap_or_default()
+        );
+    }
+    for recipe in catalog["recipes"].as_array().into_iter().flatten() {
+        println!(
+            "\n{}: {}\n  {}",
+            recipe["id"].as_str().unwrap_or_default(),
+            recipe["summary"].as_str().unwrap_or_default(),
+            recipe["human"].as_str().unwrap_or_default()
+        );
+    }
+    println!("\nGuides: {}", command_catalog::GUIDE_TOPICS.join(", "));
+    println!("Located executables are not runtime-readiness or installed-version proof. Discovery does not execute commands. Use --json for the same catalog and MCP recipes exposed by o_capabilities.");
+    Ok(0)
+}
+
+fn guide_command(args: &GuideArgs) -> Result<i32> {
+    let guide = command_catalog::guide(&args.topic).with_context(|| {
+        format!(
+            "unknown guide topic {:?}; choose {}",
+            args.topic,
+            command_catalog::GUIDE_TOPICS.join(", ")
+        )
+    })?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({"topic":args.topic,"guide":guide}))?
+        );
+    } else {
+        println!("{guide}");
+    }
+    Ok(0)
+}
+
 fn dispatch(command: IntentCommand) -> Result<i32> {
     match command {
+        IntentCommand::Capabilities(args) => capabilities_command(&args),
+        IntentCommand::Guide(args) => guide_command(&args),
+        IntentCommand::Tool(args) => {
+            let (id, tail) = args
+                .argv
+                .split_first()
+                .context("catalog command ID is required")?;
+            let id = id
+                .to_str()
+                .context("catalog command ID must be valid UTF-8")?;
+            native_dispatch::run_catalog_command(id, tail)?;
+            Ok(0)
+        }
         IntentCommand::Run(args) => run_intent(&args, RunPresentation::Ordinary),
         IntentCommand::Routes(args) => route_catalog(&args),
         IntentCommand::Optimize(args) => run_intent(&args.run_args(), RunPresentation::Optimize),
+        IntentCommand::Plan(args) if args.operation_required => operation_family_result(
+            "plan",
+            args.json || args.format == Some(PlanFormat::Json),
+            || plan_intent(&args),
+        ),
         IntentCommand::Plan(args) => plan_intent(&args),
         IntentCommand::Explain(args) => explain_pending(&args),
         IntentCommand::Inspect(args) => inspect_pending(&args),
@@ -4436,6 +4563,7 @@ fn validate_explicit_output_paths(
 
 fn bind_operation_run(mut args: RunArgs) -> Result<RunArgs> {
     let Some(loaded) = operation_project_optional(&args.target)? else {
+        ensure!(!args.operation_required, "--operation-required needs an existing marked operation-project directory; ordinary execution was not attempted");
         return Ok(args);
     };
     if args.legacy_backends.is_some()
@@ -6585,6 +6713,7 @@ fn plan_intent(args: &PlanArgs) -> Result<i32> {
     if let Some(loaded) = operation_project_optional(&args.target)? {
         return operation_plan_intent(args, loaded);
     }
+    ensure!(!args.operation_required, "--operation-required needs an existing marked operation-project directory; ordinary planning was not attempted");
     if args.explain {
         bail!("--explain is available only for an existing marked operation-project directory");
     }

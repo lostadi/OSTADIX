@@ -70,6 +70,14 @@ it. Compiler and admitted inline operations use server-owned source snapshots
 retained through job completion; callers do not manage temporary source files.
 
 Use `o_capabilities` and `o_guide` when additional capabilities are needed.
+Humans use `o capabilities` (also `o discover`) and `o guide` from the same
+compiled catalog. For a declared operation, call `o_operation` with `path`
+and `action`: `describe` (default), `realizations`, `plan`, `explain`, `run`,
+`observe`, or `replan`. Only explicit `run` executes. Preserve its native
+`result.run_id` and pass that exact ID as `run` when observing or replanning.
+Replan requires `without_targets` and produces an alternative without
+dispatch. `o_guide({"topic":"operations"})` and the
+[paired human/LLM guide](HUMAN_LLM_WORKFLOWS.md) explain the complete lifecycle.
 `o_cli` retains full native arguments for route policies, compiler options, placement
 administration and other expert operations. `o_eval`, `o_run`, `o_olangc`, and
 the explicit intent tools keep their existing contracts.

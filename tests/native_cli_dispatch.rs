@@ -14,6 +14,243 @@ fn executable(path: &std::path::Path, source: &str) {
 }
 
 #[test]
+fn shared_discovery_is_inert_and_available_without_optional_runtimes() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("source with spaces");
+    let bin = root.join("target/release");
+    fs::create_dir_all(&bin).unwrap();
+    // A discoverable executable must never be launched by catalog/guide reads.
+    let marker = dir.path().join("unexpected-execution");
+    executable(
+        &bin.join("o-cli"),
+        &format!("#!/bin/sh\ntouch '{}'\nexit 91\n", marker.display()),
+    );
+    let output = Command::new(FRONT)
+        .args(["capabilities", "operation", "--json"])
+        .env("O_LANG_ROOT", &root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let catalog: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(catalog["schema"], "ostadix.mcp-capabilities/v1");
+    assert_eq!(catalog["runtime_readiness_verified"], false);
+    assert!(catalog["recipes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|recipe| recipe["id"] == "operation-run" && recipe["mcp"]["tool"] == "o_operation"));
+    let guide = Command::new(FRONT)
+        .args(["guide", "operations", "--json"])
+        .env("O_LANG_ROOT", &root)
+        .output()
+        .unwrap();
+    assert!(guide.status.success());
+    let guide: serde_json::Value = serde_json::from_slice(&guide.stdout).unwrap();
+    assert_eq!(guide["topic"], "operations");
+    assert!(guide["guide"]
+        .as_str()
+        .unwrap()
+        .contains("without dispatching"));
+    assert!(!marker.exists());
+    let alias = Command::new(FRONT)
+        .args(["discover", "operation", "--json"])
+        .env("O_LANG_ROOT", &root)
+        .output()
+        .unwrap();
+    assert!(alias.status.success());
+    assert_eq!(alias.stdout, output.stdout);
+}
+
+#[test]
+fn typed_operation_guard_rejects_unmarked_input_before_planning_or_execution() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("ordinary.O");
+    fs::write(&source, "text^(must not execute)_text").unwrap();
+    for target in [source.as_path(), dir.path()] {
+        for command in ["plan", "run"] {
+            let output = Command::new(FRONT)
+                .arg(command)
+                .arg(target)
+                .args(["--operation-required", "--json"])
+                .env("XDG_STATE_HOME", dir.path().join("state"))
+                .output()
+                .unwrap();
+            assert!(!output.status.success());
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains(
+                    "--operation-required needs an existing marked operation-project directory"
+                ),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    assert!(!dir.path().join("state").exists());
+}
+
+#[test]
+fn typed_operation_plan_preserves_structured_stale_implementation_rejection() {
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("operation");
+    fs::create_dir(&project).unwrap();
+    let example = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/normalize");
+    for file in [
+        "olang.project.toml",
+        "operation-planning-request.json",
+        "input.json",
+        "normalize_chunked.py",
+        "normalize_scalar.py",
+    ] {
+        fs::copy(example.join(file), project.join(file)).unwrap();
+    }
+    fs::write(
+        project.join("normalize_chunked.py"),
+        "raise RuntimeError('must not execute')\n",
+    )
+    .unwrap();
+    let output = Command::new(FRONT)
+        .arg("plan")
+        .arg(&project)
+        .args(["--operation-required", "--json"])
+        .env("XDG_STATE_HOME", dir.path().join("state"))
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["schema"], "ostadix.operation-command-error/v1");
+    assert_eq!(report["command"], "plan");
+    assert_eq!(report["error"]["kind"], "validation_failed");
+    assert!(report["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("implementation"));
+    assert!(!dir.path().join("state").exists());
+}
+
+#[test]
+fn catalog_tool_preserves_binary_and_script_argv_environment_cwd_stdin_and_status() {
+    use std::io::Write;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("catalog root");
+    let bin = root.join("target/release");
+    let interpreters = dir.path().join("interpreter bin");
+    let working = dir.path().join("working directory");
+    for path in [&bin, &interpreters, &working, &root.join("scripts")] {
+        fs::create_dir_all(path).unwrap();
+    }
+    let capture =
+        "#!/bin/sh\nprintf '%s\\0' \"$PWD\" \"$CATALOG_LITERAL_ENV\" \"$@\"\n/bin/cat\nexit 29\n";
+    executable(&bin.join("olangc"), capture);
+    executable(&interpreters.join("python3"), capture);
+    fs::write(
+        root.join("scripts/ostadix_capacity.py"),
+        "# interpreter owns this script\n",
+    )
+    .unwrap();
+    let args = [
+        OsString::from("--help"),
+        OsString::from("file with spaces"),
+        OsString::from("$(touch unrequested); * $HOME"),
+        OsString::from_vec(b"non-utf8-\xff".to_vec()),
+    ];
+    for id in ["olangc", "capacity"] {
+        let mut child = Command::new(FRONT)
+            .args(["tool", id])
+            .args(&args)
+            .env("O_LANG_ROOT", &root)
+            .env("PATH", &interpreters)
+            .env("CATALOG_LITERAL_ENV", "value with $literal ; symbols")
+            .current_dir(&working)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(b"literal stdin\n")
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(29),
+            "{id}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let mut expected = vec![
+            working.canonicalize().unwrap().into_os_string(),
+            OsString::from("value with $literal ; symbols"),
+        ];
+        if id == "capacity" {
+            expected.push(
+                root.join("scripts/ostadix_capacity.py")
+                    .canonicalize()
+                    .unwrap()
+                    .into_os_string(),
+            );
+        }
+        expected.extend_from_slice(&args);
+        let mut bytes = expected
+            .iter()
+            .flat_map(|arg| arg.as_bytes().iter().copied().chain([0]))
+            .collect::<Vec<_>>();
+        bytes.extend_from_slice(b"literal stdin\n");
+        assert_eq!(output.stdout, bytes, "{id}");
+        assert!(!working.join("unrequested").exists());
+    }
+}
+
+#[test]
+fn catalog_tool_rejects_unknown_ids_and_recursive_aliases_but_allows_native_o() {
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("target/release");
+    fs::create_dir_all(&bin).unwrap();
+    for name in ["o-cli", "olangc"] {
+        std::os::unix::fs::symlink(FRONT, bin.join(name)).unwrap();
+    }
+    let run = |args: &[&str]| {
+        Command::new(FRONT)
+            .args(args)
+            .env("O_LANG_ROOT", dir.path())
+            .output()
+            .unwrap()
+    };
+    let unknown = run(&["tool", "sh", "-c", "exit 0"]);
+    assert!(!unknown.status.success());
+    assert!(String::from_utf8_lossy(&unknown.stderr).contains("unknown Ostadix command"));
+    let recursive = run(&["tool", "olangc", "--help"]);
+    assert!(!recursive.status.success());
+    assert!(String::from_utf8_lossy(&recursive.stderr).contains("refusing recursive execution"));
+    let native = run(&["tool", "o", "--help"]);
+    assert!(
+        native.status.success(),
+        "{}",
+        String::from_utf8_lossy(&native.stderr)
+    );
+    assert!(String::from_utf8_lossy(&native.stdout).contains("capabilities"));
+    let own_help = run(&["tool", "--help"]);
+    assert!(own_help.status.success());
+    assert!(String::from_utf8_lossy(&own_help.stdout).contains("o tool COMMAND [ARGS]..."));
+    let non_utf8_id = Command::new(FRONT)
+        .arg("tool")
+        .arg(OsString::from_vec(b"invalid-\xff".to_vec()))
+        .output()
+        .unwrap();
+    assert!(!non_utf8_id.status.success());
+    assert!(String::from_utf8_lossy(&non_utf8_id.stderr)
+        .contains("catalog command ID must be valid UTF-8"));
+    let help = run(&["capabilities", "capacity"]);
+    assert!(help.status.success());
+    assert!(String::from_utf8_lossy(&help.stdout).contains("Help: o tool capacity --help"));
+}
+
+#[test]
 fn operational_aliases_preserve_exact_argv_and_native_exit_status() {
     let dir = tempfile::tempdir().unwrap();
     let capture = dir.path().join("capture");

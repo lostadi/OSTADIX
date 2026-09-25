@@ -83,6 +83,32 @@ evidence continuity defect are recorded in
 <p>The current M3 boundary is specified separately by <a href="docs/OIR_EXECUTION_FABRIC_V1.md">OIR Execution Fabric
 V1</a> and the <a href="docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md">authenticated pure
 remote-execution design note</a>.</p>
+<h2>One workflow for developers and LLMs</h2>
+<p>Start with <code>o capabilities</code> to find commands and task recipes, then
+<code>o guide operations</code> for the declared-operation lifecycle. LLM clients use
+<code>o_capabilities</code> and <code>o_guide</code> from the <strong>same compiled catalog and guides</strong>.
+<code>o discover QUERY</code> is an alias for <code>o capabilities QUERY</code>; <code>--json</code> exposes
+the machine-readable catalog to terminal scripts. <code>o tool COMMAND [ARGS...]</code>
+invokes any catalog entry with its full native arguments, using the same
+executable resolver as MCP <code>o_cli</code>. See the
+<a href="docs/HUMAN_LLM_WORKFLOWS.md">human and LLM workflow guide</a> for paired examples.</p>
+<pre><code class="language-sh">o capabilities operation
+o guide operations
+o operation examples/normalize
+o realizations examples/normalize
+o plan examples/normalize --explain
+o run examples/normalize --json
+</code></pre>
+<p>The corresponding <code>o_operation</code> MCP tool accepts a project <code>path</code> and an
+<code>action</code>: <code>describe</code> (default), <code>realizations</code>, <code>plan</code>, <code>explain</code>, <code>run</code>,
+<code>observe</code>, or <code>replan</code>. It invokes the native CLI and returns its report under
+<code>result</code>, together with process status and retained logs. Both interfaces use
+the same operation records, deterministic planner, execution admission, and
+run store. Retain the returned <code>run_id</code> for observation and replanning.</p>
+<p>For complete cross-language computations, use <code>o run program.O</code> or
+<code>o_execute</code> with the full nested source. Expert commands remain available
+through <code>o_cli</code> with literal argument arrays, including compiler, node,
+project, kernel, World, capacity, and device workflows.</p>
 <h2>How to read Ostadix-lang</h2>
 <p>Read the system from left to right:</p>
 <p><strong>source → admitted graph → placement → execution → evidence</strong></p>
@@ -4693,7 +4719,7 @@ Native computation
 │   ├── lib.rs                  # 42 public compatibility reexports
 │   ├── main.rs                 # O interpreter and REPL
 │   └── bin/                    # the other 14 declared root binaries
-├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 20 tools
+├── mcp/ostadix_lang_mcp_server/ # separate locked MCP crate with 21 tools
 ├── backends/                   # compatibility hosted-language adapters
 ├── ocore/                      # freestanding runtime and kernel proof
 ├── c_cpp/                      # standalone C17 hosted implementation

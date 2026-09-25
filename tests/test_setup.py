@@ -1,4 +1,4 @@
-"""Regression tests for the side-effect-free ``setup.sh`` planning interface."""
+"""Regression tests for setup planning and isolated installation dispatch."""
 
 from __future__ import annotations
 
@@ -17,6 +17,64 @@ SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 
 class SetupScriptTests(unittest.TestCase):
     maxDiff = None
+
+    def test_native_install_dispatch_keeps_required_argv_under_system_bash_nounset(self) -> None:
+        # Execute the real function bodies, not setup's global installation
+        # flow. On macOS /bin/bash is 3.2, whose nounset rejects empty arrays.
+        # A shell stub captures argv without invoking Python or installing files.
+        source = SETUP.read_text(encoding="utf-8")
+        for name in ("refresh_cargo_bin_binaries", "install_local_binaries"):
+            body = source.split(f"\n{name}() {{\n", 1)[1].split("\n}\n", 1)[0]
+            for dry_run, full in ((False, False), (False, True), (True, False), (True, True)):
+                with self.subTest(function=name, dry_run=dry_run, full=full):
+                    with tempfile.TemporaryDirectory(prefix="native install test ") as directory:
+                        home = Path(directory)
+                        root = home / "source with spaces"
+                        cargo_bin = home / "cargo with spaces" / "bin"
+                        capture = home / "arguments"
+                        script = (
+                            'set -euo pipefail\n'
+                            'python3() { printf "%s\\0" "$@" > "$NATIVE_ARGV_CAPTURE"; }\n'
+                            f"{name}() {{\n{body}\n}}\n{name}\n"
+                        )
+                        result = subprocess.run(
+                            [str(BASH), "-c", script],
+                            cwd=home,
+                            env={
+                                "HOME": str(home),
+                                "PATH": SYSTEM_PATH,
+                                "PROJECT_ROOT": str(root),
+                                "CARGO_BIN_DIR": str(cargo_bin),
+                                "DRY_RUN": str(dry_run).lower(),
+                                "FULL": str(full).lower(),
+                                "INSTALL_LOCAL_BINS": "true",
+                                "NATIVE_ARGV_CAPTURE": str(capture),
+                            },
+                            text=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            timeout=10,
+                            check=False,
+                        )
+                        self.assertEqual(result.returncode, 0, self.combined_output(result))
+                        expected = [
+                            str(root / "scripts/install_native_binaries.py"),
+                            "--repo-root", str(root), "--bin-dir",
+                            str(cargo_bin if name == "refresh_cargo_bin_binaries" else home / ".local/bin"),
+                        ]
+                        if name == "install_local_binaries":
+                            expected.append("--include-c")
+                        if dry_run:
+                            expected.append("--dry-run")
+                        if full:
+                            expected.append("--include-notebook")
+                        self.assertEqual(
+                            capture.read_bytes(),
+                            b"".join(argument.encode() + b"\0" for argument in expected),
+                        )
+                        self.assertFalse(root.exists())
+                        self.assertFalse(cargo_bin.exists())
+                        self.assertFalse((home / ".local").exists())
 
     def run_setup(
         self,

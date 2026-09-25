@@ -534,10 +534,10 @@ fn run_repl(
     if color {
         eprintln!(
             "\x1b[1m\x1b[34m  O ◦ lang\x1b[0m \x1b[2mREPL\x1b[0m  \
-             \x1b[90m:q quit  :r reset  :scope vars  :? help\x1b[0m"
+             \x1b[90m:q quit  :r reset  :c clear  :scope vars  :? help\x1b[0m"
         );
     } else {
-        eprintln!("O · lang REPL  :q quit  :r reset  :scope vars  :? help");
+        eprintln!("O · lang REPL  :q quit  :r reset  :c clear  :scope vars  :? help");
     }
     eprintln!();
 
@@ -559,6 +559,7 @@ fn run_repl(
         match rl.readline(prompt) {
             Err(ReadlineError::Interrupted) => {
                 // Ctrl+C — cancel current input, return to fresh prompt
+                eprintln!("{}", if color { "\x1b[90m^C\x1b[0m" } else { "^C" });
                 buf.clear();
                 cont = false;
                 continue;
@@ -583,6 +584,11 @@ fn run_repl(
                                     "  [scope cleared]"
                                 }
                             );
+                            continue;
+                        }
+
+                        ":c" | ":clear" => {
+                            let _ = rl.clear_screen();
                             continue;
                         }
 
@@ -747,6 +753,7 @@ fn print_repl_help(color: bool) {
     eprintln!();
     eprintln!("  {h}:q{r} / {h}:quit{r}   {d}exit the REPL{r}");
     eprintln!("  {h}:r{r} / {h}:reset{r}  {d}clear all let-bindings from scope{r}");
+    eprintln!("  {h}:c{r} / {h}:clear{r}  {d}clear the screen{r}");
     eprintln!("  {h}:?{r} / {h}:help{r}   {d}show this message{r}");
     eprintln!();
     eprintln!("  {d}Multi-line expressions are accepted — keep typing until{r}");

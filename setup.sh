@@ -351,11 +351,11 @@ clean_rust_release_binaries() {
 
 refresh_cargo_bin_binaries() {
   echo ">>> Installing native Rust binaries in $CARGO_BIN_DIR..."
-  local options=()
+  # Bash 3.2 treats an empty array expansion as unset under `set -u`.
+  local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR")
   if $DRY_RUN; then options+=(--dry-run); fi
   if $FULL; then options+=(--include-notebook); fi
-  python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" \
-    --repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR" "${options[@]}"
+  python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" "${options[@]}"
 }
 
 create_rust_alias_binaries() {
@@ -935,11 +935,10 @@ setup_python() {
 install_local_binaries() {
   if ! $INSTALL_LOCAL_BINS; then return; fi
   echo ">>> Installing native commands in ~/.local/bin..."
-  local options=()
+  local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c)
   if $DRY_RUN; then options+=(--dry-run); fi
   if $FULL; then options+=(--include-notebook); fi
-  python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" \
-    --repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c "${options[@]}"
+  python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" "${options[@]}"
   echo 'Add to PATH if needed: export PATH="$HOME/.local/bin:$PATH"'
 }
 

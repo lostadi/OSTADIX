@@ -307,7 +307,7 @@ fn remaining_timeout(deadline: Option<Instant>) -> Result<Option<u64>, String> {
     }
 }
 
-fn native_json(stdout: &str) -> Result<Value, String> {
+pub(super) fn native_json(stdout: &str) -> Result<Value, String> {
     if let Ok(value) = serde_json::from_str(stdout) {
         return Ok(value);
     }
@@ -334,6 +334,15 @@ fn completed(value: &Value) -> bool {
 }
 
 impl OstadixMcp {
+    /// Typed front doors use the same cancellation and session job ownership.
+    pub(super) async fn native_job(
+        &self,
+        args: CliArgs,
+        context: &RequestContext<RoleServer>,
+    ) -> Result<Value, String> {
+        self.unified_job(args, None, context).await
+    }
+
     /// Dispatch through the same session-owned concurrent job machinery as
     /// o_cli. The monitor owns snapshots before the first post-spawn await.
     async fn unified_job(
@@ -788,7 +797,7 @@ fn artifact_output(cwd: &Path, output: &str, target: &str) -> Result<PathBuf, St
     Ok(path)
 }
 
-async fn bounded_stdout(job: &Value, allow_final_line: bool) -> Result<String, String> {
+pub(super) async fn bounded_stdout(job: &Value, allow_final_line: bool) -> Result<String, String> {
     use tokio::io::AsyncSeekExt;
     let path = job["stdout"]["path"]
         .as_str()

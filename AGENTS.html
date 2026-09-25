@@ -77,7 +77,16 @@ it is distinct from project mesh and does not partition the ordinary graph.
 Node cwd/env configure the local client; cancelling it cannot stop remote
 effects. Preserve receipt evidence and do not retry unknown completion.
 Use <code>o_capabilities</code> (optional query) and <code>o_guide</code> (workflow topic) to discover
-the full expert command surface. <code>o_cli</code> accepts exact native argument arrays,
+the full expert command surface. Humans use <code>o capabilities [QUERY] [--json]</code>
+(alias <code>o discover</code>) and <code>o guide [TOPIC] [--json]</code> from the same compiled
+<code>src/command_catalog.rs</code>. <code>o tool COMMAND [ARGS...]</code> invokes every catalog
+entry through the same resolver as <code>o_cli</code>, including supported scripts.
+Use <code>o_operation</code> with a marked-project <code>path</code> and
+<code>action</code> describe/realizations/plan/explain/run/observe/replan. Only explicit
+<code>run</code> dispatches; observation retains the native original decision, and replan
+requires <code>without_targets</code> and never dispatches. Preserve exact <code>run</code> IDs for
+observation/replanning. Read <code>o guide operations</code> for paired human/MCP calls.
+<code>o_cli</code> accepts exact native argument arrays,
 cwd, per-child environment, stdin, optional Unix PTY, and background execution.
 <code>o_eval</code> runs inline polyglot O source. Long or interactive work uses
 <code>o_job_list</code>, <code>o_job_status</code>, <code>o_job_read</code>, <code>o_job_write</code>, and <code>o_job_cancel</code>;
@@ -91,7 +100,7 @@ one MCP session, so short-lived CLI clients should use the persistent local
 version, health, or admission proof; use the listed supported help invocation
 to inspect the selected CLI. Complete CLI access retains each command&#39;s native
 admission rules and does not turn the read-only Information inspector into a
-write API. Resources also expose the catalog and ten workflow guides. Own
+write API. Resources also expose the catalog and its workflow guides. Own
 <code>Cargo.lock</code> (not a workspace member) so <code>rmcp</code>/<code>tokio full</code> stay out of the
 main O-lang build.</p>
 <p>Built by <code>setup.sh</code> (<code>build_mcp_server</code>, skip with <code>--no-mcp</code>) via

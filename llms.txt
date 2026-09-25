@@ -9,6 +9,15 @@
 
 Key facts for agents:
 
+- Shared discovery: `o_capabilities` / `o_guide` and human `o capabilities` /
+  `o guide` use one compiled command catalog with paired task recipes. Every
+  cataloged native command keeps its full argument surface through `o_cli`
+  and human `o tool COMMAND [ARGS...]`, including supported script entries.
+- Declared operations: `o_operation` accepts `path` and `action` describe
+  (default), realizations, plan, explain, run, observe, or replan. Only explicit
+  run dispatches. Native JSON is returned unchanged under `result`, alongside
+  retained job evidence. Keep the exact `result.run_id`; use it as `run` for
+  observe/replan. Replan requires `without_targets` and does not dispatch.
 - Primary MCP computation: `o_execute {"source":"<complete O program>"}`.
   Supply exactly one `source` or existing program/project `path`; preserve
   relative filesystem context with `cwd`. `action` defaults to `execute`, with
@@ -54,6 +63,7 @@ Key facts for agents:
 
 ## Docs
 
+- [Human and LLM workflows](docs/HUMAN_LLM_WORKFLOWS.md): paired interfaces, declared alternatives, exact run evidence, and replanning
 - [AI agent guide](docs/AI_GUIDE.md): how AI systems should write, check, and run O programs
 - [Language specification](SPEC.md): grammar, evaluation semantics, OValue, backend protocol, registered languages
 - [README](README.md): setup, all editions (Rust, C17, Python reference), tooling

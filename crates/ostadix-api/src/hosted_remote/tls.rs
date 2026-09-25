@@ -764,13 +764,30 @@ fn remaining_timeout(deadline: Instant, configured: Duration) -> Result<Duration
 }
 
 fn set_timeouts(stream: &TcpStream, timeout: Duration) -> Result<()> {
-    stream
-        .set_read_timeout(Some(timeout))
+    retry_socket_timeout(|| stream.set_read_timeout(Some(timeout)), thread::sleep)
         .context("failed to set hosted transport read timeout")?;
-    stream
-        .set_write_timeout(Some(timeout))
+    retry_socket_timeout(|| stream.set_write_timeout(Some(timeout)), thread::sleep)
         .context("failed to set hosted transport write timeout")?;
     Ok(())
+}
+
+/// Some hosts intermittently reject a fresh socket's timeout with EINVAL.
+/// Retry only that error, with a per-call bound; preserve the final I/O error.
+/// The delay callback makes the retry contract testable without timing races.
+fn retry_socket_timeout(
+    mut apply: impl FnMut() -> std::io::Result<()>,
+    mut delay: impl FnMut(Duration),
+) -> std::io::Result<()> {
+    let mut retries = 0;
+    loop {
+        match apply() {
+            Err(error) if error.raw_os_error() == Some(libc::EINVAL) && retries < 15 => {
+                retries += 1;
+                delay(Duration::from_micros(200));
+            }
+            result => return result,
+        }
+    }
 }
 
 fn load_certificates(path: &Path) -> Result<Vec<CertificateDer<'static>>> {
@@ -809,6 +826,97 @@ fn load_roots(path: &Path) -> Result<RootCertStore> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn socket_timeout_retry_returns_immediate_success_without_delay() {
+        let mut attempts = 0;
+        let mut delays = Vec::new();
+        retry_socket_timeout(
+            || {
+                attempts += 1;
+                Ok(())
+            },
+            |duration| delays.push(duration),
+        )
+        .unwrap();
+        assert_eq!(attempts, 1);
+        assert!(delays.is_empty());
+    }
+
+    #[test]
+    fn socket_timeout_retry_recovers_only_after_transient_einval() {
+        let mut attempts = 0;
+        let mut delays = Vec::new();
+        retry_socket_timeout(
+            || {
+                attempts += 1;
+                if attempts <= 2 {
+                    Err(std::io::Error::from_raw_os_error(libc::EINVAL))
+                } else {
+                    Ok(())
+                }
+            },
+            |duration| delays.push(duration),
+        )
+        .unwrap();
+        assert_eq!(attempts, 3);
+        assert_eq!(delays, vec![Duration::from_micros(200); 2]);
+    }
+
+    #[test]
+    fn socket_timeout_retry_preserves_persistent_error_after_fifteen_retries() {
+        let mut attempts = 0;
+        let mut delays = Vec::new();
+        let error = retry_socket_timeout(
+            || {
+                attempts += 1;
+                Err(std::io::Error::from_raw_os_error(libc::EINVAL))
+            },
+            |duration| delays.push(duration),
+        )
+        .unwrap_err();
+        assert_eq!(attempts, 16);
+        assert_eq!(delays, vec![Duration::from_micros(200); 15]);
+        assert_eq!(error.raw_os_error(), Some(libc::EINVAL));
+    }
+
+    #[test]
+    fn socket_timeout_retry_never_delays_other_errors() {
+        let mut attempts = 0;
+        let mut delays = Vec::new();
+        let error = retry_socket_timeout(
+            || {
+                attempts += 1;
+                Err(std::io::Error::from_raw_os_error(libc::EBADF))
+            },
+            |duration| delays.push(duration),
+        )
+        .unwrap_err();
+        assert_eq!(attempts, 1);
+        assert!(delays.is_empty());
+        assert_eq!(error.raw_os_error(), Some(libc::EBADF));
+    }
+
+    #[test]
+    fn socket_timeout_retry_stops_if_the_error_changes() {
+        let mut attempts = 0;
+        let mut delays = Vec::new();
+        let error = retry_socket_timeout(
+            || {
+                attempts += 1;
+                Err(std::io::Error::from_raw_os_error(if attempts == 1 {
+                    libc::EINVAL
+                } else {
+                    libc::EBADF
+                }))
+            },
+            |duration| delays.push(duration),
+        )
+        .unwrap_err();
+        assert_eq!(attempts, 2);
+        assert_eq!(delays, vec![Duration::from_micros(200)]);
+        assert_eq!(error.raw_os_error(), Some(libc::EBADF));
+    }
 
     fn test_client_identity(server: &ServerTlsIdentity) -> ClientTlsIdentity {
         ClientTlsIdentity {

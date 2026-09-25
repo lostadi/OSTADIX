@@ -1,7 +1,7 @@
 <h1>ostadix-mcp (Rust-only)</h1>
 <p>Stdio MCP server for <strong>Ostadix-lang / O-lang</strong>. Supply a complete <code>.O</code>
 computation to <code>o_execute</code>, or pass an existing program/project path. The
-20-tool surface also supports toolchain discovery, task guides, full native
+21-tool surface also supports toolchain discovery, task guides, full native
 command arguments, and concurrent or interactive jobs.
 The server supplies an <strong>absolute</strong> <code>O_BACKENDS_DIR</code>, so relative <code>backends</code>
 and bare <code>$O_BACKENDS_DIR</code> splice mistakes do not break runs.</p>
@@ -18,12 +18,16 @@ and bare <code>$O_BACKENDS_DIR</code> splice mistakes do not break runs.</p>
 <td>Primary source-or-path computation interface: execute, parse-only check, static plan, or compile; automatic same-intent gating for ordinary O with <code>mode: admitted</code>, native project placement, structured runtime output and job evidence</td>
 </tr>
 <tr>
+<td><code>o_operation</code></td>
+<td>Typed marked-operation lifecycle: describe, realizations, plan, explain, run, observe, replan; native JSON reports and retained job evidence, with execution only for explicit <code>action: run</code></td>
+</tr>
+<tr>
 <td><code>o_capabilities</code></td>
 <td>Search the command catalog, resolved executable availability, documentation paths, and related guide topics; optional <code>query</code> filters the inventory</td>
 </tr>
 <tr>
 <td><code>o_guide</code></td>
-<td>Read a task guide; <code>topic</code> defaults to the overview, with runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance</td>
+<td>Read the same task guide as human <code>o guide</code>; <code>topic</code> defaults to the overview, with operations/runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance</td>
 </tr>
 <tr>
 <td><code>o_cli</code></td>
@@ -95,6 +99,22 @@ and bare <code>$O_BACKENDS_DIR</code> splice mistakes do not break runs.</p>
 </tr>
 </tbody></table>
 <h2>Agent workflow</h2>
+<p>For paired terminal and MCP examples, read the
+<a href="../../docs/HUMAN_LLM_WORKFLOWS.md">human and LLM workflow guide</a>, or call
+<code>o_guide</code> with <code>{&quot;topic&quot;:&quot;operations&quot;}</code>. Human <code>o capabilities</code> and
+<code>o guide</code> compile the same catalog, recipes, and guide topics as MCP discovery.
+Human <code>o tool COMMAND [ARGS...]</code> uses the same catalog resolver as <code>o_cli</code>,
+so supported scripts and every native command are reachable from either interface.</p>
+<p><code>o_operation</code> accepts a marked-project <code>path</code> and an <code>action</code>: <code>describe</code>
+(default), <code>realizations</code>, <code>plan</code>, <code>explain</code>, <code>run</code>, <code>observe</code>, or <code>replan</code>.
+Only explicit <code>run</code> dispatches. All actions invoke the native CLI; its JSON
+report remains unchanged under <code>result</code>, beside managed job status and logs.
+Save <code>result.run_id</code> from execution and pass it as <code>run</code> when observing or
+replanning. <code>without_targets</code> is required for replan, which never dispatches.
+Plan/explain/run enforce the project marker inside the native invocation.
+Invalid field combinations are rejected before starting a job. Background
+actions use the existing <code>o_job_*</code> lifecycle; reports exceeding the inline
+projection remain complete in logs with an explicit retrieval pointer.</p>
 <p>Call <code>o_execute</code> with one complete program:</p>
 <pre><code class="language-json">{&quot;source&quot;:&quot;python^( __oval_result__ = 6 * 7 )_python&quot;}
 </code></pre>

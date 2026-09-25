@@ -2,7 +2,7 @@
 
 Stdio MCP server for **Ostadix-lang / O-lang**. Supply a complete `.O`
 computation to `o_execute`, or pass an existing program/project path. The
-20-tool surface also supports toolchain discovery, task guides, full native
+21-tool surface also supports toolchain discovery, task guides, full native
 command arguments, and concurrent or interactive jobs.
 The server supplies an **absolute** `O_BACKENDS_DIR`, so relative `backends`
 and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
@@ -12,8 +12,9 @@ and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 | Tool | Purpose |
 |------|---------|
 | `o_execute` | Primary source-or-path computation interface: execute, parse-only check, static plan, or compile; automatic same-intent gating for ordinary O with `mode: admitted`, native project placement, structured runtime output and job evidence |
+| `o_operation` | Typed marked-operation lifecycle: describe, realizations, plan, explain, run, observe, replan; native JSON reports and retained job evidence, with execution only for explicit `action: run` |
 | `o_capabilities` | Search the command catalog, resolved executable availability, documentation paths, and related guide topics; optional `query` filters the inventory |
-| `o_guide` | Read a task guide; `topic` defaults to the overview, with runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance |
+| `o_guide` | Read the same task guide as human `o guide`; `topic` defaults to the overview, with operations/runtime/compiler/projects/mesh/core/live/capacity/device/agents guidance |
 | `o_cli` | Invoke a catalog command with its complete literal `args` array, optional cwd/env/stdin, timeout, background execution, and PTY |
 | `o_eval` | Evaluate inline `.O` through the installed interpreter, with per-call cwd/env/interpreter arguments and optional background execution or PTY |
 | `o_job_list` | List the jobs owned by this MCP session without waiting for running work |
@@ -33,6 +34,24 @@ and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
 | `o_information_inspect` | Fixed, bounded `o-info head` inspection of one existing local Information V1 root; returns sanitized IDs/count, no state path or authority, and makes no logical/content/inode/mode/mtime change (atime untested) |
 
 ## Agent workflow
+
+For paired terminal and MCP examples, read the
+[human and LLM workflow guide](../../docs/HUMAN_LLM_WORKFLOWS.md), or call
+`o_guide` with `{"topic":"operations"}`. Human `o capabilities` and
+`o guide` compile the same catalog, recipes, and guide topics as MCP discovery.
+Human `o tool COMMAND [ARGS...]` uses the same catalog resolver as `o_cli`,
+so supported scripts and every native command are reachable from either interface.
+
+`o_operation` accepts a marked-project `path` and an `action`: `describe`
+(default), `realizations`, `plan`, `explain`, `run`, `observe`, or `replan`.
+Only explicit `run` dispatches. All actions invoke the native CLI; its JSON
+report remains unchanged under `result`, beside managed job status and logs.
+Save `result.run_id` from execution and pass it as `run` when observing or
+replanning. `without_targets` is required for replan, which never dispatches.
+Plan/explain/run enforce the project marker inside the native invocation.
+Invalid field combinations are rejected before starting a job. Background
+actions use the existing `o_job_*` lifecycle; reports exceeding the inline
+projection remain complete in logs with an explicit retrieval pointer.
 
 Call `o_execute` with one complete program:
 

@@ -134,8 +134,10 @@ answer when delivery is possible. Notification previews are abbreviated; the
 viewer keeps the full saved answer. Model-generated code runs with the existing
 host permissions. Parse validation checks syntax, not intent or safety.
 
-See [the dated evidence report](../../audits/nano-source-validation-20260918/STATUS.md)
-for implementation, observations and unverified claims separately.
+The local dated evidence report at
+`audits/nano-source-validation-20260918/STATUS.md` separates implementation,
+observations and unverified claims. Audit working files are not included in
+the source release archive; the interface and its limits are documented here.
 
 ## Package updates and permission diagnosis
 
