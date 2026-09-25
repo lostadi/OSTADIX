@@ -20,32 +20,6 @@ fn successful(output: Output) -> Output {
 fn one_binary_runs_python_bash_and_multicall_inside_immutable_private_root() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path();
-    let python = successful(Command::new("python3").args(["-c", "import json,sys,sysconfig; print(json.dumps([sys.executable,sysconfig.get_path('stdlib')]))"]).output().unwrap());
-    let python: Vec<String> = serde_json::from_slice(&python.stdout).unwrap();
-    let spec = root.join("closure.json");
-    fs::write(
-        &spec,
-        serde_json::to_vec(&serde_json::json!({
-            "schema":"ostadix.runtime-rootfs-closure/v1",
-            "commands":{"bash":"/bin/bash","python3":python[0]},
-            "paths":[python[1]], "runner":env!("CARGO_BIN_EXE_olangc")
-        }))
-        .unwrap(),
-    )
-    .unwrap();
-    let bundle = root.join("image");
-    successful(
-        Command::new("python3")
-            .arg(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/scripts/collect_runtime_rootfs.py"
-            ))
-            .arg(&spec)
-            .arg("--output")
-            .arg(&bundle)
-            .output()
-            .unwrap(),
-    );
     let program = root.join("rootfs.O");
     fs::write(
         &program,
@@ -108,6 +82,57 @@ assert int(result) == 42, repr(result)
 "#,
     )
     .unwrap();
+    // The compiler itself may be cross-built with a different linker from
+    // Cargo below (for example Zig's static libgcc versus native GNU libgcc_s).
+    // Capture dependencies from a generated O executable built by the actual
+    // target toolchain, not from the compiler's potentially different closure.
+    let target = root.join("target");
+    let seed_project = root.join("runner-seed");
+    successful(
+        Command::new(env!("CARGO_BIN_EXE_olangc"))
+            .arg(&program)
+            .args(["-o", "rootfs-runner-seed", "--materialize-only"])
+            .arg(&seed_project)
+            .output()
+            .unwrap(),
+    );
+    successful(
+        Command::new(env!("CARGO"))
+            .args(["build", "--locked", "--offline"])
+            .current_dir(&seed_project)
+            .env("CARGO_TARGET_DIR", &target)
+            .output()
+            .unwrap(),
+    );
+    let runner_seed = target.join("debug/rootfs-runner-seed");
+    let python = successful(Command::new("python3").args(["-c", "import json,sys,sysconfig; print(json.dumps([sys.executable,sysconfig.get_path('stdlib')]))"]).output().unwrap());
+    let python: Vec<String> = serde_json::from_slice(&python.stdout).unwrap();
+    let spec = root.join("closure.json");
+    fs::write(
+        &spec,
+        serde_json::to_vec(&serde_json::json!({
+            "schema":"ostadix.runtime-rootfs-closure/v1",
+            "commands":{"bash":"/bin/bash","python3":python[0]},
+            "paths":[python[1]], "runner":runner_seed
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let bundle = root.join("image");
+    successful(
+        Command::new("python3")
+            .arg(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/scripts/collect_runtime_rootfs.py"
+            ))
+            .arg(&spec)
+            .arg("--output")
+            .arg(&bundle)
+            .output()
+            .unwrap(),
+    );
+    fs::remove_dir_all(&seed_project).unwrap();
+    fs::remove_file(&runner_seed).unwrap();
     let generated = root.join("generated");
     successful(
         Command::new(env!("CARGO_BIN_EXE_olangc"))
@@ -125,11 +150,11 @@ assert int(result) == 42, repr(result)
         Command::new(env!("CARGO"))
             .args(["build", "--locked", "--offline"])
             .current_dir(&generated)
-            .env("CARGO_TARGET_DIR", generated.join("target"))
+            .env("CARGO_TARGET_DIR", &target)
             .output()
             .unwrap(),
     );
-    let executable = generated.join("target/debug/rootfs-program");
+    let executable = target.join("debug/rootfs-program");
     let extractions = root.join("extractions");
     fs::create_dir(&extractions).unwrap();
     let sudo = std::env::var("OSTADIX_ROOTFS_TEST_SUDO").as_deref() == Ok("1");
@@ -195,7 +220,7 @@ assert int(result) == 42, repr(result)
         Command::new(env!("CARGO"))
             .args(["build", "--locked", "--offline"])
             .current_dir(&generated)
-            .env("CARGO_TARGET_DIR", generated.join("target"))
+            .env("CARGO_TARGET_DIR", &target)
             .output()
             .unwrap(),
     );
