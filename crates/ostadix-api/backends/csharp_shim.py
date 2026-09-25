@@ -47,17 +47,25 @@ def try_mono(code, tmpdir):
 
 def try_dotnet_run(code, tmpdir):
     """Try running via 'dotnet run' with a temporary project."""
+    # This task owns its descendants. Reusable compiler/build servers must not
+    # outlive it; preserve every other caller environment setting.
+    environment = os.environ.copy()
+    environment.update({
+        "MSBUILDDISABLENODEREUSE": "1",
+        "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+        "UseSharedCompilation": "false",
+    })
     # Create a minimal console project
     subprocess.run(
         ["dotnet", "new", "console", "--force", "-o", tmpdir],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, timeout=60, env=environment,
     )
     src = os.path.join(tmpdir, "Program.cs")
     with open(src, "w") as f:
         f.write(code)
     return subprocess.run(
         ["dotnet", "run", "--project", tmpdir],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=120, env=environment,
     )
 
 

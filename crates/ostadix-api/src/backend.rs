@@ -1274,6 +1274,11 @@ fn run_csharp(tools: &BackendToolchain, code: &str) -> Result<OValue> {
     let temp = TempDir::new("o-backend-csharp")?;
     if tools.contains("dotnet") {
         let mut project_command = tools.command("dotnet")?;
+        // Build servers must not outlive this task's owned process group.
+        project_command
+            .env("MSBUILDDISABLENODEREUSE", "1")
+            .env("DOTNET_CLI_USE_MSBUILD_SERVER", "0")
+            .env("UseSharedCompilation", "false");
         expect_success(
             "dotnet project creation failed",
             &project_command
@@ -1284,6 +1289,10 @@ fn run_csharp(tools: &BackendToolchain, code: &str) -> Result<OValue> {
         )?;
         fs::write(temp.path().join("Program.cs"), code)?;
         let mut run_command = tools.command("dotnet")?;
+        run_command
+            .env("MSBUILDDISABLENODEREUSE", "1")
+            .env("DOTNET_CLI_USE_MSBUILD_SERVER", "0")
+            .env("UseSharedCompilation", "false");
         return output_to_value(
             "C#",
             run_command

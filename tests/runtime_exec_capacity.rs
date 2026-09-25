@@ -22,6 +22,56 @@ fn backends_dir() -> PathBuf {
 }
 
 #[cfg(unix)]
+#[test]
+fn csharp_task_disables_persistent_build_servers_without_losing_environment() {
+    let temp = tempfile::tempdir().unwrap();
+    let dotnet = temp.path().join("dotnet");
+    let shell = which::which("sh").expect("a POSIX shell is required by this Unix test");
+    fs::write(
+        &dotnet,
+        format!(
+            "#!{}\n{}",
+            shell.display(),
+            r#"
+test "$MSBUILDDISABLENODEREUSE" = 1 || exit 41
+test "$DOTNET_CLI_USE_MSBUILD_SERVER" = 0 || exit 42
+test "$UseSharedCompilation" = false || exit 43
+test "$OSTADIX_TEST_ENV" = retained || exit 44
+case "$1" in
+  new) exit 0 ;;
+  run) IFS= read -r source < "$3/Program.cs"; printf '%s\n' "$source" ;;
+  *) exit 45 ;;
+esac
+"#,
+        ),
+    )
+    .unwrap();
+    fs::set_permissions(&dotnet, fs::Permissions::from_mode(0o755)).unwrap();
+    let source = temp.path().join("csharp.O");
+    fs::write(&source, "csharp^(OSTADIX_CSHARP_TASK_ENV_PASS)_csharp\n").unwrap();
+    let mut paths = vec![temp.path().to_path_buf()];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    let output = Command::new(env!("CARGO_BIN_EXE_O"))
+        .arg(&source)
+        .arg(backends_dir())
+        .env("PATH", std::env::join_paths(paths).unwrap())
+        .env("MSBUILDDISABLENODEREUSE", "0")
+        .env("DOTNET_CLI_USE_MSBUILD_SERVER", "1")
+        .env("UseSharedCompilation", "true")
+        .env("OSTADIX_TEST_ENV", "retained")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "C# task failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("OSTADIX_CSHARP_TASK_ENV_PASS"));
+}
+
+#[cfg(unix)]
 fn wait_bounded(mut child: std::process::Child, deadline: Duration) -> Output {
     let started = Instant::now();
     loop {

@@ -563,9 +563,17 @@ require_fixed docs/HGRAPH_EXECUTOR_PLAN.md \
 require_fixed scripts/o-cli.sh \
     'exec "$OCLI_BIN" "$@"' \
     'the repository-owned intent commands no longer reach the compiled Ostadix front door'
-require_fixed src/bin/o-cli/native_dispatch.rs \
-    '"object" | "operation" | "realizations" | "observe" | "replan"' \
-    'the repository dispatcher no longer routes the operation-project commands to o-cli'
+# rustfmt may wrap this match arm without changing any routed command.
+if ! python3 - <<'PY'
+from pathlib import Path
+text = " ".join(Path("src/bin/o-cli/native_dispatch.rs").read_text().split())
+required = '"object" | "operation" | "realizations" | "observe" | "replan"'
+if required not in text:
+    raise SystemExit("WORLD CONTRACT DRIFT: the repository dispatcher no longer routes the operation-project commands to o-cli")
+PY
+then
+    fail=1
+fi
 require_fixed src/bin/o-cli.rs \
     'Plan(PlanArgs)' \
     'the compiled Ostadix front door no longer owns the plan grammar'

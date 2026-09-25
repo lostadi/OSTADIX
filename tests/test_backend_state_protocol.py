@@ -6,7 +6,9 @@ import base64
 import importlib.util
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -68,6 +70,46 @@ class ShimProcess:
 
 class BackendStateProtocolTests(unittest.TestCase):
     maxDiff = None
+
+    def test_csharp_task_toolchain_disables_only_child_server_persistence(self):
+        embedded = ROOT / "crates/ostadix-api/backends/csharp_shim.py"
+        self.assertEqual((BACKENDS / "csharp_shim.py").read_bytes(), embedded.read_bytes())
+        marker = "OSTADIX_CSHARP_TASK_ENV_PASS"
+        with tempfile.TemporaryDirectory() as directory:
+            tool = Path(directory) / "dotnet"
+            tool.write_text(f"#!{sys.executable}\n" + """
+import os, pathlib, sys
+expected = {'MSBUILDDISABLENODEREUSE': '1', 'DOTNET_CLI_USE_MSBUILD_SERVER': '0',
+            'UseSharedCompilation': 'false', 'OSTADIX_TEST_ENV': 'retained'}
+if any(os.environ.get(key) != value for key, value in expected.items()):
+    sys.exit(41)
+if sys.argv[1] == 'new':
+    sys.exit(0)
+source = (pathlib.Path(sys.argv[3]) / 'Program.cs').read_text()
+if source != 'OSTADIX_CSHARP_TASK_ENV_PASS':
+    sys.exit(42)
+print(source)
+""")
+            tool.chmod(0o755)
+            inherited = {
+                "PATH": directory + os.pathsep + os.environ.get("PATH", ""),
+                "MSBUILDDISABLENODEREUSE": "0",
+                "DOTNET_CLI_USE_MSBUILD_SERVER": "1",
+                "UseSharedCompilation": "true",
+                "OSTADIX_TEST_ENV": "retained",
+            }
+            with mock.patch.dict(os.environ, inherited):
+                for path in ("csharp_shim.py", embedded):
+                    with self.subTest(shim=path):
+                        shim = ShimProcess(path)
+                        try:
+                            response = shim.request({"cmd": "exec", "bindings": {}, "code": marker})
+                            self.assertEqual(response["status"], "ok", response)
+                            self.assertIn(marker, str(response["value"]))
+                        finally:
+                            shim.close()
+                for key, value in inherited.items():
+                    self.assertEqual(os.environ[key], value)
 
     def test_python_embedded_shim_matches_explicit_backend_source(self):
         self.assertEqual((BACKENDS / "python_shim.py").read_bytes(),
