@@ -744,6 +744,7 @@ static Tag *try_parse_opener(OParser *p) {
     size_t i;
     size_t env_start;
     size_t digits_start;
+    size_t backend_index;
     unsigned long parsed_env;
     char *lang;
     uint32_t env_id = OLANG_ENV_EPHEMERAL;
@@ -760,18 +761,39 @@ static Tag *try_parse_opener(OParser *p) {
         return NULL;
     }
 
-    i = start + 1;
-    while (i < p->source_len && is_ident_continue((unsigned char)p->source[i])) {
-        i += 1;
-    }
-
-    lang = dup_range(p->source + start, i - start);
-    if (lang == NULL) {
-        parser_set_error(p, "Out of memory");
+    if (p->registered_backends == NULL) {
         return NULL;
     }
-    if (!string_set_contains(p->registered_backends, lang)) {
-        free(lang);
+    lang = NULL;
+    i = start;
+    /* Match registered names before allocating. Scanning the whole remaining
+       identifier at each byte makes ordinary long text quadratic. Keep the
+       caller's bytewise traversal: a registered opener can be an identifier
+       suffix, such as the python part of xxpython^(...)_python. */
+    for (backend_index = 0; backend_index < p->registered_backends->len;
+         backend_index++) {
+        const char *candidate = p->registered_backends->items[backend_index];
+        size_t length = 0;
+        while (start + length < p->source_len && candidate[length] != '\0' &&
+               is_ident_continue((unsigned char)candidate[length]) &&
+               p->source[start + length] == candidate[length]) {
+            length += 1;
+        }
+        if (length == 0 || candidate[length] != '\0') {
+            continue;
+        }
+        i = start + length;
+        if (i < p->source_len && is_ident_continue((unsigned char)p->source[i])) {
+            continue;
+        }
+        lang = dup_range(p->source + start, length);
+        if (lang == NULL) {
+            parser_set_error(p, "Out of memory");
+            return NULL;
+        }
+        break;
+    }
+    if (lang == NULL) {
         return NULL;
     }
 
@@ -1122,6 +1144,7 @@ static ONodeList *parse_until(OParser *p, const Tag *expected_closer) {
     bool in_seq;
     char *closer = NULL;
     size_t closer_len = 0;
+    size_t call_identifier_end = 0;
 
     if (p == NULL) {
         return NULL;
@@ -1328,7 +1351,22 @@ static ONodeList *parse_until(OParser *p, const Tag *expected_closer) {
             }
         }
 
-        if (in_seq) {
+        if (in_seq && is_ident_start(current_byte(p))) {
+            /* Reuse the end of a raw identifier as the bytewise scan visits
+               its suffixes. Only an identifier followed by '(' can be a call.
+               Do not skip its bytes: a registered opener may start inside it. */
+            if (p->pos >= call_identifier_end) {
+                call_identifier_end = p->pos + 1;
+                while (call_identifier_end < p->source_len &&
+                       is_ident_continue((unsigned char)p->source[call_identifier_end])) {
+                    call_identifier_end += 1;
+                }
+            }
+        }
+
+        if (in_seq && is_ident_start(current_byte(p)) &&
+            call_identifier_end < p->source_len &&
+            p->source[call_identifier_end] == '(') {
             size_t stmt_start = p->pos;
             ONode *call = try_parse_call(p);
             if (parser_has_error(p)) {

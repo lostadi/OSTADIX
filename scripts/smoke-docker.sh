@@ -64,8 +64,10 @@ printf 'Docker minimal image build: PASS\n'
 printf 'Docker minimal runtime profile: PASS\n'
 
 version_output="$("$docker_bin" run --rm "$image" --version)"
-require_exact "O package version" "O 0.4.0" "$version_output"
-printf 'Docker O 0.4.0 package coordinate: PASS\n'
+require_exact "native front-door version" "o 0.4.0" "$version_output"
+evaluator_version="$("$docker_bin" run --rm --entrypoint ostadix-evaluator "$image" --version)"
+require_exact "evaluator version" "O 0.4.0" "$evaluator_version"
+printf 'Docker native front door and evaluator package coordinates: PASS\n'
 
 version_json="$work_dir/version.json"
 "$docker_bin" run --rm "$image" version --json >"$version_json"

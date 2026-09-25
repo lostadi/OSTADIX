@@ -913,7 +913,9 @@ class HostedLiveWorkstationPayloadTests(unittest.TestCase):
 
     def test_notebook_uses_installed_backend_and_browser_contracts(self) -> None:
         source = (ROOT / "src/bin/o-notebook.rs").read_text(encoding="utf-8")
-        self.assertIn('std::env::var_os("O_BACKENDS_DIR")', source)
+        paths = (ROOT / "src/cli_paths.rs").read_text(encoding="utf-8")
+        self.assertIn("o_lang::cli_paths::configured_shim_dir()", source)
+        self.assertIn('std::env::var_os("O_BACKENDS_DIR")', paths)
         self.assertIn('std::env::var_os("OSTADIX_NOTEBOOK_BROWSER")', source)
         self.assertIn('std::env::var_os("OSTADIX_NOTEBOOK_NO_OPEN")', source)
         self.assertIn("select_shim_dir", source)

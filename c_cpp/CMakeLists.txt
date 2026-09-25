@@ -54,6 +54,9 @@ add_executable(fresh_env_test
 )
 olang_configure_target(fresh_env_test)
 
+add_executable(parser_test src/parser.c tests/test_parser.c)
+olang_configure_target(parser_test)
+
 # olangc locates runtime sources relative to its executable; provide them in
 # out-of-source CMake build directories without making the legacy C++ path active.
 add_custom_command(TARGET olangc POST_BUILD
@@ -66,6 +69,9 @@ add_custom_command(TARGET olangc POST_BUILD
 )
 
 enable_testing()
+
+add_test(NAME parser_boundaries_and_scaling COMMAND $<TARGET_FILE:parser_test>)
+set_tests_properties(parser_boundaries_and_scaling PROPERTIES TIMEOUT 15)
 
 set(OLANG_BACKENDS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../backends)
 set(OLANG_EXAMPLE_RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/../tests/example_manifest.py)

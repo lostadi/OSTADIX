@@ -2,6 +2,8 @@
 """Backend-owned state protocol conformance for all bundled Python shims."""
 
 import os
+import base64
+import importlib.util
 import subprocess
 import sys
 import unittest
@@ -65,6 +67,68 @@ class ShimProcess:
 
 class BackendStateProtocolTests(unittest.TestCase):
     maxDiff = None
+
+    def test_python_builtin_collections_do_not_attempt_optional_image_imports(self):
+        shim = ShimProcess("python_shim.py")
+        try:
+            response = shim.request({"cmd": "exec", "bindings": {}, "code": """
+import sys
+attempted = []
+class RejectOptionalImages:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in {'matplotlib', 'PIL'}:
+            attempted.append(fullname)
+            raise ImportError('unexpected optional image import')
+sys.meta_path.insert(0, RejectOptionalImages())
+{'nested': ([1, None, True], {2: 'value'}), 'set': {3}, 'frozen': frozenset([4])}
+"""})
+            self.assertEqual("ok", response["status"], response)
+            value = response["value"]
+            self.assertEqual("map", value["t"])
+            self.assertEqual({"t": "seq", "kind": "tuple", "items": [
+                {"t": "list", "v": [{"t": "int", "v": 1}, {"t": "null"},
+                                       {"t": "bool", "v": True}]},
+                {"t": "entries_map", "entries": [[{"t": "int", "v": 2},
+                                                       {"t": "str", "v": "value"}]]},
+            ]}, value["v"]["nested"])
+            for key, number in [("set", 3), ("frozen", 4)]:
+                self.assertEqual({"t": "set", "kind": "unordered",
+                                  "items": [{"t": "int", "v": number}]}, value["v"][key])
+            checked = shim.request({"cmd": "exec", "bindings": {}, "code":
+                "not attempted and not any(name.split('.')[0] in {'matplotlib', 'PIL'} for name in sys.modules)"})
+            self.assertEqual({"status": "ok", "value": {"t": "bool", "v": True}}, checked)
+        finally:
+            shim.close()
+
+    @unittest.skipUnless(importlib.util.find_spec("PIL"), "Pillow unavailable")
+    def test_python_nested_rich_images_and_collection_subclasses_keep_wire_types(self):
+        shim = ShimProcess("python_shim.py")
+        try:
+            response = shim.request({"cmd": "exec", "bindings": {}, "code": """
+from PIL import Image
+class ListSubclass(list): pass
+class TupleSubclass(tuple): pass
+class DictSubclass(dict): pass
+image = Image.new('RGB', (2, 2), (20, 30, 40))
+{'ordinary': [image], 'subclass': ListSubclass([image, 7]),
+ 'tuple': TupleSubclass([8]), 'mapping': DictSubclass({9: image})}
+"""})
+            self.assertEqual("ok", response["status"], response)
+            values = response["value"]["v"]
+            self.assertEqual("list", values["ordinary"]["t"])
+            self.assertEqual("list", values["subclass"]["t"])
+            self.assertEqual({"t": "int", "v": 7}, values["subclass"]["v"][1])
+            self.assertEqual({"t": "seq", "kind": "tuple", "items": [{"t": "int", "v": 8}]},
+                             values["tuple"])
+            self.assertEqual("entries_map", values["mapping"]["t"])
+            self.assertEqual({"t": "int", "v": 9}, values["mapping"]["entries"][0][0])
+            for blob in [values["ordinary"]["v"][0], values["subclass"]["v"][0],
+                         values["mapping"]["entries"][0][1]]:
+                self.assertEqual("blob", blob["t"])
+                self.assertEqual("image/png", blob["mime"])
+                self.assertTrue(base64.b64decode(blob["v"]).startswith(b"\x89PNG\r\n\x1a\n"))
+        finally:
+            shim.close()
 
     def test_all_22_shims_report_their_truthful_state_tier(self):
         self.assertEqual(22, len(ALL_SHIMS))

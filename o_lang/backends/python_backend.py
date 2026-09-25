@@ -164,6 +164,12 @@ def _lift_result(x: Any) -> OValue:
     if isinstance(x, (ONull, OBool, OInt, OFloat, OStr, OStorePath, OList, OMap, OScope, OBlob)):
         return x  # user already wrapped it
 
+    # Ordinary values have a complete conversion already. Avoid importing
+    # optional plotting/image packages (and initializing their caches) merely
+    # to return a scalar or collection. Exact types preserve rich subclasses.
+    if type(x) in (type(None), bool, int, float, str, bytes, list, tuple, dict):
+        return from_python(x)
+
     # matplotlib.figure.Figure -> PNG blob
     try:
         import matplotlib.figure

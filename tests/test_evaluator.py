@@ -1,7 +1,9 @@
 """End-to-end evaluator tests. Run with: python -m tests.test_evaluator"""
 
 import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -69,6 +71,43 @@ def test_python_dict_to_omap():
     v = run('python^({"a": 1, "b": 2})_python')
     assert isinstance(v, OMap)
     assert dict(((k, x.value) for k, x in v.pairs)) == {"a": 1, "b": 2}
+
+
+def test_python_builtin_results_do_not_import_optional_image_packages():
+    # A fresh process detects even attempted imports; _lift_result deliberately
+    # catches optional import errors, so an ImportError alone cannot prove this.
+    source = '''
+import sys
+from o_lang import run
+from o_lang.ovalue import from_python
+
+attempted = []
+class RejectOptionalImages:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in {'matplotlib', 'PIL'}:
+            attempted.append(fullname)
+            raise ImportError('optional image package requested for ordinary value')
+sys.meta_path.insert(0, RejectOptionalImages())
+for expression, expected in [
+    ('None', None), ('True', True), ('42', 42), ('1.5', 1.5),
+    ("'hello'", 'hello'), ("b'bytes'", b'bytes'),
+    ('[1, None, True]', [1, None, True]), ('(2, 3)', (2, 3)),
+    ("{'a': [1, 2]}", {'a': [1, 2]}),
+]:
+    assert run('python^(' + expression + ')_python') == from_python(expected)
+assert not attempted, attempted
+assert not any(name.split('.')[0] in {'matplotlib', 'PIL'} for name in sys.modules)
+'''
+    with tempfile.TemporaryDirectory(prefix="o-python-cold-cache-") as cache:
+        import os
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", source],
+            cwd=Path(__file__).resolve().parents[1],
+            env=dict(os.environ, MPLCONFIGDIR=cache, XDG_CACHE_HOME=cache),
+            capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not list(Path(cache).iterdir()), "ordinary values created an image cache"
 
 
 def test_html_embeds_python_number():

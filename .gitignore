@@ -52,6 +52,8 @@
 /examples/nix_basic
 /c_cpp/O
 /c_cpp/olangc
+/c_cpp/tests/test_fresh_env
+/c_cpp/tests/test_parser
 
 # Generated linker and extraction output
 /combined.O
