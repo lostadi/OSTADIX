@@ -1811,7 +1811,32 @@ pub fn execute_selection_with_configured_executor(
     policy_override: Option<RoutePolicy>,
     opts: &RunOptions,
 ) -> Result<ConfiguredProjectExecution> {
-    execute_selection_with_configured_executor_inner(bundle, target, policy_override, opts, None)
+    execute_selection_with_configured_executor_controlled(
+        bundle,
+        target,
+        policy_override,
+        opts,
+        CancellationToken::new(),
+    )
+}
+
+/// Dispatch through the configured project executor with caller-owned request
+/// cancellation. Each selected route retains its independent branch control.
+pub fn execute_selection_with_configured_executor_controlled(
+    bundle: &ProjectBundle,
+    target: Option<&str>,
+    policy_override: Option<RoutePolicy>,
+    opts: &RunOptions,
+    cancellation: CancellationToken,
+) -> Result<ConfiguredProjectExecution> {
+    execute_selection_with_configured_executor_inner(
+        bundle,
+        target,
+        policy_override,
+        opts,
+        None,
+        &cancellation,
+    )
 }
 
 /// Dispatch project selection through the configured runtime while reporting
@@ -1830,6 +1855,7 @@ pub fn execute_selection_with_configured_executor_with_progress(
         policy_override,
         opts,
         Some(observer),
+        &CancellationToken::new(),
     )
 }
 
@@ -1839,22 +1865,14 @@ fn execute_selection_with_configured_executor_inner(
     policy_override: Option<RoutePolicy>,
     opts: &RunOptions,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: &CancellationToken,
 ) -> Result<ConfiguredProjectExecution> {
     let configured = std::env::var_os(PROJECT_EXECUTOR_ENV);
     match configured.as_deref() {
         Some(value) if value == "legacy" => {
-            let execution = match observer {
-                Some(observer) => super::runtime::run_selection_observed_with_progress(
-                    bundle,
-                    target,
-                    policy_override,
-                    opts,
-                    observer,
-                )?,
-                None => {
-                    super::runtime::run_selection_observed(bundle, target, policy_override, opts)?
-                }
-            };
+            let execution = super::runtime::run_selection_observed_controlled(
+                bundle, target, policy_override, opts, cancellation, observer,
+            )?;
             Ok(ConfiguredProjectExecution {
                 results: execution.results,
                 trace: None,
@@ -1867,7 +1885,7 @@ fn execute_selection_with_configured_executor_inner(
             let project = build_project_hgraph_with_contract(bundle, target, policy_override, contract)
                 .map_err(anyhow::Error::msg)
                 .context("failed to build project HGraph for execution")?;
-            let mut coordinator = ProjectCoordinator::new_with_contract(bundle, &project, opts, contract)?;
+            let mut coordinator = ProjectCoordinator::new_with_contract_controlled(bundle, &project, opts, contract, cancellation.clone())?;
             coordinator.observer = observer;
             let outcome = coordinator.execute_with_attempts()?;
             Ok(ConfiguredProjectExecution { results: outcome.attempted_results, trace: Some(outcome.trace), validated_selection_receipt: outcome.receipt, validated_selection_measurements: outcome.measurements })

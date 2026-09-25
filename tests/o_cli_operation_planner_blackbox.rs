@@ -1526,7 +1526,12 @@ fn native_signals_cancel_owned_operation_routes_and_retain_terminal_records() {
         }
     }
 
-    for engine in ["hgraph", "legacy"] {
+    for (engine, script) in [
+        ("hgraph", false),
+        ("legacy", false),
+        ("hgraph", true),
+        ("legacy", true),
+    ] {
         for signal in [libc::SIGINT, libc::SIGTERM] {
             let temporary = tempfile::tempdir().unwrap();
             let root = temporary.path();
@@ -1549,8 +1554,23 @@ fn native_signals_cancel_owned_operation_routes_and_retain_terminal_records() {
             ));
             make_executable(&wrapper);
             let mut command = o_cli(&home, &state, Some(&bin));
+            let trace_path = root.join("project-trace.json");
+            if script {
+                let mut compiler = Command::new(env!("CARGO_BIN_EXE_olangc"));
+                compiler.env_clear().envs(
+                    command
+                        .get_envs()
+                        .filter_map(|(key, value)| value.map(|value| (key, value))),
+                );
+                compiler.args([project.to_str().unwrap(), "--target", "script"]);
+                if engine == "hgraph" {
+                    compiler.args(["--project-trace-out", trace_path.to_str().unwrap()]);
+                }
+                command = compiler;
+            } else {
+                command.args(["run", project.to_str().unwrap(), "--json"]);
+            }
             command
-                .args(["run", project.to_str().unwrap(), "--json"])
                 .env("O_PROJECT_EXECUTOR", engine)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -1615,68 +1635,101 @@ fn native_signals_cancel_owned_operation_routes_and_retain_terminal_records() {
                 .unwrap()
                 .read_to_string(&mut stderr)
                 .unwrap();
-            let summary: Value = serde_json::from_str(&stdout).unwrap_or_else(|error| {
-                panic!("{engine}: no terminal summary: {error}; stdout={stdout}; stderr={stderr}")
-            });
-            assert_ne!(summary["disposition"], "succeeded");
-            assert_eq!(summary["recording"]["status"], "recorded", "{summary}");
-            let reader = RunStoreReaderV1::open_existing(state.join("ostadix/runs-v1")).unwrap();
-            let (record, _) = reader.read_terminal(RunSelectorV1::LastRun, false).unwrap();
-            assert!(!record.disposition.is_success());
-            assert_ne!(
-                record.disposition,
-                RunDispositionV1::Interrupted,
-                "cooperative cancellation must publish its actual terminal observation"
-            );
-            assert!(
-                record
-                    .failure
-                    .as_ref()
-                    .unwrap()
-                    .message
-                    .to_lowercase()
-                    .contains("cancel"),
-                "{record:?}"
-            );
-            assert!(record.operation_plan.is_some());
-            assert_eq!(record.failure.as_ref().unwrap().stage, "cancellation");
-            assert!(record.route_results.is_empty());
-            let observed = run(o_cli(&home, &state, Some(&bin)).args([
-                "observe",
-                project.to_str().unwrap(),
-                "--run",
-                &record.run_id,
-                "--json",
-            ]));
-            assert_success(&observed, "observe cooperatively cancelled operation");
-            let observed = single_json(&observed);
-            assert_eq!(
-                observed["selected_candidate"],
-                record.operation_plan.as_ref().unwrap().selected_candidate
-            );
-            assert_eq!(observed["execution"], Value::Null);
-            assert_eq!(
-                observed["runtime_graph"]["observations"][0]["state"],
-                "proposed"
-            );
-            assert_eq!(
-                observed["runtime_graph"]["observations"][0]["metrics"]["execution_ns"],
-                Value::Null
-            );
-            let replanned = run(o_cli(&home, &state, Some(&bin)).args([
-                "replan",
-                project.to_str().unwrap(),
-                "--run",
-                &record.run_id,
-                "--without-target",
-                "ambient-python-primary",
-                "--json",
-            ]));
-            assert_success(&replanned, "replan cooperatively cancelled operation");
-            assert_eq!(
-                single_json(&replanned)["recovery_plan_status"],
-                "not_applicable_source_outcome_unobserved"
-            );
+            if script {
+                assert!(
+                    stdout.is_empty(),
+                    "script cancellation unexpectedly returned a result: {stdout}"
+                );
+                assert!(stderr.to_lowercase().contains("cancel"), "{stderr}");
+                assert!(!state.join("ostadix/runs-v1").exists());
+                if engine == "hgraph" {
+                    use o_lang::project::trace::{
+                        ProjectAttemptEvent, ProjectAttemptState, ProjectAttemptTrace,
+                        PROJECT_ATTEMPT_TRACE_VERSION,
+                    };
+                    let trace: Value =
+                        serde_json::from_slice(&fs::read(&trace_path).unwrap()).unwrap();
+                    assert_eq!(trace["format_version"], PROJECT_ATTEMPT_TRACE_VERSION);
+                    let checked = ProjectAttemptTrace::try_from_events(
+                        serde_json::from_value(trace["header"].clone()).unwrap(),
+                        serde_json::from_value::<Vec<ProjectAttemptEvent>>(trace["events"].clone())
+                            .unwrap(),
+                    )
+                    .unwrap();
+                    assert!(checked
+                        .events()
+                        .iter()
+                        .any(|event| event.state == ProjectAttemptState::Aborted));
+                } else {
+                    assert!(!trace_path.exists());
+                }
+            } else {
+                let summary: Value = serde_json::from_str(&stdout).unwrap_or_else(|error| {
+                    panic!(
+                        "{engine}: no terminal summary: {error}; stdout={stdout}; stderr={stderr}"
+                    )
+                });
+                assert_ne!(summary["disposition"], "succeeded");
+                assert_eq!(summary["recording"]["status"], "recorded", "{summary}");
+                let reader =
+                    RunStoreReaderV1::open_existing(state.join("ostadix/runs-v1")).unwrap();
+                let (record, _) = reader.read_terminal(RunSelectorV1::LastRun, false).unwrap();
+                assert!(!record.disposition.is_success());
+                assert_ne!(
+                    record.disposition,
+                    RunDispositionV1::Interrupted,
+                    "cooperative cancellation must publish its actual terminal observation"
+                );
+                assert!(
+                    record
+                        .failure
+                        .as_ref()
+                        .unwrap()
+                        .message
+                        .to_lowercase()
+                        .contains("cancel"),
+                    "{record:?}"
+                );
+                assert!(record.operation_plan.is_some());
+                assert_eq!(record.failure.as_ref().unwrap().stage, "cancellation");
+                assert!(record.route_results.is_empty());
+                let observed = run(o_cli(&home, &state, Some(&bin)).args([
+                    "observe",
+                    project.to_str().unwrap(),
+                    "--run",
+                    &record.run_id,
+                    "--json",
+                ]));
+                assert_success(&observed, "observe cooperatively cancelled operation");
+                let observed = single_json(&observed);
+                assert_eq!(
+                    observed["selected_candidate"],
+                    record.operation_plan.as_ref().unwrap().selected_candidate
+                );
+                assert_eq!(observed["execution"], Value::Null);
+                assert_eq!(
+                    observed["runtime_graph"]["observations"][0]["state"],
+                    "proposed"
+                );
+                assert_eq!(
+                    observed["runtime_graph"]["observations"][0]["metrics"]["execution_ns"],
+                    Value::Null
+                );
+                let replanned = run(o_cli(&home, &state, Some(&bin)).args([
+                    "replan",
+                    project.to_str().unwrap(),
+                    "--run",
+                    &record.run_id,
+                    "--without-target",
+                    "ambient-python-primary",
+                    "--json",
+                ]));
+                assert_success(&replanned, "replan cooperatively cancelled operation");
+                assert_eq!(
+                    single_json(&replanned)["recovery_plan_status"],
+                    "not_applicable_source_outcome_unobserved"
+                );
+            }
             let deadline = Instant::now() + Duration::from_secs(5);
             for (index, pid) in pids.iter().copied().enumerate() {
                 let running = || {
@@ -1723,12 +1776,14 @@ fn native_sigterm_cancels_ordinary_graph_and_serial_backend_waits() {
         }
     }
 
-    for (engine, direct, crossing) in [
-        ("graph", false, false),
-        ("serial", false, false),
-        ("graph", true, false),
-        ("serial", true, false),
-        ("graph", true, true),
+    for (engine, direct, crossing, script) in [
+        ("graph", false, false, false),
+        ("serial", false, false, false),
+        ("graph", true, false, false),
+        ("serial", true, false, false),
+        ("graph", true, true, false),
+        ("graph", true, false, true),
+        ("serial", true, false, true),
     ] {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path();
@@ -1745,7 +1800,22 @@ fn native_sigterm_cancels_ordinary_graph_and_serial_backend_waits() {
         ));
         let backends = Path::new(env!("CARGO_MANIFEST_DIR")).join("backends");
         let mut command = o_cli(&home, &state, None);
-        if direct {
+        if script {
+            let mut compiler = Command::new(env!("CARGO_BIN_EXE_olangc"));
+            compiler.env_clear().envs(
+                command
+                    .get_envs()
+                    .filter_map(|(key, value)| value.map(|value| (key, value))),
+            );
+            compiler.env("O_EXECUTOR", engine).args([
+                source.to_str().unwrap(),
+                "--target",
+                "script",
+                "--shim-dir",
+                backends.to_str().unwrap(),
+            ]);
+            command = compiler;
+        } else if direct {
             let mut evaluator = Command::new(env!("CARGO_BIN_EXE_O"));
             evaluator.env_clear().envs(
                 command
@@ -1828,34 +1898,48 @@ fn native_sigterm_cancels_ordinary_graph_and_serial_backend_waits() {
             .unwrap()
             .read_to_string(&mut stderr)
             .unwrap();
-        let summary: Value = serde_json::from_str(&stdout).unwrap_or_else(|error| panic!("direct={direct} engine={engine} crossing={crossing}: {error}; stdout={stdout}; stderr={stderr}"));
-        if direct {
-            assert_eq!(summary["ok"], false);
-            assert_eq!(summary["stage"], "eval");
-            assert!(summary["error"]
-                .as_str()
-                .unwrap()
-                .to_lowercase()
-                .contains("cancel"));
-            assert_eq!(summary.get("backend_crossings").is_some(), crossing);
+        if script {
             assert!(
-                !state.join("ostadix/runs-v1").exists(),
-                "direct evaluator must not create front-door history"
+                stdout.is_empty(),
+                "script cancellation unexpectedly returned a result: {stdout}"
             );
+            assert!(stderr.to_lowercase().contains("cancel"), "{stderr}");
+            assert!(!state.join("ostadix/runs-v1").exists());
+            assert!(!home
+                .join("tmp")
+                .join(format!("o_shims_{}", fixture.child.id()))
+                .exists());
         } else {
-            assert_eq!(summary["recording"]["status"], "recorded");
-            let reader = RunStoreReaderV1::open_existing(state.join("ostadix/runs-v1")).unwrap();
-            let (record, _) = reader.read_terminal(RunSelectorV1::LastRun, false).unwrap();
-            assert!(!record.disposition.is_success());
-            assert_ne!(record.disposition, RunDispositionV1::Interrupted);
-            assert_eq!(record.failure.as_ref().unwrap().stage, "cancellation");
-            assert!(record
-                .failure
-                .as_ref()
-                .unwrap()
-                .message
-                .to_lowercase()
-                .contains("cancel"));
+            let summary: Value = serde_json::from_str(&stdout).unwrap_or_else(|error| panic!("direct={direct} engine={engine} crossing={crossing}: {error}; stdout={stdout}; stderr={stderr}"));
+            if direct {
+                assert_eq!(summary["ok"], false);
+                assert_eq!(summary["stage"], "eval");
+                assert!(summary["error"]
+                    .as_str()
+                    .unwrap()
+                    .to_lowercase()
+                    .contains("cancel"));
+                assert_eq!(summary.get("backend_crossings").is_some(), crossing);
+                assert!(
+                    !state.join("ostadix/runs-v1").exists(),
+                    "direct evaluator must not create front-door history"
+                );
+            } else {
+                assert_eq!(summary["recording"]["status"], "recorded");
+                let reader =
+                    RunStoreReaderV1::open_existing(state.join("ostadix/runs-v1")).unwrap();
+                let (record, _) = reader.read_terminal(RunSelectorV1::LastRun, false).unwrap();
+                assert!(!record.disposition.is_success());
+                assert_ne!(record.disposition, RunDispositionV1::Interrupted);
+                assert_eq!(record.failure.as_ref().unwrap().stage, "cancellation");
+                assert!(record
+                    .failure
+                    .as_ref()
+                    .unwrap()
+                    .message
+                    .to_lowercase()
+                    .contains("cancel"));
+            }
         }
         let deadline = Instant::now() + Duration::from_secs(5);
         while unsafe { libc::kill(backend_pid, 0) } == 0 && Instant::now() < deadline {

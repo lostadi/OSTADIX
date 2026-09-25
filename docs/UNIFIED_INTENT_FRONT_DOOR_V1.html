@@ -55,6 +55,12 @@ signal handling and preserve their ordinary JSON or crossing-evidence output.
 They clean up owned backend processes before signal termination and do not
 create front-door run records. REPL interaction and parse-only checks retain
 their existing behavior.</p>
+<p><code>olangc --target script</code> and newly compiled ordinary or project executables
+use the same cooperative cancellation boundary. They finish local cleanup and
+any requested Project HGraph trace before preserving signal termination; they
+do not create front-door run records. WebAssembly retains its serial execution
+path without Unix signal dependencies. Linux rootfs executables additionally
+retain their existing namespace descendant cleanup.</p>
 <h2>Semantic-record inspection boundary</h2>
 <p><code>o operation</code> is a separate, non-executing front-door namespace for the
 experimental operation-realization V1 records:</p>
