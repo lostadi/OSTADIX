@@ -29,7 +29,13 @@ fn fixture_bundle() -> ProjectBundle {
 
 #[test]
 fn fixture_mode_normalization_ignores_group_write_umask_drift() {
-    let ordinary = project::assemble(&fixture_path(), "pr7-project-hgraph", &[]).unwrap();
+    let mut ordinary = project::assemble(&fixture_path(), "pr7-project-hgraph", &[]).unwrap();
+    // A checkout or source archive can already be group-writable. Construct
+    // the two represented permission states rather than assuming its umask.
+    for file in &mut ordinary.files {
+        file.unix_mode = file.unix_mode.map(|mode| mode & !0o020);
+    }
+    ordinary.root_fingerprint = project::bundle::fingerprint(&ordinary.files);
     let mut group_writable = ordinary.clone();
     for file in &mut group_writable.files {
         file.unix_mode = file.unix_mode.map(|mode| mode | 0o020);

@@ -3200,6 +3200,13 @@ mod tests {
 
         let mut process =
             BackendProcess::new("python", &shim, &BackendSandboxPolicy::none(), None)?;
+        // Isolate acknowledgement and exit from interpreter startup. The
+        // completed exchange proves the delayed-shutdown fixture is ready
+        // before its original 500 ms shutdown budget starts.
+        assert_eq!(
+            process.exec("__oval_result__ = None", HashMap::new())?,
+            OValue::Null
+        );
         let started = Instant::now();
         let error = process
             .shutdown(Duration::from_millis(500))
