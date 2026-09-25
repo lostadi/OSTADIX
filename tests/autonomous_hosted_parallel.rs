@@ -653,7 +653,10 @@ fn autonomous_worker_nested_hosted_callback_inherits_deadline() {
     let started = Instant::now();
     let run = run_graph_bounded_with_operation_timeout(
         r#"let quoted = quote^(python^(
+from pathlib import Path
+import os
 import time
+(Path(os.environ["O_TEST_WORKDIR"]) / "nested-started").write_text("started", encoding="utf-8")
 time.sleep(60)
 __oval_result__ = "unreachable"
 )_python)_quote
@@ -664,7 +667,10 @@ __oval_result__ = O.eval(quoted)
 ))
 "#,
         1,
-        Some(Duration::from_millis(300)),
+        // Give fresh interpreters time to reach the nested payload under
+        // emulation. The separate nonresponsive-backend test retains its
+        // 200 ms deadline; this fixture must prove callback inheritance.
+        Some(Duration::from_secs(5)),
     );
     assert!(
         started.elapsed() < Duration::from_secs(15),
@@ -683,6 +689,16 @@ __oval_result__ = O.eval(quoted)
         "inherited callback timeout was not reported\nstderr:\n{stderr}"
     );
     let trace = fs::read_to_string(&run.trace_path).expect("read nested callback trace");
+    assert!(trace.contains("event=worker.callback_requested"), "{trace}");
+    assert!(
+        trace.contains("event=coordinator.callback_received"),
+        "{trace}"
+    );
+    assert_eq!(
+        fs::read_to_string(run.workdir.path().join("nested-started"))
+            .expect("nested payload must start before its inherited deadline expires"),
+        "started"
+    );
     assert!(trace.contains("outcome=infrastructure_failure"), "{trace}");
     #[cfg(unix)]
     assert_traced_backend_groups_quiescent(&run);
