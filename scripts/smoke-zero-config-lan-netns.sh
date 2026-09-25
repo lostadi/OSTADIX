@@ -139,7 +139,11 @@ cleanup() {
         sudo -n ip link delete "$client_decoy_veth" >/dev/null 2>&1
         sudo -n ip link delete "$decoy_veth" >/dev/null 2>&1
     fi
-    sudo -n rm -rf -- "$work_dir"
+    if [[ "$status" == 0 ]]; then
+        sudo -n rm -rf -- "$work_dir"
+    else
+        printf 'LAN smoke failed; private diagnostic directory retained: %s\n' "$work_dir" >&2
+    fi
     exit "$status"
 }
 trap cleanup EXIT HUP INT TERM
