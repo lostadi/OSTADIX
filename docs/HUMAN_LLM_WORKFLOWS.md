@@ -221,6 +221,23 @@ being started is not evidence of completion. Foreground calls default to a
 `timeout_secs: 0` explicitly disables the local deadline. Native command limits
 and remote-effect contracts still apply.
 
+From a terminal, use the persistent bridge to keep the job available across
+separate commands:
+
+```sh
+ostadix-mcp-client o_execute '{"path":"/absolute/path/program.O","background":true}'
+ostadix-mcp-client o_job_status '{"job_id":"JOB_ID"}'
+ostadix-mcp-client o_job_read '{"job_id":"JOB_ID","stream":"stdout"}'
+```
+
+Replace `JOB_ID` with `structuredContent.job_id` from the first response. The
+bridge retains the full MCP result envelope, including `isError`; inspect that
+field as well as the native result. Read stderr by setting `stream` to `stderr`.
+After the job finishes, recover long output by passing each returned
+`next_offset` as the next `offset` until `eof` is true. While a job is still
+running, `eof` only means that its currently available output has been read.
+The same `o_job_status` and `o_job_read` tools work in an MCP client.
+
 Use `o_cli` for flags or command families outside the structured convenience
 interfaces. Obtain the command ID from the catalog and pass each native
 argument as one string:
