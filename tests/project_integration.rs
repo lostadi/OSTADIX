@@ -1577,7 +1577,7 @@ fn process_is_active(pid: libc::pid_t) -> bool {
     information.pbi_status != libc::SZOMB
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn process_is_active(pid: libc::pid_t) -> bool {
     let stat = match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
         Ok(stat) => stat,
@@ -1590,7 +1590,10 @@ fn process_is_active(pid: libc::pid_t) -> bool {
     stat[close + 1..].split_whitespace().next() != Some("Z")
 }
 
-#[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+#[cfg(all(
+    unix,
+    not(any(target_os = "macos", target_os = "linux", target_os = "android"))
+))]
 fn process_is_active(pid: libc::pid_t) -> bool {
     // SAFETY: signal zero only probes for a live PID.
     unsafe { libc::kill(pid, 0) == 0 }
