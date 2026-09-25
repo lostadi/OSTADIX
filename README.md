@@ -297,6 +297,8 @@ hosted language runtimes have separate toolchain requirements and are not
 misrepresented as part of that profile. Build and redistribution instructions
 are in [Per-host offline AI build kit](docs/OFFLINE_AI_BUILD_KIT.md).
 
+For experimental Android RISC-V builds, see [Android RISC-V source preparation](docs/ANDROID_RISCV64_TOOLCHAIN.md) for the pinned libc correction, shared JSON build records, and required native acceptance checks.
+
 ### Zero-configuration LAN execution
 
 Ordinary LAN use keeps transport and proof coordinates internal. On Unix-like
