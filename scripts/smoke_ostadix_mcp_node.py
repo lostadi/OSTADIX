@@ -280,6 +280,16 @@ def run_smoke(root: Path, binary: Path, runtime_bin_dir: Path, timeout: float) -
                     raise SmokeError(f"MCP selected a different octl than the fixture: {octl}")
                 evidence["checks"].append("exact-native-client-provenance")
 
+                # Preference is an explicit user action. Executing against a
+                # named node must not change it implicitly, including on error.
+                preferred = fixture / "config/ostadix/peers/_preferred"
+                if preferred.exists():
+                    raise SmokeError("disposable peer registry already has a preference")
+                selected = call("o_cli", {"command": "octl", "args": ["node", "use", node_id]})
+                if selected.get("exit_code") != 0 or preferred.read_text(encoding="utf-8").strip() != node_id:
+                    raise SmokeError(f"explicit node selection did not persist in the isolated registry: {selected}")
+                evidence["checks"].append("explicit-native-node-preference")
+
                 source = f"python^(\nimport os\n__oval_result__ = int(os.environ[{probe_key!r}])\n)_python\n"
                 inline = call("o_execute", {
                     "source": source, "node": node_id, "cwd": os.fspath(client_cwd),
@@ -400,9 +410,8 @@ def run_smoke(root: Path, binary: Path, runtime_bin_dir: Path, timeout: float) -
                     raise SmokeError("oversized node source did not explain its native bound")
                 evidence["checks"].append("native-source-bound-is-explicit")
 
-                # Native selection must have persisted solely in the disposable
-                # XDG registry supplied to this server and all of its children.
-                preferred = fixture / "config/ostadix/peers/_preferred"
+                # Successful, failed, and rejected explicit executions must
+                # preserve the preference written by the selection command.
                 if preferred.read_text(encoding="utf-8").strip() != node_id:
                     raise SmokeError("native peer preference did not use the isolated config root")
                 evidence["checks"].append("isolated-peer-registry")
