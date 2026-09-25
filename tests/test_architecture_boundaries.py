@@ -180,7 +180,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             "architecture dependency boundaries: PASS "
-            "(194 production files, 48 roots, 243 cross-root edges)\n",
+            "(194 production files, 48 roots, 245 cross-root edges)\n",
         )
 
     def test_manifest_inventories_every_current_root_edge_override_and_facade(self) -> None:
@@ -208,7 +208,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(len(roots), 48)
         self.assertEqual(
-            sum(len(root["allowed_dependencies"]) for root in roots), 243
+            sum(len(root["allowed_dependencies"]) for root in roots), 245
         )
         api_root = next(root for root in roots if root["name"] == "api")
         self.assertIn("ir", api_root["allowed_dependencies"])
@@ -229,6 +229,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             intent_root["allowed_dependencies"],
             [
                 "backend_catalog",
+                "cancellation",
                 "canonical_cbor",
                 "eval",
                 "evidence",
@@ -1210,7 +1211,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_minimal_tree(root)
-            for name in ("cli_source_structure", "command_catalog"):
+            for name in ("cli_source_structure", "command_catalog", "run_signals"):
                 (root / f"src/{name}.rs").write_text(
                     "// Binary-only CLI support.\n", encoding="utf-8"
                 )
@@ -1219,7 +1220,9 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             for relative in (
                 "src/cli_source_structure_extra.rs",
                 "src/command_catalog_extra.rs",
+                "src/run_signals_extra.rs",
                 "src/cli_helpers/command_catalog.rs",
+                "src/cli_helpers/run_signals.rs",
             ):
                 with self.subTest(relative=relative):
                     source = root / relative

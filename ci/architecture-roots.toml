@@ -140,7 +140,7 @@ allowed_dependencies = []
 [[root]]
 name = "eval"
 layer = 11
-allowed_dependencies = ["backend_catalog", "backend_morphism", "backend_state", "capability", "environment", "eval_core", "evidence", "execution_contract", "executor", "hgraph", "ir", "nix_ops", "nixos_ops", "parser", "placement", "process", "resource_identity", "runtime_exec", "scheduler", "shims", "value"]
+allowed_dependencies = ["backend_catalog", "backend_morphism", "backend_state", "cancellation", "capability", "environment", "eval_core", "evidence", "execution_contract", "executor", "hgraph", "ir", "nix_ops", "nixos_ops", "parser", "placement", "process", "resource_identity", "runtime_exec", "scheduler", "shims", "value"]
 
 [[root]]
 name = "eval_core"
@@ -200,7 +200,7 @@ allowed_dependencies = ["evidence", "information", "ir", "world"]
 [[root]]
 name = "intent"
 layer = 14
-allowed_dependencies = ["backend_catalog", "canonical_cbor", "eval", "evidence", "execution_contract", "hgraph", "hosted_remote", "ir", "parser", "project", "runtime_exec", "value"]
+allowed_dependencies = ["backend_catalog", "cancellation", "canonical_cbor", "eval", "evidence", "execution_contract", "hgraph", "hosted_remote", "ir", "parser", "project", "runtime_exec", "value"]
 
 [[root]]
 name = "ir"

@@ -1279,6 +1279,8 @@ def is_allowed_release_path(path: str) -> bool:
             "src/lib.rs",
             "src/main.rs",
             "src/command_catalog.rs",
+            # Shared native frontend helper embedded by olangc's generated main.
+            "src/run_signals.rs",
             *CLI_MODULE_PATHS.values(),
         }
         or path.startswith("src/bin/")
@@ -2514,7 +2516,7 @@ def _validate_example_manifest(files: dict[str, bytes]) -> None:
         "requirements",
         "expected",
     }
-    allowed_entry_keys = required_entry_keys | {"timeout_seconds"}
+    allowed_entry_keys = required_entry_keys | {"timeout_seconds", "compile_timeout_seconds"}
     allowed_requirement_keys = {
         "backends",
         "programs",
@@ -2599,6 +2601,16 @@ def _validate_example_manifest(files: dict[str, bytes]) -> None:
         timeout = entry.get("timeout_seconds", 10)
         if type(timeout) is not int or timeout <= 0:
             raise ReleaseError(f"{owner}.timeout_seconds must be a positive integer")
+        if "compile_timeout_seconds" in entry:
+            compile_timeout = entry["compile_timeout_seconds"]
+            if type(compile_timeout) is not int or compile_timeout <= 0:
+                raise ReleaseError(
+                    f"{owner}.compile_timeout_seconds must be a positive integer"
+                )
+            if "aot" not in expected.get("c17", {}).get("modes", []):
+                raise ReleaseError(
+                    f"{owner}.compile_timeout_seconds requires a c17 AOT expectation"
+                )
 
     if declared != sorted(declared) or len(declared) != len(set(declared)):
         raise ReleaseError(f"{path} paths must be unique and sorted")

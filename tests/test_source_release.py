@@ -4057,6 +4057,41 @@ class SourceReleaseTests(unittest.TestCase):
         ):
             self._build("invalid-example-reference.zip")
 
+        # The archive validator accepts the manifest's separate C17 compile
+        # budget while preserving strict types, mode obligations and field names.
+        entry = missing_example["examples"][0]
+        entry["editions"] = ["c17"]
+        entry["expected"] = {"c17": {"patterns": ["absent"], "modes": ["aot"]}}
+        entry["timeout_seconds"] = 10
+        entry["compile_timeout_seconds"] = 120
+
+        def validate_manifest() -> None:
+            release._validate_example_manifest({
+                "examples/manifest.json": json.dumps(missing_example).encode(),
+                "examples/absent.O": b"text^(absent)_text\n",
+            })
+
+        validate_manifest()
+        for invalid in (True, False, 0, -1, 1.5, "120", None):
+            with self.subTest(compile_timeout_seconds=invalid):
+                entry["compile_timeout_seconds"] = invalid
+                with self.assertRaisesRegex(
+                    release.ReleaseError,
+                    r"compile_timeout_seconds must be a positive integer",
+                ):
+                    validate_manifest()
+        entry["compile_timeout_seconds"] = 120
+        entry["expected"]["c17"]["modes"] = ["interpreter"]
+        with self.assertRaisesRegex(
+            release.ReleaseError, r"compile_timeout_seconds requires a c17 AOT expectation"
+        ):
+            validate_manifest()
+        del entry["compile_timeout_seconds"]
+        validate_manifest()
+        entry["compile_timeout"] = 120
+        with self.assertRaisesRegex(release.ReleaseError, "missing or unknown fields"):
+            validate_manifest()
+
     def test_evidence_manifest_gate_scripts_must_resolve(self) -> None:
         evidence = fixture_evidence_manifest().replace(
             'script = "ocore/kernel/fixture-evidence-00.sh"',

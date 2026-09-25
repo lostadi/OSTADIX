@@ -2351,13 +2351,15 @@ def _cargo_dependency_entries(
 # Exact root-level CLI support files, rather than a prefix/directory exemption.
 # source_structure describes canonical engine output and backend syntax;
 # command_catalog is shared discovery data and read-only executable resolution.
-# Neither binary-only helper is a public compatibility-library module or an
+# run_signals owns invocation-scoped native frontend handlers, not engine signals.
+# No binary-only helper is a public compatibility-library module or an
 # engine root. Engine source/import and shell re-export checks remain separate.
 CLI_SHELL_SUPPORT_SOURCES = frozenset({
     "cli_diagnostics.rs",
     "cli_paths.rs",
     "cli_source_structure.rs",
     "command_catalog.rs",
+    "run_signals.rs",
 })
 
 
