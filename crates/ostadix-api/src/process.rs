@@ -313,7 +313,7 @@ fn bounded_deadline(timeout: Duration, subject: &str) -> Result<Instant> {
 
 /// Return true when a non-authoritative `/proc` observation raced with normal
 /// process exit. Callers must continue to surface every other I/O error.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) fn linux_process_observation_disappeared(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::NotFound || error.raw_os_error() == Some(libc::ESRCH)
 }
@@ -323,7 +323,7 @@ pub(crate) fn linux_process_observation_disappeared(error: &io::Error) -> bool {
 /// a new session or process group (for example with `setsid`) escapes this v1
 /// boundary; complete containment requires a stronger OS facility such as a
 /// Linux cgroup or a Windows job object.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn owned_group_has_no_active_descendants(group: i32) -> io::Result<bool> {
     for entry in std::fs::read_dir("/proc")? {
         let entry = match entry {
@@ -451,11 +451,14 @@ fn owned_group_has_no_active_descendants(group: i32) -> io::Result<bool> {
     Ok(true)
 }
 
-#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+#[cfg(all(
+    unix,
+    not(any(target_os = "linux", target_os = "android", target_os = "macos"))
+))]
 fn owned_group_has_no_active_descendants(_group: i32) -> io::Result<bool> {
     // POSIX exposes group signalling but no portable membership-enumeration
     // API. The shutdown path still kills the inherited group on failure, but
-    // the stronger active-descendant proof is currently Linux/Darwin only.
+    // the stronger active-descendant proof is currently Linux/Android/Darwin only.
     Ok(true)
 }
 
@@ -2732,7 +2735,7 @@ impl Drop for ProcessRegistry {
 mod tests {
     use super::*;
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     #[test]
     fn linux_procfs_vanished_entry_errors_are_narrowly_classified() {
         let not_found = io::Error::new(io::ErrorKind::NotFound, "vanished proc entry");
@@ -3166,6 +3169,12 @@ mod tests {
     fn shutdown_is_acknowledged_and_process_is_reaped() -> Result<()> {
         let mut process = spawn_python_shim()?;
         let pid = process.child.id();
+        // A completed exchange proves protocol readiness before the unchanged
+        // two-second acknowledgement and shutdown budget starts.
+        assert_eq!(
+            process.exec("__oval_result__ = None", HashMap::new())?,
+            OValue::Null
+        );
 
         process.shutdown(Duration::from_secs(2))?;
 

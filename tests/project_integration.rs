@@ -1581,13 +1581,21 @@ fn process_is_active(pid: libc::pid_t) -> bool {
 fn process_is_active(pid: libc::pid_t) -> bool {
     let stat = match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
         Ok(stat) => stat,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return false,
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound
+                || error.raw_os_error() == Some(libc::ESRCH) =>
+        {
+            return false;
+        }
         Err(error) => panic!("failed to inspect descendant process state: {error}"),
     };
     let close = stat
         .rfind(')')
         .expect("descendant /proc stat has a command terminator");
-    stat[close + 1..].split_whitespace().next() != Some("Z")
+    !matches!(
+        stat[close + 1..].split_whitespace().next(),
+        Some("Z" | "X" | "x")
+    )
 }
 
 #[cfg(all(

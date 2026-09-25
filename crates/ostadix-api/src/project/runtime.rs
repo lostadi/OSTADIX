@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::executor::CancellationToken;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::process::linux_process_observation_disappeared;
 
 use super::materialize::{materialize_isolated, Workspace};
@@ -1561,12 +1561,12 @@ impl OwnedRouteProcess {
     }
 
     fn wait_for_owned_group_quiescence(&self, grace: Duration) -> io::Result<()> {
-        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "android")))]
         let _ = grace;
         if self.policy != ProcessTreePolicy::OwnedProcessGroup {
             return Ok(());
         }
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        #[cfg(any(target_os = "macos", target_os = "linux", target_os = "android"))]
         {
             let deadline = Instant::now()
                 .checked_add(grace)
@@ -1584,7 +1584,10 @@ impl OwnedRouteProcess {
                 std::thread::sleep(Duration::from_millis(2));
             }
         }
-        #[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+        #[cfg(all(
+            unix,
+            not(any(target_os = "macos", target_os = "linux", target_os = "android"))
+        ))]
         {
             // POSIX has no portable process-group enumeration API. On these
             // Unix targets, successful delivery of the uncatchable SIGKILL is
@@ -1602,7 +1605,7 @@ impl OwnedRouteProcess {
         self.darwin_group_has_no_active_descendants()
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     fn owned_group_has_no_active_descendants(&self) -> io::Result<bool> {
         let leader = i32::try_from(self.child.id())
             .map_err(|_| io::Error::other("child pid does not fit Linux pid_t"))?;
@@ -1831,7 +1834,7 @@ impl Drop for OwnedRouteProcess {
     }
 }
 
-#[cfg(all(test, target_os = "linux"))]
+#[cfg(all(test, any(target_os = "linux", target_os = "android")))]
 mod linux_process_observation_tests {
     use super::*;
     use std::os::unix::process::CommandExt;
