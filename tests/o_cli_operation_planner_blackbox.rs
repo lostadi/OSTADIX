@@ -1298,6 +1298,9 @@ fn killed_operation_recovers_durable_original_plan_without_inventing_an_outcome(
     let project = root.join("normalize");
     let bin = root.join("bin");
     let marker = root.join("route-started");
+    let keepalive = root.join("route-keepalive");
+    let route_exited = root.join("route-exited");
+    write(&keepalive, b"fixture owns this lease\n");
     copy_tree(
         &Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/normalize"),
         &project,
@@ -1306,8 +1309,10 @@ fn killed_operation_recovers_durable_original_plan_without_inventing_an_outcome(
     write(
         &wrapper,
         format!(
-            "#!/bin/sh\nprintf started > '{}'\nwhile :; do /bin/sleep 1; done\n",
-            marker.display()
+            "#!/bin/sh\nprintf started > '{}'\nwhile [ -f '{}' ]; do /bin/sleep 0.1; done\nprintf exited > '{}'\n",
+            marker.display(),
+            keepalive.display(),
+            route_exited.display(),
         ),
     );
     make_executable(&wrapper);
@@ -1322,17 +1327,33 @@ fn killed_operation_recovers_durable_original_plan_without_inventing_an_outcome(
         .stderr(Stdio::null())
         .process_group(0);
     let mut child = command.spawn().unwrap();
-    // Keep cleanup independent of assertions so a failed test never strands
-    // this deliberately blocked route or its child process.
-    struct KillGroup(u32);
+    // SIGKILL cannot run the CLI's route cleanup. The route owns a separate
+    // process group, so this fixture independently revokes its preexisting
+    // lease; a late-starting route cannot recreate that lease.
+    struct KillGroup {
+        pid: u32,
+        keepalive: PathBuf,
+        started: PathBuf,
+        exited: PathBuf,
+    }
     impl Drop for KillGroup {
         fn drop(&mut self) {
             unsafe {
-                libc::kill(-(self.0 as i32), libc::SIGKILL);
+                libc::kill(-(self.pid as i32), libc::SIGKILL);
+            }
+            let _ = fs::remove_file(&self.keepalive);
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while self.started.exists() && !self.exited.exists() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(10));
             }
         }
     }
-    let group = KillGroup(child.id());
+    let group = KillGroup {
+        pid: child.id(),
+        keepalive,
+        started: marker.clone(),
+        exited: route_exited.clone(),
+    };
     let deadline = Instant::now() + Duration::from_secs(10);
     while !marker.exists() && Instant::now() < deadline {
         assert!(
@@ -1370,6 +1391,10 @@ fn killed_operation_recovers_durable_original_plan_without_inventing_an_outcome(
     fs::write(&snapshot_path, &original_bytes).unwrap();
     drop(group);
     assert!(!child.wait().unwrap().success());
+    assert!(
+        route_exited.exists(),
+        "fixture route did not release its lease"
+    );
 
     RunStoreV1::open_at(&store_root).unwrap();
     let (record, _) = reader
@@ -1437,4 +1462,409 @@ fn killed_operation_recovers_durable_original_plan_without_inventing_an_outcome(
         replanned["recovery_plan_status"],
         "not_applicable_source_outcome_unobserved"
     );
+}
+
+#[cfg(unix)]
+fn fixture_pids(path: &Path, count: usize) -> Option<Vec<i32>> {
+    let pids = fs::read_to_string(path)
+        .ok()?
+        .split_whitespace()
+        .map(str::parse::<i32>)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    (pids.len() == count && pids.iter().all(|pid| *pid > 0)).then_some(pids)
+}
+
+#[cfg(unix)]
+fn fixture_descendant_running(pid: i32, process_group: i32) -> bool {
+    // The direct route leader must be reaped by its owner. An orphaned
+    // descendant may remain an inert zombie until the guest's init reaps it;
+    // do not confuse that with executable work surviving cancellation.
+    if unsafe { libc::getpgid(pid) } != process_group {
+        return false;
+    }
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    if let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat")) {
+        if stat
+            .rsplit_once(") ")
+            .is_some_and(|(_, fields)| fields.starts_with("Z "))
+        {
+            return false;
+        }
+    }
+    unsafe { libc::kill(pid, 0) == 0 }
+}
+
+#[cfg(unix)]
+#[test]
+fn native_signals_cancel_owned_operation_routes_and_retain_terminal_records() {
+    use o_lang::intent::{RunDispositionV1, RunSelectorV1, RunStoreReaderV1};
+    use std::io::Read;
+    use std::os::unix::process::{CommandExt, ExitStatusExt};
+    use std::process::{Child, Stdio};
+    use std::time::{Duration, Instant};
+
+    struct Fixture {
+        child: Child,
+        lease: PathBuf,
+        started: PathBuf,
+        released: PathBuf,
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            if self.child.try_wait().ok().flatten().is_none() {
+                unsafe {
+                    libc::kill(-(self.child.id() as i32), libc::SIGKILL);
+                }
+            }
+            let _ = fs::remove_file(&self.lease);
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while self.started.exists() && !self.released.exists() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let _ = self.child.wait();
+        }
+    }
+
+    for engine in ["hgraph", "legacy"] {
+        for signal in [libc::SIGINT, libc::SIGTERM] {
+            let temporary = tempfile::tempdir().unwrap();
+            let root = temporary.path();
+            let home = root.join("home");
+            let state = root.join("state");
+            let project = root.join("normalize");
+            let bin = root.join("bin");
+            let lease = root.join("keepalive");
+            let started = root.join("route-pids");
+            let released = root.join("released");
+            write(&lease, b"fixture lease\n");
+            copy_tree(
+                &Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/normalize"),
+                &project,
+            );
+            let wrapper = bin.join("python3");
+            write(&wrapper, format!(
+                "#!/bin/sh\n/bin/sleep 60 &\ndescendant=$!\nfinish() {{ kill -TERM \"$descendant\" 2>/dev/null || :; wait \"$descendant\" 2>/dev/null || :; printf released > '{}'; }}\ntrap 'finish; exit 143' TERM\nprintf '%s %s\\n' \"$$\" \"$descendant\" > '{}'\nwhile [ -f '{}' ]; do /bin/sleep 0.1; done\nfinish\n",
+                released.display(), started.display(), lease.display(),
+            ));
+            make_executable(&wrapper);
+            let mut command = o_cli(&home, &state, Some(&bin));
+            command
+                .args(["run", project.to_str().unwrap(), "--json"])
+                .env("O_PROJECT_EXECUTOR", engine)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .process_group(0);
+            let mut fixture = Fixture {
+                child: command.spawn().unwrap(),
+                lease,
+                started,
+                released,
+            };
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let pids = loop {
+                if let Some(pids) = fixture_pids(&fixture.started, 2) {
+                    break pids;
+                }
+                assert!(
+                    fixture.child.try_wait().unwrap().is_none(),
+                    "{engine}: operation exited before readiness"
+                );
+                assert!(Instant::now() < deadline, "{engine}: route did not start");
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            assert_eq!(pids.len(), 2);
+            assert_eq!(unsafe { libc::getpgid(pids[0]) }, pids[0]);
+            assert_ne!(pids[0], fixture.child.id() as i32);
+            assert_eq!(unsafe { libc::getpgid(pids[1]) }, pids[0]);
+            let recipient = if signal == libc::SIGINT {
+                -(fixture.child.id() as i32)
+            } else {
+                fixture.child.id() as i32
+            };
+            assert_eq!(unsafe { libc::kill(recipient, signal) }, 0);
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let status = loop {
+                if let Some(status) = fixture.child.try_wait().unwrap() {
+                    break status;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "{engine}: cancellation did not settle"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            assert_eq!(
+                status.signal(),
+                Some(signal),
+                "{engine}: original Unix signal was not preserved"
+            );
+            let mut stdout = String::new();
+            let mut stderr = String::new();
+            fixture
+                .child
+                .stdout
+                .take()
+                .unwrap()
+                .read_to_string(&mut stdout)
+                .unwrap();
+            fixture
+                .child
+                .stderr
+                .take()
+                .unwrap()
+                .read_to_string(&mut stderr)
+                .unwrap();
+            let summary: Value = serde_json::from_str(&stdout).unwrap_or_else(|error| {
+                panic!("{engine}: no terminal summary: {error}; stdout={stdout}; stderr={stderr}")
+            });
+            assert_ne!(summary["disposition"], "succeeded");
+            assert_eq!(summary["recording"]["status"], "recorded", "{summary}");
+            let reader = RunStoreReaderV1::open_existing(state.join("ostadix/runs-v1")).unwrap();
+            let (record, _) = reader.read_terminal(RunSelectorV1::LastRun, false).unwrap();
+            assert!(!record.disposition.is_success());
+            assert_ne!(
+                record.disposition,
+                RunDispositionV1::Interrupted,
+                "cooperative cancellation must publish its actual terminal observation"
+            );
+            assert!(
+                record
+                    .failure
+                    .as_ref()
+                    .unwrap()
+                    .message
+                    .to_lowercase()
+                    .contains("cancel"),
+                "{record:?}"
+            );
+            assert!(record.operation_plan.is_some());
+            assert_eq!(record.failure.as_ref().unwrap().stage, "cancellation");
+            assert!(record.route_results.is_empty());
+            let observed = run(o_cli(&home, &state, Some(&bin)).args([
+                "observe",
+                project.to_str().unwrap(),
+                "--run",
+                &record.run_id,
+                "--json",
+            ]));
+            assert_success(&observed, "observe cooperatively cancelled operation");
+            let observed = single_json(&observed);
+            assert_eq!(
+                observed["selected_candidate"],
+                record.operation_plan.as_ref().unwrap().selected_candidate
+            );
+            assert_eq!(observed["execution"], Value::Null);
+            assert_eq!(
+                observed["runtime_graph"]["observations"][0]["state"],
+                "proposed"
+            );
+            assert_eq!(
+                observed["runtime_graph"]["observations"][0]["metrics"]["execution_ns"],
+                Value::Null
+            );
+            let replanned = run(o_cli(&home, &state, Some(&bin)).args([
+                "replan",
+                project.to_str().unwrap(),
+                "--run",
+                &record.run_id,
+                "--without-target",
+                "ambient-python-primary",
+                "--json",
+            ]));
+            assert_success(&replanned, "replan cooperatively cancelled operation");
+            assert_eq!(
+                single_json(&replanned)["recovery_plan_status"],
+                "not_applicable_source_outcome_unobserved"
+            );
+            let deadline = Instant::now() + Duration::from_secs(5);
+            for (index, pid) in pids.iter().copied().enumerate() {
+                let running = || {
+                    if index == 0 {
+                        unsafe { libc::kill(pid, 0) == 0 }
+                    } else {
+                        fixture_descendant_running(pid, pids[0])
+                    }
+                };
+                while running() && Instant::now() < deadline {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                assert!(
+                    !running(),
+                    "{engine}: owned process {pid} survived cancellation"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn native_sigterm_cancels_ordinary_graph_and_serial_backend_waits() {
+    use o_lang::intent::{RunDispositionV1, RunSelectorV1, RunStoreReaderV1};
+    use std::io::Read;
+    use std::os::unix::process::{CommandExt, ExitStatusExt};
+    use std::process::{Child, Stdio};
+    use std::time::{Duration, Instant};
+
+    struct Fixture {
+        child: Child,
+        lease: PathBuf,
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.lease);
+            if self.child.try_wait().ok().flatten().is_none() {
+                unsafe {
+                    libc::kill(-(self.child.id() as i32), libc::SIGKILL);
+                }
+            }
+            let _ = self.child.wait();
+        }
+    }
+
+    for (engine, direct, crossing) in [
+        ("graph", false, false),
+        ("serial", false, false),
+        ("graph", true, false),
+        ("serial", true, false),
+        ("graph", true, true),
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let home = root.join("home");
+        let state = root.join("state");
+        let lease = root.join("keepalive");
+        let marker = root.join("backend-pid");
+        let source = root.join("wait.O");
+        write(&lease, b"fixture lease\n");
+        write(&source, format!(
+            "python^(\nimport os, time\nwith open({}, 'w') as marker:\n    marker.write(str(os.getpid()))\nwhile os.path.exists({}):\n    time.sleep(0.05)\n42\n)_python\n",
+            serde_json::to_string(&marker.to_str().unwrap()).unwrap(),
+            serde_json::to_string(&lease.to_str().unwrap()).unwrap(),
+        ));
+        let backends = Path::new(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut command = o_cli(&home, &state, None);
+        if direct {
+            let mut evaluator = Command::new(env!("CARGO_BIN_EXE_O"));
+            evaluator.env_clear().envs(
+                command
+                    .get_envs()
+                    .filter_map(|(key, value)| value.map(|value| (key, value))),
+            );
+            evaluator.args([
+                "--executor",
+                engine,
+                if crossing {
+                    "--crossing-evidence"
+                } else {
+                    "--json"
+                },
+                source.to_str().unwrap(),
+                backends.to_str().unwrap(),
+            ]);
+            command = evaluator;
+        } else {
+            command.args([
+                "run",
+                source.to_str().unwrap(),
+                "--executor",
+                engine,
+                "--shim-dir",
+                backends.to_str().unwrap(),
+                "--json",
+            ]);
+        }
+        command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0);
+        let mut fixture = Fixture {
+            child: command.spawn().unwrap(),
+            lease,
+        };
+        let deadline = Instant::now() + Duration::from_secs(15);
+        let backend_pid = loop {
+            if let Some(pids) = fixture_pids(&marker, 1) {
+                break pids[0];
+            }
+            assert!(
+                fixture.child.try_wait().unwrap().is_none(),
+                "{engine}: backend did not enter"
+            );
+            assert!(Instant::now() < deadline, "{engine}: backend did not enter");
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_ne!(backend_pid, fixture.child.id() as i32);
+        assert_eq!(
+            unsafe { libc::kill(fixture.child.id() as i32, libc::SIGTERM) },
+            0
+        );
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let status = loop {
+            if let Some(status) = fixture.child.try_wait().unwrap() {
+                break status;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "{engine}: backend wait did not cancel"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(status.signal(), Some(libc::SIGTERM));
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        fixture
+            .child
+            .stdout
+            .take()
+            .unwrap()
+            .read_to_string(&mut stdout)
+            .unwrap();
+        fixture
+            .child
+            .stderr
+            .take()
+            .unwrap()
+            .read_to_string(&mut stderr)
+            .unwrap();
+        let summary: Value = serde_json::from_str(&stdout).unwrap_or_else(|error| panic!("direct={direct} engine={engine} crossing={crossing}: {error}; stdout={stdout}; stderr={stderr}"));
+        if direct {
+            assert_eq!(summary["ok"], false);
+            assert_eq!(summary["stage"], "eval");
+            assert!(summary["error"]
+                .as_str()
+                .unwrap()
+                .to_lowercase()
+                .contains("cancel"));
+            assert_eq!(summary.get("backend_crossings").is_some(), crossing);
+            assert!(
+                !state.join("ostadix/runs-v1").exists(),
+                "direct evaluator must not create front-door history"
+            );
+        } else {
+            assert_eq!(summary["recording"]["status"], "recorded");
+            let reader = RunStoreReaderV1::open_existing(state.join("ostadix/runs-v1")).unwrap();
+            let (record, _) = reader.read_terminal(RunSelectorV1::LastRun, false).unwrap();
+            assert!(!record.disposition.is_success());
+            assert_ne!(record.disposition, RunDispositionV1::Interrupted);
+            assert_eq!(record.failure.as_ref().unwrap().stage, "cancellation");
+            assert!(record
+                .failure
+                .as_ref()
+                .unwrap()
+                .message
+                .to_lowercase()
+                .contains("cancel"));
+        }
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while unsafe { libc::kill(backend_pid, 0) } == 0 && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_ne!(
+            unsafe { libc::kill(backend_pid, 0) },
+            0,
+            "{engine}: backend process survived cancellation"
+        );
+    }
 }

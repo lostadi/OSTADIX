@@ -664,6 +664,12 @@ pub(crate) fn execute_route_in_workspace(
     opts: &RunOptions,
     cancel: &CancellationToken,
 ) -> Result<OExecutionResult> {
+    if cancel.is_cancelled() {
+        return Err(RouteExecutionError::Cancelled {
+            route_id: route.id.clone(),
+        }
+        .into());
+    }
     opts.limits.validate()?;
     if let Some(reason) = unmet_guard_with_environment(route, &opts.limits.environment_policy) {
         return match opts.guard_behavior {
@@ -714,10 +720,87 @@ fn skipped_result(route: &RouteSpec, workspace: &Workspace, reason: &str) -> OEx
     }
 }
 
+/// A cancelled selection retains the terminal route results already collected
+/// by its coordinator. These are observations, not a selected or validated
+/// winner; intermediate prerequisite or remote-generation output is not added.
+#[derive(Debug, Error)]
+#[error("request cancelled during route selection")]
+pub struct RequestCancelledExecution {
+    pub settled_results: Vec<OExecutionResult>,
+    /// Raw in-memory diagnostics; callers must not persist these as public text.
+    pub causal_errors: Vec<String>,
+    public_message: String,
+}
+
+impl RequestCancelledExecution {
+    /// Credential-safe cancellation and causal summary for durable records.
+    pub fn public_message(&self) -> &str {
+        &self.public_message
+    }
+}
+
+fn public_cancellation_cause(error: &anyhow::Error) -> String {
+    if let Some(cancelled) = error.downcast_ref::<RequestCancelledExecution>() {
+        return cancelled.public_message().to_string();
+    }
+    if let Some(project) = error.downcast_ref::<super::executor::ProjectExecutionError>() {
+        return project.public_message().to_string();
+    }
+    if let Some(mesh) =
+        error.downcast_ref::<crate::hosted_remote::project_mesh::MeshExecutionError>()
+    {
+        return mesh.public_message().to_string();
+    }
+    if error.is::<RouteExecutionError>() {
+        return public_route_execution_diagnostic(error);
+    }
+    "route execution failed before request cancellation; detailed diagnostic retained in memory"
+        .to_string()
+}
+
+pub(crate) fn ensure_request_active<'a>(
+    cancellation: &CancellationToken,
+    results: impl IntoIterator<Item = &'a OExecutionResult>,
+    errors: Vec<&anyhow::Error>,
+) -> Result<()> {
+    if cancellation.is_cancelled() {
+        let causes = errors
+            .iter()
+            .map(|error| public_cancellation_cause(error))
+            .collect::<Vec<_>>();
+        let public_message = if causes.is_empty() {
+            "request cancelled during route selection".to_string()
+        } else {
+            format!(
+                "request cancelled during route selection; observed causes: {}",
+                causes.join("; ")
+            )
+        };
+        return Err(RequestCancelledExecution {
+            settled_results: results.into_iter().cloned().collect(),
+            causal_errors: errors
+                .into_iter()
+                .map(|error| format!("{error:#}"))
+                .collect(),
+            public_message,
+        }
+        .into());
+    }
+    Ok(())
+}
+
 /// Whether an error came from cooperative route cancellation.
 pub fn is_cancellation_error(err: &anyhow::Error) -> bool {
-    err.downcast_ref::<RouteExecutionError>()
-        .is_some_and(|error| matches!(error, RouteExecutionError::Cancelled { .. }))
+    err.is::<RequestCancelledExecution>()
+        || err
+            .downcast_ref::<super::executor::ProjectExecutionError>()
+            .is_some_and(|error| error.is_request_cancelled())
+        || err
+            .downcast_ref::<crate::hosted_remote::project_mesh::MeshExecutionError>()
+            .is_some_and(|error| is_cancellation_error(error.source_error()))
+        || err
+            .downcast_ref::<RouteExecutionError>()
+            .is_some_and(|error| matches!(error, RouteExecutionError::Cancelled { .. }))
 }
 
 /// Whether an error came from the route's wall-clock deadline.
@@ -2826,7 +2909,14 @@ pub fn run_selection_observed(
     policy_override: Option<RoutePolicy>,
     opts: &RunOptions,
 ) -> Result<RouteSelectionExecution> {
-    run_selection_observed_inner(bundle, target, policy_override, opts, None)
+    run_selection_observed_controlled(
+        bundle,
+        target,
+        policy_override,
+        opts,
+        &CancellationToken::new(),
+        None,
+    )
 }
 
 /// Run a target while reporting presentation-safe progress for
@@ -2841,14 +2931,22 @@ pub fn run_selection_observed_with_progress(
     opts: &RunOptions,
     observer: &dyn ValidatedSelectionProgressObserverV1,
 ) -> Result<RouteSelectionExecution> {
-    run_selection_observed_inner(bundle, target, policy_override, opts, Some(observer))
+    run_selection_observed_controlled(
+        bundle,
+        target,
+        policy_override,
+        opts,
+        &CancellationToken::new(),
+        Some(observer),
+    )
 }
 
-fn run_selection_observed_inner(
+pub(crate) fn run_selection_observed_controlled(
     bundle: &ProjectBundle,
     target: Option<&str>,
     policy_override: Option<RoutePolicy>,
     opts: &RunOptions,
+    cancellation: &CancellationToken,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
 ) -> Result<RouteSelectionExecution> {
     let selection = resolve_selection(bundle, target, policy_override)?;
@@ -2859,6 +2957,7 @@ fn run_selection_observed_inner(
         &selection.policy,
         opts,
         observer,
+        cancellation,
     )
 }
 
@@ -3080,76 +3179,61 @@ fn execute_policy(
     policy: &RoutePolicy,
     opts: &RunOptions,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: &CancellationToken,
 ) -> Result<RouteSelectionExecution> {
     if alternatives.is_empty() {
         bail!("route set has no alternatives to run");
     }
+    ensure_request_active(cancellation, [], Vec::new())?;
     let potential_route_executions = potential_route_execution_count(bundle, alternatives)?;
     opts.limits
         .validate_route_execution_set(potential_route_executions)?;
-    match policy {
+    let execution = match policy {
         RoutePolicy::Explicit(id) => {
             let id = alternatives
                 .first()
                 .filter(|candidate| *candidate == id)
                 .context("resolved explicit selection lost its route")?;
-            Ok(RouteSelectionExecution::plain(vec![run_route(
-                bundle, id, opts,
+            Ok(RouteSelectionExecution::plain(vec![run_route_cancellable(
+                bundle,
+                id,
+                opts,
+                cancellation.child_token(),
             )?]))
         }
         RoutePolicy::Default => {
             let default = alternatives
                 .first()
                 .context("resolved default selection lost its route")?;
-            Ok(RouteSelectionExecution::plain(vec![run_route(
-                bundle, default, opts,
+            Ok(RouteSelectionExecution::plain(vec![run_route_cancellable(
+                bundle,
+                default,
+                opts,
+                cancellation.child_token(),
             )?]))
         }
-        RoutePolicy::Fallback => {
-            let mut results = Vec::new();
-            for id in alternatives {
-                let result = run_route(bundle, id, opts)?;
-                let ok = result.succeeded();
-                results.push(result);
-                if ok {
-                    return Ok(RouteSelectionExecution::plain(results));
-                }
-            }
-            Ok(RouteSelectionExecution::plain(results))
-        }
-        RoutePolicy::AnySuccess => {
-            let mut results = Vec::new();
-            for id in alternatives {
-                let result = run_route(bundle, id, opts)?;
-                let ok = result.succeeded();
-                results.push(result);
-                if ok {
-                    return Ok(RouteSelectionExecution::plain(results));
-                }
-            }
-            Ok(RouteSelectionExecution::plain(results))
+        RoutePolicy::Fallback | RoutePolicy::AnySuccess => {
+            run_ordered_alternatives(bundle, alternatives, opts, true, cancellation)
         }
         RoutePolicy::All => {
-            let mut results = Vec::new();
-            for id in alternatives {
-                results.push(run_route(bundle, id, opts)?);
-            }
-            Ok(RouteSelectionExecution::plain(results))
+            run_ordered_alternatives(bundle, alternatives, opts, false, cancellation)
         }
         RoutePolicy::RaceSuccess => Ok(RouteSelectionExecution::plain(race_alternatives(
             bundle,
             alternatives,
             opts,
             RaceMode::FirstSuccess,
+            cancellation,
         )?)),
         RoutePolicy::RaceSettle => Ok(RouteSelectionExecution::plain(race_alternatives(
             bundle,
             alternatives,
             opts,
             RaceMode::FirstSettle,
+            cancellation,
         )?)),
         RoutePolicy::VerifyEquivalent => {
-            let results = run_all_parallel(bundle, alternatives, opts)?;
+            let results = run_all_parallel(bundle, alternatives, opts, cancellation)?;
             let failures: Vec<&OExecutionResult> =
                 results.iter().filter(|r| !r.succeeded()).collect();
             if !failures.is_empty() {
@@ -3166,7 +3250,7 @@ fn execute_policy(
             Ok(RouteSelectionExecution::plain(results))
         }
         RoutePolicy::BenchmarkAndSelect => {
-            let mut results = run_all_parallel(bundle, alternatives, opts)?;
+            let mut results = run_all_parallel(bundle, alternatives, opts, cancellation)?;
             let winner = results
                 .iter()
                 .enumerate()
@@ -3189,11 +3273,47 @@ fn execute_policy(
             let dispatch = |_: usize, route_id: &str, cancel: CancellationToken| {
                 run_route_cancellable(bundle, route_id, opts, cancel)
             };
-            let measured =
-                run_all_alternatives_parallel_measured(alternatives, &dispatch, observer)?;
+            let measured = run_all_alternatives_parallel_measured(
+                alternatives,
+                &dispatch,
+                observer,
+                cancellation,
+            )?;
             benchmark_validate_and_select(bundle, target, alternatives, measured, observer)
         }
+    };
+    if let Ok(observed) = &execution {
+        ensure_request_active(cancellation, &observed.results, Vec::new())?;
     }
+    execution
+}
+
+fn run_ordered_alternatives(
+    bundle: &ProjectBundle,
+    alternatives: &[String],
+    opts: &RunOptions,
+    stop_on_success: bool,
+    cancellation: &CancellationToken,
+) -> Result<RouteSelectionExecution> {
+    let mut results = Vec::new();
+    for route_id in alternatives {
+        ensure_request_active(cancellation, &results, Vec::new())?;
+        let result = match run_route_cancellable(bundle, route_id, opts, cancellation.child_token())
+        {
+            Ok(result) => result,
+            Err(error) => {
+                ensure_request_active(cancellation, &results, vec![&error])?;
+                return Err(error);
+            }
+        };
+        let succeeded = result.succeeded();
+        results.push(result);
+        ensure_request_active(cancellation, &results, Vec::new())?;
+        if stop_on_success && succeeded {
+            break;
+        }
+    }
+    Ok(RouteSelectionExecution::plain(results))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3215,6 +3335,7 @@ fn run_alternatives_parallel<T>(
     bundle: &ProjectBundle,
     alternatives: &[String],
     opts: &RunOptions,
+    cancellation: &CancellationToken,
     select: impl FnOnce(
         &mpsc::Receiver<(usize, Result<OExecutionResult>)>,
         &[CancellationToken],
@@ -3222,7 +3343,7 @@ fn run_alternatives_parallel<T>(
 ) -> Result<T> {
     let tokens: Vec<CancellationToken> = alternatives
         .iter()
-        .map(|_| CancellationToken::new())
+        .map(|_| cancellation.child_token())
         .collect();
     let (sender, receiver) = mpsc::channel::<(usize, Result<OExecutionResult>)>();
 
@@ -3248,33 +3369,50 @@ fn run_all_parallel(
     bundle: &ProjectBundle,
     alternatives: &[String],
     opts: &RunOptions,
+    cancellation: &CancellationToken,
 ) -> Result<Vec<OExecutionResult>> {
-    run_alternatives_parallel(bundle, alternatives, opts, |receiver, _tokens| {
-        let mut slots: Vec<Option<Result<OExecutionResult>>> =
-            (0..alternatives.len()).map(|_| None).collect();
-        for (index, outcome) in receiver.iter() {
-            slots[index] = Some(outcome);
-        }
-        let mut results = Vec::with_capacity(alternatives.len());
-        for (index, slot) in slots.into_iter().enumerate() {
-            match slot {
-                Some(Ok(result)) => results.push(result),
-                Some(Err(err)) => {
-                    return Err(err.context(format!(
-                        "alternative `{}` failed to launch",
-                        alternatives[index]
-                    )))
-                }
-                // Defensive: unreachable in practice — every scoped thread
-                // sends exactly one message before the channel closes.
-                None => bail!(
-                    "alternative `{}` never reported a result",
-                    alternatives[index]
-                ),
+    run_alternatives_parallel(
+        bundle,
+        alternatives,
+        opts,
+        cancellation,
+        |receiver, _tokens| {
+            let mut slots: Vec<Option<Result<OExecutionResult>>> =
+                (0..alternatives.len()).map(|_| None).collect();
+            for (index, outcome) in receiver.iter() {
+                slots[index] = Some(outcome);
             }
-        }
-        Ok(results)
-    })
+            ensure_request_active(
+                cancellation,
+                slots
+                    .iter()
+                    .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().ok())),
+                slots
+                    .iter()
+                    .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().err()))
+                    .collect(),
+            )?;
+            let mut results = Vec::with_capacity(alternatives.len());
+            for (index, slot) in slots.into_iter().enumerate() {
+                match slot {
+                    Some(Ok(result)) => results.push(result),
+                    Some(Err(err)) => {
+                        return Err(err.context(format!(
+                            "alternative `{}` failed to launch",
+                            alternatives[index]
+                        )))
+                    }
+                    // Defensive: unreachable in practice — every scoped thread
+                    // sends exactly one message before the channel closes.
+                    None => bail!(
+                        "alternative `{}` never reported a result",
+                        alternatives[index]
+                    ),
+                }
+            }
+            Ok(results)
+        },
+    )
 }
 
 /// Run all alternatives concurrently and measure the complete call for each
@@ -3284,6 +3422,7 @@ pub(crate) fn run_all_alternatives_parallel_measured<F>(
     alternatives: &[String],
     dispatch: &F,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: &CancellationToken,
 ) -> Result<Vec<MeasuredRouteExecution>>
 where
     F: Fn(usize, &str, CancellationToken) -> Result<OExecutionResult> + Sync,
@@ -3311,7 +3450,7 @@ where
                     },
                 );
                 let started = Instant::now();
-                let outcome = dispatch(index, route_id, CancellationToken::new());
+                let outcome = dispatch(index, route_id, cancellation.child_token());
                 let branch_elapsed_ns = started.elapsed().as_nanos();
                 let progress_outcome = match &outcome {
                     Ok(result) if result.succeeded() => {
@@ -3346,6 +3485,18 @@ where
         for (index, outcome) in receiver {
             slots[index] = Some(outcome);
         }
+        ensure_request_active(
+            cancellation,
+            slots.iter().filter_map(|slot| {
+                slot.as_ref()
+                    .and_then(|outcome| outcome.as_ref().ok())
+                    .map(|measured| &measured.result)
+            }),
+            slots
+                .iter()
+                .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().err()))
+                .collect(),
+        )?;
         slots
             .into_iter()
             .enumerate()
@@ -3370,100 +3521,118 @@ fn race_alternatives(
     alternatives: &[String],
     opts: &RunOptions,
     mode: RaceMode,
+    cancellation: &CancellationToken,
 ) -> Result<Vec<OExecutionResult>> {
-    run_alternatives_parallel(bundle, alternatives, opts, |receiver, tokens| {
-        let mut slots: Vec<Option<Result<OExecutionResult>>> =
-            (0..alternatives.len()).map(|_| None).collect();
-        let mut winner: Option<usize> = None;
+    run_alternatives_parallel(
+        bundle,
+        alternatives,
+        opts,
+        cancellation,
+        |receiver, tokens| {
+            let mut slots: Vec<Option<Result<OExecutionResult>>> =
+                (0..alternatives.len()).map(|_| None).collect();
+            let mut winner: Option<usize> = None;
 
-        for (index, outcome) in receiver.iter() {
-            let qualifies = match (&outcome, mode) {
-                (Ok(result), RaceMode::FirstSuccess) => result.succeeded(),
-                (Ok(_), RaceMode::FirstSettle) => true,
-                (Err(err), RaceMode::FirstSettle) => !is_cancellation_error(err),
-                (Err(_), RaceMode::FirstSuccess) => false,
-            };
-            slots[index] = Some(outcome);
-            if qualifies && winner.is_none() {
-                winner = Some(index);
-                for (other, token) in tokens.iter().enumerate() {
-                    if other != index {
-                        token.cancel();
+            for (index, outcome) in receiver.iter() {
+                let qualifies = match (&outcome, mode) {
+                    (Ok(result), RaceMode::FirstSuccess) => result.succeeded(),
+                    (Ok(_), RaceMode::FirstSettle) => true,
+                    (Err(err), RaceMode::FirstSettle) => !is_cancellation_error(err),
+                    (Err(_), RaceMode::FirstSuccess) => false,
+                };
+                slots[index] = Some(outcome);
+                if qualifies && winner.is_none() {
+                    winner = Some(index);
+                    for (other, token) in tokens.iter().enumerate() {
+                        if other != index {
+                            token.cancel();
+                        }
                     }
                 }
             }
-        }
 
-        // Deterministic tie-break: if several qualifying settlements arrived
-        // before cancellation took effect, prefer the earliest declared one.
-        if winner.is_some() {
-            for (index, slot) in slots.iter().enumerate() {
-                let qualifies = match (slot, mode) {
-                    (Some(Ok(result)), RaceMode::FirstSuccess) => result.succeeded(),
-                    (Some(Ok(_)), RaceMode::FirstSettle) => true,
-                    (Some(Err(err)), RaceMode::FirstSettle) => !is_cancellation_error(err),
-                    _ => false,
-                };
-                if qualifies {
-                    winner = Some(index);
-                    break;
+            ensure_request_active(
+                cancellation,
+                slots
+                    .iter()
+                    .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().ok())),
+                slots
+                    .iter()
+                    .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().err()))
+                    .collect(),
+            )?;
+
+            // Deterministic tie-break: if several qualifying settlements arrived
+            // before cancellation took effect, prefer the earliest declared one.
+            if winner.is_some() {
+                for (index, slot) in slots.iter().enumerate() {
+                    let qualifies = match (slot, mode) {
+                        (Some(Ok(result)), RaceMode::FirstSuccess) => result.succeeded(),
+                        (Some(Ok(_)), RaceMode::FirstSettle) => true,
+                        (Some(Err(err)), RaceMode::FirstSettle) => !is_cancellation_error(err),
+                        _ => false,
+                    };
+                    if qualifies {
+                        winner = Some(index);
+                        break;
+                    }
                 }
             }
-        }
 
-        let Some(winner) = winner else {
-            // No qualifying settlement: propagate the earliest real error, or
-            // return every settled failure so the caller reports "no route
-            // succeeded".
+            let Some(winner) = winner else {
+                // No qualifying settlement: propagate the earliest real error, or
+                // return every settled failure so the caller reports "no route
+                // succeeded".
+                let mut results = Vec::new();
+                for (index, slot) in slots.into_iter().enumerate() {
+                    match slot {
+                        Some(Ok(result)) => results.push(result),
+                        Some(Err(err)) if !is_cancellation_error(&err) => {
+                            return Err(err.context(format!(
+                                "alternative `{}` failed to launch",
+                                alternatives[index]
+                            )))
+                        }
+                        _ => {}
+                    }
+                }
+                if results.is_empty() {
+                    // Defensive: unreachable in practice — cancellation only
+                    // starts after a qualifying settlement, so at least one
+                    // alternative settles with a result or a real error above.
+                    bail!("race: no alternative settled");
+                }
+                return Ok(results);
+            };
+
             let mut results = Vec::new();
+            let mut selected = None;
             for (index, slot) in slots.into_iter().enumerate() {
                 match slot {
+                    Some(Ok(result)) if index == winner => selected = Some(result),
                     Some(Ok(result)) => results.push(result),
-                    Some(Err(err)) if !is_cancellation_error(&err) => {
+                    Some(Err(err)) if index == winner => {
+                        // FirstSettle winner settled with a launch error.
                         return Err(err.context(format!(
-                            "alternative `{}` failed to launch",
+                            "race: selected alternative `{}` settled with an error",
                             alternatives[index]
-                        )))
+                        )));
                     }
                     _ => {}
                 }
             }
-            if results.is_empty() {
-                // Defensive: unreachable in practice — cancellation only
-                // starts after a qualifying settlement, so at least one
-                // alternative settles with a result or a real error above.
-                bail!("race: no alternative settled");
-            }
-            return Ok(results);
-        };
-
-        let mut results = Vec::new();
-        let mut selected = None;
-        for (index, slot) in slots.into_iter().enumerate() {
-            match slot {
-                Some(Ok(result)) if index == winner => selected = Some(result),
-                Some(Ok(result)) => results.push(result),
-                Some(Err(err)) if index == winner => {
-                    // FirstSettle winner settled with a launch error.
-                    return Err(err.context(format!(
-                        "race: selected alternative `{}` settled with an error",
-                        alternatives[index]
-                    )));
+            match selected {
+                Some(result) => {
+                    results.push(result);
+                    Ok(results)
                 }
-                _ => {}
+                None => bail!(
+                    "race: selected alternative `{}` produced no result",
+                    alternatives[winner]
+                ),
             }
-        }
-        match selected {
-            Some(result) => {
-                results.push(result);
-                Ok(results)
-            }
-            None => bail!(
-                "race: selected alternative `{}` produced no result",
-                alternatives[winner]
-            ),
-        }
-    })
+        },
+    )
 }
 
 /// Finalize the evidence-gated measured policy. The first declared route is
@@ -3787,6 +3956,119 @@ mod validated_selection_progress_tests {
     }
 
     #[test]
+    fn request_cancellation_blocks_every_compatibility_policy_before_launch() {
+        use crate::project::model::{RouteProvenance, RouteSet};
+        let mut bundle = ProjectBundle::empty("cancelled-selection");
+        let alternatives = vec!["first".to_string(), "second".to_string()];
+        bundle.routes = alternatives
+            .iter()
+            .map(|id| {
+                let mut route = RouteSpec::new(id, RouteProvenance::CliOverride);
+                route.command = vec!["ostadix-must-not-launch-cancelled-request".to_string()];
+                route.failure_continuation =
+                    crate::project::RouteFailureContinuation::DeclaredIdempotent;
+                route
+            })
+            .collect();
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        let options = RunOptions {
+            guard_behavior: GuardBehavior::Enforce,
+            limits: ExecutionLimits::default(),
+        };
+        for policy in [
+            RoutePolicy::Fallback,
+            RoutePolicy::AnySuccess,
+            RoutePolicy::All,
+            RoutePolicy::RaceSuccess,
+            RoutePolicy::RaceSettle,
+            RoutePolicy::VerifyEquivalent,
+            RoutePolicy::BenchmarkAndSelect,
+            RoutePolicy::BenchmarkValidateAndSelect,
+        ] {
+            bundle.route_sets = vec![RouteSet {
+                provides: "main".to_string(),
+                alternatives: alternatives.clone(),
+                policy,
+            }];
+            let error = run_selection_observed_controlled(
+                &bundle,
+                Some("main"),
+                None,
+                &options,
+                &cancellation,
+                None,
+            )
+            .unwrap_err();
+            assert!(is_cancellation_error(&error), "{error:#}");
+            assert!(!is_timeout_error(&error));
+            assert!(error
+                .downcast_ref::<RequestCancelledExecution>()
+                .unwrap()
+                .settled_results
+                .is_empty());
+        }
+        let error =
+            run_route_cancellable(&bundle, "first", &options, cancellation.clone()).unwrap_err();
+        assert!(is_cancellation_error(&error), "{error:#}");
+    }
+
+    #[test]
+    fn cancelled_selection_public_summary_retains_typed_causes_without_arguments() {
+        let request = CancellationToken::new();
+        request.cancel();
+        let spawn = anyhow::Error::new(RouteExecutionError::Spawn {
+            route_id: "public-route".into(),
+            command: "secret-command-argument".into(),
+            source: io::Error::from(io::ErrorKind::NotFound),
+        });
+        let unknown = anyhow::anyhow!("unknown-secret-diagnostic");
+        let error = ensure_request_active(&request, [], vec![&spawn, &unknown]).unwrap_err();
+        let retained = error.downcast_ref::<RequestCancelledExecution>().unwrap();
+        assert!(retained.public_message().contains("public-route"));
+        assert!(retained.public_message().contains("failed to spawn"));
+        assert!(retained
+            .public_message()
+            .contains("detailed diagnostic retained in memory"));
+        assert!(!retained
+            .public_message()
+            .contains("secret-command-argument"));
+        assert!(!retained
+            .public_message()
+            .contains("unknown-secret-diagnostic"));
+        assert!(retained.causal_errors[0].contains("secret-command-argument"));
+        assert!(retained.causal_errors[1].contains("unknown-secret-diagnostic"));
+    }
+
+    #[test]
+    fn measured_request_cancellation_drains_workers_and_retains_settled_results() {
+        let cancellation = CancellationToken::new();
+        let barrier = std::sync::Barrier::new(2);
+        let alternatives = vec!["settled".to_string(), "cancelled".to_string()];
+        let dispatch = |index: usize, route_id: &str, token: CancellationToken| {
+            barrier.wait();
+            if index == 0 {
+                Ok(settled_result(route_id, 0))
+            } else {
+                cancellation.cancel();
+                assert!(token.is_cancelled());
+                Err(RouteExecutionError::Cancelled {
+                    route_id: route_id.to_string(),
+                }
+                .into())
+            }
+        };
+        let error =
+            run_all_alternatives_parallel_measured(&alternatives, &dispatch, None, &cancellation)
+                .unwrap_err();
+        let retained = error.downcast_ref::<RequestCancelledExecution>().unwrap();
+        assert_eq!(retained.settled_results.len(), 1);
+        assert_eq!(retained.settled_results[0].route_id, "settled");
+        assert_eq!(retained.causal_errors.len(), 1);
+        assert!(retained.causal_errors[0].contains("cancelled"));
+    }
+
+    #[test]
     fn measured_candidate_progress_is_typed_and_credential_minimized() {
         let alternatives = vec![
             "reference".to_string(),
@@ -3803,9 +4085,13 @@ mod validated_selection_progress_tests {
             )),
         };
 
-        let error =
-            run_all_alternatives_parallel_measured(&alternatives, &dispatch, Some(&observer))
-                .unwrap_err();
+        let error = run_all_alternatives_parallel_measured(
+            &alternatives,
+            &dispatch,
+            Some(&observer),
+            &CancellationToken::new(),
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("infrastructure-error"));
 
         let events = events.into_inner().unwrap();

@@ -1512,8 +1512,10 @@ where
         );
         loop {
             if cancellation.is_some_and(crate::cancellation::CancellationToken::is_cancelled) {
-                return Err(infrastructure_error(anyhow!(
-                    "request cancelled while autonomous ephemeral backend `{language}` was running"
+                return Err(infrastructure_error(anyhow::Error::new(
+                    crate::cancellation::RequestCancellationObserved(format!(
+                        "request cancelled while autonomous ephemeral backend `{language}` was running"
+                    )),
                 )));
             }
             let remaining = operation_deadline
@@ -1566,9 +1568,17 @@ where
         }
         Err(error) => match process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
             Ok(()) => Err(error),
-            Err(termination) => Err(infrastructure_error(anyhow!(
-                "{error:#}; ephemeral backend termination also failed: {termination:#}"
-            ))),
+            Err(termination) => {
+                let diagnostic = format!(
+                    "{error:#}; ephemeral backend termination also failed: {termination:#}"
+                );
+                let error = if crate::cancellation::is_request_cancellation(&error) {
+                    anyhow::Error::new(crate::cancellation::RequestCancellationObserved(diagnostic))
+                } else {
+                    anyhow!(diagnostic)
+                };
+                Err(infrastructure_error(error))
+            }
         },
     }
 }
@@ -1975,7 +1985,8 @@ impl ProcessRegistry {
         const POLL_INTERVAL: Duration = Duration::from_millis(25);
         let key = self.process_key(lang, env_id, sandbox)?;
         loop {
-            let terminal_reason = if is_cancelled() {
+            let request_cancelled = is_cancelled();
+            let terminal_reason = if request_cancelled {
                 Some("request cancellation was observed".to_string())
             } else if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
                 Some("request execution deadline expired".to_string())
@@ -1993,6 +2004,13 @@ impl ProcessRegistry {
                     Err(termination) => anyhow!(
                         "backend `{lang}[{env_id}]` {reason}; actor termination also failed: {termination:#}"
                     ),
+                };
+                let error = if request_cancelled {
+                    anyhow::Error::new(crate::cancellation::RequestCancellationObserved(format!(
+                        "{error:#}"
+                    )))
+                } else {
+                    error
                 };
                 return Err(infrastructure_error(error));
             }

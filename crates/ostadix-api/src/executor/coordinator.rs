@@ -972,10 +972,7 @@ impl<'a> Coordinator<'a> {
             request.deadline,
         ) {
             Ok(value) => Ok(value),
-            Err(error) if crate::process::is_infrastructure_error(&error) => {
-                Err(TaskCallbackFailure::Infrastructure(format!("{error:#}")))
-            }
-            Err(error) => Err(TaskCallbackFailure::Semantic(format!("{error:#}"))),
+            Err(error) => Err(TaskCallbackFailure::from_error(error)),
         };
         evaluator.set_policy(saved);
         let succeeded = outcome.is_ok();
@@ -1262,9 +1259,13 @@ impl<'a> Coordinator<'a> {
                         }
                     }
                     Ok(WorkerEvent::EvalRequest(request)) => {
-                        if let Err(error) = request
-                            .respond(Err(TaskCallbackFailure::Infrastructure(reason.to_string())))
-                        {
+                        let failure =
+                            if crate::cancellation::is_request_cancellation(&scheduler_error) {
+                                TaskCallbackFailure::RequestCancelled(reason.to_string())
+                            } else {
+                                TaskCallbackFailure::Infrastructure(reason.to_string())
+                            };
+                        if let Err(error) = request.respond(Err(failure)) {
                             if drain_error.is_none() {
                                 drain_error = Some(error);
                             }

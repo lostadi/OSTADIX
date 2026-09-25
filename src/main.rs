@@ -13,6 +13,7 @@ use o_lang::shims::ExtractedShims;
 use o_lang::value::OValue;
 
 mod cli_source_structure;
+mod run_signals;
 
 fn main() -> Result<()> {
     if o_lang::backend::run_backend_from_env_args()? {
@@ -274,118 +275,147 @@ fn run_cli() -> Result<()> {
     let execution_mode = env::var("O_EXECUTOR")
         .unwrap_or_else(|_| "graph".to_string())
         .to_ascii_lowercase();
-    let evaluation = match required_execution_intent {
-        Some((expected_source_sha256, expected_execution_intent_sha256)) => evaluator
-            .eval_document_with_scope_requiring_execution_intent(
+    let signals =
+        run_signals::RunSignals::new().context("install evaluator cancellation signals")?;
+    let execution = (|| -> Result<i32> {
+        let evaluation = match required_execution_intent {
+            Some((expected_source_sha256, expected_execution_intent_sha256)) => evaluator
+                .eval_document_with_scope_requiring_execution_intent_controlled(
+                    nodes,
+                    &mut scope,
+                    source_sha256
+                        .as_deref()
+                        .expect("required intent pair computes the source digest"),
+                    expected_source_sha256,
+                    expected_execution_intent_sha256,
+                    signals.cancellation().clone(),
+                    None,
+                ),
+            None => evaluator.eval_document_with_scope_controlled(
                 nodes,
                 &mut scope,
-                source_sha256
-                    .as_deref()
-                    .expect("required intent pair computes the source digest"),
-                expected_source_sha256,
-                expected_execution_intent_sha256,
+                signals.cancellation().clone(),
+                None,
             ),
-        None => evaluator.eval_document_with_scope(nodes, &mut scope),
-    };
-    let crossing_records = if crossing_evidence {
-        let observations = evaluator
-            .last_execution_trace()
-            .map(|trace| trace.backend_crossings.as_slice())
-            .unwrap_or_default();
-        Some(
-            observations
-                .iter()
-                .map(|observation| {
-                    Ok(serde_json::json!({
-                        "sha256": observation.digest().map_err(anyhow::Error::msg)?,
-                        "observation": observation,
-                    }))
-                })
-                .collect::<Result<Vec<_>>>()?,
-        )
-    } else {
-        None
-    };
-    let result = match evaluation {
-        Ok(result) => result,
-        Err(e) if crossing_evidence => {
-            println!(
-                "{}",
-                serde_json::json!({
-                    "ok": false, "stage": "eval", "error": format!("{e:#}"),
-                    "backend_crossings": crossing_records,
-                    "crossing_coverage": "direct-admitted-graph-bindings-and-lifted-results",
-                })
-            );
-            std::process::exit(1);
-        }
-        Err(e) => {
-            return fail_stage(
-                json_output,
-                "eval",
-                e,
-                &input_path,
-                &source,
-                Some(&evaluator),
+        };
+        let crossing_records = if crossing_evidence {
+            let observations = evaluator
+                .last_execution_trace()
+                .map(|trace| trace.backend_crossings.as_slice())
+                .unwrap_or_default();
+            Some(
+                observations
+                    .iter()
+                    .map(|observation| {
+                        Ok(serde_json::json!({
+                            "sha256": observation.digest().map_err(anyhow::Error::msg)?,
+                            "observation": observation,
+                        }))
+                    })
+                    .collect::<Result<Vec<_>>>()?,
             )
-        }
-    };
-
-    let elapsed = start.elapsed();
-    if json_output {
-        let mut envelope = serde_json::json!({
-            "ok": true,
-            "value": result,
-            "type": result.type_name(),
-            "elapsed_ms": elapsed.as_millis() as u64,
-        });
-        let admission = evaluator.last_execution_admission();
-        envelope["execution_evidence"] = serde_json::json!({
-            "schema": "ostadix.native-execution-evidence/v1",
-            "execution_mode": execution_mode,
-            "source_sha256": source_sha256,
-            "source_identity_scope": "submitted_utf8_before_shebang_removal",
-            "parsed_source_sha256": o_lang::evidence::source_sha256(executable_source.as_bytes()),
-            "result_content_identity": result.content_identity(),
-            "source_intent_gate": required_execution_intent.map(|(source, intent)| {
-                serde_json::json!({
-                    "verified": true,
-                    "source_sha256": source,
-                    "execution_intent_sha256": intent,
-                })
-            }),
-            "admission": admission.map(|admission| {
-                let bindings = admission.bindings();
-                serde_json::json!({
-                    "schema": admission.schema(),
-                    "oir_sha256": bindings.oir_sha256,
-                    "plan_sha256": bindings.plan_sha256,
-                    "analyzed_graph_sha256": bindings.analyzed_graph_sha256,
-                    "evidence_sha256": admission.evidence_sha256(),
-                    "admitted_graph_sha256": admission.admitted_graph_sha256(),
-                    "admission_sha256": admission.admission_sha256(),
-                })
-            }),
-        });
-        if let Some(records) = crossing_records {
-            envelope["backend_crossings"] = serde_json::json!(records);
-            envelope["crossing_coverage"] =
-                serde_json::json!("direct-admitted-graph-bindings-and-lifted-results");
-        }
-        println!("{envelope}");
-    } else {
-        print_result(&result);
-    }
-
-    if !json_output && io::stderr().is_terminal() {
-        if elapsed.as_millis() < 1000 {
-            eprintln!("\x1b[2m  {} ms\x1b[0m", elapsed.as_millis());
         } else {
-            eprintln!("\x1b[2m  {:.2} s\x1b[0m", elapsed.as_secs_f64());
-        }
-    }
+            None
+        };
+        let result = match evaluation {
+            Ok(result) => result,
+            Err(e) if crossing_evidence => {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": false, "stage": "eval", "error": format!("{e:#}"),
+                        "backend_crossings": crossing_records,
+                        "crossing_coverage": "direct-admitted-graph-bindings-and-lifted-results",
+                    })
+                );
+                return Ok(1);
+            }
+            Err(e) => {
+                return fail_stage(
+                    json_output,
+                    "eval",
+                    e,
+                    &input_path,
+                    &source,
+                    Some(&evaluator),
+                )
+                .map(|()| 0)
+            }
+        };
 
-    Ok(())
+        let elapsed = start.elapsed();
+        if json_output {
+            let mut envelope = serde_json::json!({
+                "ok": true,
+                "value": result,
+                "type": result.type_name(),
+                "elapsed_ms": elapsed.as_millis() as u64,
+            });
+            let admission = evaluator.last_execution_admission();
+            envelope["execution_evidence"] = serde_json::json!({
+                "schema": "ostadix.native-execution-evidence/v1",
+                "execution_mode": execution_mode,
+                "source_sha256": source_sha256,
+                "source_identity_scope": "submitted_utf8_before_shebang_removal",
+                "parsed_source_sha256": o_lang::evidence::source_sha256(executable_source.as_bytes()),
+                "result_content_identity": result.content_identity(),
+                "source_intent_gate": required_execution_intent.map(|(source, intent)| {
+                    serde_json::json!({
+                        "verified": true,
+                        "source_sha256": source,
+                        "execution_intent_sha256": intent,
+                    })
+                }),
+                "admission": admission.map(|admission| {
+                    let bindings = admission.bindings();
+                    serde_json::json!({
+                        "schema": admission.schema(),
+                        "oir_sha256": bindings.oir_sha256,
+                        "plan_sha256": bindings.plan_sha256,
+                        "analyzed_graph_sha256": bindings.analyzed_graph_sha256,
+                        "evidence_sha256": admission.evidence_sha256(),
+                        "admitted_graph_sha256": admission.admitted_graph_sha256(),
+                        "admission_sha256": admission.admission_sha256(),
+                    })
+                }),
+            });
+            if let Some(records) = crossing_records {
+                envelope["backend_crossings"] = serde_json::json!(records);
+                envelope["crossing_coverage"] =
+                    serde_json::json!("direct-admitted-graph-bindings-and-lifted-results");
+            }
+            println!("{envelope}");
+        } else {
+            print_result(&result);
+        }
+
+        if !json_output && io::stderr().is_terminal() {
+            if elapsed.as_millis() < 1000 {
+                eprintln!("\x1b[2m  {} ms\x1b[0m", elapsed.as_millis());
+            } else {
+                eprintln!("\x1b[2m  {:.2} s\x1b[0m", elapsed.as_secs_f64());
+            }
+        }
+
+        Ok(0)
+    })();
+    // Backend/process and extracted-shim owners must settle before restoring
+    // the signal's default termination behavior, including error envelopes.
+    drop(scope);
+    drop(evaluator);
+    drop(_shim_guard);
+    if let Some(signal) = signals.finish() {
+        if let Err(error) = &execution {
+            eprintln!("{}", o_lang::cli_diagnostics::render_error("O", error));
+        }
+        let _ = io::stdout().flush();
+        let _ = io::stderr().flush();
+        run_signals::terminate(signal);
+    }
+    match execution? {
+        0 => Ok(()),
+        code => std::process::exit(code),
+    }
 }
 
 /// Report a parse or eval failure. In `--json` mode a structured error object

@@ -156,10 +156,7 @@ impl TaskContext {
         );
         match result {
             Ok(value) => Ok(value),
-            Err(TaskCallbackFailure::Semantic(message)) => Err(anyhow!(message)),
-            Err(TaskCallbackFailure::Infrastructure(message)) => {
-                Err(crate::process::infrastructure_error(anyhow!(message)))
-            }
+            Err(failure) => Err(failure.into_error()),
         }
     }
 }
@@ -304,4 +301,94 @@ impl TaskEvalRequest {
 pub(crate) enum TaskCallbackFailure {
     Semantic(String),
     Infrastructure(String),
+    RequestCancelled(String),
+}
+
+impl TaskCallbackFailure {
+    pub(crate) fn from_error(error: anyhow::Error) -> Self {
+        if crate::cancellation::is_request_cancellation(&error) {
+            Self::RequestCancelled(format!("{error:#}"))
+        } else if crate::process::is_infrastructure_error(&error) {
+            Self::Infrastructure(format!("{error:#}"))
+        } else {
+            Self::Semantic(format!("{error:#}"))
+        }
+    }
+
+    fn into_error(self) -> anyhow::Error {
+        match self {
+            Self::Semantic(message) => anyhow!(message),
+            Self::Infrastructure(message) => crate::process::infrastructure_error(anyhow!(message)),
+            Self::RequestCancelled(message) => crate::process::infrastructure_error(
+                anyhow::Error::new(crate::cancellation::RequestCancellationObserved(message)),
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn callback_roundtrip_preserves_causal_cancellation_and_failure_classes() {
+        let cases = [
+            (
+                anyhow!("semantic text says request cancelled"),
+                false,
+                false,
+            ),
+            (
+                crate::process::infrastructure_error(anyhow!("transport failed")),
+                false,
+                true,
+            ),
+            (
+                anyhow::Error::new(crate::cancellation::RequestCancellationObserved(
+                    "request cancelled during nested O.eval".to_string(),
+                )),
+                true,
+                true,
+            ),
+            (
+                crate::process::infrastructure_error(anyhow::Error::new(
+                    crate::cancellation::RequestCancellationObserved(
+                        "backend actor reaped".to_string(),
+                    ),
+                )),
+                true,
+                true,
+            ),
+        ];
+        for (source, cancelled, infrastructure) in cases {
+            let diagnostic = format!("{source:#}");
+            let (events, incoming) = mpsc::channel();
+            let context = TaskContext::new(TaskToken(0), events, None);
+            let worker = std::thread::spawn(move || {
+                context.eval_o_source_with_timeout(
+                    "text^(nested)_text".to_string(),
+                    HashMap::new(),
+                    Duration::from_secs(30),
+                )
+            });
+            let WorkerEvent::EvalRequest(request) =
+                incoming.recv_timeout(Duration::from_secs(30)).unwrap()
+            else {
+                panic!("expected callback request");
+            };
+            request
+                .respond(Err(TaskCallbackFailure::from_error(source)))
+                .unwrap();
+            let returned = worker.join().unwrap().unwrap_err();
+            assert_eq!(returned.to_string(), diagnostic);
+            assert_eq!(
+                crate::cancellation::is_request_cancellation(&returned),
+                cancelled
+            );
+            assert_eq!(
+                crate::process::is_infrastructure_error(&returned),
+                infrastructure
+            );
+        }
+    }
 }

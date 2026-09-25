@@ -35,9 +35,10 @@ use crate::project::model::{
     OExecutionResult, ProjectBundle, RouteFailureContinuation, RoutePolicy, RouteSpec,
 };
 use crate::project::runtime::{
-    benchmark_validate_and_select, is_cancellation_error, potential_route_execution_count,
-    resolve_selection, run_all_alternatives_parallel_measured, verify_results_equivalent,
-    RouteExecutionError, RouteSelectionExecution, RunOptions, ValidatedSelectionProgressObserverV1,
+    benchmark_validate_and_select, ensure_request_active, is_cancellation_error,
+    potential_route_execution_count, resolve_selection, run_all_alternatives_parallel_measured,
+    verify_results_equivalent, RouteExecutionError, RouteSelectionExecution, RunOptions,
+    ValidatedSelectionProgressObserverV1,
 };
 
 pub const MESH_EXECUTION_TRACE_SCHEMA_V1: &str = "ostadix.project-mesh-trace/v1";
@@ -708,7 +709,15 @@ pub enum MeshExecutionFailureClass {
 impl MeshExecutionError {
     fn new(source: anyhow::Error, trace: MeshExecutionTraceV1) -> Self {
         let class = classify_mesh_failure(&trace);
-        let public_message = if source
+        let public_message = if is_cancellation_error(&source) {
+            let summary = source
+                .downcast_ref::<crate::project::runtime::RequestCancelledExecution>()
+                .map(|cancelled| cancelled.public_message().to_string())
+                .unwrap_or_else(|| "project mesh execution cancelled".to_string());
+            if trace.events.iter().any(|event| matches!(event, MeshTraceEventV1::AttemptFailed { delivery, .. } if delivery == "ambiguous")) {
+                format!("{summary}; remote actor outcome remains ambiguous; consult retained mesh trace")
+            } else { summary }
+        } else if source
             .downcast_ref::<RequiredMeshPlacementUnavailable>()
             .is_some()
         {
@@ -1365,6 +1374,7 @@ enum RemoteAttemptOutcome {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ActorStopReason {
+    RequestCancellation,
     RaceCancellation,
     WallClockDeadline,
 }
@@ -1509,6 +1519,7 @@ fn poll_remote_actor(
     actor_ref: &MeshActorRefV1,
     initial: crate::hosted_remote::mesh::MeshActorStatusV1,
     cancel: &CancellationToken,
+    request: &CancellationToken,
     policy: RemotePollPolicy,
 ) -> RemoteAttemptOutcome {
     let mut status = initial;
@@ -1538,7 +1549,7 @@ fn poll_remote_actor(
             } => {
                 if code == "route-cancelled" {
                     return match stop_reason {
-                        Some(ActorStopReason::RaceCancellation) => {
+                        Some(ActorStopReason::RequestCancellation | ActorStopReason::RaceCancellation) => {
                             RemoteAttemptOutcome::Cancelled
                         }
                         Some(ActorStopReason::WallClockDeadline) => {
@@ -1574,7 +1585,9 @@ fn poll_remote_actor(
         }
 
         if stop_reason.is_none() {
-            let reason = if cancel.is_cancelled() {
+            let reason = if request.is_cancelled() {
+                Some(ActorStopReason::RequestCancellation)
+            } else if cancel.is_cancelled() {
                 Some(ActorStopReason::RaceCancellation)
             } else if Instant::now() >= policy.deadline {
                 Some(ActorStopReason::WallClockDeadline)
@@ -1616,6 +1629,9 @@ fn poll_remote_actor(
             return RemoteAttemptOutcome::Failed {
                 delivery: AttemptDeliveryState::Ambiguous,
                 detail: match stop_reason {
+                    Some(ActorStopReason::RequestCancellation) => {
+                        "request cancellation did not durably settle before its grace deadline".to_string()
+                    }
                     Some(ActorStopReason::RaceCancellation) => {
                         "race-loser cancellation did not durably settle before its grace deadline"
                             .to_string()
@@ -1655,6 +1671,7 @@ fn poll_remote_actor(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_remote_attempt(
     peer: &ResolvedMeshPeer,
     upload: &MeshArtifactUploadV1,
@@ -1662,6 +1679,7 @@ fn execute_remote_attempt(
     actor: MeshActorIdV1,
     cancel: &CancellationToken,
     opts: &RunOptions,
+    request: &CancellationToken,
     on_submit: impl FnOnce(),
 ) -> RemoteAttemptOutcome {
     if cancel.is_cancelled() {
@@ -1758,7 +1776,15 @@ fn execute_remote_attempt(
     // cancellation check and immediately before the first admission RPC.
     on_submit();
     match connection.execute_actor(spec) {
-        Ok(status) => poll_remote_actor(peer, connection, &actor_ref, status, cancel, poll_policy),
+        Ok(status) => poll_remote_actor(
+            peer,
+            connection,
+            &actor_ref,
+            status,
+            cancel,
+            request,
+            poll_policy,
+        ),
         Err(submit_error) => {
             if submit_failure_proves_not_started(
                 mesh_client_failure_disposition(&submit_error),
@@ -1787,6 +1813,7 @@ fn execute_remote_attempt(
                         &actor_ref,
                         status,
                         cancel,
+                        request,
                         poll_policy,
                     )
                 }
@@ -1819,7 +1846,9 @@ fn dispatch_route_actor(
     config: &MeshExecutionConfig,
     events: &Arc<Mutex<Vec<MeshTraceEventV1>>>,
     cancel: CancellationToken,
+    request: &CancellationToken,
 ) -> Result<OExecutionResult> {
+    let cancel = request.linked_child(&cancel);
     let bundle_sha256 = &upload.artifact.sha256;
     let actor_id = actor_id(execution_id, bundle_sha256, route_id);
     let replay = branch_replay_contract(bundle, route_id)?;
@@ -1836,10 +1865,11 @@ fn dispatch_route_actor(
 
     for offset in 0..attempts {
         if cancel.is_cancelled() {
-            return Err(RouteExecutionError::Cancelled {
-                route_id: route_id.to_string(),
-            }
-            .into());
+            return Err(cancelled_actor_error(
+                route_id,
+                last_delivery,
+                &last_failure,
+            ));
         }
         if peers.is_empty() {
             break;
@@ -1870,8 +1900,15 @@ fn dispatch_route_actor(
         let generation_u32 = u32::try_from(generation).unwrap_or(u32::MAX);
         let migration_from = last_node.clone();
         let mut submitted = false;
-        let outcome =
-            execute_remote_attempt(peer, upload, &requirements, actor, &cancel, opts, || {
+        let outcome = execute_remote_attempt(
+            peer,
+            upload,
+            &requirements,
+            actor,
+            &cancel,
+            opts,
+            request,
+            || {
                 submitted = true;
                 if let Some(from_node) = migration_from
                     .as_ref()
@@ -1899,7 +1936,8 @@ fn dispatch_route_actor(
                         node_id: peer.node_id.clone(),
                     },
                 );
-            });
+            },
+        );
         if submitted {
             attempted_generations = generation_u32;
             last_node = Some(peer.node_id.clone());
@@ -1930,10 +1968,33 @@ fn dispatch_route_actor(
                 last_settled_failure = Some(result);
             }
             RemoteAttemptOutcome::Cancelled => {
+                trace_event(
+                    events,
+                    MeshTraceEventV1::AttemptFailed {
+                        route_id: route_id.to_string(),
+                        actor_id: actor_id.clone(),
+                        generation: generation_u32,
+                        node_id: peer.node_id.clone(),
+                        submitted,
+                        delivery: if submitted {
+                            "executed"
+                        } else {
+                            "proven_not_started"
+                        }
+                        .to_string(),
+                        replay_contract: replay.token().to_string(),
+                        reason: if request.is_cancelled() {
+                            "request cancellation confirmed; no replacement dispatch is permitted"
+                        } else {
+                            "race-loser cancellation confirmed"
+                        }
+                        .to_string(),
+                    },
+                );
                 return Err(RouteExecutionError::Cancelled {
                     route_id: route_id.to_string(),
                 }
-                .into())
+                .into());
             }
             RemoteAttemptOutcome::Failed { delivery, detail } => {
                 trace_event(
@@ -1964,10 +2025,11 @@ fn dispatch_route_actor(
     }
 
     if cancel.is_cancelled() {
-        return Err(RouteExecutionError::Cancelled {
-            route_id: route_id.to_string(),
-        }
-        .into());
+        return Err(cancelled_actor_error(
+            route_id,
+            last_delivery,
+            &last_failure,
+        ));
     }
     if may_fallback_locally(
         config.requirement,
@@ -1998,6 +2060,23 @@ fn dispatch_route_actor(
     )
 }
 
+fn cancelled_actor_error(
+    route_id: &str,
+    delivery: AttemptDeliveryState,
+    last_failure: &str,
+) -> anyhow::Error {
+    let error = anyhow::Error::new(RouteExecutionError::Cancelled {
+        route_id: route_id.to_string(),
+    });
+    if delivery == AttemptDeliveryState::Ambiguous {
+        error.context(format!(
+            "request or branch cancelled; remote outcome remains ambiguous: {last_failure}"
+        ))
+    } else {
+        error
+    }
+}
+
 /// Execute a resolved route selection through discovered mesh peers, with
 /// bounded retry and a policy-governed local provider. The transport-backed
 /// implementation is below the pure scheduling helpers in this module.
@@ -2008,7 +2087,15 @@ pub fn execute_mesh_selection_observed(
     opts: &RunOptions,
     config: &MeshExecutionConfig,
 ) -> Result<MeshExecutionOutcome> {
-    execute_mesh_selection_observed_inner(bundle, target, policy_override, opts, config, None)
+    execute_mesh_selection_observed_controlled(
+        bundle,
+        target,
+        policy_override,
+        opts,
+        config,
+        None,
+        &CancellationToken::new(),
+    )
 }
 
 /// Execute a mesh selection while reporting presentation-safe progress for
@@ -2024,23 +2111,25 @@ pub fn execute_mesh_selection_observed_with_progress(
     config: &MeshExecutionConfig,
     observer: &dyn ValidatedSelectionProgressObserverV1,
 ) -> Result<MeshExecutionOutcome> {
-    execute_mesh_selection_observed_inner(
+    execute_mesh_selection_observed_controlled(
         bundle,
         target,
         policy_override,
         opts,
         config,
         Some(observer),
+        &CancellationToken::new(),
     )
 }
 
-fn execute_mesh_selection_observed_inner(
+pub(crate) fn execute_mesh_selection_observed_controlled(
     bundle: &ProjectBundle,
     target: Option<&str>,
     policy_override: Option<RoutePolicy>,
     opts: &RunOptions,
     config: &MeshExecutionConfig,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: &CancellationToken,
 ) -> Result<MeshExecutionOutcome> {
     config.validate()?;
     let selection = resolve_selection(bundle, target, policy_override)?;
@@ -2084,6 +2173,7 @@ fn execute_mesh_selection_observed_inner(
         config,
         &mut trace,
         observer,
+        cancellation,
     );
     let trace_retention = trace.validate().and_then(|()| {
         config
@@ -2138,8 +2228,11 @@ fn execute_mesh_policy(
     config: &MeshExecutionConfig,
     trace: &mut MeshExecutionTraceV1,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: &CancellationToken,
 ) -> Result<RouteSelectionExecution> {
+    ensure_request_active(cancellation, [], Vec::new())?;
     let mut peers = discover_mesh_peers(config, trace)?;
+    ensure_request_active(cancellation, [], Vec::new())?;
     let bundle_bytes_len = u64::try_from(bundle_bytes.len()).unwrap_or(u64::MAX);
     let requested_limits = MeshExecutionLimitsV1::from_run_options(opts);
     peers.retain(|peer| {
@@ -2215,12 +2308,17 @@ fn execute_mesh_policy(
             config,
             &events,
             cancel,
+            cancellation,
         )
     };
     let outcome = (|| -> Result<RouteSelectionExecution> {
         if matches!(policy, RoutePolicy::BenchmarkValidateAndSelect) {
-            let measured =
-                run_all_alternatives_parallel_measured(alternatives, &dispatch_one, observer)?;
+            let measured = run_all_alternatives_parallel_measured(
+                alternatives,
+                &dispatch_one,
+                observer,
+                cancellation,
+            )?;
             return benchmark_validate_and_select(
                 bundle,
                 &trace.target,
@@ -2235,15 +2333,23 @@ fn execute_mesh_policy(
                 alternatives
                     .first()
                     .context("resolved mesh selection lost its route")?,
-                CancellationToken::new(),
+                cancellation.child_token(),
             )?],
             RoutePolicy::Fallback | RoutePolicy::AnySuccess => {
                 let mut results = Vec::new();
                 for (index, route_id) in alternatives.iter().enumerate() {
-                    let result = dispatch_one(index, route_id, CancellationToken::new())?;
+                    ensure_request_active(cancellation, &results, Vec::new())?;
+                    let result = match dispatch_one(index, route_id, cancellation.child_token()) {
+                        Ok(result) => result,
+                        Err(error) => {
+                            ensure_request_active(cancellation, &results, vec![&error])?;
+                            return Err(error);
+                        }
+                    };
                     let succeeded = result.succeeded();
                     let skipped = result.was_guard_skipped();
                     results.push(result);
+                    ensure_request_active(cancellation, &results, Vec::new())?;
                     if succeeded {
                         break;
                     }
@@ -2255,9 +2361,9 @@ fn execute_mesh_policy(
                 }
                 results
             }
-            RoutePolicy::All => run_mesh_all_parallel(alternatives, &dispatch_one)?,
+            RoutePolicy::All => run_mesh_all_parallel(alternatives, &dispatch_one, cancellation)?,
             RoutePolicy::VerifyEquivalent => {
-                let results = run_mesh_all_parallel(alternatives, &dispatch_one)?;
+                let results = run_mesh_all_parallel(alternatives, &dispatch_one, cancellation)?;
                 let failures = results
                     .iter()
                     .filter(|result| !result.succeeded())
@@ -2273,7 +2379,7 @@ fn execute_mesh_policy(
                 results
             }
             RoutePolicy::BenchmarkAndSelect => {
-                let mut results = run_mesh_all_parallel(alternatives, &dispatch_one)?;
+                let mut results = run_mesh_all_parallel(alternatives, &dispatch_one, cancellation)?;
                 let winner = results
                     .iter()
                     .enumerate()
@@ -2285,16 +2391,23 @@ fn execute_mesh_policy(
                 results.push(selected);
                 results
             }
-            RoutePolicy::RaceSuccess => {
-                run_mesh_race(alternatives, &dispatch_one, MeshRaceMode::FirstSuccess)?
-            }
-            RoutePolicy::RaceSettle => {
-                run_mesh_race(alternatives, &dispatch_one, MeshRaceMode::FirstSettle)?
-            }
+            RoutePolicy::RaceSuccess => run_mesh_race(
+                alternatives,
+                &dispatch_one,
+                MeshRaceMode::FirstSuccess,
+                cancellation,
+            )?,
+            RoutePolicy::RaceSettle => run_mesh_race(
+                alternatives,
+                &dispatch_one,
+                MeshRaceMode::FirstSettle,
+                cancellation,
+            )?,
             RoutePolicy::BenchmarkValidateAndSelect => unreachable!(
                 "validated benchmark selection is finalized before ordinary mesh policies"
             ),
         };
+        ensure_request_active(cancellation, &results, Vec::new())?;
         Ok(RouteSelectionExecution::plain(results))
     })();
 
@@ -2308,10 +2421,17 @@ fn execute_mesh_policy(
             .unwrap_or_else(|poisoned| poisoned.into_inner().clone()),
     };
     trace.events.append(&mut recorded);
+    if let Ok(execution) = &outcome {
+        ensure_request_active(cancellation, &execution.results, Vec::new())?;
+    }
     outcome
 }
 
-fn run_mesh_all_parallel<F>(alternatives: &[String], dispatch: &F) -> Result<Vec<OExecutionResult>>
+fn run_mesh_all_parallel<F>(
+    alternatives: &[String],
+    dispatch: &F,
+    cancellation: &CancellationToken,
+) -> Result<Vec<OExecutionResult>>
 where
     F: Fn(usize, &str, CancellationToken) -> Result<OExecutionResult> + Sync,
 {
@@ -2320,7 +2440,7 @@ where
         for (index, route_id) in alternatives.iter().enumerate() {
             let sender = sender.clone();
             scope.spawn(move || {
-                let _ = sender.send((index, dispatch(index, route_id, CancellationToken::new())));
+                let _ = sender.send((index, dispatch(index, route_id, cancellation.child_token())));
             });
         }
         drop(sender);
@@ -2330,6 +2450,16 @@ where
         for (index, outcome) in receiver {
             slots[index] = Some(outcome);
         }
+        ensure_request_active(
+            cancellation,
+            slots
+                .iter()
+                .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().ok())),
+            slots
+                .iter()
+                .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().err()))
+                .collect(),
+        )?;
         slots
             .into_iter()
             .enumerate()
@@ -2352,13 +2482,14 @@ fn run_mesh_race<F>(
     alternatives: &[String],
     dispatch: &F,
     mode: MeshRaceMode,
+    cancellation: &CancellationToken,
 ) -> Result<Vec<OExecutionResult>>
 where
     F: Fn(usize, &str, CancellationToken) -> Result<OExecutionResult> + Sync,
 {
     let tokens = alternatives
         .iter()
-        .map(|_| CancellationToken::new())
+        .map(|_| cancellation.child_token())
         .collect::<Vec<_>>();
     let (sender, receiver) = std::sync::mpsc::channel();
     // A worker records completion under the same gate the coordinator uses to
@@ -2445,6 +2576,16 @@ where
                 }
             }
         }
+        ensure_request_active(
+            cancellation,
+            slots
+                .iter()
+                .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().ok())),
+            slots
+                .iter()
+                .filter_map(|slot| slot.as_ref().and_then(|outcome| outcome.as_ref().err()))
+                .collect(),
+        )?;
         let Some(winner) = winner else {
             let mut results = Vec::new();
             for (index, outcome) in slots.into_iter().enumerate() {
@@ -2649,6 +2790,79 @@ mod tests {
             "read-only planning must not create an empty peer registry"
         );
         observation.validate().unwrap();
+    }
+
+    #[test]
+    fn cancelled_mesh_request_preserves_trace_without_discovery_or_local_fallback() {
+        let temp = tempfile::tempdir().unwrap();
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        let error = execute_mesh_selection_observed_controlled(
+            &bundle_with_chain(),
+            Some("run"),
+            None,
+            &RunOptions::default(),
+            &MeshExecutionConfig {
+                discover_lan: false,
+                peer_root: Some(temp.path().join("absent-peers")),
+                ..MeshExecutionConfig::default()
+            },
+            None,
+            &cancellation,
+        )
+        .unwrap_err();
+        let retained = error.downcast_ref::<MeshExecutionError>().unwrap();
+        assert!(retained.message().contains("request cancelled"));
+        assert!(retained.trace.events.is_empty());
+        assert!(retained.trace.candidates.is_empty());
+        retained.trace.validate().unwrap();
+    }
+
+    #[test]
+    fn mesh_request_cancellation_drains_race_and_retains_completed_observations() {
+        let cancellation = CancellationToken::new();
+        let barrier = std::sync::Barrier::new(2);
+        let alternatives = vec!["settled".to_string(), "cancelled".to_string()];
+        let error = run_mesh_race(
+            &alternatives,
+            &|index, route_id, token| {
+                barrier.wait();
+                if index == 0 {
+                    Ok(successful_result(route_id))
+                } else {
+                    cancellation.cancel();
+                    assert!(token.is_cancelled());
+                    Err(RouteExecutionError::Cancelled {
+                        route_id: route_id.to_string(),
+                    }
+                    .into())
+                }
+            },
+            MeshRaceMode::FirstSuccess,
+            &cancellation,
+        )
+        .unwrap_err();
+        let retained = error
+            .downcast_ref::<crate::project::runtime::RequestCancelledExecution>()
+            .unwrap();
+        assert_eq!(retained.settled_results.len(), 1);
+        assert_eq!(retained.settled_results[0].route_id, "settled");
+    }
+
+    #[test]
+    fn cancelled_remote_actor_keeps_unsettled_delivery_ambiguous() {
+        let error = cancelled_actor_error(
+            "route",
+            AttemptDeliveryState::Ambiguous,
+            "same-node reconciliation failed",
+        );
+        assert!(is_cancellation_error(&error));
+        assert!(error
+            .to_string()
+            .contains("remote outcome remains ambiguous"));
+        assert!(error
+            .to_string()
+            .contains("same-node reconciliation failed"));
     }
 
     #[test]
@@ -2857,6 +3071,7 @@ mod tests {
     #[test]
     fn late_race_loser_cannot_replace_the_linearized_winner() {
         let alternatives = vec!["late".to_owned(), "winner".to_owned()];
+        let request = CancellationToken::new();
         let results = run_mesh_race(
             &alternatives,
             &|index, route_id, cancel| {
@@ -2873,9 +3088,14 @@ mod tests {
                 Ok(successful_result(route_id))
             },
             MeshRaceMode::FirstSuccess,
+            &request,
         )
         .unwrap();
         assert_eq!(results.last().unwrap().route_id, "winner");
+        assert!(
+            !request.is_cancelled(),
+            "race-loser cancellation reached the parent"
+        );
 
         let results = run_mesh_race(
             &alternatives,
@@ -2894,9 +3114,14 @@ mod tests {
                 Ok(successful_result(route_id))
             },
             MeshRaceMode::FirstSettle,
+            &request,
         )
         .unwrap();
         assert_eq!(results.last().unwrap().route_id, "winner");
+        assert!(
+            !request.is_cancelled(),
+            "race-loser cancellation reached the parent"
+        );
     }
 
     #[test]

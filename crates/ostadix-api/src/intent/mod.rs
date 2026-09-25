@@ -16,23 +16,23 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::backend_catalog::{BackendAdapterKind, ExecutionMode};
+use crate::cancellation::CancellationToken;
 use crate::eval::{Evaluator, ExecutionTrace, TraceEvent};
 use crate::evidence::ExecutionIntentV1;
 use crate::execution_contract::Policy;
 use crate::hosted_remote::project_mesh::{
-    execute_mesh_selection_observed, execute_mesh_selection_observed_with_progress,
-    observe_mesh_peers_read_only, MeshExecutionConfig, MeshExecutionOutcome, MeshExecutionTraceV1,
-    MeshLocalFallback, MeshReadOnlyDiscoveryConfig, MeshRequirement, MeshTraceEventV1,
+    execute_mesh_selection_observed_controlled, observe_mesh_peers_read_only, MeshExecutionConfig,
+    MeshExecutionOutcome, MeshExecutionTraceV1, MeshLocalFallback, MeshReadOnlyDiscoveryConfig,
+    MeshRequirement, MeshTraceEventV1,
 };
 use crate::ir::{BackendRegistry, OIr, OIrProgram};
 use crate::parser::Parser;
 use crate::project::executor::{
-    execute_project_hgraph_selection_with_contract_and_progress, ConfiguredProjectExecution,
-    PROJECT_EXECUTOR_ENV,
+    execute_project_hgraph_selection_controlled, ConfiguredProjectExecution, PROJECT_EXECUTOR_ENV,
 };
 use crate::project::runtime::{
-    potential_route_execution_count, run_selection_observed, run_selection_observed_with_progress,
-    RunOptions, ValidatedSelectionProgressObserverV1,
+    potential_route_execution_count, run_selection_observed_controlled, RunOptions,
+    ValidatedSelectionProgressObserverV1,
 };
 use crate::project::{
     build_project_hgraph_with_contract, DeploymentPlanV1, OExecutionResult, ProjectAttemptState,
@@ -571,12 +571,27 @@ pub struct OrdinaryOExecutionOutcomeV1 {
 #[derive(Debug)]
 pub struct OrdinaryOExecutionErrorV1 {
     message: String,
+    request_cancelled: bool,
     pub trace: OExecutionTraceV1,
 }
 
 impl OrdinaryOExecutionErrorV1 {
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    /// Whether the returned failure was caused by observed request
+    /// cancellation, independently of a later signal or diagnostic wording.
+    pub const fn is_request_cancelled(&self) -> bool {
+        self.request_cancelled
+    }
+
+    fn from_evaluator_error(error: anyhow::Error, trace: OExecutionTraceV1) -> Self {
+        Self {
+            request_cancelled: crate::cancellation::is_request_cancellation(&error),
+            message: format!("{error:#}"),
+            trace,
+        }
     }
 }
 
@@ -1017,6 +1032,14 @@ fn strip_shebang(source: &str) -> &str {
 pub fn execute_prepared_ordinary_o(
     prepared: &PreparedOrdinaryOExecutionV1,
 ) -> Result<OrdinaryOExecutionOutcomeV1> {
+    execute_prepared_ordinary_o_controlled(prepared, CancellationToken::new())
+}
+
+/// Execute a preflighted ordinary document with caller-owned request control.
+pub fn execute_prepared_ordinary_o_controlled(
+    prepared: &PreparedOrdinaryOExecutionV1,
+    cancellation: CancellationToken,
+) -> Result<OrdinaryOExecutionOutcomeV1> {
     let backends = BackendRegistry::global().registered_backend_tags();
     let mut evaluator =
         Evaluator::new(prepared.shim_dir.clone()).with_registered_backends(backends);
@@ -1032,12 +1055,19 @@ pub fn execute_prepared_ordinary_o(
 
     let started = Instant::now();
     let result = match prepared.executor {
-        LocalOExecutorV1::ConfiguredGraph | LocalOExecutorV1::ForcedGraph => {
-            evaluator.eval_ir_program_graph_with_scope(&prepared.program, &mut scope)
-        }
-        LocalOExecutorV1::ForcedSerial => {
-            evaluator.eval_ir_program_serial_with_scope(&prepared.program, &mut scope)
-        }
+        LocalOExecutorV1::ConfiguredGraph | LocalOExecutorV1::ForcedGraph => evaluator
+            .eval_ir_program_graph_with_scope_controlled(
+                &prepared.program,
+                &mut scope,
+                cancellation,
+                None,
+            ),
+        LocalOExecutorV1::ForcedSerial => evaluator.eval_ir_program_serial_with_scope_controlled(
+            &prepared.program,
+            &mut scope,
+            cancellation,
+            None,
+        ),
     };
     let elapsed_ns = started.elapsed().as_nanos();
     let trace = evaluator
@@ -1056,11 +1086,12 @@ pub fn execute_prepared_ordinary_o(
             elapsed_ns,
             trace,
         }),
-        Err(error) => Err(anyhow::Error::new(OrdinaryOExecutionErrorV1 {
-            message: format!("{error:#}"),
-            trace,
-        })
-        .context("failed to evaluate .O document")),
+        Err(error) => Err(
+            anyhow::Error::new(OrdinaryOExecutionErrorV1::from_evaluator_error(
+                error, trace,
+            ))
+            .context("failed to evaluate .O document"),
+        ),
     }
 }
 
@@ -1070,8 +1101,9 @@ pub fn execute_prepared_ordinary_o(
 fn execute_prepared_local_project(
     prepared: &PreparedProjectExecutionV1,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: CancellationToken,
 ) -> Result<ProjectExecutionObservationV1> {
-    let execution = execute_prepared_local_project_engine(prepared, observer);
+    let execution = execute_prepared_local_project_engine(prepared, observer, cancellation);
     let ConfiguredProjectExecution {
         results,
         trace,
@@ -1149,25 +1181,19 @@ fn execute_prepared_local_project(
 fn execute_prepared_local_project_engine(
     prepared: &PreparedProjectExecutionV1,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: CancellationToken,
 ) -> Result<ConfiguredProjectExecution> {
     let options = RunOptions::default();
     match prepared.executor {
         ProjectExecutorV1::Compatibility => {
-            let execution = match observer {
-                Some(observer) => run_selection_observed_with_progress(
-                    &prepared.bundle,
-                    prepared.route.as_deref(),
-                    prepared.policy.clone(),
-                    &options,
-                    observer,
-                )?,
-                None => run_selection_observed(
-                    &prepared.bundle,
-                    prepared.route.as_deref(),
-                    prepared.policy.clone(),
-                    &options,
-                )?,
-            };
+            let execution = run_selection_observed_controlled(
+                &prepared.bundle,
+                prepared.route.as_deref(),
+                prepared.policy.clone(),
+                &options,
+                &cancellation,
+                observer,
+            )?;
             Ok(ConfiguredProjectExecution {
                 results: execution.results,
                 trace: None,
@@ -1191,12 +1217,13 @@ fn execute_prepared_local_project_engine(
             {
                 bail!("prepared project source or execution contract changed before dispatch");
             }
-            execute_project_hgraph_selection_with_contract_and_progress(
+            execute_project_hgraph_selection_controlled(
                 &prepared.bundle,
                 &project,
                 &options,
                 prepared.execution_contract,
                 observer,
+                &cancellation,
             )
         }
         ProjectExecutorV1::MeshPrefer | ProjectExecutorV1::MeshRequired => {
@@ -1212,7 +1239,7 @@ fn execute_prepared_local_project_engine(
 pub fn execute_prepared_project(
     prepared: &PreparedProjectExecutionV1,
 ) -> Result<ProjectExecutionObservationV1> {
-    execute_prepared_project_inner(prepared, None)
+    execute_prepared_project_controlled(prepared, CancellationToken::new(), None)
 }
 
 /// Execute one preflighted project while reporting presentation-safe progress
@@ -1221,11 +1248,13 @@ pub fn execute_prepared_project_with_progress(
     prepared: &PreparedProjectExecutionV1,
     observer: &dyn ValidatedSelectionProgressObserverV1,
 ) -> Result<ProjectExecutionObservationV1> {
-    execute_prepared_project_inner(prepared, Some(observer))
+    execute_prepared_project_controlled(prepared, CancellationToken::new(), Some(observer))
 }
 
-fn execute_prepared_project_inner(
+/// Execute a preflighted local or mesh project with caller-owned cancellation.
+pub fn execute_prepared_project_controlled(
     prepared: &PreparedProjectExecutionV1,
+    cancellation: CancellationToken,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
 ) -> Result<ProjectExecutionObservationV1> {
     if prepared.selection_reuse().is_some() {
@@ -1235,25 +1264,18 @@ fn execute_prepared_project_inner(
         }
     }
     let Some(mesh) = prepared.mesh.as_ref() else {
-        return execute_prepared_local_project(prepared, observer);
+        return execute_prepared_local_project(prepared, observer, cancellation);
     };
-    let MeshExecutionOutcome { execution, trace } = match observer {
-        Some(observer) => execute_mesh_selection_observed_with_progress(
-            &prepared.bundle,
-            prepared.route.as_deref(),
-            prepared.policy.clone(),
-            &RunOptions::default(),
-            mesh,
-            observer,
-        )?,
-        None => execute_mesh_selection_observed(
-            &prepared.bundle,
-            prepared.route.as_deref(),
-            prepared.policy.clone(),
-            &RunOptions::default(),
-            mesh,
-        )?,
-    };
+    let options = RunOptions::default();
+    let MeshExecutionOutcome { execution, trace } = execute_mesh_selection_observed_controlled(
+        &prepared.bundle,
+        prepared.route.as_deref(),
+        prepared.policy.clone(),
+        &options,
+        mesh,
+        observer,
+        &cancellation,
+    )?;
     Ok(ProjectExecutionObservationV1 {
         results: execution.results,
         validated_selection_receipt: execution.validated_selection_receipt.map(Box::new),
@@ -1269,7 +1291,7 @@ fn execute_prepared_project_inner(
 pub fn execute_prepared_intent(
     prepared: &PreparedExecutionIntentV1,
 ) -> Result<ExecutionObservationV1> {
-    execute_prepared_intent_inner(prepared, None)
+    execute_prepared_intent_controlled(prepared, CancellationToken::new(), None)
 }
 
 /// Execute any preflighted intent while reporting presentation-safe progress
@@ -1279,19 +1301,25 @@ pub fn execute_prepared_intent_with_progress(
     prepared: &PreparedExecutionIntentV1,
     observer: &dyn ValidatedSelectionProgressObserverV1,
 ) -> Result<ExecutionObservationV1> {
-    execute_prepared_intent_inner(prepared, Some(observer))
+    execute_prepared_intent_controlled(prepared, CancellationToken::new(), Some(observer))
 }
 
-fn execute_prepared_intent_inner(
+/// Execute the admitted engine while observing caller-owned request cancellation.
+/// The library installs no process signal handlers. The caller owns the token
+/// and may retain error observations after all owned workers settle.
+pub fn execute_prepared_intent_controlled(
     prepared: &PreparedExecutionIntentV1,
+    cancellation: CancellationToken,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
 ) -> Result<ExecutionObservationV1> {
     match prepared {
         PreparedExecutionIntentV1::OrdinaryO(ordinary) => {
-            execute_prepared_ordinary_o(ordinary).map(ExecutionObservationV1::OrdinaryO)
+            execute_prepared_ordinary_o_controlled(ordinary, cancellation)
+                .map(ExecutionObservationV1::OrdinaryO)
         }
         PreparedExecutionIntentV1::Project(project) => {
-            execute_prepared_project_inner(project, observer).map(ExecutionObservationV1::Project)
+            execute_prepared_project_controlled(project, cancellation, observer)
+                .map(ExecutionObservationV1::Project)
         }
     }
 }
@@ -1888,6 +1916,55 @@ mod tests {
             shim_dir: shim_dir.to_path_buf(),
             ..PrepareExecutionOptionsV1::default()
         }
+    }
+
+    #[test]
+    fn prepared_ordinary_request_cancellation_reaches_graph_and_serial() {
+        let temp = tempdir().unwrap();
+        let input = temp.path().join("program.O");
+        fs::write(&input, b"text^(answer)_text").unwrap();
+        for executor in [
+            LocalOExecutorV1::ForcedGraph,
+            LocalOExecutorV1::ForcedSerial,
+        ] {
+            let mut preparation = options(temp.path());
+            preparation.ordinary_executor = Some(executor);
+            let prepared = prepare_execution_intent(&input, preparation).unwrap();
+            let cancellation = CancellationToken::new();
+            cancellation.cancel();
+            let error =
+                execute_prepared_intent_controlled(&prepared, cancellation, None).unwrap_err();
+            let observed = error.downcast_ref::<OrdinaryOExecutionErrorV1>().unwrap();
+            assert!(observed.message.contains("cancelled before dispatch"));
+            assert!(observed.is_request_cancelled());
+            assert!(observed.trace.events.is_empty());
+            // A new wrapper call gets a new request and must still execute.
+            execute_prepared_intent(&prepared).unwrap();
+        }
+    }
+
+    #[test]
+    fn ordinary_failure_identity_comes_from_observed_cause_not_late_token_or_text() {
+        let cancellation = CancellationToken::new();
+        let semantic_error = anyhow::anyhow!("backend printed request cancelled");
+        cancellation.cancel();
+        let trace = OExecutionTraceV1 {
+            schema: O_EXECUTION_TRACE_SCHEMA_V1.to_string(),
+            events: Vec::new(),
+        };
+        let observed =
+            OrdinaryOExecutionErrorV1::from_evaluator_error(semantic_error, trace.clone());
+        assert!(cancellation.is_cancelled());
+        assert!(!observed.is_request_cancelled());
+
+        let causal_error = crate::process::infrastructure_error(anyhow::Error::new(
+            crate::cancellation::RequestCancellationObserved(
+                "backend actor forcibly reaped".to_string(),
+            ),
+        ))
+        .context("operation failed");
+        let observed = OrdinaryOExecutionErrorV1::from_evaluator_error(causal_error, trace);
+        assert!(observed.is_request_cancelled());
     }
 
     #[test]

@@ -25,6 +25,46 @@ spelling. Automatic and explicit mesh spellings conflict. No command in this
 front door starts `o-node`; mesh execution can use only already-running,
 authenticated peers and its configured retry/fallback policy.
 
+## Cancelling an executing request
+
+On Unix, the first Ctrl-C (`SIGINT`) or `SIGTERM` received by `o run` or
+`o optimize` requests cancellation of that invocation. Local routes terminate
+their owned process groups, graph and compatibility selection stop dispatching
+new work, and started branches settle before the CLI finalizes its run record.
+Cancelling a losing alternative remains independent of cancelling the whole
+request. The selected serial or graph evaluator is preserved.
+
+Mesh execution requests cancellation from the actual remote actor and retains
+the resulting reconciliation evidence. An unsettled remote outcome remains
+ambiguous; request cancellation does not trigger a retry or local fallback.
+Cancellation is checked around synchronous transport operations; an operation
+already waiting on a connection, upload, or fetch remains subject to its
+existing transport deadline.
+Completed effects are not rolled back. After recording and flushing output,
+the CLI preserves the original Unix signal termination status.
+
+An operation cancelled before any route result settles keeps its original
+selection available to `o observe` and `o replan`. Its runtime observation stays
+`proposed`, with no execution duration or claimed payload outcome. Replanning
+that record does not claim recovery from an observed payload failure.
+
+A second termination signal forces exit. `SIGKILL` also bypasses cooperative
+cleanup and can leave an interrupted record with an unobserved outcome. These
+cases do not establish that a route or remote actor stopped.
+
+Rust embedders can use `execute_prepared_intent_controlled` with a
+`CancellationToken` and an optional selection-progress observer. The existing
+execution entry points remain available. Signal ownership belongs to the CLI;
+the shared library receives a request token and does not install handlers in
+the embedding process. MCP background cancellation retains its independently
+documented job-session ownership and evidence.
+
+Noninteractive `O file.O` and `O --eval SOURCE` use the same invocation-scoped
+signal handling and preserve their ordinary JSON or crossing-evidence output.
+They clean up owned backend processes before signal termination and do not
+create front-door run records. REPL interaction and parse-only checks retain
+their existing behavior.
+
 ## Semantic-record inspection boundary
 
 `o operation` is a separate, non-executing front-door namespace for the

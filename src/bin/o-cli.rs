@@ -7,6 +7,8 @@
 mod command_catalog;
 #[path = "o-cli/native_dispatch.rs"]
 mod native_dispatch;
+#[path = "../run_signals.rs"]
+mod run_signals;
 
 use anyhow::{bail, ensure, Context, Result};
 #[cfg(test)]
@@ -39,23 +41,24 @@ use o_lang::hosted_remote::project_mesh::{
     MeshRequirement, MeshTraceEventV1,
 };
 use o_lang::intent::{
-    decoded_value_result_references, execute_prepared_intent,
-    execute_prepared_intent_with_progress, explain_verified_run, live_placement_preview,
-    operation_record_content_sha256, parse_run_selector, prepare_execution_intent,
-    prepare_selection_reuse_intent, render_ordinary_value_stdout_with_color,
-    route_result_references, CapturedStreamV1, ExecutionObservationV1, LocalOExecutorV1,
-    OperationExecutionObservationV1, OperationRunDecisionV1, OrdinaryExecutionTraceV1,
-    OrdinaryOExecutionErrorV1, PrepareExecutionOptionsV1, PreparedExecutionIntentV1,
-    ProjectExecutorV1, ProjectSelectionReuseObservationV1, RecordedOperationPlanV1,
-    RecordedRouteResultV1, RunContentRefV1, RunDispositionV1, RunFailureV1, RunInputKindV1,
-    RunRecordV1, RunRecordingStatusV1, RunResultReferenceV1, RunSelectorV1, RunStoreReaderV1,
-    RunStoreV1, RunSummaryV1, RunTraceAttachmentV1, RunTraceBindingV1,
-    SelectionReuseExecutionErrorV1, OPERATION_RUN_DECISION_SCHEMA_V1, OPERATION_RUN_PLAN_SCHEMA_V1,
-    RUN_SUMMARY_SCHEMA_V1,
+    decoded_value_result_references, execute_prepared_intent_controlled, explain_verified_run,
+    live_placement_preview, operation_record_content_sha256, parse_run_selector,
+    prepare_execution_intent, prepare_selection_reuse_intent,
+    render_ordinary_value_stdout_with_color, route_result_references, CapturedStreamV1,
+    ExecutionObservationV1, LocalOExecutorV1, OperationExecutionObservationV1,
+    OperationRunDecisionV1, OrdinaryExecutionTraceV1, OrdinaryOExecutionErrorV1,
+    PrepareExecutionOptionsV1, PreparedExecutionIntentV1, ProjectExecutorV1,
+    ProjectSelectionReuseObservationV1, RecordedOperationPlanV1, RecordedRouteResultV1,
+    RunContentRefV1, RunDispositionV1, RunFailureV1, RunInputKindV1, RunRecordV1,
+    RunRecordingStatusV1, RunResultReferenceV1, RunSelectorV1, RunStoreReaderV1, RunStoreV1,
+    RunSummaryV1, RunTraceAttachmentV1, RunTraceBindingV1, SelectionReuseExecutionErrorV1,
+    OPERATION_RUN_DECISION_SCHEMA_V1, OPERATION_RUN_PLAN_SCHEMA_V1, RUN_SUMMARY_SCHEMA_V1,
 };
 use o_lang::project::executor::{ProjectExecutionError, ProjectExecutionFailureClass};
 use o_lang::project::model::OutputCapture;
-use o_lang::project::runtime::public_route_execution_diagnostic;
+use o_lang::project::runtime::{
+    is_cancellation_error, public_route_execution_diagnostic, RequestCancelledExecution,
+};
 use o_lang::project::{
     build_project_hgraph_with_contract, build_project_hgraph_with_contracts, DeploymentPlanV1,
     OExecutionResult, ProjectBundle, ProjectExecutionContract, ProjectSchedulingContract,
@@ -3464,14 +3467,17 @@ fn observe_operation_run(
         record.run_id
     );
     let outcome_unobserved = record.operation_plan.is_some()
-        && matches!(
+        && (matches!(
             record.disposition,
             RunDispositionV1::Interrupted | RunDispositionV1::RecordingIncomplete
-        )
+        ) || record
+            .failure
+            .as_ref()
+            .is_some_and(|failure| failure.stage == "cancellation"))
         && record.route_results.is_empty();
     ensure!(outcome_unobserved || (record.route_results.len() == 1
         && record.route_results[0].route_id == planned.selected_binding.route),
-        "run {} must retain one exact selected route result or an explicitly unobserved interrupted operation", record.run_id);
+        "run {} must retain one exact selected route result or an explicitly unobserved interrupted or cancelled operation", record.run_id);
     let route_result_index = (!outcome_unobserved).then_some(0);
     let (runtime_graph, runtime_binding) = operation_runtime_graph(
         loaded,
@@ -5323,6 +5329,25 @@ fn stream_observation_begin_failure(
 }
 
 fn run_intent(args: &RunArgs, presentation: RunPresentation) -> Result<i32> {
+    let signals = run_signals::RunSignals::new().context("install run cancellation signals")?;
+    let result = run_intent_controlled(args, presentation, signals.cancellation());
+    if let Some(signal) = signals.finish() {
+        if let Err(error) = &result {
+            eprintln!("{}", o_lang::cli_diagnostics::render_error("o", error));
+        }
+        native_dispatch::cleanup_shims();
+        let _ = io::stdout().flush();
+        let _ = io::stderr().flush();
+        run_signals::terminate(signal);
+    }
+    result
+}
+
+fn run_intent_controlled(
+    args: &RunArgs,
+    presentation: RunPresentation,
+    cancellation: &o_lang::cancellation::CancellationToken,
+) -> Result<i32> {
     let resolved_args = match resolve_run_output_paths(args) {
         Ok(args) => args,
         Err(error) if args.json => {
@@ -5467,6 +5492,7 @@ fn run_intent(args: &RunArgs, presentation: RunPresentation) -> Result<i32> {
                 execute_for_report(
                     args,
                     &prepared,
+                    cancellation,
                     stdout_is_terminal,
                     stderr_is_terminal,
                     presentation,
@@ -5500,6 +5526,7 @@ fn run_intent(args: &RunArgs, presentation: RunPresentation) -> Result<i32> {
         let report = execute_for_report(
             args,
             &prepared,
+            cancellation,
             stdout_is_terminal,
             stderr_is_terminal,
             presentation,
@@ -5705,16 +5732,14 @@ fn reported_receipt_export_path(
 fn execute_for_report(
     args: &RunArgs,
     prepared: &PreparedExecutionIntentV1,
+    cancellation: &o_lang::cancellation::CancellationToken,
     stdout_is_terminal: bool,
     stderr_is_terminal: bool,
     presentation: RunPresentation,
     progress: Option<&dyn ValidatedSelectionProgressObserverV1>,
 ) -> ExecutionReport {
     let execution_started = Instant::now();
-    let execution = match progress {
-        Some(observer) => execute_prepared_intent_with_progress(prepared, observer),
-        None => execute_prepared_intent(prepared),
-    };
+    let execution = execute_prepared_intent_controlled(prepared, cancellation.clone(), progress);
     let mut report = match execution {
         Ok(ExecutionObservationV1::OrdinaryO(outcome)) => {
             let stdout = render_ordinary_value_stdout_with_color(
@@ -6343,7 +6368,12 @@ fn error_report(
             trace,
             trace_unavailable_reason,
             failure: Some(RunFailureV1 {
-                stage: "execution".to_string(),
+                stage: if ordinary.is_request_cancelled() {
+                    "cancellation"
+                } else {
+                    "execution"
+                }
+                .to_string(),
                 message,
             }),
         };
@@ -6351,10 +6381,22 @@ fn error_report(
 
     let mesh = error.downcast_ref::<MeshExecutionError>();
     let project = project_error(error);
-    let message = if let Some(project) = project {
-        project.public_message().to_string()
-    } else if let Some(mesh) = mesh {
+    let cancelled = error
+        .downcast_ref::<RequestCancelledExecution>()
+        .or_else(|| {
+            mesh.and_then(|failure| {
+                failure
+                    .source_error()
+                    .downcast_ref::<RequestCancelledExecution>()
+            })
+        });
+    let request_cancelled = is_cancellation_error(error);
+    let message = if let Some(mesh) = mesh {
         mesh.public_message().to_string()
+    } else if let Some(cancelled) = cancelled {
+        cancelled.public_message().to_string()
+    } else if let Some(project) = project {
+        project.public_message().to_string()
     } else {
         public_route_execution_diagnostic(error)
     };
@@ -6365,6 +6407,7 @@ fn error_report(
                 .map(|(_, result)| result.clone())
                 .collect::<Vec<_>>()
         })
+        .or_else(|| cancelled.map(|failure| failure.settled_results.clone()))
         .unwrap_or_default();
     let mut report = project_report(
         &results,
@@ -6382,8 +6425,8 @@ fn error_report(
     if presentation == RunPresentation::Optimize {
         report.stdout.clear();
     }
-    let semantic = project
-        .is_some_and(|failure| failure.class() == ProjectExecutionFailureClass::Semantic)
+    let semantic = request_cancelled
+        || project.is_some_and(|failure| failure.class() == ProjectExecutionFailureClass::Semantic)
         || mesh.is_some_and(|failure| failure.class() == MeshExecutionFailureClass::Semantic);
     report.disposition = if semantic {
         RunDispositionV1::ExecutionFailed
@@ -6395,7 +6438,9 @@ fn error_report(
         .stderr
         .extend_from_slice(format!("error: {message}\n").as_bytes());
     report.failure = Some(RunFailureV1 {
-        stage: if semantic {
+        stage: if request_cancelled {
+            "cancellation"
+        } else if semantic {
             "execution"
         } else {
             "infrastructure"

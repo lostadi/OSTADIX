@@ -2459,6 +2459,18 @@ impl Evaluator {
         self.eval_ir_program_with_scope(&program, &mut scope)
     }
 
+    /// Lower and execute a document with caller-owned cancellation, following
+    /// the configured executor just like [`Self::eval_document`].
+    pub fn eval_document_controlled(
+        &mut self,
+        nodes: Vec<ONode>,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+    ) -> Result<OValue> {
+        let mut scope = HashMap::new();
+        self.eval_document_with_scope_controlled(nodes, &mut scope, cancellation, deadline)
+    }
+
     /// Lower and execute with a caller-owned scope. Notebook and REPL bindings
     /// therefore persist while execution still goes through OIR.
     pub fn eval_document_with_scope(
@@ -2468,6 +2480,26 @@ impl Evaluator {
     ) -> Result<OValue> {
         let program = OIrProgram::lower(&nodes);
         self.eval_ir_program_with_scope(&program, scope)
+    }
+
+    /// Lower and execute with a caller-owned scope and request control,
+    /// preserving the ambient graph/serial executor selection.
+    pub fn eval_document_with_scope_controlled(
+        &mut self,
+        nodes: Vec<ONode>,
+        scope: &mut HashMap<String, OValue>,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+    ) -> Result<OValue> {
+        let program = OIrProgram::lower(&nodes);
+        self.eval_ir_program_with_scope_controlled_inner(
+            &program,
+            scope,
+            cancellation,
+            deadline,
+            None,
+            None,
+        )
     }
 
     /// Lower and execute a top-level document only if its freshly recomputed,
@@ -2488,6 +2520,35 @@ impl Evaluator {
         self.eval_ir_program_with_mode(
             &program,
             scope,
+            None,
+            Some((
+                actual_source_sha256,
+                expected_source_sha256,
+                expected_execution_intent_sha256,
+            )),
+        )
+    }
+
+    /// Apply the document's one-shot source and intent gate under request
+    /// control. Actual and required source identities remain independent;
+    /// cancellation never authorizes a mismatched source or serial bypass.
+    #[allow(clippy::too_many_arguments)]
+    pub fn eval_document_with_scope_requiring_execution_intent_controlled(
+        &mut self,
+        nodes: Vec<ONode>,
+        scope: &mut HashMap<String, OValue>,
+        actual_source_sha256: &str,
+        expected_source_sha256: &str,
+        expected_execution_intent_sha256: &str,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+    ) -> Result<OValue> {
+        let program = OIrProgram::lower(&nodes);
+        self.eval_ir_program_with_scope_controlled_inner(
+            &program,
+            scope,
+            cancellation,
+            deadline,
             None,
             Some((
                 actual_source_sha256,
@@ -2567,11 +2628,12 @@ impl Evaluator {
         cancellation: CancellationToken,
         deadline: Option<Instant>,
     ) -> Result<OValue> {
-        self.eval_ir_program_graph_with_scope_controlled_inner(
+        self.eval_ir_program_with_scope_controlled_inner(
             program,
             scope,
             cancellation,
             deadline,
+            Some(false),
             None,
         )
     }
@@ -2585,22 +2647,28 @@ impl Evaluator {
         expected_source_sha256: &str,
         expected_execution_intent_sha256: &str,
     ) -> Result<OValue> {
-        self.eval_ir_program_graph_with_scope_controlled_inner(
+        self.eval_ir_program_with_scope_controlled_inner(
             program,
             scope,
             cancellation,
             deadline,
-            Some((expected_source_sha256, expected_execution_intent_sha256)),
+            Some(false),
+            Some((
+                expected_source_sha256,
+                expected_source_sha256,
+                expected_execution_intent_sha256,
+            )),
         )
     }
 
-    fn eval_ir_program_graph_with_scope_controlled_inner(
+    fn eval_ir_program_with_scope_controlled_inner(
         &mut self,
         program: &OIrProgram,
         scope: &mut HashMap<String, OValue>,
         cancellation: CancellationToken,
         deadline: Option<Instant>,
-        required_execution_intent: Option<(&str, &str)>,
+        forced: Option<bool>,
+        required_execution_intent: Option<(&str, &str, &str)>,
     ) -> Result<OValue> {
         let previous_cancellation = self
             .active_request_cancellation
@@ -2611,21 +2679,22 @@ impl Evaluator {
             (existing, request) => existing.or(request),
         };
         let execution = if cancellation.is_cancelled() {
-            Err(anyhow::anyhow!("request cancelled before dispatch"))
+            self.last_execution_trace = Some(ExecutionTrace::new());
+            Err(anyhow::Error::new(
+                crate::cancellation::RequestCancellationObserved(
+                    "request cancelled before dispatch".to_string(),
+                ),
+            ))
         } else if self
             .callback_operation_deadline
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
+            self.last_execution_trace = Some(ExecutionTrace::new());
             Err(anyhow::anyhow!(
                 "request execution deadline expired before dispatch"
             ))
         } else {
-            self.eval_ir_program_with_mode(
-                program,
-                scope,
-                Some(false),
-                required_execution_intent.map(|(source, intent)| (source, source, intent)),
-            )
+            self.eval_ir_program_with_mode(program, scope, forced, required_execution_intent)
         };
         self.callback_operation_deadline = previous_deadline;
         self.active_request_cancellation = previous_cancellation;
@@ -2640,6 +2709,25 @@ impl Evaluator {
         scope: &mut HashMap<String, OValue>,
     ) -> Result<OValue> {
         self.eval_ir_program_with_mode(program, scope, Some(true), None)
+    }
+
+    /// Execute through the serial reference engine with request cancellation
+    /// and the same inherited backend/callback deadline as graph execution.
+    pub fn eval_ir_program_serial_with_scope_controlled(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        cancellation: CancellationToken,
+        deadline: Option<Instant>,
+    ) -> Result<OValue> {
+        self.eval_ir_program_with_scope_controlled_inner(
+            program,
+            scope,
+            cancellation,
+            deadline,
+            Some(true),
+            None,
+        )
     }
 
     /// Project, validate, and execute a lowered program. `forced` overrides the
@@ -2844,6 +2932,10 @@ impl Evaluator {
         };
 
         for id in plan.topological_order().map_err(anyhow::Error::msg)? {
+            if let Err(error) = self.check_request_control() {
+                self.last_execution_trace = Some(frame.trace.clone());
+                return Err(error);
+            }
             let launches_backend = matches!(
                 flat[id.0],
                 OIr::Exec { backend, .. } if backend.execution == ExecutionMode::Shim
@@ -3984,13 +4076,17 @@ impl GraphEvaluationHost for Evaluator {
             .as_ref()
             .is_some_and(CancellationToken::is_cancelled)
         {
-            bail!("request cancelled during graph execution");
+            return Err(anyhow::Error::new(
+                crate::cancellation::RequestCancellationObserved(
+                    "request cancelled during execution".to_string(),
+                ),
+            ));
         }
         if self
             .callback_operation_deadline
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
-            bail!("request execution deadline expired during graph execution");
+            bail!("request execution deadline expired during execution");
         }
         Ok(())
     }
@@ -4110,6 +4206,122 @@ impl<'a> crate::executor::Coordinator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serial_request_control_is_scoped_and_does_not_reuse_previous_trace() {
+        let backends = BackendRegistry::global().registered_backend_tags();
+        let nodes = Parser::new("text^(answer)_text", &backends)
+            .parse()
+            .unwrap();
+        let program = OIrProgram::lower(&nodes);
+        let mut evaluator =
+            Evaluator::new(PathBuf::from("unused-shims")).with_registered_backends(backends);
+        let mut scope = HashMap::new();
+        evaluator
+            .eval_ir_program_serial_with_scope(&program, &mut scope)
+            .unwrap();
+        assert!(!evaluator.last_execution_trace().unwrap().events.is_empty());
+        let cancelled = CancellationToken::new();
+        cancelled.cancel();
+        let error = evaluator
+            .eval_ir_program_serial_with_scope_controlled(&program, &mut scope, cancelled, None)
+            .unwrap_err();
+        assert!(error.to_string().contains("cancelled before dispatch"));
+        assert!(evaluator.last_execution_trace().unwrap().events.is_empty());
+        evaluator
+            .eval_ir_program_serial_with_scope(&program, &mut scope)
+            .unwrap();
+        assert!(!evaluator.last_execution_trace().unwrap().events.is_empty());
+    }
+
+    #[test]
+    fn controlled_document_preserves_configured_executor_and_exact_source_gate() {
+        const CHILD: &str = "OSTADIX_CONTROLLED_DOCUMENT_TEST_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            for executor in ["graph", "serial"] {
+                let output = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "--exact",
+                        "eval::tests::controlled_document_preserves_configured_executor_and_exact_source_gate",
+                        "--nocapture",
+                    ])
+                    .env(CHILD, "1")
+                    .env("O_EXECUTOR", executor)
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "{executor}: {}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            return;
+        }
+        let backends = BackendRegistry::global().registered_backend_tags();
+        let source = "text^(answer)_text";
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        let program = OIrProgram::lower(&nodes);
+        let plan = program.plan();
+        let mut graph = program.hgraph_for_plan(&plan).unwrap();
+        crate::hgraph::solve::solve_types(&mut graph).unwrap();
+        let mut evaluator =
+            Evaluator::new(PathBuf::from("unused-shims")).with_registered_backends(backends);
+        let intent = crate::evidence::ExecutionIntentV1::compile(
+            source.as_bytes(),
+            &program,
+            &plan,
+            &graph,
+            evaluator.policy,
+        )
+        .unwrap();
+        assert_eq!(
+            evaluator
+                .eval_document_controlled(nodes.clone(), CancellationToken::new(), None,)
+                .unwrap(),
+            OValue::str_("answer")
+        );
+
+        let mut scope = HashMap::new();
+        let error = evaluator
+            .eval_document_with_scope_requiring_execution_intent_controlled(
+                nodes.clone(),
+                &mut scope,
+                &intent.source_sha256,
+                &"0".repeat(64),
+                &intent.execution_intent_sha256,
+                CancellationToken::new(),
+                None,
+            )
+            .unwrap_err();
+        let serial = std::env::var("O_EXECUTOR").unwrap() == "serial";
+        if serial {
+            assert!(format!("{error:#}").contains("available only for graph execution"));
+        } else {
+            assert!(format!("{error:#}").contains("required source SHA-256 mismatch"));
+            assert_eq!(
+                evaluator
+                    .eval_document_with_scope_requiring_execution_intent_controlled(
+                        nodes.clone(),
+                        &mut scope,
+                        &intent.source_sha256,
+                        &intent.source_sha256,
+                        &intent.execution_intent_sha256,
+                        CancellationToken::new(),
+                        None,
+                    )
+                    .unwrap(),
+                OValue::str_("answer")
+            );
+        }
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        let error = evaluator
+            .eval_document_with_scope_controlled(nodes, &mut scope, cancellation, None)
+            .unwrap_err();
+        assert!(crate::cancellation::is_request_cancellation(&error));
+        assert!(evaluator.last_execution_trace().unwrap().events.is_empty());
+    }
 
     macro_rules! exhaustive_cases {
         ($ty:ty; $( $pattern:pat => $value:expr ),+ $(,)?) => {{

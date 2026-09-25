@@ -69,6 +69,7 @@ pub struct ProjectExecutionError {
     message: String,
     public_message: String,
     class: ProjectExecutionFailureClass,
+    request_cancelled: bool,
     pub trace: ProjectAttemptTrace,
     settled_results: BTreeMap<NodeId, OExecutionResult>,
     materialized_outputs: BTreeSet<NodeId>,
@@ -95,6 +96,11 @@ impl ProjectExecutionError {
 
     pub const fn class(&self) -> ProjectExecutionFailureClass {
         self.class
+    }
+
+    /// Request cancellation identity, independent of diagnostic text.
+    pub const fn is_request_cancelled(&self) -> bool {
+        self.request_cancelled
     }
 
     /// A valid route result published before the graph stalled, indexed by
@@ -277,6 +283,7 @@ impl<'a> ProjectCoordinator<'a> {
             None,
             header,
             ProjectExecutionContract::Strict,
+            CancellationToken::new(),
         )
     }
 
@@ -287,8 +294,32 @@ impl<'a> ProjectCoordinator<'a> {
         opts: &'a RunOptions,
         expected_contract: ProjectExecutionContract,
     ) -> Result<Self> {
+        Self::new_with_contract_controlled(
+            bundle,
+            project,
+            opts,
+            expected_contract,
+            CancellationToken::new(),
+        )
+    }
+
+    pub(crate) fn new_with_contract_controlled(
+        bundle: &'a ProjectBundle,
+        project: &'a ProjectHGraph,
+        opts: &'a RunOptions,
+        expected_contract: ProjectExecutionContract,
+        cancellation: CancellationToken,
+    ) -> Result<Self> {
         let header = project_trace_header(project)?;
-        Self::new_with_header(bundle, project, opts, None, header, expected_contract)
+        Self::new_with_header(
+            bundle,
+            project,
+            opts,
+            None,
+            header,
+            expected_contract,
+            cancellation,
+        )
     }
 
     /// Enter the coordinator through one exact, current World-hosted launch.
@@ -325,6 +356,7 @@ impl<'a> ProjectCoordinator<'a> {
             Some(deployment),
             header,
             ProjectExecutionContract::Strict,
+            CancellationToken::new(),
         )
     }
 
@@ -335,6 +367,7 @@ impl<'a> ProjectCoordinator<'a> {
         deployment: Option<&'a DeploymentPlanV1>,
         header: ProjectAttemptTraceHeader,
         expected_contract: ProjectExecutionContract,
+        cancellation: CancellationToken,
     ) -> Result<Self> {
         if project.plan.execution_contract != expected_contract {
             bail!(
@@ -420,12 +453,12 @@ impl<'a> ProjectCoordinator<'a> {
             infrastructure_failure_observed: false,
             deployment,
             trace,
-            cancel: CancellationToken::new(),
+            cancel: cancellation.child_token(),
             branch_tokens: project
                 .plan
                 .alternatives
                 .iter()
-                .map(|_| CancellationToken::new())
+                .map(|_| cancellation.child_token())
                 .collect(),
             branch_started: BTreeMap::new(),
             branch_elapsed: BTreeMap::new(),
@@ -499,6 +532,7 @@ impl<'a> ProjectCoordinator<'a> {
                         let next = pending
                             .iter()
                             .copied()
+                            .filter(|_| !self.cancel.is_cancelled())
                             .filter(|index| self.operation_is_ready(&self.schedule.ops[*index]))
                             .min_by_key(|index| {
                                 let ready = &self.schedule.ops[*index];
@@ -571,7 +605,7 @@ impl<'a> ProjectCoordinator<'a> {
                                 }
                             }
                             self.cancel_race_losers();
-                            if self.root_is_materialized() {
+                            if self.root_is_materialized() && !self.cancel.is_cancelled() {
                                 break;
                             }
                             continue;
@@ -591,6 +625,9 @@ impl<'a> ProjectCoordinator<'a> {
                             )?;
                             self.cancel_race_losers();
                             continue;
+                        }
+                        if self.cancel.is_cancelled() {
+                            return Err(self.stall_error(&pending));
                         }
                         if self.root_is_materialized() {
                             break;
@@ -1304,7 +1341,10 @@ impl<'a> ProjectCoordinator<'a> {
                 (SettledRouteStatus::Skipped, result, outcome)
             }
             RouteSettlement::Aborted(error) => {
-                if is_cancellation_error(&error) {
+                // A cancelled request cannot be attributed solely to an
+                // earlier race winner. Preserve an abort instead of claiming
+                // that the race was the observed cancellation cause.
+                if is_cancellation_error(&error) && !self.cancel.is_cancelled() {
                     if let Some(trigger) = race_trigger(self.project, self.trace.events()) {
                         let ordinal = trigger.coordinator_ordinal;
                         self.ensure_outputs_unpublished(ready)?;
@@ -1587,12 +1627,16 @@ impl<'a> ProjectCoordinator<'a> {
         for (plan_node, failure) in &self.public_failures {
             public_details.push(format!("p{} failed: {failure}", plan_node.0));
         }
-        let message = if details.is_empty() {
+        let message = if self.cancel.is_cancelled() {
+            "request cancelled during project HGraph execution".to_string()
+        } else if details.is_empty() {
             "project HGraph stalled without a materialized selected-result root".to_string()
         } else {
             format!("project HGraph stalled: {}", details.join("; "))
         };
-        let public_message = if public_details.is_empty() {
+        let public_message = if self.cancel.is_cancelled() {
+            "request cancelled during project HGraph execution".to_string()
+        } else if public_details.is_empty() {
             "project HGraph stalled without a materialized selected-result root".to_string()
         } else {
             format!("project HGraph stalled: {}", public_details.join("; "))
@@ -1608,6 +1652,7 @@ impl<'a> ProjectCoordinator<'a> {
         anyhow::Error::new(ProjectExecutionError {
             message,
             public_message,
+            request_cancelled: self.cancel.is_cancelled(),
             class: if self.infrastructure_failure_observed || self.failures.is_empty() {
                 ProjectExecutionFailureClass::Infrastructure
             } else {
@@ -1677,8 +1722,31 @@ pub fn execute_project_hgraph_selection_with_contract_and_progress(
     expected_contract: ProjectExecutionContract,
     observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
 ) -> Result<ConfiguredProjectExecution> {
-    let mut coordinator =
-        ProjectCoordinator::new_with_contract(bundle, project, opts, expected_contract)?;
+    execute_project_hgraph_selection_controlled(
+        bundle,
+        project,
+        opts,
+        expected_contract,
+        observer,
+        &CancellationToken::new(),
+    )
+}
+
+pub(crate) fn execute_project_hgraph_selection_controlled(
+    bundle: &ProjectBundle,
+    project: &ProjectHGraph,
+    opts: &RunOptions,
+    expected_contract: ProjectExecutionContract,
+    observer: Option<&dyn ValidatedSelectionProgressObserverV1>,
+    cancellation: &CancellationToken,
+) -> Result<ConfiguredProjectExecution> {
+    let mut coordinator = ProjectCoordinator::new_with_contract_controlled(
+        bundle,
+        project,
+        opts,
+        expected_contract,
+        cancellation.clone(),
+    )?;
     coordinator.observer = observer;
     let outcome = coordinator.execute_with_attempts()?;
     Ok(ConfiguredProjectExecution {
@@ -1873,6 +1941,80 @@ fn route_settlement(result: Result<OExecutionResult>) -> RouteSettlement {
 mod policy_settlement_tests {
     use super::*;
     use crate::project::{build_project_hgraph, RouteProvenance, RouteSet};
+
+    #[test]
+    fn request_cancellation_preserves_settled_hgraph_results_and_stops_new_dispatch() {
+        let mut bundle = ProjectBundle::empty("cancelled-hgraph-partial-result");
+        let mut first = RouteSpec::new("settled", RouteProvenance::CliOverride);
+        first.command = vec!["sh".into(), "-c".into(), "printf settled".into()];
+        let mut second = RouteSpec::new("unstarted", RouteProvenance::CliOverride);
+        second.command = vec!["/ostadix-test/must-not-launch-cancelled-request".into()];
+        bundle.routes = vec![first, second];
+        bundle.route_sets.push(RouteSet {
+            provides: "both".into(),
+            alternatives: vec!["settled".into(), "unstarted".into()],
+            policy: RoutePolicy::All,
+        });
+        let project = build_project_hgraph(&bundle, Some("both"), None).unwrap();
+        let request = CancellationToken::new();
+        let options = RunOptions::default();
+        let mut coordinator = ProjectCoordinator::new_with_contract_controlled(
+            &bundle,
+            &project,
+            &options,
+            ProjectExecutionContract::Strict,
+            request.clone(),
+        )
+        .unwrap();
+        // Settle one real route before cancellation, without relying on OS thread ordering.
+        for operation in project
+            .plan
+            .operations
+            .iter()
+            .filter(|op| op.branch == Some(0))
+        {
+            let ready = coordinator
+                .schedule
+                .ops
+                .iter()
+                .find(|ready| ready.plan_node == operation.id)
+                .unwrap()
+                .clone();
+            assert!(coordinator.operation_is_ready(&ready));
+            let identity = ProjectAttemptIdentity::from_operation(operation).unwrap();
+            coordinator.trace.record_ready(&identity).unwrap();
+            coordinator.trace.record_started(&identity).unwrap();
+            if matches!(operation.op, ExecutableOp::MaterializeProject) {
+                coordinator.branch_started.insert(0, Instant::now());
+            }
+            match coordinator.execute_operation(&ready, operation) {
+                OperationResult::Finished { value, workspace } => coordinator
+                    .commit_finished(&ready, &identity, value, workspace)
+                    .unwrap(),
+                OperationResult::Route(settlement) => coordinator
+                    .commit_route_settlement(&ready, &identity, settlement, Instant::now())
+                    .unwrap(),
+                OperationResult::Aborted(error) => panic!("route preparation failed: {error:#}"),
+            }
+        }
+        let events_before = coordinator.trace.events().len();
+        request.cancel();
+        assert!(coordinator.cancel.is_cancelled());
+        assert!(coordinator
+            .branch_tokens
+            .iter()
+            .all(CancellationToken::is_cancelled));
+        let error = coordinator.execute().unwrap_err();
+        let retained = error.downcast_ref::<ProjectExecutionError>().unwrap();
+        assert!(retained.message().contains("request cancelled"));
+        assert!(retained.is_request_cancelled());
+        assert!(is_cancellation_error(&error));
+        assert_eq!(retained.trace.events().len(), events_before);
+        let results = retained.settled_results().collect::<Vec<_>>();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].1.route_id, "settled");
+        assert_eq!(results[0].1.stdout, b"settled");
+    }
 
     #[test]
     fn race_settle_post_drain_tie_break_includes_real_errors_in_declaration_order() {
