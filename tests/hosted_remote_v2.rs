@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use o_lang::eval::{Evaluator, PlacementFragmentBindingsV2};
 use o_lang::hosted_remote::v2::{
@@ -725,7 +725,11 @@ fn wait_for_terminal(
     capability: &SessionCapabilityV2,
     operation_id: &str,
 ) -> OperationStatusV2 {
-    for _ in 0..400 {
+    // This observes a positive fixture result, not a two-second execution
+    // contract. A real backend may still be starting on an emulated target.
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(30);
+    loop {
         let response = runtime
             .status(
                 principal,
@@ -745,9 +749,13 @@ fn wait_for_terminal(
         ) {
             return status;
         }
+        assert!(
+            Instant::now() < deadline,
+            "operation {operation_id} did not reach a terminal record after {:?}: {session:?}",
+            started.elapsed()
+        );
         thread::sleep(Duration::from_millis(5));
     }
-    panic!("operation did not reach a terminal record")
 }
 
 fn wait_for_ambiguous(

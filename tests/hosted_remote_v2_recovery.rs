@@ -793,7 +793,11 @@ fn wait_for_operation(
     capability: &SessionCapabilityV2,
     operation_id: &str,
 ) -> (SessionViewV2, SignedJournalEntryV2) {
-    for _ in 0..200 {
+    // Seed completion is a readiness condition. Keep it bounded without
+    // assuming that a real Python backend starts within two seconds.
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(30);
+    loop {
         let HostedResponseV2::Status {
             session,
             head_receipt,
@@ -821,9 +825,13 @@ fn wait_for_operation(
         {
             return (session, head_receipt);
         }
+        assert!(
+            Instant::now() < deadline,
+            "operation {operation_id} did not settle after {:?}: {session:?}",
+            started.elapsed()
+        );
         thread::sleep(Duration::from_millis(10));
     }
-    panic!("operation {operation_id} did not settle")
 }
 
 struct DirectRecoveryFixture {
@@ -2508,20 +2516,22 @@ fn failed_second_actor_loss_append_keeps_first_frame_head_and_generation_fence()
         other => panic!("accepted operation has no actor generation: {other:?}"),
     };
 
-    let live = (0..200)
-        .find_map(|_| {
-            let HostedResponseV2::Status { session, .. } = session_status(&running, &capability)
-            else {
-                panic!("wrong live status response")
-            };
-            if session.status == SessionStatusV2::Quarantined {
-                Some(session)
-            } else {
-                thread::sleep(Duration::from_millis(10));
-                None
-            }
-        })
-        .expect("injected second append failure did not quarantine the session");
+    let quarantine_started = Instant::now();
+    let quarantine_deadline = quarantine_started + Duration::from_secs(30);
+    let live = loop {
+        let HostedResponseV2::Status { session, .. } = session_status(&running, &capability) else {
+            panic!("wrong live status response")
+        };
+        if session.status == SessionStatusV2::Quarantined {
+            break session;
+        }
+        assert!(
+            Instant::now() < quarantine_deadline,
+            "injected second append failure did not quarantine the session after {:?}: {session:?}",
+            quarantine_started.elapsed()
+        );
+        thread::sleep(Duration::from_millis(10));
+    };
     let journal = store.read_journal(&capability.session_id).unwrap();
     let durable_head = journal.entries.last().unwrap();
     assert!(matches!(

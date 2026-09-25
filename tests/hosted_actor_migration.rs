@@ -609,6 +609,36 @@ fn migrated(
     );
     (receipt, snapshot)
 }
+
+fn wait_for_restore_entry(
+    node: &Node,
+    entered: &Path,
+    pending: thread::JoinHandle<anyhow::Result<HostedResponseV2>>,
+) -> thread::JoinHandle<anyhow::Result<HostedResponseV2>> {
+    // The crash must follow actual RestoreV1 entry, not an assumed backend
+    // startup speed. This fixture wait does not extend placement authority.
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(30);
+    while !entered.exists() {
+        if pending.is_finished() {
+            panic!(
+                "migration completed before actual RestoreV1 entry after {:?}: {:?}\n{}",
+                started.elapsed(),
+                pending.join().expect("migration request thread panicked"),
+                node.stderr()
+            );
+        }
+        assert!(
+            Instant::now() < deadline,
+            "backend did not enter actual RestoreV1 after {:?}: {}",
+            started.elapsed(),
+            node.stderr()
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    pending
+}
+
 fn pki(root: &Path) -> PathBuf {
     let path = root.join("pki");
     let output = Command::new(env!("CARGO_BIN_EXE_o-node"))
@@ -1372,15 +1402,7 @@ fn crash_during_actual_backend_restore_becomes_a_signed_refusal_and_never_an_ack
     let wire_request = install.clone();
     let pending = thread::spawn(move || client.migrate_session(wire_request));
     let entered = barrier_path.with_extension("entered");
-    let deadline = Instant::now() + Duration::from_secs(3);
-    while !entered.exists() {
-        assert!(
-            Instant::now() < deadline,
-            "backend did not enter actual RestoreV1: {}",
-            destination.stderr()
-        );
-        thread::sleep(Duration::from_millis(5));
-    }
+    let pending = wait_for_restore_entry(&destination, &entered, pending);
     let mut child = destination.child.take().unwrap();
     child.kill().unwrap();
     child.wait().unwrap();
@@ -1611,15 +1633,7 @@ fn crash_during_activation_preserves_source_fence_and_requires_a_new_restore_ack
     let client = destination.client();
     let wire_request = activate.clone();
     let pending = thread::spawn(move || client.migrate_session(wire_request));
-    let deadline = Instant::now() + Duration::from_secs(3);
-    while !entered.exists() {
-        assert!(
-            Instant::now() < deadline,
-            "activation did not enter actual RestoreV1: {}",
-            destination.stderr()
-        );
-        thread::sleep(Duration::from_millis(5));
-    }
+    let pending = wait_for_restore_entry(&destination, &entered, pending);
     let mut child = destination.child.take().unwrap();
     child.kill().unwrap();
     child.wait().unwrap();
