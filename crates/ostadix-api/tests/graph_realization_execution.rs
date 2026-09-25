@@ -309,6 +309,17 @@ impl PhysicalOperationAdapterV1<Payload> for Increment {
                 if wait.timed_out() && !started.contains(&2) {
                     bail!("executor failed to refill an available worker while operation zero was active");
                 }
+            } else if candidate.logical_operation.0 == 1 {
+                // The second worker can receive CPU before the first one.
+                // Keep it active until operation zero enters so this probe
+                // tests refill, not the operating system's thread ordering.
+                let (started, wait) = probe
+                    .changed
+                    .wait_timeout_while(started, Duration::from_secs(3), |ids| !ids.contains(&0))
+                    .unwrap();
+                if wait.timed_out() && !started.contains(&0) {
+                    bail!("executor did not start operation zero alongside operation one");
+                }
             }
             probe.active.fetch_sub(1, Ordering::SeqCst);
         }
