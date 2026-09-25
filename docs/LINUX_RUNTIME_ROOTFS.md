@@ -9,19 +9,36 @@ metadata; it does not run the supplied executables or invoke `ldd`.
   "schema": "ostadix.runtime-rootfs-closure/v1",
   "commands": {"bash": "/bin/bash", "python3": "/usr/bin/python3"},
   "paths": ["/usr/lib/python3.12", "/usr/share/terminfo"],
-  "runner": "/absolute/path/to/olangc"
+  "runner": "/absolute/path/to/generated-runner-seed"
 }
 ```
 
 Use the paths and Python version actually installed on the collection host.
 `commands` names the executable aliases exposed under the image's real `bin/`
 directory. `paths` supplies runtime data, standard libraries, configurations,
-and modules loaded dynamically. Optional `runner` names a Linux O/olangc ELF
-with the same ABI as the runtime commands; only its loader/dependencies are
-included for generated-program reentry. The compiler binary itself is not copied;
-the launcher installs the actual generated binary at `/.ostadix/runner`.
+and modules loaded dynamically. Optional `runner` names a Linux O executable
+whose loader and shared libraries cover the generated program's dependencies.
+Only those dependencies are included for generated-program reentry; the launcher
+installs the actual generated binary at `/.ostadix/runner`.
 The collector checks ELF class/machine compatibility,
 not cross-host CPU features or kernel compatibility.
+
+Build an unbundled generated O executable with the target toolchain and linker
+settings that will build the bundled program, then use it as the `runner` seed:
+
+```bash
+olangc program.O -o runner-seed --materialize-only ./runner-seed --shim-dir ./backends
+cargo build --locked --manifest-path ./runner-seed/Cargo.toml
+```
+
+With Cargo's default target directory, the seed is
+`./runner-seed/target/debug/runner-seed`. Set `runner` to its absolute path before
+collecting the image. An existing O/olangc executable is also suitable when its
+dynamic dependency closure covers the final generated program. Matching ELF ABI
+alone does not establish that: a cross-built compiler can link libgcc statically
+while the target's native Cargo build requires `libgcc_s.so.1`. Using a generated
+seed captures the target toolchain's actual dependencies. Qualify the final
+bundled executable in the intended environment after collection.
 
 ```bash
 python3 scripts/collect_runtime_rootfs.py closure.json --output ./runtime-rootfs
