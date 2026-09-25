@@ -740,19 +740,18 @@ impl RequestCancelledExecution {
 }
 
 fn public_cancellation_cause(error: &anyhow::Error) -> String {
-    if let Some(cancelled) = error.downcast_ref::<RequestCancelledExecution>() {
-        return cancelled.public_message().to_string();
-    }
-    if let Some(project) = error.downcast_ref::<super::executor::ProjectExecutionError>() {
-        return project.public_message().to_string();
-    }
-    if let Some(mesh) =
-        error.downcast_ref::<crate::hosted_remote::project_mesh::MeshExecutionError>()
-    {
-        return mesh.public_message().to_string();
-    }
-    if error.is::<RouteExecutionError>() {
-        return public_route_execution_diagnostic(error);
+    // Higher-level transports can wrap these causes without becoming a
+    // dependency of the standalone generated project runtime.
+    for cause in error.chain() {
+        if let Some(cancelled) = cause.downcast_ref::<RequestCancelledExecution>() {
+            return cancelled.public_message().to_string();
+        }
+        if let Some(project) = cause.downcast_ref::<super::executor::ProjectExecutionError>() {
+            return project.public_message().to_string();
+        }
+        if let Some(route) = cause.downcast_ref::<RouteExecutionError>() {
+            return public_route_failure_diagnostic(route);
+        }
     }
     "route execution failed before request cancellation; detailed diagnostic retained in memory"
         .to_string()
@@ -791,16 +790,15 @@ pub(crate) fn ensure_request_active<'a>(
 
 /// Whether an error came from cooperative route cancellation.
 pub fn is_cancellation_error(err: &anyhow::Error) -> bool {
-    err.is::<RequestCancelledExecution>()
-        || err
-            .downcast_ref::<super::executor::ProjectExecutionError>()
-            .is_some_and(|error| error.is_request_cancelled())
-        || err
-            .downcast_ref::<crate::hosted_remote::project_mesh::MeshExecutionError>()
-            .is_some_and(|error| is_cancellation_error(error.source_error()))
-        || err
-            .downcast_ref::<RouteExecutionError>()
-            .is_some_and(|error| matches!(error, RouteExecutionError::Cancelled { .. }))
+    err.chain().any(|cause| {
+        cause.is::<RequestCancelledExecution>()
+            || cause
+                .downcast_ref::<super::executor::ProjectExecutionError>()
+                .is_some_and(|error| error.is_request_cancelled())
+            || cause
+                .downcast_ref::<RouteExecutionError>()
+                .is_some_and(|error| matches!(error, RouteExecutionError::Cancelled { .. }))
+    })
 }
 
 /// Whether an error came from the route's wall-clock deadline.
@@ -818,6 +816,10 @@ pub fn public_route_execution_diagnostic(err: &anyhow::Error) -> String {
     let Some(error) = err.downcast_ref::<RouteExecutionError>() else {
         return err.to_string();
     };
+    public_route_failure_diagnostic(error)
+}
+
+fn public_route_failure_diagnostic(error: &RouteExecutionError) -> String {
     match error {
         RouteExecutionError::Configuration { detail } => {
             format!("route execution configuration is invalid: {detail}")
@@ -4011,6 +4013,40 @@ mod validated_selection_progress_tests {
         let error =
             run_route_cancellable(&bundle, "first", &options, cancellation.clone()).unwrap_err();
         assert!(is_cancellation_error(&error), "{error:#}");
+    }
+
+    #[test]
+    fn opaque_error_layers_preserve_typed_cancellation_and_safe_route_causes() {
+        #[derive(Debug, thiserror::Error)]
+        #[error("private transport context")]
+        struct TransportFailure {
+            #[source]
+            cause: RouteExecutionError,
+        }
+        let cancelled = anyhow::Error::new(TransportFailure {
+            cause: RouteExecutionError::Cancelled {
+                route_id: "public-route".into(),
+            },
+        })
+        .context("private outer context");
+        assert!(is_cancellation_error(&cancelled));
+        assert_eq!(
+            public_cancellation_cause(&cancelled),
+            "route `public-route` was canceled"
+        );
+        let failed = anyhow::Error::new(TransportFailure {
+            cause: RouteExecutionError::Spawn {
+                route_id: "public-route".into(),
+                command: "private-command-argument".into(),
+                source: io::Error::from(io::ErrorKind::NotFound),
+            },
+        });
+        assert!(!is_cancellation_error(&failed));
+        assert!(public_cancellation_cause(&failed).contains("failed to spawn route `public-route`"));
+        assert!(!public_cancellation_cause(&failed).contains("private"));
+        assert!(!is_cancellation_error(&anyhow::anyhow!(
+            "request cancelled in ordinary user text"
+        )));
     }
 
     #[test]
