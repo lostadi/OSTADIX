@@ -1318,24 +1318,121 @@ mod tests {
     #[tokio::test]
     async fn timeout_kills_a_nested_group_after_original_leader_exit() {
         let jobs = JobManager::new();
-        let marker = jobs.inner.directory.join("nested-group-survived");
         create_private_directory(&jobs.inner.directory).unwrap();
-        let mut request = shell("");
-        request.program = which::which("python3")
-            .expect("python3 is required for the nested backend group regression");
-        request.args = vec!["-c".into(),
-            "import os,subprocess,sys; subprocess.Popen([sys.executable,'-c',\"import os,time; from pathlib import Path; time.sleep(2); Path(os.environ['MARKER']).write_text('survived')\"],preexec_fn=os.setpgrp)".into()];
-        request
-            .env
-            .insert("MARKER".into(), marker.to_string_lossy().into_owned());
-        request.timeout_secs = Some(1);
-        let start = jobs.start(request).await.unwrap();
-        let done = jobs.wait(id(&start)).await.unwrap();
+        let marker = jobs.inner.directory.join("nested-group-survived");
+        let ready = jobs.inner.directory.join("nested-group-ready");
+        let release = jobs.inner.directory.join("nested-group-release");
+        let lease = jobs.inner.directory.join("nested-group-lease");
+        std::fs::write(&lease, b"owned fixture").unwrap();
+        struct FixtureLease(PathBuf);
+        impl Drop for FixtureLease {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+        let _lease = FixtureLease(lease.clone());
+        let stdout = jobs.inner.directory.join("nested-stdout.log");
+        let stderr = jobs.inner.directory.join("nested-stderr.log");
+        let stdout_file = tokio::fs::File::create(&stdout).await.unwrap();
+        let stderr_file = tokio::fs::File::create(&stderr).await.unwrap();
+        let mut command = Command::new(
+            which::which("python3")
+                .expect("python3 is required for the nested backend group regression"),
+        );
+        command
+            .args([
+                "-c",
+                r#"import os,time
+if os.fork():
+    os._exit(0)
+os.setpgrp()
+ready = os.environ['READY']
+with open(ready + '.new', 'w') as output:
+    output.write(str(os.getpid()))
+os.rename(ready + '.new', ready)
+while os.path.exists(os.environ['LEASE']):
+    if os.path.exists(os.environ['RELEASE']):
+        with open(os.environ['MARKER'], 'w') as output:
+            output.write('survived')
+        break
+    time.sleep(0.01)
+os._exit(0)
+"#,
+            ])
+            .env("MARKER", &marker)
+            .env("READY", &ready)
+            .env("RELEASE", &release)
+            .env("LEASE", &lease)
+            .kill_on_drop(true);
+        let (mut child, input, output, errors) = spawn(&mut command, false).unwrap();
+        let pid = child.id().unwrap();
+        let ownership = Arc::new(ProcessOwnership {
+            pid,
+            active: Mutex::new(true),
+        });
+        // Own setup failure cleanup before its first await. The lease also lets
+        // a missed descendant exit without signaling a reaped/reused identity.
+        let setup_guard = SessionGuard(ownership.clone());
+        let (cancel, cancel_rx) = watch::channel(false);
+        let (state, _) = watch::channel(json!({"state": "running"}));
+        let job = Arc::new(Job {
+            pid,
+            ownership,
+            stdout,
+            stderr,
+            pty: false,
+            input: Arc::new(AsyncMutex::new(Some(input))),
+            input_open: AtomicBool::new(true),
+            running: AtomicBool::new(true),
+            cancel,
+            state,
+        });
+        let spool = tokio::spawn(async move {
+            tokio::try_join!(
+                spool_stream(output, stdout_file),
+                spool_stream(errors, stderr_file)
+            )
+            .map(|_| ())
+        });
+        // This fixture targets the production monitor after setup. Independent
+        // JobManager tests cover the launch-to-timeout boundary. Cold Python
+        // startup must not consume the one-second cleanup deadline below.
+        let prepared = tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                if exit_observation(pid).unwrap() == Some(true) && ready.exists() {
+                    return std::fs::read_to_string(&ready)
+                        .unwrap()
+                        .parse::<i32>()
+                        .unwrap();
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await;
+        if prepared.is_err() {
+            setup_guard.0.cleanup();
+            setup_guard.0.disarm();
+            let _ = child.wait().await;
+            spool.abort();
+            let _ = spool.await;
+            panic!("nested group and exited leader did not become ready within 10s");
+        }
+        let nested_pid = prepared.expect("nested group and exited leader must become ready");
+        assert_ne!(nested_pid, pid as i32);
+        assert_eq!(unsafe { libc::getpgid(nested_pid) }, nested_pid);
+        assert_eq!(unsafe { libc::getsid(nested_pid) }, pid as i32);
+        assert!(!spool.is_finished(), "nested group must retain output");
+        assert!(!marker.exists());
+        monitor(job.clone(), child, spool, cancel_rx, Some(1)).await;
+        let done = job.state.borrow().clone();
         assert_eq!(done["state"], "timed_out");
+        assert_eq!(done["timeout_secs"], 1);
+        assert_eq!(done["error"], "timeout after 1s");
         assert_eq!(
             done["exit_code"], 0,
-            "the original leader should already have exited"
+            "the original leader was observed exited before the deadline started"
         );
+        assert_eq!(done["cleanup"]["child_reaped"], true);
         assert_eq!(done["cleanup"]["session_scan_complete"], true);
         assert!(
             done["cleanup"]["session_processes_signaled"]
@@ -1344,6 +1441,7 @@ mod tests {
                 >= 1
         );
         assert_eq!(done["cleanup"]["logs_drained"], true);
+        std::fs::write(&release, b"commit only if still alive").unwrap();
         tokio::time::sleep(Duration::from_millis(1200)).await;
         assert!(
             !marker.exists(),
