@@ -4216,7 +4216,7 @@ mod tests {
 
         let stderr_error = run_information_inspect_bounded(
             PathBuf::from("/bin/sh").as_path(),
-            &["-c", "while :; do printf x >&2; done"],
+            &["-c", "exec /usr/bin/yes >&2"],
             &cwd,
             5,
         )
@@ -4239,7 +4239,7 @@ mod tests {
 
         let stderr_error = run_structured_cmd(
             Path::new("/bin/sh"),
-            &["-c", "while :; do printf x >&2; done"],
+            &["-c", "exec /usr/bin/yes >&2"],
             Some(Path::new("/")),
             &[],
             5,
