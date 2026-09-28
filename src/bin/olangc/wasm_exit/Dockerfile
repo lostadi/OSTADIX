@@ -286,7 +286,7 @@ COPY --link --from=linux-riscv64-dev /out/Image /pack/Image
 COPY --link --from=rootfs-riscv64-dev /out/rootfs.bin /pack/rootfs.bin
 COPY --link --from=tinyemu-config-dev /out/tinyemu.config /pack/config
 
-FROM rust:1.74.1-bullseye AS tinyemu-dev-common
+FROM rust:1.98.0-bullseye AS tinyemu-dev-common
 ARG WASI_VFS_VERSION
 ARG WASI_SDK_VERSION
 ARG WASI_SDK_VERSION_FULL
