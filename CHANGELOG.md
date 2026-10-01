@@ -9,6 +9,14 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- `olangc PROJECT --target ir --grounding` now appends a deterministic,
+  nonexecuting project-grounding view derived from the selected canonical
+  `LogicalHGraphV1` and hosted-unbound `DeploymentPlanV1`. It reports exact
+  schemas and digests plus per-operation logical effects, descriptive authority
+  requirements, hosted bindings, and residual `HostWorld`. It grants no
+  authority or placement and does not claim the remaining PR9 locality,
+  failure, or focused `why` views.
+
 - The primary MCP `o_run` operation now accepts a complete source document or
   compatible path, offers a non-executing unified `mode=check`, and can require
   existing authenticated project-mesh placement without local fallback. Mesh

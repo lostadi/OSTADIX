@@ -982,9 +982,15 @@ fn compile_or_run_project(cli: &Cli, input_is_dir: bool, source: &str) -> Result
         ),
         CompileTarget::Ir => {
             if cli.grounding {
-                bail!(
-                    "--grounding for project inputs is deferred to the PR9 project-grounding view"
-                );
+                if cli.world_id.is_some() {
+                    bail!(
+                        "project --grounding reports the hosted-unbound DeploymentPlanV1; --world-id and --world-epoch require a snapshot-bound placement view"
+                    );
+                }
+                let rendered =
+                    render_project_grounding(&bundle, cli.route.as_deref(), policy_override)?;
+                print!("{rendered}");
+                return Ok(());
             }
             let rendered = o_lang::intent::render_project_static_plan(
                 &bundle,
@@ -1009,6 +1015,136 @@ fn compile_or_run_project(cli: &Cli, input_is_dir: bool, source: &str) -> Result
             Ok(())
         }
     }
+}
+
+/// Append one bounded project-grounding inspection to the ordinary project IR
+/// view. Every grounding fact below comes from the canonical logical graph or
+/// its exact hosted deployment plan. Constructing these records validates and
+/// digests planner output, but never creates a coordinator or dispatches a
+/// route.
+fn render_project_grounding(
+    bundle: &o_lang::project::ProjectBundle,
+    route: Option<&str>,
+    policy: Option<o_lang::project::RoutePolicy>,
+) -> Result<String> {
+    use o_lang::project::deployment::{DeploymentOperationBindingV1, DeploymentPlanV1};
+
+    let contract =
+        o_lang::project::ProjectExecutionContract::configured().map_err(anyhow::Error::msg)?;
+    let project =
+        o_lang::project::build_project_hgraph_with_contract(bundle, route, policy, contract)
+            .map_err(anyhow::Error::msg)
+            .context("failed to build logical project HGraph")?;
+    let logical = project
+        .logical_v1()
+        .context("failed to normalize LogicalHGraphV1")?;
+    logical
+        .validate_trusted_project(&project)
+        .context("LogicalHGraphV1 does not match the selected project HGraph")?;
+    let logical_digest = logical
+        .digest()
+        .context("failed to digest LogicalHGraphV1")?;
+    let deployment = DeploymentPlanV1::hosted(&logical)
+        .context("failed to construct hosted DeploymentPlanV1")?;
+    deployment
+        .validate_trusted_hosted(&logical)
+        .context("DeploymentPlanV1 does not match the selected LogicalHGraphV1")?;
+    let deployment_digest = deployment
+        .digest()
+        .context("failed to digest hosted DeploymentPlanV1")?;
+
+    if logical.operations.len() != deployment.operations.len() {
+        bail!(
+            "hosted DeploymentPlanV1 has {} operations for {} logical operations",
+            deployment.operations.len(),
+            logical.operations.len()
+        );
+    }
+
+    let mut output = format!(
+        "; LogicalHGraphV1\nlogical schema={} sha256={}\n; DeploymentPlanV1\ndeployment schema={} sha256={}\n{}{}\n; Project grounding inspection (bounded)\ngrounding logical-schema={} logical-sha256={} deployment-schema={} deployment-sha256={}\n",
+        logical.schema_version,
+        logical_digest.as_sha256(),
+        deployment.schema_version,
+        deployment_digest.as_sha256(),
+        project.to_text(),
+        deployment.to_text(),
+        logical.schema_version,
+        logical_digest.as_sha256(),
+        deployment.schema_version,
+        deployment_digest.as_sha256(),
+    );
+
+    for (logical_operation, deployment_operation) in
+        logical.operations.iter().zip(&deployment.operations)
+    {
+        if logical_operation.id != deployment_operation.logical_operation {
+            bail!(
+                "hosted deployment operation L{} does not match logical operation L{}",
+                deployment_operation.logical_operation.0,
+                logical_operation.id.0
+            );
+        }
+        if logical_operation.authority_requirements != deployment_operation.requirements.authority {
+            bail!(
+                "hosted deployment authority requirements for L{} do not match the logical graph",
+                logical_operation.id.0
+            );
+        }
+        let kind = serde_json::to_string(&logical_operation.kind)
+            .context("failed to serialize logical operation kind")?;
+        let effects = serde_json::to_string(&logical_operation.effects)
+            .context("failed to serialize logical operation effects")?;
+        let authority = serde_json::to_string(&logical_operation.authority_requirements)
+            .context("failed to serialize logical authority requirements")?;
+        let binding = serde_json::to_string(&deployment_operation.binding)
+            .context("failed to serialize deployment operation binding")?;
+        output.push_str(&format!(
+            "grounding-operation logical-id=L{} logical-kind={} logical-effects={} authority-requirements={} deployment-binding={} deployment-residual-host-world={}\n",
+            logical_operation.id.0,
+            kind,
+            effects,
+            authority,
+            binding,
+            deployment_operation.requirements.residual_host_world,
+        ));
+    }
+
+    let residual_host_world = deployment
+        .operations
+        .iter()
+        .any(|operation| operation.requirements.residual_host_world);
+    let authority_free = deployment.world.is_none()
+        && deployment.placement_snapshot.is_none()
+        && deployment.selected_provider.is_none()
+        && deployment.eligible_alternatives.is_empty()
+        && deployment.rejected_providers.is_empty()
+        && deployment.operations.iter().all(|operation| {
+            operation.task.is_none()
+                && matches!(
+                    &operation.binding,
+                    DeploymentOperationBindingV1::HostedCoordinator
+                        | DeploymentOperationBindingV1::AmbientHost
+                        | DeploymentOperationBindingV1::Unresolved { .. }
+                )
+        });
+    output.push_str(&format!(
+        "grounding-summary residual-host-world={} authority-free={} placement=hosted-unbound world=none placement-snapshot=none selected-provider=none\n",
+        residual_host_world, authority_free
+    ));
+    output.push_str(
+        "grounding-nonclaim authority=requirements are descriptive only; this inspection grants no capability or execution authority\n",
+    );
+    output.push_str(
+        "grounding-nonclaim hostworld=residual HostWorld records ambient hosted effects; its absence would not prove complete mediation\n",
+    );
+    output.push_str(
+        "grounding-nonclaim placement=the hosted-unbound plan proves no placement, provider admission, reservation, dispatch, runtime instantiation, or route execution\n",
+    );
+    output.push_str(
+        "grounding-scope bounded-project-grounding=true full-pr9-authority-locality-failure-why=false\n",
+    );
+    Ok(output)
 }
 
 /// Run a project's default route in-process (script mode).

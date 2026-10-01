@@ -584,15 +584,114 @@ fn real_cli_plans_directory_and_lifted_project_without_execution() {
     assert!(lifted_output.status.success());
     assert_eq!(second.stdout, lifted_output.stdout);
 
-    let grounding = Command::new(binary)
+    let grounding_args = ["--target", "ir", "--route", "main", "--grounding"];
+    let grounding_first = Command::new(binary)
         .arg(fixture_path())
-        .args(["--target", "ir", "--route", "main", "--grounding"])
+        .args(grounding_args)
         .env("PR7_NONEXEC_MARKER", &nonexecution_marker)
         .output()
         .unwrap();
-    assert!(!grounding.status.success());
-    assert!(String::from_utf8_lossy(&grounding.stderr)
-        .contains("deferred to the PR9 project-grounding view"));
+    let grounding_second = Command::new(binary)
+        .arg(fixture_path())
+        .args(grounding_args)
+        .env("PR7_NONEXEC_MARKER", &nonexecution_marker)
+        .output()
+        .unwrap();
+    assert!(
+        grounding_first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&grounding_first.stderr)
+    );
+    assert!(grounding_second.status.success());
+    assert_eq!(grounding_first.stdout, grounding_second.stdout);
+    let grounding = String::from_utf8(grounding_first.stdout).unwrap();
+    assert!(grounding.contains("; Project grounding inspection (bounded)"));
+    assert!(grounding.contains("grounding logical-schema=1 logical-sha256="));
+    assert!(grounding.contains(" deployment-schema=1 deployment-sha256="));
+    let logical_digest = grounding
+        .lines()
+        .find_map(|line| line.strip_prefix("logical schema=1 sha256="))
+        .unwrap();
+    let deployment_digest = grounding
+        .lines()
+        .find_map(|line| line.strip_prefix("deployment schema=1 sha256="))
+        .unwrap();
+    for digest in [logical_digest, deployment_digest] {
+        assert_eq!(digest.len(), 64, "unexpected SHA-256 length: {digest}");
+        assert!(
+            digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+            "digest is not lowercase hexadecimal: {digest}"
+        );
+    }
+    let grounding_header = grounding
+        .lines()
+        .find(|line| line.starts_with("grounding logical-schema="))
+        .unwrap();
+    assert!(grounding_header.contains(&format!("logical-sha256={logical_digest}")));
+    assert!(grounding_header.contains(&format!("deployment-sha256={deployment_digest}")));
+    let grounding_operations = grounding
+        .lines()
+        .filter(|line| line.starts_with("grounding-operation logical-id=L"))
+        .collect::<Vec<_>>();
+    assert_eq!(grounding_operations.len(), 12);
+    for operation in grounding_operations {
+        for field in [
+            " logical-kind=",
+            " logical-effects=",
+            " authority-requirements=",
+            " deployment-binding=",
+            " deployment-residual-host-world=",
+        ] {
+            assert!(operation.contains(field), "missing {field} in {operation}");
+        }
+    }
+    for evidence in [
+        "logical-kind={\"kind\":\"materialize_project\"}",
+        "logical-kind={\"kind\":\"run_route\",\"route_id\":\"impl-a\"}",
+        "logical-effects={",
+        "authority-requirements=[]",
+        "deployment-binding={\"kind\":\"ambient_host\"}",
+        "deployment-binding={\"kind\":\"hosted_coordinator\"}",
+        "deployment-residual-host-world=true",
+        "authority-free=true placement=hosted-unbound",
+        "this inspection grants no capability or execution authority",
+        "residual HostWorld records ambient hosted effects",
+        "no placement, provider admission, reservation, dispatch, runtime instantiation, or route execution",
+        "full-pr9-authority-locality-failure-why=false",
+    ] {
+        assert!(grounding.contains(evidence), "missing {evidence}\n{grounding}");
+    }
+    assert!(!grounding.contains("PR7_IMPL_A_EXECUTED"));
+    assert!(
+        !nonexecution_marker.exists(),
+        "project grounding executed a route outside its disposable workspace"
+    );
+
+    let world_bound_grounding = Command::new(binary)
+        .arg(fixture_path())
+        .args([
+            "--target",
+            "ir",
+            "--route",
+            "main",
+            "--grounding",
+            "--world-id",
+            "desk",
+            "--world-epoch",
+            "1",
+        ])
+        .env("PR7_NONEXEC_MARKER", &nonexecution_marker)
+        .output()
+        .unwrap();
+    assert!(!world_bound_grounding.status.success());
+    assert!(String::from_utf8_lossy(&world_bound_grounding.stderr)
+        .contains("require a snapshot-bound placement view"));
+    assert!(
+        !nonexecution_marker.exists(),
+        "rejected World-bound project grounding executed a route"
+    );
 
     let dot_first = Command::new(binary)
         .arg(fixture_path())

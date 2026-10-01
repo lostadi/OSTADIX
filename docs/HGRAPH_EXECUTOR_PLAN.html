@@ -315,6 +315,15 @@ capsule affinity information, and any residual ambient dependency. Optional
 <code>--world-id NAME --world-epoch N</code> binds that inspection report to an exact
 caller-supplied epoch; it does not consult a live snapshot, enforce freshness,
 perform placement, or execute the plan.</p>
+<p>For a project directory or lifted project bundle,
+<code>olangc PROJECT --target ir --grounding</code> derives the selected canonical
+<code>LogicalHGraphV1</code> and its hosted-unbound <code>DeploymentPlanV1</code>, verifies their
+cross-record identities, and reports both digests with each operation&#39;s logical
+effects, descriptive authority requirements, hosted binding, and residual
+<code>HostWorld</code> state. This bounded view is deterministic and does not run a route.
+It has no placement snapshot or World binding, so project grounding rejects
+<code>--world-id</code>/<code>--world-epoch</code>; it does not provide the remaining PR9 authority,
+locality, failure, or focused <code>why</code> views.</p>
 <p>Effect attributes are checked constraints. <code>effects=unknown</code> can downgrade a
 verified renderer. <code>effects=pure</code> cannot upgrade an arbitrary shim. <code>reads=</code>,
 <code>writes=</code>, and <code>serial=host</code> add dependencies without removing unknown

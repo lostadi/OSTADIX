@@ -360,6 +360,16 @@ capsule affinity information, and any residual ambient dependency. Optional
 caller-supplied epoch; it does not consult a live snapshot, enforce freshness,
 perform placement, or execute the plan.
 
+For a project directory or lifted project bundle,
+`olangc PROJECT --target ir --grounding` derives the selected canonical
+`LogicalHGraphV1` and its hosted-unbound `DeploymentPlanV1`, verifies their
+cross-record identities, and reports both digests with each operation's logical
+effects, descriptive authority requirements, hosted binding, and residual
+`HostWorld` state. This bounded view is deterministic and does not run a route.
+It has no placement snapshot or World binding, so project grounding rejects
+`--world-id`/`--world-epoch`; it does not provide the remaining PR9 authority,
+locality, failure, or focused `why` views.
+
 Effect attributes are checked constraints. `effects=unknown` can downgrade a
 verified renderer. `effects=pure` cannot upgrade an arbitrary shim. `reads=`,
 `writes=`, and `serial=host` add dependencies without removing unknown
