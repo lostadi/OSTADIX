@@ -3,7 +3,7 @@
 This directory keeps two distinct subjects: the offline `guix-package.O`
 witness below, and `guix-session.O`, the real interactive command/install
 subject selected by the new `--browser-guix` profile. The repository-root
-`guix.O` matches the latter; it is no longer a native macOS VM controller.
+`guix-session.O` matches the latter; it is not a native macOS VM controller.
 The complete browser profile is implemented in source, but its new build,
 browser execution, installation, and restart checks are deferred to
 better-equipped hardware. No new passing qualification receipt is claimed.
@@ -232,7 +232,7 @@ digest and an installed compiler containing `--browser-guix`:
 OLANG_GUIX_RUNTIME_IMAGE='your-accessible-repository@sha256:YOUR_NEW_RUNTIME_MANIFEST_DIGEST'
 OLANG_GUIX_BUILDER_IMAGE='docker.io/library/rust:1.97.1-slim-bookworm@sha256:39f68a3e8e3ff425f8945ffa91128e60ff930d53e17fbb5214e95824bdd46f1b'
 
-olangc guix.O --target wasm --browser-guix \
+olangc examples/guix-wasm/guix-session.O --target wasm --browser-guix \
   --browser-bundle target/guix-browser \
   --wasm-runtime-image "$OLANG_GUIX_RUNTIME_IMAGE" \
   --wasm-builder-image "$OLANG_GUIX_BUILDER_IMAGE"
@@ -245,7 +245,8 @@ placeholder, not a usable or invented digest; the compiler does not push an
 image for you. The bundle destination must not already exist. Building still
 requires Docker/Buildx, `c2w`, `curl`, and substantial CPU, RAM, and free disk for
 Rust, the kernel/emulator, the Guix closure, and filesystem packing. A completed
-build would be an artifact, not a qualification receipt. `O guix.O` does not
+build would be an artifact, not a qualification receipt.
+`O examples/guix-wasm/guix-session.O` does not
 magically convert it into Wasm or provide its guest assets; compile the subject
 for this browser profile, or use it only inside an explicitly owned Guix guest.
 Do not run it against the host.

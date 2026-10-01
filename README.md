@@ -4208,7 +4208,7 @@ each actual `.O` workload. An image digest does not discover or certify them.
 `--browser-guix` adds a separate interactive profile to the Linux image route:
 
 ```bash
-olangc guix.O --target wasm --browser-guix \
+olangc examples/guix-wasm/guix-session.O --target wasm --browser-guix \
   --wasm-runtime-image "$OLANG_GUIX_RUNTIME_IMAGE" \
   --wasm-builder-image "$OLANG_GUIX_BUILDER_IMAGE" \
   --browser-bundle target/guix-browser
@@ -4224,8 +4224,10 @@ bundle files. Existing state is never automatically erased or repaired.
 
 This new profile is implemented but **not built or runtime-qualified**.
 Installation and restart checks are deferred to better-equipped hardware; the
-earlier Python results do not qualify it. The root `guix.O` is the guest program,
-not an automatic macOS launcher: `O guix.O` alone does not create or boot Wasm.
+earlier Python results do not qualify it. The canonical
+`examples/guix-wasm/guix-session.O` is the guest program, not an automatic macOS
+launcher: `O examples/guix-wasm/guix-session.O` alone does not create or boot
+Wasm.
 Interactive Wasmer/Wasmtime support is not claimed for this browser profile.
 
 #### Public output forms

@@ -4224,7 +4224,7 @@ files, required services, startup cost, and memory still need validation for
 each actual <code>.O</code> workload. An image digest does not discover or certify them.</p>
 <h4>Browser-only interactive Guix</h4>
 <p><code>--browser-guix</code> adds a separate interactive profile to the Linux image route:</p>
-<pre><code class="language-bash">olangc guix.O --target wasm --browser-guix \
+<pre><code class="language-bash">olangc examples/guix-wasm/guix-session.O --target wasm --browser-guix \
   --wasm-runtime-image &quot;$OLANG_GUIX_RUNTIME_IMAGE&quot; \
   --wasm-builder-image &quot;$OLANG_GUIX_BUILDER_IMAGE&quot; \
   --browser-bundle target/guix-browser
@@ -4238,8 +4238,10 @@ and saved state stay in the browser; the development server only serves static
 bundle files. Existing state is never automatically erased or repaired.</p>
 <p>This new profile is implemented but <strong>not built or runtime-qualified</strong>.
 Installation and restart checks are deferred to better-equipped hardware; the
-earlier Python results do not qualify it. The root <code>guix.O</code> is the guest program,
-not an automatic macOS launcher: <code>O guix.O</code> alone does not create or boot Wasm.
+earlier Python results do not qualify it. The canonical
+<code>examples/guix-wasm/guix-session.O</code> is the guest program, not an automatic macOS
+launcher: <code>O examples/guix-wasm/guix-session.O</code> alone does not create or boot
+Wasm.
 Interactive Wasmer/Wasmtime support is not claimed for this browser profile.</p>
 <h4>Public output forms</h4>
 <p>The public <code>-o</code> spellings are explicit across the implementations and

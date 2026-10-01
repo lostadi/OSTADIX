@@ -273,7 +273,7 @@ From the repository root, after preparing that image and the build tools:
 OLANG_GUIX_RUNTIME_IMAGE='your-accessible-repository@sha256:YOUR_NEW_RUNTIME_MANIFEST_DIGEST'
 OLANG_GUIX_BUILDER_IMAGE='docker.io/library/rust:1.97.1-slim-bookworm@sha256:39f68a3e8e3ff425f8945ffa91128e60ff930d53e17fbb5214e95824bdd46f1b'
 
-olangc guix.O --target wasm --browser-guix \
+olangc examples/guix-wasm/guix-session.O --target wasm --browser-guix \
   --browser-bundle target/guix-browser \
   --wasm-runtime-image "$OLANG_GUIX_RUNTIME_IMAGE" \
   --wasm-builder-image "$OLANG_GUIX_BUILDER_IMAGE"
@@ -285,8 +285,9 @@ The runtime reference is deliberately a placeholder; replace it with the real
 digest of your rebuilt image. `target/guix-browser` must not exist. Open
 `http://127.0.0.1:8787/` in a browser supporting the required isolated Workers
 and OPFS synchronous access handles. This is a substantial native-Rust/Linux/
-emulator build, not an instantaneous conversion performed by `O guix.O`.
-The repository's `guix.O` is now the guest session subject, matching
+emulator build, not an instantaneous conversion performed by
+`O examples/guix-wasm/guix-session.O`. The repository's canonical
+`examples/guix-wasm/guix-session.O` is the guest session subject, matching
 `examples/guix-wasm/guix-session.O`; it is not a macOS native-VM launcher. Do not
 execute it against a host Guix installation.
 

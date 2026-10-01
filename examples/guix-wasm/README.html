@@ -2,7 +2,7 @@
 <p>This directory keeps two distinct subjects: the offline <code>guix-package.O</code>
 witness below, and <code>guix-session.O</code>, the real interactive command/install
 subject selected by the new <code>--browser-guix</code> profile. The repository-root
-<code>guix.O</code> matches the latter; it is no longer a native macOS VM controller.
+<code>guix-session.O</code> matches the latter; it is not a native macOS VM controller.
 The complete browser profile is implemented in source, but its new build,
 browser execution, installation, and restart checks are deferred to
 better-equipped hardware. No new passing qualification receipt is claimed.</p>
@@ -193,7 +193,7 @@ digest and an installed compiler containing <code>--browser-guix</code>:</p>
 <pre><code class="language-sh">OLANG_GUIX_RUNTIME_IMAGE=&#39;your-accessible-repository@sha256:YOUR_NEW_RUNTIME_MANIFEST_DIGEST&#39;
 OLANG_GUIX_BUILDER_IMAGE=&#39;docker.io/library/rust:1.97.1-slim-bookworm@sha256:39f68a3e8e3ff425f8945ffa91128e60ff930d53e17fbb5214e95824bdd46f1b&#39;
 
-olangc guix.O --target wasm --browser-guix \
+olangc examples/guix-wasm/guix-session.O --target wasm --browser-guix \
   --browser-bundle target/guix-browser \
   --wasm-runtime-image &quot;$OLANG_GUIX_RUNTIME_IMAGE&quot; \
   --wasm-builder-image &quot;$OLANG_GUIX_BUILDER_IMAGE&quot;
@@ -205,7 +205,8 @@ placeholder, not a usable or invented digest; the compiler does not push an
 image for you. The bundle destination must not already exist. Building still
 requires Docker/Buildx, <code>c2w</code>, <code>curl</code>, and substantial CPU, RAM, and free disk for
 Rust, the kernel/emulator, the Guix closure, and filesystem packing. A completed
-build would be an artifact, not a qualification receipt. <code>O guix.O</code> does not
+build would be an artifact, not a qualification receipt.
+<code>O examples/guix-wasm/guix-session.O</code> does not
 magically convert it into Wasm or provide its guest assets; compile the subject
 for this browser profile, or use it only inside an explicitly owned Guix guest.
 Do not run it against the host.</p>

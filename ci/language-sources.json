@@ -102,21 +102,6 @@
       ]
     },
     {
-      "id": "guix-guest-entry",
-      "category": "platform-demo",
-      "reason": "Interactive package-manager session requires a disposable Linux guest.",
-      "coverage": [
-        {
-          "path": "examples/guix-wasm/README.md",
-          "kind": "manual",
-          "conditions": "OSTADIX_GUIX_SESSION_GUEST=1, guest-owned terminal/process lifetime, network and Guix prerequisites; never run as part of parse audit."
-        }
-      ],
-      "sources": [
-        "guix.O"
-      ]
-    },
-    {
       "id": "hosted-examples",
       "category": "example",
       "reason": "The example manifest owns edition support, runtime dependencies, opt-ins and semantic expectations.",

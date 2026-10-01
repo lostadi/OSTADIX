@@ -6,6 +6,10 @@ suite, direct binary probes, <code>ocorec</code>, <code>olangc</code> AOT (Rust 
 evaluator. No changes were made to the language tree during this inventory (new file only; a
 throwaway <code>/tmp</code> AOT harness was used for build checks and cleaned up conceptually — artifacts
 left in <code>/var/folders/.../opencode/</code> if you want to inspect them).</p>
+<p>This is a dated snapshot of the former <code>/Users/ustad/Ostadix-lang</code> checkout. The
+current canonical repository is <code>/Users/ustad/OSTADIX</code>, remote
+<code>https://github.com/lostadi/OSTADIX</code>; counts and live-state observations below
+remain historical evidence unless freshly revalidated.</p>
 <hr>
 <h2>1. One-screen state</h2>
 <table>
@@ -220,8 +224,8 @@ Redox 7.17 s (per that commit&#39;s message; lab tree at <code>target/foreign-ke
 </li>
 <li><strong>QEMU</strong> present on this machine (<code>qemu-system-x86_64</code>, <code>qemu-system-aarch64</code>) — all 30 smoke
 scripts are runnable when you choose to run them (not run in this pass; that&#39;s a longer op).</li>
-<li><strong><code>okernel-multikernel/</code></strong> and <strong><code>plan9/</code></strong> top-level dirs: present but <code>plan9/</code> was empty in
-this checkout&#39;s listing; treat <code>okernel-multikernel/</code> as the kernel-mesh experiment area
+<li><strong><code>okernel-multikernel/</code></strong> and the now-removed zero-byte root <code>plan9</code> placeholder were present
+in this snapshot; treat <code>okernel-multikernel/</code> as the kernel-mesh experiment area
 (see <code>06-gaps-notes.md</code>).</li>
 </ul>
 <h2>5. What it is, top-level, per directory (the rest)</h2>
@@ -275,8 +279,8 @@ workspace member — own lockfile). Used at the top of this session (<code>o_env
 <li><code>.ogit/receipts/</code> — one live receipt (<code>semantic-receipt-001.json</code>) from <code>ogit demo</code>.</li>
 <li><code>.modloop/</code>, <code>.ocore-repair-backups/</code>, <code>.remember/</code>, <code>.pytest_cache/</code>, <code>.opencode/</code> — local
 scratch/bookkeeping, not part of the ship.</li>
-<li><code>big_iron_to_my_texas_red.sh</code> (+ <code>.1</code>) — big-iron→Texas-red migration helper (script pair at
-root; a copy in <code>scripts/</code>).</li>
+<li><code>big_iron_to_my_texas_red.sh</code> (+ <code>.1</code>) — this snapshot found a duplicate script pair at the
+root. The retained canonical copy is <code>scripts/big_iron_to_my_texas_red.sh</code>.</li>
 <li><code>o_lang/</code> — <strong>Legacy Python edition</strong> of O (parser, evaluator, ovalue, cli, backends). Status:
 &quot;Reference Only&quot; per its README. Verified: <code>python3 -m o_lang examples/hello.O</code> → <code>2</code>.</li>
 <li><code>c_cpp/</code> — <strong>C17 edition</strong>. Standalone <code>cc</code>-based build (value.c, parser.c, process.c, eval.c,
@@ -289,7 +293,8 @@ running native binary that prints <code>2</code>.</li>
 differs from the top-level README. <strong>Not</strong> on the current <code>master</code> build path per the
 toolchain above — treat it as a checkout you happened to leave at the root, not a dependency.
 (See <code>06-gaps-notes.md</code> for a recommendation.)</li>
-<li><code>plan9/</code> — present, <strong>empty</strong> at this moment.</li>
+<li><code>plan9</code> — this snapshot found a zero-byte root placeholder; it was later removed. The
+substantive Plan 9 examples and implementation live elsewhere in the repository.</li>
 <li><code>benchmarks/hgraph_hosted/</code> — HGraph hosted benchmarks, driven by
 <code>scripts/benchmark_hgraph_hosted.sh</code>.</li>
 <li><code>dev/</code>, <code>build/</code>, <code>target/</code>, <code>src/</code>, <code>sys/</code>, <code>proc/</code>, <code>root/</code>, <code>run/</code>, <code>srv/</code>, <code>mnt/</code>, <code>opt/</code>,
@@ -352,7 +357,7 @@ Guix/9front/Redox timings).</li>
 <li>The nested <code>Ostadix-lang/</code> checkout and the rootfs-looking <code>sys/</code>, <code>proc/</code>, <code>root/</code>, etc.
 directories are real but not on the current <code>master</code> build path — treat as leftovers/scratch
 unless you say otherwise.</li>
-<li><code>plan9/</code> at the root was empty in this snapshot.</li>
+<li>The zero-byte root <code>plan9</code> placeholder present in this snapshot was later removed.</li>
 <li>I did not run <code>cargo test</code> here (policy: don&#39;t <code>cargo</code> in the live tree while Lee is
 developing — use Multipass <code>moral-gaur</code>). If you want a full <code>cargo test --lib</code> + the G0
 conformance gates, say the word and I&#39;ll do it on the VM and paste the report.</li>

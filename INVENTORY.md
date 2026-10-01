@@ -8,6 +8,11 @@ evaluator. No changes were made to the language tree during this inventory (new 
 throwaway `/tmp` AOT harness was used for build checks and cleaned up conceptually — artifacts
 left in `/var/folders/.../opencode/` if you want to inspect them).
 
+This is a dated snapshot of the former `/Users/ustad/Ostadix-lang` checkout. The
+current canonical repository is `/Users/ustad/OSTADIX`, remote
+`https://github.com/lostadi/OSTADIX`; counts and live-state observations below
+remain historical evidence unless freshly revalidated.
+
 ---
 
 ## 1. One-screen state
@@ -118,8 +123,8 @@ lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),weba
     Redox 7.17 s (per that commit's message; lab tree at `target/foreign-kernel-lab-current/`)
 - **QEMU** present on this machine (`qemu-system-x86_64`, `qemu-system-aarch64`) — all 30 smoke
   scripts are runnable when you choose to run them (not run in this pass; that's a longer op).
-- **`okernel-multikernel/`** and **`plan9/`** top-level dirs: present but `plan9/` was empty in
-  this checkout's listing; treat `okernel-multikernel/` as the kernel-mesh experiment area
+- **`okernel-multikernel/`** and the now-removed zero-byte root `plan9` placeholder were present
+  in this snapshot; treat `okernel-multikernel/` as the kernel-mesh experiment area
   (see `06-gaps-notes.md`).
 
 ## 5. What it is, top-level, per directory (the rest)
@@ -174,8 +179,8 @@ lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),weba
 - `.ogit/receipts/` — one live receipt (`semantic-receipt-001.json`) from `ogit demo`.
 - `.modloop/`, `.ocore-repair-backups/`, `.remember/`, `.pytest_cache/`, `.opencode/` — local
   scratch/bookkeeping, not part of the ship.
-- `big_iron_to_my_texas_red.sh` (+ `.1`) — big-iron→Texas-red migration helper (script pair at
-  root; a copy in `scripts/`).
+- `big_iron_to_my_texas_red.sh` (+ `.1`) — this snapshot found a duplicate script pair at the
+  root. The retained canonical copy is `scripts/big_iron_to_my_texas_red.sh`.
 - `o_lang/` — **Legacy Python edition** of O (parser, evaluator, ovalue, cli, backends). Status:
   "Reference Only" per its README. Verified: `python3 -m o_lang examples/hello.O` → `2`.
 - `c_cpp/` — **C17 edition**. Standalone `cc`-based build (value.c, parser.c, process.c, eval.c,
@@ -188,7 +193,8 @@ lisp,common_lisp,csharp,matlab(octave),mathematica(missing→wolframscript),weba
   differs from the top-level README. **Not** on the current `master` build path per the
   toolchain above — treat it as a checkout you happened to leave at the root, not a dependency.
   (See `06-gaps-notes.md` for a recommendation.)
-- `plan9/` — present, **empty** at this moment.
+- `plan9` — this snapshot found a zero-byte root placeholder; it was later removed. The
+  substantive Plan 9 examples and implementation live elsewhere in the repository.
 - `benchmarks/hgraph_hosted/` — HGraph hosted benchmarks, driven by
   `scripts/benchmark_hgraph_hosted.sh`.
 - `dev/`, `build/`, `target/`, `src/`, `sys/`, `proc/`, `root/`, `run/`, `srv/`, `mnt/`, `opt/`,
@@ -256,7 +262,7 @@ ocorec ocore/examples/minimal.oc --emit mir
 - The nested `Ostadix-lang/` checkout and the rootfs-looking `sys/`, `proc/`, `root/`, etc.
   directories are real but not on the current `master` build path — treat as leftovers/scratch
   unless you say otherwise.
-- `plan9/` at the root was empty in this snapshot.
+- The zero-byte root `plan9` placeholder present in this snapshot was later removed.
 - I did not run `cargo test` here (policy: don't `cargo` in the live tree while Lee is
   developing — use Multipass `moral-gaur`). If you want a full `cargo test --lib` + the G0
   conformance gates, say the word and I'll do it on the VM and paste the report.

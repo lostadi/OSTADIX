@@ -95,7 +95,6 @@ ALLOWED_TOP_LEVEL_FILES = frozenset(
         "README.md",
         "SECURITY.md",
         "SPEC.md",
-        "big_iron_to_my_texas_red.sh",
         "boot-and-test.sh",
         "rust-toolchain.toml",
         "setup.sh",

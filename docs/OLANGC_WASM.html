@@ -234,7 +234,7 @@ does not discover, publish, or push your runtime image.</p>
 <pre><code class="language-sh">OLANG_GUIX_RUNTIME_IMAGE=&#39;your-accessible-repository@sha256:YOUR_NEW_RUNTIME_MANIFEST_DIGEST&#39;
 OLANG_GUIX_BUILDER_IMAGE=&#39;docker.io/library/rust:1.97.1-slim-bookworm@sha256:39f68a3e8e3ff425f8945ffa91128e60ff930d53e17fbb5214e95824bdd46f1b&#39;
 
-olangc guix.O --target wasm --browser-guix \
+olangc examples/guix-wasm/guix-session.O --target wasm --browser-guix \
   --browser-bundle target/guix-browser \
   --wasm-runtime-image &quot;$OLANG_GUIX_RUNTIME_IMAGE&quot; \
   --wasm-builder-image &quot;$OLANG_GUIX_BUILDER_IMAGE&quot;
@@ -245,8 +245,9 @@ python3 apps/olang-browser-wasi/serve.py target/guix-browser --port 8787
 digest of your rebuilt image. <code>target/guix-browser</code> must not exist. Open
 <code>http://127.0.0.1:8787/</code> in a browser supporting the required isolated Workers
 and OPFS synchronous access handles. This is a substantial native-Rust/Linux/
-emulator build, not an instantaneous conversion performed by <code>O guix.O</code>.
-The repository&#39;s <code>guix.O</code> is now the guest session subject, matching
+emulator build, not an instantaneous conversion performed by
+<code>O examples/guix-wasm/guix-session.O</code>. The repository&#39;s canonical
+<code>examples/guix-wasm/guix-session.O</code> is the guest session subject, matching
 <code>examples/guix-wasm/guix-session.O</code>; it is not a macOS native-VM launcher. Do not
 execute it against a host Guix installation.</p>
 <p>This profile has <strong>no local runtime helper</strong>. The server above serves static
