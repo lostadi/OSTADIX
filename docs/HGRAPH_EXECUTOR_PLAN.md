@@ -353,22 +353,31 @@ not proof of mediation or authority, and `CapabilityState` is descriptive
 identity rather than a grant. Source `reads=` and `writes=` declarations cannot
 construct these keys, no production lowering emits them yet, and today's
 arbitrary hosted backends keep their conservative `HostWorld` dependency.
-`olangc file.O --target ir --grounding` renders the distinction,
-capability-right requirements, actor and
-capsule affinity information, and any residual ambient dependency. Optional
-`--world-id NAME --world-epoch N` binds that inspection report to an exact
-caller-supplied epoch; it does not consult a live snapshot, enforce freshness,
-perform placement, or execute the plan.
+`olangc file.O --target ir --grounding` and `o plan file.O --grounding` render
+the same typed `GroundingReport` over the same execution plan and HGraph. It
+shows the governed/ambient distinction, capability-right requirements, actor
+and capsule affinity information, and any residual ambient dependency.
+Optional `--world-id NAME --world-epoch N` binds that inspection report to an
+exact caller-supplied epoch; neither front door consults live state or a
+placement snapshot, enforces freshness, grants authority, performs placement,
+or executes the plan. Grounding is a standalone text view: World ID and epoch
+must be supplied together, epoch zero is invalid, and JSON, live-plan, and
+execution-intent combinations are rejected.
 
 For a project directory or lifted project bundle,
-`olangc PROJECT --target ir --grounding` derives the selected canonical
-`LogicalHGraphV1` and its hosted-unbound `DeploymentPlanV1`, verifies their
-cross-record identities, and reports both digests with each operation's logical
-effects, descriptive authority requirements, hosted binding, and residual
-`HostWorld` state. This bounded view is deterministic and does not run a route.
-It has no placement snapshot or World binding, so project grounding rejects
-`--world-id`/`--world-epoch`; it does not provide the remaining PR9 authority,
-locality, failure, or focused `why` views.
+`olangc PROJECT --target ir --grounding` and `o plan PROJECT --grounding`
+render one shared typed `ProjectGroundingReport` through the same canonical
+derivation and report schema. The report derives the selected canonical `LogicalHGraphV1` and its
+hosted-unbound `DeploymentPlanV1`, verifies their cross-record identities, and reports both
+digests with each operation's logical effects, descriptive authority
+requirements, hosted binding, and residual `HostWorld` state. Matching input,
+route, and policy therefore produce matching logical-graph and deployment-plan
+identities across the compiler and native front doors. The native `o plan`
+path also verifies those rebuilt identities against its prepared preflight. This bounded
+view is deterministic and performs no live-state lookup, discovery, placement,
+authority grant, dispatch, or route execution. It has no placement snapshot or
+World binding, so both commands reject `--world-id`/`--world-epoch`; it does not
+provide the remaining PR9 authority, locality, failure, or focused `why` views.
 
 Effect attributes are checked constraints. `effects=unknown` can downgrade a
 verified renderer. `effects=pure` cannot upgrade an arbitrary shim. `reads=`,

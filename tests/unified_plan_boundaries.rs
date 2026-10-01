@@ -246,6 +246,166 @@ fn static_ordinary_and_project_plans_match_olangc_without_state_access() {
 }
 
 #[test]
+fn grounding_plans_match_olangc_and_never_execute_or_mutate_state() {
+    let _serial = serial_guard();
+    let temp = tempfile::tempdir().unwrap();
+    let environment = IsolatedPlanEnvironment::new(temp.path());
+    let ordinary = temp.path().join("grounding.O");
+    write(&ordinary, b"text^(grounding-plan-parity)_text\n");
+    let project = temp.path().join("project-grounding");
+    fs::create_dir(&project).unwrap();
+    write(&project.join("payload.txt"), b"project grounding payload\n");
+    write(
+        &project.join("olang.project.toml"),
+        br#"[project]
+name = "grounding-parity"
+default_route = "main"
+
+[[routes]]
+id = "main"
+label = "must remain inspection only"
+kind = "shell"
+command = ["sh", "-c", "printf executed > \"$GROUNDING_EXECUTION_MARKER\""]
+default = true
+pure = true
+guards = { requires_command = "sh" }
+"#,
+    );
+    let execution_marker = temp.path().join("route-executed");
+
+    fs::create_dir_all(environment.xdg_state.join("preexisting")).unwrap();
+    write(
+        &environment.xdg_state.join("preexisting/sentinel"),
+        b"grounding planning must not mutate state\n",
+    );
+    let state_before = snapshot_tree(&environment.xdg_state);
+    let project_before = snapshot_tree(&project);
+
+    let ordinary_front = environment
+        .o_cli()
+        .args([
+            "plan",
+            ordinary.to_str().unwrap(),
+            "--grounding",
+            "--world-id",
+            "desk",
+            "--world-epoch",
+            "7",
+        ])
+        .output()
+        .unwrap();
+    let ordinary_compiler = environment
+        .olangc()
+        .args([
+            ordinary.to_str().unwrap(),
+            "--target",
+            "ir",
+            "--grounding",
+            "--world-id",
+            "desk",
+            "--world-epoch",
+            "7",
+        ])
+        .output()
+        .unwrap();
+    assert_success(&ordinary_front, "ordinary root grounding");
+    assert_success(&ordinary_compiler, "ordinary olangc grounding");
+    assert_eq!(ordinary_front.stdout, ordinary_compiler.stdout);
+    assert!(String::from_utf8_lossy(&ordinary_front.stdout).contains("world desk@7"));
+
+    let project_front = environment
+        .o_cli()
+        .args([
+            "plan",
+            project.to_str().unwrap(),
+            "--route",
+            "main",
+            "--grounding",
+        ])
+        .env("GROUNDING_EXECUTION_MARKER", &execution_marker)
+        .output()
+        .unwrap();
+    let project_compiler = environment
+        .olangc()
+        .args([
+            project.to_str().unwrap(),
+            "--target",
+            "ir",
+            "--route",
+            "main",
+            "--grounding",
+        ])
+        .env("GROUNDING_EXECUTION_MARKER", &execution_marker)
+        .output()
+        .unwrap();
+    assert_success(&project_front, "project root grounding");
+    assert_success(&project_compiler, "project olangc grounding");
+    assert_eq!(project_front.stdout, project_compiler.stdout);
+    assert!(String::from_utf8_lossy(&project_front.stdout)
+        .contains("full-pr9-authority-locality-failure-why=false"));
+
+    for arguments in [
+        vec!["plan", ordinary.to_str().unwrap(), "--grounding", "--json"],
+        vec![
+            "plan",
+            ordinary.to_str().unwrap(),
+            "--grounding",
+            "--format",
+            "json",
+        ],
+    ] {
+        let rejected = environment.o_cli().args(arguments).output().unwrap();
+        assert!(!rejected.status.success());
+        assert!(rejected.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&rejected.stderr)
+            .contains("cannot be combined with --json or --format json"));
+    }
+
+    let half_world = environment
+        .o_cli()
+        .args([
+            "plan",
+            ordinary.to_str().unwrap(),
+            "--grounding",
+            "--world-id",
+            "desk",
+        ])
+        .output()
+        .unwrap();
+    assert!(!half_world.status.success());
+    assert!(
+        String::from_utf8_lossy(&half_world.stderr).contains("--world-id requires --world-epoch")
+    );
+
+    let project_world = environment
+        .o_cli()
+        .args([
+            "plan",
+            project.to_str().unwrap(),
+            "--route",
+            "main",
+            "--grounding",
+            "--world-id",
+            "desk",
+            "--world-epoch",
+            "7",
+        ])
+        .env("GROUNDING_EXECUTION_MARKER", &execution_marker)
+        .output()
+        .unwrap();
+    assert!(!project_world.status.success());
+    assert!(String::from_utf8_lossy(&project_world.stderr)
+        .contains("require a snapshot-bound placement view"));
+
+    assert_eq!(snapshot_tree(&environment.xdg_state), state_before);
+    assert_eq!(snapshot_tree(&project), project_before);
+    assert!(!environment.xdg_config.exists());
+    assert!(!environment.home.exists());
+    assert!(!execution_marker.exists());
+    environment.assert_no_node_start();
+}
+
+#[test]
 fn ordinary_parallel_auto_live_is_local_only_and_writes_no_state() {
     let _serial = serial_guard();
     let temp = tempfile::tempdir().unwrap();

@@ -36,9 +36,11 @@ use crate::project::runtime::{
 };
 use crate::project::{
     build_project_hgraph_with_contract, DeploymentPlanV1, OExecutionResult, ProjectAttemptState,
-    ProjectAttemptTrace, ProjectBundle, ProjectExecutionContract, RoutePolicy,
+    ProjectAttemptTrace, ProjectBundle, ProjectExecutionContract, ProjectGroundingReport,
+    RoutePolicy,
 };
 use crate::value::OValue;
+use crate::world::{GroundingReport, WorldIdentity};
 
 pub mod record;
 pub mod reuse;
@@ -162,6 +164,47 @@ pub struct PreparedOrdinaryOExecutionV1 {
     static_plan: String,
 }
 
+impl PreparedOrdinaryOExecutionV1 {
+    /// Reconstruct an ordinary grounding report from the captured OIR only.
+    /// This does not reread the source path, inspect runtime state, or execute.
+    pub fn grounding_report(&self, world: Option<WorldIdentity>) -> Result<GroundingReport> {
+        let plan = self.program.plan();
+        plan.validate(self.program.nodes.len())
+            .map_err(anyhow::Error::msg)
+            .context("invalid prepared ordinary OIR execution plan")?;
+        let graph = self
+            .program
+            .hgraph_for_plan(&plan)
+            .map_err(anyhow::Error::msg)
+            .context("failed to rebuild prepared ordinary HGraph")?;
+        let mut solved_graph = self
+            .program
+            .hgraph_for_plan(&plan)
+            .map_err(anyhow::Error::msg)
+            .context("failed to rebuild the prepared ordinary HGraph for identity checking")?;
+        crate::hgraph::solve::solve_types(&mut solved_graph)
+            .context("failed to solve the rebuilt prepared ordinary HGraph")?;
+        let rebuilt_intent = ExecutionIntentV1::compile_with_source_sha256(
+            &self.identities.source_sha256,
+            &self.program,
+            &plan,
+            &solved_graph,
+            Policy::Eager,
+        )
+        .context("failed to rebuild the prepared ordinary O execution identity")?;
+        if rebuilt_intent.oir_sha256 != self.identities.oir_sha256
+            || rebuilt_intent.plan_sha256 != self.identities.plan_sha256
+            || rebuilt_intent.analyzed_graph_sha256 != self.identities.analyzed_graph_sha256
+            || rebuilt_intent.execution_intent_sha256 != self.identities.execution_intent_sha256
+            || rebuilt_intent != self.execution_intent
+        {
+            bail!("prepared ordinary grounding identities differ from preflight");
+        }
+        GroundingReport::analyze(&plan, &graph, world)
+            .context("failed to validate grounding plan/HGraph")
+    }
+}
+
 /// A validated project execution over a directory or lifted bundle.
 #[derive(Debug)]
 pub struct PreparedProjectExecutionV1 {
@@ -187,6 +230,29 @@ impl PreparedProjectExecutionV1 {
     /// verified optimization run.
     pub fn selection_reuse(&self) -> Option<&PreparedSelectionReuseV1> {
         self.selection_reuse.as_deref()
+    }
+
+    /// Reconstruct grounding only from the source-bound values retained at
+    /// preflight, then require all rebuilt identities to match the prepared
+    /// intent before returning any report.
+    pub fn grounding_report(&self) -> Result<ProjectGroundingReport> {
+        let project = build_project_hgraph_with_contract(
+            &self.bundle,
+            self.route.as_deref(),
+            self.policy.clone(),
+            self.execution_contract,
+        )
+        .map_err(anyhow::Error::msg)
+        .context("failed to rebuild the prepared project HGraph for grounding")?;
+        let report = ProjectGroundingReport::from_trusted_project(&project)
+            .context("failed to derive prepared project grounding")?;
+        if project.plan.bundle_digest != self.identities.bundle_sha256
+            || report.logical_sha256().as_sha256() != self.identities.logical_hgraph_sha256
+            || report.deployment_sha256().as_sha256() != self.identities.deployment_plan_sha256
+        {
+            bail!("prepared project grounding identities differ from preflight");
+        }
+        Ok(report)
     }
 }
 
@@ -1998,6 +2064,34 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("mesh flags are not valid"), "{error}");
+    }
+
+    #[test]
+    fn ordinary_grounding_rejects_program_substitution_after_preflight() {
+        let temp = tempdir().unwrap();
+        let original_path = temp.path().join("original.O");
+        let substitute_path = temp.path().join("substitute.O");
+        fs::write(&original_path, b"text^(original)_text\n").unwrap();
+        fs::write(&substitute_path, b"text^(substitute)_text\n").unwrap();
+
+        let PreparedExecutionIntentV1::OrdinaryO(mut original) =
+            prepare_execution_intent(&original_path, options(temp.path())).unwrap()
+        else {
+            panic!("ordinary .O classified as a project")
+        };
+        let PreparedExecutionIntentV1::OrdinaryO(substitute) =
+            prepare_execution_intent(&substitute_path, options(temp.path())).unwrap()
+        else {
+            panic!("ordinary .O classified as a project")
+        };
+
+        original.grounding_report(None).unwrap();
+        original.program = substitute.program;
+        let error = original.grounding_report(None).unwrap_err().to_string();
+        assert!(
+            error.contains("prepared ordinary grounding identities differ from preflight"),
+            "{error}"
+        );
     }
 
     #[test]

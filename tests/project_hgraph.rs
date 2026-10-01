@@ -9,6 +9,9 @@ use std::process::Command;
 
 use o_lang::effects::{EffectSummary, ResourceKey};
 use o_lang::hgraph::{ExecutableOp, HNode};
+use o_lang::intent::{
+    prepare_execution_intent, PrepareExecutionOptionsV1, PreparedExecutionIntentV1,
+};
 use o_lang::ir::PlanNodeId;
 use o_lang::project::plan::ProjectDependency;
 use o_lang::project::runtime::resolve_selection;
@@ -531,6 +534,66 @@ fn governed_route_effect_spelling_is_rejected_and_pure_metadata_keeps_hostworld(
     assert!(run.effects.unknown);
     assert!(run.effects.reads.contains(&ResourceKey::HostWorld));
     assert!(run.effects.writes.contains(&ResourceKey::HostWorld));
+}
+
+#[test]
+fn typed_project_grounding_binds_exact_logical_and_hosted_deployment_records() {
+    let project = fixture_plan();
+    let report = project::ProjectGroundingReport::from_trusted_project(&project).unwrap();
+
+    assert_eq!(
+        report.logical_hgraph().operations.len(),
+        report.deployment_plan().operations.len()
+    );
+    assert_eq!(
+        report.deployment_plan().logical_hgraph.as_sha256(),
+        report.logical_sha256().as_sha256()
+    );
+    assert!(report.residual_host_world());
+    assert!(report.authority_free());
+    for (logical, deployment) in report
+        .logical_hgraph()
+        .operations
+        .iter()
+        .zip(&report.deployment_plan().operations)
+    {
+        assert_eq!(logical.id, deployment.logical_operation);
+        assert_eq!(
+            logical.authority_requirements,
+            deployment.requirements.authority
+        );
+    }
+
+    let text = report.to_text().unwrap();
+    assert!(text.contains(&format!(
+        "grounding logical-schema=1 logical-sha256={}",
+        report.logical_sha256().as_sha256()
+    )));
+    assert!(text.contains(&format!(
+        "deployment-schema=1 deployment-sha256={}",
+        report.deployment_sha256().as_sha256()
+    )));
+    assert!(text.contains("authority-free=true placement=hosted-unbound"));
+}
+
+#[test]
+fn prepared_project_grounding_rejects_identity_substitution() {
+    let mut options = PrepareExecutionOptionsV1 {
+        route: Some("main".to_string()),
+        ..PrepareExecutionOptionsV1::default()
+    };
+    let PreparedExecutionIntentV1::Project(mut prepared) =
+        prepare_execution_intent(&fixture_path(), std::mem::take(&mut options)).unwrap()
+    else {
+        panic!("project fixture was not classified as a project")
+    };
+    prepared.grounding_report().unwrap();
+    prepared.identities.logical_hgraph_sha256 = "00".repeat(32);
+    let error = prepared.grounding_report().unwrap_err().to_string();
+    assert!(
+        error.contains("prepared project grounding identities differ from preflight"),
+        "{error}"
+    );
 }
 
 #[test]

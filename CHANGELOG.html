@@ -6,13 +6,23 @@ Package SemVer is only one of the independent coordinates documented in
 <h2><a href="https://github.com/lostadi/Ostadix-lang/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD">Unreleased</a></h2>
 <h3>Added</h3>
 <ul>
-<li><p><code>olangc PROJECT --target ir --grounding</code> now appends a deterministic,
-nonexecuting project-grounding view derived from the selected canonical
-<code>LogicalHGraphV1</code> and hosted-unbound <code>DeploymentPlanV1</code>. It reports exact
-schemas and digests plus per-operation logical effects, descriptive authority
-requirements, hosted bindings, and residual <code>HostWorld</code>. It grants no
-authority or placement and does not claim the remaining PR9 locality,
-failure, or focused <code>why</code> views.</p>
+<li><p><code>o plan INPUT --grounding</code> now shares the compiler&#39;s typed, deterministic,
+nonexecuting grounding reports. For ordinary O, it renders the same
+<code>GroundingReport</code> as <code>olangc FILE.O --target ir --grounding</code>, including an
+optional exact caller-supplied World identity. For projects,
+<code>o plan PROJECT --grounding</code> and
+<code>olangc PROJECT --target ir --grounding</code> render the same
+<code>ProjectGroundingReport</code>: both derive the selected canonical
+<code>LogicalHGraphV1</code> and hosted-unbound <code>DeploymentPlanV1</code> through the same
+canonical derivation and report schema, producing matching logical and
+deployment identities for the same input, route, and policy. They report each
+operation&#39;s logical effects, descriptive authority requirements, hosted
+binding, and residual <code>HostWorld</code>. Neither report performs live-state lookup,
+discovery, snapshot-bound placement, authority grant, or execution. Project
+grounding rejects World binding until a placement snapshot and task map are
+available. Grounding is a standalone text view and rejects JSON, live-plan,
+and execution-intent combinations. The remaining PR9 authority, locality,
+failure, and focused <code>why</code> views remain open.</p>
 </li>
 <li><p>The primary MCP <code>o_run</code> operation now accepts a complete source document or
 compatible path, offers a non-executing unified <code>mode=check</code>, and can require

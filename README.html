@@ -2299,7 +2299,28 @@ qualification boundary is collected in
 execution:</p>
 <pre><code class="language-bash">olangc examples/hello.O --target ir --grounding \
   --world-id desk --world-epoch 4
+o plan examples/hello.O --grounding \
+  --world-id desk --world-epoch 4
 </code></pre>
+<p>For ordinary O, both front doors derive the same typed <code>GroundingReport</code> from
+the same execution plan and HGraph. The optional World identity is supplied by
+the caller; neither command discovers live World state, validates a placement
+snapshot, grants authority, or executes the plan.</p>
+<p>Grounding is a standalone text view. Use <code>--world-id</code> and <code>--world-epoch</code> as a
+pair; a zero epoch is invalid. It cannot be combined with <code>--json</code>,
+<code>--format json</code>, <code>--live</code>, or <code>--execution-intent-json</code>.</p>
+<p>Project grounding uses a separate typed <code>ProjectGroundingReport</code>. Both
+supported front doors use the same canonical derivation and report schema,
+producing matching selected project HGraph, logical, and hosted-unbound
+deployment identities for the same input, route, and policy:</p>
+<pre><code class="language-bash">olangc tests/fixtures/project_hgraph --target ir --route main --grounding
+o plan tests/fixtures/project_hgraph --route main --grounding
+</code></pre>
+<p>This project report performs no live-state lookup or discovery, has no
+placement snapshot, grants no authority, and does not dispatch or execute a
+route. Accordingly, both forms reject <code>--world-id</code> and <code>--world-epoch</code>; a World
+binding requires a snapshot-bound placement view. The remaining PR9 authority,
+locality, failure, and focused <code>why</code> views are still open.</p>
 <p>PR6 adds one hosted typed <code>ResourceKey</code> class for World, Governor, node, domain,
 process, generic resource, object, descriptive capability, namespace,
 task-attempt, artifact publication, device, and accelerator state. Device and
@@ -2326,7 +2347,15 @@ admission supplies authority through its own evidence path.</p>
 commands:</p>
 <pre><code class="language-bash">olangc tests/fixtures/project_hgraph --target ir --route main
 o plan tests/fixtures/project_hgraph --route main
+olangc tests/fixtures/project_hgraph --target ir --route main --grounding
+o plan tests/fixtures/project_hgraph --route main --grounding
 </code></pre>
+<p>The two grounding forms use one shared typed report and produce matching
+selected-route <code>LogicalHGraphV1</code> and hosted-unbound <code>DeploymentPlanV1</code>
+identities. The native <code>o plan</code> path also checks those rebuilt identities
+against its prepared preflight. This parity is structural inspection evidence;
+it does not prove current state, discovery, placement, authority, dispatch, or
+execution.</p>
 <p>The composite smoke checks those nonexecution properties, then compiles a
 project binary and runs bounded opt-in AnySuccess short-circuit and
 explicitly admitted nonzero-to-success cases in disposable workspaces:</p>

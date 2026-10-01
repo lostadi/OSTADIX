@@ -69,6 +69,7 @@ use o_lang::project::{
     ValidatedSelectionReceiptV1,
 };
 use o_lang::resource_identity::ArtifactId;
+use o_lang::world::{WorldEpoch, WorldId, WorldIdentity};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -6767,12 +6768,27 @@ fn plan_intent(args: &PlanArgs) -> Result<i32> {
             "the root static plan already includes the OIR/HGraph execution view; use direct `olangc INPUT --target ir --explain-schedule` for admission-detail formatting"
         );
     }
-    if args.grounding || args.world_id.is_some() || args.world_epoch.is_some() {
-        bail!("grounding/world reporting is outside the authority-free intent-plan seam");
-    }
+    let grounding_world = parse_plan_grounding_world(args)?;
     let prepared = prepare_execution_intent(&args.target, plan_prepare_options(args)?)?;
     if args.shim_dir.is_some() && matches!(prepared, PreparedExecutionIntentV1::Project(_)) {
         bail!("--shim-dir is available only for ordinary .O planning; project routes carry their own runtime declarations");
+    }
+    if args.grounding {
+        match &prepared {
+            PreparedExecutionIntentV1::OrdinaryO(ordinary) => {
+                let grounding = ordinary.grounding_report(grounding_world)?;
+                print!("{}\n{}", prepared.static_plan(), grounding.to_text());
+            }
+            PreparedExecutionIntentV1::Project(project) => {
+                if grounding_world.is_some() {
+                    bail!(
+                        "project --grounding reports the hosted-unbound DeploymentPlanV1; --world-id and --world-epoch require a snapshot-bound placement view"
+                    );
+                }
+                print!("{}", project.grounding_report()?.to_text()?);
+            }
+        }
+        return Ok(0);
     }
     let execution_intent = if args.execution_intent_json {
         match &prepared {
@@ -6814,6 +6830,30 @@ fn plan_intent(args: &PlanArgs) -> Result<i32> {
         println!("{}", serde_json::to_string_pretty(&preview)?);
     }
     Ok(0)
+}
+
+/// Validate the shared grounding CLI boundary before any report is rendered.
+fn parse_plan_grounding_world(args: &PlanArgs) -> Result<Option<WorldIdentity>> {
+    if !args.grounding && (args.world_id.is_some() || args.world_epoch.is_some()) {
+        bail!("--world-id and --world-epoch require --grounding");
+    }
+    if args.grounding && (args.json || args.format == Some(PlanFormat::Json)) {
+        bail!("--grounding is a text report and cannot be combined with --json or --format json");
+    }
+    if args.grounding && (args.live || args.execution_intent_json) {
+        bail!(
+            "--grounding is a standalone static view and cannot be combined with --live or --execution-intent-json"
+        );
+    }
+    match (&args.world_id, args.world_epoch) {
+        (None, None) => Ok(None),
+        (Some(world), Some(epoch)) => Ok(Some(WorldIdentity::new(
+            WorldId::new(world.clone())?,
+            WorldEpoch::new(epoch)?,
+        ))),
+        (Some(_), None) => bail!("--world-id requires --world-epoch"),
+        (None, Some(_)) => bail!("--world-epoch requires --world-id"),
+    }
 }
 
 fn write_observed_project_traces(

@@ -20,6 +20,7 @@ pub mod deployment;
 pub mod discover;
 pub mod ecosystems;
 pub mod executor;
+pub mod grounding;
 pub mod launch;
 pub mod logical;
 pub mod lower;
@@ -52,6 +53,7 @@ pub use executor::{
     ConfiguredProjectExecution, ProjectCoordinator, ProjectExecutionError,
     ProjectExecutionFailureClass, ProjectExecutionOutcome,
 };
+pub use grounding::ProjectGroundingReport;
 pub use launch::{
     HostedWorldCoordinatorObserverV1, HostedWorldCurrentV1, HostedWorldLaunchError,
     HostedWorldLaunchProfileV1, HostedWorldLaunchV1, HostedWorldOperationAttemptV1,

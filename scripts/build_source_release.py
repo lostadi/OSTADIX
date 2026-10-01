@@ -838,6 +838,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "crates/ostadix-api/src/project/model.rs",
         "crates/ostadix-api/src/project/executor.rs",
         "crates/ostadix-api/src/project/deployment.rs",
+        "crates/ostadix-api/src/project/grounding.rs",
         "crates/ostadix-api/src/project/launch.rs",
         "crates/ostadix-api/src/project/logical.rs",
         "crates/ostadix-api/src/project/plan.rs",

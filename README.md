@@ -2541,7 +2541,34 @@ execution:
 ```bash
 olangc examples/hello.O --target ir --grounding \
   --world-id desk --world-epoch 4
+o plan examples/hello.O --grounding \
+  --world-id desk --world-epoch 4
 ```
+
+For ordinary O, both front doors derive the same typed `GroundingReport` from
+the same execution plan and HGraph. The optional World identity is supplied by
+the caller; neither command discovers live World state, validates a placement
+snapshot, grants authority, or executes the plan.
+
+Grounding is a standalone text view. Use `--world-id` and `--world-epoch` as a
+pair; a zero epoch is invalid. It cannot be combined with `--json`,
+`--format json`, `--live`, or `--execution-intent-json`.
+
+Project grounding uses a separate typed `ProjectGroundingReport`. Both
+supported front doors use the same canonical derivation and report schema,
+producing matching selected project HGraph, logical, and hosted-unbound
+deployment identities for the same input, route, and policy:
+
+```bash
+olangc tests/fixtures/project_hgraph --target ir --route main --grounding
+o plan tests/fixtures/project_hgraph --route main --grounding
+```
+
+This project report performs no live-state lookup or discovery, has no
+placement snapshot, grants no authority, and does not dispatch or execute a
+route. Accordingly, both forms reject `--world-id` and `--world-epoch`; a World
+binding requires a snapshot-bound placement view. The remaining PR9 authority,
+locality, failure, and focused `why` views are still open.
 
 PR6 adds one hosted typed `ResourceKey` class for World, Governor, node, domain,
 process, generic resource, object, descriptive capability, namespace,
@@ -2577,7 +2604,16 @@ commands:
 ```bash
 olangc tests/fixtures/project_hgraph --target ir --route main
 o plan tests/fixtures/project_hgraph --route main
+olangc tests/fixtures/project_hgraph --target ir --route main --grounding
+o plan tests/fixtures/project_hgraph --route main --grounding
 ```
+
+The two grounding forms use one shared typed report and produce matching
+selected-route `LogicalHGraphV1` and hosted-unbound `DeploymentPlanV1`
+identities. The native `o plan` path also checks those rebuilt identities
+against its prepared preflight. This parity is structural inspection evidence;
+it does not prove current state, discovery, placement, authority, dispatch, or
+execution.
 
 The composite smoke checks those nonexecution properties, then compiles a
 project binary and runs bounded opt-in AnySuccess short-circuit and

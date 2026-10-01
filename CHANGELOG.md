@@ -9,13 +9,23 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
-- `olangc PROJECT --target ir --grounding` now appends a deterministic,
-  nonexecuting project-grounding view derived from the selected canonical
-  `LogicalHGraphV1` and hosted-unbound `DeploymentPlanV1`. It reports exact
-  schemas and digests plus per-operation logical effects, descriptive authority
-  requirements, hosted bindings, and residual `HostWorld`. It grants no
-  authority or placement and does not claim the remaining PR9 locality,
-  failure, or focused `why` views.
+- `o plan INPUT --grounding` now shares the compiler's typed, deterministic,
+  nonexecuting grounding reports. For ordinary O, it renders the same
+  `GroundingReport` as `olangc FILE.O --target ir --grounding`, including an
+  optional exact caller-supplied World identity. For projects,
+  `o plan PROJECT --grounding` and
+  `olangc PROJECT --target ir --grounding` render the same
+  `ProjectGroundingReport`: both derive the selected canonical
+  `LogicalHGraphV1` and hosted-unbound `DeploymentPlanV1` through the same
+  canonical derivation and report schema, producing matching logical and
+  deployment identities for the same input, route, and policy. They report each
+  operation's logical effects, descriptive authority requirements, hosted
+  binding, and residual `HostWorld`. Neither report performs live-state lookup,
+  discovery, snapshot-bound placement, authority grant, or execution. Project
+  grounding rejects World binding until a placement snapshot and task map are
+  available. Grounding is a standalone text view and rejects JSON, live-plan,
+  and execution-intent combinations. The remaining PR9 authority, locality,
+  failure, and focused `why` views remain open.
 
 - The primary MCP `o_run` operation now accepts a complete source document or
   compatible path, offers a non-executing unified `mode=check`, and can require
