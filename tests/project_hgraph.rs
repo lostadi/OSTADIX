@@ -550,7 +550,8 @@ fn typed_project_grounding_binds_exact_logical_and_hosted_deployment_records() {
         report.logical_sha256().as_sha256()
     );
     assert!(report.residual_host_world());
-    assert!(report.authority_free());
+    assert!(report.authority_requirements_absent());
+    assert!(report.non_authorizing());
     for (logical, deployment) in report
         .logical_hgraph()
         .operations
@@ -562,6 +563,7 @@ fn typed_project_grounding_binds_exact_logical_and_hosted_deployment_records() {
             logical.authority_requirements,
             deployment.requirements.authority
         );
+        assert!(logical.authority_requirements.is_empty());
     }
 
     let text = report.to_text().unwrap();
@@ -573,7 +575,9 @@ fn typed_project_grounding_binds_exact_logical_and_hosted_deployment_records() {
         "deployment-schema=1 deployment-sha256={}",
         report.deployment_sha256().as_sha256()
     )));
-    assert!(text.contains("authority-free=true placement=hosted-unbound"));
+    assert!(text.contains(
+        "authority-requirements-absent=true non-authorizing=true placement=hosted-unbound"
+    ));
 }
 
 #[test]
@@ -718,7 +722,7 @@ fn real_cli_plans_directory_and_lifted_project_without_execution() {
         "deployment-binding={\"kind\":\"ambient_host\"}",
         "deployment-binding={\"kind\":\"hosted_coordinator\"}",
         "deployment-residual-host-world=true",
-        "authority-free=true placement=hosted-unbound",
+        "authority-requirements-absent=true non-authorizing=true placement=hosted-unbound",
         "this inspection grants no capability or execution authority",
         "residual HostWorld records ambient hosted effects",
         "no placement, provider admission, reservation, dispatch, runtime instantiation, or route execution",

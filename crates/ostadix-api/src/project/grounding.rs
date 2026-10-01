@@ -27,7 +27,8 @@ pub struct ProjectGroundingReport {
     deployment: DeploymentPlanV1,
     deployment_sha256: ArtifactId,
     residual_host_world: bool,
-    authority_free: bool,
+    authority_requirements_absent: bool,
+    non_authorizing: bool,
 }
 
 impl ProjectGroundingReport {
@@ -87,7 +88,11 @@ impl ProjectGroundingReport {
             .operations
             .iter()
             .any(|operation| operation.requirements.residual_host_world);
-        let authority_free = deployment.world.is_none()
+        let authority_requirements_absent = deployment
+            .operations
+            .iter()
+            .all(|operation| operation.requirements.authority.is_empty());
+        let non_authorizing = deployment.world.is_none()
             && deployment.placement_snapshot.is_none()
             && deployment.selected_provider.is_none()
             && deployment.eligible_alternatives.is_empty()
@@ -109,7 +114,8 @@ impl ProjectGroundingReport {
             deployment,
             deployment_sha256,
             residual_host_world,
-            authority_free,
+            authority_requirements_absent,
+            non_authorizing,
         })
     }
 
@@ -133,8 +139,17 @@ impl ProjectGroundingReport {
         self.residual_host_world
     }
 
-    pub const fn authority_free(&self) -> bool {
-        self.authority_free
+    /// True when the descriptive hosted plan declares no authority
+    /// requirements. This is distinct from whether the inspection itself
+    /// carries or grants live authority.
+    pub const fn authority_requirements_absent(&self) -> bool {
+        self.authority_requirements_absent
+    }
+
+    /// True when the report and its hosted-unbound deployment contain no
+    /// World, placement, provider, task, or other live authority binding.
+    pub const fn non_authorizing(&self) -> bool {
+        self.non_authorizing
     }
 
     /// Render the stable text shared by `olangc --target ir --grounding` and
@@ -180,8 +195,10 @@ impl ProjectGroundingReport {
         }
 
         output.push_str(&format!(
-            "grounding-summary residual-host-world={} authority-free={} placement=hosted-unbound world=none placement-snapshot=none selected-provider=none\n",
-            self.residual_host_world, self.authority_free
+            "grounding-summary residual-host-world={} authority-requirements-absent={} non-authorizing={} placement=hosted-unbound world=none placement-snapshot=none selected-provider=none\n",
+            self.residual_host_world,
+            self.authority_requirements_absent,
+            self.non_authorizing,
         ));
         output.push_str(
             "grounding-nonclaim authority=requirements are descriptive only; this inspection grants no capability or execution authority\n",
