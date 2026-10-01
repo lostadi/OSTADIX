@@ -1,9 +1,18 @@
 # Local assistant: validation, availability and visible result history
 
 Date: 2026-09-18. Repository: `lostadi/OSTADIX`.
-See [daily use and repeatable deployment](../../apps/aicore-ostadix-extension/ASSISTANT-USE.md).
+This report preserves the September 18 implementation and observations,
+including the v13-v15 prefix-free tests, as historical evidence.
 
-## Implementation
+**Current contract at `1f0edd1b22fca8662310d25d42c022f6b97f8ffd`:** Only
+`local-o-v1` requests beginning with **Use Ostadix** are supported, including
+follow-ups. `local-all-v1` is unsupported; ordinary requests use Google's normal
+Gemini flow. Nano receives the complete current request and bounded prior turns
+from the same chat when available. Oversized required input is rejected before
+generation. See [daily use and repeatable deployment](../../apps/aicore-ostadix-extension/ASSISTANT-USE.md)
+for the current usage contract.
+
+## Historical implementation (2026-09-18)
 
 - The owned extension now has an **Ostadix Results** launcher activity with
   durable private history, actual output, original request, source/evidence
@@ -16,9 +25,9 @@ See [daily use and repeatable deployment](../../apps/aicore-ostadix-extension/AS
   before interpretation, and a terminal answer/error record. Successful native
   output can survive a subsequent explanation/delivery failure. History save
   failures are reported when an answer can still be delivered.
-- `local-all-v1` selects ordinary nonempty text turns without a special prefix.
-  `local-o-v1` retains the earlier prefix selection. Existing activation,
-  compatibility and thermal gates still apply.
+- In the audited build, `local-all-v1` selected ordinary nonempty text turns
+  without a special prefix. `local-o-v1` retained the earlier prefix selection.
+  Existing activation, compatibility and thermal gates still applied.
 - The host checks Nano's complete source through primary MCP `o_execute`
   `action: check`. A confirmed parse rejection, or absence of an executable
   language block marker after parse success, can cause one model correction
@@ -158,6 +167,6 @@ running host. This did not interrupt an active execution or replay a request.
 - A process killed before a terminal save may leave only its last stage.
   Data clearing/uninstallation removes app-private history. Android notification
   permissions/channel settings can suppress notifications; the launcher remains.
-- Current per-turn limits and lack of conversational context are documented in
-  the usage guide. No inference quality benchmark or broad task acceptance
-  suite has been passed.
+- The lack of conversational context noted in this audit is historical; see the
+  usage guide for current per-turn limits and bounded prior turns. No inference
+  quality benchmark or broad task acceptance suite has been passed.

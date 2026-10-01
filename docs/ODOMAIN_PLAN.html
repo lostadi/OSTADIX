@@ -262,8 +262,11 @@ storms, side channels, denial of service, or device DMA.</li>
 <p>The name <code>native[0]</code> identifies the first domain-shaped instance. It does not
 by itself prove the full O-Domain abstraction.</p>
 <h2>4. Dependency-ordered implementation milestones</h2>
-<p>Each milestone starts only after the previous milestone&#39;s acceptance gate is
-recorded. A passing build is necessary but is not the runtime gate.</p>
+<p>Acceptance is dependency ordered: a milestone cannot be declared accepted until
+the previous milestone&#39;s acceptance gate is recorded. Implementation and
+bounded experimental slices may proceed in parallel, but they do not advance
+the acceptance sequence. A passing build is necessary but is not the runtime
+gate.</p>
 <h3>Milestone 0.2: harden architectural user entry</h3>
 <p>Status: <strong>complete</strong> for the single-CPU bootstrap boundary.</p>
 <p>Implemented complete exception gates for faults originating at CPL3, a

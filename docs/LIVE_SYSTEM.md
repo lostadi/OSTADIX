@@ -12,6 +12,10 @@ native loader and minimal VFS, and before a foreign personality is presented as
 an installable O-Domain runtime. The layer keeps O-core source-extensible and
 interactive instead of making it only a compatibility substrate.
 
+Bounded kernel-wide compatibility modes may be developed earlier as evidence
+slices. They do not satisfy this ordering rule until the personality is
+package-managed and supervised through the native live-system boundary.
+
 ## 1. Required boundary
 
 The live system consists of unprivileged native services over existing O-core

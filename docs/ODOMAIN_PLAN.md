@@ -284,8 +284,11 @@ by itself prove the full O-Domain abstraction.
 
 ## 4. Dependency-ordered implementation milestones
 
-Each milestone starts only after the previous milestone's acceptance gate is
-recorded. A passing build is necessary but is not the runtime gate.
+Acceptance is dependency ordered: a milestone cannot be declared accepted until
+the previous milestone's acceptance gate is recorded. Implementation and
+bounded experimental slices may proceed in parallel, but they do not advance
+the acceptance sequence. A passing build is necessary but is not the runtime
+gate.
 
 ### Milestone 0.2: harden architectural user entry
 
