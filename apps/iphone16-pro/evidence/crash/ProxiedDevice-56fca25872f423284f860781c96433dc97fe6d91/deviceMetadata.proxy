@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UI_country_code</key>
+	<string>US</string>
+	<key>awd_device_ID</key>
+	<string>47e1875688c3fbced32a17a9bb1558f56e68606d</string>
+	<key>crashreporter_key</key>
+	<string>56fca25872f423284f860781c96433dc97fe6d91</string>
+	<key>currentTaskingIDByRouting</key>
+	<dict>
+		<key>awd</key>
+		<string>-1</string>
+		<key>ca1</key>
+		<string>09f3a459-0b24-4985-bbc4-1fc362cd0f48</string>
+		<key>da3</key>
+		<string>-1</string>
+	</dict>
+	<key>machine_config</key>
+	<string>Watch5,9</string>
+	<key>os_train</key>
+	<string>Watch OS 10.6.1</string>
+	<key>os_version</key>
+	<string>21U580</string>
+	<key>product_version</key>
+	<string>10.6.1</string>
+	<key>proxyingDeviceTimeAtLastUpdate</key>
+	<real>1783401883.144923</real>
+	<key>release_type</key>
+	<string>User</string>
+	<key>target_audience</key>
+	<string>GM</string>
+</dict>
+</plist>

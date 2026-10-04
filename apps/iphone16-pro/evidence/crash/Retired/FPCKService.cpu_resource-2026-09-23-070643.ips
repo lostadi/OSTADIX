@@ -1,0 +1,383 @@
+{"app_name":"FPCKService","timestamp":"2026-09-23 07:06:43.00 -0400","app_version":"1.0","slice_uuid":"85AC81D0-6405-3B59-B3C3-B9EA2984D96E","build_version":"1","bundleID":"com.apple.FileProviderDaemon.FPCKService","duration_ms":"97656","share_with_app_devs":0,"is_first_party":0,"bug_type":"202","os_version":"iPhone OS 26.6 (23G71)","roots_installed":0,"name":"FPCKService","incident_id":"1A04C2D8-298B-4D57-934B-6F2F012F4109"}
+Date/Time:        2026-09-23 07:05:04.337 -0400
+End time:         2026-09-23 07:06:41.993 -0400
+OS Version:       iPhone OS 26.6 (Build 23G71)
+Architecture:     arm64e
+Report Version:   72
+Incident Identifier: 1A04C2D8-298B-4D57-934B-6F2F012F4109
+
+Data Source:      Microstackshots
+Shared Cache:     6F1AC697-5292-3BA2-8297-71BC62266DBA slid base address 0x199db8000, slide 0x19db8000
+Shared Cache:     B0E86FBA-9A39-361F-A469-00C740062A7B slid base address 0x186570000, slide 0x6570000
+
+Command:          FPCKService
+Path:             /System/Library/PrivateFrameworks/FileProviderDaemon.framework/XPCServices/FPCKService.xpc/FPCKService
+Identifier:       com.apple.FileProviderDaemon.FPCKService
+Version:          1.0 (1)
+Resource Coalition: "com.apple.FileProvider"(647)
+On Behalf Of:     13 samples UNKNOWN [1732] (13 samples originated by UNKNOWN [88])
+Architecture:     arm64e
+Parent:           UNKNOWN [1]
+PID:              2308
+
+Event:            cpu usage
+Action taken:     none
+CPU:              90 seconds cpu time over 98 seconds (92% cpu average), exceeding limit of 50% cpu over 180 seconds
+CPU limit:        90s
+Limit duration:   180s
+CPU used:         90s
+CPU duration:     98s
+Duration:         97.66s
+Duration Sampled: 90.31s (event starts 5.48s before samples, event ends 1.86s after samples)
+Steps:            27 (10 gigacycles/step)
+
+Hardware model:   iPhone17,1
+Active cpus:      6
+Memory size:      7.46 GB
+HW page size:     16384
+VM page size:     16384
+Shared cache residency: 8.69% (520.61 MB / 5990.66 MB)
+
+Time Since Boot:  53448s
+Time Awake Since Boot: 31976s
+Time Since Wake:  1196s
+
+Total CPU Time:   86.517s
+Advisory levels:  Battery -> 3, User -> 3, ThermalPressure -> 10, Combined -> 1
+Free disk space:  3156.83 MB/114.88 GB, low space threshold 150 MB
+Vnodes Available: 62.74% (17566/28000, 14000 allocated, 14000 soft limit)
+Model:            com.apple.fm.language.instruct_300m.safety
+  Loaded:         ??? - N/A, requested by UNKNOWN
+Model:            com.apple.fm.language.instruct_3b.tokenizer
+  Loaded:         ??? - N/A, requested by UNKNOWN
+Model:            com.apple.fm.language.instruct_300m.base
+  Loaded:         ??? - N/A, requested by UNKNOWN
+Model:            com.apple.fm.language.instruct_300m.tokenizer
+  Loaded:         ??? - N/A, requested by UNKNOWN
+
+Preferred User Language: en-US
+Country Code:     US
+Keyboards:        en_US QWERTY
+OS Cryptex File Extents: 25145
+
+Heaviest stack for the target process:
+  13  ??? (libsystem_pthread.dylib + 2240) [0x1fcc628c0]
+  13  ??? (libsystem_pthread.dylib + 5040) [0x1fcc633b0]
+  13  ??? (libdispatch.dylib + 83628) [0x1d7df46ac]
+  13  ??? (libdispatch.dylib + 85420) [0x1d7df4dac]
+  13  ??? (libdispatch.dylib + 43748) [0x1d7deaae4]
+  13  ??? (libdispatch.dylib + 40880) [0x1d7de9fb0]
+  13  ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+  13  ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+  13  ??? (FPCKService + 8028) [0x104821f5c]
+  13  ??? (FileProviderDaemon + 1851948) [0x1ebeca22c]
+  13  ??? (FileProviderDaemon + 8003240) [0x1ec4a7ea8]
+  13  ??? (FileProviderDaemon + 7999576) [0x1ec4a7058]
+  13  ??? (FileProviderDaemon + 8167092) [0x1ec4cfeb4]
+  13  ??? (FileProviderDaemon + 8197032) [0x1ec4d73a8]
+  13  ??? (FileProviderDaemon + 8164224) [0x1ec4cf380]
+  13  ??? (FileProviderDaemon + 8168644) [0x1ec4d04c4]
+  13  ??? (FileProviderDaemon + 8164292) [0x1ec4cf3c4]
+  13  ??? (FileProviderDaemon + 8001736) [0x1ec4a78c8]
+  13  ??? (FileProviderDaemon + 1832056) [0x1ebec5478]
+  9   ??? (FileProvider + 124180) [0x1c6898514]
+  9   ??? (FileProviderDaemon + 1833256) [0x1ebec5928]
+  9   ??? (FileProvider + 125564) [0x1c6898a7c]
+  9   ??? (FileProvider + 92360) [0x1c68908c8]
+  7   ??? (FileProvider + 95344) [0x1c6891470]
+  5   ??? (FileProvider + 77844) [0x1c688d014]
+  5   ??? (FileProvider + 97884) [0x1c6891e5c]
+  3   ??? (FileProviderDaemon + 1834576) [0x1ebec5e50]
+  3   ??? (FileProviderDaemon + 8006732) [0x1ec4a8c4c]
+  2   ??? (FileProviderDaemon + 8172408) [0x1ec4d1378]
+  2   ??? (FileProviderDaemon + 8281892) [0x1ec4ebf24]
+  2   ??? (FileProviderDaemon + 4656004) [0x1ec176b84]
+  2   ??? (FileProviderDaemon + 4657484) [0x1ec17714c]
+  2   ??? (FileProviderDaemon + 6006100) [0x1ec2c0554]
+  2   ??? (FileProviderDaemon + 6006704) [0x1ec2c07b0]
+  2   ??? (libdispatch.dylib + 32732) [0x1d7de7fdc]
+  2   ??? (libdispatch.dylib + 72976) [0x1d7df1d10]
+  2   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+  2   ??? (FileProviderDaemon + 239416) [0x1ebd40738]
+  2   ??? (FileProviderDaemon + 897636) [0x1ebde1264]
+  2   ??? (FileProviderDaemon + 6007192) [0x1ec2c0998]
+  2   ??? (FileProviderDaemon + 6007784) [0x1ec2c0be8]
+  2   ??? (FileProviderDaemon + 6007568) [0x1ec2c0b10]
+  2   ??? (FileProviderDaemon + 5534788) [0x1ec24d444]
+  2   ??? (FileProviderDaemon + 4658932) [0x1ec1776f4]
+  2   ??? (FileProviderDaemon + 4655236) [0x1ec176884]
+  2   ??? (FileProviderDaemon + 5534828) [0x1ec24d46c]
+  2   ??? (FileProviderDaemon + 8294860) [0x1ec4ef1cc]
+  2   ??? (FileProviderDaemon + 8283420) [0x1ec4ec51c]
+  2   ??? (FileProviderDaemon + 5568020) [0x1ec255614]
+  2   ??? (FileProviderDaemon + 5567172) [0x1ec2552c4]
+  2   ??? (libprequelite.dylib + 9564) [0x2beb7e55c]
+  2   ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+  1   ??? (libsqlite3.dylib + 207552) [0x19b6e7ac0]
+  1   ??? (libsqlite3.dylib + 682520) [0x19b75ba18]
+  1   ??? (libsqlite3.dylib + 94676) [0x19b6cc1d4]
+  1   ??? (libsqlite3.dylib + 100188) [0x19b6cd75c]
+  1   ??? (libsqlite3.dylib + 107728) [0x19b6cf4d0]
+  1   ??? (libsqlite3.dylib + 670088) [0x19b758988]
+  1   ??? (libsystem_kernel.dylib + 23928) [0x24ccded78]
+
+
+Powerstats for:   FPCKService [2308]
+UUID:             85AC81D0-6405-3B59-B3C3-B9EA2984D96E
+Path:             /System/Library/PrivateFrameworks/FileProviderDaemon.framework/XPCServices/FPCKService.xpc/FPCKService
+Identifier:       com.apple.FileProviderDaemon.FPCKService
+Version:          1.0 (1)
+Shared Cache:     6F1AC697-5292-3BA2-8297-71BC62266DBA slid base address 0x199db8000, slide 0x19db8000
+Resource Coalition: 13 samples "com.apple.FileProvider"(647)
+On Behalf Of:     13 samples UNKNOWN [1732] (13 samples originated by UNKNOWN [88])
+Architecture:     arm64e
+Parent:           UNKNOWN [1]
+UID:              501
+Sudden Term:      Tracked (allows idle exit)
+Footprint:        3888 KB -> 5024 KB (+1136 KB)
+Pageins:          3 pages
+Start time:       2026-09-23 07:05:09.820 -0400
+End time:         2026-09-23 07:06:38.813 -0400
+Num samples:      13 (48%)
+Energy:           5281.00 uWh
+Num threads:      1
+Primary state:    12 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified, e-core
+User Activity:    13 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 13 samples on AC
+  13  ??? (libsystem_pthread.dylib + 2240) [0x1fcc628c0]
+    13  ??? (libsystem_pthread.dylib + 5040) [0x1fcc633b0]
+      13  ??? (libdispatch.dylib + 83628) [0x1d7df46ac]
+        13  ??? (libdispatch.dylib + 85420) [0x1d7df4dac]
+          13  ??? (libdispatch.dylib + 43748) [0x1d7deaae4]
+            13  ??? (libdispatch.dylib + 40880) [0x1d7de9fb0]
+              13  ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                13  ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                  13  ??? (FPCKService + 8028) [0x104821f5c]
+                    13  ??? (FileProviderDaemon + 1851948) [0x1ebeca22c]
+                      13  ??? (FileProviderDaemon + 8003240) [0x1ec4a7ea8]
+                        13  ??? (FileProviderDaemon + 7999576) [0x1ec4a7058]
+                          13  ??? (FileProviderDaemon + 8167092) [0x1ec4cfeb4]
+                            13  ??? (FileProviderDaemon + 8197032) [0x1ec4d73a8]
+                              13  ??? (FileProviderDaemon + 8164224) [0x1ec4cf380]
+                                13  ??? (FileProviderDaemon + 8168644) [0x1ec4d04c4]
+                                  13  ??? (FileProviderDaemon + 8164292) [0x1ec4cf3c4]
+                                    13  ??? (FileProviderDaemon + 8001736) [0x1ec4a78c8]
+                                      13  ??? (FileProviderDaemon + 1832056) [0x1ebec5478]
+                                        9   ??? (FileProvider + 124180) [0x1c6898514]
+                                          9   ??? (FileProviderDaemon + 1833256) [0x1ebec5928]
+                                            9   ??? (FileProvider + 125564) [0x1c6898a7c]
+                                              9   ??? (FileProvider + 92360) [0x1c68908c8]
+                                                7   ??? (FileProvider + 95344) [0x1c6891470]
+                                                  5   ??? (FileProvider + 77844) [0x1c688d014]
+                                                    5   ??? (FileProvider + 97884) [0x1c6891e5c]
+                                                      3   ??? (FileProviderDaemon + 1834576) [0x1ebec5e50]
+                                                        3   ??? (FileProviderDaemon + 8006732) [0x1ec4a8c4c]
+                                                          2   ??? (FileProviderDaemon + 8172408) [0x1ec4d1378]
+                                                            2   ??? (FileProviderDaemon + 8281892) [0x1ec4ebf24]
+                                                              2   ??? (FileProviderDaemon + 4656004) [0x1ec176b84]
+                                                                2   ??? (FileProviderDaemon + 4657484) [0x1ec17714c]
+                                                                  2   ??? (FileProviderDaemon + 6006100) [0x1ec2c0554]
+                                                                    2   ??? (FileProviderDaemon + 6006704) [0x1ec2c07b0]
+                                                                      2   ??? (libdispatch.dylib + 32732) [0x1d7de7fdc]
+                                                                        2   ??? (libdispatch.dylib + 72976) [0x1d7df1d10]
+                                                                          2   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                                                                            2   ??? (FileProviderDaemon + 239416) [0x1ebd40738]
+                                                                              2   ??? (FileProviderDaemon + 897636) [0x1ebde1264]
+                                                                                2   ??? (FileProviderDaemon + 6007192) [0x1ec2c0998]
+                                                                                  2   ??? (FileProviderDaemon + 6007784) [0x1ec2c0be8]
+                                                                                    2   ??? (FileProviderDaemon + 6007568) [0x1ec2c0b10]
+                                                                                      2   ??? (FileProviderDaemon + 5534788) [0x1ec24d444]
+                                                                                        2   ??? (FileProviderDaemon + 4658932) [0x1ec1776f4]
+                                                                                          2   ??? (FileProviderDaemon + 4655236) [0x1ec176884]
+                                                                                            2   ??? (FileProviderDaemon + 5534828) [0x1ec24d46c]
+                                                                                              2   ??? (FileProviderDaemon + 8294860) [0x1ec4ef1cc]
+                                                                                                2   ??? (FileProviderDaemon + 8283420) [0x1ec4ec51c]
+                                                                                                  2   ??? (FileProviderDaemon + 5568020) [0x1ec255614]
+                                                                                                    2   ??? (FileProviderDaemon + 5567172) [0x1ec2552c4]
+                                                                                                      2   ??? (libprequelite.dylib + 9564) [0x2beb7e55c]
+                                                                                                        2   ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                                                                          1   ??? (libsqlite3.dylib + 207552) [0x19b6e7ac0]
+                                                                                                            1   ??? (libsqlite3.dylib + 682520) [0x19b75ba18]
+                                                                                                              1   ??? (libsqlite3.dylib + 94676) [0x19b6cc1d4]
+                                                                                                                1   ??? (libsqlite3.dylib + 100188) [0x19b6cd75c]
+                                                                                                                  1   ??? (libsqlite3.dylib + 107728) [0x19b6cf4d0]
+                                                                                                                    1   ??? (libsqlite3.dylib + 670088) [0x19b758988]
+                                                                                                                      1   ??? (libsystem_kernel.dylib + 23928) [0x24ccded78]
+                                                                                                                        1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                                                                          1   ??? (libsqlite3.dylib + 196732) [0x19b6e507c]
+                                                                                                            1   ??? (libsqlite3.dylib + 733128) [0x19b767fc8]
+                                                                                                              1   ??? (libsqlite3.dylib + 237620) [0x19b6ef034]
+                                                                                                                1   ??? (libsqlite3.dylib + 749888) [0x19b76c140]
+                                                                                                                  1   ??? (libsqlite3.dylib + 686624) [0x19b75ca20]
+                                                                                                                    1   ??? (libsqlite3.dylib + 110700) [0x19b6d006c]
+                                                                                                                      1   ??? (libsqlite3.dylib + 1164988) [0x19b7d16bc]
+                                                                                                                        1   ??? (libsqlite3.dylib + 112468) [0x19b6d0754]
+                                                                                                                          1   ??? (libsystem_kernel.dylib + 2876) [0x24ccd9b3c]
+                                                                                                                            1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                          1   ??? (FileProviderDaemon + 8178688) [0x1ec4d2c00]
+                                                            1   ??? (FileProviderDaemon + 7936056) [0x1ec497838]
+                                                              1   ??? (FileProviderDaemon + 8005792) [0x1ec4a88a0]
+                                                                1   ??? (FileProviderDaemon + 4656004) [0x1ec176b84]
+                                                                  1   ??? (FileProviderDaemon + 4657484) [0x1ec17714c]
+                                                                    1   ??? (FileProviderDaemon + 6006100) [0x1ec2c0554]
+                                                                      1   ??? (FileProviderDaemon + 6006704) [0x1ec2c07b0]
+                                                                        1   ??? (libdispatch.dylib + 32732) [0x1d7de7fdc]
+                                                                          1   ??? (libdispatch.dylib + 72976) [0x1d7df1d10]
+                                                                            1   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                                                                              1   ??? (FileProviderDaemon + 239416) [0x1ebd40738]
+                                                                                1   ??? (FileProviderDaemon + 897636) [0x1ebde1264]
+                                                                                  1   ??? (FileProviderDaemon + 6007192) [0x1ec2c0998]
+                                                                                    1   ??? (FileProviderDaemon + 6007784) [0x1ec2c0be8]
+                                                                                      1   ??? (FileProviderDaemon + 6007568) [0x1ec2c0b10]
+                                                                                        1   ??? (FileProviderDaemon + 5534788) [0x1ec24d444]
+                                                                                          1   ??? (FileProviderDaemon + 4658932) [0x1ec1776f4]
+                                                                                            1   ??? (FileProviderDaemon + 4655236) [0x1ec176884]
+                                                                                              1   ??? (FileProviderDaemon + 5534828) [0x1ec24d46c]
+                                                                                                1   ??? (FileProviderDaemon + 8195476) [0x1ec4d6d94]
+                                                                                                  1   ??? (FileProviderDaemon + 8006136) [0x1ec4a89f8]
+                                                                                                    1   ??? (FileProviderDaemon + 2672352) [0x1ebf926e0]
+                                                                                                      1   ??? (FileProviderDaemon + 9094192) [0x1ec5b2430]
+                                                                                                        1   ??? (FileProviderDaemon + 9094600) [0x1ec5b25c8]
+                                                                                                          1   ??? (libprequelite.dylib + 3844) [0x2beb7cf04]
+                                                                                                            1   ??? (libprequelite.dylib + 4204) [0x2beb7d06c]
+                                                                                                              1   ??? (libprequelite.dylib + 5300) [0x2beb7d4b4]
+                                                                                                                1   ??? (libprequelite.dylib + 19856) [0x2beb80d90]
+                                                                                                                  1   ??? (libsqlite3.dylib + 34396) [0x19b6bd65c]
+                                                                                                                    1   ??? (libsqlite3.dylib + 35336) [0x19b6bda08]
+                                                                                                                      1   ??? (libsqlite3.dylib + 37548) [0x19b6be2ac]
+                                                                                                                        1   ??? (libsqlite3.dylib + 45920) [0x19b6c0360]
+                                                                                                                          1   ??? (libsqlite3.dylib + 118244) [0x19b6d1de4]
+                                                                                                                            1   ??? (libsqlite3.dylib + 885612) [0x19b78d36c]
+                                                                                                                              1   ??? (libsqlite3.dylib + 13024) [0x19b6b82e0]
+                                                                                                                                1   ??? (libsqlite3.dylib + 189204) [0x19b6e3314]
+                                                                                                                                  1   ??? (libsqlite3.dylib + 645232) [0x19b752870]
+                                                                                                                                    1   ??? (libsystem_malloc.dylib + 7156) [0x1a8a30bf4]
+                                                                                                                                      1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88]), User mode>
+                                                      1   ??? (FileProviderDaemon + 1834540) [0x1ebec5e2c]
+                                                        1   ??? (FileProviderDaemon + 1842344) [0x1ebec7ca8]
+                                                          1   ??? (libsystem_kernel.dylib + 26000) [0x24ccdf590]
+                                                            1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                      1   ??? (FileProvider + 78336) [0x1c688d200]
+                                                        1   ??? (FileProvider + 113504) [0x1c6895b60]
+                                                          1   ??? (FileProvider + 98048) [0x1c6891f00]
+                                                            1   ??? (FileProvider + 117080) [0x1c6896958]
+                                                              1   ??? (FileProvider + 86472) [0x1c688f1c8]
+                                                                1   ??? (FileProvider + 67648) [0x1c688a840]
+                                                                  1   ??? (FileProvider + 127144) [0x1c68990a8]
+                                                                    1   ??? (FileProvider + 127368) [0x1c6899188]
+                                                                      1   ??? (FileProvider + 127984) [0x1c68993f0]
+                                                                        1   ??? (FileProvider + 155400) [0x1c689ff08]
+                                                                          1   ??? (FileProvider + 148380) [0x1c689e39c]
+                                                                            1   ??? (FileProvider + 124048) [0x1c6898490]
+                                                                              1   ??? (libsystem_kernel.dylib + 26772) [0x24ccdf894]
+                                                                                1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                  1   ??? (libsystem_kernel.dylib + 43700) [0x24cce3ab4]
+                                                    1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                  1   ??? (FileProvider + 77904) [0x1c688d050]
+                                                    1   ??? (libsystem_malloc.dylib + 18552) [0x1a8a33878]
+                                                      1   ??? (libsystem_kernel.dylib + 24636) [0x24ccdf03c]
+                                                        1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                1   ??? (FileProvider + 94968) [0x1c68912f8]
+                                                  1   ??? (libsystem_kernel.dylib + 26000) [0x24ccdf590]
+                                                    1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                                1   ??? (FileProvider + 94356) [0x1c6891094]
+                                                  1   ??? (FileProvider + 95676) [0x1c68915bc]
+                                                    1   ??? (FileProvider + 97156) [0x1c6891b84]
+                                                      1   ??? (libsystem_kernel.dylib + 26000) [0x24ccdf590]
+                                                        1   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+                                        4   ??? (FileProvider + 124048) [0x1c6898490]
+                                          4   ??? (libsystem_kernel.dylib + 26772) [0x24ccdf894]
+                                            4   <on behalf of UNKNOWN [1732] (originated by UNKNOWN [88])>
+
+  Binary Images:
+           0x104820000 -                ???  com.apple.FileProviderDaemon.FPCKService 1.0 (1) <85AC81D0-6405-3B59-B3C3-B9EA2984D96E>  /System/Library/PrivateFrameworks/FileProviderDaemon.framework/XPCServices/FPCKService.xpc/FPCKService
+           0x19b6b5000 -        0x19b85e893  libsqlite3.dylib                                 <ADBA4BC6-1B12-3CF9-A92A-652248883FFB>  /usr/lib/libsqlite3.dylib
+           0x1a8a2f000 -        0x1a8a77d0f  libsystem_malloc.dylib                           <5BD03C05-4A35-3899-A1FB-B317705071F8>  /usr/lib/system/libsystem_malloc.dylib
+           0x1c687a000 -        0x1c6a3b11f  FileProvider                                     <EA283DAE-DF26-367B-838B-634FEBBDDF4F>  /System/Library/Frameworks/FileProvider.framework/FileProvider
+           0x1d7de0000 -        0x1d7e265ff  libdispatch.dylib                                <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1ebd06000 -        0x1ec98603f  FileProviderDaemon                               <8EBEAFA5-4940-3DF5-A85C-E65A130B64B9>  /System/Library/PrivateFrameworks/FileProviderDaemon.framework/FileProviderDaemon
+           0x1fcc62000 -        0x1fcc6e4ef  libsystem_pthread.dylib                          <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x24ccd9000 -        0x24cd14b1f  libsystem_kernel.dylib                           <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x2beb7c000 -        0x2beb911bf  libprequelite.dylib                              <56FF415D-3E96-380B-9360-78F1B3F55628>  /usr/lib/libprequelite.dylib
+
+
+Powerstats for:   com.apple.DriverKit-AppleBCMWLAN
+UUID:             A82DF7DB-5F01-3B28-AC29-6337F645AAD9
+Path:             /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN
+Identifier:       com.apple.DriverKit-AppleBCMWLAN
+Version:          1.0 (1)
+Shared Cache:     B0E86FBA-9A39-361F-A469-00C740062A7B slid base address 0x186570000, slide 0x6570000
+Resource Coalition: 4 samples "com.apple.DriverKit-AppleBCMWLAN"(177)
+Architecture:     arm64e
+Start time:       2026-09-23 07:06:01.922 -0400
+End time:         2026-09-23 07:06:29.706 -0400
+Num samples:      4 (15%)
+Energy:           35.84 uWh
+Primary state:    4 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Unspecified, Requested Thread QoS Unspecified, Override Thread QoS Unspecified, e-core
+User Activity:    4 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 4 samples on AC
+  4  ??? (libsystem_pthread.dylib + 40896) [0x1873a7fc0]
+    4  ??? (libsystem_pthread.dylib + 4088) [0x18739eff8]
+      3  ??? (DriverKit + 33264) [0x1865a91f0]
+        3  ??? (DriverKit + 29988) [0x1865a8524]
+          3  ??? (libdispatch.dylib + 78928) [0x1873c3450]
+            3  ??? (DriverKit + 30120) [0x1865a85a8]
+              3  ??? (DriverKit + 155084) [0x1865c6dcc]
+                3  ??? (DriverKit + 18876) [0x1865a59bc]
+                  3  ??? (com.apple.DriverKit-AppleBCMWLAN + 1921908) [0x102d6d374]
+                    3  ??? (com.apple.DriverKit-AppleBCMWLAN + 1922852) [0x102d6d724]
+                      3  ??? (DriverKit + 158888) [0x1865c7ca8]
+                        3  ??? (com.apple.DriverKit-AppleBCMWLAN + 1680760) [0x102d32578]
+                          3  ??? (IO80211DriverKit + 1964492) [0x186c099cc]
+                            3  ??? (DriverKit + 29768) [0x1865a8448]
+                              3  ??? (IO80211DriverKit + 1964568) [0x186c09a18]
+                                3  ??? (com.apple.DriverKit-AppleBCMWLAN + 1728408) [0x102d3df98]
+                                  3  ??? (com.apple.DriverKit-AppleBCMWLAN + 1728088) [0x102d3de58]
+                                    3  ??? (IO80211DriverKit + 1963228) [0x186c094dc]
+                                      3  ??? (com.apple.DriverKit-AppleBCMWLAN + 851860) [0x102c67f94]
+                                        3  ??? (com.apple.DriverKit-AppleBCMWLAN + 851140) [0x102c67cc4]
+                                          2  ??? (com.apple.DriverKit-AppleBCMWLAN + 2122148) [0x102d9e1a4]
+                                            2  ??? (NetworkingDriverKit + 51144) [0x18667f7c8]
+                                              2  ??? (NetworkingDriverKit + 51284) [0x18667f854]
+                                                2  ??? (NetworkingDriverKit + 50088) [0x18667f3a8]
+                                                  2  ??? (NetworkingDriverKit + 49860) [0x18667f2c4]
+                                                    2  ??? (DriverKit + 150496) [0x1865c5be0]
+                                                      2  ??? (DriverKit + 84772) [0x1865b5b24]
+                                          1  ??? (com.apple.DriverKit-AppleBCMWLAN + 2127780) [0x102d9f7a4]
+                                            1  ??? (NetworkingDriverKit + 51144) [0x18667f7c8]
+                                              1  ??? (NetworkingDriverKit + 51284) [0x18667f854]
+                                                1  ??? (NetworkingDriverKit + 50088) [0x18667f3a8]
+                                                  1  ??? (NetworkingDriverKit + 49860) [0x18667f2c4]
+                                                    1  ??? (DriverKit + 150496) [0x1865c5be0]
+                                                      1  ??? (DriverKit + 84772) [0x1865b5b24]
+      1  ??? (DriverKit + 84772) [0x1865b5b24]
+
+  Binary Images:
+           0x102b98000 -                ???  com.apple.DriverKit-AppleBCMWLAN 1.0 (1) <A82DF7DB-5F01-3B28-AC29-6337F645AAD9>  /System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/com.apple.DriverKit-AppleBCMWLAN
+           0x1865a1000 -        0x1865e0887  DriverKit                                <2A42958F-4C21-3129-97F8-0F868FD7B414>  /System/DriverKit/System/Library/Frameworks/DriverKit.framework/DriverKit
+           0x186673000 -        0x1866a11c6  NetworkingDriverKit                      <218CE083-DD84-36D0-9586-F399698C8455>  /System/DriverKit/System/Library/Frameworks/NetworkingDriverKit.framework/NetworkingDriverKit
+           0x186a2a000 -        0x186d111b3  IO80211DriverKit                         <05D25CE2-FDC8-39BB-ADED-085B37C7A075>  /System/DriverKit/System/Library/PrivateFrameworks/IO80211DriverKit.framework/IO80211DriverKit
+           0x18739e000 -        0x1873a9b7f  libsystem_pthread.dylib                  <E9409461-6751-3EC8-8F8C-9B952570A8BB>  /System/DriverKit/usr/lib/system/libsystem_pthread.dylib
+           0x1873b0000 -        0x1873f5bd7  libdispatch.dylib                        <7AA58EE1-F60E-3039-AFCC-63E764CA6CCB>  /System/DriverKit/usr/lib/system/libdispatch.dylib
+
+
+Powerstats for:   kernel_task
+UUID:             8FB8E638-220A-319B-8180-9E4FF7DAC659
+Version:          Darwin Kernel Version 25.6.0: Sat Jul 11 15:46:45 PDT 2026; root:xnu-12377.162.13~2/RELEASE_ARM64_T8140
+Resource Coalition: 4 samples 1
+Architecture:     arm64
+Start time:       2026-09-23 07:05:27.152 -0400
+End time:         2026-09-23 07:06:37.619 -0400
+Num samples:      4 (15%)
+Primary state:    4 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Unspecified, Requested Thread QoS Unspecified, Override Thread QoS Unspecified, e-core
+User Activity:    4 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 4 samples on AC
+ *2  ??? (<8FB8E638-220A-319B-8180-9E4FF7DAC659> + 700524) [0xfffffff00a6f706c]
+   *2  ??? (<8FB8E638-220A-319B-8180-9E4FF7DAC659> + 1991036) [0xfffffff00a83217c]
+ *1  ??? (<8FB8E638-220A-319B-8180-9E4FF7DAC659> + 1991036) [0xfffffff00a83217c]
+ *1  ??? (<8FB8E638-220A-319B-8180-9E4FF7DAC659> + 700536) [0xfffffff00a6f7078]
+   *1  ??? (<8FB8E638-220A-319B-8180-9E4FF7DAC659> + 699816) [0xfffffff00a6f6da8]
+     *1  ??? (<8FB8E638-220A-319B-8180-9E4FF7DAC659> + 1956456) [0xfffffff00a829a68]
+
+  Binary Images:
+   *0xfffffff00a64c000 - 0xfffffff00aedbfff  ??? (25.6.0) <8FB8E638-220A-319B-8180-9E4FF7DAC659>__TEXT_EXEC

@@ -1,0 +1,2 @@
+{"bug_type":"226","timestamp":"2026-09-17 18:03:31.00 -0400","os_version":"iPhone OS 26.6 (23G71)","roots_installed":0,"incident_id":"438F18E4-F43F-4138-B44B-44A783F7C4B7"}
+{"postTime":1789682611291,"events":[{"LKAEventBackup-hardfail":0,"eventType":"localHealthSummary","version":"26.6","product":"iPhone OS","topic":"xp_sear_keysync","LKAEventBackup-softfail":0,"soft_failure_count":0,"eventLinkID":"88050674-AF06-47C8-B053-98B7B4D80EB4","hard_failure_count":0,"modelid":"iPhone17,1","LKAEventBackup-success":1,"LKAMetricBackupDuration":9100,"success_count":1,"build":"23G71"}]}

@@ -1,5 +1,8 @@
 \documentclass[11pt,oneside]{article}
 
+\pdfinfoomitdate=1
+\pdfsuppressptexinfo=15
+
 \usepackage[letterpaper,top=0.78in,bottom=0.82in,left=0.82in,right=0.82in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -15,12 +18,13 @@
 \usepackage{listings}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
+\usepackage{xurl}
 \usepackage{hyperref}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric}
 \usepackage[most]{tcolorbox}
 \usepackage{lastpage}
-\usepackage{caption}
+\usepackage[hypcap=false]{caption}
 \usepackage{float}
 \usepackage{pdflscape}
 \usepackage{seqsplit}
@@ -45,13 +49,16 @@
   urlcolor=OBlue,
   citecolor=OPurple,
   pdfauthor={Lee Daghlar Ostadi},
+  pdfcreator={},
+  pdfproducer={},
   pdftitle={Ostadix-lang: Structural Polyglot Orchestration, Native O-core, and World Execution},
-  pdfsubject={Creator-authored technical whitepaper for Ostadix-lang 0.4.0 Unreleased at 36787b16},
+  pdfsubject={Creator-authored technical whitepaper for Ostadix-lang 0.4.0 Unreleased at d13814df},
   pdfkeywords={Ostadix-lang, O-lang, O-core, OIR, HGraph, polyglot programming}
 }
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{5.5pt plus 1pt minus 1pt}
+\setlength{\emergencystretch}{2em}
 \setlist[itemize]{leftmargin=1.35em,itemsep=2pt,topsep=3pt}
 \setlist[enumerate]{leftmargin=1.55em,itemsep=2pt,topsep=3pt}
 \renewcommand{\arraystretch}{1.18}
@@ -71,7 +78,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\color{OSlate}Ostadix-lang Technical Whitepaper}
-\fancyhead[R]{\small\color{OSlate}\texttt{0.4.0 Unreleased / 36787b16}}
+\fancyhead[R]{\small\color{OSlate}\texttt{0.4.0 Unreleased / d13814df}}
 \fancyfoot[L]{\small\color{OSlate}Lee Daghlar Ostadi}
 \fancyfoot[R]{\small\color{OSlate}\thepage\ /\ \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -114,12 +121,12 @@
   keepspaces=true
 }
 
-\newcommand{\product}{\textsc{Ostadix-lang}}
-\newcommand{\ovalue}{\textsc{OValue}}
-\newcommand{\oir}{\textsc{OIR}}
-\newcommand{\hgraph}{\textsc{HGraph}}
-\newcommand{\ocore}{\textsc{O-core}}
-\newcommand{\src}[2]{\textcolor{OSlate}{\scriptsize[\path{#1}, lines #2]}\allowbreak}
+\newcommand{\product}{{\mdseries\textsc{Ostadix-lang}}}
+\newcommand{\ovalue}{{\mdseries\textsc{OValue}}}
+\newcommand{\oir}{{\mdseries\textsc{OIR}}}
+\newcommand{\hgraph}{{\mdseries\textsc{HGraph}}}
+\newcommand{\ocore}{{\mdseries\textsc{O-core}}}
+\newcommand{\src}[1]{\textcolor{OSlate}{\scriptsize[\href{https://github.com/lostadi/OSTADIX/blob/d13814df25cac143b688160c3c969dc814614b1a/#1}{\nolinkurl{#1}}]}\allowbreak}
 \newcommand{\status}[2]{\textbf{\textcolor{#1}{#2}}}
 \newcommand{\breakcode}[1]{\texttt{\seqsplit{#1}}}
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
@@ -166,8 +173,8 @@
   \color{white}\small
   \centering
   \textbf{Implementation snapshot}\\
-  \href{https://github.com/lostadi/Ostadix-lang}{github.com/lostadi/Ostadix-lang}\\
-  Source snapshot \texttt{36787b16476bc0c8c4ddf665c7228b314d04e716}\\
+  \href{https://github.com/lostadi/OSTADIX}{github.com/lostadi/OSTADIX}\\
+  Source snapshot \texttt{d13814df25cac143b688160c3c969dc814614b1a}\\
   Package coordinate \texttt{0.4.0 Unreleased}
   \end{tcolorbox}
 
@@ -176,7 +183,7 @@
   \vspace{0.08in}
   {\normalsize ORCID 0009-0001-6380-9558\par}
   \vspace{0.12in}
-  {\normalsize 25 August 2026\par}
+  {\normalsize 3 October 2026\par}
 \end{center}
 \end{titlepage}
 
@@ -209,15 +216,18 @@ construction. Together, the hosted and native lineages span polyglot
 expression composition, state-complete execution graphs, freestanding
 compilation, and authority-bearing World execution.
 
-In this paper I present the complete language system through one exact
-implementation snapshot. I explain the hosted grammar and semantics; the
+In this paper I present the language system at a pinned implementation
+snapshot, with separately dated execution evidence. I explain the hosted grammar and semantics; the
 \ovalue{} interchange algebra;
 backend actors and authority; \oir{}, execution plans, and \hgraph{}
 scheduling; project lifting and route execution; the \ocore{} compiler; and
 the Live-World and KernelWorld layers. I then trace the current execution
 constitution through Graph V2, Evidence V6, Admission V6, Why V2, the unified
 lowercase \texttt{o} front door, reciprocal node pairing, Project Mesh,
-Information, Registry V1, and the canonical World formats. The central result
+Information, Registry V1, and the canonical World formats. This revision
+also covers operation realization planning, physical execution profiles,
+native object ownership, supported actor migration, and the shared
+source-first human/MCP interface. The central result
 is a coherent architecture in which evaluator identity is syntax,
 cross-language state is typed, effects become explicit graph resources, and
 execution authority is admitted through exact verified records.
@@ -323,9 +333,11 @@ on the left toward execution or publication on the right. The complete graph
 in Section~\ref{sec:projects} has its own visual grammar and a seven-pass
 reading method immediately before the compiler-emitted figure.
 
-Source citations name the implementation file and line interval that realizes
-the surrounding mechanism. Validation tables identify the command, observed
-result, and validated surface for the implementation release. This lets a
+Source citations link to implementation files at the exact source commit
+on the title page. These pinned file references replace the older edition's
+line intervals, which changed as the implementation evolved. Validation
+tables distinguish checks performed for this revision, retained dated
+transcripts, and source-defined gates that require their own execution. This lets a
 reader move from thesis, to mechanism, to defining code, to executable
 evidence without changing terminology.
 
@@ -338,11 +350,22 @@ evidence without changing terminology.
 
 \subsection{Source coordinate}
 
-This paper describes the synchronized Ostadix-lang package coordinate
-\texttt{0.4.0 Unreleased} at source snapshot \texttt{36787b16}. The title
-page records the complete commit identity. I tie every
-technical claim to implementation code, compiler-generated artifacts,
-executable tests, or declared evidence gates from this snapshot.
+This revision describes the committed Ostadix-lang implementation at
+\texttt{d13814df}, package coordinate \texttt{0.4.0 Unreleased}, reviewed
+on 3 October 2026. The title page records the full commit identity.
+The revision brings the August edition forward through shared native
+human/agent interfaces, computation and realization records, execution
+profiles, actor migration, packaging, cancellation, and typed grounding.
+The source coordinate describes committed implementation; installed
+binaries and historical execution evidence carry their own coordinates.
+The local checkout also contains work in progress in the Cargo manifest,
+lockfile, and an additional core package. Those changes are outside the
+committed implementation described here.
+
+At review time this commit was five local commits ahead of the fetched public
+branch. The source links identify the exact reviewed commit; remote links
+become resolvable when that commit is published. A local checkout containing
+the coordinate provides the same cited files.
 
 The workspace contains two synchronized Rust packages. The root
 \texttt{o-lang} package owns compatibility reexports and command-line
@@ -351,9 +374,9 @@ parser, IR, evaluator, graph, evidence, scheduler, project, networking,
 Information, Registry, World, Live-World, KernelWorld, and O-core runtime
 modules. The MCP server is a separately locked Rust package excluded from the
 main workspace so its protocol dependencies remain outside the runtime
-dependency graph. \src{Cargo.toml}{1--18}
-\src{crates/ostadix-api/Cargo.toml}{1--16}
-\src{CHANGELOG.md}{8--50}
+dependency graph. \src{Cargo.toml}
+\src{crates/ostadix-api/Cargo.toml}
+\src{CHANGELOG.md}
 
 \subsection{Contribution map}
 
@@ -381,6 +404,11 @@ Project composition &
 Lossless bundles, materialization, route policies, guards, and artifact
 collection. &
 Whole codebases become reversible, executable Ostadix artifacts. \\
+Planning and realization &
+Canonical computation facets, declared realization tuples, shared typed
+grounding, and operation/transfer DAGs. &
+Inspect correspondence and selection, retain decisions, and execute through
+the applicable native admission and transport contracts. \\
 Native World lineage &
 \ocore{} HIR/MIR/code generation, kernel capabilities, exact records, and
 generation-bound admission. &
@@ -402,7 +430,8 @@ The paper follows the implementation from source syntax to execution:
   \item trace \ocore{} from lexer through object generation;
   \item trace hosted Live-World, native kernel gates, KernelWorld admission,
         and SVM execution;
-  \item rebuild and run the complete applicable gate matrix on the exact snapshot.
+  \item identify the applicable gate matrix and record which checks were
+        actually executed for each source, artifact, and substrate coordinate.
 \end{enumerate}
 
 \section{The language system in one view}
@@ -446,7 +475,7 @@ several execution substrates.
 \texttt{.oc} compiles machine computation.}
 \end{figure}
 
-\src{docs/OCORE.md}{3--30}
+\src{docs/OCORE.md}
 
 \subsection{Hosted orchestration}
 
@@ -539,18 +568,18 @@ and preserves established imports by reexporting the engine's exact types.}
 
 The ownership boundary is enforced by the workspace and package manifests,
 the engine module root, and the root's one-way reexport list.
-\src{Cargo.toml}{14--18}
-\src{Cargo.toml}{82--86}
-\src{crates/ostadix-api/Cargo.toml}{1--16}
-\src{crates/ostadix-api/src/lib.rs}{1--59}
-\src{src/lib.rs}{1--13}
+\src{Cargo.toml}
+\src{crates/ostadix-api/Cargo.toml}
+\src{crates/ostadix-api/src/lib.rs}
+\src{src/lib.rs}
 
 \subsection{The unified lowercase \texttt{o} front door}
 
-The lowercase \texttt{o} command is the language's intent front door. Its
-compiled path implements \texttt{run}, \texttt{plan}, \texttt{explain}, and
-\texttt{inspect}; the repository dispatcher routes those verbs into
-\texttt{o-cli} and retains the remaining operational command families. The
+The lowercase \texttt{o} command is the compiled intent and operational
+front door. Its native dispatcher routes runtime, compiler, project, node,
+World, device, capacity, and evidence commands to their existing owners.
+Installation provides compiled \texttt{o} and \texttt{ostadix-evaluator};
+the shell script is a compatibility launcher. The
 front door classifies an input as hosted O source, a directory, a lifted
 project, or an accepted standalone form, then selects the ordinary evaluator
 or project engine and renders one stable intent record.
@@ -565,7 +594,9 @@ o run ./project --route main
 o plan ./project --route main
 \end{lstlisting}
 
-Each completed run yields a durable \texttt{RunRecordV1}. The record binds a
+Runs record a durable \texttt{RunRecordV1} by default; \texttt{--no-record}
+disables ordinary recording, while marked operation runs require it. Recording
+errors remain explicit. The record binds a
 schema, run identity, wall-clock time, resolved intent, engine selection,
 source identity, execution result, and optional trace attachment. The store
 uses canonical JSON bytes, validates every record before acceptance, writes
@@ -575,6 +606,7 @@ artifact that was actually persisted.
 
 \begin{figure}[htbp]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
   node distance=0.25in,
   n/.style={draw=OBlue,rounded corners=2pt,fill=blue!4,
@@ -593,24 +625,16 @@ artifact that was actually persisted.
     {\draw[a] (\x) -- (\y);}
   \draw[a] (record) -- (store);
 \end{tikzpicture}
+}
 \caption{The lowercase front door converts command intent into a resolved
 execution path and a durable record that can be inspected later.}
 \label{fig:o-front-door}
 \end{figure}
 
-\src{scripts/o-cli.sh}{18--26}
-\src{src/bin/o-cli.rs}{42--68}
-\src{src/bin/o-cli.rs}{403--410}
-\src{src/bin/o-cli.rs}{472--517}
-\src{src/bin/o-cli.rs}{931--990}
-\src{src/bin/o-cli.rs}{992--1066}
-\src{src/bin/o-cli.rs}{1641--1676}
-\src{crates/ostadix-api/src/intent/record.rs}{25--29}
-\src{crates/ostadix-api/src/intent/record.rs}{53--100}
-\src{crates/ostadix-api/src/intent/record.rs}{894--955}
-\src{crates/ostadix-api/src/intent/store.rs}{1--6}
-\src{crates/ostadix-api/src/intent/store.rs}{27--35}
-\src{crates/ostadix-api/src/intent/store.rs}{84--144}
+\src{src/bin/o-cli/native_dispatch.rs}
+\src{src/bin/o-cli.rs}
+\src{crates/ostadix-api/src/intent/record.rs}
+\src{crates/ostadix-api/src/intent/store.rs}
 
 \subsection{Graph V2, Evidence V6, Admission V6, and Why V2}
 \label{sec:v6}
@@ -691,69 +715,94 @@ from the admitted schedule for human and tool inspection. \\
 \bottomrule
 \end{longtable}
 
-\src{crates/ostadix-api/src/evidence/fact.rs}{10--15}
-\src{crates/ostadix-api/src/evidence/fact.rs}{460--493}
-\src{crates/ostadix-api/src/evidence/analyze.rs}{33--36}
-\src{crates/ostadix-api/src/evidence/analyze.rs}{239--272}
-\src{crates/ostadix-api/src/evidence/analyze.rs}{624--676}
-\src{crates/ostadix-api/src/evidence/analyze.rs}{702--769}
-\src{crates/ostadix-api/src/evidence/analyze.rs}{792--809}
-\src{crates/ostadix-api/src/evidence/analyze.rs}{818--953}
-\src{crates/ostadix-api/src/evidence/admit.rs}{105--114}
-\src{crates/ostadix-api/src/evidence/admit.rs}{195--231}
-\src{crates/ostadix-api/src/evidence/admit.rs}{274--330}
-\src{crates/ostadix-api/src/evidence/admit.rs}{1882--1989}
-\src{crates/ostadix-api/src/evidence/admit.rs}{2201--2335}
-\src{src/bin/olangc.rs}{1332--1372}
+\src{crates/ostadix-api/src/evidence/fact.rs}
+\src{crates/ostadix-api/src/evidence/analyze.rs}
+\src{crates/ostadix-api/src/evidence/admit.rs}
+\src{src/bin/olangc.rs}
 
-\subsection{The ten-tool Ostadix MCP}
+\subsection{A shared native interface for humans and agents}
 \label{sec:mcp}
 
-The Ostadix MCP is part of this master snapshot. It is a standalone
-Rust/\texttt{rmcp} stdio server with its own lockfile, built by default through
-\texttt{setup.sh} and registered by the repository's \path{.mcp.json}. Its ten
-tools expose environment, runtime, Information, compilation, execution, and
-diagnostic operations through resolved repository and command-line contracts.
+The compiled lowercase \texttt{o} front door and the Ostadix MCP expose the
+same native command owners. A source catalog describes 23 command entries and
+11 guide topics, including the aggregate \texttt{all} topic. Humans discover
+them through \texttt{o capabilities} and \texttt{o guide}; agents use
+\texttt{o\_capabilities} and \texttt{o\_guide}. The expert routes
+\texttt{o tool} and \texttt{o\_cli} resolve the same catalog entries while
+preserving each command's argument grammar and admission rules. Discovery
+describes the source interface; executable availability and support for a
+particular option must be checked against the selected installation.
+\src{src/command_catalog.rs}
+\src{src/bin/o-cli/native_dispatch.rs}
 
-\begin{longtable}{P{0.25\textwidth} P{0.67\textwidth}}
+The separately locked Rust/\texttt{rmcp} stdio server has 21 tool methods in
+this source snapshot. \texttt{setup.sh} builds and installs it, and the
+repository's \path{.mcp.json} registers it for MCP clients.
+\begin{longtable}{P{0.39\textwidth} P{0.53\textwidth}}
 \toprule
-\textbf{Tool} & \textbf{Owned operation} \\
+\textbf{Tools} & \textbf{Native responsibility} \\
 \midrule
 \endhead
-\texttt{o\_env} & Report the resolved repository, backend, binary, and runtime
-environment used by subsequent tools. \\
-\texttt{o\_runtimes} & Enumerate every canonical evaluator backend and report
-its executable requirements and current local availability. \\
-\texttt{o\_information\_inspect} & Read the current Information root through
-the bounded existing-root inspection path. \\
-\texttt{o\_smoke} & Execute the canonical hosted smoke program and report its
-result. \\
-\texttt{o\_run} & Run a hosted input through the direct evaluator path. \\
-\texttt{o\_analyze\_intent} & Resolve an intent, compute current analysis,
-and return a bounded execution handle. \\
-\texttt{o\_execute\_intent} & Consume one analysis handle and ask the root O
-process to reproduce and admit the execution. \\
-\texttt{o\_olangc} & Invoke the compiler's IR, DOT, script, binary, or WASM
-surface with checked arguments. \\
-\texttt{o\_doctor} & Diagnose repository, backends, binaries, and runtime
-availability. \\
-\texttt{o\_search\_run} & Run a named a18re search tool from an explicitly
-selected work directory, \texttt{A18\_WORK}, or the local a18re default, using
-the resolved O executable and backend directory. \\
+\texttt{o\_execute}, \texttt{o\_run} & Complete source or existing
+program/project execution, with explicit static inspection modes. \\
+\texttt{o\_operation} & Declared operation description, alternatives,
+planning, execution, retained observation, and replanning. \\
+\texttt{o\_cli}, \texttt{o\_eval} & Literal native argv and inline polyglot
+source, with per-child working directory, environment, and input. \\
+\texttt{o\_capabilities}, \texttt{o\_guide} & Shared command discovery and
+human/agent workflows. \\
+\texttt{o\_job\_list}, \texttt{o\_job\_status},
+\texttt{o\_job\_read}, \texttt{o\_job\_write},
+\texttt{o\_job\_cancel} & Concurrent session jobs, bounded log pages,
+lossless base64 reads, interactive input, and owned-process cleanup. \\
+\texttt{o\_env}, \texttt{o\_runtimes}, \texttt{o\_doctor},
+\texttt{o\_smoke} & Resolved installation, backend requirements,
+diagnostics, and the canonical smoke program. \\
+\texttt{o\_analyze\_intent}, \texttt{o\_execute\_intent} & One-use binding
+of exact source and stable intent before fresh runtime admission. \\
+\texttt{o\_olangc}, \texttt{o\_information\_inspect},
+\texttt{o\_search\_run} & Compiler targets, bounded existing-root
+Information inspection, and the named search workflow. \\
 \bottomrule
 \end{longtable}
+\src{mcp/ostadix_lang_mcp_server/src/main.rs}
 
-Analyze then execute forms a one-use authorization protocol. The server binds
-the handle to program bytes, working directory, repository root, backend
-directory, source identity, and resolved intent. It gives the entry a bounded
-lifetime and removes it before execution validation. The root O process
-receives the bound request, recomputes current Graph V2 and Evidence V6, and
-constructs fresh Admission V6 authority. A successful response therefore
-connects the agent-visible intent to the same current execution constitution
-used by the language runtime.
+\texttt{o\_execute} accepts exactly one complete source document or existing
+path. Its \texttt{check} action parses; \texttt{plan} constructs a static
+schedule; \texttt{compile} explicitly requests a compiler product; and
+\texttt{execute} invokes the native engine. The compatibility
+\texttt{o\_run} check mode performs static planning and graph validation.
+For ordinary source, admitted execution binds the current source and intent
+before asking the runtime to establish fresh admission. The explicit
+analyze/execute protocol consumes its expiring handle before validation and
+binds program, working directory, root, backends, source, and intent. The
+handle cannot substitute for live runtime authority.
+\src{mcp/ostadix_lang_mcp_server/src/unified.rs}
+\src{mcp/ostadix_lang_mcp_server/src/main.rs}
+
+Placement retains the native operation's scope. Ordinary source executes on
+the local HGraph unless one authenticated node is explicitly selected for the
+complete document. Project routes can use native mesh placement; required
+mesh placement fails when it cannot be satisfied. Selected-node submission
+does not partition an ordinary graph. Its client cancellation cannot undo
+remote effects, and unknown completion must remain distinguishable from a
+safe-to-repeat failure.
+\src{mcp/ostadix_lang_mcp_server/src/selected_node.rs}
+\src{mcp/ostadix_lang_mcp_server/src/unified.rs}
+
+Background execution returns a session job with independently retained output.
+On supported Unix hosts, cancellation cleans the owned session, including
+nested process groups, and reports observed cleanup. Deliberately detached
+sessions lie outside that ownership. Jobs and intent handles belong to the
+MCP session; server shutdown ends jobs, and reconnecting does not restore
+them. The persistent local client bridge preserves a session for short-lived
+CLI callers. A job identifier records a start, not successful completion.
+\src{mcp/ostadix_lang_mcp_server/src/execution.rs}
+\src{scripts/ostadix_mcp_client.py}
 
 \begin{figure}[htbp]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
   node distance=0.27in,
   n/.style={draw=OBlue,rounded corners=2pt,fill=blue!4,
@@ -775,26 +824,99 @@ used by the language runtime.
     node[below,font=\tiny] {program + cwd + root + backends + source + intent}
     (consume.south);
 \end{tikzpicture}
+}
 \caption{The MCP analyze/execute protocol carries a bounded intent binding
 into a fresh root-runtime admission.}
 \label{fig:mcp-handle}
 \end{figure}
 
-\src{mcp/ostadix_lang_mcp_server/Cargo.toml}{1--12}
-\src{mcp/ostadix_lang_mcp_server/Cargo.toml}{26--32}
-\src{setup.sh}{886--910}
-\src{setup.sh}{1582--1586}
-\src{.mcp.json}{1--7}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{43--68}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{77--187}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{1663--1766}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{1768--1864}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{1858--2015}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{2018--2207}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{2209--2222}
-\src{src/main.rs}{81--128}
-\src{src/main.rs}{161--225}
-\src{crates/ostadix-api/src/eval.rs}{2455--2506}
+\subsection{Computation identity and declared realization planning}
+\label{sec:computation-planning}
+
+\texttt{OComputationManifestV1} relates immutable facets through explicit
+derivations while domain modules retain their native representations. The
+ordinary-source builder reparses and lowers the source, recomputes its stable
+execution intent, and checks the supplied OIR, plan, and solved graph before
+binding their identities. The project builder similarly verifies the exact
+bundle, project HGraph, logical projection, and deployment proposal. These
+builders establish correspondence among supplied semantic products; execution
+evidence, live capabilities, and admission are established separately.
+\src{crates/ostadix-api/src/computation_core.rs}
+\src{crates/ostadix-api/src/computation/build_oir.rs}
+\src{crates/ostadix-api/src/computation/build_project.rs}
+
+Operation contracts and interfaces describe the logical operation and its
+ports; realization descriptors and realization sets name supplied alternatives.
+The V1 operation planner accepts one logical operation and explicit complete
+tuples of realization, target, port representations, residency, and cost
+profile. It validates exact closure and port bindings and static target
+compatibility before ranking. Its implemented objective minimizes the checked
+sum of predicted compute, startup, conversion, transfer, queue, checkpoint,
+and uncertainty nanoseconds, with a canonical tuple tie break. Rejected
+candidates and their reasons remain in \texttt{DeploymentPlanV2}.
+\src{crates/ostadix-api/src/computation/realization_plan.rs}
+
+Selection is descriptive and grants no reservation or execution authority.
+An explicitly marked project binds the selected descriptor to exact
+implementation bytes and a captured route pipeline, then enters the existing
+project admission and executor. The CLI retains the original request,
+deployment, and decision before dispatch. \texttt{o observe} uses the exact
+run identifier to inspect content-verified retained records;
+\texttt{o replan --without-target} computes an alternative under supplied
+exclusions without dispatch. Arbitrary implementation equivalence, live
+target reachability, and automatic failure detection require separate evidence.
+\src{docs/OPERATION_PLANNING_V1.md}
+\src{mcp/ostadix_lang_mcp_server/src/operation.rs}
+
+\begin{lstlisting}[style=plaincode]
+o operation ./project
+o realizations ./project
+o plan ./project --json
+o run ./project --json
+o observe ./project --run RUN_ID --json
+o replan ./project --run RUN_ID --without-target TARGET_ID --json
+o computation --help
+\end{lstlisting}
+
+The project must carry the operation marker and exact declaration closure.
+Use the returned run identity for observation and replanning. The
+\texttt{computation} command builds or inspects computation artifacts through
+its explicit native subcommands.
+
+
+\subsection{Physical operation and transfer graphs}
+
+An additive embedding API composes these single-operation closures into a
+multi-operation \texttt{LogicalHGraphV2}. Each logical edge has one supplied
+transfer offer with exact target and representation coordinates. Planning
+filters compatible operation offers and derives an executable DAG in which
+the consumer waits for its transfer, and the transfer waits for its producer.
+Comparing alternative transfer routes requires separate requests; the planner
+does not construct a Cartesian product of arbitrary placements.
+\src{crates/ostadix-api/src/computation/graph_realization_plan.rs}
+
+A trusted embedding separately registers operation and transfer adapters.
+Their admission methods check executable and live interaction requirements.
+Every transfer captures a source observation before moving the payload and
+checks the destination against it before enabling its consumer. The executor
+refills bounded worker slots as tasks complete; after failure it suppresses
+new tasks and drains started work. These checks preserve the adapter's declared
+observation contract and do not roll back effects already performed.
+\src{docs/PHYSICAL_GRAPH_EXECUTION_V1.md}
+
+The automatic local OIR bridge derives this physical graph from a freshly
+admitted program. Every producer-backed input becomes a transfer task,
+including value, actor, resource, completion, and control inputs. Its Unix
+socket transport moves actual serialized inputs and scope to a receiving
+thread. The bridge independently checks canonical observation and exact
+typed carrier structure before preparing the consumer, preserving details
+such as duplicate map entries and raw floating-point bits. Native references
+retain their existing owner. Empty or literal-only programs have no physical
+operation plan; the bridge performs ordinary materialization and root commit.
+This profile is local and does not authenticate remote targets or reconstruct
+foreign native objects on another runtime.
+\src{crates/ostadix-api/src/computation/oir_physical_execution.rs}
+\src{docs/OIR_PHYSICAL_EXECUTION_V1.md}
 
 \subsection{Reciprocal LAN pairing and pinned TLS}
 \label{sec:pairing}
@@ -815,6 +937,7 @@ the paired record supplies identity and cryptographic continuity.
 
 \begin{figure}[htbp]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
   node distance=0.30in and 0.68in,
   host/.style={draw=OBlue,rounded corners=2pt,fill=blue!4,
@@ -836,22 +959,17 @@ the paired record supplies identity and cryptographic continuity.
   \draw[a,very thick,OGreen] (ap) -- node[below,font=\scriptsize]
     {TLS 1.3 + ALPN, reciprocal authenticated channel} (bp);
 \end{tikzpicture}
+}
 \caption{Pairing turns a short shared code into reciprocal destination pins and
 client credentials. Those persisted facts establish later node channels.}
 \label{fig:pairing}
 \end{figure}
 
-\src{crates/ostadix-api/src/hosted_remote/pairing.rs}{1--7}
-\src{crates/ostadix-api/src/hosted_remote/pairing.rs}{24--76}
-\src{crates/ostadix-api/src/hosted_remote/pairing.rs}{79--193}
-\src{crates/ostadix-api/src/hosted_remote/pairing.rs}{195--387}
-\src{crates/ostadix-api/src/hosted_remote/pairing.rs}{389--586}
-\src{crates/ostadix-api/src/hosted_remote/pairing.rs}{684--815}
-\src{crates/ostadix-api/src/hosted_remote/lan.rs}{693--870}
-\src{src/bin/o-node.rs}{1070--1175}
-\src{src/bin/octl.rs}{874--970}
-\src{crates/ostadix-api/src/hosted_remote/tls.rs}{61--156}
-\src{crates/ostadix-api/src/hosted_remote/tls.rs}{204--303}
+\src{crates/ostadix-api/src/hosted_remote/pairing.rs}
+\src{crates/ostadix-api/src/hosted_remote/lan.rs}
+\src{src/bin/o-node.rs}
+\src{src/bin/octl.rs}
+\src{crates/ostadix-api/src/hosted_remote/tls.rs}
 
 \subsection{Capacity-first Project Mesh}
 \label{sec:mesh}
@@ -904,15 +1022,72 @@ node generations, and returns a causally connected attempt trace.}
 \label{fig:project-mesh}
 \end{figure}
 
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{1--6}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{45--112}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{278--375}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{804--895}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{1024--1117}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{1810--2018}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{2092--2243}
-\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}{2260--2335}
-\src{crates/ostadix-api/src/hosted_remote/mesh.rs}{1510--1719}
+\src{crates/ostadix-api/src/hosted_remote/project_mesh.rs}
+\src{crates/ostadix-api/src/hosted_remote/mesh.rs}
+
+\subsection{Authenticated pure execution Fabric}
+
+Fabric V1 adds an opt-in remote boundary for the frozen pure-renderer profile:
+one source-closed text, HTML, Markdown, or LaTeX operation with explicit input
+bindings, supported canonical OWVALUE inputs, and bounded output and time.
+The coordinator sends a capsule; the worker returns a provisional candidate.
+Candidate validation, publication, and deterministic settlement remain
+coordinator responsibilities. Physical execution can overlap without granting
+workers graph mutation or commit authority.
+\src{crates/ostadix-api/src/execution_fabric/protocol.rs}
+
+The authenticated profile uses the exact
+\texttt{ostadix-execution-fabric/1} ALPN, paired TLS identity, and a separately
+signed V3 placement lease binding the exact attempt, source closure, capsule,
+runtime, target, and generations. A source closure permits reconstruction of
+the operation; the lease binds the admission digest. The provider retains
+attempt status in a local replay ledger and signs terminal candidate evidence.
+The transport grants no authority to publish values, choose a winning attempt,
+retry an ambiguous submission, or commit external effects.
+\src{crates/ostadix-api/src/execution_fabric_authority/protocol.rs}
+\src{crates/ostadix-api/src/hosted_remote/fabric/provider.rs}
+
+The repository's two-node harness launches two authenticated node processes
+on one host with separate identities, state directories, generations, and
+ledgers. Its contract checks candidate agreement and wrong-node rejection,
+and requires selected-node failure to remain an infrastructure failure.
+That harness addresses real process and protocol boundaries; distinct-kernel,
+physical multinode, and heterogeneous-hardware qualification remain separate
+evidence requirements. Fabric does not generalize this profile to arbitrary
+OIR, distributed actors, general effects, or automatic placement.
+\src{tests/execution_fabric_two_node.rs}
+\src{docs/OIR_EXECUTION_FABRIC_V1.md}
+
+\subsection{Checkpoint recovery and actor migration}
+
+Local recovery restores settled persistent actors into destination-owned
+admitted fragments with matching runtime, environment, sandbox, executable,
+and generation identities. Local migration obtains real backend restore
+acknowledgments before fencing the source identities and retiring their
+processes. Failed installation rolls back actors created by that attempt and
+keeps unrelated destination state; shutdown failures after successful fencing
+remain explicit in the returned receipt. The supported codecs cover a
+constrained Python object graph, including aliases and cycles, and SQLite's
+autocommit main database. Coordinator bindings, in-flight work, process memory,
+and external resources remain outside this transfer.
+\src{crates/ostadix-api/src/eval/migration.rs}
+\src{docs/LOCAL_ACTOR_MIGRATION.md}
+
+Hosted V2 adds a distinct authenticated two-node protocol with
+\texttt{Prepare}, \texttt{Install}, \texttt{Fence}, and \texttt{Activate}
+phases, plus \texttt{Abort}/\texttt{Cancel}. Exact plans bind both session and
+node identities, the common principal, actor generations, journal heads, and
+checkpoint digest. Every phase requires a fresh purpose-bound warrant and
+placement lease. Signed durable receipts preserve standby restrictions and
+permanent source fencing through restart; exact retries return the original
+terminal receipt. The destination becomes executable only after the source's
+signed fence. A partition can therefore prevent progress while preserving
+exclusive ownership. Test coverage uses separate local TLS node processes
+with real Python or SQLite restoration and process-crash injection; it does
+not establish a cross-host qualification or arbitrary native-resource migration.
+\src{crates/ostadix-api/src/hosted_remote/v2/migration_protocol.rs}
+\src{docs/HOSTED_ACTOR_MIGRATION.md}
+\src{tests/hosted_actor_migration.rs}
 
 \subsection{Information Kernel, Bridge, and Provenance}
 \label{sec:information}
@@ -987,28 +1162,12 @@ identity.}
 \label{fig:information-path}
 \end{figure}
 
-\src{crates/ostadix-api/src/information/mod.rs}{1--7}
-\src{crates/ostadix-api/src/information/mod.rs}{22--60}
-\src{crates/ostadix-api/src/information/model.rs}{20--38}
-\src{crates/ostadix-api/src/information/model.rs}{143--245}
-\src{crates/ostadix-api/src/information/model.rs}{275--298}
-\src{crates/ostadix-api/src/information/model.rs}{354--410}
-\src{crates/ostadix-api/src/information/model.rs}{448--500}
-\src{crates/ostadix-api/src/information/root.rs}{5--123}
-\src{crates/ostadix-api/src/information/provenance.rs}{1--8}
-\src{crates/ostadix-api/src/information/provenance.rs}{119--213}
-\src{crates/ostadix-api/src/information/provenance.rs}{424--475}
-\src{crates/ostadix-api/src/information/provenance.rs}{721--810}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{1--6}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{25--54}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{74--164}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{283--317}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{527--601}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{871--1037}
-\src{crates/ostadix-api/src/information_provenance/mod.rs}{1--7}
-\src{crates/ostadix-api/src/information_provenance/mod.rs}{28--38}
-\src{crates/ostadix-api/src/information_provenance/mod.rs}{74--194}
-\src{crates/ostadix-api/src/information_provenance/mod.rs}{330--505}
+\src{crates/ostadix-api/src/information/mod.rs}
+\src{crates/ostadix-api/src/information/model.rs}
+\src{crates/ostadix-api/src/information/root.rs}
+\src{crates/ostadix-api/src/information/provenance.rs}
+\src{crates/ostadix-api/src/information_bridge/mod.rs}
+\src{crates/ostadix-api/src/information_provenance/mod.rs}
 
 \subsection{Registry V1}
 \label{sec:registry}
@@ -1054,18 +1213,10 @@ node profile suitable for placement decisions.}
 \label{fig:registry}
 \end{figure}
 
-\src{crates/ostadix-api/src/registry/mod.rs}{1--5}
-\src{crates/ostadix-api/src/registry/mod.rs}{18--67}
-\src{crates/ostadix-api/src/registry/model.rs}{9--22}
-\src{crates/ostadix-api/src/registry/model.rs}{24--74}
-\src{crates/ostadix-api/src/registry/model.rs}{76--152}
-\src{crates/ostadix-api/src/registry/model.rs}{154--245}
-\src{crates/ostadix-api/src/registry/model.rs}{299--340}
-\src{crates/ostadix-api/src/registry/crypto.rs}{14--60}
-\src{crates/ostadix-api/src/registry/crypto.rs}{70--225}
-\src{crates/ostadix-api/src/registry/verify.rs}{55--226}
-\src{crates/ostadix-api/src/registry/verify.rs}{227--348}
-\src{crates/ostadix-api/src/registry/verify.rs}{393--442}
+\src{crates/ostadix-api/src/registry/mod.rs}
+\src{crates/ostadix-api/src/registry/model.rs}
+\src{crates/ostadix-api/src/registry/crypto.rs}
+\src{crates/ostadix-api/src/registry/verify.rs}
 
 \subsection{World identities, values, protocols, and receipts}
 \label{sec:world-codecs}
@@ -1100,6 +1251,7 @@ and native Mode 32 can compare the same execution meaning.
 
 \begin{figure}[htbp]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
   node distance=0.23in,
   n/.style={draw=OBlue,rounded corners=2pt,fill=blue!4,
@@ -1116,31 +1268,18 @@ and native Mode 32 can compare the same execution meaning.
   \foreach \x/\y in {ident/proto,proto/value,value/receipt,receipt/verify}
     {\draw[a] (\x) -- (\y);}
 \end{tikzpicture}
+}
 \caption{The World formats compose identity, protocol, portable value, and
 signed execution evidence while retaining separate canonical envelopes.}
 \label{fig:world-codecs}
 \end{figure}
 
-\src{crates/ostadix-api/src/world/identity_wire.rs}{18--39}
-\src{crates/ostadix-api/src/world/identity_wire.rs}{62--77}
-\src{crates/ostadix-api/src/world/identity_wire.rs}{98--249}
-\src{crates/ostadix-api/src/world/protocol.rs}{10--12}
-\src{crates/ostadix-api/src/world/protocol.rs}{148--212}
-\src{crates/ostadix-api/src/world/codec.rs}{17--55}
-\src{crates/ostadix-api/src/world/codec.rs}{67--115}
-\src{crates/ostadix-api/src/world/codec.rs}{118--233}
-\src{crates/ostadix-api/src/world/value_codec.rs}{1--6}
-\src{crates/ostadix-api/src/world/value_codec.rs}{22--51}
-\src{crates/ostadix-api/src/world/value_codec.rs}{88--143}
-\src{crates/ostadix-api/src/world/value_codec.rs}{221--340}
-\src{crates/ostadix-api/src/world/receipt.rs}{1--6}
-\src{crates/ostadix-api/src/world/receipt.rs}{20--28}
-\src{crates/ostadix-api/src/world/receipt.rs}{600--769}
-\src{crates/ostadix-api/src/world/receipt.rs}{806--839}
-\src{crates/ostadix-api/src/world/receipt_codec.rs}{27--40}
-\src{crates/ostadix-api/src/world/receipt_codec.rs}{56--131}
-\src{crates/ostadix-api/src/world/receipt_codec.rs}{152--227}
-\src{crates/ostadix-api/src/world/receipt_codec.rs}{230--326}
+\src{crates/ostadix-api/src/world/identity_wire.rs}
+\src{crates/ostadix-api/src/world/protocol.rs}
+\src{crates/ostadix-api/src/world/codec.rs}
+\src{crates/ostadix-api/src/world/value_codec.rs}
+\src{crates/ostadix-api/src/world/receipt.rs}
+\src{crates/ostadix-api/src/world/receipt_codec.rs}
 
 \section{Hosted surface language}
 \label{sec:syntax}
@@ -1149,7 +1288,7 @@ signed execution evidence while retaining separate canonical envelopes.}
 
 The implementation AST has five semantic forms:
 \texttt{RawText}, \texttt{VarRef}, \texttt{LetBinding},
-\texttt{TypedExpr}, and \texttt{Call}. \src{crates/ostadix-api/src/parser.rs}{22--59}
+\texttt{TypedExpr}, and \texttt{Call}. \src{crates/ostadix-api/src/parser.rs}
 The following EBNF is an implementation-oriented summary; context rules below
 are part of the grammar.
 
@@ -1196,7 +1335,7 @@ source contains parentheses of its own. A missing environment is represented
 internally by \texttt{u32::MAX} and selects a fresh ephemeral actor. An
 explicit \texttt{LANG[n]} selects a persistent evaluator actor. Language
 aliases canonicalize in the AST, and reconstruction emits the canonical form.
-\src{crates/ostadix-api/src/parser.rs}{590--738} \src{crates/ostadix-api/src/parser.rs}{1030--1120}
+\src{crates/ostadix-api/src/parser.rs}
 
 \subsubsection{Structural versus opaque contexts}
 
@@ -1206,8 +1345,7 @@ comments are recognized at document level and inside \texttt{O} and
 \texttt{quote}. Everywhere else, the parser preserves backend source
 verbatim. Registry membership therefore controls which apparent tag forms
 become structural nodes, while ordinary backend syntax retains its native
-meaning. \src{crates/ostadix-api/src/parser.rs}{6--20}
-\src{crates/ostadix-api/src/parser.rs}{215--410}
+meaning. \src{crates/ostadix-api/src/parser.rs}
 
 \subsubsection{Intentional smallness}
 
@@ -1216,7 +1354,7 @@ A binding right-hand side is a typed block or call, and a call argument is a
 variable load or nested call. Every resulting value therefore has an explicit
 origin in an evaluator or orchestration builtin, which keeps the host grammar
 small while preserving the full expression systems of its member languages.
-\src{crates/ostadix-api/src/parser.rs}{412--561}
+\src{crates/ostadix-api/src/parser.rs}
 
 \subsection{First example: evaluator-indexed expressions}
 
@@ -1300,7 +1438,7 @@ store with an explicit data edge. Each shim also receives the complete visible
 scope. The first mechanism makes dependencies schedulable; the second lets
 callbacks and backend adapters inspect the same lexical state that the host
 used to construct the invocation.
-\src{crates/ostadix-api/src/ir.rs}{760--991} \src{crates/ostadix-api/src/eval.rs}{2818--3118}
+\src{crates/ostadix-api/src/ir.rs} \src{crates/ostadix-api/src/eval.rs}
 
 \Needspace{9\baselineskip}
 \subsection{Persistent and ephemeral evaluators}
@@ -1320,7 +1458,7 @@ policy, so the process registry reuses one actor and Python state persists.
 Bare \texttt{python\string^(...\string)\_python} blocks each receive a fresh
 ephemeral identity and are cleaned up after execution. Different numeric IDs
 isolate interpreter-local state; ambient \texttt{HostWorld} resources remain
-shared. \src{crates/ostadix-api/src/process.rs}{1480--2129}
+shared. \src{crates/ostadix-api/src/process.rs}
 
 \begin{claimbox}[Two explicit state domains]
 Root \texttt{Store} nodes commit to the caller's O scope, and nested stores
@@ -1377,7 +1515,7 @@ The default public path strips a shebang, parses the document, lowers it, and
 executes the graph. \texttt{O\_EXECUTOR=serial} selects the reference
 interpreter; \texttt{graph} is the default. The graph executor preserves
 required data, sequence, completion, and resource-state dependencies.
-\src{src/main.rs}{15--315} \src{crates/ostadix-api/src/eval.rs}{726--763}
+\src{src/main.rs} \src{crates/ostadix-api/src/eval.rs}
 
 At document level, evaluation returns the last non-null root result. Raw
 regions preserve backend source. A typed block:
@@ -1396,7 +1534,7 @@ regions preserve backend source. A typed block:
 \texttt{O.eval(expr)}, which reparses and lowers the quoted form under a cloned
 callback scope. \texttt{O.scope(map)} constructs an explicit detached scope,
 and the two-argument \texttt{O.eval(expr, scope)} form chooses it.
-\src{crates/ostadix-api/src/eval.rs}{2039--2087} \src{crates/ostadix-api/src/eval.rs}{2938--3118}
+\src{crates/ostadix-api/src/eval.rs}
 
 \begin{lstlisting}[style=ostyle]
 python[0]^(
@@ -1409,8 +1547,8 @@ The callback path clones or explicitly selects an O scope, reparses the quoted
 expression, and sends its result back through the waiting actor protocol.
 Actor identity also provides a deadlock guard: an actor waiting on its own
 callback rejects recursive re-entry. Deferred shim forcing follows a
-single-level process path. \src{crates/ostadix-api/src/eval.rs}{1875--1987}
-\src{crates/ostadix-api/src/process.rs}{919--929}
+single-level process path. \src{crates/ostadix-api/src/eval.rs}
+\src{crates/ostadix-api/src/process.rs}
 
 \subsection{Demand policies and requests}
 
@@ -1439,12 +1577,11 @@ Strict cache behavior can turn a missing result into an error after flush. \\
 typed evaluation error. \texttt{\{lazy\}} attaches a cache-safety contract to
 trusted inline evaluation, so the runtime can force it on demand and reuse the
 fingerprinted result.
-\src{crates/ostadix-api/src/execution_contract.rs}{83--162}
-\src{crates/ostadix-api/src/execution_contract.rs}{218--285}
-\src{crates/ostadix-api/src/eval.rs}{1875--2022}
-\src{crates/ostadix-api/src/eval.rs}{2874--2924}
+\src{crates/ostadix-api/src/execution_contract.rs}
+\src{crates/ostadix-api/src/eval.rs}
 
-Autonomous resolution is a fingerprint-keyed, two-level scheduler. It first
+Autonomous resolution of Nix-family request values uses a fingerprint-keyed,
+two-level scheduler. It first
 collects the transitive request closure and deduplicates the DAG, promotes
 results through an L1 memory cache and an L2 JSON disk cache, then dispatches
 uncached ready nodes in topological waves. Default parallelism is the smaller
@@ -1453,9 +1590,7 @@ path resolves through \texttt{XDG\_CACHE\_HOME}, then \texttt{HOME}, then the
 platform temporary directory. Each cache entry is written beside its final
 path and atomically renamed. A missing, unreadable, malformed, or unwritable
 cache entry is a soft cache event: execution proceeds and preserves the result
-contract. \src{crates/ostadix-api/src/scheduler.rs}{1--38}
-\src{crates/ostadix-api/src/scheduler.rs}{76--147}
-\src{crates/ostadix-api/src/scheduler.rs}{233--350}
+contract. \src{crates/ostadix-api/src/scheduler.rs}
 
 The Nix request ladder is explicit:
 
@@ -1484,10 +1619,9 @@ runs \texttt{nix build DRV\string^out --no-link --print-out-paths} and validates
 printed store path. Activation executes the closure's
 \texttt{bin/switch-to-configuration} with \texttt{switch} or
 \texttt{dry-activate} and supplies the chosen profile in \texttt{NIX\_PROFILE}.
-\src{crates/ostadix-api/src/eval.rs}{3167--3340}
-\src{crates/ostadix-api/src/nix_ops.rs}{33--145}
-\src{crates/ostadix-api/src/nix_ops.rs}{176--258}
-\src{crates/ostadix-api/src/nixos_ops.rs}{29--101}
+\src{crates/ostadix-api/src/eval.rs}
+\src{crates/ostadix-api/src/nix_ops.rs}
+\src{crates/ostadix-api/src/nixos_ops.rs}
 
 \subsection{Coordination groups}
 
@@ -1514,18 +1648,19 @@ the complete threadable cohort. \\
 \bottomrule
 \end{longtable}
 
-Group constructors capture unevaluated arguments, preserving their computation
-topology until group resolution. Only Nix-family requests are classified as
-threadable in the group path; arbitrary shim evaluation remains serial.
-\src{crates/ostadix-api/src/eval.rs}{1540--1873}
+These request-value groups capture unevaluated arguments, preserving their
+computation topology until resolution. Their threadable classification covers
+the Nix request family. Explicit autonomous evaluator groups use the separate
+worker admission path described in the HGraph execution section.
+\src{crates/ostadix-api/src/eval.rs}
 
-\begin{claimbox}[Two concurrency planes]
+\begin{claimbox}[Concurrency and settlement]
 Graph-level parallelism is derived from value, completion, and resource
-dependencies, then admitted for verified-safe inline operations. Group-level
-concurrency is selected explicitly by \texttt{batch}, \texttt{all},
-\texttt{any}, or \texttt{race} and currently dispatches the threadable Nix
-request family. One plane extracts parallel work from program structure; the
-other gives the program an explicit settlement topology.
+dependencies. Its worker profiles include verified scope reads, trusted inline
+renderers, and eligible ephemeral backends inside explicit autonomous groups.
+Request-value concurrency uses \texttt{batch}, \texttt{all}, \texttt{any},
+or \texttt{race} to select settlement of the threadable Nix request family.
+Each plane keeps its own admission, ordering, cancellation, and failure rules.
 \end{claimbox}
 
 \section{The OValue semantic boundary}
@@ -1533,7 +1668,7 @@ other gives the program an explicit settlement topology.
 
 \ovalue{} is the cross-evaluator tagged algebra. It carries values, references,
 control objects, and error information across runtimes.
-\src{crates/ostadix-api/src/value.rs}{679--986}
+\src{crates/ostadix-api/src/value.rs}
 
 \begin{figure}[htbp]
 \centering
@@ -1705,9 +1840,7 @@ Legacy input tags & \texttt{int\{v\}}, \texttt{float\{v\}}, and
 Capability kinds are \texttt{file}, \texttt{memory\_region}, \texttt{device},
 \texttt{clock}, \texttt{network\_endpoint}, \texttt{process},
 \texttt{service}, \texttt{system\_activation}, and
-\texttt{backend\_execution}. \src{crates/ostadix-api/src/value.rs}{94--663}
-\src{crates/ostadix-api/src/value.rs}{679--1246}
-\src{crates/ostadix-api/src/value.rs}{1257--1475}
+\texttt{backend\_execution}. \src{crates/ostadix-api/src/value.rs}
 
 \subsection{Fidelity}
 
@@ -1716,7 +1849,7 @@ Conversions carry one of four fidelity states:
 \texttt{NativeCapsule}, or \texttt{Unsupported}. Composition unions structural
 loss sets and selects the absorbing severity classes; its idempotence permits
 the HGraph solver to converge at a fixpoint.
-\src{crates/ostadix-api/src/value.rs}{587--685}
+\src{crates/ostadix-api/src/value.rs}
 
 \texttt{FidelityAssessmentV2} refines the structural case to an interval of
 definite and possible loss sets, with the checked invariant
@@ -1727,13 +1860,13 @@ bounds. The structural/lossless path join is the interval hull, while
 \texttt{NativeCapsule} and \texttt{Unsupported} remain absorbing severity
 classes rather than cross-class disjunctions. These implemented laws do not by
 themselves establish a Galois connection.
-\src{crates/ostadix-api/src/value.rs}{234--585}
+\src{crates/ostadix-api/src/value.rs}
 
 \texttt{RenderFidelity} can be recomputed on demand as a separate description
 of source projection. It combines classifications only while recursively
 folding children within one renderer. No conversion, common carrier, or Galois
 connection relates it to \texttt{Fidelity} or \texttt{FidelityAssessmentV2}.
-\src{crates/ostadix-api/src/eval_core.rs}{250--481}
+\src{crates/ostadix-api/src/eval_core.rs}
 
 \texttt{BackendMorphismV1} defines bounded Python, JavaScript, and Rust
 crossing profiles with explicit input projection, output injection, rejection
@@ -1743,11 +1876,8 @@ those assignments. The HGraph solver exposes
 the resulting assessment beside its compatibility fidelity result in shadow
 mode, making profile divergences inspectable while the established admission,
 rendering, and dispatch paths retain their current authority.
-\src{crates/ostadix-api/src/backend_morphism.rs}{1--7}
-\src{crates/ostadix-api/src/backend_morphism.rs}{19--40}
-\src{crates/ostadix-api/src/backend_morphism.rs}{126--330}
-\src{crates/ostadix-api/src/backend_morphism.rs}{332--499}
-\src{crates/ostadix-api/src/hgraph/solve.rs}{866--912}
+\src{crates/ostadix-api/src/backend_morphism.rs}
+\src{crates/ostadix-api/src/hgraph/solve.rs}
 
 \subsection{Representation-sensitive identity}
 
@@ -1764,10 +1894,46 @@ rendering, and dispatch paths retain their current authority.
         to the runtime that owns them.
 \end{itemize}
 
-\src{crates/ostadix-api/src/value.rs}{1507--1518}
-\src{crates/ostadix-api/src/value.rs}{1785--1858}
-\src{crates/ostadix-api/src/value.rs}{1954--2254}
-\src{crates/ostadix-api/src/value.rs}{2529--2795}
+\src{crates/ostadix-api/src/value.rs}
+
+\subsection{Live native objects and enforced value crossings}
+
+Python can export an arbitrary live object with \texttt{O.native(value)}.
+The resulting \texttt{OValue::Native} carries an opaque descriptor sealed to
+its exact process owner. Closures, aliases, cycles, generators, and mutable
+instances retain their Python identity because operations return to that owner.
+O builtins, Python, and the Unix JavaScript bridge can call, get, set, and
+release the exported object through the evaluator. The route checks the live
+owner, session, admitted launch generation, descriptor seal, and argument
+handles before invoking user code. Mutable or arbitrary results return owner
+handles; supported immutable scalar results cross as ordinary values.
+
+\begin{lstlisting}[style=ostyle]
+let handle = python[7]^(O.native(lambda value: value + 2))_python[7]
+javascript^(console.log(O.native_call(handle, 40)))_javascript
+native_release($handle)
+\end{lstlisting}
+
+A persistent owner is required for later use. Owner exit invalidates the
+descriptor, and replacement actors cannot reconstruct the object. Native
+operations are effectful, inherit applicable deadlines, and provide no
+rollback of code already invoked. Outstanding handles pin Python checkpoint
+state, preventing migration from silently replacing their physical owner.
+\src{docs/PYTHON_NATIVE_HANDLES.md}
+\src{tests/python_native_handles.rs}
+
+The separate opt-in \texttt{python-plain-data-lossless} morphism contract
+checks actual values crossing a Python adapter. Its carrier consists of exact
+booleans, null, arbitrary integers, finite bit-preserving f64 values, UTF-8
+text, lists, and string-keyed maps arranged as finite trees. Input witnesses
+are checked before bindings change or source executes; a fresh invocation
+receipt binds input witnesses and the lifted result. Output rejection follows
+execution and suppresses successor publication without undoing effects.
+Live handles, shared or cyclic containers, subclasses, and values outside the
+carrier require their own contracts. This enforcement gives a concrete
+conversion guarantee for the admitted adapter and carrier.
+\src{docs/BACKEND_MORPHISM_ENFORCEMENT_V1.md}
+\src{tests/backend_morphism_enforcement.rs}
 
 \subsection{Wire protocol}
 
@@ -1775,10 +1941,8 @@ Backend commands and responses use four-byte big-endian length-prefixed CBOR
 with a 128 MiB frame limit. Map encoding is canonicalized. Decoding rejects
 trailing bytes, indefinite encodings, malformed forms, non-text map keys, and
 non-finite encodings outside the defined value schema.
-\src{crates/ostadix-api/src/wire.rs}{1--105}
-\src{crates/ostadix-api/src/canonical_cbor.rs}{1--23}
-\src{crates/ostadix-api/src/canonical_cbor.rs}{49--85}
-\src{crates/ostadix-api/src/canonical_cbor.rs}{157--220}
+\src{crates/ostadix-api/src/wire.rs}
+\src{crates/ostadix-api/src/canonical_cbor.rs}
 
 The Rust serializer emits canonical \texttt{number} and \texttt{text} frames.
 Compatibility shims can emit legacy \texttt{int}, \texttt{float}, and
@@ -1804,7 +1968,7 @@ Shim to runtime & \texttt{status=eval\_request} with \texttt{src} and optional
 \texttt{err}. \\
 \bottomrule
 \end{longtable}
-\src{crates/ostadix-api/src/value.rs}{3318--3380}
+\src{crates/ostadix-api/src/value.rs}
 
 \section{Backends, actors, and authority}
 \label{sec:backends}
@@ -1818,10 +1982,9 @@ handlers execute inline or as builtins; external evaluation is mediated by
 native adapters and bundled compatibility shims. A single registry entry
 therefore connects surface syntax to planning metadata, state support,
 morphism profile, runtime requirements, and runtime dispatch.
-\src{crates/ostadix-api/src/backend_catalog.rs}{623--685}
-\src{crates/ostadix-api/src/backend_catalog.rs}{841--921}
-\src{crates/ostadix-api/src/backend_catalog.inc.rs}{161--590}
-\src{crates/ostadix-api/src/shims.rs}{7--182}
+\src{crates/ostadix-api/src/backend_catalog.rs}
+\src{crates/ostadix-api/src/backend_catalog.inc.rs}
+\src{crates/ostadix-api/src/shims.rs}
 
 \begin{longtable}{P{0.21\textwidth} P{0.71\textwidth}}
 \toprule
@@ -1868,8 +2031,8 @@ separators. The resource spellings are:
 \end{center}
 
 These spellings let source describe graph resources in the same vocabulary
-used by the planner. \src{crates/ostadix-api/src/parser.rs}{590--738}
-\src{crates/ostadix-api/src/effects.rs}{1--434}
+used by the planner. \src{crates/ostadix-api/src/parser.rs}
+\src{crates/ostadix-api/src/effects.rs}
 
 The repeatable backend-grant syntax is
 \texttt{NAME=LANG[:RIGHT,RIGHT]}. \texttt{NAME} begins with an ASCII letter or
@@ -1883,8 +2046,8 @@ block that declares one or more authority flags uses \texttt{cap=NAME} as its
 first bearer candidate. A match must contain every declared right; an absent
 or insufficient binding follows the evaluator's default-authority path. The
 release CLI gate executed
-\texttt{runner=python:process}. \src{crates/ostadix-api/src/eval.rs}{1217--1227}
-\src{tests/test_cli.sh}{888--898}
+\texttt{runner=python:process}. \src{crates/ostadix-api/src/eval.rs}
+\src{tests/test_cli.sh}
 
 At invocation time, the adapter resolves its host executable and converts the
 subset of \ovalue{} accepted by that runtime. This keeps language recognition
@@ -1902,20 +2065,20 @@ Persistent keys reuse a process; ephemeral keys are removed after evaluation.
 Most backends are Rust adapters that invoke local executables. Python and
 \texttt{nixos\_test} use legacy Python proxy shims. Python retains this path
 for the host callback protocol used by \texttt{O.eval}.
-\src{crates/ostadix-api/src/process.rs}{554--609}
-\src{crates/ostadix-api/src/backend.rs}{77--743}
+\src{crates/ostadix-api/src/process.rs}
+\src{crates/ostadix-api/src/backend.rs}
 
 Backend stdout is decoded in a defined fallback order: tagged or ordinary
 JSON, integer/big integer, float, then text. SQL additionally collapses a
 single-row, single-column result. Environment conversion is narrower than
-the full \ovalue{} universe. \src{crates/ostadix-api/src/backend.rs}{1229--1503}
+the full \ovalue{} universe. \src{crates/ostadix-api/src/backend.rs}
 
 \subsection{Hosted authority model}
 
 The source contains random 256-bit bearer identities, typed backend rights
 (\texttt{fs\_read}, \texttt{fs\_write}, \texttt{network},
 \texttt{process}), broker checks, revocation, and policy-partitioned process
-reuse. \src{crates/ostadix-api/src/capability.rs}{13--188}
+reuse. \src{crates/ostadix-api/src/capability.rs}
 
 The ordinary CLI executes backends with the ambient authority of the O
 process. Its launch path realizes that model in five steps:
@@ -1929,10 +2092,8 @@ process. Its launch path realizes that model in five steps:
         denials from rights omitted by a narrowed embedding policy.
 \end{enumerate}
 
-\src{crates/ostadix-api/src/eval.rs}{766--796}
-\src{crates/ostadix-api/src/eval.rs}{1230--1304}
-\src{crates/ostadix-api/src/process.rs}{167--241}
-\src{crates/ostadix-api/src/process.rs}{637--683}
+\src{crates/ostadix-api/src/eval.rs}
+\src{crates/ostadix-api/src/process.rs}
 
 \begin{claimbox}[Authority is explicit runtime state]
 Hosted capability machinery supplies random bearer identity, typed rights,
@@ -1962,8 +2123,7 @@ lexical dataflow, binding publication, builtin invocation, and evaluator
 execution. Lowering from the parser AST is structural; validation then turns
 that representation into an executable plan. The compact vocabulary makes
 every hosted construct projectable into the same graph ontology.
-\src{crates/ostadix-api/src/ir.rs}{1--21}
-\src{crates/ostadix-api/src/ir.rs}{78--171}
+\src{crates/ostadix-api/src/ir.rs}
 
 \begin{figure}[htbp]
 \centering
@@ -1993,8 +2153,14 @@ Plan node IDs are preorder-stable. Edges encode child-before-parent
 structure, sibling sequencing, binding dataflow, capability dependencies, and
 the full visible scope sent to shims. Each executable node freezes the
 registry-derived \texttt{BackendInterface}; execution rejects an interface
-that no longer matches the registry. \src{crates/ostadix-api/src/ir.rs}{540--657}
-\src{crates/ostadix-api/src/ir.rs}{760--991} \src{crates/ostadix-api/src/eval.rs}{2704--2891}
+that no longer matches the registry. \src{crates/ostadix-api/src/ir.rs} \src{crates/ostadix-api/src/eval.rs}
+
+The validated plan also builds an \texttt{ExecutionPlanIndex} for node,
+incoming-edge, and outgoing-edge lookup. Identity, root, bounds, and cycle
+validation remain at construction. Indexed adjacency retains original edge
+order and duplicate edges, preserving the dependency semantics consumed by
+lowering and scheduling while avoiding repeated full-plan scans.
+\src{crates/ostadix-api/src/ir.rs}
 
 \subsection{State-complete HGraph}
 
@@ -2051,42 +2217,50 @@ transition; failure withholds those graph outputs.}
 \label{fig:hgraph-hyperedge}
 \end{figure}
 
-\src{crates/ostadix-api/src/hgraph/from_oir.rs}{35--291}
+\src{crates/ostadix-api/src/hgraph/from_oir.rs}
 
 Validation checks unique producers, complete outputs, exact source/plan
 provenance, sequence preservation, contiguous resource chains, and executable
 acyclicity. The ready schedule is derived from unresolved inputs and their
 producers with stable wave and ordinal ordering.
-\src{crates/ostadix-api/src/hgraph/graph.rs}{368--515}
-\src{crates/ostadix-api/src/hgraph/graph.rs}{1454--1908}
-\src{crates/ostadix-api/src/hgraph/schedule.rs}{10--173}
+\src{crates/ostadix-api/src/hgraph/graph.rs}
+\src{crates/ostadix-api/src/hgraph/schedule.rs}
 
-\subsection{Effects and explicit resource state}
+\subsection{Effects, worker execution, and cancellation}
 
-Resources include \texttt{HostWorld}, evaluator state, scope/bindings, project
-and host paths, environment variables, stdio, network endpoints, services,
-and actor state. Work with the general effect classification receives a
-\texttt{HostWorld} dependency, serializing it against other world-mutating
-operations. Source declarations add restrictions and dependencies; verified
-purity is assigned by the trusted inline registry classification.
-\src{crates/ostadix-api/src/effects.rs}{46--636}
+The executable HGraph carries values, completion dependencies, and explicit
+state for evaluators, actors, scope, paths, environment, stdio, services, and
+the host world. Unknown effects retain conservative \texttt{HostWorld}
+dependencies. Ordinary fallible shim work stays on the evaluator owner thread;
+compiler-verified scope reads and pure, deterministic, infallible inline
+renderers can run on workers. Explicit \texttt{autonomous(...)} groups also
+admit eligible ephemeral backend tasks with owned materialized inputs and
+fresh live capability checks. Their evidence marks unordered host effects:
+deterministic outcome selection does not imply serial equivalence or rollback
+of effects from already-started tasks.
+\src{crates/ostadix-api/src/effects.rs}
+\src{crates/ostadix-api/src/executor/parallel.rs}
 
-Only attribute-free inline text, HTML, Markdown, and LaTeX work is treated as
-verified pure and worker-eligible. Effectful ready work executes one operation
-at a time in deterministic ordinal order. Successful outputs publish
-atomically; the root scope commits deterministically.
-\src{crates/ostadix-api/src/effects.rs}{776--843}
-\src{crates/ostadix-api/src/executor/coordinator.rs}{103--1094}
+The coordinator refills available workers as dependencies become ready.
+Eligible provisional results can enable safe dependents before deterministic
+trace settlement; autonomous publication remains scoped to its admitted group.
+The default local pool is bounded by host parallelism and the admitted static
+worker wave. An explicit worker count changes capacity while retaining all
+dependency and admission constraints. A static schedule's width predicts
+neither measured overlap nor a machine's available memory or backend readiness.
+\src{crates/ostadix-api/src/executor/coordinator.rs}
+\src{docs/CLAIMS.md}
 
-\begin{claimbox}[Why the state-complete graph matters]
-The graph is richer than a syntax tree because it represents value,
-completion, and mutable-world dependencies separately. Its present execution
-policy preserves observable equivalence and deterministic settlement while
-parallelizing independently verified inline work. The same resource model
-identifies the exact admission point for additional concurrent adapters: they
-must declare effects precisely enough to remove unnecessary
-\texttt{HostWorld} dependencies.
-\end{claimbox}
+Cancellation uses parent-aware tokens shared by embedding requests, backend
+execution, and competing group members. Cancelling a branch does not cancel
+its siblings; request cancellation reaches descendants. Tokens request a stop
+at safe points, while the execution owner performs bounded process cleanup.
+The coordinator controls acceptance, publication, and settlement, so a late
+worker completion cannot independently commit graph state. External effects
+that occurred before cancellation remain part of the execution history.
+\src{crates/ostadix-api/src/cancellation.rs}
+\src{crates/ostadix-api/src/process.rs}
+\src{crates/ostadix-api/src/executor/coordinator.rs}
 
 \section{Projects, linking, and route policies}
 \label{sec:projects}
@@ -2157,11 +2331,14 @@ runs that program by default.}
 \label{fig:project-lanes}
 \end{figure}
 
-\src{src/bin/olink.rs}{183--565}
-\src{src/bin/olink.rs}{841--1029}
+\src{src/bin/olink.rs}
 
 \subsection{Compiler-emitted Project HGraph from an o-linked codebase}
 \label{sec:linked-project-dot}
+
+The following retained compiler illustration was produced for the August
+2026 edition. Its hashes and dimensions identify that historical artifact;
+the reproduction commands regenerate the view with the selected compiler.
 
 The tracked fixture in \path{tests/fixtures/project_hgraph/} is a complete
 project codebase with one input file, a manifest, one prerequisite route, two
@@ -2199,18 +2376,16 @@ The lifted artifact is 7,501 bytes with SHA-256
 \breakcode{a6d97fd5b95b829c3e3a754722767960f2963e0644ba8c89da7c15d48d922bb1}.
 The compiler-emitted DOT is 13,065 bytes with SHA-256
 \breakcode{bf16748f53a377e950a67b9c27d48ff260dcc987a69d86c5f29ca6289df7f00b}.
-The direct-directory DOT and lifted-artifact DOT are byte-identical. The SVG
+The original direct-directory and lifted-artifact DOT outputs were byte-identical. The SVG
 is 61,756 bytes with SHA-256
 \breakcode{44d7d33abf7d34ed73e3f4f37ebee77dbe5545f52cfc0077c64c021015310d01}.
 The included vector PDF is 27,210 bytes with SHA-256
 \breakcode{75c7d219d208a2afddc51a5c9c682c506d26cd9729145828019f88f1c6a8e90e}.
 
-\src{tests/fixtures/project_hgraph/olang.project.toml}{1--38}
-\src{src/bin/olink.rs}{713--749}
-\src{src/bin/olangc.rs}{556--580}
-\src{crates/ostadix-api/src/project/plan.rs}{1--25}
-\src{crates/ostadix-api/src/project/plan.rs}{46--87}
-\src{crates/ostadix-api/src/project/plan.rs}{91--140}
+\src{tests/fixtures/project_hgraph/olang.project.toml}
+\src{src/bin/olink.rs}
+\src{src/bin/olangc.rs}
+\src{crates/ostadix-api/src/project/plan.rs}
 
 \subsubsection*{How to read the emitted graph}
 
@@ -2374,6 +2549,57 @@ resources, equivalence comparison, and selection all become typed graph
 operations. The exact-equality check shows that lifting preserves the project
 semantics consumed by the compiler.
 
+\subsection{Typed grounding across planning front doors}
+\label{sec:grounding}
+
+Grounding exposes how an execution graph relates values, effects, actor state,
+and authority requirements to its execution substrate. Ordinary O and project
+inputs have separate typed reports, shared by \texttt{o plan} and
+\texttt{olangc}. Both are inspection operations.
+
+For ordinary source, the prepared path reconstructs its \texttt{GroundingReport}
+from captured OIR, checks OIR, plan, solved-graph, and execution-intent
+identities, and reports governed and ambient effects, OValue flows,
+capabilities, actor affinity, capsules, and residual \texttt{HostWorld}.
+An optional paired \texttt{--world-id NAME --world-epoch N} supplies a
+caller-selected World identity with a nonzero epoch. It performs no live-state
+lookup or freshness check.
+
+For a selected project, \texttt{ProjectGroundingReport} derives the canonical
+\texttt{LogicalHGraphV1} and its hosted-unbound \texttt{DeploymentPlanV1},
+validates their correspondence, and records their exact digests. Every
+deployment operation must refer to its matching logical operation and retain
+the same descriptive authority requirements. The report exposes operation
+kind, effects, requirements, hosted binding, and residual \texttt{HostWorld}.
+The prepared \texttt{o plan} path checks the rebuilt bundle, logical, and
+deployment identities against captured preflight state before returning.
+
+\begin{lstlisting}[style=plaincode]
+olangc tests/fixtures/project_hgraph --target ir --route main --grounding
+o plan tests/fixtures/project_hgraph --route main --grounding
+\end{lstlisting}
+
+Two independent predicates make the report precise.
+\texttt{authority\_requirements\_absent} describes an empty list of
+requirements; \texttt{non\_authorizing} describes absence of live World,
+snapshot, provider, and task bindings. The inspection grants no authority and
+dispatches no route. Residual \texttt{HostWorld} identifies ambient hosted
+effects; an empty residual set alone would not prove complete mediation.
+Project grounding has no World binding and rejects the World identity flags.
+Grounding is a standalone text view; JSON output, live placement preview, and
+execution-intent JSON retain separate interfaces.
+
+The regression suites compare actual compiler/CLI report bytes, verify exact
+identity linkage, and check that inspection creates no execution markers or
+node state. These tests specify current source behavior. The installed tools
+checked during this revision predate the project-grounding implementation;
+Section~\ref{sec:validation} records that version mismatch.
+\src{crates/ostadix-api/src/project/grounding.rs}
+\src{crates/ostadix-api/src/intent/mod.rs}
+\src{crates/ostadix-api/src/world/grounding.rs}
+\src{tests/unified_plan_boundaries.rs}
+\src{tests/project_hgraph.rs}
+
 \subsection{Bundle model}
 
 \texttt{ProjectFile} preserves relative path, raw bytes, Unix mode, symlink
@@ -2381,16 +2607,16 @@ metadata, evaluator hint, role, and content hash. A project carries route
 specifications, guards, provenance, effects, and policy. Traversal is
 deterministic and skips generated/build/cache subtrees. Materialization
 validates relative paths, ancestor symlinks, and in-root symlink targets.
-\src{crates/ostadix-api/src/project/model.rs}{13--290}
-\src{crates/ostadix-api/src/project/bundle.rs}{28--137}
-\src{crates/ostadix-api/src/project/materialize.rs}{62--179}
+\src{crates/ostadix-api/src/project/model.rs}
+\src{crates/ostadix-api/src/project/bundle.rs}
+\src{crates/ostadix-api/src/project/materialize.rs}
 
 The bundle fingerprint covers artifact identity through paths, content hashes,
 modes, and symlink flags. Route metadata remains a separately selected
 execution policy. On Unix, materialization reproduces modes and symlinks from
 the captured model.
-\src{crates/ostadix-api/src/project/bundle.rs}{123--137}
-\src{crates/ostadix-api/src/project/materialize.rs}{195--223}
+\src{crates/ostadix-api/src/project/bundle.rs}
+\src{crates/ostadix-api/src/project/materialize.rs}
 
 Six file roles classify the captured tree: \texttt{Source}, \texttt{Asset},
 \texttt{Manifest}, \texttt{GeneratedRoute}\newline\texttt{Metadata},
@@ -2399,8 +2625,8 @@ Six file roles classify the captured tree: \texttt{Source}, \texttt{Asset},
 Rust, Python, JavaScript, shell, C-family, Java, .NET, Haskell, OCaml, Nix, and
 generic entrypoints. An \texttt{olang.project.toml} manifest can state exact
 routes and route sets while retaining the captured files as the artifact of
-record. \src{crates/ostadix-api/src/project/discover.rs}{1--132}
-\src{crates/ostadix-api/src/project/manifest.rs}{1--378}
+record. \src{crates/ostadix-api/src/project/discover.rs}
+\src{crates/ostadix-api/src/project/manifest.rs}
 
 \subsection{Routes}
 
@@ -2410,16 +2636,16 @@ The native project coordinator implements \texttt{explicit},
 \texttt{verify\_equivalent}, and \texttt{benchmark\_and\_select}. Alternatives
 run as subprocess routes with isolated or shared workspaces as required; both
 race policies cooperatively cancel losing route processes.
-\src{crates/ostadix-api/src/project/model.rs}{310--402}
-\src{crates/ostadix-api/src/project/runtime.rs}{2735--3240}
+\src{crates/ostadix-api/src/project/model.rs}
+\src{crates/ostadix-api/src/project/runtime.rs}
 
 The project coordinator owns whole-tree materialization, route selection,
 subprocess lifecycle, result settlement, and workspace sharing. Ordinary
 \oir{}/\hgraph{} execution owns expression-level evaluator composition. This
 division gives project routes enough context to coordinate complete build and
 run alternatives while preserving the hosted language's value graph.
-\src{crates/ostadix-api/src/project/manifest.rs}{40--167}
-\src{crates/ostadix-api/src/project/runtime.rs}{695--704}
+\src{crates/ostadix-api/src/project/manifest.rs}
+\src{crates/ostadix-api/src/project/runtime.rs}
 
 \begin{longtable}{P{0.22\textwidth} P{0.28\textwidth} P{0.42\textwidth}}
 \toprule
@@ -2488,8 +2714,7 @@ remaining recognized keys are \texttt{label}, \texttt{cwd}, \texttt{args},
 \texttt{codec}, \texttt{kind}, \texttt{priority}, and \texttt{default}.
 Commands are whitespace-split, list values are comma-separated, and
 \texttt{env} contains comma-separated \texttt{K=V} pairs.
-\src{crates/ostadix-api/src/project/manifest.rs}{25--167}
-\src{crates/ostadix-api/src/project/manifest.rs}{253--369}
+\src{crates/ostadix-api/src/project/manifest.rs}
 
 \begin{lstlisting}[style=plaincode]
 [project]
@@ -2579,14 +2804,15 @@ comparison operation, and final selection directly.
 documents. Project restoration validates relative paths, ancestor symlinks,
 and in-root symlink targets before writing. Literal restoration decodes the
 escaped file boundaries and rejects absolute paths and parent traversal.
-\src{src/bin/ounlink.rs}{49--148}
+\src{src/bin/ounlink.rs}
 
 \section{Toolchain and implementation editions}
 \label{sec:toolchain}
 
 \subsection{Public binaries}
 
-The root Cargo package declares fourteen binaries.
+The committed root Cargo package declares fifteen binaries. The separately
+locked MCP server adds its own executable.
 
 \begin{longtable}{P{0.32\textwidth} P{0.60\textwidth}}
 \toprule
@@ -2597,8 +2823,8 @@ The root Cargo package declares fourteen binaries.
 Hosted interpreter, REPL, executor selection, compatibility backend grants,
 and hidden backend worker mode. \\
 \texttt{o-cli} &
-Compiled lowercase intent front door for run, plan, explain, inspect, and
-durable run records. \\
+Compiled intent and operational dispatcher, shared command discovery,
+operation planning and observation, and durable run records. \\
 \texttt{olangc} &
 Hosted packaging/compiler front end: binary, WASM, script, IR, and DOT. \\
 \texttt{ocorec} &
@@ -2617,13 +2843,15 @@ Hosted node service, discovery, reciprocal pairing, paired TLS operation, and
 node-control client. \\
 \texttt{o-registry} / \texttt{o-info} &
 Registry V1 event operations and Information-root inspection. \\
+\texttt{ostadix-device} & Native Android/Termux device control, diagnostics,
+deployment, and supported device operations. \\
 \path{ocore-kernel-world-record} &
 Verify a strict package/payload pair and encode its deterministic native
 admission record. \\
 \bottomrule
 \end{longtable}
 
-\src{Cargo.toml}{20--76}
+\src{Cargo.toml}
 
 \subsection{What olangc targets mean}
 
@@ -2638,9 +2866,10 @@ modules, shims, and a lockfile; builds a host executable. &
 The generated executable embeds the hosted runtime, reparses its source at
 startup, and evaluates through the ordinary graph path. \\
 \texttt{wasm} &
-Uses the generated-runtime path for \texttt{wasm32-wasip1}. &
-Produces a WASI module containing the generated hosted runtime and embedded
-program. \\
+Direct generated-runtime \texttt{wasm32-wasip1}, or explicit Linux-image
+packaging with paired builder/runtime image flags. &
+Direct inline execution or a packaged emulated Linux guest, according to
+the selected profile. \\
 \texttt{script} &
 Parses and invokes the normal evaluator inside \texttt{olangc}. &
 This is the direct compiler-driver entry into hosted graph evaluation. \\
@@ -2655,9 +2884,7 @@ them. \\
 \bottomrule
 \end{longtable}
 
-\src{src/bin/olangc.rs}{130--258}
-\src{src/bin/olangc.rs}{923--1473}
-\src{src/bin/olangc.rs}{1910--2365}
+\src{src/bin/olangc.rs}
 
 Project inputs compile through binary, WASM, and script targets. The generated
 project runtime restores the captured tree and executes its selected
@@ -2666,6 +2893,62 @@ Project directories and lifted bundles also enter the IR and DOT targets,
 which build the exact logical Project HGraph for the selected route or route
 set. A generated project WASI module contains the project runtime; its route
 operations use the process facilities supplied by the execution substrate.
+
+\subsection{Runtime payloads and Linux filesystem isolation}
+
+For an ordinary native O binary, \texttt{--runtime-bundle DIR} embeds a
+supplied relocatable runtime tree, retaining regular files, internal file
+symlinks, empty directories, permissions, and a digest inventory. Startup
+verifies and privately extracts the payload, then confines runtime command
+lookup to its \texttt{bin/} before evidence and admission. The default host
+profile still depends on the host kernel and each supplied library/service
+closure. It does not infer arbitrary dynamic dependencies or certify every
+catalog runtime. This option does not apply to project binaries or WASI.
+\src{docs/EMBEDDED_RUNTIME_BUNDLES.md}
+
+The explicit \texttt{linux-rootfs-v1} profile enters fresh user, mount, PID,
+network, IPC, and UTS namespaces before evaluator or multicall dispatch. It
+detaches the original root, makes the payload read-only, clears ambient
+environment and extra descriptors, drops capabilities, and installs
+\texttt{no\_new\_privs} and a mount syscall filter. Private temporary
+filesystems, loopback, threads, subprocesses, and local sockets remain
+available. A namespace init reaps descendants and preserves evaluator exit
+status. Entry failure stops evaluation. The image identity and namespace
+conditions are checked on multicall reentry; an environment marker alone
+cannot authorize entry. Linux x86-64/AArch64 support depends on available
+namespace facilities, and the host kernel and initial loader remain trusted.
+\src{docs/EMBEDDED_RUNTIME_BUNDLES.md}
+\src{tests/linux_runtime_rootfs.rs}
+
+The Linux collector resolves declared ELF loaders and \texttt{DT\_NEEDED}
+dependencies without executing the input programs. Runtime-loaded modules,
+data, services, and computed library names still require explicit inputs and
+qualification of the resulting executable.
+\src{scripts/collect_runtime_rootfs.py}
+\src{docs/LINUX_RUNTIME_ROOTFS.md}
+
+\subsection{Direct WASI and packaged Linux execution}
+
+The direct \texttt{wasm32-wasip1} target compiles the generated O runtime.
+Inline-only plans can run locally; shim-backed or effectful browser plans
+require an explicit whole-program provider. A separate opt-in route accepts
+digest-pinned runtime and builder images, builds the native evaluator inside
+Linux, and packages that environment through container2wasm into a WASI module
+containing a Linux guest and CPU emulator. Supplied foreign runtimes execute
+inside that guest. The two routes have distinct browser bundle schemas and
+hosts; packaged Linux execution does not make Python a direct-WASI backend.
+\src{src/bin/olangc.rs}
+\src{docs/OLANGC_WASM.md}
+
+Tracked documentation records a 12 September 2026 Python fixture build and
+execution under Wasmtime 47.0.3 and Wasmer 7.2.1, with success/failure statuses
+0/1, followed by headless Chrome 152 execution of the retained artifact.
+The recorded artifact is 156,555,045 bytes. Those dated observations qualify
+that fixture and image, and were not rerun for this whitepaper revision; the
+browser receipts are recorded as retained outside the checkout. The optional
+interactive Guix browser profile is present in source but still lacks a fresh
+build and installation/persistence qualification.
+\src{docs/OLANGC_WASM.md}
 
 \subsection{Reference implementations}
 
@@ -2676,10 +2959,10 @@ compact recursive evaluator and uses environment 0 as persistent by default.
 The C17 edition supplies a portable hosted interpreter and hosted AOT path.
 Together, these editions provide independently executable semantic references
 around the authoritative Rust graph runtime.
-\src{o_lang/README.md}{1--14}
-\src{o_lang/__init__.py}{31--40}
-\src{o_lang/evaluator.py}{1--182}
-\src{c_cpp/README.md}{1--133}
+\src{o_lang/README.md}
+\src{o_lang/__init__.py}
+\src{o_lang/evaluator.py}
+\src{c_cpp/README.md}
 
 \begin{longtable}{P{0.18\textwidth} P{0.34\textwidth} P{0.40\textwidth}}
 \toprule
@@ -2729,7 +3012,7 @@ Conversion and rendering & \texttt{from\_python}, \texttt{to\_python},
 \texttt{render\_plain}, \texttt{to\_json\_str}. \\
 \bottomrule
 \end{longtable}
-\src{o_lang/__init__.py}{12--38}
+\src{o_lang/__init__.py}
 
 The C17 edition publishes six headers as an embedding ABI:
 
@@ -2752,12 +3035,12 @@ callbacks, and transitive-request collection. \\
 and current-system transitions. \\
 \bottomrule
 \end{longtable}
-\src{c_cpp/include/value.h}{13--222}
-\src{c_cpp/include/parser.h}{23--114}
-\src{c_cpp/include/eval.h}{16--54}
-\src{c_cpp/include/process.h}{13--73}
-\src{c_cpp/include/scheduler.h}{13--49}
-\src{c_cpp/include/nix_ops.h}{10--21}
+\src{c_cpp/include/value.h}
+\src{c_cpp/include/parser.h}
+\src{c_cpp/include/eval.h}
+\src{c_cpp/include/process.h}
+\src{c_cpp/include/scheduler.h}
+\src{c_cpp/include/nix_ops.h}
 
 \subsection{REPL and notebook state}
 
@@ -2806,8 +3089,8 @@ source and target paths, group declarations, output, and qualitative
 properties classified as preserved, lowered, erased, or assumed. The command
 turns semantic transformation choices into a machine-readable artifact that
 can be compared alongside ordinary repository history.
-\par\src{src/bin/ogit.rs}{96--183}\quad
-\src{src/bin/ogit.rs}{523--576}
+\par\src{src/bin/ogit.rs}\quad
+\src{src/bin/ogit.rs}
 
 The checked-in \path{examples/group_pipeline/main.O} and
 \path{main.eager.O} are receipt inputs that expose a lazy-to-eager policy
@@ -2827,18 +3110,18 @@ cover imports and visibility; functions, unsafe and extern declarations;
 structures, enums, statics, and constants; conditional and loop control;
 arrays and aggregate construction; direct calls; field and index access;
 casts; volatile operations; and inline assembly.
-\src{crates/ostadix-api/src/ocore/lexer.rs}{9--88}
-\src{crates/ostadix-api/src/ocore/parser.rs}{23--107}
-\src{crates/ostadix-api/src/ocore/ast.rs}{5--285}
+\src{crates/ostadix-api/src/ocore/lexer.rs}
+\src{crates/ostadix-api/src/ocore/parser.rs}
+\src{crates/ostadix-api/src/ocore/ast.rs}
 
 Supported foreign interfaces include \texttt{extern "sysv64"},
 \texttt{extern "C"}, and \texttt{extern "ocore"}. A \texttt{let} requires an
 initializer, assignment is right-associative, and binary precedence is
 encoded in the parser. Inline assembly has explicit syntax and operands.
-\src{crates/ostadix-api/src/ocore/parser.rs}{335--755}
+\src{crates/ostadix-api/src/ocore/parser.rs}
 
-The checked-in minimal unit shows the source spelling that was compiled through
-AST, HIR, MIR, assembly, and reproducible ELF object output in this release:
+The checked-in minimal unit illustrates the source accepted by the AST, HIR,
+MIR, assembly, and ELF object pipeline:
 
 \begin{lstlisting}[style=plaincode]
 module examples::minimal;
@@ -2848,17 +3131,17 @@ pub fn add(left: u64, right: u64) -> u64 {
     return left + right;
 }
 \end{lstlisting}
-\src{ocore/examples/minimal.oc}{1--6}
+\src{ocore/examples/minimal.oc}
 
 The module declaration names the unit, \texttt{@export} fixes external
 visibility, \texttt{pub} admits cross-module lookup, the signature fixes every
 machine type, and the explicit return becomes typed SSA before x86-64 lowering.
 Structures, enums, imports, statics, constants, extern declarations, unsafe
 blocks, volatile and atomic intrinsics, and \texttt{asm!} use the same direct
-item-and-expression grammar across the current 132-file O-core source corpus:
-77 runtime files, 46 kernel files, eight World files, and one example.
-\src{docs/OCORE.md}{36--75}
-\src{docs/OCORE.md}{140--190}
+item-and-expression grammar across the current 144-file O-core source corpus:
+81 runtime files, 51 kernel files, 11 World files, and one example
+in the tracked native source inventory.
+\src{docs/OCORE.md}
 
 \subsection{Static semantics}
 
@@ -2873,8 +3156,7 @@ $\rightarrow$ bodies.
 Unsafe operations require an explicit unsafe context. Attributes are
 whitelisted; unknown ones are rejected. Interrupt and naked functions,
 aggregate calls, and floating-point ABI crossings receive explicit defensive
-checks. \src{crates/ostadix-api/src/ocore/typeck.rs}{16--59}
-\src{crates/ostadix-api/src/ocore/typeck.rs}{1881--2038}
+checks. \src{crates/ostadix-api/src/ocore/typeck.rs}
 
 \subsubsection{Types, aggregates, and layout}
 
@@ -2909,7 +3191,7 @@ alignment 1 and removes inter-field padding; \texttt{@align(N)} raises
 alignment to a power of two. System V scalar calls use RDI, RSI, RDX, RCX, R8,
 and R9, followed by stack arguments, with RAX as the scalar result and
 16-byte call alignment. \texttt{@interrupt} functions return with
-\texttt{iretq}. \src{docs/OCORE.md}{95--193}
+\texttt{iretq}. \src{docs/OCORE.md}
 
 \subsubsection{Name, conversion, storage, and call semantics}
 
@@ -2932,8 +3214,8 @@ Direct scalar calls lower through the selected ABI, and function-pointer types
 carry call signatures through parsing and type checking. Aggregate parameters
 and aggregate returns are rejected across direct and extern call boundaries;
 authors pass pointers explicitly. Floating-point values have fixed storage
-layouts and bit-preserving transport. \src{docs/OCORE.md}{36--134}
-\src{crates/ostadix-api/src/ocore/typeck.rs}{2028--2038}
+layouts and bit-preserving transport. \src{docs/OCORE.md}
+\src{crates/ostadix-api/src/ocore/typeck.rs}
 
 \subsubsection{Machine operations and linkage}
 
@@ -2954,7 +3236,7 @@ The linkage attributes are \texttt{@export}, \texttt{@no\_mangle},
 O-core source state symbol visibility, exact symbol names, ELF placement,
 retention, layout, and entry/exit discipline directly. \texttt{@unsafe\_linkage}
 explicitly admits a writable
-static placed in an executable section. \src{docs/OCORE.md}{170--192}
+static placed in an executable section. \src{docs/OCORE.md}
 
 \subsection{Compiler pipeline}
 
@@ -3000,18 +3282,22 @@ MIR is typed SSA, while mutable locals and statics remain explicit memory
 places. The code generator emits Intel-syntax x86-64 and gives every local
 and SSA value stack storage. Clang assembles with
 \texttt{x86\_64-unknown-none-elf}, freestanding settings, and the stack
-protector disabled. \src{crates/ostadix-api/src/ocore/mir.rs}{1--173}
-\src{crates/ostadix-api/src/ocore/codegen.rs}{1--20}
-\src{crates/ostadix-api/src/ocore/codegen.rs}{162--317}
-\src{crates/ostadix-api/src/ocore/driver.rs}{126--183}
+protector disabled. \src{crates/ostadix-api/src/ocore/mir.rs}
+\src{crates/ostadix-api/src/ocore/codegen.rs}
+\src{crates/ostadix-api/src/ocore/driver.rs}
 
 \subsection{Current compiler profile}
 
-The current backend targets freestanding x86-64 under the System V AMD64 ABI.
-Its lowering uses stack storage for locals and SSA values, direct calls,
+The primary backend targets freestanding x86-64 under the System V AMD64
+ABI. A separate bounded AArch64 scalar backend uses the compiler-versioned
+\texttt{extern "ocore"} convention with scalar AAPCS64 register placement;
+\texttt{extern "sysv64"} and its \texttt{extern "C"} alias remain AMD64-only. Both emit little-endian ELF64
+with an LP64 data model. \src{crates/ostadix-api/src/ocore/codegen_aarch64.rs}
+The x86-64 lowering uses stack storage for locals and SSA values, direct calls,
 explicit aggregate layouts, integer and pointer operations, volatile memory,
 and inline assembly. Programs manage memory through statics, stack objects,
-pointers, and explicitly linked runtime facilities. \src{docs/OCORE.md}{351--365}
+pointers, and explicitly linked runtime facilities. The bounded AArch64
+backend rejects inline assembly, atomics, and unsupported call shapes. \src{docs/OCORE.md}
 
 \begin{claimbox}[Native compiler substance]
 \ocore{} has a complete parser, layout-aware type checker, typed SSA MIR,
@@ -3033,9 +3319,9 @@ Multiboot2 and Xen PVH metadata, \texttt{W\textasciicircum X} program headers,
 fixed user RX and RW-NX
 regions, guard-page checks, and fail-closed initialization of memory,
 process/domain, scheduler, capability, mapping, and IPC state.
-\src{ocore/kernel/build.sh}{358--529}
-\src{ocore/kernel/linker.ld}{1--105}
-\src{ocore/kernel/main.oc}{180--496}
+\src{ocore/kernel/build.sh}
+\src{ocore/kernel/linker.ld}
+\src{ocore/kernel/main.oc}
 
 \subsection{Native capability model}
 
@@ -3047,10 +3333,7 @@ while CSpace identity remains kernel-private. Validation checks the current
 CSpace, slot, occupancy, generation, object kind, and rights. Reservation
 and close are explicit transactions; generation exhaustion retires a slot.
 Memory-view and delegated-resource authority is deliberately nontransferable.
-\src{ocore/runtime/x86_64/capability.oc}{21--69}
-\src{ocore/runtime/x86_64/capability.oc}{294--394}
-\src{ocore/runtime/x86_64/capability.oc}{520--543}
-\src{ocore/runtime/x86_64/capability.oc}{752--880}
+\src{ocore/runtime/x86_64/capability.oc}
 
 The kernel syscall contract fixes authority checks to seventeen numbered
 operations. A caller supplies generated handles; the dispatcher derives the
@@ -3086,8 +3369,7 @@ The message path uses fault-aware bounded copy, FIFO endpoint queues, real TCB
 block/wake epochs, request correlation, lifecycle cancellation, and exact
 attenuation. The scalar personality calls use distinct call, reply, and
 supervision capability kinds, so operation role is carried by authority rather
-than a caller-provided mode bit. \src{docs/OCORE.md}{205--284}
-\src{docs/OCORE.md}{442--496}
+than a caller-provided mode bit. \src{docs/OCORE.md}
 
 \begin{figure}[H]
 \centering
@@ -3135,7 +3417,37 @@ failure transports verify the exact calls.}
 \label{fig:capability-bridge}
 \end{figure}
 
-\par\src{crates/ostadix-api/src/ocore/capability_bridge.rs}{1--159}
+\par\src{crates/ostadix-api/src/ocore/capability_bridge.rs}
+
+\clearpage
+\subsection{Native Ethernet and a real Linux guest}
+
+The native Ethernet profile boots two independent x86-64 O-core kernels with
+RTL8139 devices. Their native driver transfers a boot-provisioned chain of
+two through four dependent additions. HMAC-SHA256 binds packet bytes, nodes,
+generations, session, and graph; the worker checks operands and predecessor
+digests against its independently provisioned delegation. Exact duplicate
+requests use retained results, altered duplicates are rejected, and bounded
+retry/drain protocols precede NIC shutdown. The verifier injects packet faults,
+loss, replay, and permanent partition while checking intermediate results and
+native quiescence. The host harness does not compute the graph operations.
+\src{ocore/kernel/native-cluster/README.md}
+\src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
+
+The AArch64 profile places an unmodified Linux 6.12.43 kernel behind an O-core
+EL2 monitor with separate guest stage-two RAM. Linux uses its standard
+virtio-MMIO block driver. During withdrawal the monitor returns a real block
+I/O error, waits for guest consumption and interrupt acknowledgment, then
+removes guest RAM mappings and contains the resulting stage-two fault.
+The broker presently executes at EL2; the full G7 contract's separate trusted
+host-EL1 broker remains implementation work. These software profiles have a
+dedicated required-CI job, separate from portable component gates and the
+append-only Alpha ledger. No fresh native run or remote CI result is asserted
+by this document update. General native ProjectBundle lowering, replicated
+commit/recovery, physical device isolation/reset, and the integrated physical
+multinode scenario remain outstanding; G4, G7, G8, and G10 remain unqualified.
+\src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
+\src{.github/workflows/ci.yml}
 
 \clearpage
 \section{Live-World and KernelWorld}
@@ -3218,14 +3530,14 @@ a complete World lifecycle. \\
 \bottomrule
 \end{longtable}
 
-\src{docs/HOSTED_LIVE_REFERENCE.md}{1--99}
-\src{docs/LIVE_SYSTEM.md}{3--47}
+\src{docs/HOSTED_LIVE_REFERENCE.md}
+\src{docs/LIVE_SYSTEM.md}
 
 Hosted advisory locks and revision compare-and-swap serialize lifecycle
 transactions over the local immutable content store. Supervisor code
 implements generation rotation, bearer issuance, exact live-binding
 invocation, restart, and stale-generation denial.
-\src{crates/ostadix-api/src/live_system/supervisor.rs}{770--1007}
+\src{crates/ostadix-api/src/live_system/supervisor.rs}
 
 \subsection{Live-World command and state model}
 
@@ -3355,15 +3667,12 @@ The plan's first input can be \texttt{\{"t":"null"\}} or any other tagged
 canonical-CBOR frames, preserving type and structure between processes.
 Unknown manifest, policy, runtime-program, and composition fields fail strict
 deserialization before lifecycle mutation.
-\src{crates/ostadix-api/src/live_system/manifest.rs}{35--90}
-\src{src/bin/o-live-host.rs}{35--39}
-\src{src/bin/o-live-host.rs}{149--163}
-\src{src/bin/o-live-host.rs}{381--411}
-\src{crates/ostadix-api/src/live_system/protocol.rs}{20--73}
-\src{crates/ostadix-api/src/live_system/supervisor.rs}{168--188}
-\src{crates/ostadix-api/src/live_system/manifest.rs}{554--577}
-\src{crates/ostadix-api/src/live_system/supervisor.rs}{1076--1092}
-\src{crates/ostadix-api/src/live_system/supervisor.rs}{1469--1492}
+\src{crates/ostadix-api/src/live_system/manifest.rs}
+\src{src/bin/o-live-host.rs}
+\src{crates/ostadix-api/src/live_system/protocol.rs}
+\src{crates/ostadix-api/src/live_system/supervisor.rs}
+\src{crates/ostadix-api/src/live_system/manifest.rs}
+\src{crates/ostadix-api/src/live_system/supervisor.rs}
 
 The runtime owns three further strict record families that connect installed
 bytes to reconstructed services and typed process exchange.
@@ -3391,10 +3700,9 @@ Responses are \texttt{healthy\{nonce, world\}},
 \texttt{error\{message\}}, and \texttt{stopped}. \\
 \bottomrule
 \end{longtable}
-\src{crates/ostadix-api/src/live_system/store.rs}{16--23}
-\src{crates/ostadix-api/src/live_system/store.rs}{109--124}
-\src{crates/ostadix-api/src/live_system/supervisor.rs}{201--238}
-\src{crates/ostadix-api/src/live_system/protocol.rs}{75--102}
+\src{crates/ostadix-api/src/live_system/store.rs}
+\src{crates/ostadix-api/src/live_system/supervisor.rs}
+\src{crates/ostadix-api/src/live_system/protocol.rs}
 
 Exact package identity is constructed from canonical semantics and captured
 bytes. The manifest first becomes canonical identity bytes. Payload entries are
@@ -3407,8 +3715,7 @@ every component. The scanner retains opened regular-file descriptors through
 capture and compares metadata around the read. The resulting digest therefore
 names the canonical manifest and the exact files opened for capture, and that
 identity becomes the immutable CAS key used by activation, rollback, and
-reconstruction. \src{crates/ostadix-api/src/live_system/manifest.rs}{602--930}
-\src{crates/ostadix-api/src/live_system/manifest.rs}{1454--1482}
+reconstruction. \src{crates/ostadix-api/src/live_system/manifest.rs}
 
 \begin{longtable}{P{0.21\textwidth} P{0.71\textwidth}}
 \toprule
@@ -3444,8 +3751,8 @@ and 512-byte policy fields. Mode 20 seals two VM, four vCPU, and eight
 guest-page objects in its executed gate. \\
 \bottomrule
 \end{longtable}
-\src{crates/ostadix-api/src/live_system/supervisor.rs}{40--163}
-\src{src/bin/o-live-host.rs}{35--39}
+\src{crates/ostadix-api/src/live_system/supervisor.rs}
+\src{src/bin/o-live-host.rs}
 
 \begin{figure}[htbp]
 \centering
@@ -3514,9 +3821,7 @@ exact image bytes opened from the verified payload. These equalities produce
 one \texttt{VerifiedKernelWorld} bound to the immutable package digest. That
 verified object creates the authority-bearing native record, whose native
 codec checks every encoded bound exactly and rejects overflow.
-\src{crates/ostadix-api/src/kernel_world.rs}{1--7}
-\src{crates/ostadix-api/src/kernel_world.rs}{248--275}
-\src{crates/ostadix-api/src/kernel_world.rs}{611--749}
+\src{crates/ostadix-api/src/kernel_world.rs}
 
 The authorable KernelWorld manifest is strict TOML under
 \texttt{ocore.kernel-world/v1}. Its required top-level fields are
@@ -3559,9 +3864,7 @@ paired with \texttt{external\_acceptance\_required}. A user-supplied image
 selects \texttt{user\_supplied\_only} and requires external acceptance. \\
 \bottomrule
 \end{longtable}
-\src{crates/ostadix-api/src/kernel_world.rs}{18--182}
-\src{crates/ostadix-api/src/kernel_world.rs}{277--444}
-\src{crates/ostadix-api/src/kernel_world.rs}{408--568}
+\src{crates/ostadix-api/src/kernel_world.rs}
 
 The same public host contract includes \texttt{KernelWorldInstance}, a bounded
 semantic oracle for lifecycle and request settlement. Its state path is
@@ -3615,16 +3918,14 @@ deadline expiry, world failure, and world stop settle requests exactly once as
 \texttt{WorldFailed}, or \texttt{WorldStopped}. Failure and stop drain all
 in-flight requests into the corresponding terminal record; a replacement
 generation resets the sequence and makes every earlier request ID stale.
-\src{crates/ostadix-api/src/kernel_world.rs}{1208--1570}
+\src{crates/ostadix-api/src/kernel_world.rs}
 
 Native admission consumes the deterministic normal form under an independently
 registered immutable policy. It validates exact package identity and byte
 content by kind and purpose, then creates a generation-bound grant after every
 rule and cross-field constraint succeeds. The grant remains
 \texttt{ADMITTED} until exact-generation revocation.
-\src{ocore/runtime/x86_64/kernel_world_admission.oc}{1--11}
-\src{ocore/runtime/x86_64/kernel_world_admission.oc}{1375--1478}
-\src{ocore/runtime/x86_64/kernel_world_admission.oc}{1813--1934}
+\src{ocore/runtime/x86_64/kernel_world_admission.oc}
 
 \subsection{Native execution ladder}
 
@@ -3684,9 +3985,9 @@ consumes the artifact. Reproducers should retain the hashes printed by their
 current-master run beside the gate transcript. Each source coordinate produces
 its own artifact identities.
 
-\src{ocore/kernel/build-m4-artifacts.sh}{1--40}
-\src{ocore/kernel/build-m5-artifacts.sh}{1--40}
-\src{ocore/kernel/build-m6-artifacts.sh}{1--40}
+\src{ocore/kernel/build-m4-artifacts.sh}
+\src{ocore/kernel/build-m5-artifacts.sh}
+\src{ocore/kernel/build-m6-artifacts.sh}
 
 \subsection{Mode 20 and Mode 21}
 
@@ -3710,9 +4011,9 @@ execution substrate. \\
 \bottomrule
 \end{longtable}
 
-\src{ocore/kernel/smoke-kernel-world-qemu.sh}{128--186}
-\src{ocore/kernel/smoke-kernel-world-execution-qemu.sh}{8--177}
-\src{ocore/runtime/x86_64/svm_execution.oc}{24--507}
+\src{ocore/kernel/smoke-kernel-world-qemu.sh}
+\src{ocore/kernel/smoke-kernel-world-execution-qemu.sh}
+\src{ocore/runtime/x86_64/svm_execution.oc}
 
 \subsection{Modes 22 through 34}
 \label{sec:modes22-34}
@@ -3817,225 +4118,109 @@ aggregate. Mode 32 additionally wires a focused hosted project execution test
 into the native receipt gate so the receipt being checked originates from an
 executed Project HGraph path.
 
-\src{evidence/gates.toml}{1--4}
-\src{evidence/gates.toml}{674--684}
-\src{evidence/gates.toml}{697--707}
-\src{evidence/gates.toml}{468--478}
-\src{evidence/gates.toml}{497--507}
-\src{evidence/gates.toml}{531--541}
-\src{evidence/gates.toml}{103--113}
-\src{evidence/gates.toml}{125--135}
-\src{evidence/gates.toml}{148--158}
-\src{evidence/gates.toml}{174--184}
-\src{evidence/gates.toml}{579--589}
-\src{evidence/gates.toml}{205--215}
-\src{evidence/gates.toml}{29--40}
-\src{evidence/gates.toml}{52--63}
-\src{scripts/release_evidence.py}{20--29}
-\src{scripts/release_evidence.py}{118--291}
-\src{scripts/release_evidence.py}{487--586}
-\src{ocore/kernel/smoke-world-project-runtime-qemu.sh}{16--35}
-\src{tests/project_world_runtime.rs}{359--449}
+\src{evidence/gates.toml}
+\src{scripts/release_evidence.py}
+\src{ocore/kernel/smoke-world-project-runtime-qemu.sh}
+\src{tests/project_world_runtime.rs}
 
-\section{Reproducibility and current-master evidence}
+
+\section{Reproducibility and dated evidence}
 \label{sec:validation}
 
-This paper pins source identity before interpreting output. The current
-qualification coordinate is commit
-\texttt{36787b16476bc0c8c4ddf665c7228b314d04e716}, package
-\texttt{0.4.0 Unreleased}. Every result below belongs to that coordinate or to
-an artifact derived from it.
+The source reviewed for this edition is
+\texttt{d13814df25cac143b688160c3c969dc814614b1a}. Evidence is attached to
+its actual source, binary, artifact, and execution substrate. A source-defined
+test is a reproducible gate; a passing transcript establishes that gate only
+for the coordinate it records. Installed binaries can lag the checkout.
 
-\subsection{Evidence classes}
+\subsection{Checks performed for the 3 October revision}
 
-A reader should distinguish four kinds of evidence used in this paper:
-
-\begin{enumerate}
-  \item \textbf{Defining source.} Narrow file and line citations identify the
-        implementation that makes a claim true.
-  \item \textbf{Generated structure.} Compiler output exposes the exact
-        program graph in the compiler's own vocabulary.
-  \item \textbf{Registry validation.} The evidence validator checks the
-        declared gate inventory and the portable release projection.
-  \item \textbf{Execution transcripts.} Each registered gate defines required
-        tools and expected markers for its actual execution substrate.
-\end{enumerate}
-
-This order matters. Source establishes the mechanism. Generated structure
-shows the mechanism instantiated for a program. Registry validation establishes
-the release's required proof surface. Execution transcripts establish that a
-particular substrate completed the registered gate.
-
-\subsection{Current snapshot checks}
-
-\begin{longtable}{P{0.27\textwidth} P{0.25\textwidth} P{0.40\textwidth}}
+\begin{longtable}{P{0.25\textwidth} P{0.32\textwidth} P{0.35\textwidth}}
 \toprule
-\textbf{Check} & \textbf{Observed current result} & \textbf{Meaning} \\
+\textbf{Check} & \textbf{Observed result} & \textbf{Scope} \\
 \midrule
 \endhead
-\texttt{git rev-parse HEAD} &
-\breakcode{36787b16476bc0c8c4ddf665c7228b314d04e716} &
-Pins every source citation and generated artifact in this paper. \\
-Root package coordinate &
-\texttt{o-lang 0.4.0}; changelog state \texttt{Unreleased}. &
-Names the synchronized development package and its release state. \\
-Workspace ownership &
-Two default members; exact \texttt{ostadix-api =0.4.0} dependency; separately
-locked MCP root excluded. &
-Confirms the engine, CLI shell, and MCP dependency boundaries. \\
-Public binary boundary &
-All fourteen binaries executed: thirteen printed their public help; the
-notebook served its loopback UI, evaluated \texttt{text\string^(42\string)\_text}
-as typed text \texttt{"42"}, and completed reset. &
-Exercises every declared root binary through a safe public entry boundary. \\
-Root Rust quality gates &
-\status{OGreen}{Formatting, check, and Clippy passed}. &
-Qualifies the synchronized root and engine workspace under the current feature
-surface. \\
-Release binary surface &
-\status{OGreen}{All workspace binaries built with all features and the locked
-dependency graph in 3 minutes 13 seconds}. &
-Qualifies the optimized deployable command surface independently from test
-harness compilation. \\
-Rust test inventory &
-\status{OGreen}{1,351 passed, 3 ignored} across 62 harnesses; 1,354 tests
-listed. &
-Exercises all targets and features across hosted semantics, evidence,
-projects, networking, Information, Registry, World, Live-World, KernelWorld,
-and \ocore{} host contracts. \\
-MCP Rust package &
-\status{OGreen}{Build and Clippy passed; 29 Rust tests passed; ten-tool smoke
-passed}. &
-Qualifies the separately locked MCP package and every declared tool route. \\
-Python reference &
-\status{OGreen}{18 of 18 parser tests and 46 of 46 evaluator tests passed};
-\texttt{compileall} passed. &
-Exercises the reference grammar, evaluator, and importable source tree. \\
-C17 edition &
-\status{OGreen}{Make manifest: 5 passed; AOT manifest: 3 passed, 2 manifest
-skips; safety gate passed; CMake/CTest: 4 of 4 passed}. &
-Qualifies the standalone interpreter, generated-C path, and both build-system
-surfaces. \\
-Examples &
-\status{OGreen}{39 Rust example runs passed, 5 manifest skips; recursive
-manifest accounted for 44 examples}. &
-Exercises the tracked hosted teaching corpus under its declared platform
-requirements. \\
-Source release &
-\status{OGreen}{77 of 77 source-release checks passed}. &
-Qualifies the current tracked source projection, package boundaries, and
-archive rules. \\
-\texttt{olangc} target matrix &
-\status{OGreen}{All five targets completed their compilation or emission
-contract; binary and script targets also executed}. &
-Exercises host binary generation and execution, WASI generation, direct
-script execution, IR inspection, and DOT graph emission. \\
-Project, Live, and World smokes &
-\status{OGreen}{Project HGraph, project execution, Hosted Live-World, and
-World smoke families passed}. &
-Connects logical planning to execution, lifecycle supervision, World codecs,
-and receipt paths. \\
-Docker probe &
-\status{OGreen}{Passed}. &
-Qualifies the maintained container build and hosted probe boundary. \\
-MCP tool inventory &
-Ten \texttt{\#[tool]} definitions. &
-Confirms the complete agent-facing operation vocabulary listed in
-Section~\ref{sec:mcp}. \\
-Project lift &
-7,501 bytes; SHA-256
-\breakcode{a6d97fd5b95b829c3e3a754722767960f2963e0644ba8c89da7c15d48d922bb1}. &
-Pins the o-linked project artifact used by the graph illustration. \\
-Project DOT &
-13,065 bytes; SHA-256
-\breakcode{bf16748f53a377e950a67b9c27d48ff260dcc987a69d86c5f29ca6289df7f00b};
-direct directory and lifted input byte-identical. &
-Confirms reversible project lifting at the compiler's logical graph boundary. \\
-Rendered graph &
-53 semantic vertices, 62 directed edges; vector PDF SHA-256
-\breakcode{75c7d219d208a2afddc51a5c9c682c506d26cd9729145828019f88f1c6a8e90e}. &
-Pins the complete landscape figure and its reading guide. \\
-\texttt{python3}\newline
-\texttt{scripts/}\newline
-\texttt{release\_evidence.py}\newline
-\texttt{validate} &
-\status{OGreen}{\texttt{release evidence: PASS (26 required portable QEMU gates)}}. &
-Validates the current evidence registry and its 26-gate portable projection. \\
-Portable QEMU aggregate &
-\status{OGreen}{26 of 26 required gates passed; 201 expected markers matched;
-361.11 seconds}. &
-Executes the complete current portable native evidence ladder, including every
-required Mode 22 through Mode 34 gate. \\
+Repository identity & Canonical \texttt{OSTADIX}, branch \texttt{master},
+\texttt{d13814df}; fetched origin has no newer commits. & Committed source
+basis. Existing local Cargo/core development is excluded. \\
+O MCP environment & 30 catalog backends: 7 builtin, 22 located, 1 missing. &
+Local discovery, with runtime availability distinct from execution. \\
+O MCP smoke & \texttt{SMOKE\_OK}, exit 0, \texttt{[number] 2}. &
+Installed evaluator and Python-backed canonical hello program. \\
+Source-first execution & Inline Python through \texttt{o\_execute} completed
+with exit 0 and native execution evidence. & Exercises the installed managed
+execution path while auditing source references. \\
+Portable registry validation & \texttt{release evidence: PASS
+(26 required portable QEMU gates)}. & Registry and required projection
+validation. QEMU gates were not rerun for this document revision. \\
+Language-source classification & 231 classified: 85 hosted \texttt{.O},
+146 native \texttt{.oc}; zero failures. & Manifest classification only;
+this command parsed and executed zero programs. \\
+Installed project grounding & Both installed front doors reject
+\texttt{--grounding} for the project fixture with their older deferred-view
+diagnostics. & The current source report and parity tests are present;
+installed-version parity was not established by this run. \\
+Document production & TeX rebuild, source/asset reference checks, PDF text and
+structure inspection. & Document checks are reported with the delivered
+artifact; they do not qualify the full runtime or physical substrates. \\
 \bottomrule
 \end{longtable}
 
-\src{Cargo.toml}{1--18}
-\src{Cargo.toml}{78--86}
-\src{CHANGELOG.md}{8--50}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{1663--2207}
-\src{evidence/gates.toml}{1--4}
-\src{scripts/release_evidence.py}{487--586}
+The previous edition's aggregate Rust, MCP, container, compiler, and QEMU
+results belong to its August source and artifacts. They are not carried
+forward as passes for this October coordinate. This revision uses current
+source contracts, explicitly dated retained evidence, and the focused checks
+above; it does not assert a new complete platform qualification.
 
-\subsection{Exact reproduction commands}
+\subsection{Evidence classes and retained records}
+
+\begin{enumerate}
+  \item \textbf{Defining source} establishes the implemented mechanism at the
+        pinned coordinate.
+  \item \textbf{Generated structure} instantiates that mechanism for a named
+        program and compiler. Section~\ref{sec:linked-project-dot} retains the
+        August project graph as a dated illustration.
+  \item \textbf{Registry validation} checks the declared gate inventory and
+        required release projection without substituting for gate execution.
+  \item \textbf{Execution transcripts} establish behavior on the exact
+        artifacts and substrates they identify.
+\end{enumerate}
+
+The September 17 G0 continuity attestation and transcript retain a passing
+repository-conformance observation. That supporting evidence advances its
+named gate; it does not qualify every World-alpha requirement. Native and
+distributed Linux status retains separate qualifications for its embedded
+guest, hypervisor, hardware, and distributed execution profiles.
+\src{evidence/world/g0-attribution-history-continuity-2026-09-17.toml}
+\src{evidence/world/transcripts/g0-attribution-history-continuity-2026-09-17.log}
+\src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
+
+\subsection{Reproduction and coverage accounting}
+
+The public surface has fifteen root binaries, one independent engine, and a
+separately locked MCP package. The shared catalog accounts for 23 commands and
+11 guide topics; the server declares 21 tools. These are source inventories,
+not a count of installed or qualified runtimes. The portable native registry
+contains 26 required gates; the World-alpha registry has its own larger
+requirements and evidence dependencies.
+\src{Cargo.toml}
+\src{src/command_catalog.rs}
+\src{mcp/ostadix_lang_mcp_server/src/main.rs}
+\src{evidence/gates.toml}
+\src{evidence/world_alpha_gates.toml}
 
 \begin{lstlisting}[style=plaincode]
 git rev-parse HEAD
-# 36787b16476bc0c8c4ddf665c7228b314d04e716
-
-cargo build --release --workspace --bins --all-features --locked
-
+# d13814df25cac143b688160c3c969dc814614b1a
+python3 scripts/check_language_sources.py validate
 python3 scripts/release_evidence.py validate
-# release evidence: PASS (26 required portable QEMU gates)
-
-rg -n '^\s*#\[tool\(' mcp/ostadix_lang_mcp_server/src/main.rs
-# ten tool definitions
-
-mkdir -p output/current-master
-./target/release/o-link tests/fixtures/project_hgraph --project \
-  -o output/current-master/o-linked-project.O
-./target/release/olangc output/current-master/o-linked-project.O \
-  --target dot --route main --shim-dir backends \
-  > output/current-master/o-linked-codebase-hgraph.dot
-./target/release/olangc tests/fixtures/project_hgraph \
-  --target dot --route main --shim-dir backends \
-  > output/current-master/project-hgraph-direct.dot
-cmp output/current-master/o-linked-codebase-hgraph.dot \
-    output/current-master/project-hgraph-direct.dot
-cp output/current-master/o-linked-codebase-hgraph.dot \
-  docs/figures/o-linked-codebase-hgraph.dot
-dot -Tsvg output/current-master/o-linked-codebase-hgraph.dot \
-  -o docs/figures/o-linked-codebase-hgraph.svg
-dot -Tpdf output/current-master/o-linked-codebase-hgraph.dot \
-  -o docs/figures/o-linked-codebase-hgraph.pdf
-shasum -a 256 \
-  output/current-master/o-linked-project.O \
-  output/current-master/o-linked-codebase-hgraph.dot \
-  docs/figures/o-linked-codebase-hgraph.dot \
-  docs/figures/o-linked-codebase-hgraph.svg \
-  docs/figures/o-linked-codebase-hgraph.pdf
-\end{lstlisting}
-
-The current gate registry names the portable aggregate as:
-
-\begin{lstlisting}[style=plaincode]
+# Execute separately on a prepared substrate:
 ./boot-and-test.sh smoke
 \end{lstlisting}
 
-That aggregate consumes the registry projection checked above. Individual mode
-scripts remain directly runnable and name their expected markers in
-\path{evidence/gates.toml}. This gives a reproducer one route from the release
-coordinate, through registry qualification, into each concrete hosted or QEMU
-execution transcript.
-
-\subsection{Coverage accounting}
-
-The current public surface is accounted for through explicit inventories:
-fourteen root binaries; one independent engine package; ten MCP tools; four
-current execution coordinates in Graph V2, Evidence V6, Admission V6, and Why
-V2; eight Information Bridge projections; three Registry V1 event bodies; four
-World wire families; thirteen required modes from 22 through 34; and the
-twenty-six-gate portable evidence registry. The sections and appendices map
-each inventory to defining source and the command that exposes it.
+The reproduction appendix lists build and execution commands as procedures.
+Record the resulting commit, binary identities, complete output, skipped
+prerequisites, and substrate before promoting any result to current evidence.
 
 \section{Implemented capabilities}
 \label{sec:claims}
@@ -4049,7 +4234,12 @@ each inventory to defining source and the command that exposes it.
   \item Uniform hosted lowering through \oir{}, a validated plan, and a
         state-complete \hgraph{}.
   \item Deterministic graph settlement with explicit resource/effect
-        modeling and verified-inline parallelism.
+        modeling, trusted worker profiles, and explicit autonomous groups.
+  \item Computation identity, retained realization decisions, typed
+        grounding, physical operation/transfer DAGs, and a bounded
+        authenticated pure-renderer Fabric.
+  \item Live Python object ownership, checked plain-data crossings,
+        acknowledged checkpoint migration, and owned-process cancellation.
   \item Deferred requests, Nix/OS values, and four first-class group
         topologies.
   \item Explicit route-preserving project lifting, reversible project bundles,
@@ -4064,7 +4254,7 @@ each inventory to defining source and the command that exposes it.
         contract.
   \item An independently packageable \texttt{ostadix-api} engine, an exact
         root compatibility shell, a unified lowercase \texttt{o} command, and
-        a ten-tool local MCP.
+        a source-first local MCP with managed jobs.
   \item Graph V2 identity, Evidence V6 analysis, Admission V6 authority, Why V2
         explanation, and one-use agent intent handles.
   \item Reciprocal SPAKE2 pairing, destination-issued credentials, pinned TLS,
@@ -4089,10 +4279,10 @@ compose it.
 
 Execution semantics include values, failures, ordering, actor mutation, and
 world effects. I represent those dimensions with ordinary values, completion
-tokens, and versioned resource nodes. This ontology preserves observable
-serial behavior while admitting a precise parallel frontier, making
-state-complete graph projection the architectural center of the hosted
-runtime.
+tokens, and versioned resource nodes. The strict execution profile preserves
+the represented ordering constraints; explicitly autonomous groups admit
+unordered effects under their declared policy. The graph makes the chosen
+parallel frontier and its settlement obligations inspectable.
 
 \subsection{Why analysis and authority are separate objects}
 
@@ -4152,6 +4342,13 @@ Project HGraph. Project Mesh closes a selected branch over its prerequisites,
 ranks paired nodes by capacity, and binds every attempt to node generations
 and returned artifacts.
 
+Computation facets and declared realizations make the relation between meaning,
+implementation, representation, and target explicit. Grounding checks the
+identities connecting those descriptions; admitted physical execution moves
+the actual values under declared transfer observations. Supported native
+objects retain their live owners, checkpoint protocols move supported actor
+state, and cancellation follows the ownership of already-started work.
+
 \ocore{} carries the architecture to the machine boundary. Typed source lowers
 through HIR and SSA MIR into freestanding x86-64 objects, which compose into a
 kernel with generation-tagged capabilities, isolated native services, strict
@@ -4162,7 +4359,7 @@ generations, revocation, rollback, and reconstruction.
 The result is one language system spanning recursive polyglot programming,
 state-complete graph execution, whole-project composition, native compilation,
 capability-bearing kernel services, Information, Registry, and World
-construction. The independent engine, unified \texttt{o}, and ten-tool MCP
+construction. The independent engine, unified \texttt{o}, and shared human/MCP catalog
 make the same runtime available to embedders, operators, and agents. Graph V2,
 Evidence V6, Admission V6, and Why V2 carry one continuous representation of
 evaluator choice, typed value, effect, explanation, authority, and execution
@@ -4261,17 +4458,19 @@ settlement topology. \\
 \texttt{O version [--json]}; \texttt{-h}/\texttt{--help}; REPL commands
 \texttt{:scope}, \texttt{:r}, \texttt{:?}, \texttt{:q} &
 Evaluate one document or enter and control the persistent interactive session. \\
-\texttt{o} dispatcher &
+\texttt{o} native dispatcher &
 \texttt{run}, \texttt{plan}, \texttt{explain}, \texttt{inspect},
 \texttt{why}, \texttt{kernel}, \texttt{node}, \texttt{node-host},
 \texttt{registry}, \texttt{info}, \texttt{live}, and \texttt{receipt};
-all other forms enter \texttt{O} &
-Route one lowercase command surface into the compiled intent front door,
+\texttt{capabilities}, \texttt{guide}, \texttt{tool}, \texttt{operation},
+\texttt{realizations}, \texttt{observe}, \texttt{replan}, and device/capacity
+families; ordinary source enters the evaluator &
+Route the compiled lowercase command surface into the native intent owner,
 compiler inspection, kernel, node, Registry, Information, Live-World, O-Git,
 or ordinary evaluator. \\
 \texttt{o-cli} &
 \texttt{o run INPUT [execution options]};
-\texttt{o plan INPUT [--route ID] [--live]};
+\texttt{o plan INPUT [--route ID] [--live|--grounding]};
 \texttt{o explain [last-run|RUN] [--json]};
 \texttt{o inspect [last-run|RUN] [--trace] [--json]} &
 Resolve one hosted or project intent, plan or execute it, and retain a durable
@@ -4364,18 +4563,16 @@ Feed arbitrary bytes through the hosted parser under libFuzzer. \\
 \bottomrule
 \end{longtable}
 
-\src{src/main.rs}{15--80}
-\src{src/main.rs}{303--337}
-\src{scripts/o-cli.sh}{18--116}
-\src{src/bin/olangc.rs}{192--257}
-\src{crates/ostadix-api/src/ocore/driver.rs}{11--35}
-\src{src/bin/olink.rs}{155--374}
-\src{o_lang/cli.py}{123--141}
+\src{src/main.rs}
+\src{src/bin/o-cli/native_dispatch.rs}
+\src{src/bin/olangc.rs}
+\src{crates/ostadix-api/src/ocore/driver.rs}
+\src{src/bin/olink.rs}
+\src{o_lang/cli.py}
 
-Thirteen root binaries expose \texttt{-h}/\texttt{--help} at their public
+Fourteen root binaries expose \texttt{-h}/\texttt{--help} at their public
 command boundary. The notebook serves its positional loopback interface at
-\texttt{127.0.0.1:8888}. The historical C17 help behavior is recorded in the
-final boundary table.
+\texttt{127.0.0.1:8888}. Use the shared catalog to discover each command's supported help invocation.
 
 Every stateful \texttt{o-live-host} command accepts global optional
 \texttt{--policy FILE}. Its exact subcommand arguments are:
@@ -4517,16 +4714,25 @@ Registry and World &
 \path{crates/ostadix-api/src/registry/},
 \path{crates/ostadix-api/src/world/} &
 Signed namespace/profile chains and the canonical World wire families. \\
+Computation and physical execution &
+\path{crates/ostadix-api/src/computation/},
+\path{crates/ostadix-api/src/computation_core.rs} &
+Canonical facets, realization records, retained decisions, operation/transfer
+planning, and admitted local physical execution. \\
+Grounding and cancellation &
+\path{crates/ostadix-api/src/project/grounding.rs},
+\path{crates/ostadix-api/src/cancellation.rs} &
+Validated inspection identities and parent-aware request cancellation. \\
 Agent and native evidence &
 \path{mcp/ostadix_lang_mcp_server/}, \path{evidence/gates.toml} &
-Ten local agent tools and the required portable native gate registry. \\
+Source-first agent execution, managed jobs, and the required portable native gate registry. \\
 \bottomrule
 \end{longtable}
 
 \section{Complete \texttt{ostadix-api} module inventory}
 \label{sec:engine-inventory}
 
-The independent engine declares 42 modules. Thirty-six are public and are
+The independent engine declares 48 modules. Forty-two are public and are
 reexported by the root compatibility library. Six are crate-internal
 implementation modules: \texttt{backend\_catalog},
 \texttt{canonical\_cbor}, \texttt{capability},
@@ -4547,25 +4753,27 @@ Hosted execution and backends &
 \texttt{backend}, \texttt{backend\_catalog} (internal),
 \texttt{backend\_morphism}, \texttt{backend\_state},
 \texttt{capability} (internal), \texttt{dispatch\_model} (internal),
-\texttt{effects}, \texttt{environment}, \texttt{eval},
+\texttt{cancellation}, \texttt{effects}, \texttt{environment}, \texttt{eval},
 \texttt{eval\_core} (internal), \texttt{execution\_contract},
+\texttt{execution\_fabric}, \texttt{execution\_fabric\_authority},
 \texttt{executor}, \texttt{hgraph}, \texttt{ir}, \texttt{process},
 \texttt{runtime\_exec}, \texttt{scheduler}, \texttt{shims}. \\
 Evidence, intent, placement, and projects &
-\texttt{evidence}, \texttt{intent}, \texttt{placement},
+\texttt{computation}, \texttt{computation\_core}, \texttt{evidence},
+\texttt{intent}, \texttt{placement},
 \texttt{placement\_protocol} (internal), \texttt{project}. \\
 Distributed state and information &
 \texttt{hosted\_remote}, \texttt{information},
 \texttt{information\_bridge}, \texttt{information\_provenance},
 \texttt{registry}, \texttt{resource\_identity}, \texttt{world}. \\
 Lifecycle and native systems &
-\texttt{kernel\_world}, \texttt{live\_system}, \texttt{nix\_ops},
+\texttt{boot\_objects}, \texttt{kernel\_world}, \texttt{live\_system}, \texttt{nix\_ops},
 \texttt{nixos\_ops}, \texttt{ocore}. \\
 \bottomrule
 \end{longtable}
 
-\src{crates/ostadix-api/src/lib.rs}{9--59}
-\src{src/lib.rs}{7--13}
+\src{crates/ostadix-api/src/lib.rs}
+\src{src/lib.rs}
 
 \section{Architectural position among neighboring systems}
 
@@ -4639,14 +4847,33 @@ verified host intent into native admission.
 
 \section{Reproduction commands}
 
-The commands below begin at repository root and preserve the same source
-coordinate used throughout the paper.
+The commands below begin at a prepared checkout of the pinned source.
+They are reproduction procedures; successful execution must be recorded
+separately. Use an isolated checkout when local development changes the
+workspace or lockfile.
+
+\subsection{Build the whitepaper artifact}
+
+Compile from the document directory so figure paths resolve. The final qpdf
+pass normalizes PDF dictionaries after repeated embedding of the retained
+Graphviz figure; validate its output before distributing it.
+
+\begin{lstlisting}[style=plaincode]
+mkdir -p output/pdf
+cd docs
+latexmk -norc -pdf -interaction=nonstopmode -halt-on-error \
+  -outdir=../output/pdf Ostadix-lang_Technical_Whitepaper.tex
+cd ..
+qpdf --warning-exit-0 output/pdf/Ostadix-lang_Technical_Whitepaper.pdf \
+  Ostadix-lang_Technical_Whitepaper.pdf
+qpdf --check Ostadix-lang_Technical_Whitepaper.pdf
+\end{lstlisting}
 
 \subsection{Pin the source and qualify the Rust workspace}
 
 \begin{lstlisting}[style=plaincode]
 git rev-parse HEAD
-# 36787b16476bc0c8c4ddf665c7228b314d04e716
+# d13814df25cac143b688160c3c969dc814614b1a
 
 cargo fmt --all --check
 cargo check --workspace --all-targets --all-features --locked
@@ -4660,13 +4887,13 @@ cargo build --release --workspace --bins --all-features --locked
 
 \begin{lstlisting}[style=plaincode]
 ./target/release/O examples/hello.O backends
-./scripts/o-cli.sh run examples/hello.O
-./scripts/o-cli.sh plan examples/hello.O
-./scripts/o-cli.sh explain last-run
-./scripts/o-cli.sh inspect last-run
+./target/release/o-cli run examples/hello.O
+./target/release/o-cli plan examples/hello.O
+./target/release/o-cli explain last-run
+./target/release/o-cli inspect last-run
 
 for bin in O o-cli olangc ocorec o-link o-unlink ogit \
-  o-live-host o-node octl o-registry o-info \
+  o-live-host o-node octl o-registry o-info ostadix-device \
   ocore-kernel-world-record
 do
   "./target/release/$bin" --help
@@ -4760,10 +4987,11 @@ to its gate entry.
 ./output/current-master/hello-host
 ./target/release/olangc examples/hello.O --target wasm \
   --shim-dir backends -o output/current-master/hello.wasm
-wasmtime output/current-master/hello.wasm
-# expected current-host result: nonzero
-# Error: failed to evaluate program
-# Caused by: failed to locate current O executable
+# Direct WASI execution uses an inline-only program:
+./target/release/olangc examples/wasm_hello.O --target wasm \
+  -o output/current-master/inline.wasm
+wasmtime run output/current-master/inline.wasm
+# Hosted effects require an explicit provider or the Linux-image route.
 \end{lstlisting}
 
 \subsection{Run the Python and C17 editions}
@@ -4795,134 +5023,78 @@ The type-level and state-transition suites for Information, Bridge,
 Provenance, Registry, pairing, TLS, Project Mesh, and World run inside the
 all-target, all-feature Rust matrix above.
 
-\section{Current host, integration, and proof boundaries}
+
+\section{Implementation and qualification boundaries}
 \label{sec:boundaries}
 
-These are the current-master boundaries a reader could reasonably confuse with
-the mechanisms established in the body of the paper.
+These boundaries specify the present source contracts and the execution
+evidence needed to extend them.
 
+\begingroup
+\small
+\renewcommand{\arraystretch}{1.08}
 \begin{longtable}{P{0.23\textwidth} P{0.69\textwidth}}
 \toprule
-\textbf{Boundary} & \textbf{Exact current state} \\
+\textbf{Surface} & \textbf{Exact boundary} \\
 \midrule
 \endhead
-Lowercase front door &
-The compiled \texttt{o-cli} owns \texttt{run}, \texttt{plan},
-\texttt{explain}, and \texttt{inspect}. The repository Bash dispatcher owns
-routing for the other command families. On a case-insensitive filesystem, PATH
-order must select the installed lowercase wrapper ahead of the uppercase
-\texttt{O} binary. \\
-\texttt{o-link} directory behavior &
-A bare single directory literal-links and runs. Explicit \texttt{--literal}
-produces a link-only hosted artifact unless paired with \texttt{--run}.
-Explicit \texttt{--project} produces the route-preserving inert project bundle
-used by the graph in this paper. \\
-Run records &
-\texttt{RunRecordV1} is a content-bound local observation record. It carries no
-signature or remote attestation and therefore derives trust from the local
-store and the process that produced it. \\
-MCP execution &
-The analyze handle is process-local, expiring, one-use, and bound to its
-program, path, root, backends, source, and intent. The server consumes it before
-root-runtime validation. The direct \texttt{o\_run} tool is a separate direct
-execution route and carries no analyze-handle gate. \\
-MCP Python assertion &
-The isolated MCP Rust package passed 29 tests, and the real ten-tool smoke
-passed. The separate root Python \texttt{tests.test\_mcp\_smoke} suite passed
-four assertions and failed one brittle build-command string assertion because
-its expected command omits the current \texttt{--bin o-cli} argument. \\
-WASI execution &
-\texttt{olangc --target wasm} successfully generated the
-\texttt{wasm32-wasip1} module. The current Wasmtime launch on this host then
-attempted to locate \texttt{O} and failed at that runtime lookup. The paper
-claims current WASI generation from this run. \\
-Pairing and TLS &
-The outbound peer record pins the destination CA and server name. The inbound
-listener validates a client chain against the pairing CA. The current inbound
-policy has no per-leaf allowlist or revocation service beyond that CA
-validation and stored pairing state. \\
-Discovery &
-\texttt{o node list} reports UDP discovery advertisements. Paired TLS
-connection and an application request establish the stronger operational
-facts used by Project Mesh. \\
-Project Mesh &
-Mesh transfers a source-closed route branch and its project prerequisites.
-Migration replays declared actor generations and project state contracts. It
-does not move live process memory. \\
-Information provenance &
-A provenance sidecar establishes origin only when admission recomputes its
-exact image and the recovery assessment reports \texttt{Exact}. Outstanding
-producer, procedure, authorization, receipt, attribution, execution, effect,
-or morphism obligations retain an unestablished origin. \\
-Information Bridge &
-The eight projections are bounded metadata records. They carry no credential,
-capability bearer, mutation handle, dispatch handle, or generic native-value
-serialization. \\
-Registry V1 &
-The registry implementation verifies append-only local event chains,
-delegations, signatures, freshness, rollback, and equivocation. It defines no
-network publication or discovery service by itself. \\
-World formats &
-OWIDENT, OWPROTO, OWVALUE, and OWRECEIPT are canonical record formats.
-Capability identities and rights inside them are descriptive. Signer
-authorization, key enrollment, revocation, and current Governor state come
-from the policy layer that consumes a verified record. \\
-Evidence registry &
-\texttt{release\_evidence.py validate} validates the registry and its required
-projection; it is not a QEMU transcript. The separate current aggregate
-execution completed 26 of 26 required portable gates and matched 201 expected
-markers. \\
-Mode 21 &
-Mode 21 is the supplemental hardware-KVM gate and lies outside the required
-Modes 22 through 34 set. Its AMD SVM/NPT and writable \path{/dev/kvm}
-requirements make it host-dependent. It was not executed in this host audit
-because that required hardware substrate was unavailable. \\
-Native scope &
-The registered native gates establish their exact bounded QEMU and hosted
-contracts. Physical-machine execution, Secure Boot, measured boot, general
-foreign-kernel boot, general Linux or Plan 9 compatibility, PCI assignment,
-DMA isolation, and IOMMU isolation require their own evidence gates. \\
-Fuzz package lock &
-\texttt{cargo check --manifest-path fuzz/Cargo.toml} passed, then Cargo rewrote
-the stale tracked \path{fuzz/Cargo.lock}. The audit restored that disposable
-worktree exactly. This is a locked-fuzz reproducibility defect in the tracked
-lock projection. \\
-Release all-target selection &
-\texttt{cargo build --release --workspace --bins --all-features --locked}
-passed. Adding \texttt{--all-targets} is not a passing release-build command at
-this snapshot: integration-harness compilation reaches
-\path{tests/hosted_remote_v2.rs}, which calls two runtime injection methods
-gated by \texttt{cfg(debug\_assertions)} and therefore absent from the release
-dependency. Release artifacts use the complete binary target set; test targets
-use the separately passing all-target, all-feature test command. \\
-World-alpha G0 &
-The World-alpha G0 lane reached its historical continuity prerequisite and
-stopped there. The current portable 26-gate registry and Modes 22 through 34
-results do not promote that history-dependent lane into a G0 passage. \\
-Multipass Linux lane &
-The requested Multipass Linux lane was unavailable in the current host audit.
-Linux-specific results in this paper therefore come from the registered
-portable QEMU gates and the bounded container probe. \\
-Live-World state &
-Hosted Live-World status reconstructs from the revisioned active set, immutable
-CAS, and policy. Rollback swaps the one retained healthy root. The public
-command set has no \texttt{rebuild} operation and maintains no lifecycle
-journal. \\
+Source and installed tools & Source describes the pinned commit. The October
+grounding commands require a build containing that source; installed tools
+probed during this revision still rejected them. \\
+Native front door & Compiled \texttt{o} owns operational routing and shared
+discovery. The compatibility script launches that owner. Catalog discovery
+alone proves neither installed flag support nor backend readiness. \\
+Planning and grounding & Logical/deployment identities and descriptive
+requirements are inspectable without dispatch. Realization selection and
+project grounding grant no World, placement, provider, or task authority. \\
+Execution records & Local run records bind retained content and original
+decisions. Their trust comes from the producing process/store; signatures or
+remote attestation require their own explicit protocol. \\
+Managed MCP work & Jobs and one-use intent handles belong to a server session.
+Job creation precedes completion, output pages are bounded, and server restart
+does not restore execution. Selected-node client cancellation cannot undo
+remote effects; ambiguous completion is not automatically retried. \\
+Concurrency & Trusted pure publication, deterministic settlement, and explicit
+autonomous effects have separate rules. Regression observations do not prove
+unrestricted contextual equivalence of arbitrary effectful schedules. \\
+Execution Fabric & Authenticated remote attempts support the admitted pure
+renderer profile. Graph publication remains coordinator-owned. Broader remote
+OIR, automatic placement, and external-effect retry require new contracts. \\
+Physical graphs & Automatic OIR physical execution uses admitted local
+operation graphs and checked local socket transfers. It supplies no general
+automatic remote placement. \\
+Native objects and migration & Live Python objects remain in their exact
+owner. Supported idle Python/SQLite state can migrate through acknowledged
+checkpoint protocols. Live handles, in-flight work, and arbitrary external
+resources are outside that transfer. \\
+Wasm and runtime bundles & Direct WASI supports inline plans; hosted effects
+need an explicit provider. The separate Linux-image route packages supplied
+runtimes in an emulated guest. A supplied image or runtime tree requires its
+own closure and execution qualification. \\
+Information and Registry & Information projections carry bounded descriptive
+metadata. Provenance admission recomputes exact images and obligations.
+Registry V1 verifies local signed event chains; it supplies no independent
+network publication service. \\
+World formats & Canonical identities and receipt bytes carry descriptive
+rights. Signer enrollment, revocation, and current Governor authority come
+from the consuming policy. \\
+Native qualification & Portable QEMU, hardware KVM, Linux guest, physical boot,
+Secure Boot, measured boot, PCI/DMA/IOMMU, and cross-machine execution require
+their own evidence. Passing one profile does not complete World-alpha. \\
+Current test scope & The document revision reran the focused checks in
+Section~\ref{sec:validation}. Full workspace, remote platform, and native boot
+matrices remain separate qualification runs. \\
 \bottomrule
 \end{longtable}
+\endgroup
 
-\src{scripts/o-cli.sh}{18--26}
-\src{crates/ostadix-api/src/intent/record.rs}{53--100}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{43--187}
-\src{mcp/ostadix_lang_mcp_server/src/main.rs}{1858--2015}
-\src{crates/ostadix-api/src/hosted_remote/v2/runtime.rs}{740--773}
-\src{tests/hosted_remote_v2.rs}{2300--2432}
-\src{crates/ostadix-api/src/hosted_remote/tls.rs}{204--303}
-\src{crates/ostadix-api/src/information_bridge/mod.rs}{1--54}
-\src{crates/ostadix-api/src/information_provenance/mod.rs}{330--505}
-\src{crates/ostadix-api/src/registry/verify.rs}{227--348}
-\src{crates/ostadix-api/src/world/receipt.rs}{600--769}
-\src{evidence/gates.toml}{1--4}
-\src{scripts/release_evidence.py}{487--586}
+\src{docs/HUMAN_LLM_WORKFLOWS.md}
+\src{docs/OPERATION_PLANNING_V1.md}
+\src{docs/EXECUTION_OBSERVATION_CONTRACT.md}
+\src{docs/OIR_EXECUTION_FABRIC_V1.md}
+\src{docs/OIR_PHYSICAL_EXECUTION_V1.md}
+\src{docs/HOSTED_ACTOR_MIGRATION.md}
+\src{docs/OLANGC_WASM.md}
+\src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
 
 \end{document}

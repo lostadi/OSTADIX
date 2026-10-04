@@ -1,0 +1,536 @@
+{"app_name":"TodoistWidgets","timestamp":"2026-09-22 16:15:15.00 -0400","app_version":"26.9.3","slice_uuid":"b9016429-767f-3037-bece-405eac47e8d9","adam_id":"572688855","build_version":"1788480523","bundleID":"com.todoist.ios.TodoistWidgets","platform":2,"share_with_app_devs":0,"is_first_party":0,"bug_type":"309","os_version":"iPhone OS 26.6 (23G71)","roots_installed":0,"incident_id":"63D5E0F6-D9DD-40E1-A1F1-5B1DE213EF7A","name":"TodoistWidgets"}
+{
+  "uptime" : 49,
+  "procRole" : "Throttle",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "iPhone17,1",
+  "coalitionID" : 570,
+  "osVersion" : {
+    "isEmbedded" : true,
+    "train" : "iPhone OS 26.6",
+    "releaseType" : "User",
+    "build" : "23G71"
+  },
+  "captureTime" : "2026-09-22 16:15:14.5368 -0400",
+  "codeSigningMonitor" : 2,
+  "incident" : "63D5E0F6-D9DD-40E1-A1F1-5B1DE213EF7A",
+  "pid" : 359,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "procLaunch" : "2026-09-22 16:15:13.5612 -0400",
+  "procStartAbsTime" : 1155245220,
+  "procExitAbsTime" : 1178613163,
+  "procName" : "TodoistWidgets",
+  "procPath" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/PlugIns\/TodoistWidgets.appex\/TodoistWidgets",
+  "bundleInfo" : {"CFBundleShortVersionString":"26.9.3","CFBundleVersion":"1788480523","CFBundleIdentifier":"com.todoist.ios.TodoistWidgets"},
+  "storeInfo" : {"itemID":"572688855","storeCohortMetadata":"10|date=1783386000000&sf=143441","softwareVersionExternalIdentifier":"890826216","distributorID":"com.apple.AppStore","thirdParty":true,"applicationVariant":"1:iPhone17,1:26"},
+  "parentProc" : "launchd",
+  "parentPid" : 1,
+  "coalitionName" : "com.todoist.ios.TodoistWidgets",
+  "crashReporterKey" : "9befc3289dd0f1495d53b7659f678ff708aaa139",
+  "appleIntelligenceStatus" : {"state":"available"},
+  "developerMode" : 1,
+  "bootProgressRegister" : "0x2080000c",
+  "wasUnlockedSinceBoot" : 0,
+  "isLocked" : 1,
+  "throttleTimeout" : 10,
+  "codeSigningID" : "com.todoist.ios.TodoistWidgets",
+  "codeSigningTeamID" : "S3DD273774",
+  "codeSigningFlags" : 570450689,
+  "codeSigningValidationCategory" : 4,
+  "codeSigningTrustLevel" : 5,
+  "codeSigningAuxiliaryInfo" : 0,
+  "instructionByteStream" : {"beforePC":"IAAg1IEF+LfpAwC54gMDquMDBKrkAwWq5QMGquYDB6rnAwiqAAIAlA==","atPC":"IAAg1IgSgFL\/EwC56AcA+UgAgFLoAwA54BQA8ACQHJHjFADwY0AnkQ=="},
+  "bootSessionUUID" : "1F009DCD-DA0E-447B-95A7-28C0709E55F6",
+  "basebandVersion" : "2.70.01",
+  "exception" : {"codes":"0x0000000000000001, 0x000000019a1a0528","rawCodes":[1,6880363816],"type":"EXC_BREAKPOINT","signal":"SIGTRAP"},
+  "termination" : {"flags":0,"code":5,"namespace":"SIGNAL","indicator":"Trace\/BPT trap: 5","byProc":"exc handler","byPid":359},
+  "os_fault" : {"process":"TodoistWidgets"},
+  "faultingThread" : 0,
+  "threads" : [{"triggered":true,"id":5673,"threadState":{"x":[{"value":4401876664},{"value":17179869187},{"value":96},{"value":18446726483666796544},{"value":4404347776},{"value":6133213056},{"value":100},{"value":18446726482597246976},{"value":18446744065119617024},{"value":4290273231},{"value":0},{"value":0},{"value":1002874868310064},{"value":985162423180288},{"value":499712},{"value":4385832960},{"value":17179869187},{"value":8589934595,"symbolLocation":55883,"symbol":"AGL"},{"value":0},{"value":6133213504},{"value":4400583272},{"value":4400583200},{"value":8728698416,"symbolLocation":0,"symbol":"type metadata for Date"},{"value":6133213488},{"value":4374441184},{"value":9223372041229217136},{"value":18446744072367374336},{"value":16285016252571713536},{"value":8728698312,"symbolLocation":0,"symbol":"value witness table for Date"}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6880363816},"cpsr":{"value":1610612736},"fp":{"value":6133213456},"sp":{"value":6133213328},"esr":{"value":4060086273,"description":"(Breakpoint) brk 1"},"pc":{"value":6880363816,"matchesCrashFrame":1},"far":{"value":0}},"queue":"com.apple.main-thread","frames":[{"imageOffset":2123048,"symbol":"_assertionFailure(_:_:file:line:flags:)","symbolLocation":168,"imageIndex":41},{"imageOffset":1614408,"imageIndex":29},{"imageOffset":180716,"imageIndex":0},{"imageOffset":449120,"imageIndex":0},{"imageOffset":448472,"imageIndex":0},{"imageOffset":1713048,"imageIndex":42},{"imageOffset":451252,"symbol":"main","symbolLocation":36,"imageIndex":0},{"imageOffset":495208,"symbol":"_EXRunningExtension._start(withArguments:count:)","symbolLocation":744,"imageIndex":43},{"imageOffset":231644,"symbol":"_EXRunningExtension.start(withArguments:count:)","symbolLocation":60,"imageIndex":43},{"imageOffset":225376,"symbol":"EXExtensionMain(_:_:)","symbolLocation":860,"imageIndex":43},{"imageOffset":1728660,"symbol":"NSExtensionMain","symbolLocation":200,"imageIndex":44},{"imageOffset":19484,"symbol":"start","symbolLocation":6928,"imageIndex":45}]},{"id":5678,"frames":[],"threadState":{"x":[{"value":6133772288},{"value":5891},{"value":6133235712},{"value":0},{"value":409602},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6133772288},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":8535812280},"far":{"value":0}}},{"id":5679,"threadState":{"x":[{"value":1},{"value":0},{"value":3170393202611978240},{"value":5188146764422578174},{"value":1},{"value":3170393202611978240},{"value":5188146764422578174},{"value":1},{"value":36863},{"value":10376293528845156348},{"value":0},{"value":1},{"value":111},{"value":18445917240965224446},{"value":36863},{"value":4401709056},{"value":25769803779},{"value":17179869187},{"value":0},{"value":4401720032},{"value":1},{"value":0},{"value":8701812304,"symbolLocation":0,"symbol":"type metadata for _SwiftURL"},{"value":4402245984},{"value":17293822569102704694},{"value":4401392640},{"value":17293822569102704694},{"value":2097157},{"value":524293}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6884919828},"cpsr":{"value":1610612736},"fp":{"value":6134342208},"sp":{"value":6134341952},"esr":{"value":2449473607,"description":"(Data Abort) byte write Translation fault"},"pc":{"value":6884919828},"far":{"value":0}},"queue":"io.sentry.http-transport","frames":[{"imageOffset":805396,"symbol":"specialized static RFC3986Parser.parse(urlString:encodingInvalidCharacters:allowEmptyScheme:)","symbolLocation":4068,"imageIndex":44},{"imageOffset":1485512,"symbol":"specialized _SwiftURL.__allocating_init(stringOrEmpty:relativeTo:)","symbolLocation":200,"imageIndex":44},{"imageOffset":963724,"symbol":"specialized _SwiftURL.appending<A>(path:directoryHint:encodingSlashes:compatibility:)","symbolLocation":3516,"imageIndex":44},{"imageOffset":742316,"symbol":"URL.appendingPathComponent(_:)","symbolLocation":96,"imageIndex":44},{"imageOffset":1139316,"imageIndex":30},{"imageOffset":1134732,"imageIndex":30},{"imageOffset":837052,"imageIndex":30},{"imageOffset":1102376,"imageIndex":30},{"imageOffset":1102548,"imageIndex":30},{"imageOffset":211524,"symbol":"-[SentryHttpTransport sendAllCachedEnvelopes]","symbolLocation":676,"imageIndex":30},{"imageOffset":208628,"symbol":"__36-[SentryHttpTransport sendEnvelope:]_block_invoke","symbolLocation":252,"imageIndex":30},{"imageOffset":523828,"imageIndex":30},{"imageOffset":34252,"symbol":"__62-[_SentryDispatchQueueWrapperInternal dispatchAsyncWithBlock:]_block_invoke","symbolLocation":36,"imageIndex":30},{"imageOffset":6568,"symbol":"_dispatch_call_block_and_release","symbolLocation":32,"imageIndex":47},{"imageOffset":111076,"symbol":"_dispatch_client_callout","symbolLocation":16,"imageIndex":47},{"imageOffset":40880,"symbol":"_dispatch_lane_serial_drain","symbolLocation":740,"imageIndex":47},{"imageOffset":43692,"symbol":"_dispatch_lane_invoke","symbolLocation":392,"imageIndex":47},{"imageOffset":85420,"symbol":"_dispatch_root_queue_drain_deferred_wlh","symbolLocation":284,"imageIndex":47},{"imageOffset":83628,"symbol":"_dispatch_workloop_worker_thread","symbolLocation":720,"imageIndex":47},{"imageOffset":5040,"symbol":"_pthread_wqthread","symbolLocation":292,"imageIndex":48},{"imageOffset":2240,"symbol":"start_wqthread","symbolLocation":8,"imageIndex":48}]},{"id":5685,"frames":[],"threadState":{"x":[{"value":6134919168},{"value":11271},{"value":6134382592},{"value":6134918016},{"value":5193730},{"value":1},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":6134918000},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":8535812280},"far":{"value":0}}},{"id":5687,"threadState":{"x":[{"value":14},{"value":0},{"value":11535},{"value":7916672264,"symbolLocation":0,"symbol":"_dispatch_lane_push"},{"value":4402664272},{"value":0},{"value":4402811584},{"value":18446726482597246976},{"value":0},{"value":18446744073709551615},{"value":0},{"value":8701837416,"symbolLocation":0,"symbol":"_NSAPCache"},{"value":463977},{"value":2684629272295205369},{"value":72057602739719753,"symbolLocation":72057594037927937,"symbol":"OBJC_CLASS_$_NSAutoreleasePool"},{"value":8701791816,"symbolLocation":0,"symbol":"OBJC_CLASS_$_NSAutoreleasePool"},{"value":18446744073709551580},{"value":8728200024},{"value":0},{"value":4401253568},{"value":4401253504},{"value":18446744073709551615},{"value":4402811584},{"value":0},{"value":4400859904},{"value":4402811584},{"value":4401377328},{"value":0},{"value":276}],"flavor":"ARM_THREAD_STATE64","lr":{"value":7916631056},"cpsr":{"value":1610612736},"fp":{"value":6135489824},"sp":{"value":6135489808},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":9878477904},"far":{"value":0}},"queue":"com.todoist.FileLogger.writeQueue","frames":[{"imageOffset":3152,"symbol":"semaphore_wait_trap","symbolLocation":8,"imageIndex":49},{"imageOffset":13328,"symbol":"_dispatch_sema4_wait","symbolLocation":28,"imageIndex":47},{"imageOffset":15008,"symbol":"_dispatch_semaphore_wait_slow","symbolLocation":132,"imageIndex":47},{"imageOffset":1679540,"symbol":"-[NSFileCoordinator(NSPrivate) _blockOnAccessClaim:withAccessArbiter:]","symbolLocation":364,"imageIndex":44},{"imageOffset":1772348,"symbol":"-[NSFileCoordinator(NSPrivate) _coordinateWritingItemAtURL:options:error:byAccessor:]","symbolLocation":636,"imageIndex":44},{"imageOffset":1771672,"symbol":"-[NSFileCoordinator coordinateWritingItemAtURL:options:error:byAccessor:]","symbolLocation":112,"imageIndex":44},{"imageOffset":249880,"imageIndex":1},{"imageOffset":98656,"imageIndex":1},{"imageOffset":6568,"symbol":"_dispatch_call_block_and_release","symbolLocation":32,"imageIndex":47},{"imageOffset":111076,"symbol":"_dispatch_client_callout","symbolLocation":16,"imageIndex":47},{"imageOffset":40880,"symbol":"_dispatch_lane_serial_drain","symbolLocation":740,"imageIndex":47},{"imageOffset":43692,"symbol":"_dispatch_lane_invoke","symbolLocation":392,"imageIndex":47},{"imageOffset":85420,"symbol":"_dispatch_root_queue_drain_deferred_wlh","symbolLocation":284,"imageIndex":47},{"imageOffset":83628,"symbol":"_dispatch_workloop_worker_thread","symbolLocation":720,"imageIndex":47},{"imageOffset":5040,"symbol":"_pthread_wqthread","symbolLocation":292,"imageIndex":48},{"imageOffset":2240,"symbol":"start_wqthread","symbolLocation":8,"imageIndex":48}]},{"id":5689,"frames":[{"imageOffset":26632,"symbol":"__semwait_signal","symbolLocation":8,"imageIndex":49},{"imageOffset":51244,"symbol":"nanosleep","symbolLocation":220,"imageIndex":50},{"imageOffset":51540,"symbol":"sleep","symbolLocation":52,"imageIndex":50},{"imageOffset":250584,"symbol":"monitorThreadCache","symbolLocation":220,"imageIndex":30},{"imageOffset":17464,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":48},{"imageOffset":2252,"symbol":"thread_start","symbolLocation":8,"imageIndex":48}],"threadState":{"x":[{"value":4},{"value":0},{"value":1},{"value":1},{"value":1},{"value":0},{"value":52},{"value":0},{"value":8701526656,"symbolLocation":0,"symbol":"clock_sem"},{"value":16387},{"value":17},{"value":0},{"value":404667528614170},{"value":387028097928192},{"value":757760},{"value":4385832960},{"value":334},{"value":369099776},{"value":0},{"value":6136065856},{"value":6136065872},{"value":4383357044,"symbolLocation":0,"symbol":"g_pollingIntervalInSeconds"},{"value":4383357060,"symbolLocation":0,"symbol":"g_quickPollCount"},{"value":4383357064,"symbolLocation":0,"symbol":"g_activeCache"},{"value":4383357056,"symbolLocation":0,"symbol":"g_cacheEverCreated"},{"value":1},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":7128401964},"cpsr":{"value":1610612736},"fp":{"value":6136065840},"sp":{"value":6136065792},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":9878501384},"far":{"value":0}}},{"id":5690,"name":"SentryCrash Exception Handler (Secondary)","threadState":{"x":[{"value":268451845},{"value":17179869186},{"value":0},{"value":0},{"value":0},{"value":51689931407360},{"value":580},{"value":0},{"value":0},{"value":580},{"value":0},{"value":0},{"value":0},{"value":12035},{"value":0},{"value":0},{"value":18446744073709551569},{"value":6136639488},{"value":0},{"value":0},{"value":580},{"value":51689931407360},{"value":0},{"value":0},{"value":17179869186},{"value":6136638788},{"value":0},{"value":18446744073709550527},{"value":11180392448,"symbolLocation":0,"symbol":"_libkernel_string_functions"}],"flavor":"ARM_THREAD_STATE64","lr":{"value":9878491916},"cpsr":{"value":0},"fp":{"value":6136637152},"sp":{"value":6136637072},"esr":{"value":1442840704,"description":"(Syscall)"},"pc":{"value":9878478036},"far":{"value":0}},"frames":[{"imageOffset":3284,"symbol":"mach_msg2_trap","symbolLocation":8,"imageIndex":49},{"imageOffset":17164,"symbol":"mach_msg2_internal","symbolLocation":76,"imageIndex":49},{"imageOffset":16940,"symbol":"mach_msg_overwrite","symbolLocation":424,"imageIndex":49},{"imageOffset":16504,"symbol":"mach_msg","symbolLocation":24,"imageIndex":49},{"imageOffset":161996,"symbol":"handleExceptions","symbolLocation":160,"imageIndex":30},{"imageOffset":17464,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":48},{"imageOffset":2252,"symbol":"thread_start","symbolLocation":8,"imageIndex":48}]}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4333666304,
+    "size" : 1294336,
+    "uuid" : "b9016429-767f-3037-bece-405eac47e8d9",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/PlugIns\/TodoistWidgets.appex\/TodoistWidgets",
+    "name" : "TodoistWidgets"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4341809152,
+    "size" : 2605056,
+    "uuid" : "16ea091b-09d8-381e-bbda-7d5959ec2a93",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistCommon.framework\/TodoistCommon",
+    "name" : "TodoistCommon"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4335566848,
+    "size" : 131072,
+    "uuid" : "46bf22c9-3f9d-382a-91a3-270a101354c6",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/IssueReporting_2041EB56849B4D1_PackageProduct.framework\/IssueReporting_2041EB56849B4D1_PackageProduct",
+    "name" : "IssueReporting_2041EB56849B4D1_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4335796224,
+    "size" : 65536,
+    "uuid" : "61e0b948-b077-3417-8f61-dd96cd823f23",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistLogging.framework\/TodoistLogging",
+    "name" : "TodoistLogging"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4335943680,
+    "size" : 49152,
+    "uuid" : "82165899-cd88-3cdb-83e5-04f1a64c5434",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistAnalytics.framework\/TodoistAnalytics",
+    "name" : "TodoistAnalytics"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4335435776,
+    "size" : 32768,
+    "uuid" : "c18004de-86ec-38c2-8cc8-45fbbbb652e3",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistAssets.framework\/TodoistAssets",
+    "name" : "TodoistAssets"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4336205824,
+    "size" : 49152,
+    "uuid" : "ad50768e-ea69-3f16-a8c3-533c6c81d8bc",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistUserDefaults.framework\/TodoistUserDefaults",
+    "name" : "TodoistUserDefaults"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4338089984,
+    "size" : 196608,
+    "uuid" : "fb2e0fff-ef69-3c6c-a5a2-7478fe1ec2f1",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/FlagsmithClient_-FF0C4E4EFD2A6F3_PackageProduct.framework\/FlagsmithClient_-FF0C4E4EFD2A6F3_PackageProduct",
+    "name" : "FlagsmithClient_-FF0C4E4EFD2A6F3_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4338417664,
+    "size" : 163840,
+    "uuid" : "f7ef6049-a4b0-3605-9810-25e1000efba8",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistFeatureFlags.framework\/TodoistFeatureFlags",
+    "name" : "TodoistFeatureFlags"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4336074752,
+    "size" : 32768,
+    "uuid" : "84563064-9861-363f-9c1e-f827b240712d",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistLocalization.framework\/TodoistLocalization",
+    "name" : "TodoistLocalization"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4336336896,
+    "size" : 32768,
+    "uuid" : "dbabcca8-3ac0-398d-96a4-4d40f44904ca",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistAvatar.framework\/TodoistAvatar",
+    "name" : "TodoistAvatar"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4339351552,
+    "size" : 327680,
+    "uuid" : "ab711ff4-f98b-3837-9bff-543f22698973",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/Dateist.framework\/Dateist",
+    "name" : "Dateist"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4352671744,
+    "size" : 3899392,
+    "uuid" : "e57d7cff-ee85-3615-aa95-5553514da66a",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistKMP.framework\/TodoistKMP",
+    "name" : "TodoistKMP"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4337778688,
+    "size" : 114688,
+    "uuid" : "532c4a1e-f1a9-393a-a634-bd6c201b9c62",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/SwiftyJSON_6FA7ED0ED7CD70CA_PackageProduct.framework\/SwiftyJSON_6FA7ED0ED7CD70CA_PackageProduct",
+    "name" : "SwiftyJSON_6FA7ED0ED7CD70CA_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4339957760,
+    "size" : 262144,
+    "uuid" : "9eca2b58-1aa3-3f8a-9862-4f85723f5adc",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/Textist.framework\/Textist",
+    "name" : "Textist"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4348428288,
+    "size" : 1605632,
+    "uuid" : "17699a32-7fa0-3b26-91cc-34c200108fa1",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistFoundation.framework\/TodoistFoundation",
+    "name" : "TodoistFoundation"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4350836736,
+    "size" : 868352,
+    "uuid" : "fd6dbf0d-494f-3e2f-a47a-784a8a8593d2",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistDesignSystemComponents_35E5B1D90379A308_PackageProduct.framework\/TodoistDesignSystemComponents_35E5B1D90379A308_PackageProduct",
+    "name" : "TodoistDesignSystemComponents_35E5B1D90379A308_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4340416512,
+    "size" : 294912,
+    "uuid" : "6c0bd2a5-a60e-3b54-a4bc-f86f01c37b60",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistDesignSystemTokens.framework\/TodoistDesignSystemTokens",
+    "name" : "TodoistDesignSystemTokens"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4337123328,
+    "size" : 32768,
+    "uuid" : "dc714d21-4e5e-329b-ab0a-b2dd20d12284",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistDesignSystemExample.framework\/TodoistDesignSystemExample",
+    "name" : "TodoistDesignSystemExample"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4359208960,
+    "size" : 950272,
+    "uuid" : "0464fbf1-90ac-32a8-936f-4931a6b1353d",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistComponents.framework\/TodoistComponents",
+    "name" : "TodoistComponents"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4337221632,
+    "size" : 32768,
+    "uuid" : "8aa3780a-ac7a-307e-b938-edc674defe15",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistUserDefaultsStore.framework\/TodoistUserDefaultsStore",
+    "name" : "TodoistUserDefaultsStore"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4338909184,
+    "size" : 81920,
+    "uuid" : "9ecafa1a-5e8f-374c-8c88-47b94c9c48a5",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/AnyCodable_629B3B587F4B7FDC_PackageProduct.framework\/AnyCodable_629B3B587F4B7FDC_PackageProduct",
+    "name" : "AnyCodable_629B3B587F4B7FDC_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4346167296,
+    "size" : 376832,
+    "uuid" : "0cad3db4-9149-3b92-a853-b06678ac71b8",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistAPI.framework\/TodoistAPI",
+    "name" : "TodoistAPI"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4346806272,
+    "size" : 360448,
+    "uuid" : "da9dbfe3-6363-3a30-918c-69ab521a0878",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/Alamofire_-213FC01918BCE467_PackageProduct.framework\/Alamofire_-213FC01918BCE467_PackageProduct",
+    "name" : "Alamofire_-213FC01918BCE467_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4341284864,
+    "size" : 229376,
+    "uuid" : "83e55422-0533-39b3-bb1c-c0e9c9c19422",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistFilters.framework\/TodoistFilters",
+    "name" : "TodoistFilters"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4363632640,
+    "size" : 2179072,
+    "uuid" : "4f4c169b-96fb-33e9-89dd-e9e306d3e9a8",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/GRDB_5DC4DB053_PackageProduct.framework\/GRDB_5DC4DB053_PackageProduct",
+    "name" : "GRDB_5DC4DB053_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4366548992,
+    "size" : 1638400,
+    "uuid" : "8e9308a3-d15b-3910-b263-b35aa97aabe7",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistPersistence.framework\/TodoistPersistence",
+    "name" : "TodoistPersistence"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4339073024,
+    "size" : 49152,
+    "uuid" : "190c1d0b-6241-3299-8666-e56dd39daab8",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistFractionalIndexing_-264846C3F46BC7C8_PackageProduct.framework\/TodoistFractionalIndexing_-264846C3F46BC7C8_PackageProduct",
+    "name" : "TodoistFractionalIndexing_-264846C3F46BC7C8_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4347363328,
+    "size" : 163840,
+    "uuid" : "5cb1d77f-088d-396e-9ec2-d2be186fef5b",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/ObjectMapper_3E6F6C7AAAB836C8_PackageProduct.framework\/ObjectMapper_3E6F6C7AAAB836C8_PackageProduct",
+    "name" : "ObjectMapper_3E6F6C7AAAB836C8_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4372496384,
+    "size" : 2260992,
+    "uuid" : "591ca05b-77eb-303d-97d9-dd031b5a1c2e",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistStorage.framework\/TodoistStorage",
+    "name" : "TodoistStorage"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4380311552,
+    "size" : 2310144,
+    "uuid" : "c26e8558-26d1-32ac-b7ac-7cac2f8c9138",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/Sentry.framework\/Sentry",
+    "name" : "Sentry"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4337991680,
+    "size" : 32768,
+    "uuid" : "4a55097d-7728-30c1-b3a6-cae2ff8ad838",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/Branding.framework\/Branding",
+    "name" : "Branding"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4338745344,
+    "size" : 32768,
+    "uuid" : "30d4a3e4-82aa-37c3-8009-20f0b51551ff",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistKeys_-16DD3E09F38A1973_PackageProduct.framework\/TodoistKeys_-16DD3E09F38A1973_PackageProduct",
+    "name" : "TodoistKeys_-16DD3E09F38A1973_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4347641856,
+    "size" : 147456,
+    "uuid" : "4c690f52-919d-3d70-80c7-5f3a8ca6bd58",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistQuickAddParser.framework\/TodoistQuickAddParser",
+    "name" : "TodoistQuickAddParser"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4341088256,
+    "size" : 98304,
+    "uuid" : "943bd2f3-b265-3d82-a725-e1abda09ab72",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/UrgentRemindersFeature.framework\/UrgentRemindersFeature",
+    "name" : "UrgentRemindersFeature"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4340891648,
+    "size" : 49152,
+    "uuid" : "84e50725-2dd4-3f69-9edf-b6342db773f4",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistAvatarUI_-24F4449148BF080E_PackageProduct.framework\/TodoistAvatarUI_-24F4449148BF080E_PackageProduct",
+    "name" : "TodoistAvatarUI_-24F4449148BF080E_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4348166144,
+    "size" : 147456,
+    "uuid" : "1e919997-7a7e-3431-a098-37ddc19892d8",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/AlamofireImage_6A5A55DDB3C30281_PackageProduct.framework\/AlamofireImage_6A5A55DDB3C30281_PackageProduct",
+    "name" : "AlamofireImage_6A5A55DDB3C30281_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4352344064,
+    "size" : 147456,
+    "uuid" : "d211b516-ae88-3e49-8674-ebd7e47bafb6",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/Differ_17E3A27675D6D6_PackageProduct.framework\/Differ_17E3A27675D6D6_PackageProduct",
+    "name" : "Differ_17E3A27675D6D6_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4361125888,
+    "size" : 229376,
+    "uuid" : "cf27931e-c70d-3e8a-b907-81482e745c71",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/OrderedCollections_1222128174265B56_PackageProduct.framework\/OrderedCollections_1222128174265B56_PackageProduct",
+    "name" : "OrderedCollections_1222128174265B56_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4339187712,
+    "size" : 32768,
+    "uuid" : "f7efe34b-099e-3ddd-9033-ac088970b7d7",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/B9651205-3679-4CE8-93A9-C5E1F65A572F\/Todoist.app\/Frameworks\/TodoistKeysInterfaces_-519A01F70B047E65_PackageProduct.framework\/TodoistKeysInterfaces_-519A01F70B047E65_PackageProduct",
+    "name" : "TodoistKeysInterfaces_-519A01F70B047E65_PackageProduct"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4361011200,
+    "size" : 49152,
+    "uuid" : "6893bf2a-db4b-33d9-875d-eea7cb8f8060",
+    "path" : "\/private\/preboot\/Cryptexes\/OS\/usr\/lib\/libobjc-trampolines.dylib",
+    "name" : "libobjc-trampolines.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6878240768,
+    "size" : 5870944,
+    "uuid" : "d6ee5f00-12f2-3da4-b35d-e50ad18bd17f",
+    "path" : "\/usr\/lib\/swift\/libswiftCore.dylib",
+    "name" : "libswiftCore.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7188504576,
+    "size" : 2695296,
+    "uuid" : "2fc71475-f074-38e8-84f1-495c1ef5f44b",
+    "path" : "\/System\/Library\/Frameworks\/WidgetKit.framework\/WidgetKit",
+    "name" : "WidgetKit"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6955925504,
+    "size" : 1481984,
+    "uuid" : "5284ddb3-3ddc-3681-9fb4-bc1eb6a5c1da",
+    "path" : "\/System\/Library\/Frameworks\/ExtensionFoundation.framework\/ExtensionFoundation",
+    "name" : "ExtensionFoundation"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6884114432,
+    "size" : 15244320,
+    "uuid" : "1689fea5-1780-3efe-8f31-933d4db24ec4",
+    "path" : "\/System\/Library\/Frameworks\/Foundation.framework\/Foundation",
+    "name" : "Foundation"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6877450240,
+    "size" : 676992,
+    "uuid" : "0ba28ce2-8718-3cb3-bef4-6dd44464ebe2",
+    "path" : "\/usr\/lib\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7916617728,
+    "size" : 288256,
+    "uuid" : "955b1789-d542-3497-b46d-bd6be85f91a2",
+    "path" : "\/usr\/lib\/system\/libdispatch.dylib",
+    "name" : "libdispatch.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 8535810048,
+    "size" : 50416,
+    "uuid" : "46b95807-f752-3dc2-a1ba-6290e8d7fe38",
+    "path" : "\/usr\/lib\/system\/libsystem_pthread.dylib",
+    "name" : "libsystem_pthread.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 9878474752,
+    "size" : 244512,
+    "uuid" : "a11bf433-17ab-3f01-88bc-54c467ce6287",
+    "path" : "\/usr\/lib\/system\/libsystem_kernel.dylib",
+    "name" : "libsystem_kernel.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7128350720,
+    "size" : 521728,
+    "uuid" : "ca7f1aef-8c1f-33a2-b1cc-52d9ab644bea",
+    "path" : "\/usr\/lib\/system\/libsystem_c.dylib",
+    "name" : "libsystem_c.dylib"
+  }
+],
+  "sharedCache" : {
+  "base" : 6876266496,
+  "size" : 5414846464,
+  "uuid" : "6f1ac697-5292-3ba2-8297-71bc62266dba"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=1.4G resident=0K(0%) swapped_out_or_unallocated=1.4G(100%)\nWritable regions: Total=28.5M written=385K(1%) resident=385K(1%) swapped_out=0K(0%) unallocated=28.2M(99%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nActivity Tracing                   256K        1 \nCoreAnimation                       48K        3 \nDispatch continuations            6144K        1 \nFoundation                          16K        1 \nKernel Alloc Once                   32K        1 \nMALLOC                            16.7M        8 \nMALLOC guard page                 3584K        4 \nSTACK GUARD                        112K        7 \nStack                             4272K        7 \n__AUTH                            5794K      493 \n__AUTH_CONST                      80.4M      846 \n__CTF                               824        1 \n__DATA                            38.7M      849 \n__DATA_CONST                      31.3M      886 \n__DATA_DIRTY                      7367K      750 \n__FONT_DATA                        2352        1 \n__LINKEDIT                       188.6M       42 \n__OBJC_RO                         85.2M        1 \n__OBJC_RW                         3211K        1 \n__TEXT                             1.2G      908 \n__TPRO_CONST                       128K        2 \ndyld private memory                128K        1 \nmapped file                       35.7M        6 \npage table in kernel               385K        1 \nshared memory                       80K        4 \n===========                     =======  ======= \nTOTAL                              1.7G     4825 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+    "queue" : "com.apple.main-thread"
+  }
+},
+  "logWritingSignature" : "234cad5a2b9b2f88cb8a88d714df3eb2d0403c46",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "trmStatus" : 2048,
+  "sandboxProfileName" : "container",
+  "lockStateDuration" : 34,
+  "trialInfo" : {
+  "rollouts" : [
+
+  ],
+  "experiments" : [
+
+  ]
+}
+}

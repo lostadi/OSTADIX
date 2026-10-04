@@ -1,0 +1,674 @@
+{"app_name":"FPCKService","timestamp":"2026-09-17 18:10:39.00 -0400","app_version":"1.0","slice_uuid":"85AC81D0-6405-3B59-B3C3-B9EA2984D96E","build_version":"1","bundleID":"com.apple.FileProviderDaemon.FPCKService","duration_ms":"105182","share_with_app_devs":0,"is_first_party":0,"bug_type":"202","os_version":"iPhone OS 26.6 (23G71)","roots_installed":0,"name":"FPCKService","incident_id":"08DDCCF4-12AA-441F-A462-67310ADC911D"}
+Date/Time:        2026-09-17 18:08:48.940 -0400
+End time:         2026-09-17 18:10:34.122 -0400
+OS Version:       iPhone OS 26.6 (Build 23G71)
+Architecture:     arm64e
+Report Version:   72
+Incident Identifier: 08DDCCF4-12AA-441F-A462-67310ADC911D
+
+Data Source:      Microstackshots
+Shared Cache:     6F1AC697-5292-3BA2-8297-71BC62266DBA slid base address 0x18d008000, slide 0xd008000
+
+Command:          FPCKService
+Path:             /System/Library/PrivateFrameworks/FileProviderDaemon.framework/XPCServices/FPCKService.xpc/FPCKService
+Identifier:       com.apple.FileProviderDaemon.FPCKService
+Version:          1.0 (1)
+Resource Coalition: "com.apple.FileProvider"(650)
+On Behalf Of:     19 samples UNKNOWN [1758] (19 samples originated by UNKNOWN [88])
+Architecture:     arm64e
+Parent:           UNKNOWN [1]
+PID:              2763
+
+Event:            cpu usage
+Action taken:     none
+CPU:              90 seconds cpu time over 105 seconds (86% cpu average), exceeding limit of 50% cpu over 180 seconds
+CPU limit:        90s
+Limit duration:   180s
+CPU used:         90s
+CPU duration:     105s
+Duration:         105.18s
+Duration Sampled: 103.31s (event ends 1.78s after samples)
+Steps:            72 (10 gigacycles/step)
+
+Hardware model:   iPhone17,1
+Active cpus:      6
+Memory size:      7.46 GB
+HW page size:     16384
+VM page size:     16384
+Shared cache residency: 10.84% (649.47 MB / 5990.66 MB)
+
+Time Since Boot:  69427s
+Time Awake Since Boot: 49514s
+Time Since Wake:  22101s
+
+Total CPU Time:   206.876s
+Advisory levels:  Battery -> 3, User -> 3, ThermalPressure -> 0, Combined -> 3
+Free disk space:  9258.43 MB/114.49 GB, low space threshold 150 MB
+Vnodes Available: 56.65% (15862/28000, 14000 allocated, 14000 soft limit)
+Models:           none
+
+Preferred User Language: en-US
+Country Code:     US
+Keyboards:        en_US QWERTY
+OS Cryptex File Extents: 25145
+
+Heaviest stack for the target process:
+  19  ??? (libsystem_pthread.dylib + 2240) [0x1efeb28c0]
+  19  ??? (libsystem_pthread.dylib + 5040) [0x1efeb33b0]
+  19  ??? (libdispatch.dylib + 83628) [0x1cb0446ac]
+  19  ??? (libdispatch.dylib + 85420) [0x1cb044dac]
+  19  ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+  19  ??? (libdispatch.dylib + 40880) [0x1cb039fb0]
+  19  ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+  19  ??? (libdispatch.dylib + 6568) [0x1cb0319a8]
+  19  ??? (FPCKService + 8028) [0x100e85f5c]
+  19  ??? (FileProviderDaemon + 1851948) [0x1df11a22c]
+  19  ??? (FileProviderDaemon + 8003240) [0x1df6f7ea8]
+  19  ??? (FileProviderDaemon + 7999576) [0x1df6f7058]
+  19  ??? (FileProviderDaemon + 8167092) [0x1df71feb4]
+  19  ??? (FileProviderDaemon + 8197032) [0x1df7273a8]
+  19  ??? (FileProviderDaemon + 8164224) [0x1df71f380]
+  19  ??? (FileProviderDaemon + 8168644) [0x1df7204c4]
+  19  ??? (FileProviderDaemon + 8164292) [0x1df71f3c4]
+  19  ??? (FileProviderDaemon + 8001736) [0x1df6f78c8]
+  19  ??? (FileProviderDaemon + 1832056) [0x1df115478]
+  16  ??? (FileProvider + 124180) [0x1b9ae8514]
+  16  ??? (FileProviderDaemon + 1833256) [0x1df115928]
+  16  ??? (FileProvider + 125564) [0x1b9ae8a7c]
+  12  ??? (FileProvider + 92360) [0x1b9ae08c8]
+  10  ??? (FileProvider + 95344) [0x1b9ae1470]
+  9   ??? (FileProvider + 77844) [0x1b9add014]
+  9   ??? (FileProvider + 97884) [0x1b9ae1e5c]
+  6   ??? (FileProviderDaemon + 1834540) [0x1df115e2c]
+  2   ??? (FileProviderDaemon + 1842372) [0x1df117cc4]
+  2   ??? (FileProviderDaemon + 1841464) [0x1df117938]
+  2   ??? (FileProvider + 117080) [0x1b9ae6958]
+  2   ??? (FileProvider + 86472) [0x1b9adf1c8]
+  2   ??? (FileProvider + 67648) [0x1b9ada840]
+  2   ??? (FileProvider + 127144) [0x1b9ae90a8]
+  2   ??? (FileProvider + 127368) [0x1b9ae9188]
+  2   ??? (FileProvider + 127984) [0x1b9ae93f0]
+  1   ??? (libsystem_kernel.dylib + 24368) [0x23ff2ef30]
+
+
+Powerstats for:   FPCKService [2763]
+UUID:             85AC81D0-6405-3B59-B3C3-B9EA2984D96E
+Path:             /System/Library/PrivateFrameworks/FileProviderDaemon.framework/XPCServices/FPCKService.xpc/FPCKService
+Identifier:       com.apple.FileProviderDaemon.FPCKService
+Version:          1.0 (1)
+Resource Coalition: 19 samples "com.apple.FileProvider"(650)
+On Behalf Of:     19 samples UNKNOWN [1758] (19 samples originated by UNKNOWN [88])
+Architecture:     arm64e
+Parent:           UNKNOWN [1]
+UID:              501
+Sudden Term:      Tracked (allows idle exit)
+Footprint:        3888 KB -> 4160 KB (+272 KB) (max 5792 KB )
+Pageins:          25 pages
+Start time:       2026-09-17 18:08:55.813 -0400
+End time:         2026-09-17 18:10:27.228 -0400
+Num samples:      19 (26%)
+Energy:           4623.61 uWh
+Num threads:      1
+Primary state:    15 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified, e-core
+User Activity:    19 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 19 samples on AC
+  19  ??? (libsystem_pthread.dylib + 2240) [0x1efeb28c0]
+    19  ??? (libsystem_pthread.dylib + 5040) [0x1efeb33b0]
+      19  ??? (libdispatch.dylib + 83628) [0x1cb0446ac]
+        19  ??? (libdispatch.dylib + 85420) [0x1cb044dac]
+          19  ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+            19  ??? (libdispatch.dylib + 40880) [0x1cb039fb0]
+              19  ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                19  ??? (libdispatch.dylib + 6568) [0x1cb0319a8]
+                  19  ??? (FPCKService + 8028) [0x100e85f5c]
+                    19  ??? (FileProviderDaemon + 1851948) [0x1df11a22c]
+                      19  ??? (FileProviderDaemon + 8003240) [0x1df6f7ea8]
+                        19  ??? (FileProviderDaemon + 7999576) [0x1df6f7058]
+                          19  ??? (FileProviderDaemon + 8167092) [0x1df71feb4]
+                            19  ??? (FileProviderDaemon + 8197032) [0x1df7273a8]
+                              19  ??? (FileProviderDaemon + 8164224) [0x1df71f380]
+                                19  ??? (FileProviderDaemon + 8168644) [0x1df7204c4]
+                                  19  ??? (FileProviderDaemon + 8164292) [0x1df71f3c4]
+                                    19  ??? (FileProviderDaemon + 8001736) [0x1df6f78c8]
+                                      19  ??? (FileProviderDaemon + 1832056) [0x1df115478]
+                                        16  ??? (FileProvider + 124180) [0x1b9ae8514]
+                                          16  ??? (FileProviderDaemon + 1833256) [0x1df115928]
+                                            16  ??? (FileProvider + 125564) [0x1b9ae8a7c]
+                                              12  ??? (FileProvider + 92360) [0x1b9ae08c8]
+                                                10  ??? (FileProvider + 95344) [0x1b9ae1470]
+                                                  9   ??? (FileProvider + 77844) [0x1b9add014]
+                                                    9   ??? (FileProvider + 97884) [0x1b9ae1e5c]
+                                                      6   ??? (FileProviderDaemon + 1834540) [0x1df115e2c]
+                                                        2   ??? (FileProviderDaemon + 1842372) [0x1df117cc4]
+                                                          2   ??? (FileProviderDaemon + 1841464) [0x1df117938]
+                                                            2   ??? (FileProvider + 117080) [0x1b9ae6958]
+                                                              2   ??? (FileProvider + 86472) [0x1b9adf1c8]
+                                                                2   ??? (FileProvider + 67648) [0x1b9ada840]
+                                                                  2   ??? (FileProvider + 127144) [0x1b9ae90a8]
+                                                                    2   ??? (FileProvider + 127368) [0x1b9ae9188]
+                                                                      2   ??? (FileProvider + 127984) [0x1b9ae93f0]
+                                                                        1   ??? (libsystem_kernel.dylib + 24368) [0x23ff2ef30]
+                                                                          1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                                        1   ??? (FileProvider + 155400) [0x1b9aeff08]
+                                                                          1   ??? (FileProvider + 148380) [0x1b9aee39c]
+                                                                            1   ??? (FileProvider + 124048) [0x1b9ae8490]
+                                                                              1   ??? (libsystem_kernel.dylib + 26772) [0x23ff2f894]
+                                                                                1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                        1   ??? (FileProviderDaemon + 1842344) [0x1df117ca8]
+                                                          1   ??? (libsystem_kernel.dylib + 26000) [0x23ff2f590]
+                                                            1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                        1   ??? (FileProviderDaemon + 1842292) [0x1df117c74]
+                                                          1   ??? (FileProviderDaemon + 1838268) [0x1df116cbc]
+                                                            1   ??? (FileProviderDaemon + 1842528) [0x1df117d60]
+                                                              1   ??? (libsystem_kernel.dylib + 26000) [0x23ff2f590]
+                                                                1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                        1   ??? (FileProviderDaemon + 1842148) [0x1df117be4]
+                                                          1   ??? (libsystem_kernel.dylib + 24368) [0x23ff2ef30]
+                                                            1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                        1   ??? (FileProviderDaemon + 1841868) [0x1df117acc]
+                                                          1   ??? (FileProviderDaemon + 1839112) [0x1df117008]
+                                                            1   ??? (Foundation + 225964) [0x18d7bb2ac]
+                                                              1   ??? (CoreFoundation + 608880) [0x190587a70]
+                                                                1   ??? (CoreFoundation + 45564) [0x1904fe1fc]
+                                                                  1   ??? (libsystem_malloc.dylib + 7156) [0x19bc80bf4]
+                                                                    1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88]), User mode>
+                                                      3   ??? (FileProviderDaemon + 1834576) [0x1df115e50]
+                                                        3   ??? (FileProviderDaemon + 8006732) [0x1df6f8c4c]
+                                                          2   ??? (FileProviderDaemon + 8178688) [0x1df722c00]
+                                                            2   ??? (FileProviderDaemon + 7936056) [0x1df6e7838]
+                                                              2   ??? (FileProviderDaemon + 8005792) [0x1df6f88a0]
+                                                                2   ??? (FileProviderDaemon + 4656004) [0x1df3c6b84]
+                                                                  2   ??? (FileProviderDaemon + 4657484) [0x1df3c714c]
+                                                                    2   ??? (FileProviderDaemon + 6006100) [0x1df510554]
+                                                                      1   ??? (FileProviderDaemon + 6006844) [0x1df51083c]
+                                                                        1   ??? (libswiftCore.dylib + 34000) [0x18d1f24d0]
+                                                                          1   ??? (libswiftCore.dylib + 34000) [0x18d1f24d0]
+                                                                            1   ??? (libswiftCore.dylib + 93024) [0x18d200b60]
+                                                                              1   ??? (libswiftCore.dylib + 413456) [0x18d24ef10]
+                                                                                1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88]), User mode>
+                                                                      1   ??? (FileProviderDaemon + 6006704) [0x1df5107b0]
+                                                                        1   ??? (libdispatch.dylib + 32732) [0x1cb037fdc]
+                                                                          1   ??? (libdispatch.dylib + 72976) [0x1cb041d10]
+                                                                            1   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                                                                              1   ??? (FileProviderDaemon + 239416) [0x1def90738]
+                                                                                1   ??? (FileProviderDaemon + 897636) [0x1df031264]
+                                                                                  1   ??? (FileProviderDaemon + 6007192) [0x1df510998]
+                                                                                    1   ??? (FileProviderDaemon + 6007784) [0x1df510be8]
+                                                                                      1   ??? (FileProviderDaemon + 6007568) [0x1df510b10]
+                                                                                        1   ??? (FileProviderDaemon + 5534788) [0x1df49d444]
+                                                                                          1   ??? (FileProviderDaemon + 4658932) [0x1df3c76f4]
+                                                                                            1   ??? (FileProviderDaemon + 4655236) [0x1df3c6884]
+                                                                                              1   ??? (FileProviderDaemon + 5534828) [0x1df49d46c]
+                                                                                                1   ??? (FileProviderDaemon + 8195476) [0x1df726d94]
+                                                                                                  1   ??? (FileProviderDaemon + 8006136) [0x1df6f89f8]
+                                                                                                    1   ??? (FileProviderDaemon + 2671104) [0x1df1e2200]
+                                                                                                      1   ??? (libswiftCore.dylib + 76668) [0x18d1fcb7c]
+                                                                                                        1   ??? (libswiftCore.dylib + 76804) [0x18d1fcc04]
+                                                                                                          1   ??? (libswiftCore.dylib + 78164) [0x18d1fd154]
+                                                                                                            1   ??? (libswiftCore.dylib + 81828) [0x18d1fdfa4]
+                                                                                                              1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88]), User mode>
+                                                          1   ??? (FileProviderDaemon + 8172408) [0x1df721378]
+                                                            1   ??? (FileProviderDaemon + 8281892) [0x1df73bf24]
+                                                              1   ??? (FileProviderDaemon + 4656004) [0x1df3c6b84]
+                                                                1   ??? (FileProviderDaemon + 4657484) [0x1df3c714c]
+                                                                  1   ??? (FileProviderDaemon + 6006100) [0x1df510554]
+                                                                    1   ??? (FileProviderDaemon + 6006704) [0x1df5107b0]
+                                                                      1   ??? (libdispatch.dylib + 32732) [0x1cb037fdc]
+                                                                        1   ??? (libdispatch.dylib + 72976) [0x1cb041d10]
+                                                                          1   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                                                                            1   ??? (FileProviderDaemon + 239416) [0x1def90738]
+                                                                              1   ??? (FileProviderDaemon + 897636) [0x1df031264]
+                                                                                1   ??? (FileProviderDaemon + 6007192) [0x1df510998]
+                                                                                  1   ??? (FileProviderDaemon + 6007784) [0x1df510be8]
+                                                                                    1   ??? (FileProviderDaemon + 6007568) [0x1df510b10]
+                                                                                      1   ??? (FileProviderDaemon + 5534788) [0x1df49d444]
+                                                                                        1   ??? (FileProviderDaemon + 4658932) [0x1df3c76f4]
+                                                                                          1   ??? (FileProviderDaemon + 4655236) [0x1df3c6884]
+                                                                                            1   ??? (FileProviderDaemon + 5534828) [0x1df49d46c]
+                                                                                              1   ??? (FileProviderDaemon + 8294860) [0x1df73f1cc]
+                                                                                                1   ??? (FileProviderDaemon + 8283420) [0x1df73c51c]
+                                                                                                  1   ??? (FileProviderDaemon + 5568020) [0x1df4a5614]
+                                                                                                    1   ??? (FileProviderDaemon + 5567328) [0x1df4a5360]
+                                                                                                      1   ??? (libprequelite.dylib + 10640) [0x2b1dce990]
+                                                                                                        1   ??? (libprequelite.dylib + 10736) [0x2b1dce9f0]
+                                                                                                          1   ??? (libprequelite.dylib + 6636) [0x2b1dcd9ec]
+                                                                                                            1   ??? (libsqlite3.dylib + 332148) [0x18e956174]
+                                                                                                              1   ??? (libsqlite3.dylib + 91344) [0x18e91b4d0]
+                                                                                                                1   ??? (libsqlite3.dylib + 92900) [0x18e91bae4]
+                                                                                                                  1   ??? (libsqlite3.dylib + 260408) [0x18e944938]
+                                                                                                                    1   ??? (libsqlite3.dylib + 262676) [0x18e945214]
+                                                                                                                      1   ??? (libsqlite3.dylib + 265784) [0x18e945e38]
+                                                                                                                        1   ??? (libsqlite3.dylib + 107516) [0x18e91f3fc]
+                                                                                                                          1   ??? (libsqlite3.dylib + 670088) [0x18e9a8988]
+                                                                                                                            1   ??? (libsystem_kernel.dylib + 23928) [0x23ff2ed78]
+                                                                                                                              1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                  1   ??? (libsystem_kernel.dylib + 43700) [0x23ff33ab4]
+                                                    1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                1   ??? (FileProvider + 94768) [0x1b9ae1230]
+                                                  1   ??? (libsystem_kernel.dylib + 26000) [0x23ff2f590]
+                                                    1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                                1   ??? (FileProvider + 94540) [0x1b9ae114c]
+                                                  1   ??? (FileProvider + 141104) [0x1b9aec730]
+                                                    1   ??? (libsystem_kernel.dylib + 26000) [0x23ff2f590]
+                                                      1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                              3   ??? (libsystem_kernel.dylib + 24368) [0x23ff2ef30]
+                                                3   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                              1   ??? (FileProvider + 92224) [0x1b9ae0840]
+                                                1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88]), User mode>
+                                        2   ??? (FileProvider + 124048) [0x1b9ae8490]
+                                          2   ??? (libsystem_kernel.dylib + 26772) [0x23ff2f894]
+                                            2   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+                                        1   ??? (libsystem_kernel.dylib + 4832) [0x23ff2a2e0]
+                                          1   <on behalf of UNKNOWN [1758] (originated by UNKNOWN [88])>
+
+  Binary Images:
+           0x100e84000 -                ???  com.apple.FileProviderDaemon.FPCKService 1.0 (1) <85AC81D0-6405-3B59-B3C3-B9EA2984D96E>  /System/Library/PrivateFrameworks/FileProviderDaemon.framework/XPCServices/FPCKService.xpc/FPCKService
+           0x18d1ea000 -        0x18d78355f  libswiftCore.dylib                               <D6EE5F00-12F2-3DA4-B35D-E50AD18BD17F>  /usr/lib/swift/libswiftCore.dylib
+           0x18d784000 -        0x18e60dc1f  Foundation                                       <1689FEA5-1780-3EFE-8F31-933D4DB24EC4>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x18e905000 -        0x18eaae893  libsqlite3.dylib                                 <ADBA4BC6-1B12-3CF9-A92A-652248883FFB>  /usr/lib/libsqlite3.dylib
+           0x1904f3000 -        0x190a8f9bf  CoreFoundation                                   <5565CAD9-4941-32AC-8B10-7D3233C74151>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x19bc7f000 -        0x19bcc7d0f  libsystem_malloc.dylib                           <5BD03C05-4A35-3899-A1FB-B317705071F8>  /usr/lib/system/libsystem_malloc.dylib
+           0x1b9aca000 -        0x1b9c8b11f  FileProvider                                     <EA283DAE-DF26-367B-838B-634FEBBDDF4F>  /System/Library/Frameworks/FileProvider.framework/FileProvider
+           0x1cb030000 -        0x1cb0765ff  libdispatch.dylib                                <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1def56000 -        0x1dfbd603f  FileProviderDaemon                               <8EBEAFA5-4940-3DF5-A85C-E65A130B64B9>  /System/Library/PrivateFrameworks/FileProviderDaemon.framework/FileProviderDaemon
+           0x1efeb2000 -        0x1efebe4ef  libsystem_pthread.dylib                          <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x23ff29000 -        0x23ff64b1f  libsystem_kernel.dylib                           <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x2b1dcc000 -        0x2b1de11bf  libprequelite.dylib                              <56FF415D-3E96-380B-9360-78F1B3F55628>  /usr/lib/libprequelite.dylib
+
+
+Powerstats for:   searchd
+UUID:             AA5C80F8-FBDA-364C-B157-E6DE6CA62874
+Path:             /System/Library/PrivateFrameworks/Search.framework/searchd
+Resource Coalition: 40 samples "com.apple.searchd"(416)
+On Behalf Of:     38 samples spotlightknowledged.updater [531] (38 samples originated by UNKNOWN [88])
+Architecture:     arm64e
+Pageins:          29364 pages
+Start time:       2026-09-17 18:09:07.224 -0400
+End time:         2026-09-17 18:10:32.344 -0400
+Num samples:      40 (56%)
+Energy:           8410.94 uWh
+Primary state:    24 samples Non-Frontmost App, Non-Suppressed, User mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified, e-core
+User Activity:    40 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 40 samples on AC
+  38  ??? (libsystem_pthread.dylib + 2240) [0x1efeb28c0]
+    38  ??? (libsystem_pthread.dylib + 4980) [0x1efeb3374]
+      38  ??? (libdispatch.dylib + 82072) [0x1cb044098]
+        21  ??? (libdispatch.dylib + 80476) [0x1cb043a5c]
+          21  ??? (libdispatch.dylib + 231308) [0x1cb06878c]
+            21  ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+              21  ??? (libdispatch.dylib + 86636) [0x1cb04526c]
+                21  ??? (libdispatch.dylib + 17840) [0x1cb0345b0]
+                  21  ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                    21  ??? (libdispatch.dylib + 90396) [0x1cb04611c]
+                      21  ??? (libdispatch.dylib + 111100) [0x1cb04b1fc]
+                        18  ??? (SpotlightIndex + 3510936) [0x2ba38b298]
+                          18  ??? (SpotlightIndex + 2989188) [0x2ba30bc84]
+                            13  ??? (SpotlightIndex + 2896368) [0x2ba2f51f0]
+                              13  ??? (SpotlightIndex + 2900080) [0x2ba2f6070]
+                                11  ??? (SpotlightIndex + 2791808) [0x2ba2db980]
+                                  11  ??? (SpotlightIndex + 2759900) [0x2ba2d3cdc]
+                                    11  ??? (SpotlightIndex + 2761376) [0x2ba2d42a0]
+                                      11  ??? (libcompression.dylib + 18384) [0x2b0c2d7d0]
+                                        11  ??? (libcompression.dylib + 15860) [0x2b0c2cdf4]
+                                          8   ??? (libcompression.dylib + 16164) [0x2b0c2cf24]
+                                            8   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                          2   ??? (libcompression.dylib + 16528) [0x2b0c2d090]
+                                            2   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                          1   ??? (libcompression.dylib + 16384) [0x2b0c2d000]
+                                            1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                2   ??? (SpotlightIndex + 2791380) [0x2ba2db7d4]
+                                  2   ??? (libsystem_kernel.dylib + 4576) [0x23ff2a1e0]
+                                    2   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                            2   ??? (SpotlightIndex + 2898544) [0x2ba2f5a70]
+                              2   ??? (SpotlightIndex + 2899432) [0x2ba2f5de8]
+                                1   ??? (SpotlightIndex + 2740440) [0x2ba2cf0d8]
+                                  1   ??? (SpotlightIndex + 2742032) [0x2ba2cf710]
+                                    1   ??? (SpotlightIndex + 382568) [0x2ba08f668]
+                                      1   ??? (SpotlightIndex + 770104) [0x2ba0ee038]
+                                        1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                1   ??? (SpotlightIndex + 2740148) [0x2ba2cefb4]
+                                  1   ??? (SpotlightIndex + 2732456) [0x2ba2cd1a8]
+                                    1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                            2   ??? (SpotlightIndex + 2896552) [0x2ba2f52a8]
+                              2   ??? (SpotlightIndex + 2770200) [0x2ba2d6518]
+                                1   ??? (libsystem_malloc.dylib + 195808) [0x19bcaece0]
+                                  1   ??? (libsystem_malloc.dylib + 190504) [0x19bcad828]
+                                    1   ??? (libsystem_malloc.dylib + 192492) [0x19bcadfec]
+                                      1   ??? (libsystem_malloc.dylib + 109904) [0x19bc99d50]
+                                        1   ??? (libsystem_kernel.dylib + 30604) [0x23ff3078c]
+                                          1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                1   ??? (libsystem_malloc.dylib + 195360) [0x19bcaeb20]
+                                  1   ??? (libsystem_malloc.dylib + 109760) [0x19bc99cc0]
+                                    1   ??? (libsystem_kernel.dylib + 24636) [0x23ff2f03c]
+                                      1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                            1   ??? (SpotlightIndex + 2898352) [0x2ba2f59b0]
+                              1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                        3   ??? (SpotlightIndex + 3511476) [0x2ba38b4b4]
+                          3   ??? (SpotlightIndex + 3513776) [0x2ba38bdb0]
+                            3   ??? (SpotlightIndex + 3527268) [0x2ba38f264]
+                              1   ??? (SpotlightIndex + 3542560) [0x2ba392e20]
+                                1   ??? (SpotlightIndex + 4789928) [0x2ba4c36a8]
+                                  1   ??? (SpotlightIndex + 4788528) [0x2ba4c3130]
+                                    1   ??? (libsystem_platform.dylib + 2496) [0x2b23b99c0]
+                                      1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                              1   ??? (SpotlightIndex + 3542384) [0x2ba392d70]
+                                1   ??? (libsystem_platform.dylib + 3636) [0x2b23b9e34]
+                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                              1   ??? (SpotlightIndex + 3541392) [0x2ba392990]
+                                1   ??? (SpotlightIndex + 2962960) [0x2ba305610]
+                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+        17  ??? (libdispatch.dylib + 80128) [0x1cb043900]
+          13  ??? (libdispatch.dylib + 22652) [0x1cb03587c]
+            13  ??? (libdispatch.dylib + 24516) [0x1cb035fc4]
+              13  ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+                13  ??? (libdispatch.dylib + 40472) [0x1cb039e18]
+                  13  ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+                    13  ??? (libdispatch.dylib + 40880) [0x1cb039fb0]
+                      13  ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                        13  ??? (SpotlightIndex + 3204564) [0x2ba3405d4]
+                          13  ??? (SpotlightIndex + 3204716) [0x2ba34066c]
+                            13  ??? (SpotlightIndex + 3205568) [0x2ba3409c0]
+                              13  ??? (SpotlightIndex + 3799068) [0x2ba3d181c]
+                                13  ??? (SpotlightIndex + 3801896) [0x2ba3d2328]
+                                  13  ??? (SpotlightIndex + 3802256) [0x2ba3d2490]
+                                    13  ??? (SpotlightIndex + 3445396) [0x2ba37b294]
+                                      12  ??? (SpotlightIndex + 3438308) [0x2ba3796e4]
+                                        11  ??? (SpotlightIndex + 3479856) [0x2ba383930]
+                                          10  ??? (SpotlightIndex + 3481508) [0x2ba383fa4]
+                                            10  ??? (SpotlightIndex + 3561452) [0x2ba3977ec]
+                                              7   ??? (SpotlightIndex + 3499772) [0x2ba3886fc]
+                                                7   ??? (libdispatch.dylib + 88640) [0x1cb045a40]
+                                                  7   ??? (libdispatch.dylib + 88252) [0x1cb0458bc]
+                                                    7   ??? (libdispatch.dylib + 92092) [0x1cb0467bc]
+                                                      7   ??? (libdispatch.dylib + 17840) [0x1cb0345b0]
+                                                        7   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                                                          7   ??? (libdispatch.dylib + 90396) [0x1cb04611c]
+                                                            7   ??? (libdispatch.dylib + 111100) [0x1cb04b1fc]
+                                                              6   ??? (SpotlightIndex + 3510936) [0x2ba38b298]
+                                                                6   ??? (SpotlightIndex + 2989188) [0x2ba30bc84]
+                                                                  6   ??? (SpotlightIndex + 2896368) [0x2ba2f51f0]
+                                                                    6   ??? (SpotlightIndex + 2900080) [0x2ba2f6070]
+                                                                      6   ??? (SpotlightIndex + 2791808) [0x2ba2db980]
+                                                                        6   ??? (SpotlightIndex + 2759900) [0x2ba2d3cdc]
+                                                                          6   ??? (SpotlightIndex + 2761376) [0x2ba2d42a0]
+                                                                            6   ??? (libcompression.dylib + 18384) [0x2b0c2d7d0]
+                                                                              6   ??? (libcompression.dylib + 15860) [0x2b0c2cdf4]
+                                                                                1   ??? (libcompression.dylib + 16432) [0x2b0c2d030]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                                                                1   ??? (libcompression.dylib + 16376) [0x2b0c2cff8]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                                                                1   ??? (libcompression.dylib + 16364) [0x2b0c2cfec]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                                                                1   ??? (libcompression.dylib + 16300) [0x2b0c2cfac]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                                                                1   ??? (libcompression.dylib + 16188) [0x2b0c2cf3c]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                                                                1   ??? (libcompression.dylib + 16164) [0x2b0c2cf24]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                                              1   ??? (SpotlightIndex + 3511476) [0x2ba38b4b4]
+                                                                1   ??? (SpotlightIndex + 3513500) [0x2ba38bc9c]
+                                                                  1   ??? (libdispatch.dylib + 88640) [0x1cb045a40]
+                                                                    1   ??? (libdispatch.dylib + 88364) [0x1cb04592c]
+                                                                      1   ??? (libdispatch.dylib + 32608) [0x1cb037f60]
+                                                                        1   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                                                                          1   ??? (libdispatch.dylib + 90820) [0x1cb0462c4]
+                                                                            1   ??? (libdispatch.dylib + 111100) [0x1cb04b1fc]
+                                                                              1   ??? (SpotlightIndex + 3514960) [0x2ba38c250]
+                                                                                1   ??? (SpotlightIndex + 3013472) [0x2ba311b60]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                              1   ??? (SpotlightIndex + 3500020) [0x2ba3887f4]
+                                                1   ??? (libsystem_malloc.dylib + 195360) [0x19bcaeb20]
+                                                  1   ??? (libsystem_malloc.dylib + 109760) [0x19bc99cc0]
+                                                    1   ??? (libsystem_kernel.dylib + 24636) [0x23ff2f03c]
+                                                      1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                              1   ??? (SpotlightIndex + 3499420) [0x2ba38859c]
+                                                1   ??? (SpotlightIndex + 3408644) [0x2ba372304]
+                                                  1   ??? (MetadataUtilities + 104644) [0x1c172f8c4]
+                                                    1   ??? (MetadataUtilities + 103792) [0x1c172f570]
+                                                      1   ??? (MetadataUtilities + 134184) [0x1c1736c28]
+                                                        1   ??? (libsystem_kernel.dylib + 14092) [0x23ff2c70c]
+                                                          1   ??? (libsystem_kernel.dylib + 3284) [0x23ff29cd4]
+                                                            1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                              1   ??? (SpotlightIndex + 3497544) [0x2ba387e48]
+                                                1   ??? (SpotlightIndex + 2987432) [0x2ba30b5a8]
+                                                  1   ??? (SpotlightIndex + 2891256) [0x2ba2f3df8]
+                                                    1   ??? (SpotlightIndex + 2892964) [0x2ba2f44a4]
+                                                      1   ??? (SpotlightIndex + 3505792) [0x2ba389e80]
+                                                        1   ??? (SpotlightIndex + 3179948) [0x2ba33a5ac]
+                                                          1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                          1   ??? (SpotlightIndex + 3483100) [0x2ba3845dc]
+                                            1   ??? (SpotlightIndex + 3473116) [0x2ba381edc]
+                                              1   ??? (SpotlightIndex + 2324792) [0x2ba269938]
+                                                1   ??? (SpotlightIndex + 2580388) [0x2ba2a7fa4]
+                                                  1   ??? (SpotlightIndex + 2558848) [0x2ba2a2b80]
+                                                    1   ??? (SpotlightIndex + 2626324) [0x2ba2b3314]
+                                                      1   ??? (SpotlightIndex + 3758112) [0x2ba3c7820]
+                                                        1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                        1   ??? (SpotlightIndex + 3479556) [0x2ba383804]
+                                          1   ??? (libsystem_kernel.dylib + 23972) [0x23ff2eda4]
+                                            1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                      1   ??? (SpotlightIndex + 3439996) [0x2ba379d7c]
+                                        1   ??? (SpotlightIndex + 3409728) [0x2ba372740]
+                                          1   ??? (MetadataUtilities + 52856) [0x1c1722e78]
+                                            1   ??? (libsystem_malloc.dylib + 18552) [0x19bc83878]
+                                              1   ??? (libsystem_kernel.dylib + 24636) [0x23ff2f03c]
+                                                1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+          4   ??? (libdispatch.dylib + 22468) [0x1cb0357c4]
+            4   ??? (libdispatch.dylib + 24516) [0x1cb035fc4]
+              4   ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+                4   ??? (libdispatch.dylib + 40472) [0x1cb039e18]
+                  4   ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+                    4   ??? (libdispatch.dylib + 40880) [0x1cb039fb0]
+                      4   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                        4   ??? (SpotlightIndex + 3204564) [0x2ba3405d4]
+                          4   ??? (SpotlightIndex + 3204716) [0x2ba34066c]
+                            4   ??? (SpotlightIndex + 3205568) [0x2ba3409c0]
+                              4   ??? (SpotlightIndex + 3799068) [0x2ba3d181c]
+                                4   ??? (SpotlightIndex + 3801896) [0x2ba3d2328]
+                                  4   ??? (SpotlightIndex + 3802256) [0x2ba3d2490]
+                                    4   ??? (SpotlightIndex + 3445396) [0x2ba37b294]
+                                      4   ??? (SpotlightIndex + 3438308) [0x2ba3796e4]
+                                        4   ??? (SpotlightIndex + 3479856) [0x2ba383930]
+                                          4   ??? (SpotlightIndex + 3481508) [0x2ba383fa4]
+                                            4   ??? (SpotlightIndex + 3561452) [0x2ba3977ec]
+                                              4   ??? (SpotlightIndex + 3499772) [0x2ba3886fc]
+                                                4   ??? (libdispatch.dylib + 88640) [0x1cb045a40]
+                                                  4   ??? (libdispatch.dylib + 88252) [0x1cb0458bc]
+                                                    4   ??? (libdispatch.dylib + 92092) [0x1cb0467bc]
+                                                      4   ??? (libdispatch.dylib + 17840) [0x1cb0345b0]
+                                                        4   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                                                          4   ??? (libdispatch.dylib + 90396) [0x1cb04611c]
+                                                            4   ??? (libdispatch.dylib + 111100) [0x1cb04b1fc]
+                                                              4   ??? (SpotlightIndex + 3510936) [0x2ba38b298]
+                                                                4   ??? (SpotlightIndex + 2989188) [0x2ba30bc84]
+                                                                  3   ??? (SpotlightIndex + 2896368) [0x2ba2f51f0]
+                                                                    3   ??? (SpotlightIndex + 2900080) [0x2ba2f6070]
+                                                                      2   ??? (SpotlightIndex + 2791808) [0x2ba2db980]
+                                                                        2   ??? (SpotlightIndex + 2759900) [0x2ba2d3cdc]
+                                                                          2   ??? (SpotlightIndex + 2761376) [0x2ba2d42a0]
+                                                                            2   ??? (libcompression.dylib + 18384) [0x2b0c2d7d0]
+                                                                              2   ??? (libcompression.dylib + 15860) [0x2b0c2cdf4]
+                                                                                1   ??? (libcompression.dylib + 16408) [0x2b0c2d018]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                                                                1   ??? (libcompression.dylib + 16384) [0x2b0c2d000]
+                                                                                  1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+                                                                      1   ??? (SpotlightIndex + 2791380) [0x2ba2db7d4]
+                                                                        1   ??? (libsystem_kernel.dylib + 4576) [0x23ff2a1e0]
+                                                                          1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88]), Kernel mode>
+                                                                  1   ??? (SpotlightIndex + 2898544) [0x2ba2f5a70]
+                                                                    1   ??? (SpotlightIndex + 2899432) [0x2ba2f5de8]
+                                                                      1   ??? (SpotlightIndex + 2740148) [0x2ba2cefb4]
+                                                                        1   ??? (SpotlightIndex + 2725900) [0x2ba2cb80c]
+                                                                          1   <on behalf of spotlightknowledged.updater [531] (originated by UNKNOWN [88])>
+  2   ??? (libsystem_pthread.dylib + 2232) [0x1efeb28b8]
+    2   <Kernel mode>
+
+  Binary Images:
+           0x100c6c000 -                ???  searchd                  <AA5C80F8-FBDA-364C-B157-E6DE6CA62874>  /System/Library/PrivateFrameworks/Search.framework/searchd
+           0x19bc7f000 -        0x19bcc7d0f  libsystem_malloc.dylib   <5BD03C05-4A35-3899-A1FB-B317705071F8>  /usr/lib/system/libsystem_malloc.dylib
+           0x1c1716000 -        0x1c178073f  MetadataUtilities        <0B4F245B-BCE3-3CF4-8661-C518DD288FC5>  /System/Library/PrivateFrameworks/MetadataUtilities.framework/MetadataUtilities
+           0x1cb030000 -        0x1cb0765ff  libdispatch.dylib        <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1efeb2000 -        0x1efebe4ef  libsystem_pthread.dylib  <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x23ff29000 -        0x23ff64b1f  libsystem_kernel.dylib   <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x2b0c29000 -        0x2b0cfdcaf  libcompression.dylib     <5C21953A-7CE2-34CD-95D2-6F1172EFFC56>  /usr/lib/libcompression.dylib
+           0x2b23b9000 -        0x2b23c1433  libsystem_platform.dylib <CD4266DE-CF06-30CC-84FE-38301E90337C>  /usr/lib/system/libsystem_platform.dylib
+           0x2ba032000 -        0x2ba54083f  SpotlightIndex           <A5F24AA9-A1FE-3D4D-9E03-3910318061D8>  /System/Library/PrivateFrameworks/SpotlightIndex.framework/SpotlightIndex
+
+
+Powerstats for:   spotlightknowledged.updater
+UUID:             CEFA2F19-4C65-328C-8D1B-71D1981A7FB1
+Path:             /usr/libexec/spotlightknowledged.updater
+Resource Coalition: 11 samples "com.apple.spotlightknowledged.updater"(764)
+On Behalf Of:     11 samples searchd [251] (11 samples originated by UNKNOWN [88])
+Architecture:     arm64e
+Pageins:          3 pages
+Start time:       2026-09-17 18:09:08.577 -0400
+End time:         2026-09-17 18:10:32.208 -0400
+Num samples:      11 (15%)
+Energy:           4430.74 uWh
+Primary state:    10 samples Non-Frontmost App, Non-Suppressed, User mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified, e-core
+User Activity:    11 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 11 samples on AC
+  11  ??? (libsystem_pthread.dylib + 2240) [0x1efeb28c0]
+    11  ??? (libsystem_pthread.dylib + 4980) [0x1efeb3374]
+      11  ??? (libdispatch.dylib + 82072) [0x1cb044098]
+        9   ??? (libdispatch.dylib + 80128) [0x1cb043900]
+          9   ??? (libdispatch.dylib + 22468) [0x1cb0357c4]
+            9   ??? (libdispatch.dylib + 24516) [0x1cb035fc4]
+              9   ??? (libdispatch.dylib + 43748) [0x1cb03aae4]
+                9   ??? (libdispatch.dylib + 40880) [0x1cb039fb0]
+                  9   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                    9   ??? (libdispatch.dylib + 69252) [0x1cb040e84]
+                      8   ??? (CoreSpotlight + 62540) [0x1a559a44c]
+                        7   ??? (CoreSpotlight + 165140) [0x1a55b3514]
+                          7   ??? (CoreSpotlight + 175856) [0x1a55b5ef0]
+                            7   ??? (CoreSpotlight + 177784) [0x1a55b6678]
+                              4   ??? (SpotlightKnowledgeDaemon + 2392096) [0x245256020]
+                                4   ??? (SpotlightKnowledgeDaemon + 2391304) [0x245255d08]
+                                  4   ??? (SpotlightKnowledgeDaemon + 2431028) [0x24525f834]
+                                    4   ??? (SpotlightKnowledgeDaemon + 1425732) [0x24516a144]
+                                      4   ??? (SpotlightKnowledgeDaemon + 1446144) [0x24516f100]
+                                        4   ??? (SpotlightKnowledgeDaemon + 1643852) [0x24519f54c]
+                                          4   ??? (SpotlightKnowledgeDaemon + 1623384) [0x24519a558]
+                                            3   ??? (SpotlightKnowledgeDaemon + 1877668) [0x2451d86a4]
+                                              3   ??? (SpotlightKnowledgeDaemon + 1962744) [0x2451ed2f8]
+                                                2   ??? (SpotlightKnowledgeDaemon + 1899044) [0x2451dda24]
+                                                  2   ??? (SpotlightKnowledgeDaemon + 1877668) [0x2451d86a4]
+                                                    1   ??? (SpotlightKnowledgeDaemon + 1899044) [0x2451dda24]
+                                                      1   ??? (SpotlightKnowledgeDaemon + 1877668) [0x2451d86a4]
+                                                        1   ??? (SpotlightKnowledgeDaemon + 1887088) [0x2451dab70]
+                                                          1   ??? (SpotlightKnowledgeDaemon + 1961424) [0x2451ecdd0]
+                                                            1   ??? (CoreSpotlight + 14080) [0x1a558e700]
+                                                              1   ??? (CoreFoundation + 331452) [0x190543ebc]
+                                                                1   ??? (CoreFoundation + 172596) [0x19051d234]
+                                                                  1   ??? (libobjc.A.dylib + 14948) [0x18d0a7a64]
+                                                                    1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                                                    1   ??? (SpotlightKnowledgeDaemon + 1881260) [0x2451d94ac]
+                                                      1   ??? (libswiftCore.dylib + 93356) [0x18d200cac]
+                                                        1   ??? (libswiftCore.dylib + 48024) [0x18d1f5b98]
+                                                          1   ??? (libswiftCore.dylib + 49400) [0x18d1f60f8]
+                                                            1   ??? (libswiftCore.dylib + 52000) [0x18d1f6b20]
+                                                              1   ??? (Foundation + 36784) [0x18d78cfb0]
+                                                                1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                                                1   ??? (SpotlightKnowledgeDaemon + 1899020) [0x2451dda0c]
+                                                  1   ??? (libswiftCore.dylib + 267864) [0x18d22b658]
+                                                    1   ??? (libswiftCore.dylib + 267184) [0x18d22b3b0]
+                                                      1   ??? (libswiftCore.dylib + 29128) [0x18d1f11c8]
+                                                        1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                                            1   ??? (SpotlightKnowledgeDaemon + 1899044) [0x2451dda24]
+                                              1   ??? (SpotlightKnowledgeDaemon + 1877668) [0x2451d86a4]
+                                                1   ??? (SpotlightKnowledgeDaemon + 1881260) [0x2451d94ac]
+                                                  1   ??? (libswiftCore.dylib + 93356) [0x18d200cac]
+                                                    1   ??? (libswiftCore.dylib + 48024) [0x18d1f5b98]
+                                                      1   ??? (libswiftCore.dylib + 49400) [0x18d1f60f8]
+                                                        1   ??? (libswiftCore.dylib + 65488) [0x18d1f9fd0]
+                                                          1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                              3   ??? (SpotlightKnowledgeDaemon + 697616) [0x2450b8510]
+                                2   ??? (SpotlightKnowledgeDaemon + 708156) [0x2450bae3c]
+                                  1   ??? (SpotlightKnowledgeDaemon + 712608) [0x2450bbfa0]
+                                    1   ??? (CoreFoundation + 5736) [0x1904f4668]
+                                      1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                                  1   ??? (SpotlightKnowledgeDaemon + 711360) [0x2450bbac0]
+                                    1   ??? (CoreData + 182688) [0x192bc69a0]
+                                      1   ??? (CoreData + 81692) [0x192badf1c]
+                                        1   ??? (CoreData + 81864) [0x192badfc8]
+                                          1   ??? (CoreFoundation + 74892) [0x19050548c]
+                                            1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                                1   ??? (SpotlightKnowledgeDaemon + 708108) [0x2450bae0c]
+                                  1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                        1   ??? (CoreSpotlight + 165144) [0x1a55b3518]
+                          1   ??? (CoreFoundation + 569016) [0x19057deb8]
+                            1   ??? (CoreFoundation + 279076) [0x190537224]
+                              1   ??? (CoreFoundation + 100632) [0x19050b918]
+                                1   ??? (CoreFoundation + 101120) [0x19050bb00]
+                                  1   ??? (libobjc.A.dylib + 22692) [0x18d0a98a4]
+                                    1   ??? (libobjc.A.dylib + 25432) [0x18d0aa358]
+                                      1   ??? (libobjc.A.dylib + 42592) [0x18d0ae660]
+                                        1   ??? (libobjc.A.dylib + 22692) [0x18d0a98a4]
+                                          1   ??? (libobjc.A.dylib + 25432) [0x18d0aa358]
+                                            1   ??? (libobjc.A.dylib + 42592) [0x18d0ae660]
+                                              1   ??? (CoreData + 220740) [0x192bcfe44]
+                                                1   ??? (CoreFoundation + 29412) [0x1904fa2e4]
+                                                  1   ??? (CoreFoundation + 236616) [0x19052cc48]
+                                                    1   ??? (CoreFoundation + 164728) [0x19051b378]
+                                                      1   ??? (CoreFoundation + 29252) [0x1904fa244]
+                                                        1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                      1   ??? (CoreSpotlight + 165684) [0x1a55b3734]
+                        1   ??? (CoreSpotlight + 49360) [0x1a55970d0]
+                          1   ??? (CoreSpotlight + 23592) [0x1a5590c28]
+                            1   ??? (libxpc.dylib + 73036) [0x1a4f97d4c]
+                              1   ??? (libxpc.dylib + 68252) [0x1a4f96a9c]
+                                1   ??? (libdispatch.dylib + 118300) [0x1cb04ce1c]
+                                  1   ??? (libdispatch.dylib + 116220) [0x1cb04c5fc]
+                                    1   ??? (libdispatch.dylib + 130220) [0x1cb04fcac]
+                                      1   ??? (libdispatch.dylib + 132240) [0x1cb050490]
+                                        1   ??? (libsystem_kernel.dylib + 3284) [0x23ff29cd4]
+                                          1   <on behalf of searchd [251] (originated by UNKNOWN [88]), Kernel mode>
+        2   ??? (libdispatch.dylib + 80476) [0x1cb043a5c]
+          2   ??? (libdispatch.dylib + 231308) [0x1cb06878c]
+            2   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+              2   ??? (libdispatch.dylib + 86636) [0x1cb04526c]
+                2   ??? (libdispatch.dylib + 17840) [0x1cb0345b0]
+                  2   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                    2   ??? (libdispatch.dylib + 90396) [0x1cb04611c]
+                      2   ??? (libdispatch.dylib + 111100) [0x1cb04b1fc]
+                        1   ??? (CoreSpotlight + 706652) [0x1a563785c]
+                          1   ??? (libdispatch.dylib + 88640) [0x1cb045a40]
+                            1   ??? (libdispatch.dylib + 88252) [0x1cb0458bc]
+                              1   ??? (libdispatch.dylib + 92092) [0x1cb0467bc]
+                                1   ??? (libdispatch.dylib + 17840) [0x1cb0345b0]
+                                  1   ??? (libdispatch.dylib + 111076) [0x1cb04b1e4]
+                                    1   ??? (libdispatch.dylib + 90396) [0x1cb04611c]
+                                      1   ??? (libdispatch.dylib + 111100) [0x1cb04b1fc]
+                                        1   ??? (CoreSpotlight + 167788) [0x1a55b3f6c]
+                                          1   ??? (CoreFoundation + 269972) [0x190534e94]
+                                            1   ??? (CoreFoundation + 271492) [0x190535484]
+                                              1   ??? (CoreFoundation + 272780) [0x19053598c]
+                                                1   ??? (CoreFoundation + 144040) [0x1905162a8]
+                                                  1   ??? (CoreFoundation + 273692) [0x190535d1c]
+                                                    1   ??? (CoreSpotlight + 169680) [0x1a55b46d0]
+                                                      1   ??? (CoreSpotlight + 14708) [0x1a558e974]
+                                                        1   ??? (libobjc.A.dylib + 42744) [0x18d0ae6f8]
+                                                          1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+                        1   ??? (CoreSpotlight + 706484) [0x1a56377b4]
+                          1   ??? (MetadataUtilities + 54796) [0x1c172360c]
+                            1   ??? (MetadataUtilities + 55044) [0x1c1723704]
+                              1   ??? (MetadataUtilities + 55856) [0x1c1723a30]
+                                1   ??? (libsystem_malloc.dylib + 4216) [0x19bc80078]
+                                  1   <on behalf of searchd [251] (originated by UNKNOWN [88])>
+
+  Binary Images:
+           0x102dc8000 -                ???  spotlightknowledged.updater <CEFA2F19-4C65-328C-8D1B-71D1981A7FB1>  /usr/libexec/spotlightknowledged.updater
+           0x18d0a4000 -        0x18d0f547f  libobjc.A.dylib             <A4D0DA7A-2F8F-3D26-9953-218851547BFC>  /usr/lib/libobjc.A.dylib
+           0x18d1ea000 -        0x18d78355f  libswiftCore.dylib          <D6EE5F00-12F2-3DA4-B35D-E50AD18BD17F>  /usr/lib/swift/libswiftCore.dylib
+           0x18d784000 -        0x18e60dc1f  Foundation                  <1689FEA5-1780-3EFE-8F31-933D4DB24EC4>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x1904f3000 -        0x190a8f9bf  CoreFoundation              <5565CAD9-4941-32AC-8B10-7D3233C74151>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x192b9a000 -        0x192f2b6df  CoreData                    <B60EB43C-CE02-3749-BFBE-70761AD3A790>  /System/Library/Frameworks/CoreData.framework/CoreData
+           0x19bc7f000 -        0x19bcc7d0f  libsystem_malloc.dylib      <5BD03C05-4A35-3899-A1FB-B317705071F8>  /usr/lib/system/libsystem_malloc.dylib
+           0x1a4f86000 -        0x1a4fd765f  libxpc.dylib                <00B71270-124E-31FA-B7D2-5D747DA4BCE1>  /usr/lib/system/libxpc.dylib
+           0x1a558b000 -        0x1a56e041f  CoreSpotlight               <0F07298B-D679-3C20-82FD-8FBA77FEF071>  /System/Library/Frameworks/CoreSpotlight.framework/CoreSpotlight
+           0x1c1716000 -        0x1c178073f  MetadataUtilities           <0B4F245B-BCE3-3CF4-8661-C518DD288FC5>  /System/Library/PrivateFrameworks/MetadataUtilities.framework/MetadataUtilities
+           0x1cb030000 -        0x1cb0765ff  libdispatch.dylib           <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1efeb2000 -        0x1efebe4ef  libsystem_pthread.dylib     <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x23ff29000 -        0x23ff64b1f  libsystem_kernel.dylib      <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x24500e000 -        0x24533d1bf  SpotlightKnowledgeDaemon    <2B1664D3-0B8B-30E1-BD27-CD658593A0EB>  /System/Library/PrivateFrameworks/SpotlightKnowledgeDaemon.framework/SpotlightKnowledgeDaemon

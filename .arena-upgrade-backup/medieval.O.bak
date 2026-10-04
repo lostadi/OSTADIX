@@ -1,0 +1,3106 @@
+#!/usr/bin/env O
+# ==============================================================================
+# OSTADIX-LANG: 64-BIT MEDIEVAL COMBAT ENGINE — ARTICULATED PHYSICS & WOUNDS
+# ==============================================================================
+# Polyglot architecture:
+#   O: bundled execution graph, strategies, checkpoints, and exact replay.
+#   Python block: 64-bit half-block TrueColor pixel engine, articulated
+#                 rigid-body fighters with layered armor degradation,
+#                 rotational weapon physics (sword arcs, shield blocks),
+#                 per-segment anatomical wound map, 2D physics engine
+#                 (wall bounce, torch particles, blood traction, armor
+#                 fragment ballistics, Verlet ragdoll knockdowns), and
+#                 herald narration system.
+# Native C17 encodes terminal frames; SQL derives accounting from the event ledger.
+# Lisp applies tactical rules; HTML/JavaScript owns interactive replay.
+# Run directly with O medieval.O; no wrapper or companion files are required.
+# Default: compare quoted JavaScript/Python/Common Lisp strategies, rank with
+# arena/judge.O, then replay the chosen future on this retained physics actor.
+# OSTADIX_ARENA_HORIZON (or OSTADIX_FRAMES)=1..360, default 144.
+# OSTADIX_COMBAT_MODE=classic uses the original single-trajectory runner:
+# OSTADIX_FRAMES=1..10000 (default 300), OSTADIX_SEED=<integer>.
+# OSTADIX_ANIMATE=auto|0|1, OSTADIX_COLOR=auto|0|1. Without a usable terminal,
+# or with animation/color disabled (including NO_COLOR), emit a compact receipt.
+# ==============================================================================
+
+let arena_host = shell^(
+hostname -s 2>/dev/null || echo "ostadix-arena"
+)_shell
+
+let arena_title = shell^(
+printf 'OSTADIX MEDIEVAL COMBAT · ARTICULATED BODY PHYSICS & WOUND ENGINE'
+)_shell
+
+let pressure_strategy = quote^(
+let state_json = python^(
+import json
+json.dumps($state, allow_nan=False)
+)_python
+javascript^(
+const s = $state_json;
+const tired = s.stamina < 35;
+const policy = {
+  distance: s.arena === 'boxing' ? 11 : 12,
+  attack_chance: tired ? 0.18 : 0.52,
+  stamina_floor: 28
+};
+if (s.arena === 'medieval') policy.guard_chance = tired ? 0.30 : 0.08;
+console.log(JSON.stringify(policy));
+)_javascript
+)_quote
+
+let adaptive_strategy = quote^(
+python^(
+state = $state
+recover = state['stamina'] < 45 or state['hp'] < state['opponent_hp'] - 15
+policy = {
+    'distance': 17 if recover else (11 if state['arena'] == 'boxing' else 14),
+    'attack_chance': 0.16 if recover else 0.38,
+    'stamina_floor': 25 if recover else 18,
+}
+if state['arena'] == 'medieval':
+    policy['guard_chance'] = 0.35 if recover else 0.18
+__oval_result__ = policy
+)_python
+)_quote
+
+let guard_strategy = quote^(
+let guard_facts = python^(
+import math
+s = $state
+values = [s[key] for key in ('hp', 'opponent_hp', 'stamina', 'opponent_stamina')]
+if not all(math.isfinite(value) for value in values):
+    raise ValueError('tactical facts must be finite')
+__oval_result__ = '(' + ('t' if s['arena'] == 'medieval' else 'nil') + ' ' + ' '.join(format(value, '.17g') for value in values) + ')'
+)_python
+lisp^(
+; Ordered rules separate tactical facts, applicability, and action construction.
+(defstruct tactic-rule priority applies action)
+(defun defend (facts distance attack floor guard)
+  (list (if (first facts) distance (min distance 16)) attack floor guard))
+(defparameter *guard-rules*
+  (list
+    (make-tactic-rule :priority 100
+      :applies (lambda (s) (or (< (fourth s) 25) (< (second s) (- (third s) 25))))
+      :action (lambda (s) (defend s 24 0.08 35 0.50)))
+    (make-tactic-rule :priority 80
+      :applies (lambda (s) (< (fourth s) 45))
+      :action (lambda (s) (defend s 20 0.12 35 0.40)))
+    (make-tactic-rule :priority 60
+      :applies (lambda (s) (and (< (fifth s) 30) (> (fourth s) 50)))
+      :action (lambda (s) (defend s (if (first s) 12 11) 0.30 30 0.20)))
+    (make-tactic-rule :priority 0
+      :applies (lambda (s) (declare (ignore s)) t)
+      :action (lambda (s) (defend s 20 0.22 30 0.35)))))
+(let* ((facts '$guard_facts)
+       (rule (find-if (lambda (r) (funcall (tactic-rule-applies r) facts))
+                     (stable-sort (copy-list *guard-rules*) #'> :key #'tactic-rule-priority)))
+       (policy (funcall (tactic-rule-action rule) facts)))
+  (format t "{\"distance\":~D,\"attack_chance\":~,2F,\"stamina_floor\":~D"
+          (first policy) (second policy) (third policy))
+  (when (first facts) (format t ",\"guard_chance\":~,2F" (fourth policy)))
+  (format t "}"))
+)_lisp
+)_quote
+
+let combat_engine_source = quote^(
+python[91]^(
+import sys, time, random, os, math
+
+# ==============================================================================
+# 64-BIT HALF-BLOCK TRUECOLOR PIXEL ENGINE & MEDIEVAL PALETTE
+# ==============================================================================
+W_PX = 80
+H_PX = 30
+
+PAL = {
+    '.': None,
+    'bg':            (18, 15, 22),
+    'bg_light':      (28, 24, 35),
+    'wall_stone':    (65, 58, 55),
+    'wall_dark':     (42, 38, 36),
+    'wall_mortar':   (55, 50, 46),
+    'pillar':        (78, 70, 64),
+    'pillar_dark':   (52, 46, 42),
+    'cobble_light':  (62, 56, 50),
+    'cobble_mid':    (48, 43, 39),
+    'cobble_dark':   (36, 32, 30),
+    'cobble_wet':    (32, 38, 42),
+    'torch_flame':   (255, 185, 45),
+    'torch_core':    (255, 240, 180),
+    'torch_ember':   (255, 120, 22),
+    'torch_glow':    (85, 58, 28),
+    'iron':          (92, 90, 87),
+    'iron_dark':     (60, 58, 55),
+
+    'plate':         (178, 183, 193),
+    'plate_worn':    (142, 147, 157),
+    'plate_crack':   (108, 103, 98),
+    'chainmail':     (132, 137, 142),
+    'chain_torn':    (97, 92, 87),
+    'leather':       (122, 78, 42),
+    'leather_cut':   (88, 52, 28),
+    'tabard_red':    (175, 32, 38),
+    'tabard_blue':   (32, 58, 155),
+
+    'steel_bright':  (215, 220, 230),
+    'steel_edge':    (245, 248, 255),
+    'sword_grip':    (82, 52, 32),
+    'crossguard':    (165, 142, 52),
+    'shield_wood':   (112, 82, 48),
+    'shield_iron':   (122, 120, 117),
+    'shield_red':    (182, 38, 32),
+    'shield_blue':   (35, 72, 162),
+
+    'skin_light':    (238, 203, 178),
+    'skin_mid':      (212, 172, 142),
+    'skin_dark':     (172, 122, 92),
+    'hair_dark':     (38, 28, 20),
+    'hair_light':    (162, 132, 82),
+    'eye_white':     (242, 242, 247),
+    'pupil':         (22, 27, 37),
+
+    'blood':         (205, 22, 32),
+    'blood_dark':    (125, 12, 22),
+    'blood_pool':    (92, 10, 18),
+    'bruise':        (102, 42, 92),
+    'wound':         (172, 32, 42),
+    'bone':          (232, 227, 212),
+
+    'spark':         (255, 255, 255),
+    'spark_orange':  (255, 205, 55),
+    'star':          (255, 232, 92),
+    'dust':          (152, 142, 122),
+
+    'crowd':         (32, 30, 38),
+    'crowd_lit':     (48, 42, 35),
+    'banner_red':    (152, 28, 28),
+    'banner_blue':   (28, 48, 132),
+    'shadow':        (15, 12, 18),
+    'wood_splinter':   (142, 98, 52),
+    'mace_head':       (72, 68, 75),
+    'trail':           (130, 140, 165),
+    'entrails':        (145, 32, 45),   # Visceral intestinal flesh
+    'blood_spurting':  (255, 30, 42),   # High-pressure arterial fountain
+    'gore_dark':       (65, 8, 12),     # Coagulated brain/tissue gore
+    'severed_stump':   (110, 16, 24),   # Severed muscle stump
+}
+
+# ==============================================================================
+# 2D PHYSICS ENGINE — WALLS, TORCHES, PROJECTILES, TRACTION
+# ==============================================================================
+class PhysicsEngine:
+    def __init__(self, w=W_PX, h=H_PX):
+        self.w = w
+        self.h = h
+        self.gravity = 0.44
+        self.floor_y = 24.0
+        self.wall_left = 7.0
+        self.wall_right = w - 8.0
+        self.projectiles = []
+        self.floor_stains = {}
+        self.floor_objects = []
+        self.severed_heads = []
+        self.severed_limbs = []
+        self.torch_particles = []
+        self.torch_positions = [(5, 7), (5, 17), (w - 6, 7), (w - 6, 17)]
+
+    def spawn_torch_embers(self):
+        for tx, ty in self.torch_positions:
+            if random.random() < 0.55:
+                self.torch_particles.append({
+                    'x': float(tx) + random.uniform(-0.8, 0.8),
+                    'y': float(ty),
+                    'vx': random.uniform(-0.25, 0.25),
+                    'vy': random.uniform(-0.7, -0.15),
+                    'life': random.randint(5, 14),
+                    'col': random.choice([PAL['torch_flame'], PAL['torch_ember'], PAL['torch_core']])
+                })
+
+    def step_torch_particles(self):
+        alive = []
+        for p in self.torch_particles:
+            p['x'] += p['vx']
+            p['y'] += p['vy']
+            p['vx'] *= 0.92
+            p['vy'] -= 0.015
+            p['life'] -= 1
+            if p['life'] > 0 and 0 <= p['x'] < self.w and 0 <= p['y'] < self.h:
+                alive.append(p)
+        self.torch_particles = alive
+
+    def spawn_blood(self, x, y, intensity=1.0, direction=0.0):
+        count = int(6 * intensity)
+        for _ in range(count):
+            ang = direction + random.uniform(-0.7, 0.7)
+            spd = random.uniform(1.0, 2.6) * intensity
+            self.projectiles.append({
+                'type': 'blood', 'x': float(x), 'y': float(y),
+                'vx': spd * math.cos(ang),
+                'vy': spd * math.sin(ang) - random.uniform(0.4, 1.2),
+                'drag': 0.03, 'life': 22, 'col': PAL['blood']
+            })
+
+    def spawn_sparks(self, x, y, count=5):
+        for _ in range(count):
+            ang = random.uniform(0, 2 * math.pi)
+            spd = random.uniform(1.2, 3.2)
+            self.projectiles.append({
+                'type': 'spark', 'x': float(x), 'y': float(y),
+                'vx': spd * math.cos(ang), 'vy': spd * math.sin(ang),
+                'drag': 0.07, 'life': random.randint(3, 7),
+                'col': random.choice([PAL['spark'], PAL['spark_orange']])
+            })
+
+    def spawn_armor_fragment(self, x, y, direction=1, col=None):
+        for _ in range(random.randint(2, 4)):
+            self.projectiles.append({
+                'type': 'fragment', 'x': float(x), 'y': float(y),
+                'vx': direction * random.uniform(1.2, 2.8),
+                'vy': random.uniform(-2.2, -0.6),
+                'drag': 0.04, 'life': 55,
+                'col': col or PAL['plate_crack']
+            })
+
+    def spawn_dust(self, x, y):
+        for _ in range(4):
+            self.projectiles.append({
+                'type': 'dust', 'x': float(x), 'y': float(y),
+                'vx': random.uniform(-1.0, 1.0),
+                'vy': random.uniform(-0.6, 0.0),
+                'drag': 0.10, 'life': random.randint(5, 10),
+                'col': PAL['dust']
+            })
+
+    def spawn_severed_head(self, x, y, vx, vy, is_knight=True):
+        self.severed_heads.append({
+            'x': float(x),
+            'y': float(y),
+            'vx': float(vx),
+            'vy': float(vy),
+            'is_knight': is_knight,
+            'bounces': 0,
+            'stopped': False,
+            'rot': 0.0
+        })
+
+    def spawn_severed_limb(self, x, y, vx, vy, limb_type='r_arm', is_knight=True):
+        self.severed_limbs.append({
+            'x': float(x),
+            'y': float(y),
+            'vx': float(vx),
+            'vy': float(vy),
+            'limb_type': limb_type,
+            'is_knight': is_knight,
+            'bounces': 0,
+            'stopped': False
+        })
+
+    def step_severed_entities(self):
+        for h in self.severed_heads:
+            if not h['stopped']:
+                h['vy'] += self.gravity
+                h['x'] += h['vx']
+                h['y'] += h['vy']
+                h['rot'] += h['vx'] * 0.2
+                hx, hy = int(round(h['x'])), int(round(h['y']))
+                if 4 <= hx < self.w - 4:
+                    self.floor_stains[(hx, min(int(self.floor_y), hy))] = PAL['blood_dark']
+                if h['y'] >= self.floor_y:
+                    h['y'] = self.floor_y
+                    if h['bounces'] < 3:
+                        h['vy'] = -h['vy'] * 0.38
+                        h['vx'] *= 0.68
+                        h['bounces'] += 1
+                        self.spawn_blood(h['x'], h['y'], intensity=1.5, direction=-math.pi/2)
+                    else:
+                        h['vy'] = 0.0
+                        h['vx'] = 0.0
+                        h['stopped'] = True
+
+        for l in self.severed_limbs:
+            if not l['stopped']:
+                l['vy'] += self.gravity
+                l['x'] += l['vx']
+                l['y'] += l['vy']
+                lx, ly = int(round(l['x'])), int(round(l['y']))
+                if 4 <= lx < self.w - 4:
+                    self.floor_stains[(lx, min(int(self.floor_y), ly))] = PAL['blood_dark']
+                if l['y'] >= self.floor_y:
+                    l['y'] = self.floor_y
+                    if l['bounces'] < 2:
+                        l['vy'] = -l['vy'] * 0.25
+                        l['vx'] *= 0.55
+                        l['bounces'] += 1
+                    else:
+                        l['vy'] = 0.0
+                        l['vx'] = 0.0
+                        l['stopped'] = True
+
+    def step_projectiles(self):
+        alive = []
+        for p in self.projectiles:
+            p['x'] += p['vx']
+            p['y'] += p['vy']
+            p['vx'] *= (1.0 - p['drag'])
+            p['vy'] = (p['vy'] * (1.0 - p['drag'])) + self.gravity
+            p['life'] -= 1
+            if p['y'] >= self.floor_y:
+                if p['type'] == 'blood':
+                    ix = max(7, min(self.w - 8, int(p['x'])))
+                    iy = min(self.h - 3, int(p['y']))
+                    self.floor_stains[(ix, iy)] = PAL['blood_dark']
+                    continue
+                elif p['type'] == 'fragment':
+                    p['y'] = self.floor_y
+                    p['vy'] = -p['vy'] * 0.25
+                    p['vx'] *= 0.4
+                    if abs(p['vy']) < 0.25:
+                        self.floor_objects.append({
+                            'x': int(p['x']), 'y': int(self.floor_y), 'col': p['col']
+                        })
+                        continue
+                else:
+                    continue
+            if p['life'] > 0 and 0 <= p['x'] < self.w and p['y'] < self.h:
+                alive.append(p)
+        self.projectiles = alive
+
+# ==============================================================================
+# BODY SEGMENT — LAYERED ARMOR & WOUND TRACKING PER SEGMENT
+# ==============================================================================
+class BodySegment:
+    def __init__(self, name, mass, plate_hp=0, chain_hp=0, leather_hp=0,
+                 flesh_hp=100.0, is_vital=False):
+        self.name = name
+        self.mass = mass
+        self.plate_hp = float(plate_hp)
+        self.plate_max = float(plate_hp)
+        self.chain_hp = float(chain_hp)
+        self.chain_max = float(chain_hp)
+        self.leather_hp = float(leather_hp)
+        self.leather_max = float(leather_hp)
+        self.flesh_hp = float(flesh_hp)
+        self.is_vital = is_vital
+        self.bleeding_rate = 0.0
+        self.wounds = []
+        self.mobility = 1.0
+
+    def armor_pct(self):
+        mx = self.plate_max + self.chain_max + self.leather_max
+        if mx <= 0:
+            return 0.0
+        return (self.plate_hp + self.chain_hp + self.leather_hp) / mx * 100.0
+
+    def total_armor(self):
+        return self.plate_hp + self.chain_hp + self.leather_hp
+
+    def apply_damage(self, raw_dmg, dmg_type='slash'):
+        mult = {
+            'slash':  {'plate': 0.30, 'chain': 0.55, 'leather': 1.20},
+            'crush':  {'plate': 1.25, 'chain': 0.75, 'leather': 0.45},
+            'pierce': {'plate': 0.40, 'chain': 1.35, 'leather': 0.85},
+        }
+        m = mult.get(dmg_type, mult['slash'])
+        remaining = raw_dmg
+        broken_layer = None
+
+        # Impact bleed-through: blunt trauma transmits through armor
+        bleed_through = raw_dmg * 0.18
+
+        if self.plate_hp > 0 and remaining > 0:
+            was_pos = self.plate_hp > 0
+            eff = remaining * m['plate']
+            absorbed = min(self.plate_hp, eff)
+            self.plate_hp = max(0, self.plate_hp - absorbed)
+            remaining -= absorbed / max(m['plate'], 0.01)
+            if was_pos and self.plate_hp <= 0:
+                broken_layer = 'plate'
+
+        if self.chain_hp > 0 and remaining > 0:
+            was_pos = self.chain_hp > 0
+            eff = remaining * m['chain']
+            absorbed = min(self.chain_hp, eff)
+            self.chain_hp = max(0, self.chain_hp - absorbed)
+            remaining -= absorbed / max(m['chain'], 0.01)
+            if was_pos and self.chain_hp <= 0:
+                broken_layer = 'chain'
+
+        if self.leather_hp > 0 and remaining > 0:
+            was_pos = self.leather_hp > 0
+            eff = remaining * m['leather']
+            absorbed = min(self.leather_hp, eff)
+            self.leather_hp = max(0, self.leather_hp - absorbed)
+            remaining -= absorbed / max(m['leather'], 0.01)
+            if was_pos and self.leather_hp <= 0:
+                broken_layer = 'leather'
+
+        # Total flesh damage: armor penetration + bleed-through impact trauma
+        flesh_dmg = max(0.0, remaining * 0.90) + bleed_through
+        self.flesh_hp = max(0.0, self.flesh_hp - flesh_dmg)
+
+        if flesh_dmg > 2.0:
+            self.bleeding_rate += flesh_dmg * 0.15
+            self.wounds.append({'sev': flesh_dmg, 'age': 0})
+
+        if self.flesh_hp < 50:
+            self.mobility = 0.35 + 0.65 * (self.flesh_hp / 100.0)
+
+        return flesh_dmg, broken_layer
+
+# ==============================================================================
+# ARTICULATED BODY — SEGMENT TREE WITH JOINT PHYSICS
+# ==============================================================================
+class ArticulatedBody:
+    def __init__(self, is_knight=True):
+        p = 38.0 if is_knight else 24.0
+        c = 28.0 if is_knight else 18.0
+        le = 18.0 if is_knight else 22.0
+        self.segments = {
+            'head':  BodySegment('head',  4.5,  plate_hp=p*0.75, chain_hp=c*0.4,  leather_hp=0,      flesh_hp=100, is_vital=True),
+            'torso': BodySegment('torso', 22.0, plate_hp=p,      chain_hp=c,       leather_hp=le,     flesh_hp=100, is_vital=True),
+            'l_arm': BodySegment('l_arm', 4.2,  plate_hp=p*0.55, chain_hp=c*0.35,  leather_hp=le*0.4, flesh_hp=100),
+            'r_arm': BodySegment('r_arm', 4.2,  plate_hp=p*0.55, chain_hp=c*0.35,  leather_hp=le*0.4, flesh_hp=100),
+            'l_leg': BodySegment('l_leg', 9.0,  plate_hp=p*0.45, chain_hp=c*0.25,  leather_hp=le*0.7, flesh_hp=100),
+            'r_leg': BodySegment('r_leg', 9.0,  plate_hp=p*0.45, chain_hp=c*0.25,  leather_hp=le*0.7, flesh_hp=100),
+        }
+        self.total_mass = sum(s.mass for s in self.segments.values())
+
+    def avg_armor_pct(self):
+        vals = [s.armor_pct() for s in self.segments.values()]
+        return sum(vals) / len(vals) if vals else 0.0
+
+    def worst_segment(self):
+        return min(self.segments.values(), key=lambda s: s.flesh_hp)
+
+    def movement_penalty(self):
+        ll = self.segments['l_leg'].mobility
+        rl = self.segments['r_leg'].mobility
+        return (ll + rl) / 2.0
+
+    def swing_penalty(self):
+        return self.segments['r_arm'].mobility
+
+    def block_penalty(self):
+        return self.segments['l_arm'].mobility
+
+    def total_bleeding(self):
+        return sum(s.bleeding_rate for s in self.segments.values())
+
+# ==============================================================================
+# WEAPON — ROTATIONAL SWING ARC PHYSICS
+# ==============================================================================
+WEAPONS = {
+    'longsword': {'name': 'Longsword',  'mass': 1000000.4, 'reach': 11, 'swing_spd': 0.0022, 'type': 'slash', 'base_dmg': 20.0},
+    'mace':      {'name': 'War Mace',   'mass': 200000.1, 'reach': 8,  'swing_spd': 0.0016, 'type': 'crush', 'base_dmg': 26.0},
+    'axe':       {'name': 'Battle Axe', 'mass': 10000.8, 'reach': 9,  'swing_spd': 0.0018, 'type': 'slash', 'base_dmg': 23.0},
+}
+
+class Weapon:
+    def __init__(self, wtype='longsword'):
+        w = WEAPONS[wtype]
+        self.wtype = wtype
+        self.name = w['name']
+        self.mass = w['mass']
+        self.reach = w['reach']
+        self.swing_spd = w['swing_spd']
+        self.dmg_type = w['type']
+        self.base_dmg = w['base_dmg']
+        self.angle = -0.4
+        self.state = 'IDLE'
+        self.state_frame = 0
+        self.hit_this_swing = False
+        self.swing_type = 'overhead'
+
+    def start_swing(self, swing_type='overhead'):
+        if self.state != 'IDLE':
+            return False
+        self.swing_type = swing_type
+        self.state = 'WINDUP'
+        self.state_frame = 0
+        self.hit_this_swing = False
+        if swing_type == 'overhead':
+            self.angle = -1.8
+        elif swing_type == 'diagonal':
+            self.angle = -1.2
+        elif swing_type == 'thrust':
+            self.angle = 0.0
+        elif swing_type == 'low_sweep':
+            self.angle = 0.6
+        elif swing_type == 'pommel':
+            self.angle = -0.3
+        return True
+
+    def step(self, arm_mobility=1.0):
+        self.state_frame += 1
+        spd = self.swing_spd * arm_mobility
+        if self.state == 'WINDUP':
+            if self.state_frame >= int(3 / max(arm_mobility, 0.3)):
+                self.state = 'SWING'
+                self.state_frame = 0
+        elif self.state == 'SWING':
+            if self.swing_type == 'thrust':
+                self.angle += 0.0
+            else:
+                self.angle += spd * 1.8
+            if self.state_frame >= int(4 / max(arm_mobility, 0.3)):
+                self.state = 'FOLLOW'
+                self.state_frame = 0
+        elif self.state == 'FOLLOW':
+            self.angle += spd * 0.4
+            if self.state_frame >= 2:
+                self.state = 'RECOVERY'
+                self.state_frame = 0
+        elif self.state == 'RECOVERY':
+            self.angle += ((-0.4) - self.angle) * 0.3
+            if self.state_frame >= int(4 / max(arm_mobility, 0.3)):
+                self.state = 'IDLE'
+                self.state_frame = 0
+                self.angle = -0.4
+
+    def get_tip(self, hand_x, hand_y, facing_right):
+        dx = self.reach * math.cos(self.angle)
+        dy = self.reach * math.sin(self.angle)
+        if not facing_right:
+            dx = -dx
+        return hand_x + dx, hand_y + dy
+
+    def momentum(self):
+        return self.mass * abs(self.swing_spd) * self.reach
+
+    def damage_now(self, arm_mobility=1.0):
+        if self.state != 'SWING':
+            return 0.0
+        mult = {'overhead': 1.3, 'diagonal': 1.0, 'thrust': 0.9, 'low_sweep': 0.85, 'pommel': 0.7}
+        return self.base_dmg * mult.get(self.swing_type, 1.0) * arm_mobility
+
+# ==============================================================================
+# SHIELD — DURABILITY, BLOCK, SHATTER
+# ==============================================================================
+class Shield:
+    def __init__(self, durability=85.0):
+        self.durability = durability
+        self.max_dur = durability
+        self.is_raised = False
+        self.is_broken = False
+        self.bash_cooldown = 0
+
+    def durability_pct(self):
+        return (self.durability / self.max_dur * 100.0) if self.max_dur > 0 else 0.0
+
+    def try_block(self, damage):
+        if self.is_broken:
+            return 0.0
+        absorbed = damage * 0.72
+        self.durability -= absorbed * 0.35
+        if self.durability <= 0:
+            self.is_broken = True
+            self.durability = 0
+            return absorbed * 0.6
+        return absorbed
+
+    def step(self):
+        if self.bash_cooldown > 0:
+            self.bash_cooldown -= 1
+
+# ==============================================================================
+# VERLET RAGDOLL — KNOCKDOWN PHYSICS (from boxing engine)
+# ==============================================================================
+class VerletRagdoll:
+    def __init__(self, x_base, y_base, facing=1):
+        self.points = [
+            {'x': float(x_base),     'y': float(y_base - 12), 'ox': float(x_base),     'oy': float(y_base - 12)},
+            {'x': float(x_base),     'y': float(y_base - 8),  'ox': float(x_base),     'oy': float(y_base - 8)},
+            {'x': float(x_base),     'y': float(y_base - 4),  'ox': float(x_base),     'oy': float(y_base - 4)},
+            {'x': float(x_base),     'y': float(y_base),      'ox': float(x_base),     'oy': float(y_base)},
+        ]
+        self.lengths = [4.0, 4.0, 4.0]
+        self.facing = facing
+        self.settled = False
+
+    def apply_impulse(self, ix, iy):
+        self.points[0]['ox'] -= ix * 1.6
+        self.points[0]['oy'] -= iy * 1.1
+        self.points[1]['ox'] -= ix * 0.8
+
+    def step(self, floor_y=24.0, gravity=0.46, friction=0.76):
+        if self.settled:
+            return
+        for p in self.points:
+            vx = (p['x'] - p['ox']) * 0.94
+            vy = (p['y'] - p['oy']) * 0.94 + gravity
+            p['ox'] = p['x']
+            p['oy'] = p['y']
+            p['x'] += vx
+            p['y'] += vy
+            if p['y'] >= floor_y:
+                p['y'] = floor_y
+                p['oy'] = floor_y + (p['y'] - p['oy']) * 0.2
+                p['ox'] = p['x'] - (p['x'] - p['ox']) * friction
+        for _ in range(4):
+            for i in range(len(self.lengths)):
+                p1 = self.points[i]
+                p2 = self.points[i + 1]
+                dx = p2['x'] - p1['x']
+                dy = p2['y'] - p1['y']
+                dist = math.hypot(dx, dy) or 0.001
+                diff = (dist - self.lengths[i]) / dist
+                p1['x'] += dx * 0.5 * diff
+                p1['y'] += dy * 0.5 * diff
+                p2['x'] -= dx * 0.5 * diff
+                p2['y'] -= dy * 0.5 * diff
+
+# ==============================================================================
+# FIGHTER — ARTICULATED BODY, WEAPON, SHIELD, STATE MACHINE
+# ==============================================================================
+class Fighter:
+    def __init__(self, name, title, start_x, wtype='longsword', is_knight=True):
+        self.name = name
+        self.title = title
+        self.is_knight = is_knight
+        self.facing_right = is_knight
+        self.x = float(start_x)
+        self.y = 8.0
+        self.vx = 0.0
+        self.body = ArticulatedBody(is_knight)
+        self.weapon = Weapon(wtype)
+        self.shield = Shield(durability=85.0 if is_knight else 70.0)
+        self.hp = 70.0
+        self.stamina = 100.0
+        self.stance = 'BALANCED'
+        self.state = 'IDLE'
+        self.state_frame = 0
+        self.state_duration = 0
+        self.ragdoll = None
+        self.concussion = 0.0
+        self.attacks_thrown = 0
+        self.attacks_landed = 0
+        self.blocks_made = 0
+        self.parries_made = 0
+        self.knockdowns_taken = 0
+        self.blood_total = 0.0
+        self.last_hit_zone = 'torso'
+        self.last_attack_type = None
+        self.parry_clash_timer = 0
+        self.wall_recoil_timer = 0
+        self.is_decapitated = False
+        self.severed_limb = None
+        self.is_crushed = False
+        self.is_cleaved = False
+
+    def effective_hp(self):
+        bleed = self.body.total_bleeding()
+        return max(0.0, self.hp - bleed * 0.3)
+
+    def hand_r(self):
+        if self.facing_right:
+            return self.x + 12, self.y + 7
+        return self.x + 1, self.y + 7
+
+    def hand_l(self):
+        if self.facing_right:
+            return self.x + 0, self.y + 6
+        return self.x + 13, self.y + 6
+
+    def center(self):
+        return self.x + 7, self.y + 8
+
+    def get_weapon_segment(self):
+        w = self.weapon
+        if self.state == 'DOWN':
+            return None
+        hx, hy = self.hand_r()
+        facing = self.facing_right
+        f_dir = 1 if facing else -1
+        if w.swing_type == 'thrust':
+            ext = 1.0 if w.state == 'SWING' else (0.5 if w.state in ('WINDUP', 'FOLLOW') else 0.3)
+            tip_x = hx + (w.reach * ext * f_dir)
+            tip_y = hy
+        else:
+            tip_x, tip_y = w.get_tip(hx, hy, facing)
+        return ((float(hx), float(hy)), (float(tip_x), float(tip_y)))
+
+    def get_hurtboxes(self):
+        fx = self.x
+        fy = self.y
+        facing = self.facing_right
+        if self.state == 'DOWN':
+            return {
+                'head':  (fx + (2.0 if facing else 8.0), fy + 12.0, 4.0, 3.0),
+                'torso': (fx + 4.0, fy + 12.0, 6.0, 3.0),
+                'legs':  (fx + (7.0 if facing else 1.0), fy + 13.0, 6.0, 2.0),
+            }
+        dx = 0.0
+        dy = 0.0
+        if self.state == 'DODGE':
+            dx = -7.0 if facing else 7.0
+            dy = 3.5
+
+        shield_box = None
+        if not self.shield.is_broken:
+            lx, ly = self.hand_l()
+            if self.state == 'GUARD':
+                lx += (2.0 if facing else -2.0)
+                ly -= 1.0
+                shield_box = (lx - 2.0, ly - 3.0, 4.5, 6.5)
+            else:
+                shield_box = (lx - 1.5, ly - 2.5, 3.0, 5.0)
+
+        return {
+            'head':  (fx + 4.0 + dx, fy + 0.0 + dy, 6.0, 3.5),
+            'torso': (fx + 3.0 + dx, fy + 3.5 + dy, 8.0, 7.5),
+            'l_arm': (fx + (0.0 if facing else 10.5) + dx, fy + 4.0 + dy, 3.5, 6.0),
+            'r_arm': (fx + (10.5 if facing else 0.0) + dx, fy + 4.0 + dy, 3.5, 6.0),
+            'l_leg': (fx + 3.0 + dx, fy + 11.0 + dy, 3.5, 5.0),
+            'r_leg': (fx + 7.5 + dx, fy + 11.0 + dy, 3.5, 5.0),
+            'shield': shield_box,
+        }
+
+
+
+    # ------------------------------------------------------------------
+    # PIXEL SPRITE COMPOSITOR — armor state, wounds, weapon, shield
+    # ------------------------------------------------------------------
+    def get_pixel_matrix(self, tick):
+        # Base template: strictly 14px wide x 16px tall for flawless bilateral symmetry
+        rows = [
+            "....AAAA......",   # 0  helmet crown
+            "...AAAAAA.....",   # 1  helmet
+            "...AVVVVA.....",   # 2  visor slit
+            "..PA    AP....",   # 3  pauldrons + gap
+            ".PP BBBB PP...",   # 4  pauldrons + breastplate
+            ".PP BBBB PP...",   # 5  upper arms + chest
+            "..P BBBB P....",   # 6  arms + chest
+            "..P CCCC P....",   # 7  forearms + chainmail
+            "..S CCCC P....",   # 8  shield arm + chainmail (weapon dynamic)
+            "..S WWWW .....",   # 9  shield + waist
+            "... KKKK .....",   # 10 tabard
+            "... KKKK .....",   # 11 tabard
+            "... GG GG ....",   # 12 thighs / greaves
+            "... GG GG ....",   # 13 greaves
+            "... GG GG ....",   # 14 shins
+            "... FF FF ....",   # 15 feet
+        ]
+        m = [list(r) for r in rows]
+
+        # --- IDLE / STRIDE LOCOMOTION ---
+        if self.state in ('IDLE', 'ADVANCE', 'RETREAT'):
+            bob = (tick // 3) % 2
+            if bob == 1:
+                m[14] = list("... FF FF ....")
+                m[15] = list("... GG GG ....")
+            if self.state == 'ADVANCE':
+                m[1] = list("....AAAAAA....")
+                m[2] = list("....AVVVVA....")
+                m[4] = list("..PP BBBB PP..")
+            elif self.state == 'RETREAT':
+                m[1] = list("..AAAAAA......")
+                m[2] = list("..AVVVVA......")
+                m[4] = list(".PP BBBB PP...")
+
+        # --- WALL RECOIL IMPACT ---
+        if self.wall_recoil_timer > 0:
+            m[1] = list("..AAAAAA......")
+            m[2] = list("..A****A......")
+            m[4] = list(".PP BBBB PP...")
+            m[14] = list(".. FF   FF ...")
+            m[15] = list(". FF     FF ..")
+
+        # --- ATTACK WINDUP & BODY DYNAMICS ---
+        ws = self.weapon.state
+        wt = self.weapon.swing_type
+        if ws in ('WINDUP', 'SWING', 'FOLLOW'):
+            if wt == 'overhead':
+                m[1] = list("...AAAAAA.....")
+                m[4] = list(".PP BBBB PP...")
+                if ws == 'SWING':
+                    m[2] = list("....AVVVVA....")
+                    m[5] = list("..PP BBBB PP..")
+            elif wt == 'thrust':
+                if ws == 'SWING':
+                    m[2] = list("....AVVVVA....")
+                    m[6] = list("...P BBBB P...")
+            elif wt == 'low_sweep':
+                if ws == 'SWING':
+                    m[4] = list("..PP BBBB PP..")
+                    m[12] = list(".. GG   GG ...")
+
+        # --- GUARD: HIGH SHIELD BRACE ---
+        if self.state == 'GUARD':
+            m[2] = list("..SAVVVVA.....")
+            m[3] = list("SSPA    AP....")
+            m[4] = list("SSPPBBBB PP...")
+            m[5] = list("SSPPBBBB PP...")
+            m[6] = list("SSP BBBB P....")
+            m[7] = list("SSP CCCC P....")
+            m[8] = list("SS  CCCC P....")
+
+        # --- STAGGER: CONCUSSION DIZZINESS ---
+        if self.state == 'STAGGER':
+            w_bob = (tick // 2) % 3
+            if w_bob == 0:
+                m[0] = list("...AAAA.......")
+                m[2] = list("...A****A.....")
+            elif w_bob == 2:
+                m[0] = list(".....AAAA.....")
+                m[2] = list(".....A****A...")
+            m[6] = list(".P  BBBB  P...")
+            m[7] = list(".P  CCCC  P...")
+
+        # --- HURT: HIT ZONE PHYSICAL RECOIL ---
+        if self.state == 'HURT':
+            if self.last_hit_zone == 'head':
+                m[0] = list("..AAAAAA......")
+                m[1] = list("..AAAAAA......")
+                m[2] = list("..A****A......")
+                m[6] = list(".P  BBBB  P...")
+            elif self.last_hit_zone == 'torso':
+                m[2] = list("...AVVVVA.....")
+                m[4] = list("..PPBBBBPP....")
+                m[5] = list("..PPBBBBPP....")
+                m[6] = list("...PBBBB P....")
+            elif 'leg' in str(self.last_hit_zone):
+                m[12] = list("... GG   G ...")
+                m[13] = list("... GG  GG ...")
+                m[14] = list("... FF  FF ...")
+            else:
+                m[2] = list("...A****A.....")
+                m[7] = list(".P  CCCC  P...")
+
+        # --- DODGE: EVASIVE DUCK & STEP ---
+        if self.state == 'DODGE':
+            m[0] = list("..............")
+            m[1] = list("....AAAA......")
+            m[2] = list("...AAAAAA.....")
+            m[3] = list("...AVVVVA.....")
+            m[4] = list("..PA    AP....")
+
+        # --- VICTORY ---
+        if self.state == 'VICTORY':
+            m[0] = list(".P..AAAA..P...")
+            m[1] = list(".PP.AAAAAA.PP.")
+            m[2] = list("..P.AVVVVA.P..")
+            m[7] = list("....CCCC......")
+
+        # ------------------------------------------------------------------
+        # ARMOR DEGRADATION OVERLAYS — per-segment visual damage
+        # ------------------------------------------------------------------
+        head = self.body.segments['head']
+        torso = self.body.segments['torso']
+        r_arm = self.body.segments['r_arm']
+        l_arm = self.body.segments['l_arm']
+        l_leg = self.body.segments['l_leg']
+        r_leg = self.body.segments['r_leg']
+
+        if head.plate_hp < head.plate_max * 0.5:
+            m[1][5] = 'c'
+        if head.plate_hp <= 0:
+            m[0] = list("....DDDD......")
+            m[1] = list("...DDDDDD.....")
+            m[2] = list("...D oo D.....")
+
+        if head.flesh_hp < 70:
+            m[2][5] = 'b'
+        if head.flesh_hp < 40:
+            m[1][5] = 'b'
+            m[2][6] = 'b'
+
+        if torso.plate_hp < torso.plate_max * 0.6:
+            m[5][5] = 'c'
+            m[5][6] = 'c'
+        if torso.plate_hp <= 0:
+            m[4] = list(".PP CCCC PP...")
+            m[5] = list(".PP CCCC PP...")
+            m[6] = list("..P CCCC P....")
+        if torso.chain_hp <= 0:
+            m[6] = list("..P LLLL P....")
+            m[7] = list("..P LLLL P....")
+
+        if torso.flesh_hp < 60:
+            m[5][6] = 'b'
+            m[6][5] = 'b'
+        if torso.flesh_hp < 30:
+            m[4][6] = 'b'
+            m[5][5] = 'b'
+            m[6][6] = 'b'
+            m[7][5] = 'b'
+
+        if r_arm.plate_hp <= 0:
+            for row_i in [4, 5, 6]:
+                if row_i < len(m) and len(m[row_i]) > 10:
+                    m[row_i][10] = 'L'
+        if r_arm.flesh_hp < 50:
+            if len(m[5]) > 10: m[5][10] = 'b'
+            if len(m[6]) > 10: m[6][10] = 'b'
+
+        if l_arm.plate_hp <= 0:
+            for row_i in [4, 5, 6]:
+                m[row_i][2] = 'L'
+        if l_arm.flesh_hp < 50:
+            m[5][2] = 'b'
+            m[6][2] = 'b'
+
+        if l_leg.plate_hp <= 0:
+            m[12][4] = 'L'; m[13][4] = 'L'
+        if l_leg.flesh_hp < 50:
+            m[12][4] = 'b'; m[13][4] = 'b'
+        if r_leg.plate_hp <= 0:
+            m[12][7] = 'L'; m[13][7] = 'L'
+        if r_leg.flesh_hp < 50:
+            m[12][7] = 'b'; m[13][7] = 'b'
+
+        if self.shield.is_broken:
+            for ri in range(len(m)):
+                for ci in range(len(m[ri])):
+                    if m[ri][ci] == 'S':
+                        m[ri][ci] = '.'
+
+        if self.concussion > 40.0 and tick % 4 < 2:
+            if len(m[0]) > 2: m[0][2] = '*'
+            if len(m[0]) > 11: m[0][11] = '*'
+
+        return [''.join(r) for r in m]
+# ==============================================================================
+# MEDIEVAL ARENA — RENDERER, AI, COMBAT SYSTEM, GAME LOOP
+# ==============================================================================
+# ==============================================================================
+# 2D REAL-TIME GEOMETRIC COLLISION ENGINE (Line-Box, Line-Line, Segment-Distance)
+# ==============================================================================
+def dist_point_to_segment(px, py, x1, y1, x2, y2):
+    dx = x2 - x1
+    dy = y2 - y1
+    if dx == 0 and dy == 0:
+        return math.hypot(px - x1, py - y1), (x1, y1)
+    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+    proj_x = x1 + t * dx
+    proj_y = y1 + t * dy
+    return math.hypot(px - proj_x, py - proj_y), (proj_x, proj_y)
+
+def line_intersection(p1, p2, p3, p4):
+    x1, y1 = p1; x2, y2 = p2
+    x3, y3 = p3; x4, y4 = p4
+    denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
+    if abs(denom) < 1e-6:
+        return None
+    ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom
+    ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom
+    if 0.0 <= ua <= 1.0 and 0.0 <= ub <= 1.0:
+        return (x1 + ua * (x2 - x1), y1 + ua * (y2 - y1))
+    return None
+
+def segment_box_intersection(p1, p2, bx, by, bw, bh):
+    edges = [
+        ((bx, by), (bx + bw, by)),
+        ((bx + bw, by), (bx + bw, by + bh)),
+        ((bx + bw, by + bh), (bx, by + bh)),
+        ((bx, by + bh), (bx, by))
+    ]
+    intersections = []
+    for e1, e2 in edges:
+        inter = line_intersection(p1, p2, e1, e2)
+        if inter:
+            intersections.append(inter)
+    if intersections:
+        intersections.sort(key=lambda pt: math.hypot(pt[0] - p1[0], pt[1] - p1[1]))
+        return intersections[0]
+    if bx <= p2[0] <= bx + bw and by <= p2[1] <= by + bh:
+        return p2
+    return None
+
+def segment_segment_distance(p1, p2, p3, p4, threshold=2.2):
+    steps = max(4, int(math.hypot(p2[0] - p1[0], p2[1] - p1[1])))
+    for i in range(steps + 1):
+        t = i / steps
+        sx = p1[0] + (p2[0] - p1[0]) * t
+        sy = p1[1] + (p2[1] - p1[1]) * t
+        d, pt = dist_point_to_segment(sx, sy, p3[0], p3[1], p4[0], p4[1])
+        if d <= threshold:
+            return True, (sx, sy)
+    return False, None
+
+class MedievalArena:
+    def __init__(self):
+        self.w = W_PX
+        self.h = H_PX
+        self.buf = [[PAL['bg'] for _ in range(self.w)] for _ in range(self.h)]
+        self.physics = PhysicsEngine(self.w, self.h)
+        self.hit_sparks = []
+
+        self.f1 = Fighter("SIR ALDRIC", "The Iron Vanguard", start_x=14,
+                          wtype='longsword', is_knight=True)
+        self.f2 = Fighter("BARON KREIG", "The Black Mace", start_x=50,
+                          wtype='mace', is_knight=False)
+        self.f2.facing_right = False
+
+        self.round_num = 1
+        self.max_rounds = 3
+        self.round_time = 90
+        self.clock_tick = 0
+        self.match_over = False
+        self.winner = None
+        self.end_type = None
+        self.referee_count = 0
+        self.referee_counting = False
+        self.herald_log = [
+            "⚔️  The herald raises his staff: 'By the laws of trial by combat — FIGHT!'",
+            "🏰 Torchlight flickers across the cobblestones as steel meets steel."
+        ]
+
+    def set_tactics(self, fighter, policy):
+        """Replace decision preferences; an empty policy restores native AI."""
+        if fighter is not self.f1 and fighter is not self.f2:
+            raise ValueError('tactics require a fighter from this arena')
+        if not isinstance(policy, dict):
+            raise ValueError('tactics must be a dictionary')
+        bounds = {'distance': (6.0, 24.0), 'attack_chance': (0.0, 1.0),
+                  'guard_chance': (0.0, 1.0), 'stamina_floor': (10.0, 100.0)}
+        validated = {}
+        for key, value in policy.items():
+            if key not in bounds:
+                raise ValueError('unknown tactic: ' + str(key))
+            lo, hi = bounds[key]
+            if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not lo <= value <= hi or not math.isfinite(value)):
+                raise ValueError('tactic ' + key + ' must be finite and within '
+                                 + str(lo) + '..' + str(hi))
+            validated[key] = float(value)
+        if validated.get('attack_chance', 0.0) + validated.get('guard_chance', 0.0) > 1.0:
+            raise ValueError('attack_chance plus guard_chance must not exceed 1')
+        fighter.policy = validated
+        return dict(validated)
+
+    def add_herald(self, msg):
+        self.herald_log.append(msg)
+        if len(self.herald_log) > 5:
+            self.herald_log.pop(0)
+
+    # ------------------------------------------------------------------
+    # HIT ZONE SELECTION — maps attack type to body segment
+    # ------------------------------------------------------------------
+    def pick_hit_zone(self, swing_type):
+        zones = {
+            'overhead':  [('head', 0.50), ('torso', 0.35), ('r_arm', 0.15)],
+            'diagonal':  [('torso', 0.40), ('l_arm', 0.25), ('r_arm', 0.20), ('head', 0.15)],
+            'thrust':    [('torso', 0.60), ('l_arm', 0.20), ('r_arm', 0.20)],
+            'low_sweep': [('l_leg', 0.40), ('r_leg', 0.40), ('torso', 0.20)],
+            'pommel':    [('head', 0.75), ('torso', 0.25)],
+        }
+        options = zones.get(swing_type, zones['overhead'])
+        roll = random.random()
+        cum = 0.0
+        for seg_name, prob in options:
+            cum += prob
+            if roll <= cum:
+                return seg_name
+        return options[-1][0]
+
+    # ------------------------------------------------------------------
+    # KINEMATICS — wall bounce, blood traction
+    # ------------------------------------------------------------------
+    def auto_face(self, f1, f2):
+        """Ensure fighters always face each other."""
+        if f1.x < f2.x:
+            f1.facing_right = True
+            f2.facing_right = False
+        else:
+            f1.facing_right = False
+            f2.facing_right = True
+
+    def step_kinematics(self, f):
+        boot_x = int(f.x + 7)
+        boot_y = int(self.physics.floor_y)
+        traction = 0.38
+        if (boot_x, boot_y) in self.physics.floor_stains:
+            traction = 0.10
+            if abs(f.vx) > 0.4 and random.random() < 0.15:
+                f.vx *= 1.2
+                self.add_herald(f"⚠️ {f.name} slips on blood-slicked cobblestones!")
+
+        # Velocity cap
+        f.vx = max(-1.8, min(1.8, f.vx))
+        f.x += f.vx
+        if f.vx > 0:
+            f.vx = max(0.0, f.vx - traction)
+        elif f.vx < 0:
+            f.vx = min(0.0, f.vx + traction)
+
+        # Wall bounce & dust physics
+        if f.wall_recoil_timer > 0:
+            f.wall_recoil_timer -= 1
+
+        if f.x <= self.physics.wall_left:
+            f.x = self.physics.wall_left
+            f.wall_recoil_timer = 4
+            self.physics.spawn_dust(f.x + 4, self.physics.floor_y)
+            if abs(f.vx) > 0.6:
+                wall_dmg = abs(f.vx) * 1.8
+                seg = random.choice(['torso', 'r_arm', 'l_arm'])
+                f.body.segments[seg].apply_damage(wall_dmg, 'crush')
+                self.physics.spawn_dust(f.x, self.physics.floor_y)
+                self.add_herald(f"💥 {f.name} CRASHES into the stone wall!")
+            f.vx = abs(f.vx) * 0.2
+        elif f.x >= self.physics.wall_right - 14:
+            f.x = self.physics.wall_right - 14
+            f.wall_recoil_timer = 4
+            self.physics.spawn_dust(f.x + 10, self.physics.floor_y)
+            if abs(f.vx) > 0.6:
+                wall_dmg = abs(f.vx) * 1.8
+                seg = random.choice(['torso', 'r_arm', 'l_arm'])
+                f.body.segments[seg].apply_damage(wall_dmg, 'crush')
+                self.physics.spawn_dust(f.x + 14, self.physics.floor_y)
+                self.add_herald(f"💥 {f.name} CRASHES into the stone wall!")
+            f.vx = -abs(f.vx) * 0.2
+
+    # ------------------------------------------------------------------
+    # COMBAT — EXECUTE ATTACK, BLOCK, PARRY
+    # ------------------------------------------------------------------
+    def execute_attack(self, atk, dfn, dist=None, swing=None):
+        if atk.weapon.state != 'IDLE' or atk.stamina < 10.0:
+            return
+        atk.attacks_thrown += 1
+        stamina_cost = 14.0 * (atk.weapon.mass / 3.0)
+        if dist is None:
+            dist = abs(dfn.x - atk.x)
+
+        if swing is None:
+            if dist > 14:
+                swing = 'thrust'
+                stamina_cost *= 0.7
+            elif dist > 10:
+                swing = random.choice(['overhead', 'diagonal'])
+            elif dist > 6:
+                swing = random.choice(['diagonal', 'low_sweep', 'thrust'])
+            else:
+                swing = random.choice(['pommel', 'diagonal', 'overhead'])
+
+        atk.weapon.start_swing(swing)
+        atk.state = 'ATTACK'
+        atk.state_frame = 0
+        atk.state_duration = 10
+        atk.stamina = max(0.0, atk.stamina - stamina_cost)
+
+    def check_weapon_collisions(self, atk, dfn, tick):
+        w = atk.weapon
+        if w.state != 'SWING' or w.hit_this_swing:
+            return
+
+        atk_seg = atk.get_weapon_segment()
+        if not atk_seg:
+            return
+
+        p1, p2 = atk_seg
+        knockback_dir = 1 if atk.facing_right else -1
+
+        # 1. PARRY CLASH (Blade vs Blade intersection)
+        if dfn.state != 'DOWN':
+            dfn_seg = dfn.get_weapon_segment()
+            if dfn_seg and (dfn.weapon.state in ('SWING', 'WINDUP') or dfn.state == 'PARRY'):
+                clashed, clash_pt = segment_segment_distance(p1, p2, dfn_seg[0], dfn_seg[1], threshold=2.2)
+                if clashed and not atk.parry_clash_timer and not dfn.parry_clash_timer:
+                    w.hit_this_swing = True
+                    dfn.weapon.hit_this_swing = True
+                    cx, cy = clash_pt
+                    atk.parries_made += 1
+                    dfn.parries_made += 1
+                    atk.parry_clash_timer = 5
+                    dfn.parry_clash_timer = 5
+                    w.state = 'FOLLOW'
+                    dfn.weapon.state = 'FOLLOW'
+                    momentum = w.momentum() + dfn.weapon.momentum()
+                    recoil = (momentum / atk.body.total_mass) * 0.7
+                    atk.vx -= knockback_dir * recoil
+                    dfn.vx += knockback_dir * recoil * 0.8
+                    self.physics.spawn_sparks(cx, cy, count=16)
+                    self.hit_sparks.append({'x': cx, 'y': cy, 'life': 5})
+                    self.add_herald(f"⚔️ PARRY CLASH! Blades cross at ({cx:.1f}, {cy:.1f}) in cascade of sparks!")
+                    atk.state = 'STAGGER'
+                    atk.state_frame = 0
+                    atk.state_duration = 5
+                    dfn.state = 'STAGGER'
+                    dfn.state_frame = 0
+                    dfn.state_duration = 5
+                    return
+
+        # 2. SHIELD BLOCK (Blade vs Shield box intersection)
+        hboxes = dfn.get_hurtboxes()
+        leaked_dmg = None
+        if hboxes.get('shield'):
+            bx, by, bw, bh = hboxes['shield']
+            shield_hit = segment_box_intersection(p1, p2, bx, by, bw, bh)
+            if shield_hit:
+                w.hit_this_swing = True
+                sx, sy = shield_hit
+                raw_dmg = w.damage_now(atk.body.swing_penalty())
+                blocked_dmg = dfn.shield.try_block(raw_dmg)
+                leaked_dmg = max(0.0, raw_dmg - blocked_dmg)
+                dfn.blocks_made += 1
+                recoil = (w.momentum() / dfn.body.total_mass) * 0.5
+                dfn.vx += knockback_dir * recoil
+                self.physics.spawn_sparks(sx, sy, count=6)
+                self.hit_sparks.append({'x': sx, 'y': sy, 'life': 3})
+                if dfn.shield.is_broken:
+                    self.physics.spawn_armor_fragment(sx, sy, knockback_dir, PAL['wood_splinter'])
+                    self.add_herald(f"💥 SHIELD SHATTERS! {atk.name}'s {w.swing_type} splinters shield at ({sx:.1f}, {sy:.1f})!")
+                else:
+                    self.add_herald(f"🛡️ SOLID BLOCK! {dfn.name} catches blow on oak shield at ({sx:.1f}, {sy:.1f})!")
+                if leaked_dmg <= 3.0:
+                    return
+
+        # 3. ANATOMICAL HURTBOXES (Blade vs Head/Torso/Arms/Legs)
+        target_zones = ['head', 'torso', 'r_arm', 'l_arm', 'r_leg', 'l_leg']
+        hit_zone = None
+        hit_point = None
+        min_dist_to_hand = 999.0
+
+        for zone in target_zones:
+            if zone in hboxes and hboxes[zone]:
+                bx, by, bw, bh = hboxes[zone]
+                pt = segment_box_intersection(p1, p2, bx, by, bw, bh)
+                if pt:
+                    dist_to_hand = math.hypot(pt[0] - p1[0], pt[1] - p1[1])
+                    if dist_to_hand < min_dist_to_hand:
+                        min_dist_to_hand = dist_to_hand
+                        hit_zone = zone
+                        hit_point = pt
+
+        if not hit_zone:
+            # Whiff! Blade cleaved empty air
+            return
+
+        w.hit_this_swing = True
+        atk.attacks_landed += 1
+        hx, hy = hit_point
+        hit_radius = min_dist_to_hand
+        angular_spd = abs(w.swing_spd)
+        impact_vel = (hit_radius * angular_spd * 1.5) if w.swing_type != 'thrust' else (w.reach * 1.2)
+        vel_scale = max(0.65, min(1.85, impact_vel / 5.0))
+        raw_dmg = (w.damage_now(atk.body.swing_penalty()) * vel_scale) if leaked_dmg is None else (leaked_dmg * 0.6)
+        momentum = w.momentum() * vel_scale
+
+        segment = dfn.body.segments[hit_zone]
+        flesh_dmg, broken_layer = segment.apply_damage(raw_dmg, w.dmg_type)
+        recoil_vel = (momentum / dfn.body.total_mass) * 0.75
+        dfn.vx += knockback_dir * recoil_vel
+        hp_dmg = flesh_dmg * 1.0 + raw_dmg * 0.25
+        dfn.hp = max(0.0, dfn.hp - hp_dmg)
+
+        self.hit_sparks.append({'x': int(hx), 'y': int(hy), 'life': 3})
+        if segment.total_armor() > 0 or broken_layer:
+            self.physics.spawn_sparks(hx, hy, count=4)
+        if flesh_dmg > 2.5:
+            bleed_dir = math.pi if atk.facing_right else 0
+            self.physics.spawn_blood(hx, hy, intensity=flesh_dmg / 12.0, direction=bleed_dir)
+            dfn.blood_total += flesh_dmg * 0.10
+
+        if broken_layer:
+            self.physics.spawn_armor_fragment(hx, hy, knockback_dir,
+                PAL['plate_crack'] if broken_layer == 'plate' else
+                PAL['chain_torn'] if broken_layer == 'chain' else
+                PAL['leather_cut'])
+            self.add_herald(f"⚔️ ARMOR BREACH! {broken_layer} breached at ({hx:.1f}, {hy:.1f}) on {hit_zone}!")
+
+        zone_name = hit_zone.replace('_', ' ')
+        if hit_zone == 'head':
+            dfn.concussion += flesh_dmg * 0.9
+            self.add_herald(f"🩸 CRANIAL STRIKE! {atk.name} cleaves into {dfn.name}'s {zone_name} at ({hx:.1f}, {hy:.1f})!")
+        elif hit_zone == 'torso':
+            self.add_herald(f"💀 VISCERAL BLOW! {atk.name}'s {w.name} strikes {dfn.name}'s torso at ({hx:.1f}, {hy:.1f})!")
+        else:
+            self.add_herald(f"⚔️ FLESH BITE! {atk.name}'s {w.swing_type} strikes {dfn.name}'s {zone_name} at ({hx:.1f}, {hy:.1f}).")
+
+        dfn.state = 'HURT'
+        dfn.state_frame = 0
+        dfn.state_duration = 5
+        dfn.last_hit_zone = hit_zone
+        dfn.last_attack_type = w.swing_type
+
+        if hit_zone == 'head' and dfn.concussion > 40 and random.random() < 0.5:
+            dfn.state = 'STAGGER'
+            dfn.state_duration = 8
+            self.add_herald(f"💫 CONCUSSION! {dfn.name} staggers from blow to skull!")
+
+        # Lethal Gore & Carnage Resolution (Decapitation, Dismemberment, Crushing, Evisceration)
+        is_fatal = dfn.hp <= 0 or (dfn.hp < 25 and (flesh_dmg > 4.0 or raw_dmg > 12.0))
+        
+        if is_fatal and not dfn.is_decapitated and not dfn.severed_limb and not dfn.is_crushed and not dfn.is_cleaved:
+            dfn.hp = 0.0
+            if hit_zone == 'head' and w.dmg_type in ('slash', 'pierce') and impact_vel > 0.8:
+                # 💀 LETHAL DECAPITATION
+                dfn.is_decapitated = True
+                self.physics.spawn_severed_head(hx, hy, knockback_dir * 1.8, -2.2, is_knight=dfn.is_knight)
+                self.physics.spawn_blood(hx, hy, intensity=3.5, direction=-math.pi/2)
+                self.add_herald(f"💀 DECAPITATION! In a terrifying spray of arterial gore, {atk.name}'s {w.name} severs {dfn.name}'s head clean off! The skull rolls across the stones!")
+            elif hit_zone in ('r_arm', 'l_arm') and w.dmg_type == 'slash' and impact_vel > 0.8:
+                # 🩸 LETHAL DISMEMBERMENT
+                dfn.severed_limb = hit_zone
+                self.physics.spawn_severed_limb(hx, hy, knockback_dir * 1.4, -1.5, limb_type=hit_zone, is_knight=dfn.is_knight)
+                self.physics.spawn_blood(hx, hy, intensity=2.8, direction=-math.pi/2)
+                self.add_herald(f"🩸 SEVERED LIMB! {atk.name}'s razor blade cleaves off {dfn.name}'s {hit_zone.replace('_', ' ')}! Bone and severed muscle clatter to the cobblestones!")
+            elif (hit_zone == 'head' or hit_zone == 'torso') and w.dmg_type == 'crush':
+                # 💀 SKULL CRUSHED / CAVED-IN CHEST
+                dfn.is_crushed = True
+                self.physics.spawn_armor_fragment(hx, hy, knockback_dir, PAL['iron_dark'])
+                self.physics.spawn_blood(hx, hy, intensity=2.5, direction=-math.pi/2)
+                self.add_herald(f"💀 BONE-CRUSHING BLOW! {atk.name}'s {w.name} caves in {dfn.name}'s {hit_zone}! Bone and dark gore splatter the cobblestones!")
+            else:
+                # 💀 EVISCERATION / CLEAVED FLESH
+                dfn.is_cleaved = True
+                self.physics.spawn_blood(hx, hy, intensity=3.0, direction=-math.pi/2)
+                self.add_herald(f"💀 VISCERAL CARNAGE! {atk.name}'s blade cleaves deep into {dfn.name}'s torso, spilling entrails onto the stones!")
+
+        if dfn.hp <= 0 or (dfn.hp < 20 and random.random() < 0.4) or (dfn.concussion > 55 and random.random() < 0.5) or dfn.is_decapitated or dfn.severed_limb or dfn.is_crushed or dfn.is_cleaved:
+            dfn.state = 'DOWN'
+            dfn.state_frame = 0
+            dfn.state_duration = 90
+            dfn.knockdowns_taken += 1
+            dfn.ragdoll = VerletRagdoll(dfn.x, self.physics.floor_y, facing=1 if dfn.facing_right else -1)
+            dfn.ragdoll.apply_impulse(knockback_dir * recoil_vel * 1.5, -1.6)
+            self.physics.spawn_dust(dfn.x + 7, self.physics.floor_y)
+            if dfn.is_decapitated:
+                self.add_herald(f"🚨 SLAIN! {dfn.name}'s headless corpse crumbles limp to the cobblestones!")
+            elif dfn.severed_limb:
+                self.add_herald(f"🚨 MUTILATED! {dfn.name} collapses into his own blood pool!")
+            elif dfn.is_crushed:
+                self.add_herald(f"🚨 FATAL BLOW! {dfn.name}'s crushed skull collapses lifeless onto the stones!")
+            elif dfn.is_cleaved:
+                self.add_herald(f"🚨 CLEAVED IN TWAIN! {dfn.name}'s mangled corpse collapses in gore!")
+            else:
+                self.add_herald(f"🚨 DOWN GOES {dfn.name}! Physical impact collapses his knees to the cobblestones!")
+            self.referee_counting = True
+            self.referee_count = 1
+    def update_ai(self, atk, dfn, tick):
+        if atk.state == 'DOWN':
+            if atk.ragdoll:
+                atk.ragdoll.step(self.physics.floor_y)
+            return
+
+        # Bleeding tick — significant HP drain
+        bleed = atk.body.total_bleeding()
+        if bleed > 0:
+            atk.hp = max(0.0, atk.hp - bleed * 0.02)
+            for seg in atk.body.segments.values():
+                seg.bleeding_rate = max(0.0, seg.bleeding_rate - 0.005)
+
+        atk.weapon.step(atk.body.swing_penalty())
+        atk.shield.step()
+        atk.state_frame += 1
+
+        if atk.state in ('HURT', 'STAGGER'):
+            if atk.state_frame >= atk.state_duration:
+                atk.state = 'IDLE'
+                atk.state_frame = 0
+            return
+
+        if atk.state in ('ATTACK', 'DODGE', 'GUARD'):
+            if atk.state_frame >= atk.state_duration:
+                atk.state = 'IDLE'
+                atk.state_frame = 0
+                atk.stamina = min(100.0, atk.stamina + 1.5)
+            return
+
+        # Stamina regen (penalized by torso wounds)
+        regen = 1.8 * atk.body.segments['torso'].mobility
+        atk.stamina = min(100.0, atk.stamina + regen)
+        atk.concussion = max(0.0, atk.concussion - 0.18)
+
+        # Stance selection
+        if atk.hp < 30 or atk.body.worst_segment().flesh_hp < 25:
+            atk.stance = 'WOUNDED'
+        elif atk.stamina > 70 and dfn.hp < 50:
+            atk.stance = 'AGGRESSIVE'
+        elif atk.stamina < 30 or atk.shield.is_broken:
+            atk.stance = 'DEFENSIVE'
+        else:
+            atk.stance = 'BALANCED'
+
+        dist = abs(dfn.x - atk.x)
+        move_spd = 0.8 * atk.body.movement_penalty()
+        ideal_dist = {'AGGRESSIVE': 12, 'BALANCED': 16, 'DEFENSIVE': 20, 'WOUNDED': 18}
+
+        policy = getattr(atk, 'policy', {})
+        target_dist = policy.get('distance', ideal_dist.get(atk.stance, 16))
+        accel = 28.0 / atk.body.total_mass * move_spd
+
+        if dist > target_dist + 4:
+            direction = 1 if atk.facing_right else -1
+            atk.vx += direction * accel
+            atk.state = 'ADVANCE'
+        elif dist < target_dist - 5:
+            direction = -1 if atk.facing_right else 1
+            atk.vx += direction * accel
+            atk.state = 'RETREAT'
+        else:
+            atk.state = 'IDLE'
+
+        # Combat decisions
+        if atk.stamina > policy.get('stamina_floor', 10.0) and dist <= atk.weapon.reach + 14 and atk.weapon.state == 'IDLE':
+            roll = random.random()
+
+            attack_thresh = {'AGGRESSIVE': 0.52, 'BALANCED': 0.38, 'DEFENSIVE': 0.20, 'WOUNDED': 0.28}
+            guard_thresh = {'AGGRESSIVE': 0.08, 'BALANCED': 0.18, 'DEFENSIVE': 0.35, 'WOUNDED': 0.25}
+
+            a_th = policy.get('attack_chance', attack_thresh.get(atk.stance, 0.38))
+            g_th = policy.get('guard_chance', guard_thresh.get(atk.stance, 0.18))
+
+            # Counter-attack opportunity
+            if dfn.state in ('ATTACK',) and dfn.weapon.state in ('FOLLOW', 'RECOVERY'):
+                a_th += 0.25
+            # Press wounded opponent
+            if dfn.state in ('HURT', 'STAGGER'):
+                a_th += 0.15
+
+            if roll < a_th:
+                self.execute_attack(atk, dfn, dist)
+            elif roll < a_th + g_th and not atk.shield.is_broken:
+                atk.state = 'GUARD'
+                atk.shield.is_raised = True
+                atk.state_frame = 0
+                atk.state_duration = random.randint(5, 10)
+
+    # ------------------------------------------------------------------
+    # MAIN TICK — physics, AI, combat resolution
+    # ------------------------------------------------------------------
+    def step(self, tick):
+        self.clock_tick += 1
+        self.auto_face(self.f1, self.f2)
+        self.physics.spawn_torch_embers()
+        self.physics.step_torch_particles()
+        self.physics.step_projectiles()
+        self.physics.step_severed_entities()
+        self.step_kinematics(self.f1)
+        self.step_kinematics(self.f2)
+
+        self.hit_sparks = [s for s in self.hit_sparks if s['life'] > 0]
+        for s in self.hit_sparks:
+            s['life'] -= 1
+
+        # Referee counting
+        if self.referee_counting:
+            if self.clock_tick % 7 == 0:
+                self.referee_count += 1
+                self.add_herald(f"🔔 MARSHAL COUNT: ... {self.referee_count}!")
+                down_f = self.f1 if self.f1.state == 'DOWN' else self.f2
+                if self.referee_count >= 10:
+                    self.match_over = True
+                    self.end_type = "SLAIN (10-COUNT)"
+                    self.winner = self.f2 if down_f == self.f1 else self.f1
+                    self.winner.state = 'VICTORY'
+                    self.add_herald(f"🏆 THE COMBAT IS DECIDED! {self.winner.name} stands victorious!")
+                    return
+                elif self.referee_count >= 6 and down_f.hp > 5 and random.random() < 0.40:
+                    down_f.state = 'IDLE'
+                    down_f.state_frame = 0
+                    down_f.hp = max(12.0, down_f.hp)
+                    down_f.ragdoll = None
+                    self.referee_counting = False
+                    self.referee_count = 0
+                    self.add_herald(f"🔥 UNBREAKABLE WILL! {down_f.name} rises from the cobblestones!")
+            return
+
+        if not self.match_over:
+            self.update_ai(self.f1, self.f2, tick)
+            self.update_ai(self.f2, self.f1, tick)
+            self.check_weapon_collisions(self.f1, self.f2, tick)
+            self.check_weapon_collisions(self.f2, self.f1, tick)
+
+    # ------------------------------------------------------------------
+    # 64-BIT PIXEL COMPOSITOR & TERMINAL RENDERER
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # VERLET RAGDOLL KNOCKDOWN RENDERING
+    # ------------------------------------------------------------------
+    def render_ragdoll(self, f, tick):
+        rd = f.ragdoll
+        if not rd:
+            return
+
+        h_x, h_y = int(round(rd.points[0]['x'])), int(round(rd.points[0]['y']))
+        c_x, c_y = int(round(rd.points[1]['x'])), int(round(rd.points[1]['y']))
+        w_x, w_y = int(round(rd.points[2]['x'])), int(round(rd.points[2]['y']))
+        f_x, f_y = int(round(rd.points[3]['x'])), int(round(rd.points[3]['y']))
+
+        tabard_col = PAL['tabard_red'] if f.is_knight else PAL['tabard_blue']
+        plate_col = PAL['plate'] if f.body.segments['torso'].plate_hp > 0 else PAL['chainmail']
+
+        def set_px(px, py, col):
+            if 0 <= px < self.w and 0 <= py < self.h and col:
+                self.buf[py][px] = col
+
+        def draw_line(x0, y0, x1, y1, col, thick=1):
+            dist = max(1, int(math.hypot(x1 - x0, y1 - y0) * 1.5))
+            for step_i in range(dist + 1):
+                t = step_i / dist
+                ix = int(round(x0 + (x1 - x0) * t))
+                iy = int(round(y0 + (y1 - y0) * t))
+                for d in range(-thick, thick + 1):
+                    if abs(x1 - x0) > abs(y1 - y0):
+                        set_px(ix, iy + d, col)
+                    else:
+                        set_px(ix + d, iy, col)
+
+        # ----------------------------------------------------------------------
+        # A. MASSIVE EXPANDING COBBLESTONE BLOOD POOL
+        # ----------------------------------------------------------------------
+        pool_rx = min(12, 6 + int(self.referee_count * 0.8))
+        pool_ry = min(4, 2 + int(self.referee_count * 0.3))
+        for pdy in range(-pool_ry, pool_ry + 1):
+            for pdx in range(-pool_rx, pool_rx + 1):
+                norm_d = (pdx * pdx) / max(1, pool_rx * pool_rx) + (pdy * pdy) / max(1, pool_ry * pool_ry)
+                if norm_d <= 1.0:
+                    bx = c_x + pdx
+                    by = int(self.physics.floor_y) + pdy
+                    if 4 <= bx < self.w - 4 and 0 <= by < self.h:
+                        if norm_d < 0.35:
+                            b_col = PAL['gore_dark']
+                        elif norm_d < 0.70:
+                            b_col = PAL['blood_pool']
+                        else:
+                            b_col = PAL['blood_dark']
+                        self.physics.floor_stains[(bx, by)] = b_col
+                        set_px(bx, by, b_col)
+
+        # ----------------------------------------------------------------------
+        # B. DROPPED BLOODIED WEAPON ON COBBLESTONES
+        # ----------------------------------------------------------------------
+        w_col = PAL['steel_edge'] if f.weapon.wtype == 'longsword' else PAL['iron']
+        for wdx in (-3, -2, -1, 0, 1, 2):
+            set_px(c_x + 5 + wdx, int(self.physics.floor_y), w_col)
+        set_px(c_x + 4, int(self.physics.floor_y), PAL['blood'])
+
+        # ----------------------------------------------------------------------
+        # C. BASE ANATOMICAL BODY FRAME & SPREAD LIMBS
+        # ----------------------------------------------------------------------
+        # 1. Legs & Greaves (Pelvis to Feet)
+        draw_line(w_x, w_y, f_x, f_y, PAL['plate_worn'], thick=1)
+        draw_line(w_x + 1, w_y, f_x + 1, f_y, PAL['chain_torn'], thick=0)
+        for dx in (-1, 0, 1):
+            set_px(f_x + dx, f_y, PAL['iron_dark'])
+            set_px(f_x + dx, f_y + 1, PAL['iron_dark'])
+
+        # 2. Torso / Breastplate
+        draw_line(c_x - 1, c_y, w_x - 1, w_y, plate_col, thick=0)
+        draw_line(c_x, c_y, w_x, w_y, plate_col, thick=1)
+        draw_line(c_x + 1, c_y, w_x + 1, w_y, PAL['plate_crack'], thick=0)
+        mid_tx = (c_x + w_x) // 2
+        mid_ty = (c_y + w_y) // 2
+        for dx in (-2, -1, 0, 1, 2):
+            set_px(mid_tx + dx, mid_ty, tabard_col)
+
+        # 3. Upper Torso & Pauldrons
+        draw_line(h_x, h_y, c_x, c_y, PAL['chainmail'], thick=1)
+        for dx in (-2, -1, 1, 2):
+            set_px(c_x + dx, c_y, PAL['plate'])
+
+        # 4. Arms
+        arm_dir = 4 if f.facing_right else -4
+        if f.severed_limb != 'r_arm':
+            draw_line(c_x, c_y, c_x + arm_dir, int(self.physics.floor_y), PAL['plate_worn'], thick=1)
+            set_px(c_x + arm_dir, int(self.physics.floor_y), PAL['iron'])
+
+        if f.severed_limb != 'l_arm':
+            draw_line(c_x, c_y, c_x - arm_dir, c_y - 1, PAL['chainmail'], thick=1)
+
+        # ----------------------------------------------------------------------
+        # D. SEVERED HEADS ON COBBLESTONES
+        # ----------------------------------------------------------------------
+        for sh in self.physics.severed_heads:
+            sh_x = int(round(sh['x']))
+            sh_y = int(round(sh['y']))
+            h_col = PAL['plate'] if sh['is_knight'] else PAL['plate_worn']
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    set_px(sh_x + dx, sh_y + dy, h_col)
+            # Bloody severed neck ring with bone center
+            set_px(sh_x - 1, sh_y + 1, PAL['severed_stump'])
+            set_px(sh_x, sh_y + 1, PAL['bone'])
+            set_px(sh_x + 1, sh_y + 1, PAL['severed_stump'])
+            set_px(sh_x, sh_y, PAL['blood_dark'])
+            for pdx in (-2, -1, 0, 1, 2):
+                set_px(sh_x + pdx, int(self.physics.floor_y), PAL['blood_pool'])
+
+        # ----------------------------------------------------------------------
+        # E. SEVERED LIMBS ON COBBLESTONES
+        # ----------------------------------------------------------------------
+        for sl in self.physics.severed_limbs:
+            sl_x = int(round(sl['x']))
+            sl_y = int(round(sl['y']))
+            set_px(sl_x - 1, sl_y, PAL['bone'])
+            set_px(sl_x, sl_y, PAL['severed_stump'])
+            set_px(sl_x + 1, sl_y, PAL['plate_worn'])
+            set_px(sl_x + 2, sl_y, PAL['iron_dark'])
+
+        # ----------------------------------------------------------------------
+        # F. TOP-LAYER FORENSIC VISCERAL TRAUMA OVERLAYS (ALWAYS VISIBLE)
+        # ----------------------------------------------------------------------
+        # Slashed thigh wound revealing bone
+        mid_lx = (w_x + f_x) // 2
+        mid_ly = (w_y + f_y) // 2
+        set_px(mid_lx, mid_ly, PAL['wound'])
+        set_px(mid_lx + 1, mid_ly, PAL['bone'])
+
+        # Gaping abdominal laceration with entrails and dark tissue
+        for edx in (-1, 0, 1):
+            set_px(mid_tx + edx, mid_ty, PAL['entrails'])
+        set_px(mid_tx, mid_ty + 1, PAL['gore_dark'])
+        set_px(mid_tx - 1, mid_ty + 1, PAL['wound'])
+        set_px(mid_tx + 1, mid_ty + 1, PAL['blood_dark'])
+
+        # Severed Shoulder Stump
+        if f.severed_limb == 'r_arm':
+            set_px(c_x + arm_dir, c_y, PAL['severed_stump'])
+            set_px(c_x + arm_dir, c_y - 1, PAL['bone'])
+            set_px(c_x + arm_dir, c_y + 1, PAL['blood_spurting'])
+        elif f.severed_limb == 'l_arm':
+            set_px(c_x - arm_dir, c_y, PAL['severed_stump'])
+            set_px(c_x - arm_dir, c_y - 1, PAL['bone'])
+            set_px(c_x - arm_dir, c_y + 1, PAL['blood_spurting'])
+
+        # Head / Decapitation Stump / Crushed Skull
+        if f.is_decapitated:
+            stump_y = c_y - 2
+            set_px(c_x - 1, stump_y, PAL['severed_stump'])
+            set_px(c_x, stump_y, PAL['bone']) # Vertebral column bone core
+            set_px(c_x + 1, stump_y, PAL['severed_stump'])
+            set_px(c_x, stump_y - 1, PAL['blood_spurting'])
+            set_px(c_x, stump_y - 2, PAL['blood'])
+        elif f.is_crushed:
+            for dx in (-2, -1, 0, 1, 2):
+                set_px(h_x + dx, h_y, PAL['gore_dark'])
+            set_px(h_x - 1, h_y - 1, PAL['plate_crack'])
+            set_px(h_x + 1, h_y - 1, PAL['bone'])
+            set_px(h_x, h_y + 1, PAL['blood_pool'])
+        else:
+            head_seg = f.body.segments['head']
+            helm_col = PAL['plate'] if head_seg.plate_hp > 0 else PAL['plate_worn']
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    set_px(h_x + dx, h_y + dy, helm_col)
+            set_px(h_x, h_y, PAL['blood'])
+            set_px(h_x + 1, h_y, PAL['gore_dark'])
+    def render_weapon(self, fighter, tick):
+        w = fighter.weapon
+        if fighter.state == 'DOWN':
+            return
+
+        hx, hy = fighter.hand_r()
+        hx, hy = int(hx), int(hy)
+        facing = fighter.facing_right
+        f_dir = 1 if facing else -1
+
+        def set_px(px, py, col):
+            ix, iy = int(round(px)), int(round(py))
+            if 0 <= ix < self.w and 0 <= iy < self.h and col:
+                self.buf[iy][ix] = col
+
+        if w.swing_type == 'thrust':
+            ext = 1.0 if w.state == 'SWING' else (0.5 if w.state in ('WINDUP', 'FOLLOW') else 0.3)
+            tip_x = hx + int(w.reach * ext * f_dir)
+            tip_y = hy
+        else:
+            tip_fx, tip_fy = w.get_tip(hx, hy, facing)
+            tip_x, tip_y = int(round(tip_fx)), int(round(tip_fy))
+
+        set_px(hx, hy, PAL['sword_grip'])
+        set_px(hx, hy - 1, PAL['crossguard'])
+        set_px(hx, hy + 1, PAL['crossguard'])
+
+        if w.state == 'SWING':
+            prev_angle = w.angle - 0.5
+            p_dx = int((w.reach * 0.8) * math.cos(prev_angle))
+            p_dy = int((w.reach * 0.8) * math.sin(prev_angle))
+            if not facing: p_dx = -p_dx
+            set_px(hx + p_dx, hy + p_dy, PAL['trail'])
+
+        dist = max(1, int(math.hypot(tip_x - hx, tip_y - hy)))
+        for step_i in range(1, dist + 1):
+            t = step_i / dist
+            bx = int(round(hx + (tip_x - hx) * t))
+            by = int(round(hy + (tip_y - hy) * t))
+
+            if w.wtype == 'longsword':
+                edge_col = PAL['steel_edge'] if step_i == dist else PAL['steel_bright']
+                set_px(bx, by, edge_col)
+            elif w.wtype == 'mace':
+                if step_i < dist - 2:
+                    set_px(bx, by, PAL['iron'])
+                else:
+                    for mdx in (-1, 0, 1):
+                        for mdy in (-1, 0, 1):
+                            set_px(bx + mdx, by + mdy, PAL['iron_dark'])
+                    set_px(bx, by, PAL['plate'])
+            elif w.wtype == 'axe':
+                if step_i < dist - 2:
+                    set_px(bx, by, PAL['leather'])
+                else:
+                    set_px(bx, by, PAL['steel_bright'])
+                    set_px(bx + f_dir, by - 1, PAL['steel_edge'])
+                    set_px(bx + f_dir, by, PAL['steel_edge'])
+                    set_px(bx + f_dir, by + 1, PAL['steel_edge'])
+
+        if fighter.parry_clash_timer > 0:
+            for cdx in (-1, 0, 1):
+                for cdy in (-1, 0, 1):
+                    set_px(tip_x + cdx, tip_y + cdy, PAL['spark'])
+
+    # ------------------------------------------------------------------
+    # DYNAMIC SHIELD RENDERING
+    # ------------------------------------------------------------------
+    def render_shield(self, fighter, tick):
+        if fighter.shield.is_broken or fighter.state == 'DOWN':
+            return
+
+        lx, ly = fighter.hand_l()
+        lx, ly = int(lx), int(ly)
+        herald_col = PAL['shield_red'] if fighter.is_knight else PAL['shield_blue']
+        is_guard = fighter.state == 'GUARD'
+        
+        if is_guard:
+            lx += (2 if fighter.facing_right else -2)
+            ly -= 1
+
+        def set_px(px, py, col):
+            ix, iy = int(round(px)), int(round(py))
+            if 0 <= ix < self.w and 0 <= iy < self.h and col:
+                self.buf[iy][ix] = col
+
+        for sy in range(-2, 3):
+            for sx in (-1, 0, 1):
+                if sy in (-2, 2) or abs(sx) == 1:
+                    set_px(lx + sx, ly + sy, PAL['shield_iron'])
+                else:
+                    set_px(lx + sx, ly + sy, herald_col)
+        set_px(lx, ly, PAL['steel_bright'])
+
+    # ------------------------------------------------------------------
+    # 64-BIT PIXEL COMPOSITOR & TERMINAL RENDERER
+    # ------------------------------------------------------------------
+    def render_frame(self, tick):
+        # 1. Clear buffer
+        for y in range(self.h):
+            for x in range(self.w):
+                spot = max(0.0, 1.0 - (((x - self.w // 2) ** 2 + (y - 3) ** 2) / 900.0))
+                r = int(PAL['bg'][0] + spot * 18)
+                g = int(PAL['bg'][1] + spot * 14)
+                b = int(PAL['bg'][2] + spot * 22)
+                self.buf[y][x] = (r, g, b)
+
+        # 2. Stone walls (top)
+        for y in range(0, 5):
+            for x in range(self.w):
+                stone = PAL['wall_stone'] if ((x + y) % 7 < 5) else PAL['wall_mortar']
+                shade = 0.7 + 0.3 * (y / 5.0)
+                self.buf[y][x] = (int(stone[0] * shade), int(stone[1] * shade), int(stone[2] * shade))
+
+        # 3. Crowd silhouettes
+        for y in range(3, 6):
+            for x in range(8, self.w - 8):
+                if (x * 7 + y * 13) % 11 < 6:
+                    self.buf[y][x] = PAL['crowd']
+                elif (x * 3 + y * 5) % 17 < 3:
+                    self.buf[y][x] = PAL['crowd_lit']
+
+        # 4. Tournament Banners
+        for y in range(1, 5):
+            for x in range(10, 14):
+                self.buf[y][x] = PAL['banner_red']
+            for x in range(self.w - 14, self.w - 10):
+                self.buf[y][x] = PAL['banner_blue']
+
+        # 5. Stone pillars with flickering torches & dynamic radial illumination
+        for px, py_start in self.physics.torch_positions:
+            for y in range(5, 25):
+                side = PAL['pillar_dark'] if y % 3 == 0 else PAL['pillar']
+                self.buf[y][px] = side
+                if px + 1 < self.w:
+                    self.buf[y][px + 1] = PAL['pillar_dark']
+
+            bracket_y = py_start
+            if 0 <= bracket_y < self.h:
+                self.buf[bracket_y][px] = PAL['iron']
+                if bracket_y - 1 >= 0:
+                    flicker = tick % 3
+                    flame_cols = [PAL['torch_flame'], PAL['torch_core'], PAL['torch_ember']]
+                    self.buf[bracket_y - 1][px] = flame_cols[flicker]
+                    if bracket_y - 2 >= 0:
+                        self.buf[bracket_y - 2][px] = flame_cols[(flicker + 1) % 3]
+
+            flicker_t = 0.28 + 0.09 * math.sin(tick * 0.8 + px)
+            for dy in range(-4, 4):
+                for dx in range(-4, 5):
+                    gx = px + dx
+                    gy = bracket_y + dy
+                    if 0 <= gx < self.w and 0 <= gy < self.h:
+                        dist_sq = dx * dx + dy * dy
+                        if 0 < dist_sq < 18:
+                            cur = self.buf[gy][gx]
+                            glow = PAL['torch_glow']
+                            t = max(0.0, 1.0 - dist_sq / 18.0) * flicker_t
+                            self.buf[gy][gx] = (
+                                min(255, int(cur[0] + glow[0] * t)),
+                                min(255, int(cur[1] + glow[1] * t)),
+                                min(255, int(cur[2] + glow[2] * t))
+                            )
+
+        # 6. Cobblestone floor
+        for y in range(20, self.h):
+            shade = 1.0 + (y - 20) * 0.025
+            for x in range(self.w):
+                pattern = ((x * 7 + y * 3) % 11)
+                if pattern < 4:
+                    base = PAL['cobble_light']
+                elif pattern < 8:
+                    base = PAL['cobble_mid']
+                else:
+                    base = PAL['cobble_dark']
+                self.buf[y][x] = (
+                    min(255, int(base[0] * shade)),
+                    min(255, int(base[1] * shade)),
+                    min(255, int(base[2] * shade))
+                )
+
+        # 7. Persistent floor blood stains
+        for (sx, sy), col in self.physics.floor_stains.items():
+            if 0 <= sx < self.w and 0 <= sy < self.h:
+                self.buf[sy][sx] = col
+
+        # 8. Floor objects (armor fragments, shield splinters)
+        for obj in self.physics.floor_objects:
+            ox, oy = obj['x'], obj['y']
+            if 0 <= ox < self.w and 0 <= oy < self.h:
+                self.buf[oy][ox] = obj['col']
+
+        # 9. Fighter shadows
+        for f in (self.f1, self.f2):
+            sy = int(self.physics.floor_y) + 1
+            for dx in range(-3, 10):
+                sx = int(f.x) + dx
+                if 0 <= sx < self.w and 0 <= sy < self.h:
+                    cur = self.buf[sy][sx]
+                    self.buf[sy][sx] = (max(0, cur[0] - 20), max(0, cur[1] - 20), max(0, cur[2] - 20))
+
+        # 10. Fighters (Sprites or Ragdolls)
+        if self.f1.state == 'DOWN' and self.f1.ragdoll:
+            self.render_ragdoll(self.f1, tick)
+        else:
+            m1 = self.f1.get_pixel_matrix(tick)
+            self.stamp_sprite(m1, int(self.f1.x), int(self.f1.y), self.f1, flip=False)
+
+        if self.f2.state == 'DOWN' and self.f2.ragdoll:
+            self.render_ragdoll(self.f2, tick)
+        else:
+            m2 = self.f2.get_pixel_matrix(tick)
+            self.stamp_sprite(m2, int(self.f2.x), int(self.f2.y), self.f2, flip=True)
+
+        # 11. Dynamic Shields
+        self.render_shield(self.f1, tick)
+        self.render_shield(self.f2, tick)
+
+        # 12. Dynamic Rotational Weapons
+        self.render_weapon(self.f1, tick)
+        self.render_weapon(self.f2, tick)
+
+        # 13. Ballistic Projectiles
+        for p in self.physics.projectiles:
+            px_i = int(p['x'])
+            py_i = int(p['y'])
+            if 0 <= px_i < self.w and 0 <= py_i < self.h:
+                self.buf[py_i][px_i] = p['col']
+
+        # 14. Torch particles / Rising embers
+        for p in self.physics.torch_particles:
+            px_i = int(p['x'])
+            py_i = int(p['y'])
+            if 0 <= px_i < self.w and 0 <= py_i < self.h:
+                self.buf[py_i][px_i] = p['col']
+
+        # 15. Directional Hit Sparks & Parry Bursts
+        for s in self.hit_sparks:
+            sx_i = int(s['x'])
+            sy_i = int(s['y'])
+            rad = 4 - s['life']
+            if 0 <= sx_i < self.w and 0 <= sy_i < self.h:
+                self.buf[sy_i][sx_i] = PAL['spark']
+            if rad >= 1:
+                for (dx, dy) in [(-rad, 0), (rad, 0), (0, -rad), (0, rad)]:
+                    qx, qy = sx_i + dx, sy_i + dy
+                    if 0 <= qx < self.w and 0 <= qy < self.h:
+                        self.buf[qy][qx] = PAL['spark_orange']
+            if rad >= 2:
+                for (dx, dy) in [(-rad, -rad), (rad, -rad), (-rad, rad), (rad, rad)]:
+                    qx, qy = sx_i + dx, sy_i + dy
+                    if 0 <= qx < self.w and 0 <= qy < self.h:
+                        self.buf[qy][qx] = PAL['spark']
+
+        # 16. Compose 64-bit Half-Block TrueColor Terminal Output
+        terminal_lines = []
+        for row in range(self.h // 2):
+            y_top = row * 2
+            y_bot = row * 2 + 1
+            line = []
+            cur_top, cur_bot = None, None
+            for x in range(self.w):
+                top = self.buf[y_top][x]
+                bot = self.buf[y_bot][x]
+                if top != cur_top or bot != cur_bot:
+                    line.append(f'[38;2;{top[0]};{top[1]};{top[2]};48;2;{bot[0]};{bot[1]};{bot[2]}m')
+                    cur_top, cur_bot = top, bot
+                line.append('▀')
+            line.append('[0m')
+            terminal_lines.append(''.join(line))
+        return terminal_lines
+
+    def stamp_sprite(self, matrix, x_pos, y_pos, fighter, flip=False):
+        is_k = fighter.is_knight
+        for r, row in enumerate(matrix):
+            if flip:
+                row = row[::-1]
+            py = y_pos + r
+            if 0 <= py < self.h:
+                for c_i, ch in enumerate(row):
+                    px = x_pos + c_i
+                    if 0 <= px < self.w:
+                        col = None
+                        if ch == 'A':
+                            seg = fighter.body.segments['head']
+                            if seg.plate_hp > seg.plate_max * 0.5:
+                                col = PAL['plate']
+                            elif seg.plate_hp > 0:
+                                col = PAL['plate_worn']
+                            else:
+                                col = PAL['skin_mid']
+                        elif ch == 'V':
+                            col = PAL['shadow']
+                        elif ch == 'P':
+                            seg = fighter.body.segments.get('l_arm' if c_i < 7 else 'r_arm',
+                                                            fighter.body.segments['torso'])
+                            if seg.plate_hp > seg.plate_max * 0.5:
+                                col = PAL['plate']
+                            elif seg.plate_hp > 0:
+                                col = PAL['plate_worn']
+                            else:
+                                col = PAL['chainmail'] if seg.chain_hp > 0 else PAL['skin_light']
+                        elif ch == 'B':
+                            seg = fighter.body.segments['torso']
+                            if seg.plate_hp > seg.plate_max * 0.5:
+                                col = PAL['plate']
+                            elif seg.plate_hp > 0:
+                                col = PAL['plate_crack']
+                            else:
+                                col = PAL['chainmail'] if seg.chain_hp > 0 else PAL['leather']
+                        elif ch == 'C':
+                            seg = fighter.body.segments['torso']
+                            if seg.chain_hp > seg.chain_max * 0.5:
+                                col = PAL['chainmail']
+                            elif seg.chain_hp > 0:
+                                col = PAL['chain_torn']
+                            else:
+                                col = PAL['leather'] if seg.leather_hp > 0 else PAL['skin_mid']
+                        elif ch == 'K':
+                            col = PAL['tabard_red'] if is_k else PAL['tabard_blue']
+                        elif ch == 'G':
+                            seg = fighter.body.segments.get('l_leg' if c_i < 7 else 'r_leg',
+                                                            fighter.body.segments['l_leg'])
+                            if seg.plate_hp > seg.plate_max * 0.5:
+                                col = PAL['plate']
+                            elif seg.plate_hp > 0:
+                                col = PAL['plate_worn']
+                            else:
+                                col = PAL['leather'] if seg.leather_hp > 0 else PAL['skin_dark']
+                        elif ch == 'F':
+                            col = PAL['iron_dark']
+                        elif ch == 'W':
+                            col = PAL['leather']
+                        elif ch == 'S':
+                            if not fighter.shield.is_broken:
+                                if fighter.shield.durability_pct() > 60:
+                                    col = PAL['shield_wood']
+                                elif fighter.shield.durability_pct() > 30:
+                                    col = PAL['shield_iron']
+                                else:
+                                    col = PAL['leather_cut']
+                        elif ch == 'X':
+                            col = PAL['steel_bright']
+                        elif ch == 'L':
+                            col = PAL['skin_light']
+                        elif ch == 'M':
+                            col = PAL['skin_mid']
+                        elif ch == 'D':
+                            col = PAL['skin_dark']
+                        elif ch == 'o':
+                            col = PAL['eye_white']
+                        elif ch == 'b':
+                            col = PAL['blood']
+                        elif ch == 'c':
+                            col = PAL['plate_crack']
+                        elif ch == '*':
+                            col = PAL['star'] if (r + c_i + self.clock_tick) % 3 != 0 else None
+                        if col:
+                            self.buf[py][px] = col
+# ==============================================================================
+# HUD & HERALD DISPLAY
+# ==============================================================================
+def draw_bar(pct, width=14, fill_col="\033[38;2;166;227;161m", empty_ch="\u2591"):
+    pct = max(0.0, min(100.0, float(pct)))
+    fill_n = int(round(width * pct / 100.0))
+    return f"{fill_col}{'█' * fill_n}\033[38;2;88;91;112m{empty_ch * (width - fill_n)}\033[0m"
+
+def armor_indicator(seg):
+    if seg.plate_hp > seg.plate_max * 0.5:
+        return "\033[38;2;178;183;193m\u2588\033[0m"
+    elif seg.plate_hp > 0:
+        return "\033[38;2;142;147;157m\u2593\033[0m"
+    elif seg.chain_hp > 0:
+        return "\033[38;2;132;137;142m\u2592\033[0m"
+    elif seg.leather_hp > 0:
+        return "\033[38;2;122;78;42m\u2591\033[0m"
+    elif seg.flesh_hp > 50:
+        return "\033[38;2;238;203;178m\u00b7\033[0m"
+    else:
+        return "\033[38;2;205;22;32m\u00d7\033[0m"
+
+def render_hud(arena, tick):
+    C = "\033[0m"
+    CR = "\033[38;2;243;139;168m"
+    CB = "\033[38;2;137;180;250m"
+    CM = "\033[38;2;203;166;247m"
+    CY = "\033[38;2;249;226;175m"
+    CG = "\033[38;2;166;227;161m"
+    CS = "\033[38;2;147;154;183m"
+    CW = "\033[1m"
+
+    sec_left = max(0, arena.round_time - (arena.clock_tick // 4))
+    clock = f"{sec_left // 60:02d}:{sec_left % 60:02d}"
+
+    out = []
+    out.append(f"{CM}{CW}  OSTADIX MEDIEVAL COMBAT \u00b7 ARTICULATED BODY PHYSICS & WOUND ENGINE{C}  {CY}R{arena.round_num}/{arena.max_rounds} [{clock}]{C}")
+
+    f1 = arena.f1
+    f2 = arena.f2
+    f1c = CG if f1.hp > 60 else (CY if f1.hp > 30 else CR)
+    f2c = CG if f2.hp > 60 else (CY if f2.hp > 30 else CR)
+
+    hp1 = draw_bar(f1.hp, 12, f1c)
+    hp2 = draw_bar(f2.hp, 12, f2c)
+    stm1 = draw_bar(f1.stamina, 7, CB)
+    stm2 = draw_bar(f2.stamina, 7, CB)
+
+    out.append(f"  {CR}{CW}{f1.name}{C} {hp1} {f1.hp:4.0f}HP {stm1} STM  {CS}VS{C}  STM {stm2} {hp2} {f2.hp:4.0f}HP {CB}{CW}{f2.name}{C}")
+
+    # Armor integrity per segment
+    segs1 = ''.join(armor_indicator(f1.body.segments[s]) for s in ['head','torso','l_arm','r_arm','l_leg','r_leg'])
+    segs2 = ''.join(armor_indicator(f2.body.segments[s]) for s in ['head','torso','l_arm','r_arm','l_leg','r_leg'])
+    shd1 = f"{CG}SHIELD{C}" if not f1.shield.is_broken else f"{CR}BROKE{C}"
+    shd2 = f"{CG}SHIELD{C}" if not f2.shield.is_broken else f"{CR}BROKE{C}"
+    wst1 = f"{CS}{f1.stance[:3]}{C}"
+    wst2 = f"{CS}{f2.stance[:3]}{C}"
+
+    out.append(f"  {CS}ARMOR:{C} [{segs1}] {shd1} {wst1}  {CS}|{C}  {wst2} {shd2} [{segs2}] {CS}ARMOR{C}")
+
+    # Render the pixel arena
+    ring_lines = arena.render_frame(tick)
+    for line in ring_lines:
+        out.append("  " + line)
+
+    out.append(f"  {CM}{'─' * 78}{C}")
+    for msg in arena.herald_log[-2:]:
+        out.append(f"  {msg}")
+
+    return "\n".join(out)
+
+# ==============================================================================
+# MAIN SIMULATION RUNNER
+# ==============================================================================
+def match_config(default_frames):
+    switches = {}
+    for name in ('OSTADIX_ANIMATE', 'OSTADIX_COLOR'):
+        value = os.environ.get(name, 'auto').strip().lower()
+        if value not in ('auto', '0', '1'):
+            raise ValueError(f"{name} must be auto, 0, or 1")
+        switches[name] = value
+    try:
+        frames = int(os.environ.get('OSTADIX_FRAMES', str(default_frames)))
+    except ValueError:
+        raise ValueError("OSTADIX_FRAMES must be an integer from 1 to 10000") from None
+    if not 1 <= frames <= 10000:
+        raise ValueError("OSTADIX_FRAMES must be an integer from 1 to 10000")
+    seed = os.environ.get('OSTADIX_SEED')
+    if seed is not None:
+        try:
+            seed = int(seed)
+        except ValueError:
+            raise ValueError("OSTADIX_SEED must be an integer") from None
+    return frames, seed, switches
+
+def open_match_terminal(switches):
+    # The Python backend captures stdout. Only an explicit opt-in or the shell
+    # launcher's original TTY status may redirect live frames to /dev/tty.
+    if (switches['OSTADIX_ANIMATE'] == '0' or switches['OSTADIX_COLOR'] == '0'
+            or 'NO_COLOR' in os.environ or os.environ.get('TERM') == 'dumb'):
+        return None
+    if switches['OSTADIX_ANIMATE'] == 'auto' and not sys.stdout.isatty():
+        return None
+    try:
+        return open('/dev/tty', 'w', encoding='utf-8')
+    except OSError:
+        return None
+
+def tw(terminal, text):
+    terminal.write(text)
+    terminal.flush()
+
+def run_tournament():
+    total_frames, seed, switches = match_config(300)
+    if seed is not None:
+        random.seed(seed)
+    arena = MedievalArena()
+    terminal = open_match_terminal(switches)
+    frames_run = 0
+    interrupted = False
+    try:
+        if terminal:
+            # Keep the cursor visible: SIGINT can stop the O parent before the
+            # backend gets a chance to execute its own cleanup handler.
+            tw(terminal, "\033[2J")
+        for tick in range(total_frames):
+            arena.step(tick)
+            frames_run += 1
+            if terminal:
+                tw(terminal, "\033[H" + render_hud(arena, tick) + "\033[J\n")
+            if arena.match_over:
+                if terminal:
+                    time.sleep(1.2)
+                break
+            if terminal:
+                time.sleep(0.13 if arena.referee_counting else 0.06)
+    except KeyboardInterrupt:
+        interrupted = True
+    finally:
+        if terminal:
+            try:
+                tw(terminal, "\033[0m\033[?25h\n")
+            finally:
+                terminal.close()
+    status = 'CONCLUDED' if arena.match_over else ('INTERRUPTED' if interrupted else 'FRAME LIMIT')
+    winner = arena.winner.name if arena.match_over and arena.winner else 'UNDECIDED'
+    result = arena.end_type if arena.match_over else 'No official result'
+    f1, f2 = arena.f1, arena.f2
+    print(
+        f"Ostadix Medieval Combat: {status} · Frames: {frames_run}/{total_frames} · Seed: {seed}\n"
+        f"  Winner: {winner} · Result: {result}\n"
+        f"  {f1.name}: {f1.attacks_landed}/{f1.attacks_thrown} hits "
+        f"· Armor: {f1.body.avg_armor_pct():.0f}% · Worst: {f1.body.worst_segment().name} ({f1.body.worst_segment().flesh_hp:.0f}%)\n"
+        f"  {f2.name}: {f2.attacks_landed}/{f2.attacks_thrown} hits "
+        f"· Armor: {f2.body.avg_armor_pct():.0f}% · Worst: {f2.body.worst_segment().name} ({f2.body.worst_segment().flesh_hp:.0f}%)"
+    )
+
+# Return a dependency token after defining the engine in its persistent actor.
+__oval_result__ = 'medieval'
+)_python[91]
+)_quote
+
+# BEGIN EMBEDDED ARENA MODULES
+# Rebuild this section with O arena/build.O after editing arena/*.O.
+let session_program = quote^(
+# Shared O session: called by the native boxing.O and medieval.O actors.
+let checkpoint_receipt = python[91]^(
+import base64, copy, hashlib, json, math, os, random, shutil, sys, time
+from pathlib import Path
+
+kind = $combat_kind
+programs = $program_expressions
+terminal_context = O.eval(programs['arena/terminal.O'])
+if kind not in ('boxing', 'medieval'):
+    raise ValueError('combat_kind must be boxing or medieval')
+
+def integer_option(name, default, low, high):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        raise ValueError(f'{name} must be an integer from {low} to {high}') from None
+    if not low <= value <= high:
+        raise ValueError(f'{name} must be an integer from {low} to {high}')
+    return value
+
+seed = integer_option('OSTADIX_SEED', 42, -2147483648, 2147483647)
+warmup = integer_option('OSTADIX_ARENA_CHECKPOINT', 16, 0, 60)
+horizon_option = 'OSTADIX_ARENA_HORIZON' if 'OSTADIX_ARENA_HORIZON' in os.environ else 'OSTADIX_FRAMES'
+horizon = integer_option(horizon_option, 144, 1, 360)
+switches = {}
+for option in ('OSTADIX_ANIMATE', 'OSTADIX_COLOR'):
+    value = os.environ.get(option, 'auto').strip().lower()
+    if value not in ('auto', '0', '1'):
+        raise ValueError(f'{option} must be auto, 0, or 1')
+    switches[option] = value
+decision_interval = 24
+frame_stride = max(1, math.ceil(horizon / 36))
+bank = $strategy_bank
+languages = {'Pressure': 'JavaScript', 'Adaptive': 'Python', 'Guard': 'Common Lisp'}
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+
+def freeze(value, seen=None):
+    # Preserve aliases and exact floats, excluding only the presentation buffer.
+    if seen is None:
+        seen = {}
+    if value is None or isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError('non-finite simulation state')
+        return {'float': value.hex()}
+    identity = id(value)
+    if identity in seen:
+        return {'ref': seen[identity]}
+    index = len(seen)
+    seen[identity] = index
+    if isinstance(value, dict):
+        return {'id': index, 'dict': [[freeze(k, seen), freeze(value[k], seen)] for k in sorted(value, key=repr)]}
+    if isinstance(value, (list, tuple)):
+        return {'id': index, 'type': type(value).__name__, 'items': [freeze(item, seen) for item in value]}
+    if hasattr(value, '__dict__'):
+        return {'id': index, 'type': type(value).__name__, 'fields': {
+            key: freeze(item, seen) for key, item in sorted(vars(value).items()) if key != 'buf'}}
+    raise TypeError('unfingerprintable world value: ' + type(value).__name__)
+
+def world_hash(world):
+    return digest(freeze(world))
+
+engine_expression = $engine_expression
+engine_source = engine_expression.src
+# The actual combat script already loaded its engine into this O actor.
+arena_class = BoxingArena if kind == 'boxing' else MedievalArena
+random.seed(seed)
+live_world = arena_class()
+live_identity = id(live_world)
+for tick in range(warmup):
+    if live_world.match_over:
+        break
+    live_world.step(tick)
+checkpoint_tick = live_world.clock_tick
+world_checkpoint = copy.deepcopy(live_world)
+checkpoint_rng = random.getstate()
+checkpoint_world_hash = world_hash(live_world)
+checkpoint_hash = digest({'world': checkpoint_world_hash, 'rng': freeze(checkpoint_rng)})
+strategy_hashes = {name: hashlib.sha256(expr.src.encode()).hexdigest() for name, expr in bank.items()}
+program_sources = {'engine.O': engine_source, **{name: expression.src for name, expression in programs.items()}}
+source_hashes = {name: hashlib.sha256(text.encode()).hexdigest() for name, text in program_sources.items()}
+__oval_result__ = {'arena': kind, 'seed': seed, 'tick': checkpoint_tick,
+                   'checkpoint_sha256': checkpoint_hash, 'strategies': strategy_hashes,
+                   'judge_source': program_sources['arena/judge.O'],
+                   'analyze_source': program_sources['arena/analyze.O']}
+)_python[91]
+
+let trials = python[91]^(
+def observe(world):
+    return {'arena': kind, 'tick': world.clock_tick, 'hp': world.f1.hp,
+            'opponent_hp': world.f2.hp, 'stamina': world.f1.stamina,
+            'opponent_stamina': world.f2.stamina, 'distance': abs(world.f1.x - world.f2.x)}
+
+def pixel_frame(world, tick):
+    # Some artwork adds floor stains. Draw a clone so observation cannot change
+    # the physical future, and also preserve the simulation's random stream.
+    state = random.getstate()
+    try:
+        painted = copy.deepcopy(world)
+        painted.render_frame(tick)
+        pixels = bytes(max(0, min(255, int(channel))) for row in painted.buf for rgb in row for channel in rgb)
+    finally:
+        random.setstate(state)
+    return {'tick': tick, 'width': world.w, 'height': world.h,
+            'rgb': base64.b64encode(pixels).decode(), 'own_hp': world.f1.hp, 'foe_hp': world.f2.hp}
+
+def simulate(world, name, record_frames=True):
+    random.setstate(checkpoint_rng)
+    trace, decisions, frames, ledger = [], [], [], []
+    if record_frames:
+        frames.append(pixel_frame(world, checkpoint_tick))
+    for offset in range(horizon):
+        if world.match_over:
+            break
+        if offset % decision_interval == 0:
+            scoped_state = observe(world)
+            # First-class O expression reentry, with a detached explicit scope.
+            policy = O.eval(bank[name], O.scope({'state': scoped_state}))
+            normalized = world.set_tactics(world.f1, policy)
+            decisions.append({'tick': world.clock_tick, 'scope_sha256': digest(scoped_state),
+                              'source_sha256': strategy_hashes[name], 'policy': normalized})
+        event = {'own_hp_before': world.f1.hp, 'foe_hp_before': world.f2.hp,
+                 'own_stamina_before': world.f1.stamina,
+                 'own_knockdowns_before': world.f1.knockdowns_taken,
+                 'foe_knockdowns_before': world.f2.knockdowns_taken}
+        world.step(checkpoint_tick + offset)
+        event.update({'tick': world.clock_tick, 'own_hp_after': world.f1.hp,
+                      'foe_hp_after': world.f2.hp, 'own_stamina_after': world.f1.stamina,
+                      'own_knockdowns_after': world.f1.knockdowns_taken,
+                      'foe_knockdowns_after': world.f2.knockdowns_taken})
+        ledger.append(event)
+        trace.append({'tick': world.clock_tick, 'world_sha256': world_hash(world),
+                      'rng_sha256': digest(freeze(random.getstate()))})
+        if record_frames and ((offset + 1) % frame_stride == 0 or world.match_over or offset + 1 == horizon):
+            frames.append(pixel_frame(world, world.clock_tick))
+    official = (1 if world.winner is world.f1 else -1 if world.winner is world.f2 else 0) if world.match_over else 0
+    result = {'name': name, 'language': languages[name], 'official_outcome': official, 'ledger': ledger,
+              'status': 'CONCLUDED' if world.match_over else 'UNDECIDED',
+              'winner': world.winner.name if world.match_over and world.winner else 'UNDECIDED',
+              'trace_sha256': digest(trace), 'trace': trace, 'decisions': decisions,
+              'frames': frames, 'steps': len(trace)}
+    return result
+
+futures = {name: simulate(copy.deepcopy(world_checkpoint), name) for name in bank}
+if id(live_world) != live_identity or world_hash(live_world) != checkpoint_world_hash:
+    raise AssertionError('counterfactual trials mutated the suspended live arena')
+__oval_result__ = [{key: item[key] for key in ('name', 'language', 'official_outcome', 'ledger', 'status', 'winner', 'trace_sha256', 'steps')}
+                   for item in futures.values()]
+)_python[91]
+
+let measured_trials = python[92]^(
+import json
+__oval_result__ = O.eval(O.quote($checkpoint_receipt['analyze_source']), O.scope({'trials': $trials}))
+)_python[92]
+
+let ranking = python[92]^(
+measured = $measured_trials
+if isinstance(measured, str):
+    measured = json.loads(measured)
+judge = O.quote($checkpoint_receipt['judge_source'])
+__oval_result__ = O.eval(judge, O.scope({'trials': measured}))
+)_python[92]
+
+let replay_receipt = python[91]^(
+measured = $measured_trials
+if isinstance(measured, str):
+    measured = json.loads(measured)
+if {row['name'] for row in measured} != set(bank):
+    raise ValueError('SQL accounting returned an invalid candidate set')
+for row in measured:
+    if not all(math.isfinite(value) for value in row['metrics'].values()):
+        raise ValueError('SQL accounting returned non-finite metrics')
+    futures[row['name']]['metrics'] = row['metrics']
+ranked = $ranking
+if isinstance(ranked, str):
+    ranked = json.loads(ranked)
+if not isinstance(ranked, list) or len(ranked) != len(bank) or {row['name'] for row in ranked} != set(bank):
+    raise ValueError('SQL judge returned an invalid candidate ranking')
+selected = ranked[0]['name']
+actor_preserved = id(live_world) == live_identity and world_hash(live_world) == checkpoint_world_hash
+if not actor_preserved:
+    raise AssertionError('original Python world did not survive adjudication')
+resumed = simulate(live_world, selected, record_frames=False)
+replay_verified = (resumed['trace'] == futures[selected]['trace']
+                   and resumed['decisions'] == futures[selected]['decisions']
+                   and resumed['ledger'] == futures[selected]['ledger'])
+if not replay_verified:
+    raise AssertionError('selected future did not reproduce on the original live arena')
+for row in ranked:
+    if not math.isfinite(float(row['score'])):
+        raise ValueError('SQL judge returned a non-finite score')
+    futures[row['name']]['score'] = row['score']
+payload = {'schema': 'ostadix.arena/v1', 'arena': kind, 'seed': seed,
+           'checkpoint_tick': checkpoint_tick, 'horizon': horizon,
+           'checkpoint_sha256': checkpoint_hash, 'source_sha256': source_hashes,
+           'judge_source': program_sources['arena/judge.O'],
+           'strategy_sha256': strategy_hashes, 'selected': selected,
+           'replay_verified': replay_verified, 'actor_preserved': actor_preserved,
+           'branches': [futures[row['name']] for row in ranked]}
+__oval_result__ = {'selected': selected, 'actor_preserved': actor_preserved, 'replay_verified': replay_verified,
+                   'checkpoint_sha256': checkpoint_hash, 'trace_sha256': resumed['trace_sha256'],
+                   'policy_evaluations': sum(len(item['decisions']) for item in futures.values()) + len(resumed['decisions'])}
+)_python[91]
+
+python[91]^(
+rendered = O.eval(programs['arena/raster.O'], O.scope({'frames': futures[selected]['frames']}))
+if rendered['frame_count'] != len(futures[selected]['frames']):
+    raise ValueError('native renderer returned an invalid frame count')
+state_home = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')).expanduser()
+if not state_home.is_absolute():
+    state_home = Path.home() / '.local/state'
+out_option = os.environ.get('OSTADIX_ARENA_OUT', str(state_home / 'ostadix/arena'))
+artifact = None
+if out_option:
+    output = Path(out_option).expanduser().resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    run_id = kind + '-' + str(seed) + '-' + checkpoint_hash[:10] + '-' + digest({'replay': $replay_receipt, 'sources': source_hashes})[:10]
+    artifact = output / run_id
+    artifact.mkdir(exist_ok=True)
+    for name, snapshot in program_sources.items():
+        destination = artifact / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(snapshot, encoding='utf-8')
+    view = O.quote(program_sources['arena/view.O'])
+    page = O.eval(view, O.scope({'payload': payload}))
+    (artifact / 'replay.html').write_text(str(page), encoding='utf-8')
+    (artifact / 'receipt.json').write_text(json.dumps(payload, indent=2, allow_nan=False), encoding='utf-8')
+    (artifact / 'terminal.ansi').write_text('\n'.join(rendered['frames']), encoding='utf-8')
+    for name, expression in bank.items():
+        (artifact / (name.lower() + '.O')).write_text(expression.src, encoding='utf-8')
+
+# O evaluates the candidates first; live playback shows their recorded futures.
+terminal = None
+if (switches['OSTADIX_ANIMATE'] != '0' and switches['OSTADIX_COLOR'] != '0'
+        and os.environ.get('TERM') != 'dumb' and 'NO_COLOR' not in os.environ):
+    device = terminal_context['device']
+    if switches['OSTADIX_ANIMATE'] == '1' and not device:
+        device = '/dev/tty'
+    try:
+        if device:
+            descriptor = os.open(device, os.O_WRONLY | getattr(os, 'O_NOCTTY', 0))
+            if os.isatty(descriptor):
+                terminal = os.fdopen(descriptor, 'w', encoding='utf-8')
+            else:
+                os.close(descriptor)
+    except OSError:
+        pass
+if terminal:
+    try:
+        frames = futures[selected]['frames']
+        for frame, raster in zip(frames, rendered['frames']):
+            lines = [f"OSTADIX COUNTERFACTUAL ARENA · {kind} · seed {seed}",
+                     f"FOLLOWING {selected} / {languages[selected]} · tick {frame['tick']} · REPLAY VERIFIED"]
+            terminal.write('\033[H' + '\n'.join(lines) + '\n' + raster + '\033[J\n')
+            terminal.flush()
+            time.sleep(0.06)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        terminal.write('\033[0m\033[?25h\n')
+        terminal.flush()
+        terminal.close()
+
+print(f'OSTADIX COUNTERFACTUAL ARENA · {kind} · seed {seed}')
+print(f'Checkpoint {checkpoint_tick} → {len(bank)} quoted language strategies → SQL ranking → original world resumed')
+print('O composition: Python world · Lisp rules · SQL ledger/judge · C terminal raster · HTML/JavaScript replay')
+for row in ranked:
+    branch = futures[row['name']]
+    metrics = branch['metrics']
+    mark = '*' if row['name'] == selected else ' '
+    print(f"{mark} {row['name']:<9} {branch['language']:<12} score {row['score']:8.2f}  "
+          f"damage +{metrics['damage_dealt']:.1f}/-{metrics['damage_taken']:.1f}  "
+          f"KD {metrics['net_knockdowns']:+d}  {branch['status']} / {branch['winner']}")
+print('Original actor preserved: yes · Selected future replay: exact semantic state + RNG match')
+evaluation_count = $replay_receipt['policy_evaluations']
+print(f"O.eval policy evaluations: {evaluation_count} · checkpoint {checkpoint_hash[:16]}")
+if artifact:
+    print('Replay: ' + str(artifact / 'replay.html'))
+    print('Receipt: ' + str(artifact / 'receipt.json'))
+else:
+    print('Export replay: set OSTADIX_ARENA_OUT to an output directory.')
+)_python[91]
+)_quote
+
+let analyze_program = quote^(
+# SQL owns combat accounting: derive scoring facts from the per-tick ledger.
+let ledger_json = python^(
+import json, math
+trials = $trials
+fields = ('own_hp_before', 'own_hp_after', 'foe_hp_before', 'foe_hp_after',
+          'own_stamina_before', 'own_stamina_after', 'own_knockdowns_before',
+          'own_knockdowns_after', 'foe_knockdowns_before', 'foe_knockdowns_after')
+if not isinstance(trials, list) or not trials:
+    raise ValueError('combat accounting requires trial records')
+for trial in trials:
+    if trial['official_outcome'] not in (-1, 0, 1):
+        raise ValueError('invalid official outcome')
+    if len(trial['ledger']) != trial['steps']:
+        raise ValueError('combat ledger must cover every simulation step')
+    previous = -1
+    for event in trial['ledger']:
+        if type(event['tick']) is not int or event['tick'] <= previous:
+            raise ValueError('combat ledger ticks must increase')
+        previous = event['tick']
+        for field in fields:
+            if isinstance(event[field], bool) or not isinstance(event[field], (float, int)) or not math.isfinite(event[field]):
+                raise ValueError('combat ledger values must be finite numbers')
+__oval_result__ = "'" + json.dumps(trials, allow_nan=False).replace("'", "''") + "'"
+)_python
+
+sql^(
+WITH trials AS (
+  SELECT key AS trial_id, value AS trial FROM json_each($ledger_json)
+), events AS (
+  SELECT trial_id, entry.value AS event,
+         row_number() OVER (PARTITION BY trial_id ORDER BY CAST(entry.key AS INTEGER)) AS first_tick,
+         row_number() OVER (PARTITION BY trial_id ORDER BY CAST(entry.key AS INTEGER) DESC) AS last_tick
+  FROM trials, json_each(trial, '$.ledger') AS entry
+), totals AS (
+  SELECT trial_id,
+         sum(max(0.0, json_extract(event, '$.foe_hp_before') - json_extract(event, '$.foe_hp_after'))) AS dealt,
+         sum(max(0.0, json_extract(event, '$.own_hp_before') - json_extract(event, '$.own_hp_after'))) AS taken,
+         sum(json_extract(event, '$.foe_knockdowns_after') - json_extract(event, '$.foe_knockdowns_before')
+           - json_extract(event, '$.own_knockdowns_after') + json_extract(event, '$.own_knockdowns_before')) AS knockdowns,
+         max(CASE WHEN last_tick = 1 THEN json_extract(event, '$.own_stamina_after') END)
+           - max(CASE WHEN first_tick = 1 THEN json_extract(event, '$.own_stamina_before') END) AS stamina
+  FROM events GROUP BY trial_id
+)
+SELECT json_group_array(json_set(trial, '$.metrics', json_object(
+  'damage_dealt', coalesce(dealt, 0.0), 'damage_taken', coalesce(taken, 0.0),
+  'net_knockdowns', coalesce(knockdowns, 0), 'stamina_delta', coalesce(stamina, 0.0),
+  'official_outcome', json_extract(trial, '$.official_outcome'))))
+FROM trials LEFT JOIN totals USING(trial_id);
+)_sql
+)_quote
+
+let judge_program = quote^(
+# Rank bounded counterfactual futures. Official outcome sorts before heuristic.
+let rows_json = python^(
+import json
+"'" + json.dumps($trials, allow_nan=False).replace("'", "''") + "'"
+)_python
+
+sql^(
+WITH facts AS (
+  SELECT json_extract(value, '$.name') AS name,
+         json_extract(value, '$.metrics.official_outcome') AS outcome,
+         json_extract(value, '$.metrics.damage_dealt') AS dealt,
+         json_extract(value, '$.metrics.damage_taken') AS taken,
+         json_extract(value, '$.metrics.net_knockdowns') AS knockdowns,
+         json_extract(value, '$.metrics.stamina_delta') AS stamina
+  FROM json_each($rows_json)
+), scored AS (
+  SELECT name, outcome,
+         -- TUNING POINT: the five terms below define the arena's preference.
+         1000.0 * outcome
+         + 2.0 * dealt
+         - 0.5 * taken
+         + 25.0 * knockdowns
+         + 0.025 * stamina AS score
+  FROM facts
+)
+SELECT json_group_array(json_object('name', name, 'score', score, 'outcome', outcome))
+FROM (SELECT * FROM scored ORDER BY outcome DESC, score DESC, name ASC);
+)_sql
+)_quote
+
+let view_program = quote^(
+# A pure view: O.eval(O.quote(source), O.scope({"payload": receipt})).
+# Returns an HTML OValue; the caller decides whether and where to save it.
+html^(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>OSTADIX / COUNTERFACTUAL ARENA</title>
+<style>
+:root{color-scheme:dark;--base:#1e1e2e;--mantle:#181825;--crust:#11111b;--surface:#313244;--text:#cdd6f4;--muted:#a6adc8;--lavender:#b4befe;--teal:#94e2d5;--peach:#fab387;--red:#f38ba8;--line:#45475a;font-family:"Fira Code","SFMono-Regular",Consolas,monospace;font-size:14px}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--base);color:var(--text)}
+button,input,select{font:inherit}
+button,select{background:var(--surface);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:.7rem 1rem;cursor:pointer}
+button:hover,select:hover{border-color:var(--lavender)}button:disabled{opacity:.45;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--teal);outline-offset:4px}
+button.primary{background:var(--lavender);border-color:var(--lavender);color:var(--crust);font-weight:650}
+main{max-width:1640px;margin:auto;padding:34px clamp(16px,3.4vw,58px) 54px}
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.brand{font-weight:750;letter-spacing:.05em;font-size:16px}.brand span{color:var(--muted);font-weight:400;margin-left:.5rem}
+.arena-tag{border:1px solid var(--line);padding:8px 13px;border-radius:30px;color:var(--lavender);white-space:nowrap}
+.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:26px;margin:34px 0 28px}
+h1{font-size:clamp(26px,3.1vw,44px);font-weight:550;line-height:1.18;letter-spacing:-.055em;margin:0 0 15px;max-width:780px}
+p{line-height:1.7;margin:0;color:var(--muted);max-width:76ch}.context{font-size:12px}
+.receipt{display:flex;gap:22px;flex-wrap:wrap;justify-content:flex-end}.receipt div{min-width:130px}
+.receipt dt{font-size:11px;color:var(--muted);margin-bottom:8px}.receipt dd{margin:0;font-size:15px}
+.verified{color:var(--teal)}.unverified{color:var(--peach)}
+.judge{margin:-4px 0 24px;font-size:11px}.judge summary{cursor:pointer;color:var(--muted);padding:6px 0}.judge p{margin:13px 0;font-size:11px}.judge pre{margin:0;padding:18px;background:var(--mantle);border:1px solid var(--line);border-radius:8px;overflow:auto;line-height:1.7;font-size:11px;max-height:28rem}.judge code{font-family:inherit}
+.candidates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.candidate{min-width:0;background:var(--mantle);border:1px solid var(--line);border-radius:10px;overflow:hidden}.candidate.selected{border-color:var(--lavender)}
+.candidate-head{padding:17px 18px 15px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.candidate h2{font-size:19px;font-weight:550;line-height:1.2;margin:0 0 8px;overflow-wrap:anywhere}
+.language{font-size:11px;color:var(--muted)}.chosen{font-size:10px;background:var(--lavender);color:var(--crust);padding:5px 7px;border-radius:4px;white-space:nowrap}
+.canvas-wrap{position:relative;background:var(--crust);width:100%;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--surface);border-bottom:1px solid var(--surface)}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;width:100%;height:100%;object-fit:contain}
+.empty{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+.frame-state{display:flex;justify-content:space-between;gap:10px;margin:13px 18px 0;font-size:10px;color:var(--muted)}
+.health{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:15px 18px 18px}
+.health-label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted)}.health-label strong{font-size:15px;color:var(--text);font-weight:500}
+.bar{height:4px;background:var(--surface);margin-top:9px;border-radius:2px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--lavender)}.bar.foe i{background:var(--peach)}
+.score-row{border-top:1px solid var(--surface);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.score-row small{font-size:10px;color:var(--muted)}.score-value{font-size:28px;font-variant-numeric:tabular-nums;color:var(--lavender);letter-spacing:-.04em}
+.official{display:flex;flex-direction:column;gap:6px;text-align:right;font-size:12px}.official span{color:var(--muted);font-size:10px}
+.breakdown{border-top:1px solid var(--surface);padding:13px 18px 16px}.breakdown summary{cursor:pointer;font-size:11px;color:var(--muted)}
+.metrics{margin-top:12px;display:grid;gap:10px}.metric{display:flex;justify-content:space-between;gap:14px;font-size:11px}.metric span:first-child{color:var(--muted)}.metric span:last-child{font-variant-numeric:tabular-nums}
+.timeline{margin-top:22px;padding:20px 0;border-bottom:1px solid var(--line)}.timeline-top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:17px}
+.transport{display:flex;gap:9px;align-items:center}.time-readout{font-size:13px;white-space:nowrap}.time-readout span{color:var(--muted);font-size:11px}
+.range-row{display:flex;align-items:center;gap:18px}.range-row span{font-size:10px;color:var(--muted);white-space:nowrap}
+input[type=range]{width:100%;accent-color:var(--lavender);cursor:pointer;min-height:26px;margin:0}.note{margin-top:13px;font-size:11px;line-height:1.7}
+.technical{margin-top:26px}.technical>summary{cursor:pointer;font-size:12px;padding:9px 0;color:var(--text)}
+.provenance{margin-top:15px;padding:20px;border:1px solid var(--line);border-radius:8px;background:var(--mantle)}.provenance p{font-size:12px;margin-bottom:19px}
+.proofs{display:grid;grid-template-columns:150px minmax(0,1fr);gap:13px 18px;font-size:11px}.proofs dt{color:var(--muted)}.proofs dd{margin:0;overflow-wrap:anywhere;line-height:1.6}
+.provenance h3{font-size:12px;font-weight:500;margin:24px 0 14px}.hash-list{display:grid;gap:12px;font-size:10px}
+.hash{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,3fr);gap:18px;align-items:start}.hash span:first-child{color:var(--muted);overflow-wrap:anywhere}.hash code{color:var(--text);overflow-wrap:anywhere;line-height:1.7}
+.footer{margin-top:28px;color:var(--muted);font-size:10px;line-height:1.8}.error{color:var(--red);border:1px solid var(--red);padding:20px;margin-top:24px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(min-width:1450px){.canvas-wrap{aspect-ratio:16/11}}
+@media(max-width:1050px){.intro{display:block}.receipt{justify-content:flex-start;margin-top:25px}.candidates{gap:12px}.candidate-head,.score-row{padding-left:13px;padding-right:13px}.score-row{align-items:flex-start;flex-direction:column}.official{text-align:left}.health{gap:10px;padding-left:13px;padding-right:13px}.candidate h2{font-size:16px}.chosen{font-size:9px}}
+@media(max-width:760px){main{padding-top:22px}header{align-items:flex-start}.brand{font-size:12px}.brand span{display:block;margin:6px 0 0;font-size:10px}.arena-tag{font-size:10px}.intro{margin:26px 0}.candidates{grid-template-columns:1fr}.candidate-head,.score-row{padding:17px 18px}.score-row{flex-direction:row;align-items:center}.official{text-align:right}.candidate h2{font-size:19px}.canvas-wrap{aspect-ratio:16/9}.timeline{position:sticky;bottom:0;background:var(--base);z-index:2;padding:14px 0;border-top:1px solid var(--line);margin-top:20px}.timeline-top{gap:12px;margin-bottom:9px}.transport{gap:6px}.transport button,.transport select{padding:.65rem .7rem;font-size:11px}.time-readout{font-size:12px}.time-readout span{display:block;text-align:right;margin-top:4px}.range-row{gap:10px}.note{font-size:10px}.proofs{grid-template-columns:1fr;gap:7px}.proofs dd{margin-bottom:10px}.hash{grid-template-columns:1fr;gap:5px}.receipt{gap:19px}.receipt div{min-width:115px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand">OSTADIX <span>/ COUNTERFACTUAL ARENA</span></div><div class="arena-tag" id="arena-name">Arena replay</div></header>
+<section class="intro" aria-labelledby="title"><div><h1 id="title">One checkpoint.<br>Three possible futures.</h1><p class="context" id="context">Compare decisions from the same application state.</p></div><dl class="receipt"><div><dt>Chosen policy</dt><dd id="chosen-policy">—</dd></div><div><dt>Chosen replay</dt><dd id="replay-verification">—</dd></div><div><dt>Original actor</dt><dd id="actor-preservation">—</dd></div></dl></section>
+<details class="judge"><summary>Selection rule: arena/judge.O</summary><p>The recorded rule computes policy scores for this run. Each candidate's official combat result is shown separately.</p><pre><code id="judge-source">Source not supplied in this receipt.</code></pre></details>
+<section class="candidates" id="candidates" aria-label="Candidate policy replays"></section>
+<section class="timeline" aria-label="Replay controls"><div class="timeline-top"><div class="transport"><button type="button" class="primary" id="play" aria-label="Play all candidate replays">Play</button><button type="button" id="restart">Restart</button><label class="sr-only" for="speed">Replay speed</label><select id="speed"><option value="4">½× speed</option><option value="8" selected>1× speed</option><option value="16">2× speed</option></select></div><output class="time-readout" id="time-readout" for="timeline">Tick —</output></div><div class="range-row"><span id="range-start">—</span><label for="timeline" class="sr-only">Shared simulation tick</label><input type="range" id="timeline" min="0" max="1" value="0" step="1"><span id="range-end">—</span></div><p class="note">Every arena follows the same tick. Scrub to compare recorded states; a finished branch holds its last frame.</p></section>
+<details class="technical"><summary>Execution evidence and source fingerprints</summary><div class="provenance"><p>O evaluates each policy in its named language. Candidate simulations resume the same application checkpoint, including random state. The selected policy is replayed and its trace hash is compared. This receipt describes application state restoration; it does not claim runtime or process migration.</p><dl class="proofs" id="proofs"></dl><h3>Policy traces · SHA-256</h3><div class="hash-list" id="trace-hashes"></div><h3>Sources · SHA-256</h3><div class="hash-list" id="source-hashes"></div></div></details>
+<p class="footer">Policy scores rank the simulated branches. The official result comes from the combat engine and can remain undecided at the horizon. Replay verification covers the selected trace; source hashes identify the inputs used for this run.</p>
+<div id="error" class="error" role="alert" hidden></div>
+</main>
+<script type="application/json" id="arena-payload">python^(
+import json
+data = $payload
+encoded = json.dumps(data, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+# Script text is raw HTML even for application/json. Encode every markup
+# delimiter before returning trusted HTML so hostile names cannot end the tag.
+encoded = encoded.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+__oval_result__ = OHtml(encoded)
+)_python</script>
+<script>
+"use strict";
+(() => {
+  const el = id => document.getElementById(id);
+  const put = (id, value) => { el(id).textContent = String(value); };
+  const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const fixed = value => number(value).toFixed(1);
+  const signed = value => (number(value) > 0 ? "+" : "") + fixed(value);
+  const make = (tag, className, value) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (value !== undefined) node.textContent = String(value);
+    return node;
+  };
+  try {
+    const data = JSON.parse(el("arena-payload").textContent);
+    if (data.schema !== "ostadix.arena/v1" || !Array.isArray(data.branches)) throw new Error("Unsupported arena receipt.");
+    const branches = data.branches;
+    put("arena-name", data.arena === "medieval" ? "Medieval combat" : "Boxing");
+    if (branches.length !== 3) put("title", "One checkpoint. " + branches.length + " possible futures.");
+    put("context", "Seed " + data.seed + " / checkpoint tick " + data.checkpoint_tick + " / " + data.horizon + "-tick horizon");
+    put("chosen-policy", data.selected || "No policy selected");
+    put("replay-verification", data.replay_verified ? "Hash verified" : "Not verified");
+    el("replay-verification").className = data.replay_verified ? "verified" : "unverified";
+    put("actor-preservation", data.actor_preserved ? "Preserved" : "Not verified");
+    el("actor-preservation").className = data.actor_preserved ? "verified" : "unverified";
+    if (typeof data.judge_source === "string") put("judge-source", data.judge_source);
+    const addProof = (name, value) => { el("proofs").append(make("dt", "", name), make("dd", "", value)); };
+    addProof("Receipt", data.schema);
+    addProof("Checkpoint SHA-256", data.checkpoint_sha256 || "Unavailable");
+    addProof("Chosen trace replay", data.replay_verified ? "Verified by trace hash equality" : "Not verified");
+    addProof("Persistent actor", data.actor_preserved ? "Preserved across candidate evaluations" : "Preservation not verified");
+    const addHash = (target, name, hash) => {
+      const row = make("div", "hash");
+      row.append(make("span", "", name), make("code", "", hash || "Unavailable"));
+      el(target).append(row);
+    };
+    Object.entries(data.source_sha256 || {}).forEach(([name, hash]) => addHash("source-hashes", name, hash));
+    if (!Object.keys(data.source_sha256 || {}).length) el("source-hashes").append(make("span", "", "No source fingerprints supplied."));
+    const views = branches.map(branch => {
+      const frames = (Array.isArray(branch.frames) ? branch.frames : []).slice().sort((a, b) => a.tick - b.tick);
+      const article = make("article", "candidate" + (branch.name === data.selected ? " selected" : ""));
+      const head = make("div", "candidate-head");
+      const identity = make("div");
+      identity.append(make("h2", "", branch.name), make("div", "language", "Policy evaluated in " + branch.language));
+      head.append(identity);
+      if (branch.name === data.selected) head.append(make("span", "chosen", "Chosen"));
+      const wrap = make("div", "canvas-wrap");
+      const canvas = make("canvas");
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", branch.name + " recorded combat frame");
+      const empty = make("div", "empty", "No recorded frames for this branch.");
+      empty.hidden = frames.length > 0;
+      canvas.hidden = frames.length === 0;
+      wrap.append(canvas, empty);
+      const state = make("div", "frame-state");
+      const frameTick = make("span", "", "Tick —");
+      const frameStatus = make("span", "", "");
+      state.append(frameTick, frameStatus);
+      const health = make("div", "health");
+      const healthElements = ["Controlled fighter", "Opponent"].map((label, index) => {
+        const cell = make("div");
+        const line = make("div", "health-label");
+        const value = make("strong", "", "—");
+        line.append(make("span", "", label), value);
+        const bar = make("div", "bar" + (index ? " foe" : ""));
+        const fill = make("i");
+        bar.setAttribute("aria-hidden", "true");
+        bar.append(fill);
+        cell.append(line, bar);
+        health.append(cell);
+        return {value, fill};
+      });
+      const score = make("div", "score-row");
+      const scoreBlock = make("div");
+      scoreBlock.append(make("small", "", "Policy score"), make("div", "score-value", signed(branch.score)));
+      const official = make("div", "official");
+      official.append(make("span", "", "Official result"), make("strong", "", branch.winner || "UNDECIDED"), make("span", "", branch.status || "Unknown"));
+      score.append(scoreBlock, official);
+      const detail = make("details", "breakdown");
+      detail.append(make("summary", "", "Score inputs"));
+      const metrics = make("div", "metrics");
+      const metricLabels = [["damage_dealt", "Damage dealt"], ["damage_taken", "Damage taken"], ["net_knockdowns", "Net knockdowns"], ["stamina_delta", "Stamina change"], ["official_outcome", "Official outcome term"]];
+      metricLabels.forEach(([key, label]) => {
+        const row = make("div", "metric");
+        const value = branch.metrics && branch.metrics[key];
+        row.append(make("span", "", label), make("span", "", value == null ? "Unavailable" : signed(value)));
+        metrics.append(row);
+      });
+      detail.append(metrics);
+      article.append(head, wrap, state, health, score, detail);
+      el("candidates").append(article);
+      addHash("trace-hashes", branch.name + " (" + branch.language + ")", branch.trace_sha256);
+      return {branch, frames, canvas, empty, frameTick, frameStatus, healthElements, cache: new Map(), shown: -1};
+    });
+    if (!branches.length) el("candidates").append(make("p", "empty", "This receipt contains no candidate branches."));
+    const recordedTicks = Array.from(new Set(views.flatMap(view => view.frames.map(frame => number(frame.tick))))).sort((a,b) => a-b);
+    const start = Math.min(number(data.checkpoint_tick), recordedTicks[0] === undefined ? number(data.checkpoint_tick) : recordedTicks[0]);
+    const end = recordedTicks.length ? recordedTicks[recordedTicks.length - 1] : start;
+    const range = el("timeline");
+    range.min = String(start); range.max = String(end); range.value = String(start);
+    put("range-start", start); put("range-end", end);
+    let playing = false, animation = 0, lastTime = 0, clockTick = start;
+    const pause = () => {
+      playing = false;
+      cancelAnimationFrame(animation);
+      put("play", "Play");
+      el("play").setAttribute("aria-label", "Play all candidate replays");
+    };
+    const decode = (view, index) => {
+      if (view.cache.has(index)) return view.cache.get(index);
+      const frame = view.frames[index];
+      const width = Number(frame.width), height = Number(frame.height);
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width * height > 2000000) throw new Error("Invalid frame dimensions.");
+      const raw = atob(frame.rgb);
+      if (raw.length !== width * height * 3) throw new Error("RGB frame length does not match its dimensions.");
+      const rgba = new Uint8ClampedArray(width * height * 4);
+      for (let pixel = 0, offset = 0; offset < raw.length; pixel += 4, offset += 3) {
+        rgba[pixel] = raw.charCodeAt(offset); rgba[pixel+1] = raw.charCodeAt(offset+1); rgba[pixel+2] = raw.charCodeAt(offset+2); rgba[pixel+3] = 255;
+      }
+      const pixels = new ImageData(rgba, width, height);
+      view.cache.set(index, pixels);
+      return pixels;
+    };
+    const draw = tick => {
+      range.value = String(tick);
+      const output = el("time-readout");
+      output.replaceChildren(document.createTextNode("Tick " + tick + " "), make("span", "", "/ " + end));
+      views.forEach(view => {
+        let index = -1;
+        for (let i = 0; i < view.frames.length && number(view.frames[i].tick) <= tick; i++) index = i;
+        if (index < 0) {
+          view.canvas.hidden = true; view.empty.hidden = false; view.shown = -1;
+          view.empty.textContent = view.frames.length ? "First recorded frame is at tick " + view.frames[0].tick + "." : "No recorded frames for this branch.";
+          view.frameTick.textContent = "Tick —"; view.frameStatus.textContent = "";
+          view.healthElements.forEach(health => { health.value.textContent = "—"; health.fill.style.width = "0%"; });
+          return;
+        }
+        const frame = view.frames[index];
+        view.frameTick.textContent = "Frame at tick " + frame.tick;
+        view.frameStatus.textContent = tick > number(view.frames[view.frames.length-1].tick) ? "Branch ended" : index === view.frames.length - 1 ? "Final recorded frame" : "";
+        if (view.shown === index) { view.canvas.hidden = false; view.empty.hidden = true; return; }
+        try {
+          const pixels = decode(view, index);
+          view.canvas.width = pixels.width; view.canvas.height = pixels.height;
+          const context = view.canvas.getContext("2d");
+          if (!context) throw new Error("Canvas rendering is unavailable in this browser.");
+          context.imageSmoothingEnabled = false;
+          context.putImageData(pixels, 0, 0);
+          view.canvas.hidden = false; view.empty.hidden = true;
+          view.canvas.setAttribute("aria-label", view.branch.name + " at tick " + frame.tick + ", fighter HP " + fixed(frame.own_hp) + ", opponent HP " + fixed(frame.foe_hp));
+          view.healthElements.forEach((health, fighter) => {
+            const key = fighter ? "foe_hp" : "own_hp";
+            const hp = number(frame[key]);
+            const maximum = Math.max(1, ...view.frames.map(item => number(item[key])));
+            health.value.textContent = fixed(hp);
+            health.fill.style.width = Math.min(100, Math.max(0, hp / maximum * 100)) + "%";
+          });
+          view.shown = index;
+        } catch (error) {
+          view.canvas.hidden = true; view.empty.hidden = false;
+          view.empty.textContent = "Frame unavailable: " + error.message;
+        }
+      });
+    };
+    const loop = now => {
+      if (!playing) return;
+      if (lastTime) {
+        const interval = recordedTicks.length > 1 ? (end - start) / (recordedTicks.length - 1) : 1;
+        clockTick = Math.min(end, clockTick + Math.min(now - lastTime, 250) / 1000 * number(el("speed").value) * Math.max(1, interval));
+      }
+      lastTime = now;
+      draw(Math.floor(clockTick));
+      if (clockTick >= end) { pause(); return; }
+      animation = requestAnimationFrame(loop);
+    };
+    el("play").addEventListener("click", () => {
+      if (playing) { pause(); return; }
+      if (clockTick >= end) clockTick = start;
+      playing = true; lastTime = 0;
+      put("play", "Pause"); el("play").setAttribute("aria-label", "Pause all candidate replays");
+      animation = requestAnimationFrame(loop);
+    });
+    range.addEventListener("input", () => { pause(); clockTick = number(range.value); draw(clockTick); });
+    el("restart").addEventListener("click", () => { pause(); clockTick = start; draw(start); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+    if (end <= start) { el("play").disabled = true; el("restart").disabled = true; range.disabled = true; }
+    draw(start);
+  } catch (error) {
+    el("error").hidden = false;
+    el("error").textContent = "The arena replay could not be loaded: " + error.message;
+    el("play").disabled = true; el("restart").disabled = true; el("timeline").disabled = true;
+  }
+})();
+</script>
+</body>
+</html>
+)_html
+)_quote
+
+let terminal_program = quote^(
+# Inspect the calling O evaluator's stdout, which hosted backends do not inherit.
+# A controlling terminal alone is insufficient: `O boxing.O | cat` stays static.
+python^(
+import os, stat, struct, sys
+
+def terminal_probe():
+    result = {'device': None, 'interactive': False, 'columns': 80, 'rows': 24,
+              'platform': sys.platform}
+    try:
+        if sys.platform == 'darwin':
+            import ctypes
+            lib = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+            lib.proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                                         ctypes.c_void_p, ctypes.c_int]
+            lib.proc_pidinfo.restype = ctypes.c_int
+            lib.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+            lib.proc_pidpath.restype = ctypes.c_int
+            lib.proc_pidfdinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                           ctypes.c_void_p, ctypes.c_int]
+            lib.proc_pidfdinfo.restype = ctypes.c_int
+
+            def process_info(pid):
+                # Darwin proc_bsdshortinfo is 64 bytes; parent PID is uint32 #2.
+                info = ctypes.create_string_buffer(64)
+                path = ctypes.create_string_buffer(4096)
+                if lib.proc_pidinfo(pid, 13, 0, info, len(info)) != len(info):
+                    raise OSError('process metadata unavailable')
+                if lib.proc_pidpath(pid, path, len(path)) <= 0:
+                    raise OSError('process executable unavailable')
+                return struct.unpack_from('=I', info.raw, 4)[0], os.fsdecode(path.value)
+
+            def stdout_device(pid):
+                # Darwin vnode_fdinfowithpath: 24-byte file info, 152-byte vnode,
+                # then MAXPATHLEN (1024) bytes. Pipes have no vnode path.
+                info = ctypes.create_string_buffer(1200)
+                if lib.proc_pidfdinfo(pid, 1, 2, info, len(info)) != len(info):
+                    return None
+                return os.fsdecode(info.raw[176:].split(bytes([0]), 1)[0])
+
+        elif sys.platform.startswith('linux') or sys.platform == 'android':
+            def process_info(pid):
+                # Parentheses in the process name must not shift /proc fields.
+                with open('/proc/' + str(pid) + '/stat', encoding='utf-8') as handle:
+                    fields = handle.read().rsplit(')', 1)[1].split()
+                return int(fields[1]), os.readlink('/proc/' + str(pid) + '/exe')
+
+            def stdout_device(pid):
+                return os.readlink('/proc/' + str(pid) + '/fd/1')
+
+        else:
+            return result
+
+        # The Python shim is a child of O's backend process. The evaluator is
+        # the outermost adjacent process with that same executable. Never walk
+        # into the shell: its terminal would misidentify piped O output.
+        evaluator = os.getppid()
+        parent, executable = process_info(evaluator)
+        for unused in range(8):
+            if parent <= 1:
+                break
+            next_parent, parent_executable = process_info(parent)
+            if parent_executable != executable:
+                break
+            evaluator, parent = parent, next_parent
+        else:
+            return result
+
+        device = stdout_device(evaluator)
+        if not device or not os.path.isabs(device):
+            return result
+        expected = os.stat(device)
+        if not stat.S_ISCHR(expected.st_mode):
+            return result
+        # Read-only inspection does not claim or write to a terminal. O_NOCTTY
+        # avoids acquiring a controlling terminal; O_NONBLOCK bounds the open.
+        flags = os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_NOCTTY', 0)
+        descriptor = os.open(device, flags)
+        try:
+            opened = os.fstat(descriptor)
+            if (not stat.S_ISCHR(opened.st_mode) or opened.st_rdev != expected.st_rdev
+                    or not os.isatty(descriptor)):
+                return result
+            if os.tcgetpgrp(descriptor) != os.getpgid(evaluator):
+                return result
+            size = os.get_terminal_size(descriptor)
+            result.update(device=device, interactive=True,
+                          columns=min(1000, max(20, size.columns or 80)),
+                          rows=min(300, max(5, size.lines or 24)))
+        finally:
+            os.close(descriptor)
+    except (OSError, ValueError, IndexError, AttributeError, ImportError):
+        # Restricted /proc or libproc access is a static-output condition.
+        pass
+    return result
+
+__oval_result__ = terminal_probe()
+)_python
+)_quote
+
+let raster_program = quote^(
+# Native C17 terminal rasterizer. Evaluate with O.scope({"frames": frames}).
+# RGB frames are ordered top to bottom; an odd final row has a black lower half.
+# One batch compiles once. No cursor control, terminal writes, or platform APIs.
+let raster_spec = python^(
+import base64
+import binascii
+
+incoming = $frames
+if not isinstance(incoming, list) or not 1 <= len(incoming) <= 37:
+    raise ValueError("raster frames must contain 1..37 frames")
+dimensions = None
+for frame in incoming:
+    if not isinstance(frame, dict):
+        raise ValueError("raster frame must be a mapping")
+    width, height = frame.get('width'), frame.get('height')
+    if any(type(value) is not int or not 1 <= value <= 300 for value in (width, height)):
+        raise ValueError("raster width and height must be integers in 1..300")
+    if dimensions is None:
+        dimensions = (width, height)
+    elif dimensions != (width, height):
+        raise ValueError("raster frames must have identical dimensions")
+    tick = frame.get('tick')
+    if type(tick) is not int or not 0 <= tick <= 2147483647:
+        raise ValueError("raster tick must be an integer in 0..2147483647")
+width, height = dimensions
+if width * height * len(incoming) > 1000000:
+    raise ValueError("raster batch exceeds 1000000 pixels")
+byte_count = width * height * 3
+encoded_length = ((byte_count + 2) // 3) * 4
+packed = bytearray()
+for frame in incoming:
+    encoded = frame.get('rgb')
+    if not isinstance(encoded, str) or len(encoded) != encoded_length:
+        raise ValueError("raster RGB must be base64 with exactly width*height*3 bytes")
+    try:
+        rgb = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        raise ValueError("raster RGB is not valid base64") from None
+    if len(rgb) != byte_count:
+        raise ValueError("raster RGB byte count does not match dimensions")
+    packed.extend(rgb)
+# Only checked byte values enter C source; input strings are never interpolated.
+__oval_result__ = {
+    'width': width, 'height': height, 'frame_count': len(incoming),
+    'initializer': '{' + ','.join(str(value) for value in packed) + '}',
+}
+)_python
+
+c^(
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+static const unsigned WIDTH = python^( $raster_spec['width'] )_python;
+static const unsigned HEIGHT = python^( $raster_spec['height'] )_python;
+static const unsigned FRAME_COUNT = python^( $raster_spec['frame_count'] )_python;
+static const uint8_t PIXELS[] = python^( $raster_spec['initializer'] )_python;
+
+/* Emit JSON directly: UTF-8 survives intact; controls and quotes are escaped. */
+static void json_byte(unsigned char value) {
+    switch (value) {
+        case '"': fputs("\\\"", stdout); break;
+        case '\\': fputs("\\\\", stdout); break;
+        case '\n': fputs("\\n", stdout); break;
+        case '\r': fputs("\\r", stdout); break;
+        case '\t': fputs("\\t", stdout); break;
+        default:
+            if (value < 32) printf("\\u%04x", (unsigned)value);
+            else putchar(value);
+    }
+}
+
+static void json_text(const char *text) {
+    while (*text) json_byte((unsigned char)*text++);
+}
+
+static void color(unsigned layer, const uint8_t *rgb) {
+    char sequence[32];
+    snprintf(sequence, sizeof sequence, "\033[%u;2;%u;%u;%um", layer,
+             (unsigned)rgb[0], (unsigned)rgb[1], (unsigned)rgb[2]);
+    json_text(sequence);
+}
+
+static void frame(unsigned index) {
+    const uint8_t black[3] = {0, 0, 0};
+    const size_t start = (size_t)index * WIDTH * HEIGHT * 3;
+    putchar('"');
+    for (unsigned y = 0; y < HEIGHT; y += 2) {
+        const uint8_t *last_top = NULL;
+        const uint8_t *last_bottom = NULL;
+        for (unsigned x = 0; x < WIDTH; ++x) {
+            const uint8_t *top = PIXELS + start + ((size_t)y * WIDTH + x) * 3;
+            const uint8_t *bottom = y + 1 < HEIGHT
+                ? top + (size_t)WIDTH * 3 : black;
+            if (!last_top || memcmp(top, last_top, 3) != 0) color(38, top);
+            if (!last_bottom || memcmp(bottom, last_bottom, 3) != 0) color(48, bottom);
+            /* U+2580 UPPER HALF BLOCK, encoded independently of the C locale. */
+            json_byte(0xe2); json_byte(0x96); json_byte(0x80);
+            last_top = top;
+            last_bottom = bottom;
+        }
+        json_text("\033[0m\n");
+    }
+    putchar('"');
+}
+
+int main(void) {
+    printf("{\"width\":%u,\"height\":%u,\"frame_count\":%u,\"frames\":[",
+           WIDTH, HEIGHT, FRAME_COUNT);
+    for (unsigned index = 0; index < FRAME_COUNT; ++index) {
+        if (index) putchar(',');
+        frame(index);
+    }
+    fputs("]}\n", stdout);
+    return ferror(stdout) ? 1 : 0;
+}
+)_c
+)_quote
+
+# END EMBEDDED ARENA MODULES
+
+let combat_engine = python[90]^(
+# Evaluate the exact engine snapshot into the retained physics actor.
+__oval_result__ = O.eval($combat_engine_source)
+)_python[90]
+
+python[90]^(
+import os
+kind = $combat_engine
+mode = os.environ.get('OSTADIX_COMBAT_MODE', 'counterfactual')
+if mode not in ('counterfactual', 'classic'):
+    raise ValueError('OSTADIX_COMBAT_MODE must be counterfactual or classic')
+programs = {
+    'arena/session.O': $session_program, 'arena/analyze.O': $analyze_program,
+    'arena/judge.O': $judge_program, 'arena/view.O': $view_program,
+    'arena/terminal.O': $terminal_program, 'arena/raster.O': $raster_program,
+}
+if mode == 'classic':
+    runner = 'run_championship_match' if kind == 'boxing' else 'run_tournament'
+    classic = 'python' + '[91]^(\n' + runner + '()\n)_' + 'python[91]'
+    __oval_result__ = O.eval(O.quote(classic))
+else:
+    bank = {'Pressure': $pressure_strategy, 'Adaptive': $adaptive_strategy, 'Guard': $guard_strategy}
+    __oval_result__ = O.eval(programs['arena/session.O'], O.scope({
+        'combat_kind': kind, 'strategy_bank': bank, 'engine_expression': $combat_engine_source,
+        'program_expressions': programs}))
+)_python[90]

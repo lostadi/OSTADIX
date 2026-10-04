@@ -1,12 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.22)  25 AUG 2026 12:50
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.22)  3 OCT 2026 20:46
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/docs/Ostadix-lang_Technical_W
-hitepaper.tex
-
-(/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/docs/Ostadix-lang_Technical_Wh
-itepaper.tex
+**/Users/ustad/OSTADIX/docs/Ostadix-lang_Technical_Whitepaper.tex
+(/Users/ustad/OSTADIX/docs/Ostadix-lang_Technical_Whitepaper.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
 (/usr/local/texlive/2026/texmf-dist/tex/latex/base/article.cls
@@ -302,6 +299,13 @@ Package: titlesec 2025/01/04 v2.17 Sectioning titles
 \titlewidthlast=\dimen189
 \titlewidthfirst=\dimen190
 )
+(/usr/local/texlive/2026/texmf-dist/tex/latex/xurl/xurl.sty
+Package: xurl 2022/01/09 v 0.10 modify URL breaks
+
+(/usr/local/texlive/2026/texmf-dist/tex/latex/url/url.sty
+\Urlmuskip=\muskip17
+Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+))
 (/usr/local/texlive/2026/texmf-dist/tex/latex/hyperref/hyperref.sty
 Package: hyperref 2026-01-29 v7.01p Hypertext links for LaTeX
 
@@ -376,11 +380,6 @@ Package hyperref Info: Backreferencing OFF on input line 4221.
 Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
 Package hyperref Info: Bookmarks ON on input line 4468.
 \c@Hy@tempcnt=\count313
-
-(/usr/local/texlive/2026/texmf-dist/tex/latex/url/url.sty
-\Urlmuskip=\muskip17
-Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
-)
 LaTeX Info: Redefining \url on input line 4807.
 \XeTeXLinkMargin=\dimen192
 
@@ -907,7 +906,7 @@ MM)
 (/usr/local/texlive/2026/texmf-dist/tex/latex/lastpage/lastpagemodern.sty
 Package: lastpagemodern 2025-08-14 v2.1h Refers to last page's name (HMM; JPG)
 \c@lastpagecount=\count362
-) 
+)
 )) (/usr/local/texlive/2026/texmf-dist/tex/latex/caption/caption.sty
 Package: caption 2023/08/05 v3.6o Customizing captions (AR)
 
@@ -954,14 +953,14 @@ Package pdflscape Info: Auto-detected driver: pdftex on input line 81.
 ))
 (/usr/local/texlive/2026/texmf-dist/tex/latex/seqsplit/seqsplit.sty
 Package: seqsplit 2006/08/07 v0.1 Splitting long sequences (DNA, RNA, proteins,
- etc.) 
+ etc.)
 )
 (/usr/local/texlive/2026/texmf-dist/tex/latex/needspace/needspace.sty
 Package: needspace 2025/03/13 v1.3e reserve vertical space
 )
-Package hyperref Info: Option `colorlinks' set `true' on input line 51.
+Package hyperref Info: Option `colorlinks' set `true' on input line 57.
 LaTeX Font Info:    Trying to load font information for T1+lmr on input line 13
-2.
+9.
 
 (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/t1lmr.fd
 File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
@@ -970,28 +969,27 @@ File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count366
 )
-(/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/output/pdf/Ostadix-lang_Techni
-cal_Whitepaper.aux)
+(/Users/ustad/OSTADIX/output/pdf/Ostadix-lang_Technical_Whitepaper.aux)
 \openout1 = `Ostadix-lang_Technical_Whitepaper.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 132.
-LaTeX Font Info:    ... okay on input line 132.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 139.
+LaTeX Font Info:    ... okay on input line 139.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -1000,7 +998,7 @@ LaTeX Font Info:    ... okay on input line 132.
 * paper: letterpaper
 * layout: <same size as paper>
 * layoutoffset:(h,v)=(0.0pt,0.0pt)
-* modes: 
+* modes:
 * h-part:(L,W,R)=(59.26192pt, 495.77116pt, 59.26192pt)
 * v-part:(T,H,B)=(56.3705pt, 679.33757pt, 59.26192pt)
 * \paperwidth=614.295pt
@@ -1027,13 +1025,13 @@ LaTeX Font Info:    ... okay on input line 132.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-LaTeX Info: Redefining \microtypecontext on input line 132.
-Package microtype Info: Applying patch `item' on input line 132.
-Package microtype Info: Applying patch `toc' on input line 132.
-Package microtype Info: Applying patch `eqnum' on input line 132.
-Package microtype Info: Applying patch `footnote' on input line 132.
-Package microtype Info: Applying patch `verbatim' on input line 132.
-LaTeX Info: Redefining \microtypesetup on input line 132.
+LaTeX Info: Redefining \microtypecontext on input line 139.
+Package microtype Info: Applying patch `item' on input line 139.
+Package microtype Info: Applying patch `toc' on input line 139.
+Package microtype Info: Applying patch `eqnum' on input line 139.
+Package microtype Info: Applying patch `footnote' on input line 139.
+Package microtype Info: Applying patch `verbatim' on input line 139.
+LaTeX Info: Redefining \microtypesetup on input line 139.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
@@ -1045,7 +1043,7 @@ Package microtype Info: No adjustment of tracking.
 Package microtype Info: No adjustment of interword spacing.
 Package microtype Info: No adjustment of character kerning.
 (/usr/local/texlive/2026/texmf-dist/tex/latex/microtype/mt-cmr.cfg
-File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman 
+File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman
 (RS)
 )
 (/usr/local/texlive/2026/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
@@ -1071,51 +1069,50 @@ File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
 \c@lstlisting=\count373
-Package hyperref Info: Link coloring ON on input line 132.
+Package hyperref Info: Link coloring ON on input line 139.
 
-(/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/output/pdf/Ostadix-lang_Techni
-cal_Whitepaper.out)
-(/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/output/pdf/Ostadix-lang_Techni
-cal_Whitepaper.out)
+(/Users/ustad/OSTADIX/output/pdf/Ostadix-lang_Technical_Whitepaper.out)
+(/Users/ustad/OSTADIX/output/pdf/Ostadix-lang_Technical_Whitepaper.out)
 \@outlinefile=\write4
 \openout4 = `Ostadix-lang_Technical_Whitepaper.out'.
 
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: float package is loaded.
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Option `pageanchor' set `false' on input line 133.
-<../assets/olang-logo.png, id=457, 766.865pt x 831.105pt>
+Package hyperref Info: Option `pageanchor' set `false' on input line 140.
+<../assets/olang-logo.png, id=493, 766.865pt x 831.105pt>
 File: ../assets/olang-logo.png Graphic file (type png)
 <use ../assets/olang-logo.png>
-Package pdftex.def Info: ../assets/olang-logo.png  used on input line 150.
+Package pdftex.def Info: ../assets/olang-logo.png  used on input line 157.
 (pdftex.def)             Requested size: 228.05806pt x 247.15218pt.
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 1
-70.
- (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/t1lmtt.fd
+77.
+
+(/usr/local/texlive/2026/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `lmtt' (encoding: T1).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
-[1
+ [1
 
 {/usr/local/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/loc
 al/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc} <../assets/olang-logo.
 png>]
-Package hyperref Info: Option `pageanchor' set `true' on input line 184.
+Package hyperref Info: Option `pageanchor' set `true' on input line 191.
 Package microtype Info: Character `029' is missing
 (microtype)             in font `T1/lmr/m/sc/10.95'.
 (microtype)             Ignoring protrusion settings for this character.
  [1]
-ignored: Infinite glue shrinkage found in box being split [2
+ignored: Infinite glue shrinkage found in box being split
+[2
 
-]
-(/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/output/pdf/Ostadix-lang_Techni
-cal_Whitepaper.toc
+] (/Users/ustad/OSTADIX/output/pdf/Ostadix-lang_Technical_Whitepaper.toc
 LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 3
 .
- (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/ot1lmr.fd
+
+(/usr/local/texlive/2026/texmf-dist/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OML+lmm on input line 3
@@ -1124,13 +1121,13 @@ LaTeX Font Info:    Trying to load font information for OML+lmm on input line 3
 (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 
+LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line
 3.
 
 (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 
+LaTeX Font Info:    Trying to load font information for OMX+lmex on input line
 3.
 
 (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/omxlmex.fd
@@ -1144,16 +1141,17 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 (Font)              <6> on input line 3.
  [3] [4] [5]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10.95> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 99.
-)
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 107.
+
+[6])
 \tf@toc=\write5
 \openout5 = `Ostadix-lang_Technical_Whitepaper.toc'.
 
-
-[6]
+ [7]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 353.
- [1
+(Font)              <5> on input line 377.
+
+ignored: Infinite glue shrinkage found in box being split [1
 
 ]
 Package microtype Info: Character `029' is missing
@@ -1161,328 +1159,141 @@ Package microtype Info: Character `029' is missing
 (microtype)             Ignoring protrusion settings for this character.
  [2]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <12> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 496.
- [3]
-Overfull \hbox (19.70497pt too wide) in paragraph at lines 593--595
- [][] 
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 527.
+ [3] [4] [5] [6]
+Underfull \hbox (badness 1708) in paragraph at lines 889--897
+\T1/lmr/m/n/10.95 (+20) An ad-di-tive em-bed-ding API com-poses these single-op
+eration clo-sures into a multi-operation
  []
 
-[4]
-Overfull \hbox (28.59468pt too wide) in paragraph at lines 692--706
-[][]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / evidenc
-e / fact . rs$\T1/lmr/m/n/8 (-20) , lines 10--15][] [][$\T1/lmtt/m/n/8 crates /
- ostadix-[]api / src / evidence / fact . rs$\T1/lmr/m/n/8 (-20) , lines 460--49
-3][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api /
- []
-
-
-Overfull \hbox (0.11073pt too wide) in paragraph at lines 692--706
-\T1/lmtt/m/n/8 evidence / admit . rs$\T1/lmr/m/n/8 (-20) , lines 105--114][] []
-[$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / evidence / admit . rs$\T1/lmr/m
-/n/8 (-20) , lines 195--231][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src 
-/ evidence /
- []
-
-
-ignored: Infinite glue shrinkage found in box being split [5]
-Overfull \hbox (16.81792pt too wide) in paragraph at lines 775--777
- [][] 
- []
-
-[6]
-Overfull \hbox (11.06229pt too wide) in paragraph at lines 836--838
- [][] 
- []
-
-
-Overfull \hbox (3.44936pt too wide) in paragraph at lines 842--853
-\T1/lmr/m/n/8 (-20) 387][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / ho
-sted _ remote / pairing . rs$\T1/lmr/m/n/8 (-20) , lines 389--586][] [][$\T1/lm
-tt/m/n/8 crates / ostadix-[]api / src / hosted _ remote / pairing . rs$\T1/lmr/
-m/n/8 (-20) , lines
- []
-
-
-Overfull \hbox (3.24959pt too wide) in paragraph at lines 905--914
-[]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / hosted _ 
-remote / project _ mesh . rs$\T1/lmr/m/n/8 (-20) , lines 2260--2335][] [][$\T1/
-lmtt/m/n/8 crates / ostadix-[]api / src / hosted _ remote / mesh . rs$\T1/lmr/m
-/n/8 (-20) , lines
- []
-
-[7]
-Overfull \hbox (28.93471pt too wide) in paragraph at lines 988--1010
-[][]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / informa
-tion / mod . rs$\T1/lmr/m/n/8 (-20) , lines 1--7][] [][$\T1/lmtt/m/n/8 crates /
- ostadix-[]api / src / information / mod . rs$\T1/lmr/m/n/8 (-20) , lines 22--6
-0][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api /
- []
-
-
-Overfull \hbox (4.87077pt too wide) in paragraph at lines 988--1010
-\T1/lmtt/m/n/8 ostadix-[]api / src / information _ bridge / mod . rs$\T1/lmr/m/
-n/8 (-20) , lines 1--6][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / inf
-ormation _ bridge / mod . rs$\T1/lmr/m/n/8 (-20) , lines 25--54][] [][$\T1/lmtt
-/m/n/8 crates /
- []
-
-
-Overfull \hbox (3.34096pt too wide) in paragraph at lines 988--1010
-\T1/lmr/m/n/8 (-20) 871--1037][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / sr
-c / information _ provenance / mod . rs$\T1/lmr/m/n/8 (-20) , lines 1--7][] [][
-$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / information _ provenance /
- []
-
-
-Overfull \hbox (5.04076pt too wide) in paragraph at lines 988--1010
-\T1/lmtt/m/n/8 mod . rs$\T1/lmr/m/n/8 (-20) , lines 28--38][] [][$\T1/lmtt/m/n/
-8 crates / ostadix-[]api / src / information _ provenance / mod . rs$\T1/lmr/m/
-n/8 (-20) , lines 74--194][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / 
-information _
- []
-
-[8]
-Overfull \hbox (3.43471pt too wide) in paragraph at lines 1055--1067
-[][]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / registr
-y / mod . rs$\T1/lmr/m/n/8 (-20) , lines 1--5][] [][$\T1/lmtt/m/n/8 crates / os
-tadix-[]api / src / registry / mod . rs$\T1/lmr/m/n/8 (-20) , lines 18--67][] [
-][$\T1/lmtt/m/n/8 crates / ostadix-[]api /
- []
-
-[9]
-Overfull \hbox (1.63844pt too wide) in paragraph at lines 1116--1118
- [][] 
- []
-
-
-Overfull \hbox (2.67969pt too wide) in paragraph at lines 1122--1142
-[]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / world / i
-dentity _ wire . rs$\T1/lmr/m/n/8 (-20) , lines 98--249][] [][$\T1/lmtt/m/n/8 c
-rates / ostadix-[]api / src / world / protocol . rs$\T1/lmr/m/n/8 (-20) , lines
- 10--12][] [][$\T1/lmtt/m/n/8 crates /
- []
-
-
-Overfull \hbox (0.62074pt too wide) in paragraph at lines 1122--1142
-\T1/lmtt/m/n/8 src / world / codec . rs$\T1/lmr/m/n/8 (-20) , lines 67--115][] 
-[][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / world / codec . rs$\T1/lmr/m/
-n/8 (-20) , lines 118--233][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src /
- world / value _
- []
-
-
-Overfull \hbox (22.03075pt too wide) in paragraph at lines 1122--1142
-\T1/lmtt/m/n/8 ostadix-[]api / src / world / receipt . rs$\T1/lmr/m/n/8 (-20) ,
- lines 806--839][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / world / re
-ceipt _ codec . rs$\T1/lmr/m/n/8 (-20) , lines 27--40][] [][$\T1/lmtt/m/n/8 cra
-tes / ostadix-[]api /
- []
-
-
-Overfull \hbox (0.19574pt too wide) in paragraph at lines 1122--1142
-\T1/lmtt/m/n/8 src / world / receipt _ codec . rs$\T1/lmr/m/n/8 (-20) , lines 5
-6--131][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / world / receipt _ c
-odec . rs$\T1/lmr/m/n/8 (-20) , lines 152--227][] [][$\T1/lmtt/m/n/8 crates / o
-stadix-[]api /
- []
-
-[10] [11]
+[7] [8] [9] [10] [11] [12] [13]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1286.
- [12]
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 1426.
+ [14]
 Package microtype Info: Character `029' is missing
 (microtype)             in font `T1/lmr/m/sc/8'.
 (microtype)             Ignoring protrusion settings for this character.
- [13] [14] [15{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.
-enc}{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}]
-
-LaTeX Font Warning: Font shape `T1/lmr/bx/sc' undefined
-(Font)              using `T1/lmr/bx/n' instead on input line 1556.
-
-
-ignored: Infinite glue shrinkage found in box being split [16]
-ignored: Infinite glue shrinkage fo
-und in box being split [17]
-Overfull \hbox (2.04706pt too wide) in paragraph at lines 1700--1706
-\T1/lmtt/m/n/10.95 system_activation\T1/lmr/m/n/10.95 (-20) , and \T1/lmtt/m/n/
-10.95 backend_execution\T1/lmr/m/n/10.95 (-20) . []\T1/lmr/m/n/8 (-20) [$\T1/lm
-tt/m/n/8 crates / ostadix-[]api / src / value . rs$\T1/lmr/m/n/8 (-20) , lines 
-94--663][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api /
- []
-
+ [15] [16{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}{
+/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}]
+ignored: Infinite g
+lue shrinkage found in box being split [17]
+ignored: Infinite glue shrinkage found in box
+ being split [18] [19]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
-731.
+885.
+
 (/usr/local/texlive/2026/texmf-dist/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-) [18{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [19] [
-20{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}] [21] [22] 
-[23] [24] [25]
-<figures/o-linked-codebase-hgraph.pdf, id=924, 7109.56125pt x 811.03pt>
+) [20{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}] [21] [
+22{/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}] [23] [24]
+[25] [26] [27]
+<figures/o-linked-codebase-hgraph.pdf, id=1151, 7109.56125pt x 811.03pt>
 File: figures/o-linked-codebase-hgraph.pdf Graphic file (type pdf)
 <use figures/o-linked-codebase-hgraph.pdf>
 Package pdftex.def Info: figures/o-linked-codebase-hgraph.pdf  used on input li
-ne 2273.
+ne 2472.
 (pdftex.def)             Requested size: 665.65189pt x 75.93486pt.
 
-
-Package caption Warning: The option `hypcap=true' will be ignored for this
-(caption)                particular \caption on input line 2278.
-See the caption package documentation for explanation.
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 2278--2278
+Underfull \hbox (badness 10000) in paragraph at lines 2477--2477
 []\T1/lmr/m/n/10.95 (+20) Figure 18: |[]The ex-act di-rected Project HGraph emi
-t-ted by \T1/lmtt/m/n/10.95 olangc --target dot --route main \T1/lmr/m/n/10.95 
+t-ted by \T1/lmtt/m/n/10.95 olangc --target dot --route main \T1/lmr/m/n/10.95
 (+20) from the o-linked
  []
 
-[26
+[28
 
  <./figures/o-linked-codebase-hgraph.pdf>]
 File: figures/o-linked-codebase-hgraph.pdf Graphic file (type pdf)
 <use figures/o-linked-codebase-hgraph.pdf>
 Package pdftex.def Info: figures/o-linked-codebase-hgraph.pdf  used on input li
-ne 2290.
+ne 2489.
 (pdftex.def)             Requested size: 665.7318pt x 298.8396pt.
-
-
-Package caption Warning: The option `hypcap=true' will be ignored for this
-(caption)                particular \caption on input line 2293.
-See the caption package documentation for explanation.
-
-[27
+ [29
 
 
 ]
 File: figures/o-linked-codebase-hgraph.pdf Graphic file (type pdf)
 <use figures/o-linked-codebase-hgraph.pdf>
 Package pdftex.def Info: figures/o-linked-codebase-hgraph.pdf  used on input li
-ne 2305.
+ne 2504.
 (pdftex.def)             Requested size: 665.7419pt x 295.56013pt.
-
-
-Package caption Warning: The option `hypcap=true' will be ignored for this
-(caption)                particular \caption on input line 2308.
-See the caption package documentation for explanation.
-
-[28
+ [30
 
 
 ]
 File: figures/o-linked-codebase-hgraph.pdf Graphic file (type pdf)
 <use figures/o-linked-codebase-hgraph.pdf>
 Package pdftex.def Info: figures/o-linked-codebase-hgraph.pdf  used on input li
-ne 2320.
+ne 2519.
 (pdftex.def)             Requested size: 665.7419pt x 295.56013pt.
-
-
-Package caption Warning: The option `hypcap=true' will be ignored for this
-(caption)                particular \caption on input line 2323.
-See the caption package documentation for explanation.
-
-[29
+ [31
 
 
 ]
 File: figures/o-linked-codebase-hgraph.pdf Graphic file (type pdf)
 <use figures/o-linked-codebase-hgraph.pdf>
 Package pdftex.def Info: figures/o-linked-codebase-hgraph.pdf  used on input li
-ne 2335.
+ne 2534.
 (pdftex.def)             Requested size: 665.75168pt x 300.01526pt.
+ [32
 
 
-Package caption Warning: The option `hypcap=true' will be ignored for this
-(caption)                particular \caption on input line 2338.
-See the caption package documentation for explanation.
+] [33
 
-[30
+] [34]
+[35]
+ignored: Infinite glue shrinkage found in box being split [36] [37] [38]
+ignored: Infinite glu
+e shrinkage found in box being split [39] [40] [41] [42] [43] [44] [45] [46
 
+] [47
 
-]
-ignored: Infinite glue shrinkage found in box being split [31
-
-] [32] [33]
-ignored: Infinite glue shrinkage found in box being split [34] [35] [36] [37]
- [38] [39]
-ignored: Infinite glue shrinkage found in box being split [40] [41] [42
-
-] [43] [44]
-Overfull \hbox (11.09468pt too wide) in paragraph at lines 3370--3374
-[][]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / live _ 
-system / store . rs$\T1/lmr/m/n/8 (-20) , lines 16--23][] [][$\T1/lmtt/m/n/8 cr
-ates / ostadix-[]api / src / live _ system / store . rs$\T1/lmr/m/n/8 (-20) , l
-ines 109--124][] [][$\T1/lmtt/m/n/8 crates /
- []
-
-
-ignored: Infinite glue shrinkage found in box being split [45]
+] [48] [49]
+ignored: Infinite glue shrinkage found in box being split
+[50]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 3464.
+(Font)              <10> on input line 3795.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 3464.
- [46]
-Overfull \hbox (24.25967pt too wide) in paragraph at lines 3538--3541
-[][]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 crates / ostadix-[]api / src / kernel 
-_ world . rs$\T1/lmr/m/n/8 (-20) , lines 18--182][] [][$\T1/lmtt/m/n/8 crates /
- ostadix-[]api / src / kernel _ world . rs$\T1/lmr/m/n/8 (-20) , lines 277--444
-][] [][$\T1/lmtt/m/n/8 crates / ostadix-[]api /
- []
-
-[47]
-ignored: Infinite glue shrinkage found in box being split [48]
-Overfull \hbox (24.05771pt too wide) in paragraph at lines 3663--3666
-[][]\T1/lmr/m/n/8 (-20) [$\T1/lmtt/m/n/8 ocore / kernel / build-[]m4-[]artifact
-s . sh$\T1/lmr/m/n/8 (-20) , lines 1--40][] [][$\T1/lmtt/m/n/8 ocore / kernel /
- build-[]m5-[]artifacts . sh$\T1/lmr/m/n/8 (-20) , lines 1--40][] [][$\T1/lmtt/
-m/n/8 ocore / kernel / build-[]m6-[]artifacts .
- []
-
-[49]
-ignored: Infinite glue shrinkage found in box being split [50] [51]
-ignored: Infinite glue shr
-inkage found in box being split [52]
-ignored: Infinite glue shrinkage found in box being 
-split [53] [54] [55] [56]
-ignored: Infinite glue shrinkage found in box being split [57] 
-[58]
-ignored: Infinite glue shrinkage found in box being split [59]
-ignored: Infinite glue shrinkag
-e found in box being split [60] [61]
-ignored: Infinite glue shrinkage found in box being 
-split [62]
-ignored: Infinite glue shrinkage found in box being split [63]
+(Font)              <7> on input line 3795.
+ [51] [52] [53]
+ignored: Infinite glue shrinkage found in box being split [54]
+ignored: Infinite gl
+ue shrinkage found in box being split [55]
+ignored: Infinite glue shrinkage found in box
+being split [56] [57] [58] [59]
+ignored: Infinite glue shrinkage found in box being split
+ [60]
+ignored: Infinite glue shrinkage found in box being split [61]
+ignored: Infinite glue shrinka
+ge found in box being split [62] [63]
+ignored: Infinite glue shrinkage found in box being
+ split [64]
+ignored: Infinite glue shrinkage found in box being split
+[65]
+ignored: Infinite glue shrinkage found in box being split [66]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <14.4> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 4501.
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 4732.
 
-[64] [65] [66] [67]
-ignored: Infinite glue shrinkage found in box being split [68]
-ignored: Infinit
-e glue shrinkage found in box being split [69] [70]
+ignored: Infinite glue shrinkage found in box being split [67] [68] [69] [70] [71] [72]
 
 enddocument/afterlastpage (AED): lastpage setting LastPage.
-
-(/Users/ustad/preprint_Ostadix-lang/Ostadix-lang/output/pdf/Ostadix-lang_Techni
-cal_Whitepaper.aux)
+(/Users/ustad/OSTADIX/output/pdf/Ostadix-lang_Technical_Whitepaper.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
-
-
-LaTeX Font Warning: Some font shapes were not available, defaults substituted.
-
 Package rerunfilecheck Info: File `Ostadix-lang_Technical_Whitepaper.out' has n
 ot changed.
-(rerunfilecheck)             Checksum: B2973B09050386E4EB9D9F4E6ACDF7B9;20586.
- ) 
+(rerunfilecheck)             Checksum: F47248944A49A5482C5FA44F82F4EEFB;23591.
+ )
 Here is how much of TeX's memory you used:
- 35857 strings out of 467525
- 707148 string characters out of 5418982
- 1559422 words of memory out of 5000000
- 63332 multiletter control sequences out of 15000+600000
- 729339 words of font info for 232 fonts, out of 8000000 for 9000
+ 35913 strings out of 467525
+ 707590 string characters out of 5418982
+ 1523616 words of memory out of 5000000
+ 63391 multiletter control sequences out of 15000+600000
+ 728741 words of font info for 225 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 86i,13n,98p,1083b,2059s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 86i,13n,98p,1056b,2126s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2026/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></usr/lo
 cal/texlive/2026/texmf-dist/fonts/type1/public/lm/lmbx12.pfb></usr/local/texliv
 e/2026/texmf-dist/fonts/type1/public/lm/lmbx8.pfb></usr/local/texlive/2026/texm
@@ -1498,11 +1309,11 @@ public/lm/lmsy10.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/lm/
 lmsy8.pfb></usr/local/texlive/2026/texmf-dist/fonts/type1/public/lm/lmtk10.pfb>
 </usr/local/texlive/2026/texmf-dist/fonts/type1/public/lm/lmtt10.pfb></usr/loca
 l/texlive/2026/texmf-dist/fonts/type1/public/lm/lmtt8.pfb>
-Output written on /Users/ustad/preprint_Ostadix-lang/Ostadix-lang/output/pdf/Os
-tadix-lang_Technical_Whitepaper.pdf (77 pages, 1527267 bytes).
+Output written on /Users/ustad/OSTADIX/output/pdf/Ostadix-lang_Technical_Whitep
+aper.pdf (80 pages, 1555507 bytes).
 PDF statistics:
- 1681 PDF objects out of 1728 (max. 8388607)
- 1514 compressed objects within 16 object streams
- 602 named destinations out of 1000 (max. 500000)
- 60407 words of extra memory for PDF output out of 61914 (max. 10000000)
+ 2026 PDF objects out of 2073 (max. 8388607)
+ 1853 compressed objects within 19 object streams
+ 609 named destinations out of 1000 (max. 500000)
+ 60479 words of extra memory for PDF output out of 61914 (max. 10000000)
 

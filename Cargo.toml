@@ -12,7 +12,7 @@ license     = "LGPL-2.1-only"
 default-run = "O"
 
 [workspace]
-members = [".", "crates/ostadix-api"]
+members = [".", "crates/ostadix-api", "ostadix-core"]
 default-members = [".", "crates/ostadix-api"]
 exclude = ["fuzz", "mcp/ostadix_lang_mcp_server"]
 resolver = "2"

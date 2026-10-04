@@ -1,0 +1,2250 @@
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/ARCHITECTURE.md /mnt/data/olang_sched_work/O-lang-master/ARCHITECTURE.md
+--- /mnt/data/olang_sched_original/O-lang-master/ARCHITECTURE.md	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/ARCHITECTURE.md	2026-09-26 23:20:11.880371242 +0000
+@@ -16,7 +16,9 @@
+ │   ├── lib.rs        #   Library crate root
+ │   ├── parser.rs     #   Tokenizer & expression parser
+ │   ├── ir.rs         #   OIR intermediate representation & backend registry
+-│   ├── eval.rs       #   Recursive evaluator
++│   ├── eval.rs       #   Evaluator and serial reference executor
++│   ├── executor/     #   HGraph coordinator, effects, workers, priorities
++│   ├── hgraph/       #   Directed operation/value graph and solvers
+ │   ├── value.rs      #   OValue universal type system
+ │   ├── process.rs    #   Subprocess management for backends
+ │   ├── nix_ops.rs    #   Nix build/realise operations
+@@ -27,8 +29,8 @@
+ ├── backends/         # Language shims (Python, Bash, Nix, Racket, Rust, … — see README backend table)
+ ├── examples/         # .O example programs
+ ├── c_cpp/            # Complete C17 port (standalone)
+-├── o_lang/           # Legacy Python prototype (reference only)
+-├── tests/            # Python-era test suite (legacy, for o_lang/)
++├── o_lang/           # Maintained Python semantic reference (documented subset)
++├── tests/            # Python reference parser/evaluator tests
+ ├── setup/            # Cross-platform bootstrap scripts
+ ├── tools/            # Development utilities (markdown extraction)
+ ├── scripts/          # Repository management scripts
+@@ -52,18 +54,20 @@
+    children to parents, sequence edges preserve source order, and data edges
+    connect loads to their visible stores.
+ 
+-4. **Execute** — Interpret OIR through the plan's stable topological root
+-   schedule. Structural OIR regions implement `O` and `quote`; ordinary
+-   execution regions build splice buffers from child OValues.
++4. **Execute** — Project the validated plan into HGraph and run the
++   readiness-driven coordinator by default. Operations become legal when their
++   value/structural/actor/effect-order blockers complete. A serial reference
++   executor remains available through `O_EXECUTOR=serial`.
+ 
+ 5. **Render, authorize, and dispatch** - Convert child values with the renderer
+    embedded in OIR, resolve the block's live backend capability against the
+    adapter's required rights, then run an inline value handler or send source
+    to a policy-keyed backend shim.
+ 
+-6. **Schedule and cache** — Request values created by OIR carry compositional
+-   fingerprints. The eager executor and autonomous scheduler apply the cache
+-   and dependency semantics selected by the OIR operation.
++6. **Schedule and cache** — Legal ready operations are ranked by critical
++   path plus variance-proportional root-completion balancing. Proven-total pure
++   inline renderers may use bounded workers; shim-backed operations remain on
++   the coordinator. Request values carry compositional cache fingerprints.
+ 
+ ## Intermediate Representation (OIR)
+ 
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/DEVELOPMENT.md /mnt/data/olang_sched_work/O-lang-master/DEVELOPMENT.md
+--- /mnt/data/olang_sched_original/O-lang-master/DEVELOPMENT.md	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/DEVELOPMENT.md	2026-09-26 23:20:11.878479595 +0000
+@@ -39,10 +39,11 @@
+ 
+ - `src/parser.rs` parses typed parentheses into `ONode` trees. An identifier is an opener only if the registry accepts that language tag or alias.
+ - `src/ir.rs` lowers syntax to OIR and contains `BackendSpec` / `BackendRegistry`, the single source of truth for accepted evaluator tags, aliases, cache-safety, splice renderers, execution mode, required authorities, and shim path resolution.
+-- `src/eval.rs` executes validated OIR plans. It projects OIR to HGraph, solves and schedules that projection, checks it against the OIR plan, then arbitrary evaluator operations still run through the serial `execute_plan_serial` executor.
++- `src/eval.rs` executes validated OIR plans. It projects OIR to HGraph, solves the graph, and uses the readiness-driven HGraph coordinator by default; `O_EXECUTOR=serial` selects the serial reference executor.
++- `src/executor/` contains actor/effect legality, pure worker execution, execution tracing, and the variance-proportional critical-path priority policy. Shim-backed evaluators remain coordinator-owned in the current parallel subset.
+ - `src/value.rs` defines `OValue`, the shared value vocabulary crossing language boundaries.
+ - `src/wire.rs` implements the hosted evaluator protocol: **4-byte length-prefixed canonical CBOR** frames.
+-- `src/hgraph/` builds HGraph from OIR, solves type/fidelity facts, clusters nodes, and derives schedules. General concurrent graph dispatch is not implemented.
++- `src/hgraph/` builds HGraph from OIR, solves type/fidelity facts, and derives executable dependencies and analysis schedules. General concurrent dispatch of arbitrary shim-backed evaluators is not yet implemented.
+ - `src/scheduler.rs` schedules autonomous request forcing and cache interaction.
+ - `src/capability.rs` models runtime authority-bearing capabilities and snapshots.
+ - `src/process.rs` manages backend shim subprocess lifetimes and requests.
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/README.md /mnt/data/olang_sched_work/O-lang-master/README.md
+--- /mnt/data/olang_sched_original/O-lang-master/README.md	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/README.md	2026-09-26 23:11:37.501719260 +0000
+@@ -642,13 +642,15 @@
+ to combine expression-granular recursive evaluator composition across a
+ registry-extensible family of independently implemented runtimes with a
+ language-neutral value boundary and source-derived lowering into a unified
+-whole-program execution representation. The current Rust implementation
+-derives, validates, analyzes, and schedules the HGraph; arbitrary evaluator
+-operations still dispatch through the serial OIR executor, while supported
+-request classes provide the current concurrent execution path. Wherever a
+-prior system satisfies part of this
+-conjunction, the paragraphs above and below say so; corrections and closer
+-prior art are welcome as issues.
++whole-program execution representation. The Rust runtime now uses the HGraph
++coordinator as its default execution engine. It derives a legal ready frontier,
++keeps unknown or conflicting effects ordered, and assigns bounded worker slots
++to proven-pure operations with a variance-proportional critical-path policy.
++Arbitrary shim-backed evaluators still execute on the coordinator thread; the
++current worker-parallel subset is deliberately conservative. See
++`docs/VARIANCE_SCHEDULER.md` for the algorithm and controls. Wherever a prior
++system satisfies part of this conjunction, the paragraphs above and below say
++so; corrections and closer prior art are welcome as issues.
+ 
+ **Systems languages.** C, Rust, Zig, and freestanding subsets of other
+ languages already compile kernels. O-core's distinct point is its placement
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/SPEC.md /mnt/data/olang_sched_work/O-lang-master/SPEC.md
+--- /mnt/data/olang_sched_original/O-lang-master/SPEC.md	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/SPEC.md	2026-09-26 23:21:48.518866114 +0000
+@@ -168,7 +168,7 @@
+ Every authoritative Rust execution entry point follows this path:
+ 
+ ```text
+-.O source -> ONode -> OIrProgram -> validated ExecutionPlan -> OIR evaluator
++.O source -> ONode -> OIrProgram -> validated ExecutionPlan -> HGraph coordinator
+ ```
+ 
+ This includes the `O` interpreter, REPL entries, notebook cells,
+@@ -184,10 +184,16 @@
+ 
+ ExecutionPlan contains structural, sequence, and data edges. Before execution
+ it MUST validate node identities, edge bounds, root coverage, root uniqueness,
+-and graph acyclicity. The evaluator MUST obtain both top-level and direct-child
+-execution order from the plan. Policy-changing Invoke instructions such as
+-`lazy`, `autonomous`, `batch`, `all`, `any`, and `race` retain control over how
+-their planned child regions are evaluated.
++and graph acyclicity. The Rust runtime projects the plan into a directed HGraph
++and executes legal ready operations through the graph coordinator. Nested/data
++and persistent-actor dependencies are hard blockers. Source sequence remains a
++hard blocker unless both adjacent operations are known-total, proven-pure inline
++renderers. Among legal operations, the default policy ranks estimated critical
++paths and applies a correction proportional to normalized variance in predicted
++absolute root completion times. `O_EXECUTOR=serial` selects the serial reference
++executor. Policy-changing Invoke instructions such as `lazy`, `autonomous`,
++`batch`, `all`, `any`, and `race` retain control over how their planned child
++regions are evaluated.
+ 
+ ---
+ 
+@@ -336,6 +342,25 @@
+ deserialized OIR program MUST NOT weaken registered adapter requirements;
+ execution MUST reject an embedded interface that differs from registry policy.
+ 
++### 3.0.3 Scheduling effect metadata
++
++A hosted block may additionally carry scheduler metadata:
++
++```text
++effects=pure|unknown
++reads=RESOURCE[+RESOURCE...]
++writes=RESOURCE[+RESOURCE...]
++serial=host
++```
++
++Resource forms include `project:path`, `host:path`, `env:name`,
++`service:name`, `network:host`, `actor:name`, and `stdio`. These declarations
++refine graph-order analysis; they do not grant authority. In particular,
++`effects=pure` MUST NOT turn an unrestricted backend whose registry interface is
++impure or unknown into a trusted pure operation. The current executor removes a
++source-sequence blocker only when both operations are backend-enforced,
++known-total pure inline renderers.
++
+ The Rust runtime applies backend policy through Python audit hooks. On macOS it
+ also installs an operating-system sandbox profile around shim processes. The
+ default policy is intentionally permissive; these layers are policy plumbing,
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/docs/CLAIMS.md /mnt/data/olang_sched_work/O-lang-master/docs/CLAIMS.md
+--- /mnt/data/olang_sched_original/O-lang-master/docs/CLAIMS.md	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/docs/CLAIMS.md	2026-09-26 23:19:48.784072122 +0000
+@@ -1,74 +1,93 @@
+ # Claim-accuracy inventory
+ 
+-## Implemented and tested now
++This file separates what the repository implements today from what the
++architecture enables but does not yet establish.
++
++## Implemented and tested in the Rust runtime
+ 
+ - Expression-granular recursive evaluator composition is implemented by typed
+-  expression syntax described in `README.md`, lowered from parser nodes to OIR in
+-  `src/ir.rs`, and executed by the Rust evaluator in `src/eval.rs`.
++  expression syntax, lowered from parser nodes to OIR in `src/ir.rs`, and
++  executed by the Rust evaluator in `src/eval.rs`.
+ - The accepted evaluator tags are registry-extensible at compile time through
+-  `BackendRegistry` and `BACKEND_SPECS` in `src/ir.rs`; this table is the single
+-  source for accepted canonical tags, aliases, purity metadata, splice
+-  rendering, execution mode, shim fallback, and backend authority requirements.
+-- `OValue` is the language-neutral value boundary (`src/value.rs`) used by the
+-  Rust hosted runtime, the C17 edition in `c_cpp/`, and the Python reference in
+-  `o_lang/`.
++  `BackendRegistry` and `BACKEND_SPECS` in `src/ir.rs`. This table is the Rust
++  runtime's source for canonical tags, aliases, purity metadata, rendering,
++  execution mode, shim fallback, and authority requirements.
++- `OValue` is the language-neutral value boundary in `src/value.rs`.
+ - The hosted process protocol uses a 4-byte big-endian length prefix followed
+-  by canonical CBOR encoding in `src/wire.rs`; maps are sorted by encoded key
+-  length and bytes before transmission.
+-- The repository contains three hosted implementations: the Rust authoritative
+-  runtime (`src/`), the C17 interpreter and AOT `olangc` (`c_cpp/Makefile` and
+-  `c_cpp/CMakeLists.txt`, both using C17), and the Python reference edition
+-  (`o_lang/`). It also contains O-core freestanding x86_64 ELF object emission
+-  through `ocorec` (`README.md`, `src/bin/ocorec.rs`, `src/ocore/driver.rs`).
+-- Hosted evaluation lowers to OIR, builds an `ExecutionPlan`, validates the
+-  plan, projects it into HGraph for analysis, derives a schedule, and then
+-  interprets the OIR in topological order through `execute_plan_serial` in
+-  `src/eval.rs`.
+-- Conservative `{lazy}` cache safety is enforced from backend metadata in
+-  `src/ir.rs` and validation in `src/eval.rs`: inline `html`, `markdown`,
+-  `latex`, and `text` are cache-safe; unrestricted shim backends including
+-  `nix`, `sql`, `haskell`, `ocaml`, and `webassembly` are rejected before shim
+-  execution when `{lazy}` is requested.
++  by canonical CBOR encoding in `src/wire.rs`.
++- The repository contains three hosted implementations: the authoritative Rust
++  runtime, the C17 interpreter/AOT implementation, and the Python semantic
++  reference for its documented subset. O-core separately emits freestanding
++  x86_64 ELF objects.
++- Hosted Rust evaluation lowers source to OIR, builds and validates an
++  `ExecutionPlan`, projects it into HGraph, solves type/fidelity constraints,
++  derives executable dependencies, and runs the readiness-driven HGraph
++  coordinator by default. `O_EXECUTOR=serial` selects the serial reference path
++  for differential checking.
++- Nested results, structural child-to-parent relations, lexical store/load
++  relations, and same-persistent-actor ordering constrain graph readiness.
++- Source sequence is retained conservatively unless both adjacent operations
++  are known-total, proven-pure inline renderers. This preserves failure order as
++  well as external-state order until completion tokens are explicit graph nodes.
++- Proven-pure inline renderer operations may execute on bounded worker threads.
++  Shim-backed and other non-worker-safe operations currently execute on the
++  coordinator thread.
++- Ready-frontier priority uses a variance-proportional critical-path policy in
++  `src/executor/priority.rs`. The scheduler predicts absolute root completion
++  times, measures their variance, and proportionally boosts ready work feeding
++  lagging root paths. Runtime durations update an EWMA cost profile retained by
++  `Evaluator` across document runs.
++- The scheduler recalculates legality, root predictions, variance, and priority
++  after every completed operation or worker batch; it does not drain a stale
++  ready frontier.
++- Conservative `{lazy}` cache safety is enforced from backend metadata. Inline
++  `html`, `markdown`, `latex`, and `text` are cache-safe; unrestricted shim
++  backends are rejected when `{lazy}` is requested.
+ - Capability and authority checks exist for hosted backend execution and system
+-  activation (`src/capability.rs`, `src/eval.rs`). Backend processes are keyed
+-  by sandbox policy in `src/process.rs`, and backend dispatch checks requested
+-  authorities before execution.
+-- Supported concurrent request classes are the scheduler's threadable Nix-family
+-  request kinds: instantiate, realise, and dry activation. Group modes
+-  `batch`, `all`, `any`, and `race` are represented in `src/value.rs`, lowered
+-  through `src/ir.rs`, and resolved by evaluator/scheduler code; Eval requests
+-  remain serial.
+-- Native value crossings are conservative: `Fidelity::NativeCapsule` in
+-  `src/value.rs` and `src/hgraph/solve.rs` prevents claiming general
+-  cross-runtime native value soundness.
+-
+-## Implemented as representation/analysis but not general dispatch
+-
+-- HGraph construction from OIR exists in `src/hgraph/from_oir.rs` and is
+-  invoked from `OIrProgram::hgraph_for_plan` in `src/ir.rs`.
+-- HGraph validation through the source `ExecutionPlan`, type/fidelity solving,
+-  actor constraints, group/control edges, clustering, and schedule derivation
+-  exist in `src/hgraph/graph.rs`, `src/hgraph/kinds.rs`, `src/hgraph/solve.rs`,
+-  and `src/hgraph/schedule.rs`.
+-- The derived HGraph schedule is currently checked against the OIR root schedule
+-  in `src/eval.rs`, but arbitrary evaluator operations still dispatch through
+-  the serial OIR executor `execute_plan_serial`.
+-- General arbitrary-Eval HGraph parallel dispatch is not implemented.
+-- Full N-language communication soundness is not established; native OValue
+-  crossings remain conservatively represented as `NativeCapsule`.
++  activation.
++- Native value crossings are conservative: `Fidelity::NativeCapsule` prevents
++  claiming general cross-runtime native-value soundness.
++
++## Implemented infrastructure with deliberately limited parallel scope
++
++- HGraph construction, validation, type/fidelity solving, actor constraints,
++  group/control edges, ready-operation derivation, and execution coordination
++  are implemented.
++- Worker-thread parallelism is currently restricted to operations classified as
++  proven pure and Send-safe by `src/executor/parallel.rs`.
++- Persistent evaluator actors are serialized. Arbitrary shim-backed evaluator
++  operations are not yet dispatched concurrently across actor-owned workers.
++- Effect summaries and resource keys exist, and known/unknown effect ordering
++  constrains source-sequence relaxation. Complete resource-state reification is
++  not yet implemented.
++- The project bundle/route subsystem is implemented separately from expression
++  HGraph execution; project routes are not yet lowered into the same semantic
++  HGraph as ordinary evaluator expressions.
++
++## Not established by the current implementation
++
++- General parallel dispatch of arbitrary hosted evaluators.
++- Automatic extraction of every filesystem, database, network, environment,
++  standard-output, or host-process dependency from arbitrary embedded source.
++- A dependency-complete state-value HGraph in which every external state
++  transition is represented as old-state and new-state nodes.
++- Full N-language communication soundness or a theorem excluding all modeled
++  cross-language interface errors.
++- Full abstraction of OValue for divergence, effects, authority, scopes, and
++  quoted source.
++- Optimality of the variance scheduler. It is a measurable scheduling policy,
++  not a proof of globally optimal makespan.
+ 
+ ## Research directions enabled by the architecture
+ 
+-- Actor-oriented general graph dispatch over persistent evaluator actors, as
+-  scoped in `docs/HGRAPH_EXECUTOR_PLAN.md`.
+-- Runtime plugin registration beyond the current static `BackendRegistry` table
+-  in `src/ir.rs`.
+-- Fingerprint-complete effect tracking that could safely broaden `{lazy}` beyond
+-  the current inline cache-safe backends.
+-- Cross-runtime schedule optimization using HGraph data, sequence, actor,
+-  effect, and authority edges.
+-- More precise backend morphism proofs and fidelity accounting for OValue
+-  crossings, extending the current `Fidelity` and `BackendMorphism` vocabulary
+-  in `src/value.rs`.
+-- Deterministic cancellation and result-selection semantics for concurrent
+-  groups and future graph execution.
++- Actor-owned concurrent dispatch for independent persistent and ephemeral
++  evaluator instances.
++- Resource-specific state tokens replacing the conservative unknown-host-effect
++  ordering boundary.
++- Learned cost models incorporating evaluator startup, transfer size, process
++  locality, cache probability, and resource contention.
++- Multi-objective scheduling over makespan, root-completion variance, memory,
++  energy, and data movement.
++- N-language interface, information-flow, effect, and authority analysis over
++  the source-derived HGraph.
++- Runtime plugin registration beyond the current static Rust registry.
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/docs/HGRAPH_EXECUTOR_PLAN.md /mnt/data/olang_sched_work/O-lang-master/docs/HGRAPH_EXECUTOR_PLAN.md
+--- /mnt/data/olang_sched_original/O-lang-master/docs/HGRAPH_EXECUTOR_PLAN.md	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/docs/HGRAPH_EXECUTOR_PLAN.md	2026-09-26 23:19:48.784378946 +0000
+@@ -1,21 +1,33 @@
+-# General HGraph executor plan
++# HGraph executor status and remaining plan
+ 
+-This is a next-stage design document, not a claim about the current release.
+-The current evaluator projects OIR into HGraph, solves and schedules it, checks
+-the projected root order, and still executes arbitrary evaluator operations via
+-the serial OIR executor in `src/eval.rs`. A general HGraph executor would replace
+-that final serial dispatch only after the obligations below are met.
++This document now records both the executor that is implemented and the steps
++still required for general cross-runtime parallel dispatch.
++
++The Rust evaluator uses a readiness-driven HGraph coordinator by default.
++Nested/data dependencies and persistent-actor order determine legality;
++unknown or conflicting effects conservatively retain source sequence;
++proven-pure inline renderers can execute on bounded workers. A
++variance-proportional critical-path policy ranks the legal ready frontier.
++`O_EXECUTOR=serial` remains the semantic reference path.
++
++The current executor is intentionally not a general parallel subprocess engine.
++Shim-backed evaluator operations remain coordinator-owned, and arbitrary host
++state is not yet reified as versioned graph values. The obligations below define
++that next stage.
+ 
+ ## Current grounding
+ 
+ - Persistent hosted processes are owned by `ProcessRegistry` in `src/process.rs`,
+-  keyed today by `(language, env_id, BackendSandboxPolicy)`.
+-- HGraph schedule derivation in `src/hgraph/schedule.rs` converts structural,
+-  sequence, data, group, request, cache, and `ActorSerial` relations into
+-  topological clusters.
+-- HGraph actor identity is currently represented as `ActorId { lang, env }` in
+-  `src/hgraph/graph.rs`; that is sufficient for analysis but too coarse for a
+-  safe executor.
++  keyed by language, environment, and sandbox policy.
++- `src/executor/coordinator.rs` executes the ready-operation graph and commits
++  deterministic results; `src/executor/priority.rs` ranks legal ready work.
++- HGraph dependency derivation includes structural/data producers and
++  persistent-actor serialization. Source sequence is retained unless both
++  operations are known-total pure inline renderers.
++- Pure worker-safe inline operations may execute concurrently. Shim-backed
++  evaluators currently remain on the coordinator thread.
++- The actor table distinguishes persistent from ephemeral evaluator instances,
++  but process-generation integration remains incomplete.
+ 
+ ## Executor invariants
+ 
+@@ -116,25 +128,33 @@
+ error choice. Schedule equivalence does not require identical internal trace
+ timing.
+ 
+-## Staged implementation outline
++## Staged implementation status
+ 
+-1. **Actor identity model.** Extend HGraph actor metadata from `(lang, env)` to a
+-   runtime-aware, generation-aware identity. Include ephemeral IDs.
+-2. **Actor runtime abstraction.** Wrap `ProcessRegistry` ownership behind an
+-   actor interface that can execute one operation at a time and return `OValue`
+-   or structured error.
+-3. **Effect and authority edges.** Add explicit HGraph edges for backend
+-   authority and declared effects. Keep unknown effects serial.
+-4. **Ready-queue executor.** Implement a deterministic ready queue over
+-   `src/hgraph/schedule.rs` clusters. Launch only nodes whose inputs,
+-   actor mailbox, effects, and authority checks are ready.
+-5. **Materialization layer.** Store completed OValues on graph nodes and release
+-   dependent hyperedges. Preserve current root-result semantics.
+-6. **Deterministic failure and cancellation.** Implement first-error-in-schedule
+-   order selection, best-effort cancellation, actor cleanup, and generation bump
+-   for tainted persistent actors.
+-7. **Serial-vs-graph tests.** Start with inline pure backends, then add isolated
+-   persistent Python actors, then add deferred Eval requests and groups.
+-8. **Benchmarks and regression gates.** Add benchmark suites that separate
+-   scheduler, startup, conversion, and backend execution costs before enabling
+-   graph execution by default.
++1. **Actor identity model -- partial.** Persistent and ephemeral evaluator
++   identities are represented for coordinator ordering. Runtime/process
++   generation must still be connected to actual process restart events.
++2. **Actor runtime abstraction -- remaining.** `ProcessRegistry` is still owned
++   by the coordinator; independent shim actors do not yet own concurrent worker
++   loops or mailboxes.
++3. **Effect and authority dependencies -- partial.** Effect summaries,
++   resource keys, authority checks, and conservative sequence restoration exist.
++   Complete state-value reification and precise source-level effect inference
++   remain open.
++4. **Ready-queue executor -- implemented.** The coordinator launches only
++   operations whose executable blockers have completed and recomputes readiness
++   after every completion.
++5. **Ordinary-value materialization -- implemented.** Completed OValues are
++   stored in the execution frame and release dependent operations. Multiple
++   explicit successor state outputs per operation remain future work.
++6. **Priority policy -- implemented for the current executor.** Legal ready work
++   is ranked by critical path plus variance-proportional root-completion
++   balancing, with measured EWMA costs. See `VARIANCE_SCHEDULER.md`.
++7. **Deterministic failure and cancellation -- partial.** Worker-batch failures
++   are selected in stable ordinal order, but general cancellation and tainted
++   actor generation-bumping remain open.
++8. **Serial-vs-graph tests -- partial.** Inline/value-flow equivalence tests
++   exist. The suite must expand to persistent actors, filesystem effects,
++   deferred Eval requests, groups, and deterministic multi-failure cases.
++9. **Benchmarks and regression gates -- remaining.** Benchmarks should separate
++   scheduler overhead, evaluator startup, OValue conversion, backend execution,
++   makespan, and root-completion variance.
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/docs/VARIANCE_SCHEDULER.md /mnt/data/olang_sched_work/O-lang-master/docs/VARIANCE_SCHEDULER.md
+--- /mnt/data/olang_sched_original/O-lang-master/docs/VARIANCE_SCHEDULER.md	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/docs/VARIANCE_SCHEDULER.md	2026-09-26 23:25:52.806138048 +0000
+@@ -0,0 +1,145 @@
++# Variance-proportional HGraph scheduler
++
++The graph executor separates two questions:
++
++1. **Legality:** may this operation run now? `ReadySchedule` answers this from
++   value, structural, actor, and effect-order dependencies.
++2. **Priority:** among legal operations, which should receive a scarce worker
++   slot first? The variance scheduler answers this question.
++
++The priority policy never creates permission to violate a dependency. It only
++orders the already-legal ready frontier.
++
++## Objective
++
++The primary objective is to reduce the latest root completion time (the
++makespan). Completion-time variance is the feedback signal: when one root is
++predicted to finish much later than the others, the scheduler applies a larger
++priority correction to ready operations feeding that lagging root. As predicted
++finish times converge, the correction weakens.
++
++At each decision time `now`, an unfinished schedulable (non-literal) root is assigned
++
++```text
++predicted_completion(root) = now + estimated_remaining_critical_path(root)
++```
++
++A completed root keeps its measured completion time. Therefore early-finished
++roots remain in the objective rather than disappearing from the variance once
++they complete.
++
++For predicted absolute root completion times `C_r`, the implementation computes
++
++```text
++mean      = average(C_r)
++variance  = average((C_r - mean)^2)
++normalized_variance = variance / mean^2
++feedback_gain = min(max_gain,
++                    variance_gain * normalized_variance)
++```
++
++`normalized_variance` is the squared coefficient of variation. It keeps the
++controller dimensionless, so the same gain parameter remains meaningful when a
++workload is measured in microseconds or seconds; the unnormalized variance is
++still reported for analysis.
++
++For a ready operation `v`, its base priority is its longest estimated remaining
++path to any root. Its correction is
++
++```text
++feedback_gain
++    * max_root(
++        positive_completion_lag(root)
++        * fraction_of_that_root_path_carried_by(v)
++      )
++```
++
++The final score is
++
++```text
++priority(v) = critical_path(v) + variance_correction(v)
++```
++
++Thus:
++
++- zero completion-time variance reduces to ordinary critical-path list
++  scheduling;
++- larger variance produces a proportionally larger correction;
++- ready work feeding the longest-lagging root receives the strongest pressure;
++- completed roots retain their actual finish times in the objective;
++- the graph is not rewritten and dependencies are never bypassed.
++
++## Cost estimates
++
++The first execution uses conservative static estimates by operation family.
++Every completed operation then updates an exponentially weighted moving average
++(EWMA) for that family. The profile is retained by `Evaluator` across document
++runs, so later schedules can use measured shim/render/request costs.
++Node-specific estimates are available for experiments and tests.
++
++## Dispatch behavior
++
++The highest-ranked legal operation controls each dispatch decision. If it is a
++proven-pure worker-safe operation, the executor fills the remaining bounded
++worker slots from the consecutive worker-safe prefix of the ranking. It never
++skips over a higher-priority coordinator operation to run lower-priority worker
++work. If the
++highest-ranked operation must execute on the coordinator, it runs immediately;
++it is not delayed behind lower-priority worker work.
++
++After every completed batch or coordinator operation, the ready frontier,
++critical paths, predicted root completion times, variance, and priorities are
++recomputed. The executor never drains a stale frontier.
++
++Unknown or effectful operations remain on the coordinator thread. Source
++sequence remains a hard blocker unless both adjacent operations are known-total,
++proven-pure inline renderers. This protects both state effects and source-order
++error behavior until explicit completion tokens and deferred deterministic error
++selection are represented in HGraph. A source declaration cannot turn an
++unrestricted impure backend into a trusted pure backend.
++
++## Runtime controls
++
++```text
++O_GRAPH_SCHEDULER=variance   # default
++O_GRAPH_SCHEDULER=ordinal    # stable source-ordinal priority reference
++O_GRAPH_WORKERS=N            # worker batch cap
++O_GRAPH_VARIANCE_GAIN=4.0    # proportional feedback multiplier
++O_GRAPH_MAX_GAIN=16.0        # feedback saturation
++O_GRAPH_COST_ALPHA=0.25      # EWMA weight for newest timing sample
++```
++
++## Diagnostics
++
++`Evaluator::last_priority_decisions()` exposes each decision's:
++
++- predicted absolute root completion times;
++- estimated remaining critical-path work per root;
++- mean completion time and variance;
++- normalized variance and applied gain;
++- critical-path score and variance boost for every ready operation;
++- target lagging root for each boost.
++
++`Evaluator::last_operation_completion_times_ms()` exposes observed operation
++completion times. `Evaluator::last_root_completion_times_ms()` exposes the
++measured schedulable-root finish times, and
++`Evaluator::last_root_completion_variance_ms2()` reports their measured
++population variance for benchmarks and paper artifacts.
++
++## Current boundary
++
++This policy improves allocation among operations that the current HGraph has
++already proved legal. It does not substitute for dependency completeness.
++Filesystem, network, database, standard-output, and other state dependencies
++must be represented through effect constraints or future state-value nodes
++before arbitrary hosted evaluator operations can safely run in parallel.
++
++## Complexity and intended next optimization
++
++The current implementation recomputes root tails from the DAG at each decision.
++For `V` executable operations, `E` dependency arcs, and `R` schedulable roots,
++one decision is `O(R(V + E))` time with `O(RV)` temporary storage. This is an
++auditable reference implementation, not the final large-graph data structure.
++Benchmarking should determine the crossover point for an incremental version
++that updates only ancestors of completed operations and maintains ready scores
++in priority heaps.
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/bin/olangc.rs /mnt/data/olang_sched_work/O-lang-master/src/bin/olangc.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/bin/olangc.rs	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/bin/olangc.rs	2026-09-26 23:20:45.789859978 +0000
+@@ -112,6 +112,7 @@
+ const RUNTIME_EXECUTOR_COORDINATOR_RS: &str = include_str!("../executor/coordinator.rs");
+ const RUNTIME_EXECUTOR_EFFECTS_RS: &str = include_str!("../executor/effects.rs");
+ const RUNTIME_EXECUTOR_PARALLEL_RS: &str = include_str!("../executor/parallel.rs");
++const RUNTIME_EXECUTOR_PRIORITY_RS: &str = include_str!("../executor/priority.rs");
+ const RUNTIME_EXECUTOR_TRACE_RS: &str = include_str!("../executor/trace.rs");
+ 
+ // project — first-class project/route/bundle model, embedded so compiled
+@@ -702,6 +703,7 @@
+     )?;
+     fs::write(executor_dir.join("effects.rs"), RUNTIME_EXECUTOR_EFFECTS_RS)?;
+     fs::write(executor_dir.join("parallel.rs"), RUNTIME_EXECUTOR_PARALLEL_RS)?;
++    fs::write(executor_dir.join("priority.rs"), RUNTIME_EXECUTOR_PRIORITY_RS)?;
+     fs::write(executor_dir.join("trace.rs"), RUNTIME_EXECUTOR_TRACE_RS)?;
+     Ok(())
+ }
+@@ -1335,6 +1337,7 @@
+             "executor/coordinator.rs",
+             "executor/effects.rs",
+             "executor/parallel.rs",
++            "executor/priority.rs",
+             "executor/trace.rs",
+         ] {
+             let content = fs::read_to_string(src_dir.join(path)).unwrap();
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/eval.rs /mnt/data/olang_sched_work/O-lang-master/src/eval.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/eval.rs	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/eval.rs	2026-09-26 23:25:33.157922651 +0000
+@@ -341,11 +341,21 @@
+     last_execution_trace: Option<ExecutionTrace>,
+ 
+     /// The hypergraph schedule built from the most recent lowered OIR program.
+-    /// This is the compiled foothold for the graph executor: current runtime
+-    /// dispatch still interprets OIR, but graph construction, type solving,
+-    /// backend-fidelity propagation, and clustering run on every document.
+     last_hgraph_schedule: Option<crate::hgraph::Schedule>,
+ 
++    /// Cross-document EWMA cost estimates used by the variance-controlled
++    /// HGraph scheduler.
++    graph_scheduler_profile: crate::executor::SchedulerProfile,
++
++    /// Priority calculations made during the most recent graph execution.
++    last_priority_decisions: Vec<crate::executor::PriorityDecision>,
++
++    /// Measured per-operation completion times from the most recent graph run.
++    last_operation_completion_times_ms: Vec<(PlanNodeId, f64)>,
++
++    /// Measured completion times of schedulable document roots from the most recent graph run.
++    last_root_completion_times_ms: Vec<(PlanNodeId, f64)>,
++
+     /// Optional live, process-local authority for embedding-specific activation
+     /// guards.
+     ///
+@@ -472,10 +482,26 @@
+                         bail!("a block must name exactly one backend capability binding");
+                     }
+                 }
++                "effects=pure" | "effects=unknown" | "serial=host" => {
++                    // Scheduling metadata is interpreted by EffectDeclaration
++                    // during graph construction. It does not alter authority or
++                    // lazy/defer semantics here.
++                }
++                _ if entry.starts_with("reads=") || entry.starts_with("writes=") => {
++                    let (_, resources) = entry.split_once('=').expect("guarded by prefix");
++                    if resources.trim().is_empty() {
++                        bail!("effect resource declaration on {lang}^ must not be empty");
++                    }
++                }
++                _ if entry.starts_with("effects=") || entry.starts_with("serial=") => {
++                    bail!("invalid scheduling effect attribute `{{{entry}}}` on {lang}^");
++                }
+                 _ => {
+                     let permission = BackendAuthority::parse(entry).ok_or_else(|| {
+                         anyhow::anyhow!(
+-                            "unknown block attribute `{{{entry}}}` on {lang}^. Known attributes: lazy, defer, cap=name, fs_read, fs_write, network, process"
++                            "unknown block attribute `{{{entry}}}` on {lang}^. Known attributes: \
++                             lazy, defer, cap=name, fs_read, fs_write, network, process, \
++                             effects=pure|unknown, reads=..., writes=..., serial=host"
+                         )
+                     })?;
+                     options.permissions.push(permission);
+@@ -511,6 +537,10 @@
+             last_execution_plan: None,
+             last_execution_trace: None,
+             last_hgraph_schedule: None,
++            graph_scheduler_profile: crate::executor::SchedulerProfile::default(),
++            last_priority_decisions: Vec::new(),
++            last_operation_completion_times_ms: Vec::new(),
++            last_root_completion_times_ms: Vec::new(),
+             activation_authorities: HashMap::new(),
+             backend_authorities,
+             default_backend_authority,
+@@ -549,6 +579,45 @@
+         self.last_hgraph_schedule.as_ref()
+     }
+ 
++    /// Variance/critical-path priority decisions from the most recent graph run.
++    pub fn last_priority_decisions(&self) -> &[crate::executor::PriorityDecision] {
++        &self.last_priority_decisions
++    }
++
++    /// Measured operation completion times from the most recent graph run.
++    pub fn last_operation_completion_times_ms(&self) -> &[(PlanNodeId, f64)] {
++        &self.last_operation_completion_times_ms
++    }
++
++    /// Measured schedulable-root completion times from the most recent graph run.
++    pub fn last_root_completion_times_ms(&self) -> &[(PlanNodeId, f64)] {
++        &self.last_root_completion_times_ms
++    }
++
++    /// Population variance of measured schedulable-root completion times.
++    pub fn last_root_completion_variance_ms2(&self) -> Option<f64> {
++        if self.last_root_completion_times_ms.is_empty() {
++            return None;
++        }
++        let count = self.last_root_completion_times_ms.len() as f64;
++        let mean = self
++            .last_root_completion_times_ms
++            .iter()
++            .map(|(_, time)| *time)
++            .sum::<f64>()
++            / count;
++        Some(
++            self.last_root_completion_times_ms
++                .iter()
++                .map(|(_, time)| {
++                    let delta = *time - mean;
++                    delta * delta
++                })
++                .sum::<f64>()
++                / count,
++        )
++    }
++
+     /// Install a new evaluation policy, returning the previous one. Used by the
+     /// graph coordinator to run each operation under its derived policy context.
+     pub(crate) fn set_policy(&mut self, policy: Policy) -> Policy {
+@@ -1557,6 +1626,9 @@
+         // Default execution path is the readiness-driven graph coordinator.
+         // `O_EXECUTOR=serial` selects the reference serial executor for
+         // cross-checking; an explicit `forced` override wins for tests.
++        self.last_priority_decisions.clear();
++        self.last_operation_completion_times_ms.clear();
++        self.last_root_completion_times_ms.clear();
+         let use_serial = match forced {
+             Some(serial) => serial,
+             None => std::env::var("O_EXECUTOR")
+@@ -1588,8 +1660,14 @@
+             hgraph,
+             base_policy,
+             |_lang, _env| 0,
++            self.graph_scheduler_profile.clone(),
+         )?;
+-        coordinator.run(self, scope)
++        let result = coordinator.run(self, scope);
++        self.graph_scheduler_profile = coordinator.scheduler_profile().clone();
++        self.last_priority_decisions = coordinator.priority_decisions().to_vec();
++        self.last_operation_completion_times_ms = coordinator.operation_completion_times_ms();
++        self.last_root_completion_times_ms = coordinator.root_completion_times_ms();
++        result
+     }
+ 
+     fn execute_plan_serial(
+@@ -7063,4 +7141,60 @@
+             .to_string();
+         assert!(err.contains("Undefined variable"), "got: {err}");
+     }
++
++    #[test]
++    fn block_options_accept_scheduler_effect_metadata() {
++        BlockOptions::parse(
++            Some("effects=unknown,reads=host:/tmp/input,writes=host:/tmp/output,serial=host"),
++            "python",
++        )
++        .unwrap();
++        assert!(BlockOptions::parse(Some("effects=wishful"), "python").is_err());
++        assert!(BlockOptions::parse(Some("reads="), "python").is_err());
++    }
++
++    #[test]
++    fn variance_scheduler_prioritizes_the_lagging_root_path() {
++        let text = BackendRegistry::global().interface_for("text");
++        let program = OIrProgram {
++            nodes: vec![
++                OIr::Exec {
++                    lang: "text".into(),
++                    env_id: u32::MAX,
++                    attr: None,
++                    backend: text.clone(),
++                    body: vec![OIr::Text("long".into())],
++                },
++                OIr::Exec {
++                    lang: "text".into(),
++                    env_id: u32::MAX,
++                    attr: None,
++                    backend: text,
++                    body: vec![OIr::Text("short".into())],
++                },
++            ],
++        };
++        // Preorder plan ids are root 0, text child 1, root 2, text child 3.
++        let mut evaluator = Evaluator::new("/tmp".into());
++        evaluator
++            .graph_scheduler_profile
++            .set_node_estimate_ms(PlanNodeId(0), 20.0);
++        evaluator
++            .graph_scheduler_profile
++            .set_node_estimate_ms(PlanNodeId(2), 5.0);
++        let mut scope = HashMap::new();
++        evaluator
++            .eval_ir_program_forcing(&program, &mut scope, false)
++            .unwrap();
++
++        let first = evaluator
++            .last_priority_decisions()
++            .first()
++            .expect("graph execution should make a priority decision");
++        assert!(first.gain > 0.0);
++        assert_eq!(first.ranked[0].plan_node, PlanNodeId(0));
++        assert!(first.ranked[0].variance_boost_ms > 0.0);
++        assert_eq!(evaluator.last_root_completion_times_ms().len(), 2);
++        assert!(evaluator.last_root_completion_variance_ms2().is_some());
++    }
+ }
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/executor/coordinator.rs /mnt/data/olang_sched_work/O-lang-master/src/executor/coordinator.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/executor/coordinator.rs	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/executor/coordinator.rs	2026-09-26 23:25:19.249845027 +0000
+@@ -8,25 +8,31 @@
+ //! being forced into wall-clock serialization by blanket sibling sequencing.
+ //!
+ //! Operations that are provably pure and side-effect free (literal text and
+-//! attribute-free pure inline renderers) are executed on a worker-thread pool
+-//! via `std::thread::scope`; every other operation — anything that needs the
+-//! evaluator's `!Send` process registry or mutable state — runs on the
+-//! coordinator thread in stable ordinal order. Results are committed in the
+-//! plan's deterministic root order, so out-of-order completion never changes
+-//! observable output.
++//! attribute-free pure inline renderers) are executed on a bounded worker pool.
++//! Worker slots are assigned by a variance-proportional critical-path policy:
++//! the larger the predicted spread among unfinished root completion times, the
++//! more priority pressure is applied to ready work feeding the lagging roots.
++//! Effectful/unknown operations preserve required source sequence and remain on
++//! the coordinator thread. Results are committed in deterministic root order.
+ 
+-use std::collections::BTreeMap;
++use std::collections::{BTreeMap, HashMap};
++use std::time::Instant;
+ 
+ use anyhow::{bail, Result};
+ 
+ use crate::eval::{derive_policy_contexts, Evaluator, ExecutionTrace, GraphEvalFrame, Policy};
+ use crate::hgraph::{schedule::ReadySchedule, HGraph};
+-use crate::ir::{ExecutionPlan, OIr, OIrProgram, PlanNodeId, PlanNodeKind};
++use crate::ir::{
++    ExecutionPlan, OIr, OIrProgram, PlanEdgeKind, PlanNodeId, PlanNodeKind,
++};
+ use crate::value::OValue;
+ 
+ use super::actor::ActorTable;
+-use super::effects::{EffectDeclaration, EffectSummary};
++use super::effects::{DeclaredPurity, EffectDeclaration, EffectSummary};
+ use super::parallel;
++use super::priority::{
++    PriorityDecision, SchedulerConfig, SchedulerProfile, VariancePriority,
++};
+ use super::trace::TraceSink;
+ 
+ /// One committed-or-pending operation the coordinator tracks.
+@@ -35,6 +41,7 @@
+     ordinal: u64,
+     blocked_by: Vec<usize>,
+     completed: bool,
++    completed_at_ms: Option<f64>,
+ }
+ 
+ pub struct Coordinator<'a> {
+@@ -47,6 +54,11 @@
+     frame: GraphEvalFrame,
+     trace: TraceSink,
+     base_policy: Policy,
++    scheduler_config: SchedulerConfig,
++    scheduler_profile: SchedulerProfile,
++    priority: VariancePriority,
++    priority_decisions: Vec<PriorityDecision>,
++    started_at: Instant,
+ }
+ 
+ impl<'a> Coordinator<'a> {
+@@ -58,6 +70,7 @@
+         hgraph: &HGraph,
+         base_policy: Policy,
+         generation_of: impl Fn(&str, u32) -> u64,
++        scheduler_profile: SchedulerProfile,
+     ) -> Result<Self> {
+         let flat = program.flatten_for_plan();
+         if flat.len() != plan.nodes.len() {
+@@ -68,7 +81,18 @@
+             );
+         }
+ 
+-        let schedule = ReadySchedule::derive(hgraph).map_err(anyhow::Error::msg)?;
++        let actors = ActorTable::build(plan, generation_of);
++        let effects = plan
++            .nodes
++            .iter()
++            .map(|node| effect_summary_for(node.id, &node.kind, &actors))
++            .collect::<Vec<_>>();
++
++        let mut schedule = ReadySchedule::derive(hgraph).map_err(anyhow::Error::msg)?;
++        apply_effect_sequence_constraints(&mut schedule, plan, &effects)?;
++        // Validate the augmented dependency graph before deriving priorities.
++        schedule.waves().map_err(anyhow::Error::msg)?;
++        let priority = VariancePriority::new(&schedule, plan).map_err(anyhow::Error::msg)?;
+         let ops = schedule
+             .ops
+             .iter()
+@@ -77,17 +101,11 @@
+                 ordinal: op.ordinal,
+                 blocked_by: op.blocked_by.clone(),
+                 completed: false,
++                completed_at_ms: None,
+             })
+             .collect::<Vec<_>>();
+ 
+         let node_policy = derive_policy_contexts(plan, &flat, base_policy)?;
+-        let actors = ActorTable::build(plan, generation_of);
+-        let effects = plan
+-            .nodes
+-            .iter()
+-            .map(|node| effect_summary_for(node.id, &node.kind, &actors))
+-            .collect::<Vec<_>>();
+-
+         let frame = GraphEvalFrame {
+             values: vec![None; plan.nodes.len()],
+             base_scope: std::collections::HashMap::new(),
+@@ -105,6 +123,11 @@
+             frame,
+             trace: TraceSink::new(),
+             base_policy,
++            scheduler_config: SchedulerConfig::from_env(),
++            scheduler_profile,
++            priority,
++            priority_decisions: Vec::new(),
++            started_at: Instant::now(),
+         })
+     }
+ 
+@@ -166,6 +189,11 @@
+     }
+ 
+     /// The readiness-driven event loop.
++    ///
++    /// Each iteration recalculates both legality and priority. This is
++    /// intentional: a completed operation may expose a newly-critical path, so
++    /// the scheduler never drains a stale ready frontier computed before that
++    /// completion.
+     fn drive(&mut self, evaluator: &mut Evaluator) -> Result<()> {
+         loop {
+             let ready = self.ready_ops();
+@@ -181,19 +209,36 @@
+                 );
+             }
+ 
+-            // Partition the ready frontier into a parallel-safe batch and the
+-            // operations that must run on the coordinator thread.
+-            let (parallel, sequential): (Vec<usize>, Vec<usize>) = ready
+-                .into_iter()
+-                .partition(|&index| self.is_parallel_safe(index));
+-
+-            if !parallel.is_empty() {
++            let decision = self.priority_decision(&ready)?;
++            let ranked = decision
++                .ranked
++                .iter()
++                .map(|item| item.op_index)
++                .collect::<Vec<_>>();
++            self.priority_decisions.push(decision);
++
++            // The highest-ranked legal operation controls the decision. If it
++            // is worker-safe, fill the remaining worker slots with the next
++            // highest-ranked worker-safe operations. Otherwise execute it on
++            // the coordinator immediately rather than delaying a critical path
++            // behind lower-priority worker work.
++            let selected = ranked[0];
++            if self.is_parallel_safe(selected) {
++                let parallel = ranked
++                    .iter()
++                    .copied()
++                    .take_while(|&index| self.is_parallel_safe(index))
++                    .take(self.scheduler_config.parallelism)
++                    .collect::<Vec<_>>();
+                 self.run_parallel_batch(&parallel)?;
++                continue;
+             }
+ 
+-            for index in sequential {
+-                self.run_coordinator_op(evaluator, index)?;
+-            }
++            // Effectful or unknown operations remain legal only after their
++            // sequence/resource blockers complete. Once legal, the priority
++            // policy may choose them by critical-path urgency; it never erases
++            // those correctness dependencies.
++            self.run_coordinator_op(evaluator, selected)?;
+         }
+     }
+ 
+@@ -209,13 +254,52 @@
+         ready
+     }
+ 
++    fn priority_decision(&self, ready: &[usize]) -> Result<PriorityDecision> {
++        let completed = self.ops.iter().map(|op| op.completed).collect::<Vec<_>>();
++        let completion_times_ms = self
++            .ops
++            .iter()
++            .map(|op| op.completed_at_ms)
++            .collect::<Vec<_>>();
++        let now_ms = self.started_at.elapsed().as_secs_f64() * 1_000.0;
++        let plan_nodes = self
++            .ops
++            .iter()
++            .map(|op| op.plan_node)
++            .collect::<Vec<_>>();
++        let costs = self
++            .ops
++            .iter()
++            .map(|op| {
++                self.scheduler_profile.estimate_ms(
++                    op.plan_node,
++                    &self.plan.nodes[op.plan_node.0].kind,
++                    self.flat[op.plan_node.0],
++                )
++            })
++            .collect::<Vec<_>>();
++        self.priority
++            .rank_ready(
++                ready,
++                &completed,
++                &completion_times_ms,
++                now_ms,
++                &costs,
++                self.scheduler_config.policy,
++                self.scheduler_config.variance_gain,
++                self.scheduler_config.max_gain,
++                &plan_nodes,
++            )
++            .map_err(anyhow::Error::msg)
++    }
++
+     /// Whether an operation may run on a worker thread: it must be a pure,
+     /// deterministic, side-effect-free renderer (literal-style) whose effect
+     /// summary carries no writes and no unknown/host-global footprint.
+     fn is_parallel_safe(&self, index: usize) -> bool {
+         let id = self.ops[index].plan_node;
+         let summary = &self.effects[id.0];
+-        if summary.unknown || !summary.deterministic || !summary.writes.is_empty() {
++        if !summary.is_proven_pure() {
+             return false;
+         }
+         parallel::classify(self.plan, self.flat[id.0], id).is_some()
+@@ -229,10 +313,18 @@
+         self.trace.ready(id);
+         self.trace.started(id);
+ 
++        let started = Instant::now();
+         let policy = self.frame.node_policy[id.0];
+         let saved = evaluator.set_policy(policy);
+-        let outcome = evaluator.execute_ready_plan_node(id, self.flat[id.0], self.plan, &mut self.frame);
++        let outcome =
++            evaluator.execute_ready_plan_node(id, self.flat[id.0], self.plan, &mut self.frame);
+         evaluator.set_policy(saved);
++        let elapsed = started.elapsed();
++        self.scheduler_profile.observe(
++            &self.plan.nodes[id.0].kind,
++            elapsed,
++            self.scheduler_config.ewma_alpha,
++        );
+ 
+         match outcome {
+             Ok(value) => {
+@@ -243,6 +335,8 @@
+                 );
+                 self.frame.set_value(id, value)?;
+                 self.ops[index].completed = true;
++                self.ops[index].completed_at_ms =
++                    Some(self.started_at.elapsed().as_secs_f64() * 1_000.0);
+                 Ok(())
+             }
+             Err(err) => {
+@@ -269,18 +363,26 @@
+             tasks.push((index, id, built));
+         }
+ 
++        let batch_started_at_ms = self.started_at.elapsed().as_secs_f64() * 1_000.0;
+         let results = parallel::execute(tasks.iter().map(|(_, _, task)| task.clone()).collect());
+ 
+         // Commit in ordinal order; select the smallest-ordinal failure.
+-        let mut completions: BTreeMap<(u64, usize), (usize, PlanNodeId, Result<OValue>)> =
+-            BTreeMap::new();
+-        for ((index, id, _), result) in tasks.into_iter().zip(results.into_iter()) {
++        let mut completions: BTreeMap<
++            (u64, usize),
++            (usize, PlanNodeId, parallel::TimedResult),
++        > = BTreeMap::new();
++        for ((index, id, _), timed) in tasks.into_iter().zip(results.into_iter()) {
+             let ordinal = self.ops[index].ordinal;
+-            completions.insert((ordinal, id.0), (index, id, result));
++            completions.insert((ordinal, id.0), (index, id, timed));
+         }
+ 
+-        for (_, (index, id, result)) in completions {
+-            match result {
++        for (_, (index, id, timed)) in completions {
++            self.scheduler_profile.observe(
++                &self.plan.nodes[id.0].kind,
++                timed.elapsed,
++                self.scheduler_config.ewma_alpha,
++            );
++            match timed.result {
+                 Ok(value) => {
+                     self.trace.finished(
+                         id,
+@@ -289,6 +391,8 @@
+                     );
+                     self.frame.set_value(id, value)?;
+                     self.ops[index].completed = true;
++                    self.ops[index].completed_at_ms =
++                        Some(batch_started_at_ms + timed.elapsed.as_secs_f64() * 1_000.0);
+                 }
+                 Err(err) => {
+                     self.trace.failed(id, err.to_string());
+@@ -333,6 +437,111 @@
+     pub fn effect_summaries(&self) -> &[EffectSummary] {
+         &self.effects
+     }
++
++    /// Learned operation-duration estimates, retained by the evaluator across
++    /// document executions.
++    pub fn scheduler_profile(&self) -> &SchedulerProfile {
++        &self.scheduler_profile
++    }
++
++    /// Variance/critical-path decisions made during this execution.
++    pub fn priority_decisions(&self) -> &[PriorityDecision] {
++        &self.priority_decisions
++    }
++
++    pub fn scheduler_config(&self) -> &SchedulerConfig {
++        &self.scheduler_config
++    }
++
++    /// Observed completion time of each operation, measured from coordinator
++    /// start. Primarily intended for benchmark and artifact output.
++    pub fn operation_completion_times_ms(&self) -> Vec<(PlanNodeId, f64)> {
++        self.ops
++            .iter()
++            .filter_map(|op| op.completed_at_ms.map(|time| (op.plan_node, time)))
++            .collect()
++    }
++
++    /// Observed completion time of each schedulable (non-literal) document
++    /// root, matching the roots used by the variance objective.
++    pub fn root_completion_times_ms(&self) -> Vec<(PlanNodeId, f64)> {
++        self.plan
++            .roots
++            .iter()
++            .filter_map(|&root| {
++                self.ops
++                    .iter()
++                    .find(|op| op.plan_node == root)
++                    .and_then(|op| op.completed_at_ms.map(|time| (root, time)))
++            })
++            .collect()
++    }
++}
++
++/// Restore source sequence only where effect information says reordering is not
++/// observationally safe. This keeps the priority policy legality-neutral: it may
++/// rank ready work, but it never gets to erase a required effect dependency.
++fn apply_effect_sequence_constraints(
++    schedule: &mut ReadySchedule,
++    plan: &ExecutionPlan,
++    effects: &[EffectSummary],
++) -> Result<()> {
++    let by_plan = schedule
++        .ops
++        .iter()
++        .enumerate()
++        .map(|(index, op)| (op.plan_node, index))
++        .collect::<HashMap<_, _>>();
++
++    for edge in &plan.edges {
++        if edge.kind != PlanEdgeKind::Sequence {
++            continue;
++        }
++        let (Some(&before), Some(&after)) = (by_plan.get(&edge.from), by_plan.get(&edge.to))
++        else {
++            // Literal text has no executable operation. It is already
++            // materialized and needs no runtime sequence blocker.
++            continue;
++        };
++        let before_effect = effects.get(edge.from.0).ok_or_else(|| {
++            anyhow::anyhow!("missing effect summary for plan node {}", edge.from.0)
++        })?;
++        let after_effect = effects.get(edge.to.0).ok_or_else(|| {
++            anyhow::anyhow!("missing effect summary for plan node {}", edge.to.0)
++        })?;
++        let reorder_safe = node_is_total_pure_renderer(&plan.nodes[edge.from.0].kind, before_effect)
++            && node_is_total_pure_renderer(&plan.nodes[edge.to.0].kind, after_effect);
++        if (!reorder_safe || before_effect.must_preserve_sequence_with(after_effect))
++            && !schedule.ops[after].blocked_by.contains(&before)
++        {
++            schedule.ops[after].blocked_by.push(before);
++        }
++    }
++
++    for op in &mut schedule.ops {
++        op.blocked_by.sort_unstable();
++        op.blocked_by.dedup();
++    }
++    Ok(())
++}
++
++/// The current executor may remove a source-sequence blocker only between
++/// operations whose implementation is both side-effect free and operationally
++/// total for already-materialized inputs. This protects sequential error
++/// semantics as well as external-state semantics until explicit completion
++/// tokens and deterministic deferred-error selection are represented in HGraph.
++fn node_is_total_pure_renderer(kind: &PlanNodeKind, effect: &EffectSummary) -> bool {
++    if !effect.is_proven_pure() {
++        return false;
++    }
++    matches!(
++        kind,
++        PlanNodeKind::Exec { attr, backend, .. }
++            if attr.is_none()
++                && backend.pure
++                && backend.execution == crate::ir::ExecutionMode::InlineValue
++                && matches!(backend.canonical.as_str(), "html" | "markdown" | "text" | "latex")
++    )
+ }
+ 
+ /// Derive the effect summary for a single plan node.
+@@ -351,12 +560,7 @@
+         PlanNodeKind::Call { .. }
+         | PlanNodeKind::Request { .. }
+         | PlanNodeKind::Schedule { .. } => EffectSummary::unknown(),
+-        PlanNodeKind::Exec {
+-            lang,
+-            env_id,
+-            attr,
+-            backend,
+-        } => {
++        PlanNodeKind::Exec { attr, backend, .. } => {
+             let declaration = EffectDeclaration::parse(attr.as_deref());
+             // quote/O structural inline backends and pure inline value/thunk
+             // backends are pure by default; shim backends are unknown/impure.
+@@ -371,8 +575,144 @@
+                 }
+                 summary
+             };
+-            let _ = (lang, env_id);
+-            declaration.apply(base)
++            let mut effective = declaration.apply(base);
++            // A source annotation is not a proof that unrestricted hosted code
++            // is pure. Backend-enforced purity may be refined by declarations;
++            // an impure/unknown backend remains unknown even if the source says
++            // `effects=pure`.
++            if !backend.pure && declaration.purity == Some(DeclaredPurity::Pure) {
++                effective.unknown = true;
++                effective.deterministic = false;
++            }
++            effective
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::hgraph::schedule::ReadyOp;
++    use crate::hgraph::{EdgeId, NodeId};
++    use crate::ir::{InvokeMode, PlanEdge, PlanNode};
++
++    fn op(index: usize) -> ReadyOp {
++        ReadyOp {
++            plan_node: PlanNodeId(index),
++            edge: EdgeId(index as u64),
++            output: NodeId(index as u64),
++            inputs: Vec::new(),
++            ordinal: index as u64,
++            actor: None,
++            blocked_by: Vec::new(),
++        }
++    }
++
++    fn two_call_plan() -> ExecutionPlan {
++        ExecutionPlan {
++            roots: vec![PlanNodeId(0), PlanNodeId(1)],
++            nodes: vec![
++                PlanNode {
++                    id: PlanNodeId(0),
++                    kind: PlanNodeKind::Call {
++                        fn_name: "first".into(),
++                        mode: InvokeMode::Eager,
++                        arg_count: 0,
++                    },
++                },
++                PlanNode {
++                    id: PlanNodeId(1),
++                    kind: PlanNodeKind::Call {
++                        fn_name: "second".into(),
++                        mode: InvokeMode::Eager,
++                        arg_count: 0,
++                    },
++                },
++            ],
++            edges: vec![PlanEdge {
++                from: PlanNodeId(0),
++                to: PlanNodeId(1),
++                kind: PlanEdgeKind::Sequence,
++            }],
++        }
++    }
++
++    #[test]
++    fn unknown_effects_restore_source_sequence_blocker() {
++        let plan = two_call_plan();
++        let mut schedule = ReadySchedule {
++            ops: vec![op(0), op(1)],
++        };
++        let effects = vec![EffectSummary::unknown(), EffectSummary::unknown()];
++        apply_effect_sequence_constraints(&mut schedule, &plan, &effects).unwrap();
++        assert_eq!(schedule.ops[1].blocked_by, vec![0]);
++    }
++
++    #[test]
++    fn resource_conflict_restores_source_sequence_blocker() {
++        let plan = two_call_plan();
++        let mut schedule = ReadySchedule {
++            ops: vec![op(0), op(1)],
++        };
++        let mut writer = EffectSummary::pure();
++        writer
++            .writes
++            .insert(crate::executor::ResourceKey::HostPath("/tmp/data".into()));
++        let mut reader = EffectSummary::pure();
++        reader
++            .reads
++            .insert(crate::executor::ResourceKey::HostPath("/tmp/data".into()));
++        apply_effect_sequence_constraints(&mut schedule, &plan, &[writer, reader]).unwrap();
++        assert_eq!(schedule.ops[1].blocked_by, vec![0]);
++    }
++
++    #[test]
++    fn total_pure_renderer_siblings_remain_independently_ready() {
++        let text = crate::ir::BackendRegistry::global().interface_for("text");
++        let plan = ExecutionPlan {
++            roots: vec![PlanNodeId(0), PlanNodeId(1)],
++            nodes: vec![
++                PlanNode {
++                    id: PlanNodeId(0),
++                    kind: PlanNodeKind::Exec {
++                        lang: "text".into(),
++                        env_id: u32::MAX,
++                        attr: None,
++                        backend: text.clone(),
++                    },
++                },
++                PlanNode {
++                    id: PlanNodeId(1),
++                    kind: PlanNodeKind::Exec {
++                        lang: "text".into(),
++                        env_id: u32::MAX,
++                        attr: None,
++                        backend: text,
++                    },
++                },
++            ],
++            edges: vec![PlanEdge {
++                from: PlanNodeId(0),
++                to: PlanNodeId(1),
++                kind: PlanEdgeKind::Sequence,
++            }],
++        };
++        let mut schedule = ReadySchedule {
++            ops: vec![op(0), op(1)],
++        };
++        let effects = vec![EffectSummary::pure(), EffectSummary::pure()];
++        apply_effect_sequence_constraints(&mut schedule, &plan, &effects).unwrap();
++        assert!(schedule.ops[1].blocked_by.is_empty());
++    }
++
++    #[test]
++    fn fallible_pure_calls_still_preserve_source_order() {
++        let plan = two_call_plan();
++        let mut schedule = ReadySchedule {
++            ops: vec![op(0), op(1)],
++        };
++        let effects = vec![EffectSummary::pure(), EffectSummary::pure()];
++        apply_effect_sequence_constraints(&mut schedule, &plan, &effects).unwrap();
++        assert_eq!(schedule.ops[1].blocked_by, vec![0]);
++    }
++}
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/executor/effects.rs /mnt/data/olang_sched_work/O-lang-master/src/executor/effects.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/executor/effects.rs	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/executor/effects.rs	2026-09-26 23:06:16.270306591 +0000
+@@ -87,6 +87,34 @@
+             || self.writes.contains(&ResourceKey::HostGlobal)
+     }
+ 
++    /// Whether this summary proves that the operation is deterministic and has
++    /// no observable state or host interaction. Only operations satisfying this
++    /// predicate may be freely reordered around an unknown operation.
++    pub fn is_proven_pure(&self) -> bool {
++        self.deterministic
++            && !self.unknown
++            && self.reads.is_empty()
++            && self.writes.is_empty()
++            && self.actor_state.is_none()
++            && !self.network
++            && !self.spawn
++            && !self.clock
++    }
++
++    /// Whether a source-order relation between these operations must remain a
++    /// scheduling blocker. Unknown operations are allowed to move around only
++    /// operations that are themselves proven pure; known resource summaries use
++    /// the ordinary read/write conflict relation.
++    pub fn must_preserve_sequence_with(&self, other: &EffectSummary) -> bool {
++        if self.unknown {
++            return !other.is_proven_pure();
++        }
++        if other.unknown {
++            return !self.is_proven_pure();
++        }
++        self.conflicts_with(other)
++    }
++
+     /// Whether two operations with these summaries conflict and therefore may
+     /// not run concurrently.
+     pub fn conflicts_with(&self, other: &EffectSummary) -> bool {
+@@ -266,6 +294,24 @@
+         assert!(summary.deterministic);
+     }
+ 
++
++    #[test]
++    fn unknown_preserves_order_against_known_effectful_operation() {
++        let unknown = EffectSummary::unknown();
++        let mut writer = EffectSummary::pure();
++        writer.writes.insert(ResourceKey::HostPath("/tmp/x".into()));
++        assert!(unknown.must_preserve_sequence_with(&writer));
++        assert!(writer.must_preserve_sequence_with(&unknown));
++    }
++
++    #[test]
++    fn unknown_may_move_around_proven_pure_operation() {
++        let unknown = EffectSummary::unknown();
++        let pure = EffectSummary::pure();
++        assert!(!unknown.must_preserve_sequence_with(&pure));
++        assert!(!pure.must_preserve_sequence_with(&unknown));
++    }
++
+     #[test]
+     fn serial_host_forces_host_global_write() {
+         let decl = EffectDeclaration::parse(Some("serial=host"));
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/executor/mod.rs /mnt/data/olang_sched_work/O-lang-master/src/executor/mod.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/executor/mod.rs	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/executor/mod.rs	2026-09-26 23:05:47.838749148 +0000
+@@ -13,9 +13,14 @@
+ pub mod coordinator;
+ pub mod effects;
+ pub mod parallel;
++pub mod priority;
+ pub mod trace;
+ 
+ pub use actor::{ActorKey, ActorTable};
+ pub use cancellation::CancellationToken;
+ pub use coordinator::Coordinator;
+ pub use effects::{DeclaredPurity, EffectDeclaration, EffectSummary, ResourceKey};
++pub use priority::{
++    PriorityDecision, RankedReady, RootEstimate, SchedulerConfig, SchedulerPolicy,
++    SchedulerProfile, VariancePriority,
++};
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/executor/parallel.rs /mnt/data/olang_sched_work/O-lang-master/src/executor/parallel.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/executor/parallel.rs	2026-07-12 23:31:34.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/executor/parallel.rs	2026-09-26 23:06:04.502481179 +0000
+@@ -7,6 +7,8 @@
+ //! `std::thread::scope` worker threads and their results are committed by the
+ //! coordinator in deterministic order.
+ 
++use std::time::{Duration, Instant};
++
+ use anyhow::{bail, Result};
+ 
+ use crate::eval::{render_with, GraphEvalFrame};
+@@ -132,23 +134,49 @@
+     }
+ }
+ 
++/// Result and wall-clock duration of one parallel-safe operation.
++pub(crate) struct TimedResult {
++    pub result: Result<OValue>,
++    pub elapsed: Duration,
++}
++
+ /// Execute a batch of render tasks across worker threads, preserving input
+-/// order in the returned results.
+-pub(crate) fn execute(tasks: Vec<ParallelTask>) -> Vec<Result<OValue>> {
++/// order in the returned results and measuring every operation independently.
++pub(crate) fn execute(tasks: Vec<ParallelTask>) -> Vec<TimedResult> {
+     if tasks.len() <= 1 {
+-        return tasks.iter().map(render).collect();
++        return tasks
++            .iter()
++            .map(|task| {
++                let started = Instant::now();
++                let result = render(task);
++                TimedResult {
++                    result,
++                    elapsed: started.elapsed(),
++                }
++            })
++            .collect();
+     }
+ 
+-    let mut results: Vec<Option<Result<OValue>>> = (0..tasks.len()).map(|_| None).collect();
++    let mut results: Vec<Option<TimedResult>> = (0..tasks.len()).map(|_| None).collect();
+     std::thread::scope(|scope| {
+         let mut handles = Vec::with_capacity(tasks.len());
+         for task in &tasks {
+-            handles.push(scope.spawn(move || render(task)));
++            handles.push(scope.spawn(move || {
++                let started = Instant::now();
++                let result = render(task);
++                TimedResult {
++                    result,
++                    elapsed: started.elapsed(),
++                }
++            }));
+         }
+         for (slot, handle) in results.iter_mut().zip(handles.into_iter()) {
+             *slot = Some(match handle.join() {
+                 Ok(result) => result,
+-                Err(_) => Err(anyhow::anyhow!("parallel render worker panicked")),
++                Err(_) => TimedResult {
++                    result: Err(anyhow::anyhow!("parallel render worker panicked")),
++                    elapsed: Duration::ZERO,
++                },
+             });
+         }
+     });
+diff -ruN '--exclude=*.o' '--exclude=O' '--exclude=olangc' '--exclude=__pycache__' /mnt/data/olang_sched_original/O-lang-master/src/executor/priority.rs /mnt/data/olang_sched_work/O-lang-master/src/executor/priority.rs
+--- /mnt/data/olang_sched_original/O-lang-master/src/executor/priority.rs	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/olang_sched_work/O-lang-master/src/executor/priority.rs	2026-09-26 23:22:42.735589944 +0000
+@@ -0,0 +1,721 @@
++//! Variance-proportional critical-path priority for the HGraph executor.
++//!
++//! Dependency legality and dispatch priority are deliberately separate:
++//! [`ReadySchedule`](crate::hgraph::schedule::ReadySchedule) decides which
++//! operations are legal to run, while this module decides which legal operation
++//! should receive a scarce worker slot first.
++//!
++//! The policy optimizes for root completion rather than task count. For every
++//! scheduling decision it:
++//!
++//! 1. predicts each root's absolute completion time from measured elapsed time
++//!    plus its remaining critical path, or keeps its measured finish time once
++//!    complete;
++//! 2. computes the variance of those root completion estimates;
++//! 3. converts normalized variance into a feedback gain; and
++//! 4. boosts ready operations that lie on the longest-lagging root paths.
++//!
++//! When roots are already balanced the feedback gain approaches zero and the
++//! policy reduces to ordinary critical-path priority. Higher imbalance causes
++//! a proportionally larger correction toward the lagging roots.
++
++use std::collections::{BTreeSet, HashMap};
++use std::time::Duration;
++
++use crate::hgraph::schedule::ReadySchedule;
++use crate::ir::{ExecutionMode, ExecutionPlan, OIr, PlanNodeId, PlanNodeKind};
++
++const EPSILON: f64 = 1.0e-9;
++
++/// Ready-frontier selection policy.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum SchedulerPolicy {
++    /// Stable source ordinal only. Useful as a diagnostic/reference policy.
++    Ordinal,
++    /// Critical-path priority plus variance-proportional root balancing.
++    VarianceBalanced,
++}
++
++/// Runtime configuration for ready-frontier selection.
++#[derive(Debug, Clone)]
++pub struct SchedulerConfig {
++    pub policy: SchedulerPolicy,
++    /// Maximum number of pure worker-safe operations dispatched in one batch.
++    pub parallelism: usize,
++    /// Multiplier applied to normalized root-completion variance.
++    pub variance_gain: f64,
++    /// Hard bound on feedback gain so a bad estimate cannot dominate forever.
++    pub max_gain: f64,
++    /// EWMA weight assigned to the newest measured operation duration.
++    pub ewma_alpha: f64,
++}
++
++impl Default for SchedulerConfig {
++    fn default() -> Self {
++        let parallelism = std::thread::available_parallelism()
++            .map(|n| n.get())
++            .unwrap_or(1)
++            .clamp(1, 32);
++        Self {
++            policy: SchedulerPolicy::VarianceBalanced,
++            parallelism,
++            variance_gain: 4.0,
++            max_gain: 16.0,
++            ewma_alpha: 0.25,
++        }
++    }
++}
++
++impl SchedulerConfig {
++    /// Read optional runtime controls without making configuration mandatory.
++    ///
++    /// - `O_GRAPH_SCHEDULER=ordinal|variance`
++    /// - `O_GRAPH_WORKERS=<positive integer>`
++    /// - `O_GRAPH_VARIANCE_GAIN=<non-negative float>`
++    /// - `O_GRAPH_MAX_GAIN=<non-negative float>`
++    /// - `O_GRAPH_COST_ALPHA=<float in (0,1]>`
++    pub fn from_env() -> Self {
++        let mut config = Self::default();
++        if let Ok(value) = std::env::var("O_GRAPH_SCHEDULER") {
++            config.policy = if value.eq_ignore_ascii_case("ordinal") {
++                SchedulerPolicy::Ordinal
++            } else {
++                SchedulerPolicy::VarianceBalanced
++            };
++        }
++        if let Some(value) = parse_env_usize("O_GRAPH_WORKERS") {
++            config.parallelism = value.max(1);
++        }
++        if let Some(value) = parse_env_f64("O_GRAPH_VARIANCE_GAIN") {
++            config.variance_gain = value.max(0.0);
++        }
++        if let Some(value) = parse_env_f64("O_GRAPH_MAX_GAIN") {
++            config.max_gain = value.max(0.0);
++        }
++        if let Some(value) = parse_env_f64("O_GRAPH_COST_ALPHA") {
++            if value > 0.0 && value <= 1.0 {
++                config.ewma_alpha = value;
++            }
++        }
++        config
++    }
++}
++
++fn parse_env_usize(name: &str) -> Option<usize> {
++    std::env::var(name).ok()?.trim().parse().ok()
++}
++
++fn parse_env_f64(name: &str) -> Option<f64> {
++    let value: f64 = std::env::var(name).ok()?.trim().parse().ok()?;
++    value.is_finite().then_some(value)
++}
++
++/// Historical duration estimates used by the scheduler.
++///
++/// Estimates are keyed by operation family (for example `exec:python:shim`),
++/// so later operations and later documents can reuse measured costs. Tests and
++/// embedding hosts may also install a node-specific estimate.
++#[derive(Debug, Clone, Default)]
++pub struct SchedulerProfile {
++    estimates_ms: HashMap<String, f64>,
++    samples: HashMap<String, u64>,
++    node_overrides_ms: HashMap<PlanNodeId, f64>,
++}
++
++impl SchedulerProfile {
++    pub fn estimate_ms(&self, id: PlanNodeId, kind: &PlanNodeKind, ir: &OIr) -> f64 {
++        if let Some(value) = self.node_overrides_ms.get(&id) {
++            return value.max(EPSILON);
++        }
++        let key = operation_key(kind);
++        self.estimates_ms
++            .get(&key)
++            .copied()
++            .unwrap_or_else(|| static_estimate_ms(kind, ir))
++            .max(EPSILON)
++    }
++
++    pub fn observe(
++        &mut self,
++        kind: &PlanNodeKind,
++        elapsed: Duration,
++        alpha: f64,
++    ) {
++        let sample_ms = elapsed.as_secs_f64() * 1_000.0;
++        if !sample_ms.is_finite() || sample_ms < 0.0 {
++            return;
++        }
++        let key = operation_key(kind);
++        let alpha = alpha.clamp(EPSILON, 1.0);
++        let previous = self
++            .estimates_ms
++            .get(&key)
++            .copied()
++            .unwrap_or(sample_ms.max(EPSILON));
++        let updated = alpha * sample_ms.max(EPSILON) + (1.0 - alpha) * previous;
++        self.estimates_ms.insert(key.clone(), updated);
++        *self.samples.entry(key).or_insert(0) += 1;
++    }
++
++    /// Explicit estimate override, primarily useful for experiments and tests.
++    pub fn set_node_estimate_ms(&mut self, id: PlanNodeId, estimate_ms: f64) {
++        if estimate_ms.is_finite() && estimate_ms > 0.0 {
++            self.node_overrides_ms.insert(id, estimate_ms);
++        }
++    }
++
++    pub fn sample_count(&self, kind: &PlanNodeKind) -> u64 {
++        self.samples
++            .get(&operation_key(kind))
++            .copied()
++            .unwrap_or(0)
++    }
++}
++
++fn operation_key(kind: &PlanNodeKind) -> String {
++    match kind {
++        PlanNodeKind::Text => "text".to_string(),
++        PlanNodeKind::Load { .. } => "load".to_string(),
++        PlanNodeKind::Store { .. } => "store".to_string(),
++        PlanNodeKind::Call { fn_name, .. } => format!("call:{fn_name}"),
++        PlanNodeKind::Request { kind, .. } => format!("request:{}", kind.label()),
++        PlanNodeKind::Group { mode, .. } => format!("group:{mode:?}"),
++        PlanNodeKind::Schedule { kind, .. } => format!("schedule:{}", kind.label()),
++        PlanNodeKind::Exec { lang, backend, .. } => {
++            format!("exec:{lang}:{:?}", backend.execution)
++        }
++    }
++}
++
++fn static_estimate_ms(kind: &PlanNodeKind, ir: &OIr) -> f64 {
++    match kind {
++        PlanNodeKind::Text => 0.01,
++        PlanNodeKind::Load { .. } => 0.05,
++        PlanNodeKind::Store { .. } => 0.10,
++        PlanNodeKind::Call { .. } => 0.50,
++        PlanNodeKind::Request { .. } => 8.0,
++        PlanNodeKind::Group { .. } => 0.20,
++        PlanNodeKind::Schedule { .. } => 0.20,
++        PlanNodeKind::Exec { backend, .. } => {
++            let body_len = match ir {
++                OIr::Exec { body, .. } => body.len() as f64,
++                _ => 0.0,
++            };
++            match backend.execution {
++                ExecutionMode::Shim => 20.0 + body_len * 0.25,
++                ExecutionMode::InlineAst => 0.75 + body_len * 0.05,
++                ExecutionMode::InlineValue => 0.50 + body_len * 0.05,
++            }
++        }
++    }
++}
++
++/// One root's predicted remaining completion time at a scheduling decision.
++#[derive(Debug, Clone)]
++pub struct RootEstimate {
++    pub root: PlanNodeId,
++    /// Estimated unfinished critical-path work from the current frontier.
++    pub remaining_ms: f64,
++    /// Predicted absolute completion time measured from coordinator start.
++    pub predicted_completion_ms: f64,
++    /// Whether this root has already committed; completed roots retain their
++    /// measured finish time in the variance objective.
++    pub completed: bool,
++}
++
++/// Priority assigned to one operation in the legal ready frontier.
++#[derive(Debug, Clone)]
++pub struct RankedReady {
++    pub op_index: usize,
++    pub plan_node: PlanNodeId,
++    pub priority: f64,
++    pub critical_path_ms: f64,
++    pub variance_boost_ms: f64,
++    pub target_root: Option<PlanNodeId>,
++}
++
++/// Full explanation of one priority calculation. Coordinators may retain these
++/// snapshots for testing, profiling, and paper artifact output.
++#[derive(Debug, Clone)]
++pub struct PriorityDecision {
++    pub ranked: Vec<RankedReady>,
++    pub roots: Vec<RootEstimate>,
++    pub mean_completion_ms: f64,
++    pub variance_ms2: f64,
++    pub normalized_variance: f64,
++    pub gain: f64,
++}
++
++/// Static dependency analysis supporting dynamic variance-based decisions.
++#[derive(Debug, Clone)]
++pub struct VariancePriority {
++    successors: Vec<Vec<usize>>,
++    topological: Vec<usize>,
++    roots: Vec<(PlanNodeId, usize)>,
++    ordinals: Vec<u64>,
++}
++
++impl VariancePriority {
++    pub fn new(schedule: &ReadySchedule, plan: &ExecutionPlan) -> Result<Self, String> {
++        let count = schedule.ops.len();
++        let mut successors = vec![Vec::new(); count];
++        let mut indegree = vec![0usize; count];
++        for (index, op) in schedule.ops.iter().enumerate() {
++            for &dependency in &op.blocked_by {
++                if dependency >= count {
++                    return Err(format!(
++                        "operation {index} has out-of-bounds dependency {dependency}"
++                    ));
++                }
++                successors[dependency].push(index);
++                indegree[index] += 1;
++            }
++        }
++        for list in &mut successors {
++            list.sort_unstable();
++            list.dedup();
++        }
++
++        let mut ready: BTreeSet<(u64, usize)> = (0..count)
++            .filter(|&index| indegree[index] == 0)
++            .map(|index| (schedule.ops[index].ordinal, index))
++            .collect();
++        let mut topological = Vec::with_capacity(count);
++        while let Some((ordinal, index)) = ready.iter().next().copied() {
++            ready.remove(&(ordinal, index));
++            topological.push(index);
++            for &successor in &successors[index] {
++                indegree[successor] -= 1;
++                if indegree[successor] == 0 {
++                    ready.insert((schedule.ops[successor].ordinal, successor));
++                }
++            }
++        }
++        if topological.len() != count {
++            return Err(format!(
++                "variance scheduler dependency graph contains a cycle: scheduled {} of {count}",
++                topological.len()
++            ));
++        }
++
++        let by_plan = schedule
++            .ops
++            .iter()
++            .enumerate()
++            .map(|(index, op)| (op.plan_node, index))
++            .collect::<HashMap<_, _>>();
++        let roots = plan
++            .roots
++            .iter()
++            .filter_map(|root| by_plan.get(root).copied().map(|index| (*root, index)))
++            .collect();
++        let ordinals = schedule.ops.iter().map(|op| op.ordinal).collect();
++
++        Ok(Self {
++            successors,
++            topological,
++            roots,
++            ordinals,
++        })
++    }
++
++    pub fn rank_ready(
++        &self,
++        ready: &[usize],
++        completed: &[bool],
++        completion_times_ms: &[Option<f64>],
++        now_ms: f64,
++        costs_ms: &[f64],
++        policy: SchedulerPolicy,
++        variance_gain: f64,
++        max_gain: f64,
++        plan_nodes: &[PlanNodeId],
++    ) -> Result<PriorityDecision, String> {
++        let count = self.successors.len();
++        if completed.len() != count
++            || completion_times_ms.len() != count
++            || costs_ms.len() != count
++            || plan_nodes.len() != count
++        {
++            return Err("variance scheduler input lengths do not match operation count".to_string());
++        }
++        let now_ms = if now_ms.is_finite() { now_ms.max(0.0) } else { 0.0 };
++        for &index in ready {
++            if index >= count {
++                return Err(format!("ready operation index {index} is out of bounds"));
++            }
++        }
++
++        if policy == SchedulerPolicy::Ordinal {
++            let mut ranked = ready
++                .iter()
++                .copied()
++                .map(|index| RankedReady {
++                    op_index: index,
++                    plan_node: plan_nodes[index],
++                    priority: 0.0,
++                    critical_path_ms: 0.0,
++                    variance_boost_ms: 0.0,
++                    target_root: None,
++                })
++                .collect::<Vec<_>>();
++            ranked.sort_by_key(|item| (self.ordinals[item.op_index], item.op_index));
++            return Ok(PriorityDecision {
++                ranked,
++                roots: Vec::new(),
++                mean_completion_ms: 0.0,
++                variance_ms2: 0.0,
++                normalized_variance: 0.0,
++                gain: 0.0,
++            });
++        }
++
++        let root_count = self.roots.len();
++        let mut tail = vec![vec![0.0f64; root_count]; count];
++        for &index in self.topological.iter().rev() {
++            if completed[index] {
++                continue;
++            }
++            for (root_position, &(_, root_index)) in self.roots.iter().enumerate() {
++                if completed[root_index] {
++                    continue;
++                }
++                let downstream = self.successors[index]
++                    .iter()
++                    .map(|&successor| tail[successor][root_position])
++                    .fold(0.0f64, f64::max);
++                if index == root_index || downstream > 0.0 {
++                    tail[index][root_position] = costs_ms[index].max(EPSILON) + downstream;
++                }
++            }
++        }
++
++        let mut root_remaining = Vec::with_capacity(root_count);
++        for (root_position, &(root, root_index)) in self.roots.iter().enumerate() {
++            let remaining = if completed[root_index] {
++                0.0
++            } else {
++                ready
++                    .iter()
++                    .map(|&index| tail[index][root_position])
++                    .fold(0.0f64, f64::max)
++            };
++            let predicted_completion_ms = completion_times_ms[root_index]
++                .unwrap_or(now_ms + remaining);
++            root_remaining.push(RootEstimate {
++                root,
++                remaining_ms: remaining,
++                predicted_completion_ms,
++                completed: completed[root_index],
++            });
++        }
++
++        let completion_estimates = root_remaining
++            .iter()
++            .map(|root| root.predicted_completion_ms)
++            .collect::<Vec<_>>();
++        let mean = if completion_estimates.is_empty() {
++            0.0
++        } else {
++            completion_estimates.iter().sum::<f64>() / completion_estimates.len() as f64
++        };
++        let variance = if completion_estimates.is_empty() {
++            0.0
++        } else {
++            completion_estimates
++                .iter()
++                .map(|value| {
++                    let delta = *value - mean;
++                    delta * delta
++                })
++                .sum::<f64>()
++                / completion_estimates.len() as f64
++        };
++        let normalized_variance = if mean > EPSILON {
++            variance / (mean * mean)
++        } else {
++            0.0
++        };
++        let gain = (variance_gain.max(0.0) * normalized_variance)
++            .min(max_gain.max(0.0));
++
++        let mut ranked = Vec::with_capacity(ready.len());
++        for &index in ready {
++            let critical_path_ms = tail[index].iter().copied().fold(0.0f64, f64::max);
++            let mut pressure = 0.0f64;
++            let mut target_root = None;
++            for (root_position, estimate) in root_remaining.iter().enumerate() {
++                if estimate.completed || estimate.remaining_ms <= EPSILON {
++                    continue;
++                }
++                let lag = (estimate.predicted_completion_ms - mean).max(0.0);
++                if lag <= 0.0 {
++                    continue;
++                }
++                let contribution = tail[index][root_position] / estimate.remaining_ms;
++                let candidate = lag * contribution.clamp(0.0, 1.0);
++                if candidate > pressure {
++                    pressure = candidate;
++                    target_root = Some(estimate.root);
++                }
++            }
++            let variance_boost_ms = gain * pressure;
++            ranked.push(RankedReady {
++                op_index: index,
++                plan_node: plan_nodes[index],
++                priority: critical_path_ms + variance_boost_ms,
++                critical_path_ms,
++                variance_boost_ms,
++                target_root,
++            });
++        }
++
++        ranked.sort_by(|left, right| {
++            right
++                .priority
++                .partial_cmp(&left.priority)
++                .unwrap_or(std::cmp::Ordering::Equal)
++                .then_with(|| {
++                    right
++                        .critical_path_ms
++                        .partial_cmp(&left.critical_path_ms)
++                        .unwrap_or(std::cmp::Ordering::Equal)
++                })
++                .then_with(|| {
++                    self.ordinals[left.op_index]
++                        .cmp(&self.ordinals[right.op_index])
++                })
++                .then_with(|| left.op_index.cmp(&right.op_index))
++        });
++
++        Ok(PriorityDecision {
++            ranked,
++            roots: root_remaining,
++            mean_completion_ms: mean,
++            variance_ms2: variance,
++            normalized_variance,
++            gain,
++        })
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::hgraph::schedule::{ReadyOp, ReadySchedule};
++    use crate::hgraph::{EdgeId, NodeId};
++    use crate::ir::{InvokeMode, PlanNode, PlanNodeKind};
++
++    fn op(index: usize, blocked_by: Vec<usize>) -> ReadyOp {
++        ReadyOp {
++            plan_node: PlanNodeId(index),
++            edge: EdgeId(index as u64),
++            output: NodeId(index as u64),
++            inputs: Vec::new(),
++            ordinal: index as u64,
++            actor: None,
++            blocked_by,
++        }
++    }
++
++    fn independent_plan(count: usize) -> ExecutionPlan {
++        ExecutionPlan {
++            roots: (0..count).map(PlanNodeId).collect(),
++            nodes: (0..count)
++                .map(|index| PlanNode {
++                    id: PlanNodeId(index),
++                    kind: PlanNodeKind::Call {
++                        fn_name: format!("root_{index}"),
++                        mode: InvokeMode::Eager,
++                        arg_count: 0,
++                    },
++                })
++                .collect(),
++            edges: Vec::new(),
++        }
++    }
++
++    #[test]
++    fn balanced_roots_produce_zero_feedback_gain() {
++        let schedule = ReadySchedule {
++            ops: vec![op(0, vec![]), op(1, vec![])],
++        };
++        let plan = independent_plan(2);
++        let priority = VariancePriority::new(&schedule, &plan).unwrap();
++        let decision = priority
++            .rank_ready(
++                &[0, 1],
++                &[false, false],
++                &[None, None],
++                0.0,
++                &[10.0, 10.0],
++                SchedulerPolicy::VarianceBalanced,
++                4.0,
++                16.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        assert_eq!(decision.variance_ms2, 0.0);
++        assert_eq!(decision.gain, 0.0);
++    }
++
++    #[test]
++    fn root_variance_boosts_work_on_the_lagging_root() {
++        let schedule = ReadySchedule {
++            ops: vec![op(0, vec![]), op(1, vec![])],
++        };
++        let plan = independent_plan(2);
++        let priority = VariancePriority::new(&schedule, &plan).unwrap();
++        let decision = priority
++            .rank_ready(
++                &[0, 1],
++                &[false, false],
++                &[None, None],
++                0.0,
++                &[20.0, 5.0],
++                SchedulerPolicy::VarianceBalanced,
++                4.0,
++                16.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        assert!(decision.gain > 0.0);
++        assert_eq!(decision.ranked[0].plan_node, PlanNodeId(0));
++        assert!(decision.ranked[0].variance_boost_ms > 0.0);
++        assert_eq!(decision.ranked[1].variance_boost_ms, 0.0);
++    }
++
++    #[test]
++    fn more_variance_creates_more_feedback_gain() {
++        let schedule = ReadySchedule {
++            ops: vec![op(0, vec![]), op(1, vec![])],
++        };
++        let plan = independent_plan(2);
++        let priority = VariancePriority::new(&schedule, &plan).unwrap();
++        let low = priority
++            .rank_ready(
++                &[0, 1],
++                &[false, false],
++                &[None, None],
++                0.0,
++                &[10.0, 9.0],
++                SchedulerPolicy::VarianceBalanced,
++                4.0,
++                16.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        let high = priority
++            .rank_ready(
++                &[0, 1],
++                &[false, false],
++                &[None, None],
++                0.0,
++                &[20.0, 2.0],
++                SchedulerPolicy::VarianceBalanced,
++                4.0,
++                16.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        assert!(high.gain > low.gain);
++    }
++
++    #[test]
++    fn feedback_gain_saturates_at_configured_maximum() {
++        let schedule = ReadySchedule {
++            ops: vec![op(0, vec![]), op(1, vec![])],
++        };
++        let plan = independent_plan(2);
++        let priority = VariancePriority::new(&schedule, &plan).unwrap();
++        let decision = priority
++            .rank_ready(
++                &[0, 1],
++                &[false, false],
++                &[None, None],
++                0.0,
++                &[1_000.0, 1.0],
++                SchedulerPolicy::VarianceBalanced,
++                1_000.0,
++                3.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        assert!((decision.gain - 3.0).abs() < 1.0e-9);
++    }
++
++    #[test]
++    fn ordinal_policy_uses_stable_source_order() {
++        let schedule = ReadySchedule {
++            ops: vec![op(0, vec![]), op(1, vec![])],
++        };
++        let plan = independent_plan(2);
++        let priority = VariancePriority::new(&schedule, &plan).unwrap();
++        let decision = priority
++            .rank_ready(
++                &[1, 0],
++                &[false, false],
++                &[None, None],
++                0.0,
++                &[1.0, 1_000.0],
++                SchedulerPolicy::Ordinal,
++                4.0,
++                16.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        assert_eq!(
++            decision
++                .ranked
++                .iter()
++                .map(|item| item.plan_node)
++                .collect::<Vec<_>>(),
++            vec![PlanNodeId(0), PlanNodeId(1)]
++        );
++        assert_eq!(decision.gain, 0.0);
++    }
++
++    #[test]
++    fn completed_root_finish_time_remains_in_variance_objective() {
++        let schedule = ReadySchedule {
++            ops: vec![op(0, vec![]), op(1, vec![])],
++        };
++        let plan = independent_plan(2);
++        let priority = VariancePriority::new(&schedule, &plan).unwrap();
++        let decision = priority
++            .rank_ready(
++                &[1],
++                &[true, false],
++                &[Some(5.0), None],
++                10.0,
++                &[10.0, 20.0],
++                SchedulerPolicy::VarianceBalanced,
++                4.0,
++                16.0,
++                &[PlanNodeId(0), PlanNodeId(1)],
++            )
++            .unwrap();
++        assert_eq!(decision.roots[0].predicted_completion_ms, 5.0);
++        assert_eq!(decision.roots[1].predicted_completion_ms, 30.0);
++        assert!(decision.gain > 0.0);
++        assert!(decision.ranked[0].variance_boost_ms > 0.0);
++    }
++
++    #[test]
++    fn ewma_profile_learns_observed_cost() {
++        let kind = PlanNodeKind::Call {
++            fn_name: "demo".into(),
++            mode: InvokeMode::Eager,
++            arg_count: 0,
++        };
++        let ir = OIr::Invoke {
++            fn_name: "demo".into(),
++            mode: InvokeMode::Eager,
++            args: Vec::new(),
++        };
++        let mut profile = SchedulerProfile::default();
++        profile.observe(&kind, Duration::from_millis(20), 1.0);
++        assert!((profile.estimate_ms(PlanNodeId(0), &kind, &ir) - 20.0).abs() < 0.001);
++        assert_eq!(profile.sample_count(&kind), 1);
++    }
++}

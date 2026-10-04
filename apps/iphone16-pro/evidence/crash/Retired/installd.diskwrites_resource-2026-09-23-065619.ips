@@ -1,0 +1,1283 @@
+{"duration_ms":"31404748","share_with_app_devs":0,"roots_installed":0,"bug_type":"145","os_version":"iPhone OS 26.6 (23G71)","slice_uuid":"C4EFEC35-C360-306B-AEFD-8E48417B8934","is_first_party":0,"incident_id":"09EBD239-A722-498A-AA56-35EFDF669F01","timestamp":"2026-09-23 06:56:19.00 -0400","app_name":"installd","name":"installd"}
+Date/Time:        2026-09-22 22:12:41.664 -0400
+End time:         2026-09-23 06:56:06.411 -0400
+OS Version:       iPhone OS 26.6 (Build 23G71)
+Architecture:     arm64e
+Report Version:   72
+Incident Identifier: 09EBD239-A722-498A-AA56-35EFDF669F01
+
+Data Source:      Microstackshots
+Shared Cache:     6F1AC697-5292-3BA2-8297-71BC62266DBA slid base address 0x199db8000, slide 0x19db8000
+
+Command:          installd
+Path:             /usr/libexec/installd
+Resource Coalition: "com.apple.mobile.installd"(509)
+On Behalf Of:     100 samples UNKNOWN [299] (100 samples originated by nsurlsessiond [232])
+Architecture:     arm64e
+Parent:           launchd [1]
+PID:              1997
+
+Event:            disk writes
+Action taken:     none
+Writes:           1073.82 MB of file backed memory dirtied over 31405 seconds (34.19 KB per second average), exceeding limit of 12.43 KB per second over 86400 seconds
+Writes limit:     1073.74 MB
+Limit duration:   86400s
+Writes caused:    1073.82 MB
+Writes duration:  31405s
+Duration:         31404.75s
+Duration Sampled: 31365.40s (event starts 39.33s before samples)
+Steps:            1022 (2 samples lost, 10.49 MB/step)
+
+Hardware model:   iPhone17,1
+Active cpus:      6
+Memory size:      7.46 GB
+HW page size:     16384
+VM page size:     16384
+Shared cache residency: 15.16% (908.45 MB / 5990.66 MB)
+
+Advisory levels:  Battery -> 3, User -> 3, ThermalPressure -> 0, Combined -> 3
+Free disk space:  5048.88 MB/114.88 GB, low space threshold 150 MB
+Vnodes Available: 66.73% (18684/28000, 14000 allocated, 14000 soft limit)
+Model:            com.apple.gm.safety_deny.input.foundation_models_framework.api
+  Loaded:         2800s - 2900s, requested by generative-experiences-safety-inference-provider
+  Loaded:         4400s - 4400s, requested by generative-experiences-safety-inference-provider
+  Loaded:         4700s - 4700s, requested by generative-experiences-safety-inference-provider
+  Loaded:         5100s - 5100s, requested by generative-experiences-safety-inference-provider
+  Loaded:         8500s - 8500s, requested by generative-experiences-safety-inference-provider
+  Loaded:         10000s - 10000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         14000s - 14000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         15000s - 15000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         21000s - 21000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         28000s - 28000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         29000s - 29000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         31000s - 31000s, requested by generative-experiences-safety-inference-provider
+Model:            com.apple.gm.safety_deny.output.foundation_models_framework.api
+  Loaded:         2800s - 2900s, requested by generative-experiences-safety-inference-provider
+  Loaded:         4400s - 4400s, requested by generative-experiences-safety-inference-provider
+  Loaded:         4700s - 4700s, requested by generative-experiences-safety-inference-provider
+  Loaded:         5100s - 5100s, requested by generative-experiences-safety-inference-provider
+  Loaded:         8500s - 8500s, requested by generative-experiences-safety-inference-provider
+  Loaded:         10000s - 10000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         14000s - 14000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         15000s - 15000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         21000s - 21000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         28000s - 28000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         29000s - 29000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         31000s - 31000s, requested by generative-experiences-safety-inference-provider
+Model:            com.apple.gm.safety_embedding_deny.all
+  Loaded:         2800s - 2900s, requested by generative-experiences-safety-inference-provider
+  Loaded:         4400s - 4400s, requested by generative-experiences-safety-inference-provider
+  Loaded:         4700s - 4700s, requested by generative-experiences-safety-inference-provider
+  Loaded:         5100s - 5100s, requested by generative-experiences-safety-inference-provider
+  Loaded:         8500s - 8500s, requested by generative-experiences-safety-inference-provider
+  Loaded:         10000s - 10000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         14000s - 14000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         15000s - 15000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         21000s - 21000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         28000s - 28000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         29000s - 29000s, requested by generative-experiences-safety-inference-provider
+  Loaded:         31000s - 31000s, requested by generative-experiences-safety-inference-provider
+Model:            com.apple.fm.language.instruct_3b.summarization.draft
+  Loaded:         2800s - 2900s, requested by token-generation-inference
+  Loaded:         4400s - 4400s, requested by token-generation-inference
+  Loaded:         4700s - 4700s, requested by token-generation-inference
+  Loaded:         5100s - 5100s, requested by token-generation-inference
+  Loaded:         8500s - 8500s, requested by token-generation-inference
+  Loaded:         10000s - 10000s, requested by token-generation-inference
+  Loaded:         14000s - 14000s, requested by token-generation-inference
+  Loaded:         15000s - 15000s, requested by token-generation-inference
+  Loaded:         21000s - 21000s, requested by token-generation-inference
+  Loaded:         28000s - 28000s, requested by token-generation-inference
+  Loaded:         29000s - 29000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_3b.summarization
+  Loaded:         2800s - 2900s, requested by token-generation-inference
+  Loaded:         4400s - 4400s, requested by token-generation-inference
+  Loaded:         4700s - 4700s, requested by token-generation-inference
+  Loaded:         5100s - 5100s, requested by token-generation-inference
+  Loaded:         8500s - 8500s, requested by token-generation-inference
+  Loaded:         10000s - 10000s, requested by token-generation-inference
+  Loaded:         14000s - 14000s, requested by token-generation-inference
+  Loaded:         15000s - 15000s, requested by token-generation-inference
+  Loaded:         21000s - 21000s, requested by token-generation-inference
+  Loaded:         28000s - 28000s, requested by token-generation-inference
+  Loaded:         29000s - 29000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_300m.factual_consistency_classifier
+  Loaded:         2800s - 2900s, requested by token-generation-inference
+  Loaded:         4400s - 4400s, requested by token-generation-inference
+  Loaded:         4700s - 4700s, requested by token-generation-inference
+  Loaded:         5100s - 5100s, requested by token-generation-inference
+  Loaded:         8500s - 8500s, requested by token-generation-inference
+  Loaded:         10000s - 10000s, requested by token-generation-inference
+  Loaded:         14000s - 14000s, requested by token-generation-inference
+  Loaded:         15000s - 15000s, requested by token-generation-inference
+  Loaded:         21000s - 21000s, requested by token-generation-inference
+  Loaded:         28000s - 28000s, requested by token-generation-inference
+  Loaded:         29000s - 29000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_300m.base
+  Loaded:         2800s - 2900s, requested by token-generation-inference
+  Loaded:         4400s - 4400s, requested by token-generation-inference
+  Loaded:         4700s - 4700s, requested by token-generation-inference
+  Loaded:         5100s - 5100s, requested by token-generation-inference
+  Loaded:         8500s - 8500s, requested by token-generation-inference
+  Loaded:         10000s - 10000s, requested by token-generation-inference
+  Loaded:         14000s - 14000s, requested by token-generation-inference
+  Loaded:         15000s - 15000s, requested by token-generation-inference
+  Loaded:         21000s - 21000s, requested by token-generation-inference
+  Loaded:         28000s - 28000s, requested by token-generation-inference
+  Loaded:         29000s - 29000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_3b.urgency_classification
+  Loaded:         ??? - 1.6s, requested by UNKNOWN
+  Loaded:         3600s - 3600s, requested by token-generation-inference
+  Loaded:         4400s - 4400s, requested by token-generation-inference
+  Loaded:         4700s - 4800s, requested by token-generation-inference
+  Loaded:         5100s - 5100s, requested by token-generation-inference
+  Loaded:         8500s - 8500s, requested by token-generation-inference
+  Loaded:         14000s - 14000s, requested by token-generation-inference
+  Loaded:         15000s - 15000s, requested by token-generation-inference
+  Loaded:         21000s - 21000s, requested by token-generation-inference
+  Loaded:         26000s - 26000s, requested by token-generation-inference
+  Loaded:         28000s - 28000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_3b.base
+  Loaded:         ??? - 1.7s, requested by UNKNOWN
+  Loaded:         2800s - 2900s, requested by token-generation-inference
+  Loaded:         3600s - 3600s, requested by token-generation-inference
+  Loaded:         4400s - 4400s, requested by token-generation-inference
+  Loaded:         4700s - 4800s, requested by token-generation-inference
+  Loaded:         5100s - 5100s, requested by token-generation-inference
+  Loaded:         8500s - 8500s, requested by token-generation-inference
+  Loaded:         10000s - 10000s, requested by token-generation-inference
+  Loaded:         14000s - 14000s, requested by token-generation-inference
+  Loaded:         15000s - 15000s, requested by token-generation-inference
+  Loaded:         21000s - 21000s, requested by token-generation-inference
+  Loaded:         26000s - 26000s, requested by token-generation-inference
+  Loaded:         28000s - 28000s, requested by token-generation-inference
+  Loaded:         29000s - 29000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_3b.tokenizer
+  Loaded:         ??? - 880s, requested by UNKNOWN
+  Loaded:         2800s - 6000s, requested by token-generation-inference
+  Loaded:         8500s - 9400s, requested by token-generation-inference
+  Loaded:         10000s - 11000s, requested by token-generation-inference
+  Loaded:         14000s - 15000s, requested by token-generation-inference
+  Loaded:         15000s - 16000s, requested by token-generation-inference
+  Loaded:         21000s - 22000s, requested by token-generation-inference
+  Loaded:         26000s - 27000s, requested by token-generation-inference
+  Loaded:         28000s - 30000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_300m.tokenizer
+  Loaded:         ??? - 880s, requested by UNKNOWN
+  Loaded:         2800s - 3700s, requested by token-generation-inference
+  Loaded:         4400s - 6000s, requested by token-generation-inference
+  Loaded:         8500s - 9400s, requested by token-generation-inference
+  Loaded:         10000s - 11000s, requested by token-generation-inference
+  Loaded:         14000s - 15000s, requested by token-generation-inference
+  Loaded:         15000s - 16000s, requested by token-generation-inference
+  Loaded:         21000s - 22000s, requested by token-generation-inference
+  Loaded:         28000s - 30000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_3b.summarization?language=en
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+Model:            com.apple.tokeninputdenylist.template
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+Model:            com.apple.tokenoutputdenylist.template
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+Model:            com.apple.fm.language.instruct_300m.factual_consistency_classifier?language=en
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      2800s - 2800s, requested by [259] use case summarization.summarizeUserNotificationThread
+  Executing:      4400s - 4400s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      4700s - 4700s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      5100s - 5100s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      8500s - 8500s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      10000s - 10000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      14000s - 14000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      15000s - 15000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      21000s - 21000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      28000s - 28000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      29000s - 29000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeTextMessageThread
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+  Executing:      31000s - 31000s, requested by [259] use case summarization.summarizeMailMessage
+Model:            com.apple.fm.language.instruct_3b.urgency_classification?language=en
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyMailMessage
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyUserNotification
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyUserNotification
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyMailMessage
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyUserNotification
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyUserNotification
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyUserNotification
+  Executing:      3600s - 3600s, requested by [259] use case classification.classifyUserNotification
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyMailMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyMailMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4400s - 4400s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyMailMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyMailMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyTextMessage
+  Executing:      4700s - 4700s, requested by [259] use case classification.classifyTextMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyMailMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyTextMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyTextMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyMailMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyTextMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyTextMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyTextMessage
+  Executing:      5100s - 5100s, requested by [259] use case classification.classifyTextMessage
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyUserNotification
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyMailMessage
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyUserNotification
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyMailMessage
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyUserNotification
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyUserNotification
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyUserNotification
+  Executing:      8500s - 8500s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      14000s - 14000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      15000s - 15000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      21000s - 21000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      26000s - 26000s, requested by [259] use case classification.classifyUserNotification
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyMailMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyTextMessage
+  Executing:      28000s - 28000s, requested by [259] use case classification.classifyTextMessage
+Model:            com.apple.fm.language.instruct_300m.vi_content_classifier
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+Model:            com.apple.fm.language.instruct_300m.image_tokenizer
+  Loaded:         31000s - 31000s, requested by token-generation-inference
+
+Preferred User Language: en-US
+Country Code:     US
+Keyboards:        en_US QWERTY
+OS Cryptex File Extents: 25145
+
+Heaviest stack for the target process:
+  78  ??? (libsystem_pthread.dylib + 2240) [0x1fcc628c0]
+  78  ??? (libsystem_pthread.dylib + 4980) [0x1fcc63374]
+  78  ??? (libdispatch.dylib + 82072) [0x1d7df4098]
+  78  ??? (libdispatch.dylib + 80476) [0x1d7df3a5c]
+  78  ??? (libdispatch.dylib + 231308) [0x1d7e1878c]
+  78  ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+  78  ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+  78  ??? (installd + 91732) [0x102c06654]
+  78  ??? (installd + 90188) [0x102c0604c]
+  78  ??? (installd + 172808) [0x102c1a308]
+  75  ??? (installd + 167932) [0x102c18ffc]
+  75  ??? (installd + 283280) [0x102c35290]
+  75  ??? (installd + 270736) [0x102c32190]
+  75  ??? (installd + 286496) [0x102c35f20]
+  75  ??? (installd + 270316) [0x102c31fec]
+  75  ??? (installd + 269152) [0x102c31b60]
+  75  ??? (libParallelCompression.dylib + 55712) [0x2bd4139a0]
+  75  ??? (libParallelCompression.dylib + 84916) [0x2bd41abb4]
+  75  ??? (libParallelCompression.dylib + 280784) [0x2bd44a8d0]
+  74  ??? (libParallelCompression.dylib + 88212) [0x2bd41b894]
+  74  ??? (libParallelCompression.dylib + 57852) [0x2bd4141fc]
+  74  ??? (libParallelCompression.dylib + 159524) [0x2bd42cf24]
+  69  ??? (libParallelCompression.dylib + 157960) [0x2bd42c908]
+  69  ??? (libParallelCompression.dylib + 133516) [0x2bd42698c]
+  69  ??? (libParallelCompression.dylib + 280472) [0x2bd44a798]
+  69  ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+
+
+Powerstats for:   installd [1997]
+UUID:             C4EFEC35-C360-306B-AEFD-8E48417B8934
+Path:             /usr/libexec/installd
+Resource Coalition: 100 samples "com.apple.mobile.installd"(509)
+On Behalf Of:     100 samples UNKNOWN [299] (100 samples originated by nsurlsessiond [232])
+Architecture:     arm64e
+Parent:           launchd [1]
+UID:              33
+Sudden Term:      Tracked (allows idle exit)
+Footprint:        5200 KB -> 8080 KB (+2880 KB) (max 16.23 MB )
+Pageins:          598 pages
+Start time:       2026-09-23 06:51:35.811 -0400
+End time:         2026-09-23 06:56:06.395 -0400
+Num samples:      100 (10%)
+Energy:           1658.90 uWh
+Num threads:      7
+Primary state:    100 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified, e-core
+User Activity:    100 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 100 samples on AC
+  78   ??? (libsystem_pthread.dylib + 2240) [0x1fcc628c0]
+    78   ??? (libsystem_pthread.dylib + 4980) [0x1fcc63374]
+      78   ??? (libdispatch.dylib + 82072) [0x1d7df4098]
+        78   ??? (libdispatch.dylib + 80476) [0x1d7df3a5c]
+          78   ??? (libdispatch.dylib + 231308) [0x1d7e1878c]
+            78   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+              78   ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                78   ??? (installd + 91732) [0x102c06654]
+                  78   ??? (installd + 90188) [0x102c0604c]
+                    78   ??? (installd + 172808) [0x102c1a308]
+                      75   ??? (installd + 167932) [0x102c18ffc]
+                        75   ??? (installd + 283280) [0x102c35290]
+                          75   ??? (installd + 270736) [0x102c32190]
+                            75   ??? (installd + 286496) [0x102c35f20]
+                              75   ??? (installd + 270316) [0x102c31fec]
+                                75   ??? (installd + 269152) [0x102c31b60]
+                                  75   ??? (libParallelCompression.dylib + 55712) [0x2bd4139a0]
+                                    75   ??? (libParallelCompression.dylib + 84916) [0x2bd41abb4]
+                                      75   ??? (libParallelCompression.dylib + 280784) [0x2bd44a8d0]
+                                        74   ??? (libParallelCompression.dylib + 88212) [0x2bd41b894]
+                                          74   ??? (libParallelCompression.dylib + 57852) [0x2bd4141fc]
+                                            74   ??? (libParallelCompression.dylib + 159524) [0x2bd42cf24]
+                                              69   ??? (libParallelCompression.dylib + 157960) [0x2bd42c908]
+                                                69   ??? (libParallelCompression.dylib + 133516) [0x2bd42698c]
+                                                  69   ??? (libParallelCompression.dylib + 280472) [0x2bd44a798]
+                                                    69   ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                                      69   <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+                                              4    ??? (libParallelCompression.dylib + 158080) [0x2bd42c980]
+                                                4    ??? (libParallelCompression.dylib + 133516) [0x2bd42698c]
+                                                  4    ??? (libParallelCompression.dylib + 280472) [0x2bd44a798]
+                                                    4    ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                                      4    <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+                                              1    ??? (libParallelCompression.dylib + 158140) [0x2bd42c9bc]
+                                                1    ??? (libParallelCompression.dylib + 133360) [0x2bd4268f0]
+                                                  1    ??? (libParallelCompression.dylib + 280472) [0x2bd44a798]
+                                                    1    ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                                      1    <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+                                        1    ??? (libParallelCompression.dylib + 88056) [0x2bd41b7f8]
+                                          1    ??? (libsystem_kernel.dylib + 84192) [0x24cced8e0]
+                                            1    <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+                      2    ??? (installd + 169092) [0x102c19484]
+                        2    ??? (installd + 332760) [0x102c413d8]
+                          1    ??? (installd + 40608) [0x102bf9ea0]
+                            1    ??? (StreamingZip + 75044) [0x290dae524]
+                              1    ??? (StreamingZip + 62116) [0x290dab2a4]
+                                1    ??? (StreamingZip + 65228) [0x290dabecc]
+                                  1    ??? (StreamingZip + 40472) [0x290da5e18]
+                                    1    ??? (StreamingZip + 51548) [0x290da895c]
+                                      1    ??? (libsystem_c.dylib + 39780) [0x1a8e29b64]
+                                        1    ??? (libsystem_c.dylib + 18308) [0x1a8e24784]
+                                          1    ??? (libsystem_c.dylib + 44192) [0x1a8e2aca0]
+                                            1    ??? (libsystem_kernel.dylib + 29600) [0x24cce03a0]
+                                              1    <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+                          1    ??? (installd + 40092) [0x102bf9c9c]
+                            1    ??? (MobileInstallation + 157560) [0x1dbe1c778]
+                              1    ??? (MobileInstallation + 155092) [0x1dbe1bdd4]
+                                1    ??? (IconFoundation + 87620) [0x1d64b4644]
+                                  1    ??? (IconFoundation + 85348) [0x1d64b3d64]
+                                    1    ??? (IconFoundation + 179596) [0x1d64cad8c]
+                                      1    ??? (IconFoundation + 160572) [0x1d64c633c]
+                                        1    ??? (IconFoundation + 195768) [0x1d64cecb8]
+                                          1    ??? (IconFoundation + 191400) [0x1d64cdba8]
+                                            1    ??? (IconFoundation + 192392) [0x1d64cdf88]
+                                              1    ??? (IconFoundation + 198280) [0x1d64cf688]
+                                                1    ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                                  1    <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+                      1    ??? (installd + 168928) [0x102c193e0]
+                        1    ??? (installd + 330000) [0x102c40910]
+                          1    ??? (installd + 315156) [0x102c3cf14]
+                            1    ??? (InstalledContentLibrary + 640364) [0x1cd7ae56c]
+                              1    ??? (InstalledContentLibrary + 400220) [0x1cd773b5c]
+                                1    ??? (InstalledContentLibrary + 402176) [0x1cd774300]
+                                  1    ??? (Foundation + 660168) [0x19a5d52c8]
+                                    1    ??? (Foundation + 661248) [0x19a5d5700]
+                                      1    ??? (Foundation + 679968) [0x19a5da020]
+                                        1    ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                          1    <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+  22   ??? (libsystem_pthread.dylib + 2252) [0x1fcc628cc]
+    22   ??? (libsystem_pthread.dylib + 17464) [0x1fcc66438]
+      22   ??? (libParallelCompression.dylib + 71536) [0x2bd417770]
+        22   ??? (libdispatch.dylib + 26260) [0x1d7de6694]
+          22   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+            22   ??? (libParallelCompression.dylib + 165288) [0x2bd42e5a8]
+              22   ??? (libParallelCompression.dylib + 168640) [0x2bd42f2c0]
+                22   ??? (libParallelCompression.dylib + 169176) [0x2bd42f4d8]
+                  22   ??? (libParallelCompression.dylib + 88140) [0x2bd41b84c]
+                    22   ??? (libParallelCompression.dylib + 58768) [0x2bd414590]
+                      22   ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                        22   <on behalf of UNKNOWN [299] (originated by nsurlsessiond [232])>
+
+  Binary Images:
+           0x102bf0000 -                ???  installd                     <C4EFEC35-C360-306B-AEFD-8E48417B8934>  /usr/libexec/installd
+           0x19a534000 -        0x19b3bdc1f  Foundation                   <1689FEA5-1780-3EFE-8F31-933D4DB24EC4>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x1a8e20000 -        0x1a8e9f5ff  libsystem_c.dylib            <CA7F1AEF-8C1F-33A2-B1CC-52D9AB644BEA>  /usr/lib/system/libsystem_c.dylib
+           0x1cd712000 -        0x1cd8281ff  InstalledContentLibrary      <DC10CB3C-96B2-376C-BA45-02BBEEDC10D3>  /System/Library/PrivateFrameworks/InstalledContentLibrary.framework/InstalledContentLibrary
+           0x1d649f000 -        0x1d64ffa5f  IconFoundation               <CB067F4B-9E20-3163-8BDF-34F6806E119F>  /System/Library/PrivateFrameworks/IconFoundation.framework/IconFoundation
+           0x1d7de0000 -        0x1d7e265ff  libdispatch.dylib            <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1dbdf6000 -        0x1dbe2db1f  MobileInstallation           <3BABB000-642B-31A0-93F4-BD0FC2ADE768>  /System/Library/PrivateFrameworks/MobileInstallation.framework/MobileInstallation
+           0x1fcc62000 -        0x1fcc6e4ef  libsystem_pthread.dylib      <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x24ccd9000 -        0x24cd14b1f  libsystem_kernel.dylib       <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x290d9c000 -        0x290db7f1f  StreamingZip                 <7A9F9D0D-2E48-3388-AA92-2E6BE4317149>  /System/Library/PrivateFrameworks/StreamingZip.framework/StreamingZip
+           0x2bd406000 -        0x2bd46cb17  libParallelCompression.dylib <D3D60B7B-6133-3B01-A329-66284311FDBE>  /usr/lib/libParallelCompression.dylib
+
+
+Powerstats for:   cloudd
+UUID:             3C4F800D-641C-3EA5-9669-2FCB5E0EBD34
+Path:             /System/Library/PrivateFrameworks/CloudKitDaemon.framework/Support/cloudd
+Resource Coalition: 131 samples "com.apple.cloudd"(251)
+On Behalf Of:     111 samples UNKNOWN [287, 723, 1738] (95 samples originated by GooglePhotos (Google Photos) [1824], 16 samples originated by UNKNOWN [287, 1738]), 15 samples cloudd [161] (15 samples originated by cloudd [161]), 3 samples bird [1199] (3 samples originated by bird [1199])
+Architecture:     arm64e
+Pageins:          2610 pages
+Start time:       2026-09-22 22:14:51.330 -0400
+End time:         2026-09-23 06:55:56.019 -0400
+Num samples:      131 (13%)
+Energy:           3289.07 uWh
+Primary state:    110 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS User Initiated, Requested Thread QoS User Initiated, Override Thread QoS Unspecified, e-core
+User Activity:    22 samples Idle, 109 samples Active
+Power Source:     128 samples on Battery, 3 samples on AC
+  131  ??? (libsystem_pthread.dylib + 2240) [0x1fcc628c0]
+    130  ??? (libsystem_pthread.dylib + 5040) [0x1fcc633b0]
+      130  ??? (libdispatch.dylib + 83628) [0x1d7df46ac]
+        130  ??? (libdispatch.dylib + 85420) [0x1d7df4dac]
+          119  ??? (libdispatch.dylib + 43748) [0x1d7deaae4]
+            113  ??? (libdispatch.dylib + 40472) [0x1d7de9e18]
+              110  ??? (libdispatch.dylib + 43748) [0x1d7deaae4]
+                109  ??? (libdispatch.dylib + 40880) [0x1d7de9fb0]
+                  109  ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                    109  ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                      108  ??? (MMCS + 174764) [0x27bb7baac]
+                        93   ??? (C2 + 31160) [0x262ea89b8]
+                          93   ??? (C2 + 31056) [0x262ea8950]
+                            93   ??? (MMCS + 167820) [0x27bb79f8c]
+                              93   ??? (MMCS + 86848) [0x27bb66340]
+                                93   ??? (Foundation + 1271672) [0x19a66a778]
+                                  85   ??? (Foundation + 1271780) [0x19a66a7e4]
+                                    85   ??? (MMCS + 87008) [0x27bb663e0]
+                                      85   ??? (MMCS + 113404) [0x27bb6cafc]
+                                        85   ??? (MMCS + 145392) [0x27bb747f0]
+                                          85   ??? (MMCS + 234088) [0x27bb8a268]
+                                            85   ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                              85   ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                                85   ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                  85   ??? (MMCS + 234396) [0x27bb8a39c]
+                                                    85   ??? (MMCS + 176112) [0x27bb7bff0]
+                                                      85   ??? (MMCS + 176560) [0x27bb7c1b0]
+                                                        85   ??? (MMCS + 78272) [0x27bb641c0]
+                                                          85   ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                            84   <on behalf of UNKNOWN [723] (originated by GooglePhotos (Google Photos) [1824])>
+                                                            1    <on behalf of UNKNOWN [723] (originated by GooglePhotos (Google Photos) [1824]), p-core>
+                                  8    ??? (libdispatch.dylib + 203868) [0x1d7e11c5c]
+                                    8    ??? (Foundation + 1271780) [0x19a66a7e4]
+                                      8    ??? (MMCS + 87008) [0x27bb663e0]
+                                        8    ??? (MMCS + 113404) [0x27bb6cafc]
+                                          8    ??? (MMCS + 145392) [0x27bb747f0]
+                                            8    ??? (MMCS + 234088) [0x27bb8a268]
+                                              8    ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                                8    ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                                  8    ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                    8    ??? (MMCS + 234396) [0x27bb8a39c]
+                                                      8    ??? (MMCS + 176112) [0x27bb7bff0]
+                                                        8    ??? (MMCS + 176560) [0x27bb7c1b0]
+                                                          8    ??? (MMCS + 78272) [0x27bb641c0]
+                                                            8    ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                              8    <on behalf of UNKNOWN [723] (originated by GooglePhotos (Google Photos) [1824])>
+                        14   ??? (C2 + 31196) [0x262ea89dc]
+                          14   ??? (C2 + 31056) [0x262ea8950]
+                            14   ??? (MMCS + 167820) [0x27bb79f8c]
+                              14   ??? (MMCS + 86848) [0x27bb66340]
+                                14   ??? (Foundation + 1271672) [0x19a66a778]
+                                  11   ??? (libdispatch.dylib + 203868) [0x1d7e11c5c]
+                                    11   ??? (Foundation + 1271780) [0x19a66a7e4]
+                                      11   ??? (MMCS + 87008) [0x27bb663e0]
+                                        11   ??? (MMCS + 113404) [0x27bb6cafc]
+                                          11   ??? (MMCS + 145392) [0x27bb747f0]
+                                            11   ??? (MMCS + 234088) [0x27bb8a268]
+                                              11   ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                                11   ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                                  11   ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                    10   ??? (MMCS + 234396) [0x27bb8a39c]
+                                                      8    ??? (MMCS + 176144) [0x27bb7c010]
+                                                        8    ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                                          8    ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                                            8    ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                              8    ??? (MMCS + 176560) [0x27bb7c1b0]
+                                                                8    ??? (MMCS + 78272) [0x27bb641c0]
+                                                                  8    ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                                    8    <on behalf of UNKNOWN [1738] (originated by UNKNOWN [1738])>
+                                                      2    ??? (MMCS + 176112) [0x27bb7bff0]
+                                                        2    ??? (MMCS + 176560) [0x27bb7c1b0]
+                                                          2    ??? (MMCS + 78272) [0x27bb641c0]
+                                                            2    ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                              2    <on behalf of UNKNOWN [1738] (originated by UNKNOWN [1738])>
+                                                    1    ??? (MMCS + 234420) [0x27bb8a3b4]
+                                                      1    ??? (MMCS + 178600) [0x27bb7c9a8]
+                                                        1    ??? (MMCS + 181776) [0x27bb7d610]
+                                                          1    ??? (MMCS + 195632) [0x27bb80c30]
+                                                            1    ??? (CloudKitDaemon + 1150572) [0x244729e6c]
+                                                              1    ??? (CloudKitDaemon + 1154252) [0x24472accc]
+                                                                1    ??? (CloudKitDaemon + 1153176) [0x24472a898]
+                                                                  1    ??? (CloudKitDaemon + 378476) [0x24466d66c]
+                                                                    1    ??? (CloudKitDaemon + 1154632) [0x24472ae48]
+                                                                      1    ??? (CloudKitDaemon + 1189748) [0x244733774]
+                                                                        1    ??? (CloudKitDaemon + 1064048) [0x244714c70]
+                                                                          1    ??? (CloudKitDaemon + 378280) [0x24466d5a8]
+                                                                            1    ??? (CloudKitDaemon + 1066048) [0x244715440]
+                                                                              1    ??? (CloudKitDaemon + 1342452) [0x244758bf4]
+                                                                                1    ??? (libsystem_kernel.dylib + 39104) [0x24cce28c0]
+                                                                                  1    <on behalf of UNKNOWN [1738] (originated by UNKNOWN [1738])>
+                                  3    ??? (Foundation + 1271780) [0x19a66a7e4]
+                                    3    ??? (MMCS + 87008) [0x27bb663e0]
+                                      3    ??? (MMCS + 113404) [0x27bb6cafc]
+                                        3    ??? (MMCS + 145392) [0x27bb747f0]
+                                          3    ??? (MMCS + 234088) [0x27bb8a268]
+                                            3    ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                              3    ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                                3    ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                  2    ??? (MMCS + 234420) [0x27bb8a3b4]
+                                                    2    ??? (MMCS + 178600) [0x27bb7c9a8]
+                                                      2    ??? (MMCS + 181496) [0x27bb7d4f8]
+                                                        2    ??? (libsystem_kernel.dylib + 21680) [0x24ccde4b0]
+                                                          2    <on behalf of UNKNOWN [1738] (originated by UNKNOWN [1738])>
+                                                  1    ??? (MMCS + 234396) [0x27bb8a39c]
+                                                    1    ??? (MMCS + 176144) [0x27bb7c010]
+                                                      1    ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                                        1    ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                                          1    ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                            1    ??? (MMCS + 176560) [0x27bb7c1b0]
+                                                              1    ??? (MMCS + 78272) [0x27bb641c0]
+                                                                1    ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                                  1    <on behalf of UNKNOWN [1738] (originated by UNKNOWN [1738])>
+                        1    ??? (C2 + 31220) [0x262ea89f4]
+                          1    ??? (C2 + 31056) [0x262ea8950]
+                            1    ??? (MMCS + 167820) [0x27bb79f8c]
+                              1    ??? (MMCS + 86848) [0x27bb66340]
+                                1    ??? (Foundation + 41344) [0x19a53e180]
+                                  1    ??? (MMCS + 87008) [0x27bb663e0]
+                                    1    ??? (MMCS + 113404) [0x27bb6cafc]
+                                      1    ??? (MMCS + 145392) [0x27bb747f0]
+                                        1    ??? (MMCS + 234088) [0x27bb8a268]
+                                          1    ??? (CoreFoundation + 219392) [0x19d2d8900]
+                                            1    ??? (CoreFoundation + 210284) [0x19d2d656c]
+                                              1    ??? (CoreFoundation + 210128) [0x19d2d64d0]
+                                                1    ??? (MMCS + 234396) [0x27bb8a39c]
+                                                  1    ??? (MMCS + 176112) [0x27bb7bff0]
+                                                    1    ??? (MMCS + 176560) [0x27bb7c1b0]
+                                                      1    ??? (MMCS + 78272) [0x27bb641c0]
+                                                        1    ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                          1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Utility, Requested Thread QoS Utility>
+                      1    ??? (MMCS + 174580) [0x27bb7b9f4]
+                        1    ??? (C2 + 31196) [0x262ea89dc]
+                          1    ??? (C2 + 31056) [0x262ea8950]
+                            1    ??? (MMCS + 166204) [0x27bb7993c]
+                              1    ??? (MMCS + 88076) [0x27bb6680c]
+                                1    ??? (MMCS + 256328) [0x27bb8f948]
+                                  1    ??? (MMCS + 84812) [0x27bb65b4c]
+                                    1    ??? (MMCS + 130240) [0x27bb70cc0]
+                                      1    ??? (MMCS + 116260) [0x27bb6d624]
+                                        1    ??? (MMCS + 118624) [0x27bb6df60]
+                                          1    ??? (MMCS + 110960) [0x27bb6c170]
+                                            1    ??? (MMCS + 189008) [0x27bb7f250]
+                                              1    ??? (MMCS + 190820) [0x27bb7f964]
+                                                1    ??? (MMCS + 44064) [0x27bb5bc20]
+                                                  1    ??? (MMCS + 44900) [0x27bb5bf64]
+                                                    1    ??? (MMCS + 78272) [0x27bb641c0]
+                                                      1    ??? (libsystem_kernel.dylib + 27984) [0x24ccdfd50]
+                                                        1    <on behalf of UNKNOWN [1738] (originated by UNKNOWN [1738])>
+                1    ??? (libdispatch.dylib + 40472) [0x1d7de9e18]
+                  1    ??? (libdispatch.dylib + 97208) [0x1d7df7bb8]
+                    1    ??? (libdispatch.dylib + 102116) [0x1d7df8ee4]
+                      1    ??? (libdispatch.dylib + 24904) [0x1d7de6148]
+                        1    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                          1    ??? (MMCS + 436084) [0x27bbbb774]
+                            1    ??? (MMCS + 438500) [0x27bbbc0e4]
+                              1    ??? (MMCS + 374900) [0x27bbac874]
+                                1    ??? (MMCS + 357308) [0x27bba83bc]
+                                  1    ??? (MMCS + 319544) [0x27bb9f038]
+                                    1    ??? (MMCS + 362416) [0x27bba97b0]
+                                      1    ??? (CloudKitDaemon + 1150912) [0x244729fc0]
+                                        1    ??? (CloudKitDaemon + 1154252) [0x24472accc]
+                                          1    ??? (CloudKitDaemon + 1153176) [0x24472a898]
+                                            1    ??? (CloudKitDaemon + 378476) [0x24466d66c]
+                                              1    ??? (CloudKitDaemon + 1155020) [0x24472afcc]
+                                                1    ??? (CloudKitDaemon + 1185124) [0x244732564]
+                                                  1    ??? (CloudKitDaemon + 1183592) [0x244731f68]
+                                                    1    ??? (CloudKitDaemon + 1067408) [0x244715990]
+                                                      1    ??? (CloudKitDaemon + 378280) [0x24466d5a8]
+                                                        1    ??? (CloudKitDaemon + 1068688) [0x244715e90]
+                                                          1    ??? (CloudKit + 527792) [0x1a28fedb0]
+                                                            1    ??? (CloudKit + 528192) [0x1a28fef40]
+                                                              1    ??? (CloudKit + 519384) [0x1a28fccd8]
+                                                                1    ??? (CloudKit + 520652) [0x1a28fd1cc]
+                                                                  1    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                                                    1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                                                      1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                                                        1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                                          1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                                            1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                                              1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                                                1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                                                  1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                                                    1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                                                      1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                                        1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                                          1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                                            1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Background, Requested Thread QoS Default>
+              2    ??? (libdispatch.dylib + 125176) [0x1d7dfe8f8]
+                2    ??? (libdispatch.dylib + 40472) [0x1d7de9e18]
+                  1    ??? (libdispatch.dylib + 121764) [0x1d7dfdba4]
+                    1    ??? (libdispatch.dylib + 111148) [0x1d7dfb22c]
+                      1    ??? (libxpc.dylib + 84548) [0x1b1d4aa44]
+                        1    ??? (libxpc.dylib + 77008) [0x1b1d48cd0]
+                          1    ??? (Foundation + 274616) [0x19a5770b8]
+                            1    ??? (Foundation + 274944) [0x19a577200]
+                              1    ??? (Foundation + 174612) [0x19a55ea14]
+                                1    ??? (Foundation + 275996) [0x19a57761c]
+                                  1    ??? (CoreFoundation + 450144) [0x19d310e60]
+                                    1    ??? (CoreFoundation + 406388) [0x19d306374]
+                                      1    ??? (CloudKitDaemon + 10892) [0x244613a8c]
+                                        1    ??? (Foundation + 282020) [0x19a578da4]
+                                          1    ??? (Foundation + 150468) [0x19a558bc4]
+                                            1    ??? (CloudKitDaemon + 12468) [0x2446140b4]
+                                              1    ??? (CloudKitDaemon + 12296) [0x244614008]
+                                                1    ??? (CloudKit + 80756) [0x1a2891b74]
+                                                  1    ??? (CloudKitDaemon + 13316) [0x244614404]
+                                                    1    ??? (CloudKitDaemon + 13016) [0x2446142d8]
+                                                      1    ??? (CloudKit + 605732) [0x1a2911e24]
+                                                        1    ??? (CloudKitDaemon + 1480192) [0x24477a600]
+                                                          1    ??? (CloudKitDaemon + 15320) [0x244614bd8]
+                                                            1    ??? (CloudKitDaemon + 17804) [0x24461558c]
+                                                              1    ??? (CloudKitDaemon + 62184) [0x2446202e8]
+                                                                1    ??? (CloudKitDaemon + 63736) [0x2446208f8]
+                                                                  1    ??? (CloudKitDaemon + 87240) [0x2446264c8]
+                                                                    1    ??? (libdispatch.dylib + 70368) [0x1d7df12e0]
+                                                                      1    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                                                                        1    ??? (CloudKitDaemon + 87420) [0x24462657c]
+                                                                          1    ??? (CloudKit + 137568) [0x1a289f960]
+                                                                            1    ??? (CloudKit + 137872) [0x1a289fa90]
+                                                                              1    ??? (CloudKit + 136708) [0x1a289f604]
+                                                                                1    ??? (CloudKit + 136532) [0x1a289f554]
+                                                                                  1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                                                    1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                                                      1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                                                        1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                                                          1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                                                            1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                                                              1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                                                                1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                                                  1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                                                    1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                                                      1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Background, Requested Thread QoS Utility>
+                  1    ??? (libdispatch.dylib + 115212) [0x1d7dfc20c]
+                    1    ??? (libdispatch.dylib + 130112) [0x1d7dffc40]
+                      1    ??? (libdispatch.dylib + 24516) [0x1d7de5fc4]
+                        1    ??? (libdispatch.dylib + 122376) [0x1d7dfde08]
+                          1    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                            1    ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                              1    ??? (CloudKitDaemon + 263832) [0x244651698]
+                                1    ??? (CoreFoundation + 391676) [0x19d3029fc]
+                                  1    ??? (CloudKitDaemon + 52456) [0x24461dce8]
+                                    1    ??? (CloudKit + 80756) [0x1a2891b74]
+                                      1    ??? (CloudKitDaemon + 406356) [0x244674354]
+                                        1    ??? (CloudKitDaemon + 406808) [0x244674518]
+                                          1    ??? (CloudKitDaemon + 407076) [0x244674624]
+                                            1    ??? (CloudKit + 589640) [0x1a290df48]
+                                              1    ??? (libobjc.A.dylib + 22692) [0x199e598a4]
+                                                1    ??? (libobjc.A.dylib + 25432) [0x199e5a358]
+                                                  1    ??? (libobjc.A.dylib + 42592) [0x199e5e660]
+                                                    1    ??? (CoreFoundation + 127428) [0x19d2c21c4]
+                                                      1    ??? (CoreFoundation + 100208) [0x19d2bb770]
+                                                        1    ??? (CloudKit + 586320) [0x1a290d250]
+                                                          1    ??? (libobjc.A.dylib + 22692) [0x199e598a4]
+                                                            1    ??? (libobjc.A.dylib + 25432) [0x199e5a358]
+                                                              1    ??? (libobjc.A.dylib + 42592) [0x199e5e660]
+                                                                1    ??? (CloudKit + 589872) [0x1a290e030]
+                                                                  1    ??? (CloudKit + 2833924) [0x1a2b31e04]
+                                                                    1    ??? (CloudKit + 2839692) [0x1a2b3348c]
+                                                                      1    ??? (libsqlite3.dylib + 558268) [0x19b73d4bc]
+                                                                        1    ??? (libsqlite3.dylib + 510332) [0x19b73197c]
+                                                                          1    ??? (libsqlite3.dylib + 353140) [0x19b70b374]
+                                                                            1    ??? (libsqlite3.dylib + 354640) [0x19b70b950]
+                                                                              1    ??? (libsqlite3.dylib + 355288) [0x19b70bbd8]
+                                                                                1    ??? (libsqlite3.dylib + 408880) [0x19b718d30]
+                                                                                  1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                                    1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                                      1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Default, Requested Thread QoS Utility>
+              1    ??? (libdispatch.dylib + 97208) [0x1d7df7bb8]
+                1    ??? (libdispatch.dylib + 102116) [0x1d7df8ee4]
+                  1    ??? (libdispatch.dylib + 24904) [0x1d7de6148]
+                    1    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                      1    ??? (CloudKit + 2850180) [0x1a2b35d84]
+                        1    ??? (CloudKit + 2849272) [0x1a2b359f8]
+                          1    ??? (CloudKit + 2853528) [0x1a2b36a98]
+                            1    ??? (CloudKit + 2823060) [0x1a2b2f394]
+                              1    ??? (CloudKit + 2890588) [0x1a2b3fb5c]
+                                1    ??? (CloudKit + 2823120) [0x1a2b2f3d0]
+                                  1    ??? (CloudKit + 2821904) [0x1a2b2ef10]
+                                    1    ??? (CloudKit + 2890588) [0x1a2b3fb5c]
+                                      1    ??? (CloudKit + 2822332) [0x1a2b2f0bc]
+                                        1    ??? (CloudKit + 580348) [0x1a290bafc]
+                                          1    ??? (CloudKit + 609796) [0x1a2912e04]
+                                            1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                              1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                                1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                  1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                    1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                      1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                        1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                          1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                            1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                              1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                  1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                    1    <Effective Thread QoS Background, Requested Thread QoS Utility>
+            6    ??? (libdispatch.dylib + 40880) [0x1d7de9fb0]
+              6    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                5    ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                  3    ??? (CloudKitDaemon + 314928) [0x24465de30]
+                    3    ??? (CloudKitDaemon + 316084) [0x24465e2b4]
+                      3    ??? (CloudKitDaemon + 317448) [0x24465e808]
+                        3    ??? (CloudKitDaemon + 327876) [0x2446610c4]
+                          3    ??? (CloudKitDaemon + 296632) [0x2446596b8]
+                            3    ??? (libdispatch.dylib + 70368) [0x1d7df12e0]
+                              3    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                                3    ??? (CloudKitDaemon + 283200) [0x244656240]
+                                  3    ??? (CloudKitDaemon + 328016) [0x244661150]
+                                    3    ??? (CloudKitDaemon + 329096) [0x244661588]
+                                      3    ??? (CloudKitDaemon + 337392) [0x2446635f0]
+                                        2    ??? (CloudKitDaemon + 3830464) [0x2449b82c0]
+                                          2    ??? (CloudKitDaemon + 1807756) [0x2447ca58c]
+                                            2    ??? (CloudKitDaemon + 470284) [0x244683d0c]
+                                              2    ??? (CloudKitDaemon + 477760) [0x244685a40]
+                                                2    ??? (CloudKit + 580348) [0x1a290bafc]
+                                                  2    ??? (CloudKit + 505092) [0x1a28f9504]
+                                                    2    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                                      2    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                        2    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                          2    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                            2    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                              2    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                                2    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                                  2    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                                    2    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                      2    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                        2    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                          1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Background, Requested Thread QoS Utility>
+                                                                          1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Utility, Requested Thread QoS Utility>
+                                        1    ??? (CloudKitDaemon + 3864828) [0x2449c08fc]
+                                          1    ??? (CloudKitDaemon + 1991396) [0x2447f72e4]
+                                            1    ??? (CloudKitDaemon + 1987068) [0x2447f61fc]
+                                              1    ??? (CloudKitDaemon + 1338984) [0x244757e68]
+                                                1    ??? (CloudKit + 584744) [0x1a290cc28]
+                                                  1    ??? (CloudKit + 519384) [0x1a28fccd8]
+                                                    1    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                                      1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                                        1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                                          1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                            1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                              1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                                1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                                  1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                                    1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                                      1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                                        1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                          1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                            1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                              1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Utility, Requested Thread QoS Utility>
+                  2    ??? (CloudKitDaemon + 378476) [0x24466d66c]
+                    2    ??? (CloudKitDaemon + 1171496) [0x24472f028]
+                      2    ??? (CloudKitDaemon + 1116484) [0x244721944]
+                        2    ??? (MMCS + 413696) [0x27bbb6000]
+                          2    ??? (MMCS + 115656) [0x27bb6d3c8]
+                            2    ??? (MMCS + 116260) [0x27bb6d624]
+                              2    ??? (MMCS + 118624) [0x27bb6df60]
+                                2    ??? (MMCS + 110960) [0x27bb6c170]
+                                  2    ??? (MMCS + 186184) [0x27bb7e748]
+                                    2    ??? (MMCS + 184268) [0x27bb7dfcc]
+                                      2    ??? (libsystem_kernel.dylib + 23928) [0x24ccded78]
+                                        2    <on behalf of UNKNOWN [723] (originated by GooglePhotos (Google Photos) [1824]), p-core>
+                1    ??? (libdispatch.dylib + 69252) [0x1d7df0e84]
+                  1    ??? (CacheDelete + 60636) [0x1d6f05cdc]
+                    1    ??? (cloudd + 22252) [0x1022d16ec]
+                      1    ??? (cloudd + 25756) [0x1022d249c]
+                        1    ??? (libswiftDispatch.dylib + 5528) [0x1add46598]
+                          1    ??? (libswiftDispatch.dylib + 6796) [0x1add46a8c]
+                            1    ??? (libswiftDispatch.dylib + 6256) [0x1add46870]
+                              1    ??? (libswiftDispatch.dylib + 6920) [0x1add46b08]
+                                1    ??? (libswiftDispatch.dylib + 7124) [0x1add46bd4]
+                                  1    ??? (libdispatch.dylib + 70368) [0x1d7df12e0]
+                                    1    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                                      1    ??? (libswiftDispatch.dylib + 7336) [0x1add46ca8]
+                                        1    ??? (libswiftDispatch.dylib + 6644) [0x1add469f4]
+                                          1    ??? (libswiftDispatch.dylib + 5728) [0x1add46660]
+                                            1    ??? (libswiftDispatch.dylib + 42948) [0x1add4f7c4]
+                                              1    ??? (libswiftDispatch.dylib + 6604) [0x1add469cc]
+                                                1    ??? (cloudd + 30316) [0x1022d366c]
+                                                  1    ??? (cloudd + 19596) [0x1022d0c8c]
+                                                    1    ??? (cloudd + 16344) [0x1022cffd8]
+                                                      1    ??? (cloudd + 15252) [0x1022cfb94]
+                                                        1    ??? (CloudKitDaemon + 1299008) [0x24474e240]
+                                                          1    ??? (CoreFoundation + 120884) [0x19d2c0834]
+                                                            1    ??? (CoreFoundation + 121680) [0x19d2c0b50]
+                                                              1    ??? (CloudKitDaemon + 389008) [0x24466ff90]
+                                                                1    ??? (cloudd + 9804) [0x1022ce64c]
+                                                                  1    ??? (cloudd + 9872) [0x1022ce690]
+                                                                    1    ??? (libobjc.A.dylib + 22148) [0x199e59684]
+                                                                      1    ??? (libobjc.A.dylib + 22520) [0x199e597f8]
+                                                                        1    ??? (CloudKitDaemon + 408736) [0x244674ca0]
+                                                                          1    ??? (libobjc.A.dylib + 22692) [0x199e598a4]
+                                                                            1    ??? (libobjc.A.dylib + 25432) [0x199e5a358]
+                                                                              1    ??? (libobjc.A.dylib + 42592) [0x199e5e660]
+                                                                                1    ??? (CloudKitDaemon + 409044) [0x244674dd4]
+                                                                                  1    ??? (CloudKit + 589608) [0x1a290df28]
+                                                                                    1    ??? (CloudKit + 527000) [0x1a28fea98]
+                                                                                      1    ??? (CloudKit + 527412) [0x1a28fec34]
+                                                                                        1    ??? (CloudKit + 527792) [0x1a28fedb0]
+                                                                                          1    ??? (CloudKit + 528192) [0x1a28fef40]
+                                                                                            1    ??? (CloudKit + 519384) [0x1a28fccd8]
+                                                                                              1    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                                                                                1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                                                                                  1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                                                                                    1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                                                                      1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                                                                        1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                                                                          1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                                                                            1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                                                                              1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                                                                                1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                                                                                  1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                                                                    1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                                                                      1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                                                                        1    <on behalf of UNKNOWN [287] (originated by UNKNOWN [287]), Effective Thread QoS Background, Requested Thread QoS Background>
+          11   ??? (libdispatch.dylib + 48712) [0x1d7debe48]
+            11   ??? (libdispatch.dylib + 43748) [0x1d7deaae4]
+              11   ??? (libdispatch.dylib + 40880) [0x1d7de9fb0]
+                11   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                  11   ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                    11   ??? (CloudKitDaemon + 522468) [0x2446908e4]
+                      11   ??? (CloudKitDaemon + 516860) [0x24468f2fc]
+                        11   ??? (CloudKit + 643796) [0x1a291b2d4]
+                          11   ??? (CloudKit + 519384) [0x1a28fccd8]
+                            6    ??? (CloudKit + 520652) [0x1a28fd1cc]
+                              6    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                6    ??? (CloudKit + 505092) [0x1a28f9504]
+                                  6    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                    6    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                      4    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                        4    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                          4    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                            4    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                              4    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                4    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                  4    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                    4    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                      4    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                        2    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Background, Requested Thread QoS Utility>
+                                                        2    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Utility, Requested Thread QoS Utility>
+                                      2    ??? (libsqlite3.dylib + 192308) [0x19b6e3f34]
+                                        2    ??? (libsqlite3.dylib + 329744) [0x19b705810]
+                                          2    ??? (libsqlite3.dylib + 564572) [0x19b73ed5c]
+                                            2    ??? (libsqlite3.dylib + 1166952) [0x19b7d1e68]
+                                              2    ??? (libsqlite3.dylib + 408880) [0x19b718d30]
+                                                2    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                  2    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                    2    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Background, Requested Thread QoS Utility>
+                            3    ??? (CloudKit + 613500) [0x1a2913c7c]
+                              3    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                3    ??? (CloudKit + 505092) [0x1a28f9504]
+                                  3    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                    3    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                      2    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                        2    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                          2    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                            2    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                              2    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                2    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                  2    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                    2    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                      2    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                        2    <on behalf of bird [1199] (originated by bird [1199]), Effective Thread QoS Background, Requested Thread QoS Utility>
+                                      1    ??? (libsqlite3.dylib + 192308) [0x19b6e3f34]
+                                        1    ??? (libsqlite3.dylib + 329744) [0x19b705810]
+                                          1    ??? (libsqlite3.dylib + 564572) [0x19b73ed5c]
+                                            1    ??? (libsqlite3.dylib + 1166952) [0x19b7d1e68]
+                                              1    ??? (libsqlite3.dylib + 408880) [0x19b718d30]
+                                                1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                  1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                    1    <on behalf of bird [1199] (originated by bird [1199]), Effective Thread QoS Background, Requested Thread QoS Utility>
+                            1    ??? (CloudKit + 2831388) [0x1a2b3141c]
+                              1    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                  1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                    1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                      1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                        1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                          1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                            1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                              1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                  1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                    1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                      1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                        1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Utility, Requested Thread QoS Utility>
+                            1    ??? (CloudKit + 609796) [0x1a2912e04]
+                              1    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                  1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                    1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                      1    ??? (libsqlite3.dylib + 192308) [0x19b6e3f34]
+                                        1    ??? (libsqlite3.dylib + 329744) [0x19b705810]
+                                          1    ??? (libsqlite3.dylib + 564572) [0x19b73ed5c]
+                                            1    ??? (libsqlite3.dylib + 1166952) [0x19b7d1e68]
+                                              1    ??? (libsqlite3.dylib + 408880) [0x19b718d30]
+                                                1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                  1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                    1    <on behalf of cloudd [161] (originated by cloudd [161]), Effective Thread QoS Background, Requested Thread QoS Utility>
+    1    ??? (libsystem_pthread.dylib + 4980) [0x1fcc63374]
+      1    ??? (libdispatch.dylib + 82072) [0x1d7df4098]
+        1    ??? (libdispatch.dylib + 80128) [0x1d7df3900]
+          1    ??? (libdispatch.dylib + 97208) [0x1d7df7bb8]
+            1    ??? (libdispatch.dylib + 102116) [0x1d7df8ee4]
+              1    ??? (libdispatch.dylib + 24904) [0x1d7de6148]
+                1    ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                  1    ??? (CloudKit + 676476) [0x1a292327c]
+                    1    ??? (CloudKit + 676764) [0x1a292339c]
+                      1    ??? (CloudKitDaemon + 604396) [0x2446a48ec]
+                        1    ??? (CloudKitDaemon + 406332) [0x24467433c]
+                          1    ??? (libobjc.A.dylib + 22148) [0x199e59684]
+                            1    ??? (libobjc.A.dylib + 22520) [0x199e597f8]
+                              1    ??? (CloudKitDaemon + 408736) [0x244674ca0]
+                                1    ??? (libobjc.A.dylib + 22692) [0x199e598a4]
+                                  1    ??? (libobjc.A.dylib + 25432) [0x199e5a358]
+                                    1    ??? (libobjc.A.dylib + 42592) [0x199e5e660]
+                                      1    ??? (CloudKitDaemon + 409044) [0x244674dd4]
+                                        1    ??? (CloudKit + 589608) [0x1a290df28]
+                                          1    ??? (CloudKit + 527000) [0x1a28fea98]
+                                            1    ??? (CloudKit + 527412) [0x1a28fec34]
+                                              1    ??? (CloudKit + 527792) [0x1a28fedb0]
+                                                1    ??? (CloudKit + 528192) [0x1a28fef40]
+                                                  1    ??? (CloudKit + 519384) [0x1a28fccd8]
+                                                    1    ??? (CloudKit + 509804) [0x1a28fa76c]
+                                                      1    ??? (CloudKit + 505092) [0x1a28f9504]
+                                                        1    ??? (CloudKit + 531328) [0x1a28ffb80]
+                                                          1    ??? (libsqlite3.dylib + 33260) [0x19b6bd1ec]
+                                                            1    ??? (libsqlite3.dylib + 191556) [0x19b6e3c44]
+                                                              1    ??? (libsqlite3.dylib + 234272) [0x19b6ee320]
+                                                                1    ??? (libsqlite3.dylib + 92900) [0x19b6cbae4]
+                                                                  1    ??? (libsqlite3.dylib + 260332) [0x19b6f48ec]
+                                                                    1    ??? (libsqlite3.dylib + 261452) [0x19b6f4d4c]
+                                                                      1    ??? (libsqlite3.dylib + 327828) [0x19b705094]
+                                                                        1    ??? (libsqlite3.dylib + 699100) [0x19b75fadc]
+                                                                          1    ??? (libsqlite3.dylib + 328732) [0x19b70541c]
+                                                                            1    ??? (libsystem_kernel.dylib + 27724) [0x24ccdfc4c]
+                                                                              1    <Effective Thread QoS Background, Requested Thread QoS Utility>
+
+  Binary Images:
+           0x1022cc000 -                ???  cloudd                  <3C4F800D-641C-3EA5-9669-2FCB5E0EBD34>  /System/Library/PrivateFrameworks/CloudKitDaemon.framework/Support/cloudd
+           0x199e54000 -        0x199ea547f  libobjc.A.dylib         <A4D0DA7A-2F8F-3D26-9953-218851547BFC>  /usr/lib/libobjc.A.dylib
+           0x19a534000 -        0x19b3bdc1f  Foundation              <1689FEA5-1780-3EFE-8F31-933D4DB24EC4>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x19b6b5000 -        0x19b85e893  libsqlite3.dylib        <ADBA4BC6-1B12-3CF9-A92A-652248883FFB>  /usr/lib/libsqlite3.dylib
+           0x19d2a3000 -        0x19d83f9bf  CoreFoundation          <5565CAD9-4941-32AC-8B10-7D3233C74151>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x1a287e000 -        0x1a2c8643f  CloudKit                <8BB783DF-E71B-3961-BFC0-E9808D1326A1>  /System/Library/Frameworks/CloudKit.framework/CloudKit
+           0x1add45000 -        0x1add5b6a0  libswiftDispatch.dylib  <5ED9F687-0C38-3468-83BB-4D52A39F0A3B>  /usr/lib/swift/libswiftDispatch.dylib
+           0x1b1d36000 -        0x1b1d8765f  libxpc.dylib            <00B71270-124E-31FA-B7D2-5D747DA4BCE1>  /usr/lib/system/libxpc.dylib
+           0x1d6ef7000 -        0x1d6f4421f  CacheDelete             <F761682C-0BFD-3019-9B03-4E8C6D45252B>  /System/Library/PrivateFrameworks/CacheDelete.framework/CacheDelete
+           0x1d7de0000 -        0x1d7e265ff  libdispatch.dylib       <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1fcc62000 -        0x1fcc6e4ef  libsystem_pthread.dylib <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x244611000 -        0x244b5517f  CloudKitDaemon          <42814C35-7B88-36BF-B8C5-393C3C78F586>  /System/Library/PrivateFrameworks/CloudKitDaemon.framework/CloudKitDaemon
+           0x24ccd9000 -        0x24cd14b1f  libsystem_kernel.dylib  <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x262ea1000 -        0x262efaa9f  C2                      <D3ED8A72-0907-33B6-978A-5FD3B5BCB062>  /System/Library/PrivateFrameworks/C2.framework/C2
+           0x27bb51000 -        0x27bbfc0df  MMCS                    <BE3AB7A8-4C08-3C4F-9CFE-003D7344B7CB>  /System/Library/PrivateFrameworks/MMCS.framework/MMCS
+
+
+Powerstats for:   com.apple.StreamingUnzipService
+UUID:             915FA973-AF9C-3D08-8DE0-65A12E6CFE61
+Path:             /System/Library/PrivateFrameworks/StreamingZip.framework/XPCServices/com.apple.StreamingUnzipService.xpc/com.apple.StreamingUnzipService
+Identifier:       com.apple.StreamingUnzipService
+Version:          1.0 (1)
+Resource Coalition: 77 samples "com.apple.appstored"(319), 4 samples "com.apple.nsurlsessiond"(383)
+On Behalf Of:     77 samples appstored [197, 1689] (49 samples originated by nsurlsessiond [232], 14 samples originated by AppStore [1459], 14 samples originated by appstored [1689]), 4 samples nsurlsessiond [232] (4 samples originated by nsurlsessiond [232])
+Architecture:     arm64
+Pageins:          14 pages
+Start time:       2026-09-23 00:48:38.929 -0400
+End time:         2026-09-23 06:55:58.595 -0400
+Num samples:      81 (8%)
+Energy:           282.83 uWh
+Primary state:    45 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Default, Requested Thread QoS Default, Override Thread QoS Unspecified, e-core
+User Activity:    64 samples Idle, 17 samples Active
+Power Source:     32 samples on Battery, 49 samples on AC
+  81  ??? (libsystem_pthread.dylib + 2240) [0x1fcc628c0]
+    73  ??? (libsystem_pthread.dylib + 5040) [0x1fcc633b0]
+      73  ??? (libdispatch.dylib + 83628) [0x1d7df46ac]
+        73  ??? (libdispatch.dylib + 85420) [0x1d7df4dac]
+          73  ??? (libdispatch.dylib + 43748) [0x1d7deaae4]
+            73  ??? (libdispatch.dylib + 40472) [0x1d7de9e18]
+              73  ??? (libdispatch.dylib + 125176) [0x1d7dfe8f8]
+                73  ??? (libdispatch.dylib + 40472) [0x1d7de9e18]
+                  73  ??? (libdispatch.dylib + 121764) [0x1d7dfdba4]
+                    73  ??? (libdispatch.dylib + 111148) [0x1d7dfb22c]
+                      73  ??? (libxpc.dylib + 84548) [0x1b1d4aa44]
+                        73  ??? (libxpc.dylib + 77008) [0x1b1d48cd0]
+                          73  ??? (Foundation + 274616) [0x19a5770b8]
+                            73  ??? (Foundation + 274944) [0x19a577200]
+                              73  ??? (Foundation + 174612) [0x19a55ea14]
+                                73  ??? (Foundation + 275996) [0x19a57761c]
+                                  73  ??? (com.apple.StreamingUnzipService + 16136) [0x1022aff08]
+                                    73  ??? (Foundation + 41344) [0x19a53e180]
+                                      73  ??? (com.apple.StreamingUnzipService + 16692) [0x1022b0134]
+                                        41  ??? (com.apple.StreamingUnzipService + 26368) [0x1022b2700]
+                                          41  ??? (com.apple.StreamingUnzipService + 61620) [0x1022bb0b4]
+                                            41  ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                              19  <on behalf of appstored [1689] (originated by nsurlsessiond [232])>
+                                              8   <on behalf of appstored [197] (originated by AppStore [1459]), Effective Thread QoS User Initiated, Requested Thread QoS User Initiated>
+                                              5   <on behalf of appstored [1689] (originated by nsurlsessiond [232]), Effective Thread QoS Utility, Requested Thread QoS Utility>
+                                              4   <on behalf of appstored [197] (originated by AppStore [1459]), Effective Thread QoS User Initiated, Requested Thread QoS User Initiated, p-core>
+                                              3   <on behalf of nsurlsessiond [232] (originated by nsurlsessiond [232]), Effective Thread QoS Background>
+                                              2   <on behalf of appstored [1689] (originated by appstored [1689]), Effective Thread QoS User Initiated, Requested Thread QoS User Initiated>
+                                        32  ??? (com.apple.StreamingUnzipService + 26752) [0x1022b2880]
+                                          32  ??? (com.apple.StreamingUnzipService + 61620) [0x1022bb0b4]
+                                            32  ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                                              20  <on behalf of appstored [1689] (originated by nsurlsessiond [232])>
+                                              9   <on behalf of appstored [1689] (originated by appstored [1689]), Effective Thread QoS User Initiated, Requested Thread QoS User Initiated>
+                                              3   <on behalf of appstored [1689] (originated by appstored [1689]), Effective Thread QoS Background, Requested Thread QoS User Initiated>
+    8   ??? (libsystem_pthread.dylib + 4980) [0x1fcc63374]
+      8   ??? (libdispatch.dylib + 82072) [0x1d7df4098]
+        8   ??? (libdispatch.dylib + 80128) [0x1d7df3900]
+          8   ??? (libdispatch.dylib + 22468) [0x1d7de57c4]
+            8   ??? (libdispatch.dylib + 25036) [0x1d7de61cc]
+              8   ??? (libdispatch.dylib + 111076) [0x1d7dfb1e4]
+                8   ??? (libdispatch.dylib + 6568) [0x1d7de19a8]
+                  8   ??? (com.apple.StreamingUnzipService + 69124) [0x1022bce04]
+                    8   ??? (com.apple.StreamingUnzipService + 65472) [0x1022bbfc0]
+                      8   ??? (com.apple.StreamingUnzipService + 66172) [0x1022bc27c]
+                        8   ??? (com.apple.StreamingUnzipService + 61620) [0x1022bb0b4]
+                          8   ??? (libsystem_kernel.dylib + 20528) [0x24ccde030]
+                            5   <on behalf of appstored [1689] (originated by nsurlsessiond [232])>
+                            2   <on behalf of appstored [197] (originated by AppStore [1459]), Effective Thread QoS User Initiated, Requested Thread QoS User Initiated, p-core>
+                            1   <on behalf of nsurlsessiond [232] (originated by nsurlsessiond [232])>
+
+  Binary Images:
+           0x1022ac000 -                ???  com.apple.StreamingUnzipService 1.0 (1) <915FA973-AF9C-3D08-8DE0-65A12E6CFE61>  /System/Library/PrivateFrameworks/StreamingZip.framework/XPCServices/com.apple.StreamingUnzipService.xpc/com.apple.StreamingUnzipService
+           0x19a534000 -        0x19b3bdc1f  Foundation                              <1689FEA5-1780-3EFE-8F31-933D4DB24EC4>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x1b1d36000 -        0x1b1d8765f  libxpc.dylib                            <00B71270-124E-31FA-B7D2-5D747DA4BCE1>  /usr/lib/system/libxpc.dylib
+           0x1d7de0000 -        0x1d7e265ff  libdispatch.dylib                       <955B1789-D542-3497-B46D-BD6BE85F91A2>  /usr/lib/system/libdispatch.dylib
+           0x1fcc62000 -        0x1fcc6e4ef  libsystem_pthread.dylib                 <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x24ccd9000 -        0x24cd14b1f  libsystem_kernel.dylib                  <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib

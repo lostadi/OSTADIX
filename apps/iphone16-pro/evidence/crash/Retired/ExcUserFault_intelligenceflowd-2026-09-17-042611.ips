@@ -1,0 +1,68 @@
+{"is_simulated":1,"app_name":"intelligenceflowd","timestamp":"2026-09-17 04:26:11.00 -0400","app_version":"","slice_uuid":"3df6a6e6-290f-3ce3-8e6e-0f8172733cf4","build_version":"","platform":2,"share_with_app_devs":0,"is_first_party":1,"bug_type":"308","os_version":"iPhone OS 26.6 (23G71)","roots_installed":0,"incident_id":"903FC2A7-B765-41D5-BA42-EDC49CCA1786","name":"intelligenceflowd"}
+{
+  "uptime" : 7400,
+  "procRole" : "Unspecified",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "iPhone17,1",
+  "coalitionID" : 1201,
+  "osVersion" : {
+    "isEmbedded" : true,
+    "train" : "iPhone OS 26.6",
+    "releaseType" : "User",
+    "build" : "23G71"
+  },
+  "captureTime" : "2026-09-17 04:26:11.4998 -0400",
+  "codeSigningMonitor" : 2,
+  "incident" : "903FC2A7-B765-41D5-BA42-EDC49CCA1786",
+  "pid" : 1098,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "procStartAbsTime" : 177747484858,
+  "procName" : "intelligenceflowd",
+  "procPath" : "\/System\/Library\/PrivateFrameworks\/IntelligenceFlowRuntime.framework\/intelligenceflowd",
+  "parentPid" : 1,
+  "coalitionName" : "com.apple.intelligenceflowd",
+  "crashReporterKey" : "9befc3289dd0f1495d53b7659f678ff708aaa139",
+  "developerMode" : 1,
+  "bootProgressRegister" : "0x2080000c",
+  "wasUnlockedSinceBoot" : 1,
+  "isLocked" : 0,
+  "codeSigningValidationCategory" : 0,
+  "codeSigningTrustLevel" : 0,
+  "bootSessionUUID" : "A7650E9C-0DBC-4FE2-AC26-C88F04EA6691",
+  "basebandVersion" : "2.70.01",
+  "isLightWeightCorpse" : 1,
+  "exception" : {"codes":"0x6000000000000012, 0x0000000000000005","reason":5,"message":"namespc 18 reason_code 0x0000000000000005","subtype":"GUARD_TYPE_USER","type":"EXC_GUARD","rawCodes":[6917529027641081874,5],"namespc":18},
+  "termination" : {"flags":518,"code":5,"namespace":"LIBSYSTEM","indicator":"Application Triggered Fault"},
+  "os_fault" : {"subsystem":"com.apple.intelligenceflow","process":"intelligenceflowd","category":"General","format":"OnDeviceUserSettings unavailable - use24HourTime defaulting to false"},
+  "faultingThread" : 0,
+  "threads" : [{"id":124693,"frames":[{"imageOffset":3002231164,"imageIndex":0},{"imageOffset":693444888,"imageIndex":0},{"imageOffset":693446828,"imageIndex":0},{"imageOffset":693445112,"imageIndex":0},{"imageOffset":2989794480,"imageIndex":0},{"imageOffset":2989794016,"imageIndex":0},{"imageOffset":2989915480,"imageIndex":0},{"imageOffset":2981039120,"imageIndex":0},{"imageOffset":2983061740,"imageIndex":0},{"imageOffset":23113568,"imageIndex":0},{"imageOffset":23119240,"imageIndex":0},{"imageOffset":23113548,"imageIndex":0},{"imageOffset":23108604,"imageIndex":0},{"imageOffset":1040431360,"imageIndex":0},{"imageOffset":1040433304,"imageIndex":0},{"imageOffset":1659548532,"imageIndex":0},{"imageOffset":1659545792,"imageIndex":0}],"threadState":{"x":[{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":0},"fp":{"value":0},"sp":{"value":0},"esr":{"value":0},"pc":{"value":0,"matchesCrashFrame":0},"far":{"value":0}}}],
+  "usedImages" : [
+  {
+    "size" : 5061002816,
+    "source" : "S",
+    "base" : 6442450944,
+    "uuid" : "6f1ac697-5292-3ba2-8297-71bc62266dba"
+  }
+],
+  "legacyInfo" : {
+  "threadTriggered" : {
+
+  }
+},
+  "bug_type" : "308",
+  "roots_installed" : 0,
+  "trialInfo" : {
+  "rollouts" : [
+
+  ],
+  "experiments" : [
+
+  ]
+},
+  "reportNotes" : [
+  "PC register does not match crashing frame (0x0 vs 0x232F2697C)"
+]
+}

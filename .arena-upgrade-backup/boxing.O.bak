@@ -1,0 +1,2039 @@
+#!/usr/bin/env O
+# ==============================================================================
+# OSTADIX-LANG: 64-BIT PIXEL-LEVEL ARCADE BOXING SIMULATOR & PHYSICS ENGINE
+# ==============================================================================
+# Polyglot architecture:
+# - O: bundled execution graph, strategies, checkpoints, and exact replay.
+# - Python block: 64-bit half-block TrueColor pixel engine, dynamic anatomical
+#   injury model, real-time 2D physics engine (elastic ropes, mass/momentum,
+#   ballistic bounce, Verlet ragdoll, blood traction), and ringside commentary.
+# Native C17 encodes terminal frames; SQL derives accounting from the event ledger.
+# Lisp applies tactical rules; HTML/JavaScript owns interactive replay.
+# Run directly with O boxing.O; no wrapper or companion files are required.
+# Default: compare quoted JavaScript/Python/Common Lisp strategies, rank with
+# arena/judge.O, then replay the chosen future on this retained physics actor.
+# OSTADIX_ARENA_HORIZON (or OSTADIX_FRAMES)=1..360, default 144.
+# OSTADIX_COMBAT_MODE=classic uses the original single-trajectory runner:
+# OSTADIX_FRAMES=1..10000 (default 180), OSTADIX_SEED=<integer>.
+# OSTADIX_ANIMATE=auto|0|1, OSTADIX_COLOR=auto|0|1. Without a usable terminal,
+# or with animation/color disabled (including NO_COLOR), emit a compact receipt.
+# ==============================================================================
+
+let arena_host = shell^(
+hostname -s 2>/dev/null || echo "ostadix-ring"
+)_shell
+
+let arena_title = shell^(
+printf 'OSTADIX WORLD BOXING CHAMPIONSHIP · 64-BIT PIXEL INJURY & PHYSICS ENGINE'
+)_shell
+
+let pressure_strategy = quote^(
+let state_json = python^(
+import json
+json.dumps($state, allow_nan=False)
+)_python
+javascript^(
+const s = $state_json;
+const tired = s.stamina < 35;
+const policy = {
+  distance: s.arena === 'boxing' ? 11 : 12,
+  attack_chance: tired ? 0.18 : 0.52,
+  stamina_floor: 28
+};
+if (s.arena === 'medieval') policy.guard_chance = tired ? 0.30 : 0.08;
+console.log(JSON.stringify(policy));
+)_javascript
+)_quote
+
+let adaptive_strategy = quote^(
+python^(
+state = $state
+recover = state['stamina'] < 45 or state['hp'] < state['opponent_hp'] - 15
+policy = {
+    'distance': 17 if recover else (11 if state['arena'] == 'boxing' else 14),
+    'attack_chance': 0.16 if recover else 0.38,
+    'stamina_floor': 25 if recover else 18,
+}
+if state['arena'] == 'medieval':
+    policy['guard_chance'] = 0.35 if recover else 0.18
+__oval_result__ = policy
+)_python
+)_quote
+
+let guard_strategy = quote^(
+let guard_facts = python^(
+import math
+s = $state
+values = [s[key] for key in ('hp', 'opponent_hp', 'stamina', 'opponent_stamina')]
+if not all(math.isfinite(value) for value in values):
+    raise ValueError('tactical facts must be finite')
+__oval_result__ = '(' + ('t' if s['arena'] == 'medieval' else 'nil') + ' ' + ' '.join(format(value, '.17g') for value in values) + ')'
+)_python
+lisp^(
+; Ordered rules separate tactical facts, applicability, and action construction.
+(defstruct tactic-rule priority applies action)
+(defun defend (facts distance attack floor guard)
+  (list (if (first facts) distance (min distance 16)) attack floor guard))
+(defparameter *guard-rules*
+  (list
+    (make-tactic-rule :priority 100
+      :applies (lambda (s) (or (< (fourth s) 25) (< (second s) (- (third s) 25))))
+      :action (lambda (s) (defend s 24 0.08 35 0.50)))
+    (make-tactic-rule :priority 80
+      :applies (lambda (s) (< (fourth s) 45))
+      :action (lambda (s) (defend s 20 0.12 35 0.40)))
+    (make-tactic-rule :priority 60
+      :applies (lambda (s) (and (< (fifth s) 30) (> (fourth s) 50)))
+      :action (lambda (s) (defend s (if (first s) 12 11) 0.30 30 0.20)))
+    (make-tactic-rule :priority 0
+      :applies (lambda (s) (declare (ignore s)) t)
+      :action (lambda (s) (defend s 20 0.22 30 0.35)))))
+(let* ((facts '$guard_facts)
+       (rule (find-if (lambda (r) (funcall (tactic-rule-applies r) facts))
+                     (stable-sort (copy-list *guard-rules*) #'> :key #'tactic-rule-priority)))
+       (policy (funcall (tactic-rule-action rule) facts)))
+  (format t "{\"distance\":~D,\"attack_chance\":~,2F,\"stamina_floor\":~D"
+          (first policy) (second policy) (third policy))
+  (when (first facts) (format t ",\"guard_chance\":~,2F" (fourth policy)))
+  (format t "}"))
+)_lisp
+)_quote
+
+let combat_engine_source = quote^(
+python[91]^(
+import sys, time, random, os, shutil, math
+
+# ==============================================================================
+# 64-BIT HALF-BLOCK TRUECOLOR PIXEL ENGINE & PALETTE
+# ==============================================================================
+W_PX = 76   # 76 pixels wide (76 terminal columns)
+H_PX = 28   # 28 pixels tall (14 terminal lines)
+
+PAL = {
+    '.': None,                      # Transparent
+    'bg': (24, 24, 37),            # Deep arena backdrop
+    'crowd': (35, 36, 54),         # Silhouette crowd
+    'spotlight': (48, 50, 75),     # Overhead arena lights
+    'rope_top': (203, 166, 247),   # Mauve top rope
+    'rope_mid': (166, 173, 200),   # Subtext mid rope
+    'rope_bot': (137, 180, 250),   # Cyan bottom rope
+    'post_red': (243, 139, 168),   # Red corner turnbuckle
+    'post_blu': (137, 180, 250),   # Blue corner turnbuckle
+    'canvas': (45, 48, 68),        # Canvas base
+    'apron': (30, 32, 46),         # Ring apron
+    'shadow': (18, 18, 28),        # Fighter foot shadow
+    
+    # Anatomy & Gear
+    'skin_light': (250, 215, 195),
+    'skin_mid': (220, 175, 150),
+    'skin_dark': (175, 125, 100),
+    'hair_titan': (45, 28, 20),
+    'hair_phantom': (20, 22, 30),
+    'glove_titan': (243, 50, 75),   # Crimson gloves
+    'glove_phantom': (60, 190, 255),# Electric cyan gloves
+    'trunks_titan': (220, 35, 50),
+    'trunks_phantom': (40, 110, 230),
+    'waist_gold': (249, 226, 175),  # Gold waistband
+    'boot': (32, 32, 42),
+    
+    # Dynamic Injury Palette
+    'blood': (235, 25, 45),         # Arterial cut blood
+    'blood_dark': (160, 15, 30),    # Dried / canvas blood
+    'bruise': (140, 45, 125),       # Violet hematoma
+    'eye_white': (245, 245, 250),
+    'pupil': (20, 25, 35),
+    'mouthguard': (255, 255, 255),  # Ejected white mouthguard
+    'spark': (255, 255, 255),       # Impact flash
+    'star': (255, 230, 90),         # Concussion stars
+    'sweat': (200, 230, 255),       # Sweat aerosol
+}
+
+# ==============================================================================
+# 2D REAL-TIME PHYSICS ENGINE
+# ==============================================================================
+class PhysicsEngine:
+    def __init__(self, w=W_PX, h=H_PX):
+        self.w = w
+        self.h = h
+        self.gravity = 0.42
+        self.floor_y = 23.0
+        
+        # 1. Elastic Ring Ropes (Coupled Harmonic Oscillators)
+        self.ropes = [
+            {'y_rest': 5.0,  'nodes': [5.0]*w,  'vel': [0.0]*w, 'k': 0.35, 'd': 0.88, 'col': PAL['rope_top']},
+            {'y_rest': 11.0, 'nodes': [11.0]*w, 'vel': [0.0]*w, 'k': 0.32, 'd': 0.89, 'col': PAL['rope_mid']},
+            {'y_rest': 17.0, 'nodes': [17.0]*w, 'vel': [0.0]*w, 'k': 0.28, 'd': 0.90, 'col': PAL['rope_bot']},
+        ]
+        
+        # 2. Ballistic Projectiles (Blood drops, sweat vapor, mouthguard)
+        self.projectiles = []
+        
+        # 3. Canvas persistent debris (Mouthguard on floor, blood stains)
+        self.canvas_objects = []
+
+    def deform_ropes(self, x_center, depth_y):
+        for rope in self.ropes:
+            radius = 8
+            for dx in range(-radius, radius + 1):
+                x = int(x_center) + dx
+                if 4 <= x < self.w - 4:
+                    falloff = math.cos((dx / radius) * (math.pi / 2))
+                    rope['vel'][x] += depth_y * falloff * 0.45
+
+    def step_ropes(self):
+        for rope in self.ropes:
+            y0 = rope['y_rest']
+            k = rope['k']
+            d = rope['d']
+            nodes = rope['nodes']
+            vel = rope['vel']
+            for x in range(5, self.w - 5):
+                f = -k * (nodes[x] - y0)
+                f += 0.24 * (nodes[x-1] + nodes[x+1] - 2.0 * nodes[x])
+                vel[x] = (vel[x] + f) * d
+                nodes[x] += vel[x]
+
+    def spawn_blood_spray(self, hit_x, hit_y, intensity=1.0):
+        count = int(7 * intensity)
+        for _ in range(count):
+            angle = random.uniform(-math.pi * 0.8, -math.pi * 0.2)
+            spd = random.uniform(1.2, 3.2) * intensity
+            self.projectiles.append({
+                'type': 'blood',
+                'x': float(hit_x),
+                'y': float(hit_y),
+                'vx': spd * math.cos(angle),
+                'vy': spd * math.sin(angle),
+                'drag': 0.03,
+                'restitution': 0.0,
+                'life': 24,
+                'col': PAL['blood']
+            })
+
+    def spawn_sweat_cloud(self, hit_x, hit_y):
+        for _ in range(5):
+            self.projectiles.append({
+                'type': 'sweat',
+                'x': float(hit_x),
+                'y': float(hit_y),
+                'vx': random.uniform(-1.5, 1.5),
+                'vy': random.uniform(-1.8, 0.0),
+                'drag': 0.12,
+                'restitution': 0.0,
+                'life': random.randint(6, 10),
+                'col': PAL['sweat']
+            })
+
+    def spawn_mouthguard(self, hit_x, hit_y, direction=1):
+        self.projectiles.append({
+            'type': 'mouthguard',
+            'x': float(hit_x),
+            'y': float(hit_y),
+            'vx': direction * random.uniform(1.8, 2.6),
+            'vy': random.uniform(-2.8, -1.8),
+            'drag': 0.02,
+            'restitution': 0.44,
+            'life': 999,
+            'col': PAL['mouthguard']
+        })
+
+    def step_projectiles(self, blood_stains_dict):
+        alive = []
+        for p in self.projectiles:
+            p['x'] += p['vx']
+            p['y'] += p['vy']
+            p['vx'] *= (1.0 - p['drag'])
+            p['vy'] = (p['vy'] * (1.0 - p['drag'])) + self.gravity
+            p['life'] -= 1
+
+            if p['y'] >= self.floor_y:
+                if p['type'] == 'blood':
+                    ix = max(4, min(self.w - 5, int(p['x'])))
+                    iy = max(18, min(self.h - 4, int(p['y'])))
+                    blood_stains_dict[(ix, iy)] = PAL['blood_dark']
+                    continue
+                elif p['type'] == 'mouthguard':
+                    p['y'] = self.floor_y
+                    p['vy'] = -p['vy'] * p['restitution']
+                    p['vx'] *= 0.65
+                    if abs(p['vy']) < 0.35 and abs(p['vx']) < 0.2:
+                        self.canvas_objects.append({
+                            'x': int(p['x']),
+                            'y': int(self.floor_y),
+                            'col': PAL['mouthguard']
+                        })
+                        continue
+                elif p['type'] == 'sweat':
+                    continue
+
+            if p['life'] > 0 and 0 <= p['x'] < self.w and p['y'] < self.h:
+                alive.append(p)
+        self.projectiles = alive
+
+# ==============================================================================
+# VERLET RAGDOLL KNOCKDOWN SIMULATION
+# ==============================================================================
+class VerletRagdoll:
+    def __init__(self, x_base, y_base, facing=1):
+        self.points = [
+            {'x': float(x_base), 'y': float(y_base - 14), 'ox': float(x_base), 'oy': float(y_base - 14)},
+            {'x': float(x_base), 'y': float(y_base - 10), 'ox': float(x_base), 'oy': float(y_base - 10)},
+            {'x': float(x_base), 'y': float(y_base - 6),  'ox': float(x_base), 'oy': float(y_base - 6)},
+            {'x': float(x_base), 'y': float(y_base),      'ox': float(x_base), 'oy': float(y_base)},
+        ]
+        self.lengths = [4.0, 4.0, 6.0]
+        self.facing = facing
+        self.settled = False
+
+    def apply_knockdown_impulse(self, impulse_x, impulse_y):
+        self.points[0]['ox'] -= impulse_x * 1.8
+        self.points[0]['oy'] -= impulse_y * 1.2
+        self.points[1]['ox'] -= impulse_x * 0.9
+
+    def step(self, floor_y=23.0, gravity=0.48, friction=0.78):
+        if self.settled:
+            return
+        for p in self.points:
+            vx = (p['x'] - p['ox']) * 0.95
+            vy = (p['y'] - p['oy']) * 0.95 + gravity
+            p['ox'] = p['x']
+            p['oy'] = p['y']
+            p['x'] += vx
+            p['y'] += vy
+
+            if p['y'] >= floor_y:
+                p['y'] = floor_y
+                p['oy'] = floor_y + (p['y'] - p['oy']) * 0.22
+                p['ox'] = p['x'] - (p['x'] - p['ox']) * friction
+
+        for _ in range(4):
+            for i in range(len(self.lengths)):
+                p1 = self.points[i]
+                p2 = self.points[i + 1]
+                dx = p2['x'] - p1['x']
+                dy = p2['y'] - p1['y']
+                dist = math.hypot(dx, dy) or 0.001
+                diff = (dist - self.lengths[i]) / dist
+                p1['x'] += dx * 0.5 * diff
+                p1['y'] += dy * 0.5 * diff
+                p2['x'] -= dx * 0.5 * diff
+                p2['y'] -= dy * 0.5 * diff
+
+# ==============================================================================
+# DYNAMIC ANATOMICAL INJURY MODEL
+# ==============================================================================
+class InjurySystem:
+    def __init__(self, fighter_name):
+        self.name = fighter_name
+        self.l_eye_swelling = 0.0
+        self.r_eye_swelling = 0.0
+        self.l_brow_cut = 0.0
+        self.r_brow_cut = 0.0
+        self.nose_fracture = 0.0
+        self.jaw_concussion = 0.0
+        self.liver_trauma = 0.0
+        self.rib_fracture = 0.0
+        self.blood_loss_ml = 0.0
+        self.delayed_liver_timer = 0
+        self.doc_checked = False
+        self.doc_stopped = False
+        self.has_mouthguard = True
+
+    def is_left_eye_shut(self):
+        return self.l_eye_swelling >= 60.0
+
+    def is_right_eye_shut(self):
+        return self.r_eye_swelling >= 60.0
+
+    def has_severe_cut(self):
+        return max(self.l_brow_cut, self.r_brow_cut) >= 70.0
+
+    def apply_cutman_treatments(self):
+        self.l_eye_swelling = max(0.0, self.l_eye_swelling - 22.0)
+        self.r_eye_swelling = max(0.0, self.r_eye_swelling - 22.0)
+        self.l_brow_cut = max(0.0, self.l_brow_cut - 26.0)
+        self.r_brow_cut = max(0.0, self.r_brow_cut - 26.0)
+        self.jaw_concussion = max(0.0, self.jaw_concussion - 35.0)
+
+# ==============================================================================
+# FIGHTER STATE MACHINE & SPRITE COMPOSITION
+# ==============================================================================
+class Fighter:
+    def __init__(self, name, corner, style, start_x, mass_kg=95.0, is_titan=True):
+        self.name = name
+        self.corner = corner
+        self.style = style
+        self.is_titan = is_titan
+        self.mass = mass_kg
+        self.facing_right = is_titan
+        self.x = float(start_x)
+        self.y = 10.0
+        self.vx = 0.0
+        self.traction = 0.22
+        self.hp = 100.0
+        self.stamina = 100.0
+        self.guard = 100.0
+        self.state = 'IDLE'
+        self.state_frame = 0
+        self.state_duration = 10
+        self.injury = InjurySystem(name)
+        self.ragdoll = None
+        
+        self.punches_thrown = 0
+        self.punches_landed = 0
+        self.power_landed = 0
+        self.knockdowns_scored = 0
+        self.knockdowns_taken = 0
+
+    def get_pixel_matrix(self, tick):
+        rows = [
+            "....HHHHHH....",  # 0
+            "...HHHHHHHH...",  # 1
+            "...LMDDMDDL...",  # 2 brow
+            "...L E  E L...",  # 3 eyes
+            "...LM M M L...",  # 4 nose/cheeks
+            "...LM === L...",  # 5 mouth/chin
+            "..G LMMMMML G.",  # 6 neck / guard
+            ".GG LMMMMML GG",  # 7 chest / gloves
+            "..G LMMMMML G.",  # 8 ribs / forearms
+            "... LDDDDDL ...", # 9 waist
+            "..  WWWWWWW  .", # 10 waistband
+            "..  TTTTTTT  .", # 11 trunks
+            "..  TTTTTTT  .", # 12
+            "..  TT   TT  .", # 13
+            "... MM   MM ...", # 14 thighs
+            "... MM   MM ...", # 15 knees
+            "... BB   BB ...", # 16 boots
+            "... BBB BBB ...", # 17 soles
+        ]
+        m = [list(r) for r in rows]
+
+        if self.state in ('IDLE', 'ADVANCE', 'RETREAT'):
+            bob = (tick // 3) % 2
+            if bob == 1:
+                m[16] = list("... BBB BBB ...")
+                m[17] = list("... BB   BB ...")
+
+        if self.state == 'JAB':
+            m[6] = list("..  LMMMMML GGGGG")
+            m[7] = list(".GG LMMMMML     G")
+        elif self.state == 'CROSS':
+            m[7] = list(".   LMMMMML GGGGGG")
+            m[8] = list("..G LDDDDDL      G")
+        elif self.state == 'HOOK':
+            m[6] = list(".   LMMMMML GGGG.")
+            m[7] = list("..G LMMMMML GGG..")
+        elif self.state == 'UPPERCUT':
+            m[1] = list("...HHHHHHHH.GGG")
+            m[2] = list("...LMDDMDDL.  G")
+            m[6] = list("..  LMMMMML    ")
+        elif self.state == 'GUARD':
+            m[3] = list("..G G E  E G G.")
+            m[4] = list(".GG G M  M G GG")
+            m[6] = list("..G LMMMMML G.")
+        elif self.state == 'SLIP':
+            m = m[2:] + [list("... BBB BBB ..."), list("... BBB BBB ...")]
+        elif self.state == 'HURT':
+            m[2] = list("....LMDDMDDL..")
+            m[3] = list("....L X  X L..")
+            m[6] = list(".G. LMMMMML .G")
+        elif self.state == 'WOBBLE':
+            w_bob = (tick // 2) % 3
+            if w_bob == 0:
+                m[2] = list("... LMDDMDDL..")
+            elif w_bob == 2:
+                m[2] = list(".....LMDDMDDL.")
+        elif self.state == 'DOWN':
+            m = [list("." * 14) for _ in range(12)] + [
+                list("..HHHHHHHH...."),
+                list(".LMDDMDDL....."),
+                list(".LMMMMMLGGGGG."),
+                list(".TTTTTTTBBBB.."),
+                list(".TTTTTTTBBBB.."),
+                list(".............."),
+            ]
+        elif self.state == 'VICTORY':
+            m[0] = list("GGG........GGG")
+            m[1] = list("..G.HHHHHH.G..")
+            m[6] = list("....LMMMMML...")
+
+        # Injury overlays
+        if self.injury.l_eye_swelling > 25.0:
+            m[3][8] = 'b'
+            if self.injury.l_eye_swelling > 60.0:
+                m[2][8] = 'b'
+                m[3][7] = 'b'
+                m[4][8] = 'b'
+        if self.injury.r_eye_swelling > 35.0:
+            m[3][4] = 'b'
+            if self.injury.r_eye_swelling > 65.0:
+                m[2][4] = 'b'
+                m[4][4] = 'b'
+
+        if self.injury.l_brow_cut > 20.0:
+            m[2][8] = 'c'
+            if self.injury.l_brow_cut > 50.0:
+                m[3][9] = 'c'
+                m[4][9] = 'c'
+                m[5][8] = 'c'
+        if self.injury.r_brow_cut > 25.0:
+            m[2][4] = 'c'
+            if self.injury.r_brow_cut > 55.0:
+                m[3][3] = 'c'
+                m[4][3] = 'c'
+
+        if self.injury.nose_fracture > 30.0:
+            m[4][6] = 'c'
+            m[5][6] = 'c'
+
+        if self.injury.liver_trauma > 30.0:
+            m[8][4] = 'b'
+            if self.injury.liver_trauma > 60.0:
+                m[7][4] = 'b'
+                m[8][5] = 'b'
+                m[9][4] = 'b'
+
+        if not self.injury.has_mouthguard:
+            m[5][6] = 'c'
+
+        return [''.join(r) for r in m]
+
+# ==============================================================================
+# BOXING ARENA CONTROLLER WITH INTEGRATED PHYSICS
+# ==============================================================================
+class BoxingArena:
+    def __init__(self):
+        self.w = W_PX
+        self.h = H_PX
+        self.buf = [[PAL['bg'] for _ in range(self.w)] for _ in range(self.h)]
+        self.blood_stains = {}
+        self.hit_sparks = []
+        
+        self.physics = PhysicsEngine(self.w, self.h)
+        
+        self.f1 = Fighter("TITAN", "RED", "Slugger / Infighter", start_x=16, mass_kg=105.0, is_titan=True)
+        self.f2 = Fighter("PHANTOM", "BLU", "Out-Boxer / Counter", start_x=46, mass_kg=84.0, is_titan=False)
+        
+        self.round_num = 1
+        self.max_rounds = 3
+        self.round_time_sec = 60
+        self.clock_tick = 0
+        self.match_over = False
+        self.winner = None
+        self.ko_type = None
+        self.referee_count = 0
+        self.referee_counting = False
+        self.doctor_inspecting = False
+        self.doctor_timer = 0
+        self.commentary_log = [
+            "⚙️ Real-time 2D physics engine active: coupled elastic ropes, impulse kinematics, and Verlet ragdolls.",
+            "⚡ Referee signals the bell: 'Touch gloves and fight clean!' Let's go!"
+        ]
+
+    def set_tactics(self, fighter, policy):
+        """Replace decision preferences; an empty policy restores native AI."""
+        if fighter is not self.f1 and fighter is not self.f2:
+            raise ValueError('tactics require a fighter from this arena')
+        if not isinstance(policy, dict):
+            raise ValueError('tactics must be a dictionary')
+        bounds = {'distance': (6.0, 24.0), 'attack_chance': (0.0, 1.0),
+                  'stamina_floor': (15.0, 100.0)}
+        validated = {}
+        for key, value in policy.items():
+            if key not in bounds:
+                raise ValueError('unknown tactic: ' + str(key))
+            lo, hi = bounds[key]
+            if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not lo <= value <= hi or not math.isfinite(value)):
+                raise ValueError('tactic ' + key + ' must be finite and within '
+                                 + str(lo) + '..' + str(hi))
+            validated[key] = float(value)
+        fighter.policy = validated
+        return dict(validated)
+
+    def add_commentary(self, msg):
+        self.commentary_log.append(msg)
+        if len(self.commentary_log) > 5:
+            self.commentary_log.pop(0)
+
+    def step_kinematics(self, f: Fighter):
+        boot_x = int(f.x + 7)
+        boot_y = int(self.physics.floor_y)
+        if (boot_x, boot_y) in self.blood_stains:
+            f.traction = 0.04
+            if abs(f.vx) > 0.4 and random.random() < 0.2:
+                f.vx *= 1.4
+                self.add_commentary(f"⚠️ TRACTION LOSS! {f.name} slips on a slick patch of canvas blood!")
+        else:
+            f.traction = 0.22
+
+        f.x += f.vx
+        if f.vx > 0:
+            f.vx = max(0.0, f.vx - f.traction)
+        elif f.vx < 0:
+            f.vx = min(0.0, f.vx + f.traction)
+
+        if f.x <= 10.0:
+            depth = 10.0 - f.x
+            self.physics.deform_ropes(f.x, depth * 0.8)
+            f.vx += depth * 0.35
+            f.x = 10.0
+            if abs(f.vx) > 0.6:
+                self.add_commentary(f"➰ SLINGSHOT! {f.name} rebounds off the elastic ropes with kinetic momentum!")
+        elif f.x >= self.w - 24.0:
+            depth = f.x - (self.w - 24.0)
+            self.physics.deform_ropes(f.x + 10, depth * 0.8)
+            f.vx -= depth * 0.35
+            f.x = self.w - 24.0
+            if abs(f.vx) > 0.6:
+                self.add_commentary(f"➰ SLINGSHOT! {f.name} rebounds off the elastic ropes with kinetic momentum!")
+
+    def update_ai_fighter(self, atk: Fighter, dfn: Fighter, tick):
+        if atk.injury.delayed_liver_timer > 0:
+            atk.injury.delayed_liver_timer -= 1
+            if atk.injury.delayed_liver_timer == 0 and atk.state != 'DOWN':
+                atk.state = 'DOWN'
+                atk.state_frame = 0
+                atk.state_duration = 80
+                atk.hp = max(0.0, atk.hp - 18.0)
+                atk.ragdoll = VerletRagdoll(atk.x, self.physics.floor_y, facing=1 if atk.facing_right else -1)
+                atk.ragdoll.apply_knockdown_impulse(0.5 if atk.facing_right else -0.5, 1.2)
+                self.add_commentary(f"🚨 LIVER SHUTDOWN! {atk.name} collapses to the canvas from the delayed liver trauma!")
+                self.referee_counting = True
+                self.referee_count = 1
+                return
+
+        atk.state_frame += 1
+        dist = abs(dfn.x - atk.x)
+
+        if atk.state == 'DOWN':
+            if atk.ragdoll:
+                atk.ragdoll.step(self.physics.floor_y)
+            return
+
+        if atk.state in ('HURT', 'WOBBLE'):
+            if atk.state_frame >= atk.state_duration:
+                atk.state = 'IDLE'
+                atk.state_frame = 0
+            return
+
+        if atk.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT', 'GUARD', 'SLIP'):
+            if atk.state_frame >= atk.state_duration:
+                atk.state = 'IDLE'
+                atk.state_frame = 0
+                atk.stamina = min(100.0, atk.stamina + 2.0)
+            return
+
+        stamina_regen = 1.2
+        if atk.injury.liver_trauma > 40.0:
+            stamina_regen *= 0.45
+        atk.stamina = min(100.0, atk.stamina + stamina_regen)
+        atk.guard = min(100.0, atk.guard + 0.8)
+
+        policy = getattr(atk, 'policy', {})
+        ideal_dist = policy.get('distance', 11 if atk.is_titan else 15)
+        if atk.injury.is_left_eye_shut():
+            ideal_dist += 4
+
+        force_stride = 75.0 if atk.injury.liver_trauma < 50.0 else 35.0
+        accel = force_stride / atk.mass
+
+        if dist > ideal_dist + 2:
+            direction = 1 if atk.facing_right else -1
+            atk.vx += direction * accel
+            atk.state = 'ADVANCE'
+        elif dist < ideal_dist - 2:
+            direction = -1 if atk.facing_right else 1
+            atk.vx += direction * accel
+            atk.state = 'RETREAT'
+        else:
+            atk.state = 'IDLE'
+
+        if atk.stamina > policy.get('stamina_floor', 15.0) and dist <= 18:
+            roll = random.random()
+            if roll < policy.get('attack_chance', 0.28):
+                self.execute_punch(atk, dfn, dist)
+
+    def execute_punch(self, atk: Fighter, dfn: Fighter, dist):
+        atk.punches_thrown += 1
+        
+        if dist > 13:
+            punch = 'JAB'
+            dur = 4
+            stamina_cost = 6
+            impulse_force = 120.0
+        elif dist > 8:
+            punch = 'CROSS' if random.random() < 0.6 else 'HOOK'
+            dur = 6
+            stamina_cost = 14
+            impulse_force = 220.0
+        else:
+            punch = 'UPPERCUT' if random.random() < 0.5 else 'HOOK'
+            dur = 7
+            stamina_cost = 18
+            impulse_force = 310.0
+
+        atk.state = punch
+        atk.state_frame = 0
+        atk.state_duration = dur
+        atk.stamina = max(0.0, atk.stamina - stamina_cost)
+
+        blind_spot = False
+        if atk.facing_right and dfn.injury.is_left_eye_shut():
+            blind_spot = True
+        elif (not atk.facing_right) and dfn.injury.is_right_eye_shut():
+            blind_spot = True
+
+        slip_chance = 0.05 if blind_spot else (0.28 if dfn.style.startswith('Out') else 0.15)
+        guard_chance = 0.15 if blind_spot else 0.35
+
+        if random.random() < slip_chance and punch in ('JAB', 'CROSS'):
+            dfn.state = 'SLIP'
+            dfn.state_frame = 0
+            dfn.state_duration = 5
+            self.add_commentary(f"💨 {dfn.name} slips under {atk.name}'s {punch.lower()} with slick head movement!")
+            return
+
+        is_blocked = False
+        if (not blind_spot) and random.random() < guard_chance and dfn.guard > 20.0:
+            dfn.state = 'GUARD'
+            dfn.state_frame = 0
+            dfn.state_duration = 4
+            dfn.guard -= 15.0
+            is_blocked = True
+
+        atk.punches_landed += 1
+        hit_x = (atk.x + dfn.x) // 2 + 4
+        hit_y = atk.y + random.randint(2, 6)
+        
+        base_dmg = {'JAB': 6.0, 'CROSS': 14.0, 'HOOK': 18.0, 'UPPERCUT': 24.0}[punch]
+        if is_blocked:
+            base_dmg *= 0.25
+        
+        is_counter = dfn.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT')
+        if is_counter:
+            base_dmg *= 1.65
+            impulse_force *= 1.8
+            self.add_commentary(f"⚡ CRITICAL COUNTER! {atk.name} intercepts {dfn.name} with a flush {punch}!")
+
+        knockback_dir = 1 if atk.facing_right else -1
+        recoil_vel = (impulse_force / dfn.mass) * 0.65
+        dfn.vx += knockback_dir * recoil_vel
+        
+        dfn.hp = max(0.0, dfn.hp - base_dmg)
+
+        self.hit_sparks.append({'x': hit_x, 'y': hit_y, 'life': 3})
+        self.physics.spawn_sweat_cloud(hit_x, hit_y)
+
+        if is_blocked:
+            self.add_commentary(f"🛡️ {dfn.name} covers up and absorbs {atk.name}'s {punch.lower()}.")
+            return
+
+        dfn.state = 'HURT'
+        dfn.state_frame = 0
+        dfn.state_duration = 6
+
+        target_zone = 'HEAD'
+        if punch == 'HOOK' and random.random() < 0.55:
+            target_zone = 'LIVER'
+        elif punch == 'JAB' and random.random() < 0.3:
+            target_zone = 'NOSE'
+
+        if target_zone == 'LIVER':
+            dfn.injury.liver_trauma += base_dmg * 1.3
+            self.physics.spawn_blood_spray(hit_x, hit_y + 4, intensity=0.8)
+            self.add_commentary(f"💥 THUD! {atk.name} digs a brutal hook into {dfn.name}'s liver! Lactic acid flooding in!")
+            if dfn.injury.liver_trauma >= 65.0 and random.random() < 0.45:
+                dfn.injury.delayed_liver_timer = 12
+                self.add_commentary(f"⚠️ {dfn.name}'s legs turn to stone! The liver shot is setting in...")
+
+        elif target_zone == 'NOSE':
+            dfn.injury.nose_fracture += 18.0
+            self.physics.spawn_blood_spray(hit_x, hit_y, intensity=1.2)
+            self.add_commentary(f"🩸 SNAP! {atk.name}'s stiff jab fractures {dfn.name}'s nose! Blood trickles over his lips!")
+
+        else:
+            if punch in ('UPPERCUT', 'CROSS'):
+                dfn.injury.jaw_concussion += base_dmg * 0.9
+                atk.power_landed += 1
+                
+                if (punch == 'UPPERCUT' or is_counter) and dfn.injury.has_mouthguard and random.random() < 0.4:
+                    dfn.injury.has_mouthguard = False
+                    self.physics.spawn_mouthguard(hit_x, hit_y, direction=knockback_dir)
+                    self.add_commentary(f"🦷 MOUTHGUARD EJECTED! {dfn.name}'s mouthguard flies into orbit from that vicious {punch.lower()}!")
+
+                if dfn.injury.jaw_concussion > 50.0 and random.random() < 0.5:
+                    dfn.state = 'WOBBLE'
+                    dfn.state_duration = 10
+                    self.add_commentary(f"💫 CONCUSSION ROCK! {dfn.name} is on rubber legs from that thunderous {punch.lower()}!")
+            
+            if atk.facing_right:
+                dfn.injury.l_eye_swelling += base_dmg * 0.75
+                if random.random() < 0.35:
+                    dfn.injury.l_brow_cut += random.uniform(15.0, 30.0)
+                    self.physics.spawn_blood_spray(hit_x, hit_y, intensity=1.5)
+                    self.add_commentary(f"🩸 GASH OPENED! A deep cut erupts over {dfn.name}'s left eye!")
+            else:
+                dfn.injury.r_eye_swelling += base_dmg * 0.75
+                if random.random() < 0.35:
+                    dfn.injury.r_brow_cut += random.uniform(15.0, 30.0)
+                    self.physics.spawn_blood_spray(hit_x, hit_y, intensity=1.5)
+                    self.add_commentary(f"🩸 GASH OPENED! A vicious cut tears across {dfn.name}'s right brow!")
+
+        if (dfn.injury.has_severe_cut() or dfn.injury.l_eye_swelling >= 80.0) and not dfn.injury.doc_checked:
+            dfn.injury.doc_checked = True
+            self.doctor_inspecting = True
+            self.doctor_timer = 25
+            self.add_commentary("🩺 TIME OUT! The referee calls the Ringside Physician to examine the horrific lacerations!")
+
+        if dfn.hp <= 0.0 or (dfn.injury.jaw_concussion >= 85.0 and random.random() < 0.6):
+            dfn.state = 'DOWN'
+            dfn.state_frame = 0
+            dfn.state_duration = 90
+            dfn.knockdowns_taken += 1
+            atk.knockdowns_scored += 1
+            
+            dfn.ragdoll = VerletRagdoll(dfn.x, self.physics.floor_y, facing=1 if dfn.facing_right else -1)
+            dfn.ragdoll.apply_knockdown_impulse(knockback_dir * (impulse_force / dfn.mass) * 0.8, -1.6)
+
+            self.referee_counting = True
+            self.referee_count = 1
+            self.add_commentary(f"🚨 DOWN GOES {dfn.name}! A devastating knockdown! The referee starts the count!")
+
+    def step(self, tick):
+        self.clock_tick += 1
+        
+        self.physics.step_ropes()
+        self.physics.step_projectiles(self.blood_stains)
+        self.step_kinematics(self.f1)
+        self.step_kinematics(self.f2)
+
+        self.hit_sparks = [s for s in self.hit_sparks if s['life'] > 0]
+        for s in self.hit_sparks:
+            s['life'] -= 1
+
+        if self.doctor_inspecting:
+            self.doctor_timer -= 1
+            if self.doctor_timer <= 0:
+                self.doctor_inspecting = False
+                severe = max(self.f1.injury.l_brow_cut, self.f2.injury.l_brow_cut, self.f1.injury.l_eye_swelling, self.f2.injury.l_eye_swelling)
+                if severe >= 95.0:
+                    self.match_over = True
+                    self.ko_type = "TKO (Ringside Physician Stoppage)"
+                    self.winner = self.f1 if self.f2.injury.has_severe_cut() else self.f2
+                    self.add_commentary("🛑 DOCTOR WAVES HIS ARMS! The cut is too severe to continue! IT'S OVER!")
+                else:
+                    self.add_commentary("👨‍⚕️ PHYSICIAN: 'He can see my fingers! One more round, keep it clean!' FIGHT ON!")
+            return
+
+        if self.referee_counting:
+            if self.clock_tick % 10 == 0:
+                self.referee_count += 1
+                self.add_commentary(f"🔔 REFEREE COUNT: ... {self.referee_count}!")
+                
+                down_fighter = self.f1 if self.f1.state == 'DOWN' else self.f2
+                if self.referee_count >= 10:
+                    self.match_over = True
+                    self.ko_type = "KNOCKOUT (10-COUNT KO)"
+                    self.winner = self.f2 if down_fighter == self.f1 else self.f1
+                    self.add_commentary(f"🏆 IT'S ALL OVER! {self.winner.name} WINS BY BRUTAL KNOCKOUT!")
+                    return
+                elif self.referee_count >= 8 and down_fighter.hp > -15.0 and random.random() < 0.65:
+                    down_fighter.state = 'IDLE'
+                    down_fighter.state_frame = 0
+                    down_fighter.hp = 25.0
+                    down_fighter.ragdoll = None
+                    self.referee_counting = False
+                    self.referee_count = 0
+                    self.add_commentary(f"🔥 UNBELIEVABLE HEART! {down_fighter.name} beats the count at 8 and fights on!")
+            return
+
+        if not self.match_over:
+            self.update_ai_fighter(self.f1, self.f2, tick)
+            self.update_ai_fighter(self.f2, self.f1, tick)
+
+    # --------------------------------------------------------------------------
+    # 64-BIT PIXEL COMPOSITOR & TERMINAL RENDERER
+    # --------------------------------------------------------------------------
+    def render_frame(self, tick):
+        for y in range(self.h):
+            for x in range(self.w):
+                spot = max(0.0, 1.0 - (((x - self.w//2)**2 + (y - 4)**2) / 680.0))
+                r = int(PAL['bg'][0] + spot * 32)
+                g = int(PAL['bg'][1] + spot * 32)
+                b = int(PAL['bg'][2] + spot * 42)
+                self.buf[y][x] = (r, g, b)
+
+        for y in range(3, 23):
+            for x in range(2, 5):
+                self.buf[y][x] = PAL['post_red']
+            for x in range(self.w - 5, self.w - 2):
+                self.buf[y][x] = PAL['post_blu']
+
+        for rope in self.physics.ropes:
+            col = rope['col']
+            nodes = rope['nodes']
+            for x in range(5, self.w - 5):
+                ry = int(round(nodes[x]))
+                if 0 <= ry < self.h:
+                    self.buf[ry][x] = col
+
+        for y in range(17, 26):
+            shade = 1.0 + (y - 17) * 0.035
+            for x in range(4, self.w - 4):
+                self.buf[y][x] = (min(255, int(PAL['canvas'][0] * shade)),
+                                  min(255, int(PAL['canvas'][1] * shade)),
+                                  min(255, int(PAL['canvas'][2] * shade)))
+
+        for y in range(26, self.h):
+            for x in range(self.w):
+                self.buf[y][x] = PAL['apron']
+
+        for (sx, sy), col in self.blood_stains.items():
+            if 0 <= sx < self.w and 0 <= sy < self.h:
+                self.buf[sy][sx] = col
+
+        for obj in self.physics.canvas_objects:
+            ox = obj['x']
+            oy = obj['y']
+            if 0 <= ox < self.w and 0 <= oy < self.h:
+                self.buf[oy][ox] = obj['col']
+                if ox + 1 < self.w:
+                    self.buf[oy][ox+1] = PAL['blood']
+
+        m1 = self.f1.get_pixel_matrix(tick)
+        self.stamp_sprite(m1, int(self.f1.x), int(self.f1.y), is_titan=True, flip=False)
+
+        m2 = self.f2.get_pixel_matrix(tick)
+        self.stamp_sprite(m2, int(self.f2.x), int(self.f2.y), is_titan=False, flip=True)
+
+        for p in self.physics.projectiles:
+            px = int(p['x'])
+            py = int(p['y'])
+            if 0 <= px < self.w and 0 <= py < self.h:
+                self.buf[py][px] = p['col']
+                if p['type'] == 'mouthguard' and px + 1 < self.w:
+                    self.buf[py][px+1] = PAL['eye_white']
+
+        for s in self.hit_sparks:
+            sx = int(s['x'])
+            sy = int(s['y'])
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    qx = sx + dx
+                    qy = sy + dy
+                    if 0 <= qx < self.w and 0 <= qy < self.h:
+                        self.buf[qy][qx] = PAL['spark']
+
+        terminal_lines = []
+        for row in range(self.h // 2):
+            y_top = row * 2
+            y_bot = row * 2 + 1
+            line = []
+            cur_top, cur_bot = None, None
+            for x in range(self.w):
+                top = self.buf[y_top][x]
+                bot = self.buf[y_bot][x]
+                if top != cur_top or bot != cur_bot:
+                    line.append(f'\033[38;2;{top[0]};{top[1]};{top[2]};48;2;{bot[0]};{bot[1]};{bot[2]}m')
+                    cur_top, cur_bot = top, bot
+                line.append('▀')
+            line.append('\033[0m')
+            terminal_lines.append(''.join(line))
+
+        return terminal_lines
+
+    def stamp_sprite(self, matrix, x_pos, y_pos, is_titan=True, flip=False):
+        for r, row in enumerate(matrix):
+            if flip:
+                row = row[::-1]
+            py = y_pos + r
+            if 0 <= py < self.h:
+                for c, ch in enumerate(row):
+                    px = x_pos + c
+                    if 0 <= px < self.w:
+                        col = None
+                        if ch == 'G':
+                            col = PAL['glove_titan'] if is_titan else PAL['glove_phantom']
+                        elif ch == 'T':
+                            col = PAL['trunks_titan'] if is_titan else PAL['trunks_phantom']
+                        elif ch == 'H':
+                            col = PAL['hair_titan'] if is_titan else PAL['hair_phantom']
+                        elif ch == 'L':
+                            col = PAL['skin_light']
+                        elif ch == 'M':
+                            col = PAL['skin_mid']
+                        elif ch == 'D':
+                            col = PAL['skin_dark']
+                        elif ch == 'E':
+                            col = PAL['eye_white']
+                        elif ch == 'W':
+                            col = PAL['waist_gold']
+                        elif ch == 'B':
+                            col = PAL['boot']
+                        elif ch == 'b':
+                            col = PAL['bruise']
+                        elif ch == 'c':
+                            col = PAL['blood']
+                        elif ch == '=':
+                            col = PAL['mouthguard']
+                        if col:
+                            self.buf[py][px] = col
+
+# ==============================================================================
+# TERMINAL HUD & LIVE TELEMETRY DISPLAY
+# ==============================================================================
+def draw_bar(pct, width=16, fill_color="\033[38;2;166;227;161m", empty_char="░"):
+    pct = max(0.0, min(100.0, float(pct)))
+    fill_n = int(round(width * pct / 100.0))
+    bar = f"{fill_color}{'█' * fill_n}\033[38;2;88;91;112m{empty_char * (width - fill_n)}\033[0m"
+    return bar
+
+def render_full_screen(arena: BoxingArena, tick: int):
+    C_RST = "\033[0m"
+    C_RED = "\033[38;2;243;139;168m"
+    C_BLU = "\033[38;2;137;180;250m"
+    C_MAU = "\033[38;2;203;166;247m"
+    C_YEL = "\033[38;2;249;226;175m"
+    C_GRN = "\033[38;2;166;227;161m"
+    C_SUB = "\033[38;2;147;154;183m"
+    C_BLD = "\033[1m"
+
+    out = []
+    
+    sec_left = max(0, arena.round_time_sec - (arena.clock_tick // 4))
+    clock_str = f"{sec_left // 60:02d}:{sec_left % 60:02d}"
+    out.append(f"{C_MAU}{C_BLD}  OSTADIX BOXING · 64-BIT PIXEL INJURY & 2D PHYSICS ENGINE{C_RST}  {C_YEL}R{arena.round_num}/{arena.max_rounds} [{clock_str}]{C_RST}")
+
+    f1_hp_col = C_GRN if arena.f1.hp > 60 else (C_YEL if arena.f1.hp > 30 else C_RED)
+    f2_hp_col = C_GRN if arena.f2.hp > 60 else (C_YEL if arena.f2.hp > 30 else C_RED)
+    
+    hp1 = draw_bar(arena.f1.hp, 14, f1_hp_col)
+    hp2 = draw_bar(arena.f2.hp, 14, f2_hp_col)
+    stm1 = draw_bar(arena.f1.stamina, 8, C_BLU)
+    stm2 = draw_bar(arena.f2.stamina, 8, C_BLU)
+
+    out.append(f"  {C_RED}{C_BLD}TITAN{C_RST} {hp1} {arena.f1.hp:4.0f} HP │ {stm1} STM  {C_SUB}VS{C_RST}  STM {stm2} │ {hp2} {arena.f2.hp:4.0f} HP {C_BLU}{C_BLD}PHANTOM{C_RST}")
+
+    f1_eye = f"{C_RED}SHUT!{C_RST}" if arena.f1.injury.is_left_eye_shut() else (f"{C_YEL}SWLN{C_RST}" if arena.f1.injury.l_eye_swelling > 25 else f"{C_GRN}OK{C_RST}")
+    f2_eye = f"{C_RED}SHUT!{C_RST}" if arena.f2.injury.is_left_eye_shut() else (f"{C_YEL}SWLN{C_RST}" if arena.f2.injury.l_eye_swelling > 25 else f"{C_GRN}OK{C_RST}")
+    f1_cut = f"{C_RED}BLEED {arena.f1.injury.l_brow_cut:2.0f}%{C_RST}" if arena.f1.injury.l_brow_cut > 20 else f"{C_GRN}NONE{C_RST}"
+    f2_cut = f"{C_RED}BLEED {arena.f2.injury.l_brow_cut:2.0f}%{C_RST}" if arena.f2.injury.l_brow_cut > 20 else f"{C_GRN}NONE{C_RST}"
+    f1_liv = f"{C_RED}LIVER {arena.f1.injury.liver_trauma:2.0f}%{C_RST}" if arena.f1.injury.liver_trauma > 30 else f"{C_SUB}LIVER OK{C_RST}"
+    f2_liv = f"{C_RED}LIVER {arena.f2.injury.liver_trauma:2.0f}%{C_RST}" if arena.f2.injury.liver_trauma > 30 else f"{C_SUB}LIVER OK{C_RST}"
+
+    f1_phys = f"m:{arena.f1.mass:.0f}kg vx:{arena.f1.vx:+.1f}"
+    f2_phys = f"m:{arena.f2.mass:.0f}kg vx:{arena.f2.vx:+.1f}"
+
+    out.append(f"  {C_SUB}PHYS:{C_RST} [{f1_phys}] L-EYE:{f1_eye} {f1_cut} │ [{f2_phys}] L-EYE:{f2_eye} {f2_cut}")
+
+    ring_lines = arena.render_frame(tick)
+    for line in ring_lines:
+        out.append("  " + line)
+
+    out.append(f"  {C_MAU}{'─' * 74}{C_RST}")
+    for c_msg in arena.commentary_log[-2:]:
+        out.append(f"  {c_msg}")
+
+    return "\n".join(out)
+
+# ==============================================================================
+# MAIN SIMULATION RUNNER
+# ==============================================================================
+def match_config(default_frames):
+    switches = {}
+    for name in ('OSTADIX_ANIMATE', 'OSTADIX_COLOR'):
+        value = os.environ.get(name, 'auto').strip().lower()
+        if value not in ('auto', '0', '1'):
+            raise ValueError(f"{name} must be auto, 0, or 1")
+        switches[name] = value
+    try:
+        frames = int(os.environ.get('OSTADIX_FRAMES', str(default_frames)))
+    except ValueError:
+        raise ValueError("OSTADIX_FRAMES must be an integer from 1 to 10000") from None
+    if not 1 <= frames <= 10000:
+        raise ValueError("OSTADIX_FRAMES must be an integer from 1 to 10000")
+    seed = os.environ.get('OSTADIX_SEED')
+    if seed is not None:
+        try:
+            seed = int(seed)
+        except ValueError:
+            raise ValueError("OSTADIX_SEED must be an integer") from None
+    return frames, seed, switches
+
+def open_match_terminal(switches):
+    # The Python backend captures stdout. Only an explicit opt-in or the shell
+    # launcher's original TTY status may redirect live frames to /dev/tty.
+    if (switches['OSTADIX_ANIMATE'] == '0' or switches['OSTADIX_COLOR'] == '0'
+            or 'NO_COLOR' in os.environ or os.environ.get('TERM') == 'dumb'):
+        return None
+    if switches['OSTADIX_ANIMATE'] == 'auto' and not sys.stdout.isatty():
+        return None
+    try:
+        return open('/dev/tty', 'w', encoding='utf-8')
+    except OSError:
+        return None
+
+def term_write(terminal, text):
+    terminal.write(text)
+    terminal.flush()
+
+def run_championship_match():
+    total_frames, seed, switches = match_config(180)
+    if seed is not None:
+        random.seed(seed)
+    arena = BoxingArena()
+    terminal = open_match_terminal(switches)
+    frames_run = 0
+    interrupted = False
+    try:
+        if terminal:
+            # Keep the cursor visible: SIGINT can stop the O parent before the
+            # backend gets a chance to execute its own cleanup handler.
+            term_write(terminal, "\033[2J")
+        for tick in range(total_frames):
+            arena.step(tick)
+            frames_run += 1
+            if arena.match_over and arena.winner:
+                arena.winner.state = 'VICTORY'
+            if terminal:
+                term_write(terminal, "\033[H" + render_full_screen(arena, tick) + "\033[J\n")
+            if arena.match_over:
+                if terminal:
+                    time.sleep(1.0)
+                break
+            if terminal:
+                time.sleep(0.14 if arena.referee_counting or arena.doctor_inspecting else 0.065)
+    except KeyboardInterrupt:
+        interrupted = True
+    finally:
+        if terminal:
+            try:
+                term_write(terminal, "\033[0m\033[?25h\n")
+            finally:
+                terminal.close()
+    status = 'CONCLUDED' if arena.match_over else ('INTERRUPTED' if interrupted else 'FRAME LIMIT')
+    winner = arena.winner.name if arena.match_over and arena.winner else 'UNDECIDED'
+    result = arena.ko_type if arena.match_over else 'No official result'
+    print(
+        f"Ostadix Boxing: {status} · Frames: {frames_run}/{total_frames} · Seed: {seed}\n"
+        f"  Winner: {winner} · Result: {result}\n"
+        f"  Titan stats: {arena.f1.punches_landed}/{arena.f1.punches_thrown} landed "
+        f"· Cuts: L {arena.f1.injury.l_brow_cut:.0f}% / R {arena.f1.injury.r_brow_cut:.0f}% "
+        f"· Liver: {arena.f1.injury.liver_trauma:.0f}%\n"
+        f"  Phantom stats: {arena.f2.punches_landed}/{arena.f2.punches_thrown} landed "
+        f"· Cuts: L {arena.f2.injury.l_brow_cut:.0f}% / R {arena.f2.injury.r_brow_cut:.0f}% "
+        f"· Liver: {arena.f2.injury.liver_trauma:.0f}%"
+    )
+
+# Return a dependency token after defining the engine in its persistent actor.
+__oval_result__ = 'boxing'
+)_python[91]
+)_quote
+
+# BEGIN EMBEDDED ARENA MODULES
+# Rebuild this section with O arena/build.O after editing arena/*.O.
+let session_program = quote^(
+# Shared O session: called by the native boxing.O and medieval.O actors.
+let checkpoint_receipt = python[91]^(
+import base64, copy, hashlib, json, math, os, random, shutil, sys, time
+from pathlib import Path
+
+kind = $combat_kind
+programs = $program_expressions
+terminal_context = O.eval(programs['arena/terminal.O'])
+if kind not in ('boxing', 'medieval'):
+    raise ValueError('combat_kind must be boxing or medieval')
+
+def integer_option(name, default, low, high):
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        raise ValueError(f'{name} must be an integer from {low} to {high}') from None
+    if not low <= value <= high:
+        raise ValueError(f'{name} must be an integer from {low} to {high}')
+    return value
+
+seed = integer_option('OSTADIX_SEED', 42, -2147483648, 2147483647)
+warmup = integer_option('OSTADIX_ARENA_CHECKPOINT', 16, 0, 60)
+horizon_option = 'OSTADIX_ARENA_HORIZON' if 'OSTADIX_ARENA_HORIZON' in os.environ else 'OSTADIX_FRAMES'
+horizon = integer_option(horizon_option, 144, 1, 360)
+switches = {}
+for option in ('OSTADIX_ANIMATE', 'OSTADIX_COLOR'):
+    value = os.environ.get(option, 'auto').strip().lower()
+    if value not in ('auto', '0', '1'):
+        raise ValueError(f'{option} must be auto, 0, or 1')
+    switches[option] = value
+decision_interval = 24
+frame_stride = max(1, math.ceil(horizon / 36))
+bank = $strategy_bank
+languages = {'Pressure': 'JavaScript', 'Adaptive': 'Python', 'Guard': 'Common Lisp'}
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+
+def freeze(value, seen=None):
+    # Preserve aliases and exact floats, excluding only the presentation buffer.
+    if seen is None:
+        seen = {}
+    if value is None or isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError('non-finite simulation state')
+        return {'float': value.hex()}
+    identity = id(value)
+    if identity in seen:
+        return {'ref': seen[identity]}
+    index = len(seen)
+    seen[identity] = index
+    if isinstance(value, dict):
+        return {'id': index, 'dict': [[freeze(k, seen), freeze(value[k], seen)] for k in sorted(value, key=repr)]}
+    if isinstance(value, (list, tuple)):
+        return {'id': index, 'type': type(value).__name__, 'items': [freeze(item, seen) for item in value]}
+    if hasattr(value, '__dict__'):
+        return {'id': index, 'type': type(value).__name__, 'fields': {
+            key: freeze(item, seen) for key, item in sorted(vars(value).items()) if key != 'buf'}}
+    raise TypeError('unfingerprintable world value: ' + type(value).__name__)
+
+def world_hash(world):
+    return digest(freeze(world))
+
+engine_expression = $engine_expression
+engine_source = engine_expression.src
+# The actual combat script already loaded its engine into this O actor.
+arena_class = BoxingArena if kind == 'boxing' else MedievalArena
+random.seed(seed)
+live_world = arena_class()
+live_identity = id(live_world)
+for tick in range(warmup):
+    if live_world.match_over:
+        break
+    live_world.step(tick)
+checkpoint_tick = live_world.clock_tick
+world_checkpoint = copy.deepcopy(live_world)
+checkpoint_rng = random.getstate()
+checkpoint_world_hash = world_hash(live_world)
+checkpoint_hash = digest({'world': checkpoint_world_hash, 'rng': freeze(checkpoint_rng)})
+strategy_hashes = {name: hashlib.sha256(expr.src.encode()).hexdigest() for name, expr in bank.items()}
+program_sources = {'engine.O': engine_source, **{name: expression.src for name, expression in programs.items()}}
+source_hashes = {name: hashlib.sha256(text.encode()).hexdigest() for name, text in program_sources.items()}
+__oval_result__ = {'arena': kind, 'seed': seed, 'tick': checkpoint_tick,
+                   'checkpoint_sha256': checkpoint_hash, 'strategies': strategy_hashes,
+                   'judge_source': program_sources['arena/judge.O'],
+                   'analyze_source': program_sources['arena/analyze.O']}
+)_python[91]
+
+let trials = python[91]^(
+def observe(world):
+    return {'arena': kind, 'tick': world.clock_tick, 'hp': world.f1.hp,
+            'opponent_hp': world.f2.hp, 'stamina': world.f1.stamina,
+            'opponent_stamina': world.f2.stamina, 'distance': abs(world.f1.x - world.f2.x)}
+
+def pixel_frame(world, tick):
+    # Some artwork adds floor stains. Draw a clone so observation cannot change
+    # the physical future, and also preserve the simulation's random stream.
+    state = random.getstate()
+    try:
+        painted = copy.deepcopy(world)
+        painted.render_frame(tick)
+        pixels = bytes(max(0, min(255, int(channel))) for row in painted.buf for rgb in row for channel in rgb)
+    finally:
+        random.setstate(state)
+    return {'tick': tick, 'width': world.w, 'height': world.h,
+            'rgb': base64.b64encode(pixels).decode(), 'own_hp': world.f1.hp, 'foe_hp': world.f2.hp}
+
+def simulate(world, name, record_frames=True):
+    random.setstate(checkpoint_rng)
+    trace, decisions, frames, ledger = [], [], [], []
+    if record_frames:
+        frames.append(pixel_frame(world, checkpoint_tick))
+    for offset in range(horizon):
+        if world.match_over:
+            break
+        if offset % decision_interval == 0:
+            scoped_state = observe(world)
+            # First-class O expression reentry, with a detached explicit scope.
+            policy = O.eval(bank[name], O.scope({'state': scoped_state}))
+            normalized = world.set_tactics(world.f1, policy)
+            decisions.append({'tick': world.clock_tick, 'scope_sha256': digest(scoped_state),
+                              'source_sha256': strategy_hashes[name], 'policy': normalized})
+        event = {'own_hp_before': world.f1.hp, 'foe_hp_before': world.f2.hp,
+                 'own_stamina_before': world.f1.stamina,
+                 'own_knockdowns_before': world.f1.knockdowns_taken,
+                 'foe_knockdowns_before': world.f2.knockdowns_taken}
+        world.step(checkpoint_tick + offset)
+        event.update({'tick': world.clock_tick, 'own_hp_after': world.f1.hp,
+                      'foe_hp_after': world.f2.hp, 'own_stamina_after': world.f1.stamina,
+                      'own_knockdowns_after': world.f1.knockdowns_taken,
+                      'foe_knockdowns_after': world.f2.knockdowns_taken})
+        ledger.append(event)
+        trace.append({'tick': world.clock_tick, 'world_sha256': world_hash(world),
+                      'rng_sha256': digest(freeze(random.getstate()))})
+        if record_frames and ((offset + 1) % frame_stride == 0 or world.match_over or offset + 1 == horizon):
+            frames.append(pixel_frame(world, world.clock_tick))
+    official = (1 if world.winner is world.f1 else -1 if world.winner is world.f2 else 0) if world.match_over else 0
+    result = {'name': name, 'language': languages[name], 'official_outcome': official, 'ledger': ledger,
+              'status': 'CONCLUDED' if world.match_over else 'UNDECIDED',
+              'winner': world.winner.name if world.match_over and world.winner else 'UNDECIDED',
+              'trace_sha256': digest(trace), 'trace': trace, 'decisions': decisions,
+              'frames': frames, 'steps': len(trace)}
+    return result
+
+futures = {name: simulate(copy.deepcopy(world_checkpoint), name) for name in bank}
+if id(live_world) != live_identity or world_hash(live_world) != checkpoint_world_hash:
+    raise AssertionError('counterfactual trials mutated the suspended live arena')
+__oval_result__ = [{key: item[key] for key in ('name', 'language', 'official_outcome', 'ledger', 'status', 'winner', 'trace_sha256', 'steps')}
+                   for item in futures.values()]
+)_python[91]
+
+let measured_trials = python[92]^(
+import json
+__oval_result__ = O.eval(O.quote($checkpoint_receipt['analyze_source']), O.scope({'trials': $trials}))
+)_python[92]
+
+let ranking = python[92]^(
+measured = $measured_trials
+if isinstance(measured, str):
+    measured = json.loads(measured)
+judge = O.quote($checkpoint_receipt['judge_source'])
+__oval_result__ = O.eval(judge, O.scope({'trials': measured}))
+)_python[92]
+
+let replay_receipt = python[91]^(
+measured = $measured_trials
+if isinstance(measured, str):
+    measured = json.loads(measured)
+if {row['name'] for row in measured} != set(bank):
+    raise ValueError('SQL accounting returned an invalid candidate set')
+for row in measured:
+    if not all(math.isfinite(value) for value in row['metrics'].values()):
+        raise ValueError('SQL accounting returned non-finite metrics')
+    futures[row['name']]['metrics'] = row['metrics']
+ranked = $ranking
+if isinstance(ranked, str):
+    ranked = json.loads(ranked)
+if not isinstance(ranked, list) or len(ranked) != len(bank) or {row['name'] for row in ranked} != set(bank):
+    raise ValueError('SQL judge returned an invalid candidate ranking')
+selected = ranked[0]['name']
+actor_preserved = id(live_world) == live_identity and world_hash(live_world) == checkpoint_world_hash
+if not actor_preserved:
+    raise AssertionError('original Python world did not survive adjudication')
+resumed = simulate(live_world, selected, record_frames=False)
+replay_verified = (resumed['trace'] == futures[selected]['trace']
+                   and resumed['decisions'] == futures[selected]['decisions']
+                   and resumed['ledger'] == futures[selected]['ledger'])
+if not replay_verified:
+    raise AssertionError('selected future did not reproduce on the original live arena')
+for row in ranked:
+    if not math.isfinite(float(row['score'])):
+        raise ValueError('SQL judge returned a non-finite score')
+    futures[row['name']]['score'] = row['score']
+payload = {'schema': 'ostadix.arena/v1', 'arena': kind, 'seed': seed,
+           'checkpoint_tick': checkpoint_tick, 'horizon': horizon,
+           'checkpoint_sha256': checkpoint_hash, 'source_sha256': source_hashes,
+           'judge_source': program_sources['arena/judge.O'],
+           'strategy_sha256': strategy_hashes, 'selected': selected,
+           'replay_verified': replay_verified, 'actor_preserved': actor_preserved,
+           'branches': [futures[row['name']] for row in ranked]}
+__oval_result__ = {'selected': selected, 'actor_preserved': actor_preserved, 'replay_verified': replay_verified,
+                   'checkpoint_sha256': checkpoint_hash, 'trace_sha256': resumed['trace_sha256'],
+                   'policy_evaluations': sum(len(item['decisions']) for item in futures.values()) + len(resumed['decisions'])}
+)_python[91]
+
+python[91]^(
+rendered = O.eval(programs['arena/raster.O'], O.scope({'frames': futures[selected]['frames']}))
+if rendered['frame_count'] != len(futures[selected]['frames']):
+    raise ValueError('native renderer returned an invalid frame count')
+state_home = Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')).expanduser()
+if not state_home.is_absolute():
+    state_home = Path.home() / '.local/state'
+out_option = os.environ.get('OSTADIX_ARENA_OUT', str(state_home / 'ostadix/arena'))
+artifact = None
+if out_option:
+    output = Path(out_option).expanduser().resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    run_id = kind + '-' + str(seed) + '-' + checkpoint_hash[:10] + '-' + digest({'replay': $replay_receipt, 'sources': source_hashes})[:10]
+    artifact = output / run_id
+    artifact.mkdir(exist_ok=True)
+    for name, snapshot in program_sources.items():
+        destination = artifact / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(snapshot, encoding='utf-8')
+    view = O.quote(program_sources['arena/view.O'])
+    page = O.eval(view, O.scope({'payload': payload}))
+    (artifact / 'replay.html').write_text(str(page), encoding='utf-8')
+    (artifact / 'receipt.json').write_text(json.dumps(payload, indent=2, allow_nan=False), encoding='utf-8')
+    (artifact / 'terminal.ansi').write_text('\n'.join(rendered['frames']), encoding='utf-8')
+    for name, expression in bank.items():
+        (artifact / (name.lower() + '.O')).write_text(expression.src, encoding='utf-8')
+
+# O evaluates the candidates first; live playback shows their recorded futures.
+terminal = None
+if (switches['OSTADIX_ANIMATE'] != '0' and switches['OSTADIX_COLOR'] != '0'
+        and os.environ.get('TERM') != 'dumb' and 'NO_COLOR' not in os.environ):
+    device = terminal_context['device']
+    if switches['OSTADIX_ANIMATE'] == '1' and not device:
+        device = '/dev/tty'
+    try:
+        if device:
+            descriptor = os.open(device, os.O_WRONLY | getattr(os, 'O_NOCTTY', 0))
+            if os.isatty(descriptor):
+                terminal = os.fdopen(descriptor, 'w', encoding='utf-8')
+            else:
+                os.close(descriptor)
+    except OSError:
+        pass
+if terminal:
+    try:
+        frames = futures[selected]['frames']
+        for frame, raster in zip(frames, rendered['frames']):
+            lines = [f"OSTADIX COUNTERFACTUAL ARENA · {kind} · seed {seed}",
+                     f"FOLLOWING {selected} / {languages[selected]} · tick {frame['tick']} · REPLAY VERIFIED"]
+            terminal.write('\033[H' + '\n'.join(lines) + '\n' + raster + '\033[J\n')
+            terminal.flush()
+            time.sleep(0.06)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        terminal.write('\033[0m\033[?25h\n')
+        terminal.flush()
+        terminal.close()
+
+print(f'OSTADIX COUNTERFACTUAL ARENA · {kind} · seed {seed}')
+print(f'Checkpoint {checkpoint_tick} → {len(bank)} quoted language strategies → SQL ranking → original world resumed')
+print('O composition: Python world · Lisp rules · SQL ledger/judge · C terminal raster · HTML/JavaScript replay')
+for row in ranked:
+    branch = futures[row['name']]
+    metrics = branch['metrics']
+    mark = '*' if row['name'] == selected else ' '
+    print(f"{mark} {row['name']:<9} {branch['language']:<12} score {row['score']:8.2f}  "
+          f"damage +{metrics['damage_dealt']:.1f}/-{metrics['damage_taken']:.1f}  "
+          f"KD {metrics['net_knockdowns']:+d}  {branch['status']} / {branch['winner']}")
+print('Original actor preserved: yes · Selected future replay: exact semantic state + RNG match')
+evaluation_count = $replay_receipt['policy_evaluations']
+print(f"O.eval policy evaluations: {evaluation_count} · checkpoint {checkpoint_hash[:16]}")
+if artifact:
+    print('Replay: ' + str(artifact / 'replay.html'))
+    print('Receipt: ' + str(artifact / 'receipt.json'))
+else:
+    print('Export replay: set OSTADIX_ARENA_OUT to an output directory.')
+)_python[91]
+)_quote
+
+let analyze_program = quote^(
+# SQL owns combat accounting: derive scoring facts from the per-tick ledger.
+let ledger_json = python^(
+import json, math
+trials = $trials
+fields = ('own_hp_before', 'own_hp_after', 'foe_hp_before', 'foe_hp_after',
+          'own_stamina_before', 'own_stamina_after', 'own_knockdowns_before',
+          'own_knockdowns_after', 'foe_knockdowns_before', 'foe_knockdowns_after')
+if not isinstance(trials, list) or not trials:
+    raise ValueError('combat accounting requires trial records')
+for trial in trials:
+    if trial['official_outcome'] not in (-1, 0, 1):
+        raise ValueError('invalid official outcome')
+    if len(trial['ledger']) != trial['steps']:
+        raise ValueError('combat ledger must cover every simulation step')
+    previous = -1
+    for event in trial['ledger']:
+        if type(event['tick']) is not int or event['tick'] <= previous:
+            raise ValueError('combat ledger ticks must increase')
+        previous = event['tick']
+        for field in fields:
+            if isinstance(event[field], bool) or not isinstance(event[field], (float, int)) or not math.isfinite(event[field]):
+                raise ValueError('combat ledger values must be finite numbers')
+__oval_result__ = "'" + json.dumps(trials, allow_nan=False).replace("'", "''") + "'"
+)_python
+
+sql^(
+WITH trials AS (
+  SELECT key AS trial_id, value AS trial FROM json_each($ledger_json)
+), events AS (
+  SELECT trial_id, entry.value AS event,
+         row_number() OVER (PARTITION BY trial_id ORDER BY CAST(entry.key AS INTEGER)) AS first_tick,
+         row_number() OVER (PARTITION BY trial_id ORDER BY CAST(entry.key AS INTEGER) DESC) AS last_tick
+  FROM trials, json_each(trial, '$.ledger') AS entry
+), totals AS (
+  SELECT trial_id,
+         sum(max(0.0, json_extract(event, '$.foe_hp_before') - json_extract(event, '$.foe_hp_after'))) AS dealt,
+         sum(max(0.0, json_extract(event, '$.own_hp_before') - json_extract(event, '$.own_hp_after'))) AS taken,
+         sum(json_extract(event, '$.foe_knockdowns_after') - json_extract(event, '$.foe_knockdowns_before')
+           - json_extract(event, '$.own_knockdowns_after') + json_extract(event, '$.own_knockdowns_before')) AS knockdowns,
+         max(CASE WHEN last_tick = 1 THEN json_extract(event, '$.own_stamina_after') END)
+           - max(CASE WHEN first_tick = 1 THEN json_extract(event, '$.own_stamina_before') END) AS stamina
+  FROM events GROUP BY trial_id
+)
+SELECT json_group_array(json_set(trial, '$.metrics', json_object(
+  'damage_dealt', coalesce(dealt, 0.0), 'damage_taken', coalesce(taken, 0.0),
+  'net_knockdowns', coalesce(knockdowns, 0), 'stamina_delta', coalesce(stamina, 0.0),
+  'official_outcome', json_extract(trial, '$.official_outcome'))))
+FROM trials LEFT JOIN totals USING(trial_id);
+)_sql
+)_quote
+
+let judge_program = quote^(
+# Rank bounded counterfactual futures. Official outcome sorts before heuristic.
+let rows_json = python^(
+import json
+"'" + json.dumps($trials, allow_nan=False).replace("'", "''") + "'"
+)_python
+
+sql^(
+WITH facts AS (
+  SELECT json_extract(value, '$.name') AS name,
+         json_extract(value, '$.metrics.official_outcome') AS outcome,
+         json_extract(value, '$.metrics.damage_dealt') AS dealt,
+         json_extract(value, '$.metrics.damage_taken') AS taken,
+         json_extract(value, '$.metrics.net_knockdowns') AS knockdowns,
+         json_extract(value, '$.metrics.stamina_delta') AS stamina
+  FROM json_each($rows_json)
+), scored AS (
+  SELECT name, outcome,
+         -- TUNING POINT: the five terms below define the arena's preference.
+         1000.0 * outcome
+         + 2.0 * dealt
+         - 0.5 * taken
+         + 25.0 * knockdowns
+         + 0.025 * stamina AS score
+  FROM facts
+)
+SELECT json_group_array(json_object('name', name, 'score', score, 'outcome', outcome))
+FROM (SELECT * FROM scored ORDER BY outcome DESC, score DESC, name ASC);
+)_sql
+)_quote
+
+let view_program = quote^(
+# A pure view: O.eval(O.quote(source), O.scope({"payload": receipt})).
+# Returns an HTML OValue; the caller decides whether and where to save it.
+html^(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>OSTADIX / COUNTERFACTUAL ARENA</title>
+<style>
+:root{color-scheme:dark;--base:#1e1e2e;--mantle:#181825;--crust:#11111b;--surface:#313244;--text:#cdd6f4;--muted:#a6adc8;--lavender:#b4befe;--teal:#94e2d5;--peach:#fab387;--red:#f38ba8;--line:#45475a;font-family:"Fira Code","SFMono-Regular",Consolas,monospace;font-size:14px}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--base);color:var(--text)}
+button,input,select{font:inherit}
+button,select{background:var(--surface);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:.7rem 1rem;cursor:pointer}
+button:hover,select:hover{border-color:var(--lavender)}button:disabled{opacity:.45;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--teal);outline-offset:4px}
+button.primary{background:var(--lavender);border-color:var(--lavender);color:var(--crust);font-weight:650}
+main{max-width:1640px;margin:auto;padding:34px clamp(16px,3.4vw,58px) 54px}
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.brand{font-weight:750;letter-spacing:.05em;font-size:16px}.brand span{color:var(--muted);font-weight:400;margin-left:.5rem}
+.arena-tag{border:1px solid var(--line);padding:8px 13px;border-radius:30px;color:var(--lavender);white-space:nowrap}
+.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:26px;margin:34px 0 28px}
+h1{font-size:clamp(26px,3.1vw,44px);font-weight:550;line-height:1.18;letter-spacing:-.055em;margin:0 0 15px;max-width:780px}
+p{line-height:1.7;margin:0;color:var(--muted);max-width:76ch}.context{font-size:12px}
+.receipt{display:flex;gap:22px;flex-wrap:wrap;justify-content:flex-end}.receipt div{min-width:130px}
+.receipt dt{font-size:11px;color:var(--muted);margin-bottom:8px}.receipt dd{margin:0;font-size:15px}
+.verified{color:var(--teal)}.unverified{color:var(--peach)}
+.judge{margin:-4px 0 24px;font-size:11px}.judge summary{cursor:pointer;color:var(--muted);padding:6px 0}.judge p{margin:13px 0;font-size:11px}.judge pre{margin:0;padding:18px;background:var(--mantle);border:1px solid var(--line);border-radius:8px;overflow:auto;line-height:1.7;font-size:11px;max-height:28rem}.judge code{font-family:inherit}
+.candidates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.candidate{min-width:0;background:var(--mantle);border:1px solid var(--line);border-radius:10px;overflow:hidden}.candidate.selected{border-color:var(--lavender)}
+.candidate-head{padding:17px 18px 15px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.candidate h2{font-size:19px;font-weight:550;line-height:1.2;margin:0 0 8px;overflow-wrap:anywhere}
+.language{font-size:11px;color:var(--muted)}.chosen{font-size:10px;background:var(--lavender);color:var(--crust);padding:5px 7px;border-radius:4px;white-space:nowrap}
+.canvas-wrap{position:relative;background:var(--crust);width:100%;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--surface);border-bottom:1px solid var(--surface)}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;width:100%;height:100%;object-fit:contain}
+.empty{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+.frame-state{display:flex;justify-content:space-between;gap:10px;margin:13px 18px 0;font-size:10px;color:var(--muted)}
+.health{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:15px 18px 18px}
+.health-label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted)}.health-label strong{font-size:15px;color:var(--text);font-weight:500}
+.bar{height:4px;background:var(--surface);margin-top:9px;border-radius:2px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--lavender)}.bar.foe i{background:var(--peach)}
+.score-row{border-top:1px solid var(--surface);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.score-row small{font-size:10px;color:var(--muted)}.score-value{font-size:28px;font-variant-numeric:tabular-nums;color:var(--lavender);letter-spacing:-.04em}
+.official{display:flex;flex-direction:column;gap:6px;text-align:right;font-size:12px}.official span{color:var(--muted);font-size:10px}
+.breakdown{border-top:1px solid var(--surface);padding:13px 18px 16px}.breakdown summary{cursor:pointer;font-size:11px;color:var(--muted)}
+.metrics{margin-top:12px;display:grid;gap:10px}.metric{display:flex;justify-content:space-between;gap:14px;font-size:11px}.metric span:first-child{color:var(--muted)}.metric span:last-child{font-variant-numeric:tabular-nums}
+.timeline{margin-top:22px;padding:20px 0;border-bottom:1px solid var(--line)}.timeline-top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:17px}
+.transport{display:flex;gap:9px;align-items:center}.time-readout{font-size:13px;white-space:nowrap}.time-readout span{color:var(--muted);font-size:11px}
+.range-row{display:flex;align-items:center;gap:18px}.range-row span{font-size:10px;color:var(--muted);white-space:nowrap}
+input[type=range]{width:100%;accent-color:var(--lavender);cursor:pointer;min-height:26px;margin:0}.note{margin-top:13px;font-size:11px;line-height:1.7}
+.technical{margin-top:26px}.technical>summary{cursor:pointer;font-size:12px;padding:9px 0;color:var(--text)}
+.provenance{margin-top:15px;padding:20px;border:1px solid var(--line);border-radius:8px;background:var(--mantle)}.provenance p{font-size:12px;margin-bottom:19px}
+.proofs{display:grid;grid-template-columns:150px minmax(0,1fr);gap:13px 18px;font-size:11px}.proofs dt{color:var(--muted)}.proofs dd{margin:0;overflow-wrap:anywhere;line-height:1.6}
+.provenance h3{font-size:12px;font-weight:500;margin:24px 0 14px}.hash-list{display:grid;gap:12px;font-size:10px}
+.hash{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,3fr);gap:18px;align-items:start}.hash span:first-child{color:var(--muted);overflow-wrap:anywhere}.hash code{color:var(--text);overflow-wrap:anywhere;line-height:1.7}
+.footer{margin-top:28px;color:var(--muted);font-size:10px;line-height:1.8}.error{color:var(--red);border:1px solid var(--red);padding:20px;margin-top:24px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(min-width:1450px){.canvas-wrap{aspect-ratio:16/11}}
+@media(max-width:1050px){.intro{display:block}.receipt{justify-content:flex-start;margin-top:25px}.candidates{gap:12px}.candidate-head,.score-row{padding-left:13px;padding-right:13px}.score-row{align-items:flex-start;flex-direction:column}.official{text-align:left}.health{gap:10px;padding-left:13px;padding-right:13px}.candidate h2{font-size:16px}.chosen{font-size:9px}}
+@media(max-width:760px){main{padding-top:22px}header{align-items:flex-start}.brand{font-size:12px}.brand span{display:block;margin:6px 0 0;font-size:10px}.arena-tag{font-size:10px}.intro{margin:26px 0}.candidates{grid-template-columns:1fr}.candidate-head,.score-row{padding:17px 18px}.score-row{flex-direction:row;align-items:center}.official{text-align:right}.candidate h2{font-size:19px}.canvas-wrap{aspect-ratio:16/9}.timeline{position:sticky;bottom:0;background:var(--base);z-index:2;padding:14px 0;border-top:1px solid var(--line);margin-top:20px}.timeline-top{gap:12px;margin-bottom:9px}.transport{gap:6px}.transport button,.transport select{padding:.65rem .7rem;font-size:11px}.time-readout{font-size:12px}.time-readout span{display:block;text-align:right;margin-top:4px}.range-row{gap:10px}.note{font-size:10px}.proofs{grid-template-columns:1fr;gap:7px}.proofs dd{margin-bottom:10px}.hash{grid-template-columns:1fr;gap:5px}.receipt{gap:19px}.receipt div{min-width:115px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand">OSTADIX <span>/ COUNTERFACTUAL ARENA</span></div><div class="arena-tag" id="arena-name">Arena replay</div></header>
+<section class="intro" aria-labelledby="title"><div><h1 id="title">One checkpoint.<br>Three possible futures.</h1><p class="context" id="context">Compare decisions from the same application state.</p></div><dl class="receipt"><div><dt>Chosen policy</dt><dd id="chosen-policy">—</dd></div><div><dt>Chosen replay</dt><dd id="replay-verification">—</dd></div><div><dt>Original actor</dt><dd id="actor-preservation">—</dd></div></dl></section>
+<details class="judge"><summary>Selection rule: arena/judge.O</summary><p>The recorded rule computes policy scores for this run. Each candidate's official combat result is shown separately.</p><pre><code id="judge-source">Source not supplied in this receipt.</code></pre></details>
+<section class="candidates" id="candidates" aria-label="Candidate policy replays"></section>
+<section class="timeline" aria-label="Replay controls"><div class="timeline-top"><div class="transport"><button type="button" class="primary" id="play" aria-label="Play all candidate replays">Play</button><button type="button" id="restart">Restart</button><label class="sr-only" for="speed">Replay speed</label><select id="speed"><option value="4">½× speed</option><option value="8" selected>1× speed</option><option value="16">2× speed</option></select></div><output class="time-readout" id="time-readout" for="timeline">Tick —</output></div><div class="range-row"><span id="range-start">—</span><label for="timeline" class="sr-only">Shared simulation tick</label><input type="range" id="timeline" min="0" max="1" value="0" step="1"><span id="range-end">—</span></div><p class="note">Every arena follows the same tick. Scrub to compare recorded states; a finished branch holds its last frame.</p></section>
+<details class="technical"><summary>Execution evidence and source fingerprints</summary><div class="provenance"><p>O evaluates each policy in its named language. Candidate simulations resume the same application checkpoint, including random state. The selected policy is replayed and its trace hash is compared. This receipt describes application state restoration; it does not claim runtime or process migration.</p><dl class="proofs" id="proofs"></dl><h3>Policy traces · SHA-256</h3><div class="hash-list" id="trace-hashes"></div><h3>Sources · SHA-256</h3><div class="hash-list" id="source-hashes"></div></div></details>
+<p class="footer">Policy scores rank the simulated branches. The official result comes from the combat engine and can remain undecided at the horizon. Replay verification covers the selected trace; source hashes identify the inputs used for this run.</p>
+<div id="error" class="error" role="alert" hidden></div>
+</main>
+<script type="application/json" id="arena-payload">python^(
+import json
+data = $payload
+encoded = json.dumps(data, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+# Script text is raw HTML even for application/json. Encode every markup
+# delimiter before returning trusted HTML so hostile names cannot end the tag.
+encoded = encoded.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+__oval_result__ = OHtml(encoded)
+)_python</script>
+<script>
+"use strict";
+(() => {
+  const el = id => document.getElementById(id);
+  const put = (id, value) => { el(id).textContent = String(value); };
+  const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+  const fixed = value => number(value).toFixed(1);
+  const signed = value => (number(value) > 0 ? "+" : "") + fixed(value);
+  const make = (tag, className, value) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (value !== undefined) node.textContent = String(value);
+    return node;
+  };
+  try {
+    const data = JSON.parse(el("arena-payload").textContent);
+    if (data.schema !== "ostadix.arena/v1" || !Array.isArray(data.branches)) throw new Error("Unsupported arena receipt.");
+    const branches = data.branches;
+    put("arena-name", data.arena === "medieval" ? "Medieval combat" : "Boxing");
+    if (branches.length !== 3) put("title", "One checkpoint. " + branches.length + " possible futures.");
+    put("context", "Seed " + data.seed + " / checkpoint tick " + data.checkpoint_tick + " / " + data.horizon + "-tick horizon");
+    put("chosen-policy", data.selected || "No policy selected");
+    put("replay-verification", data.replay_verified ? "Hash verified" : "Not verified");
+    el("replay-verification").className = data.replay_verified ? "verified" : "unverified";
+    put("actor-preservation", data.actor_preserved ? "Preserved" : "Not verified");
+    el("actor-preservation").className = data.actor_preserved ? "verified" : "unverified";
+    if (typeof data.judge_source === "string") put("judge-source", data.judge_source);
+    const addProof = (name, value) => { el("proofs").append(make("dt", "", name), make("dd", "", value)); };
+    addProof("Receipt", data.schema);
+    addProof("Checkpoint SHA-256", data.checkpoint_sha256 || "Unavailable");
+    addProof("Chosen trace replay", data.replay_verified ? "Verified by trace hash equality" : "Not verified");
+    addProof("Persistent actor", data.actor_preserved ? "Preserved across candidate evaluations" : "Preservation not verified");
+    const addHash = (target, name, hash) => {
+      const row = make("div", "hash");
+      row.append(make("span", "", name), make("code", "", hash || "Unavailable"));
+      el(target).append(row);
+    };
+    Object.entries(data.source_sha256 || {}).forEach(([name, hash]) => addHash("source-hashes", name, hash));
+    if (!Object.keys(data.source_sha256 || {}).length) el("source-hashes").append(make("span", "", "No source fingerprints supplied."));
+    const views = branches.map(branch => {
+      const frames = (Array.isArray(branch.frames) ? branch.frames : []).slice().sort((a, b) => a.tick - b.tick);
+      const article = make("article", "candidate" + (branch.name === data.selected ? " selected" : ""));
+      const head = make("div", "candidate-head");
+      const identity = make("div");
+      identity.append(make("h2", "", branch.name), make("div", "language", "Policy evaluated in " + branch.language));
+      head.append(identity);
+      if (branch.name === data.selected) head.append(make("span", "chosen", "Chosen"));
+      const wrap = make("div", "canvas-wrap");
+      const canvas = make("canvas");
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", branch.name + " recorded combat frame");
+      const empty = make("div", "empty", "No recorded frames for this branch.");
+      empty.hidden = frames.length > 0;
+      canvas.hidden = frames.length === 0;
+      wrap.append(canvas, empty);
+      const state = make("div", "frame-state");
+      const frameTick = make("span", "", "Tick —");
+      const frameStatus = make("span", "", "");
+      state.append(frameTick, frameStatus);
+      const health = make("div", "health");
+      const healthElements = ["Controlled fighter", "Opponent"].map((label, index) => {
+        const cell = make("div");
+        const line = make("div", "health-label");
+        const value = make("strong", "", "—");
+        line.append(make("span", "", label), value);
+        const bar = make("div", "bar" + (index ? " foe" : ""));
+        const fill = make("i");
+        bar.setAttribute("aria-hidden", "true");
+        bar.append(fill);
+        cell.append(line, bar);
+        health.append(cell);
+        return {value, fill};
+      });
+      const score = make("div", "score-row");
+      const scoreBlock = make("div");
+      scoreBlock.append(make("small", "", "Policy score"), make("div", "score-value", signed(branch.score)));
+      const official = make("div", "official");
+      official.append(make("span", "", "Official result"), make("strong", "", branch.winner || "UNDECIDED"), make("span", "", branch.status || "Unknown"));
+      score.append(scoreBlock, official);
+      const detail = make("details", "breakdown");
+      detail.append(make("summary", "", "Score inputs"));
+      const metrics = make("div", "metrics");
+      const metricLabels = [["damage_dealt", "Damage dealt"], ["damage_taken", "Damage taken"], ["net_knockdowns", "Net knockdowns"], ["stamina_delta", "Stamina change"], ["official_outcome", "Official outcome term"]];
+      metricLabels.forEach(([key, label]) => {
+        const row = make("div", "metric");
+        const value = branch.metrics && branch.metrics[key];
+        row.append(make("span", "", label), make("span", "", value == null ? "Unavailable" : signed(value)));
+        metrics.append(row);
+      });
+      detail.append(metrics);
+      article.append(head, wrap, state, health, score, detail);
+      el("candidates").append(article);
+      addHash("trace-hashes", branch.name + " (" + branch.language + ")", branch.trace_sha256);
+      return {branch, frames, canvas, empty, frameTick, frameStatus, healthElements, cache: new Map(), shown: -1};
+    });
+    if (!branches.length) el("candidates").append(make("p", "empty", "This receipt contains no candidate branches."));
+    const recordedTicks = Array.from(new Set(views.flatMap(view => view.frames.map(frame => number(frame.tick))))).sort((a,b) => a-b);
+    const start = Math.min(number(data.checkpoint_tick), recordedTicks[0] === undefined ? number(data.checkpoint_tick) : recordedTicks[0]);
+    const end = recordedTicks.length ? recordedTicks[recordedTicks.length - 1] : start;
+    const range = el("timeline");
+    range.min = String(start); range.max = String(end); range.value = String(start);
+    put("range-start", start); put("range-end", end);
+    let playing = false, animation = 0, lastTime = 0, clockTick = start;
+    const pause = () => {
+      playing = false;
+      cancelAnimationFrame(animation);
+      put("play", "Play");
+      el("play").setAttribute("aria-label", "Play all candidate replays");
+    };
+    const decode = (view, index) => {
+      if (view.cache.has(index)) return view.cache.get(index);
+      const frame = view.frames[index];
+      const width = Number(frame.width), height = Number(frame.height);
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width * height > 2000000) throw new Error("Invalid frame dimensions.");
+      const raw = atob(frame.rgb);
+      if (raw.length !== width * height * 3) throw new Error("RGB frame length does not match its dimensions.");
+      const rgba = new Uint8ClampedArray(width * height * 4);
+      for (let pixel = 0, offset = 0; offset < raw.length; pixel += 4, offset += 3) {
+        rgba[pixel] = raw.charCodeAt(offset); rgba[pixel+1] = raw.charCodeAt(offset+1); rgba[pixel+2] = raw.charCodeAt(offset+2); rgba[pixel+3] = 255;
+      }
+      const pixels = new ImageData(rgba, width, height);
+      view.cache.set(index, pixels);
+      return pixels;
+    };
+    const draw = tick => {
+      range.value = String(tick);
+      const output = el("time-readout");
+      output.replaceChildren(document.createTextNode("Tick " + tick + " "), make("span", "", "/ " + end));
+      views.forEach(view => {
+        let index = -1;
+        for (let i = 0; i < view.frames.length && number(view.frames[i].tick) <= tick; i++) index = i;
+        if (index < 0) {
+          view.canvas.hidden = true; view.empty.hidden = false; view.shown = -1;
+          view.empty.textContent = view.frames.length ? "First recorded frame is at tick " + view.frames[0].tick + "." : "No recorded frames for this branch.";
+          view.frameTick.textContent = "Tick —"; view.frameStatus.textContent = "";
+          view.healthElements.forEach(health => { health.value.textContent = "—"; health.fill.style.width = "0%"; });
+          return;
+        }
+        const frame = view.frames[index];
+        view.frameTick.textContent = "Frame at tick " + frame.tick;
+        view.frameStatus.textContent = tick > number(view.frames[view.frames.length-1].tick) ? "Branch ended" : index === view.frames.length - 1 ? "Final recorded frame" : "";
+        if (view.shown === index) { view.canvas.hidden = false; view.empty.hidden = true; return; }
+        try {
+          const pixels = decode(view, index);
+          view.canvas.width = pixels.width; view.canvas.height = pixels.height;
+          const context = view.canvas.getContext("2d");
+          if (!context) throw new Error("Canvas rendering is unavailable in this browser.");
+          context.imageSmoothingEnabled = false;
+          context.putImageData(pixels, 0, 0);
+          view.canvas.hidden = false; view.empty.hidden = true;
+          view.canvas.setAttribute("aria-label", view.branch.name + " at tick " + frame.tick + ", fighter HP " + fixed(frame.own_hp) + ", opponent HP " + fixed(frame.foe_hp));
+          view.healthElements.forEach((health, fighter) => {
+            const key = fighter ? "foe_hp" : "own_hp";
+            const hp = number(frame[key]);
+            const maximum = Math.max(1, ...view.frames.map(item => number(item[key])));
+            health.value.textContent = fixed(hp);
+            health.fill.style.width = Math.min(100, Math.max(0, hp / maximum * 100)) + "%";
+          });
+          view.shown = index;
+        } catch (error) {
+          view.canvas.hidden = true; view.empty.hidden = false;
+          view.empty.textContent = "Frame unavailable: " + error.message;
+        }
+      });
+    };
+    const loop = now => {
+      if (!playing) return;
+      if (lastTime) {
+        const interval = recordedTicks.length > 1 ? (end - start) / (recordedTicks.length - 1) : 1;
+        clockTick = Math.min(end, clockTick + Math.min(now - lastTime, 250) / 1000 * number(el("speed").value) * Math.max(1, interval));
+      }
+      lastTime = now;
+      draw(Math.floor(clockTick));
+      if (clockTick >= end) { pause(); return; }
+      animation = requestAnimationFrame(loop);
+    };
+    el("play").addEventListener("click", () => {
+      if (playing) { pause(); return; }
+      if (clockTick >= end) clockTick = start;
+      playing = true; lastTime = 0;
+      put("play", "Pause"); el("play").setAttribute("aria-label", "Pause all candidate replays");
+      animation = requestAnimationFrame(loop);
+    });
+    range.addEventListener("input", () => { pause(); clockTick = number(range.value); draw(clockTick); });
+    el("restart").addEventListener("click", () => { pause(); clockTick = start; draw(start); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+    if (end <= start) { el("play").disabled = true; el("restart").disabled = true; range.disabled = true; }
+    draw(start);
+  } catch (error) {
+    el("error").hidden = false;
+    el("error").textContent = "The arena replay could not be loaded: " + error.message;
+    el("play").disabled = true; el("restart").disabled = true; el("timeline").disabled = true;
+  }
+})();
+</script>
+</body>
+</html>
+)_html
+)_quote
+
+let terminal_program = quote^(
+# Inspect the calling O evaluator's stdout, which hosted backends do not inherit.
+# A controlling terminal alone is insufficient: `O boxing.O | cat` stays static.
+python^(
+import os, stat, struct, sys
+
+def terminal_probe():
+    result = {'device': None, 'interactive': False, 'columns': 80, 'rows': 24,
+              'platform': sys.platform}
+    try:
+        if sys.platform == 'darwin':
+            import ctypes
+            lib = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+            lib.proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                                         ctypes.c_void_p, ctypes.c_int]
+            lib.proc_pidinfo.restype = ctypes.c_int
+            lib.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+            lib.proc_pidpath.restype = ctypes.c_int
+            lib.proc_pidfdinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                           ctypes.c_void_p, ctypes.c_int]
+            lib.proc_pidfdinfo.restype = ctypes.c_int
+
+            def process_info(pid):
+                # Darwin proc_bsdshortinfo is 64 bytes; parent PID is uint32 #2.
+                info = ctypes.create_string_buffer(64)
+                path = ctypes.create_string_buffer(4096)
+                if lib.proc_pidinfo(pid, 13, 0, info, len(info)) != len(info):
+                    raise OSError('process metadata unavailable')
+                if lib.proc_pidpath(pid, path, len(path)) <= 0:
+                    raise OSError('process executable unavailable')
+                return struct.unpack_from('=I', info.raw, 4)[0], os.fsdecode(path.value)
+
+            def stdout_device(pid):
+                # Darwin vnode_fdinfowithpath: 24-byte file info, 152-byte vnode,
+                # then MAXPATHLEN (1024) bytes. Pipes have no vnode path.
+                info = ctypes.create_string_buffer(1200)
+                if lib.proc_pidfdinfo(pid, 1, 2, info, len(info)) != len(info):
+                    return None
+                return os.fsdecode(info.raw[176:].split(bytes([0]), 1)[0])
+
+        elif sys.platform.startswith('linux') or sys.platform == 'android':
+            def process_info(pid):
+                # Parentheses in the process name must not shift /proc fields.
+                with open('/proc/' + str(pid) + '/stat', encoding='utf-8') as handle:
+                    fields = handle.read().rsplit(')', 1)[1].split()
+                return int(fields[1]), os.readlink('/proc/' + str(pid) + '/exe')
+
+            def stdout_device(pid):
+                return os.readlink('/proc/' + str(pid) + '/fd/1')
+
+        else:
+            return result
+
+        # The Python shim is a child of O's backend process. The evaluator is
+        # the outermost adjacent process with that same executable. Never walk
+        # into the shell: its terminal would misidentify piped O output.
+        evaluator = os.getppid()
+        parent, executable = process_info(evaluator)
+        for unused in range(8):
+            if parent <= 1:
+                break
+            next_parent, parent_executable = process_info(parent)
+            if parent_executable != executable:
+                break
+            evaluator, parent = parent, next_parent
+        else:
+            return result
+
+        device = stdout_device(evaluator)
+        if not device or not os.path.isabs(device):
+            return result
+        expected = os.stat(device)
+        if not stat.S_ISCHR(expected.st_mode):
+            return result
+        # Read-only inspection does not claim or write to a terminal. O_NOCTTY
+        # avoids acquiring a controlling terminal; O_NONBLOCK bounds the open.
+        flags = os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_NOCTTY', 0)
+        descriptor = os.open(device, flags)
+        try:
+            opened = os.fstat(descriptor)
+            if (not stat.S_ISCHR(opened.st_mode) or opened.st_rdev != expected.st_rdev
+                    or not os.isatty(descriptor)):
+                return result
+            if os.tcgetpgrp(descriptor) != os.getpgid(evaluator):
+                return result
+            size = os.get_terminal_size(descriptor)
+            result.update(device=device, interactive=True,
+                          columns=min(1000, max(20, size.columns or 80)),
+                          rows=min(300, max(5, size.lines or 24)))
+        finally:
+            os.close(descriptor)
+    except (OSError, ValueError, IndexError, AttributeError, ImportError):
+        # Restricted /proc or libproc access is a static-output condition.
+        pass
+    return result
+
+__oval_result__ = terminal_probe()
+)_python
+)_quote
+
+let raster_program = quote^(
+# Native C17 terminal rasterizer. Evaluate with O.scope({"frames": frames}).
+# RGB frames are ordered top to bottom; an odd final row has a black lower half.
+# One batch compiles once. No cursor control, terminal writes, or platform APIs.
+let raster_spec = python^(
+import base64
+import binascii
+
+incoming = $frames
+if not isinstance(incoming, list) or not 1 <= len(incoming) <= 37:
+    raise ValueError("raster frames must contain 1..37 frames")
+dimensions = None
+for frame in incoming:
+    if not isinstance(frame, dict):
+        raise ValueError("raster frame must be a mapping")
+    width, height = frame.get('width'), frame.get('height')
+    if any(type(value) is not int or not 1 <= value <= 300 for value in (width, height)):
+        raise ValueError("raster width and height must be integers in 1..300")
+    if dimensions is None:
+        dimensions = (width, height)
+    elif dimensions != (width, height):
+        raise ValueError("raster frames must have identical dimensions")
+    tick = frame.get('tick')
+    if type(tick) is not int or not 0 <= tick <= 2147483647:
+        raise ValueError("raster tick must be an integer in 0..2147483647")
+width, height = dimensions
+if width * height * len(incoming) > 1000000:
+    raise ValueError("raster batch exceeds 1000000 pixels")
+byte_count = width * height * 3
+encoded_length = ((byte_count + 2) // 3) * 4
+packed = bytearray()
+for frame in incoming:
+    encoded = frame.get('rgb')
+    if not isinstance(encoded, str) or len(encoded) != encoded_length:
+        raise ValueError("raster RGB must be base64 with exactly width*height*3 bytes")
+    try:
+        rgb = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        raise ValueError("raster RGB is not valid base64") from None
+    if len(rgb) != byte_count:
+        raise ValueError("raster RGB byte count does not match dimensions")
+    packed.extend(rgb)
+# Only checked byte values enter C source; input strings are never interpolated.
+__oval_result__ = {
+    'width': width, 'height': height, 'frame_count': len(incoming),
+    'initializer': '{' + ','.join(str(value) for value in packed) + '}',
+}
+)_python
+
+c^(
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+static const unsigned WIDTH = python^( $raster_spec['width'] )_python;
+static const unsigned HEIGHT = python^( $raster_spec['height'] )_python;
+static const unsigned FRAME_COUNT = python^( $raster_spec['frame_count'] )_python;
+static const uint8_t PIXELS[] = python^( $raster_spec['initializer'] )_python;
+
+/* Emit JSON directly: UTF-8 survives intact; controls and quotes are escaped. */
+static void json_byte(unsigned char value) {
+    switch (value) {
+        case '"': fputs("\\\"", stdout); break;
+        case '\\': fputs("\\\\", stdout); break;
+        case '\n': fputs("\\n", stdout); break;
+        case '\r': fputs("\\r", stdout); break;
+        case '\t': fputs("\\t", stdout); break;
+        default:
+            if (value < 32) printf("\\u%04x", (unsigned)value);
+            else putchar(value);
+    }
+}
+
+static void json_text(const char *text) {
+    while (*text) json_byte((unsigned char)*text++);
+}
+
+static void color(unsigned layer, const uint8_t *rgb) {
+    char sequence[32];
+    snprintf(sequence, sizeof sequence, "\033[%u;2;%u;%u;%um", layer,
+             (unsigned)rgb[0], (unsigned)rgb[1], (unsigned)rgb[2]);
+    json_text(sequence);
+}
+
+static void frame(unsigned index) {
+    const uint8_t black[3] = {0, 0, 0};
+    const size_t start = (size_t)index * WIDTH * HEIGHT * 3;
+    putchar('"');
+    for (unsigned y = 0; y < HEIGHT; y += 2) {
+        const uint8_t *last_top = NULL;
+        const uint8_t *last_bottom = NULL;
+        for (unsigned x = 0; x < WIDTH; ++x) {
+            const uint8_t *top = PIXELS + start + ((size_t)y * WIDTH + x) * 3;
+            const uint8_t *bottom = y + 1 < HEIGHT
+                ? top + (size_t)WIDTH * 3 : black;
+            if (!last_top || memcmp(top, last_top, 3) != 0) color(38, top);
+            if (!last_bottom || memcmp(bottom, last_bottom, 3) != 0) color(48, bottom);
+            /* U+2580 UPPER HALF BLOCK, encoded independently of the C locale. */
+            json_byte(0xe2); json_byte(0x96); json_byte(0x80);
+            last_top = top;
+            last_bottom = bottom;
+        }
+        json_text("\033[0m\n");
+    }
+    putchar('"');
+}
+
+int main(void) {
+    printf("{\"width\":%u,\"height\":%u,\"frame_count\":%u,\"frames\":[",
+           WIDTH, HEIGHT, FRAME_COUNT);
+    for (unsigned index = 0; index < FRAME_COUNT; ++index) {
+        if (index) putchar(',');
+        frame(index);
+    }
+    fputs("]}\n", stdout);
+    return ferror(stdout) ? 1 : 0;
+}
+)_c
+)_quote
+
+# END EMBEDDED ARENA MODULES
+
+let combat_engine = python[90]^(
+# Evaluate the exact engine snapshot into the retained physics actor.
+__oval_result__ = O.eval($combat_engine_source)
+)_python[90]
+
+python[90]^(
+import os
+kind = $combat_engine
+mode = os.environ.get('OSTADIX_COMBAT_MODE', 'counterfactual')
+if mode not in ('counterfactual', 'classic'):
+    raise ValueError('OSTADIX_COMBAT_MODE must be counterfactual or classic')
+programs = {
+    'arena/session.O': $session_program, 'arena/analyze.O': $analyze_program,
+    'arena/judge.O': $judge_program, 'arena/view.O': $view_program,
+    'arena/terminal.O': $terminal_program, 'arena/raster.O': $raster_program,
+}
+if mode == 'classic':
+    runner = 'run_championship_match' if kind == 'boxing' else 'run_tournament'
+    classic = 'python' + '[91]^(\n' + runner + '()\n)_' + 'python[91]'
+    __oval_result__ = O.eval(O.quote(classic))
+else:
+    bank = {'Pressure': $pressure_strategy, 'Adaptive': $adaptive_strategy, 'Guard': $guard_strategy}
+    __oval_result__ = O.eval(programs['arena/session.O'], O.scope({
+        'combat_kind': kind, 'strategy_bank': bank, 'engine_expression': $combat_engine_source,
+        'program_expressions': programs}))
+)_python[90]

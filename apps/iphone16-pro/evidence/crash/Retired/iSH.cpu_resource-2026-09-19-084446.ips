@@ -1,0 +1,192 @@
+{"roots_installed":0,"app_name":"iSH","timestamp":"2026-09-19 08:44:46.00 -0400","app_version":"1.3.2","slice_uuid":"03722577-5A97-3A60-9E5A-D6EC09B15831","adam_id":"1436902243","build_version":"494","bundleID":"app.ish.iSH","duration_ms":"91136","is_first_party":0,"share_with_app_devs":0,"bug_type":"202","os_version":"iPhone OS 26.6 (23G71)","distributor_id":"com.apple.AppStore","name":"iSH","incident_id":"4F030DE2-E202-4559-997F-8760C9A09567"}
+Date/Time:        2026-09-19 08:43:12.716 -0400
+End time:         2026-09-19 08:44:43.852 -0400
+OS Version:       iPhone OS 26.6 (Build 23G71)
+Architecture:     arm64e
+Report Version:   72
+Incident Identifier: 4F030DE2-E202-4559-997F-8760C9A09567
+
+Data Source:      Microstackshots
+Shared Cache:     6F1AC697-5292-3BA2-8297-71BC62266DBA slid base address 0x18d008000, slide 0xd008000
+
+Command:          iSH
+Path:             /private/var/containers/Bundle/Application/D3CFB3AB-BEC6-4257-A44E-6364B622833E/iSH.app/iSH
+Identifier:       app.ish.iSH
+Version:          1.3.2 (494)
+Adam ID:          1436902243
+Is First Party:   No
+Beta Identifier:  F6B122A6-1890-4DD8-9051-504AA23FE5CC
+Resource Coalition: "app.ish.iSH"(2196)
+Architecture:     arm64
+Parent:           UNKNOWN [1]
+PID:              5020
+
+Event:            cpu usage
+Action taken:     none
+CPU:              90 seconds cpu time over 91 seconds (99% cpu average), exceeding limit of 50% cpu over 180 seconds
+CPU limit:        90s
+Limit duration:   180s
+CPU used:         90s
+CPU duration:     91s
+Duration:         91.14s
+Duration Sampled: 88.88s (event starts 1.18s before samples, event ends 1.08s after samples)
+Steps:            46 (10 gigacycles/step, 2 samples lost)
+
+Hardware model:   iPhone17,1
+Active cpus:      6
+Memory size:      7.46 GB
+HW page size:     16384
+VM page size:     16384
+Shared cache residency: 12.82% (767.78 MB / 5990.66 MB)
+
+Time Since Boot:  208294s
+Time Awake Since Boot: 95470s
+Time Since Wake:  1152s
+
+Total CPU Time:   113.853s
+Advisory levels:  Battery -> 3, User -> 3, ThermalPressure -> 0, Combined -> 3
+Free disk space:  9045.56 MB/114.88 GB, low space threshold 150 MB
+Vnodes Available: 60.00% (16800/28000, 14000 allocated, 14000 soft limit)
+Model:            com.apple.fm.language.instruct_3b.tokenizer
+  Loaded:         ??? - N/A, requested by UNKNOWN
+Model:            com.apple.fm.language.instruct_300m.tokenizer
+  Loaded:         ??? - N/A, requested by UNKNOWN
+
+Preferred User Language: en-US
+Country Code:     US
+Keyboards:        en_US QWERTY
+OS Cryptex File Extents: 25145
+
+Heaviest stack for the target process:
+  45  ??? (libsystem_pthread.dylib + 2252) [0x1efeb28cc]
+  45  ??? (libsystem_pthread.dylib + 17464) [0x1efeb6438]
+  45  ??? (iSH + 169264) [0x104319530]
+  44  ??? (iSH + 168960) [0x104319400]
+  44  ??? (iSH + 326512) [0x10433fb70]
+  4   ??? (iSH + 507408) [0x10436be10]
+
+
+Powerstats for:   iSH [5020]
+UUID:             03722577-5A97-3A60-9E5A-D6EC09B15831
+Path:             /private/var/containers/Bundle/Application/D3CFB3AB-BEC6-4257-A44E-6364B622833E/iSH.app/iSH
+Identifier:       app.ish.iSH
+Version:          1.3.2 (494)
+Adam ID:          1436902243
+Is First Party:   No
+Beta Identifier:  F6B122A6-1890-4DD8-9051-504AA23FE5CC
+Resource Coalition: 46 samples "app.ish.iSH"(2196)
+Architecture:     arm64
+Parent:           UNKNOWN [1]
+UID:              501
+Footprint:        57.39 MB -> 143.69 MB (+86.30 MB)
+Pageins:          1 pages
+Start time:       2026-09-19 08:43:13.892 -0400
+End time:         2026-09-19 08:44:42.777 -0400
+Num samples:      46 (100%)
+Energy:           97.78 mWh
+Num threads:      3
+Primary state:    45 samples Frontmost App, Non-Suppressed, User mode, Effective Thread QoS Default, Requested Thread QoS Default, Override Thread QoS Unspecified, p-core
+User Activity:    0 samples Idle, 46 samples Active
+Power Source:     0 samples on Battery, 46 samples on AC
+  45  ??? (libsystem_pthread.dylib + 2252) [0x1efeb28cc]
+    45  ??? (libsystem_pthread.dylib + 17464) [0x1efeb6438]
+      45  ??? (iSH + 169264) [0x104319530]
+        44  ??? (iSH + 168960) [0x104319400]
+          44  ??? (iSH + 326512) [0x10433fb70]
+            4   ??? (iSH + 507408) [0x10436be10]
+            3   ??? (iSH + 513600) [0x10436d640]
+            3   ??? (iSH + 513392) [0x10436d570]
+            3   ??? (iSH + 512656) [0x10436d290]
+            2   ??? (iSH + 513588) [0x10436d634]
+            2   ??? (iSH + 513552) [0x10436d610]
+            2   ??? (iSH + 512752) [0x10436d2f0]
+            1   ??? (iSH + 549424) [0x104376230]
+            1   ??? (iSH + 534384) [0x104372770]
+            1   ??? (iSH + 534288) [0x104372710]
+            1   ??? (iSH + 527504) [0x104370c90]
+            1   ??? (iSH + 517668) [0x10436e624]
+            1   ??? (iSH + 517432) [0x10436e538]
+            1   ??? (iSH + 513636) [0x10436d664]
+            1   ??? (iSH + 513584) [0x10436d630]
+            1   ??? (iSH + 513568) [0x10436d620]
+            1   ??? (iSH + 513540) [0x10436d604]
+            1   ??? (iSH + 513536) [0x10436d600]
+            1   ??? (iSH + 513524) [0x10436d5f4]
+            1   ??? (iSH + 512788) [0x10436d314]
+            1   ??? (iSH + 512740) [0x10436d2e4]
+            1   ??? (iSH + 512720) [0x10436d2d0]
+            1   ??? (iSH + 512704) [0x10436d2c0]
+            1   ??? (iSH + 512688) [0x10436d2b0]
+            1   ??? (iSH + 512628) [0x10436d274]
+            1   ??? (iSH + 512592) [0x10436d250]
+            1   ??? (iSH + 507416) [0x10436be18]
+            1   ??? (iSH + 507312) [0x10436bdb0]
+            1   ??? (iSH + 507280) [0x10436bd90]
+            1   ??? (iSH + 507184) [0x10436bd30]
+            1   ??? (iSH + 506944) [0x10436bc40]
+            1   ??? (iSH + 506780) [0x10436bb9c]
+        1   ??? (iSH + 169032) [0x104319448]
+          1   ??? (iSH + 164628) [0x104318314]
+            1   ??? (iSH + 290988) [0x1043370ac]
+  1   ??? (dyld + 19484) [0x18d12dc1c]
+    1   ??? (iSH + 53744) [0x1042fd1f0]
+      1   ??? (UIKitCore + 573784) [0x1961c0158]
+        1   ??? (UIKitCore + 1185392) [0x196255670]
+          1   ??? (GraphicsServices + 5272) [0x236509498]
+            1   ??? (CoreFoundation + 189772) [0x19052154c]
+              1   ??? (CoreFoundation + 192928) [0x1905221a0]
+                1   ??? (CoreFoundation + 415144) [0x1905585a8]
+                  1   ??? (CoreFoundation + 656084) [0x1905932d4]
+                    1   ??? (CoreFoundation + 656224) [0x190593360]
+                      1   ??? (JavaScriptCore + 697048) [0x1a5dfb2d8]
+                        1   ??? (JavaScriptCore + 691488) [0x1a5df9d20]
+                          1   ??? (WebKit + 19588748) [0x1acabc68c]
+                            1   ??? (WebKit + 19586844) [0x1acabbf1c]
+                              1   ??? (WebKit + 6841776) [0x1abe945b0]
+                                1   ??? (WebKit + 13516136) [0x1ac4f1d68]
+                                  1   ??? (WebKit + 14425024) [0x1ac5cfbc0]
+                                    1   ??? (WebKit + 6768636) [0x1abe827fc]
+                                      1   ??? (iSH + 77908) [0x104303054]
+                                        1   ??? (iSH + 82288) [0x104304170]
+                                          1   ??? (iSH + 81700) [0x104303f24]
+                                            1   ??? (UIKitCore + 932320) [0x1962179e0]
+                                              1   ??? (UIKitCore + 934724) [0x196218344]
+                                                1   ??? (UIKitCore + 3847276) [0x1964df46c]
+                                                  1   ??? (UIKitCore + 643068) [0x1961d0ffc]
+                                                    1   ??? (UIKitCore + 695068) [0x1961ddb1c]
+                                                      1   ??? (UIKitCore + 999524) [0x196228064]
+                                                        1   ??? (UIKitCore + 6603260) [0x1967801fc]
+                                                          1   ??? (UIKitCore + 6366784) [0x196746640]
+                                                            1   ??? (UIKitCore + 6293196) [0x1967346cc]
+                                                              1   ??? (UIKitCore + 6290640) [0x196733cd0]
+                                                                1   ??? (UIKitCore + 6656540) [0x19678d21c]
+                                                                  1   ??? (UIKit + 695560) [0x2b4b0ad08]
+                                                                    1   ??? (UIKitCore + 6657432) [0x19678d598]
+                                                                      1   ??? (UIKitCore + 6267320) [0x19672e1b8]
+                                                                        1   ??? (UIKitCore + 6252536) [0x19672a7f8]
+                                                                          1   ??? (UIKitCore + 7013784) [0x1967e4598]
+                                                                            1   ??? (UIKitCore + 3841560) [0x1964dde18]
+                                                                              1   ??? (UIKitCore + 3839072) [0x1964dd460]
+                                                                                1   ??? (UIKitCore + 3843540) [0x1964de5d4]
+                                                                                  1   ??? (TextInput + 34088) [0x193a03528]
+                                                                                    1   ??? (TextInput + 12616) [0x1939fe148]
+                                                                                      1   ??? (TextInput + 33416) [0x193a03288]
+                                                                                        1   ??? (TextInput + 66912) [0x193a0b560]
+                                                                                          1   ??? (TextInput + 67448) [0x193a0b778]
+                                                                                            1   ??? (Foundation + 120616) [0x18d7a1728]
+                                                                                              1   ??? (libsystem_kernel.dylib + 26676) [0x23ff2f834]
+                                                                                                1   <Kernel mode, Effective Thread QoS User Interactive, Requested Thread QoS User Interactive>
+
+  Binary Images:
+           0x1042f0000 -                ???  app.ish.iSH 1.3.2 (494) <03722577-5A97-3A60-9E5A-D6EC09B15831>  /private/var/containers/Bundle/Application/D3CFB3AB-BEC6-4257-A44E-6364B622833E/iSH.app/iSH
+           0x18d129000 -        0x18d1ce47f  dyld                    <0BA28CE2-8718-3CB3-BEF4-6DD44464EBE2>  /usr/lib/dyld
+           0x18d784000 -        0x18e60dc1f  Foundation              <1689FEA5-1780-3EFE-8F31-933D4DB24EC4>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x1904f3000 -        0x190a8f9bf  CoreFoundation          <5565CAD9-4941-32AC-8B10-7D3233C74151>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x1939fb000 -        0x193bcdaff  TextInput               <A5D008E9-0F91-3AF0-8C0C-9EF4A475FD80>  /System/Library/PrivateFrameworks/TextInput.framework/TextInput
+           0x196134000 -        0x19867763f  UIKitCore               <26334227-F558-3DA7-985D-326A0C894DD4>  /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+           0x1a5d51000 -        0x1a7c1c93f  JavaScriptCore          <24B35816-98D5-30BB-8A5E-36BEAA32F680>  /System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore
+           0x1ab80e000 -        0x1acf9a87f  WebKit                  <7627FDAB-129E-32BB-A2AC-F0DC02853D4E>  /System/Library/Frameworks/WebKit.framework/WebKit
+           0x1efeb2000 -        0x1efebe4ef  libsystem_pthread.dylib <46B95807-F752-3DC2-A1BA-6290E8D7FE38>  /usr/lib/system/libsystem_pthread.dylib
+           0x236508000 -        0x2365107bf  GraphicsServices        <7915658C-7728-3149-A524-2164C163F3D2>  /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+           0x23ff29000 -        0x23ff64b1f  libsystem_kernel.dylib  <A11BF433-17AB-3F01-88BC-54C467CE6287>  /usr/lib/system/libsystem_kernel.dylib
+           0x2b4a61000 -        0x2b4c62adf  UIKit                   <387C6473-1F0D-345D-9A18-D6F62AB8145E>  /System/Library/AccessibilityBundles/UIKit.axbundle/UIKit
