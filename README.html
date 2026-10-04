@@ -13,6 +13,42 @@ result crosses that boundary as an <code>OValue</code>. The same source can beco
 admitted operation graph, execute through persistent evaluators or native
 machinery, and leave evidence that can be inspected independently of the prose
 describing it.</p>
+<p><strong>Try a local report.</strong> Keep a report&#39;s prose, Python calculations, and HTML
+fragments in one executable document with Ostadix-lang. The
+<a href="examples/literate_report.O">literate report</a> computes summary statistics in a
+persistent Python environment and inserts the results into Markdown. Replace
+its sample generator with your own measurements to reuse the report in your
+work.</p>
+<p>After the <a href="#quickstart">minimal setup</a>, this example needs only Python 3 and
+its standard library. From the repository root:</p>
+<pre><code class="language-sh">o check examples/literate_report.O
+o plan examples/literate_report.O --json
+O examples/literate_report.O &quot;$PWD/backends&quot; &gt; report.md
+</code></pre>
+<p>The generated <code>report.md</code> includes a sample mean of <code>0.0412</code>, a sample standard
+deviation of <code>0.9988</code>, and a nested Python/HTML result of <code>285</code>. Checking parses
+the source; planning describes its computation; the last command evaluates it
+and writes the rendered Markdown.</p>
+<table>
+<thead>
+<tr>
+<th>Your goal</th>
+<th>Start here</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Build and use it</td>
+<td><a href="#quickstart">Quickstart</a>, then the <a href="examples/literate_report.O">literate report source</a> and <a href="docs/HUMAN_LLM_WORKFLOWS.md">human/LLM workflow guide</a>.</td>
+</tr>
+<tr>
+<td>Evaluate the research</td>
+<td><a href="Ostadix-lang_Technical_Whitepaper.pdf">Technical whitepaper</a>, <a href="SPEC.md">language specification</a>, and <a href="docs/CLAIMS.md">claim/evidence index</a>.</td>
+</tr>
+<tr>
+<td>Contribute to the runtime</td>
+<td><a href="ARCHITECTURE.md">Architecture</a> and <a href="DEVELOPMENT.md">development guide</a>.</td>
+</tr>
+</tbody></table>
 <p>An experimental operation-project layer now keeps one logical operation
 invariant while comparing explicitly supplied realization, target,
 representation, and residency tuples. Its authority-free planner selects a
@@ -70,7 +106,7 @@ G13 qualification gates is named <strong>OSTADIX Alpha</strong>.</p>
 reexported by the root compatibility library. The root Cargo package declares
 14 binaries, including <code>ogit</code> and <code>ocore-kernel-world-record</code>. The backend
 catalog contains 30 canonical backends and six aliases, including canonical
-<code>ubuntu_vm</code> with the <code>ubuntu</code> alias. Current master tracks 44 recursively
+<code>ubuntu_vm</code> with the <code>ubuntu</code> alias. That snapshot tracks 44 recursively
 discovered <code>.O</code> examples. The in-checkout MCP server exposes 10 tools. Native
 release evidence contains 26 required portable QEMU gates and one supplemental
 hardware gate.</p>

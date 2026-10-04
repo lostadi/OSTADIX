@@ -18,6 +18,33 @@ admitted operation graph, execute through persistent evaluators or native
 machinery, and leave evidence that can be inspected independently of the prose
 describing it.
 
+**Try a local report.** Keep a report's prose, Python calculations, and HTML
+fragments in one executable document with Ostadix-lang. The
+[literate report](examples/literate_report.O) computes summary statistics in a
+persistent Python environment and inserts the results into Markdown. Replace
+its sample generator with your own measurements to reuse the report in your
+work.
+
+After the [minimal setup](#quickstart), this example needs only Python 3 and
+its standard library. From the repository root:
+
+```sh
+o check examples/literate_report.O
+o plan examples/literate_report.O --json
+O examples/literate_report.O "$PWD/backends" > report.md
+```
+
+The generated `report.md` includes a sample mean of `0.0412`, a sample standard
+deviation of `0.9988`, and a nested Python/HTML result of `285`. Checking parses
+the source; planning describes its computation; the last command evaluates it
+and writes the rendered Markdown.
+
+| Your goal | Start here |
+|---|---|
+| Build and use it | [Quickstart](#quickstart), then the [literate report source](examples/literate_report.O) and [human/LLM workflow guide](docs/HUMAN_LLM_WORKFLOWS.md). |
+| Evaluate the research | [Technical whitepaper](Ostadix-lang_Technical_Whitepaper.pdf), [language specification](SPEC.md), and [claim/evidence index](docs/CLAIMS.md). |
+| Contribute to the runtime | [Architecture](ARCHITECTURE.md) and [development guide](DEVELOPMENT.md). |
+
 An experimental operation-project layer now keeps one logical operation
 invariant while comparing explicitly supplied realization, target,
 representation, and residency tuples. Its authority-free planner selects a
@@ -81,7 +108,7 @@ The artifact set is pinned to master commit
 reexported by the root compatibility library. The root Cargo package declares
 14 binaries, including `ogit` and `ocore-kernel-world-record`. The backend
 catalog contains 30 canonical backends and six aliases, including canonical
-`ubuntu_vm` with the `ubuntu` alias. Current master tracks 44 recursively
+`ubuntu_vm` with the `ubuntu` alias. That snapshot tracks 44 recursively
 discovered `.O` examples. The in-checkout MCP server exposes 10 tools. Native
 release evidence contains 26 required portable QEMU gates and one supplemental
 hardware gate.

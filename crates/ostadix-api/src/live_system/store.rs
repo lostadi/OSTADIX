@@ -198,6 +198,8 @@ impl PackageStore {
                 // does not make that metadata durable. Keep this in the success
                 // branch so a sync failure cannot be mistaken for a concurrent
                 // publisher winning the destination name.
+                // Capture macOS sync errors so staging cleanup still runs below.
+                #[allow(clippy::redundant_closure_call)]
                 let synchronized = (|| {
                     #[cfg(target_os = "macos")]
                     sync_directory_tree_bottom_up(&destination)?;
