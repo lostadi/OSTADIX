@@ -1,0 +1,3 @@
+## 2026-10-09 - Accessible Interactive Cells in Minimalist Web UIs
+**Learning:** When building minimal, interactive HTML templates with embedded JS (like this project's o-notebook), standard `title` attributes on icon-only buttons are often insufficient for screen reader accessibility, particularly when building custom cell management interfaces. Screen readers may ignore titles on non-standard styled buttons.
+**Action:** Always enforce explicit `aria-label` attributes on icon-only interactive elements and primary text areas within raw HTML string templates, bypassing the assumption that the `title` attribute alone ensures compliance.
