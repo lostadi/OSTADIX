@@ -345,9 +345,19 @@ fn run_cli() -> Result<()> {
         };
 
         let elapsed = start.elapsed();
+        let failed_batch_members = evaluator
+            .last_execution_trace()
+            .map(|trace| {
+                trace
+                    .failed_batch_members
+                    .iter()
+                    .map(|(_, message)| message.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         if json_output {
             let mut envelope = serde_json::json!({
-                "ok": true,
+                "ok": failed_batch_members.is_empty(),
                 "value": result,
                 "type": result.type_name(),
                 "elapsed_ms": elapsed.as_millis() as u64,
@@ -389,9 +399,15 @@ fn run_cli() -> Result<()> {
                 envelope["crossing_coverage"] =
                     serde_json::json!("direct-admitted-graph-bindings-and-lifted-results");
             }
+            if !failed_batch_members.is_empty() {
+                envelope["failed_batch_members"] = serde_json::json!(failed_batch_members);
+            }
             println!("{envelope}");
         } else {
             print_result(&result);
+            for message in &failed_batch_members {
+                eprintln!("error: batch member failed\n{message}");
+            }
         }
 
         if !json_output && io::stderr().is_terminal() {
@@ -402,6 +418,9 @@ fn run_cli() -> Result<()> {
             }
         }
 
+        if !failed_batch_members.is_empty() {
+            return Ok(1);
+        }
         Ok(0)
     })();
     // Backend/process and extracted-shim owners must settle before restoring

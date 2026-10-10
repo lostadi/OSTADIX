@@ -1063,12 +1063,16 @@ Adding a new language: write a Backend subclass, add it to
   block only, so bash evaluates the operator itself, child processes do not
   see it, and in a numbered environment it takes precedence over a session
   variable of the same name. A bare word such as `v=name` is not a reference,
-  and indirection `${!v}` names no binding. If a `bash[N]` block assigns to
-  the name of a `let` binding, the next block that references that binding
-  gets the `let` value: the session assignment is overridden for that block
-  and unset after it. Effect ordering is unaffected: source sequence edges and
-  resource-state chains are independent of these data edges. The Python ref
-  impl threads the complete scope through `_eval_expression`.
+  and indirection `${!v}` names no binding. If a `bash[N]` block assigns to the name of a
+  `let` binding, the next block that references that binding gets the `let`
+  value: the session assignment is overridden for that block and unset after
+  it. A failing member of `batch(...)` settles as its
+  own error value; the other members still return their values, and the batch
+  fails only when every member failed. When any member failed, `O` prints the
+  document value, reports each member error on stderr, and exits with status
+  1. Effect ordering is unaffected: source sequence edges and resource-state
+  chains are independent of these data edges. The Python ref impl threads the
+  complete scope through `_eval_expression`.
 * **Async coordination.** `{lazy}` and `{defer}` attributes create
   deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
   deferred requests require explicit `now()`. `lazy(…)` and `autonomous(…)`

@@ -2987,6 +2987,23 @@ impl Evaluator {
                     });
                     frame.set_value(id, value)?;
                 }
+                Err(err)
+                    if crate::eval_core::batch_member_absorbs_failure(
+                        plan,
+                        &frame.plan_index,
+                        id,
+                    ) =>
+                {
+                    let message = format!("{err:#}");
+                    frame.trace.failed_batch_members.push((id, message.clone()));
+                    let value = OValue::error(message);
+                    frame.trace.events.push(TraceEvent::NodeFinished {
+                        id,
+                        value_type: value.type_name().to_string(),
+                        fingerprint: trace_fingerprint(&value),
+                    });
+                    frame.set_value(id, value)?;
+                }
                 Err(err) => {
                     frame.trace.events.push(TraceEvent::NodeFailed {
                         id,
@@ -3139,6 +3156,22 @@ impl Evaluator {
         } else if let InvokeMode::Group(mode) = invoke_mode {
             if arg_vals.is_empty() {
                 bail!("{}(...) takes at least 1 argument, got 0", fn_name);
+            }
+            if mode == crate::value::GroupMode::Batch
+                && arg_vals
+                    .iter()
+                    .all(|value| matches!(value, OValue::Error { .. }))
+            {
+                let messages = arg_vals
+                    .iter()
+                    .enumerate()
+                    .map(|(member, value)| match value {
+                        OValue::Error { msg } => format!("member {member}: {msg}"),
+                        _ => unreachable!("every batch member is an error"),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                bail!("every {}(...) member failed\n{messages}", fn_name);
             }
             Ok(OValue::group(mode, arg_vals))
         } else {
@@ -5943,6 +5976,48 @@ mod tests {
         assert_eq!(
             evaluator.eval_document(nodes).unwrap(),
             OValue::str_("x=5 fn x=6 y=unset")
+        );
+    }
+
+    #[test]
+    fn failing_batch_member_reports_its_own_error() {
+        if which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let run = |source: &str| {
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(source, &backends).parse().unwrap();
+            evaluator.eval_document(nodes)
+        };
+        let partial = run("autonomous(batch(\n\
+             python^(__oval_result__ = 42)_python,\n\
+             python^(raise KeyError('missing'))_python\n\
+             ))")
+        .unwrap();
+        let members = match &partial {
+            OValue::List { v } => v,
+            OValue::Group { members, .. } => members,
+            other => panic!("expected the batch members, got {other:?}"),
+        };
+        assert_eq!(members.len(), 2, "{partial:?}");
+        assert_eq!(members[0], OValue::int(42));
+        assert!(
+            matches!(&members[1], OValue::Error { msg } if msg.contains("missing")),
+            "{partial:?}"
+        );
+
+        let all_failed = run("autonomous(batch(\n\
+             python^(raise KeyError('first'))_python,\n\
+             python^(raise KeyError('second'))_python\n\
+             ))")
+        .unwrap_err();
+        let message = format!("{all_failed:#}");
+        assert!(
+            message.contains("every batch(...) member failed"),
+            "{message}"
         );
     }
 
@@ -9750,8 +9825,8 @@ python[0]^(O.eval($q, $captured))_python[0]
     fn later_fallible_worker_cannot_preempt_earlier_coordinator_failure() {
         let program = OIrProgram {
             nodes: vec![OIr::Invoke {
-                fn_name: "batch".into(),
-                mode: InvokeMode::Group(GroupMode::Batch),
+                fn_name: "all".into(),
+                mode: InvokeMode::Group(GroupMode::All),
                 args: vec![
                     OIr::Invoke {
                         fn_name: "definitely_unknown_builtin".into(),
