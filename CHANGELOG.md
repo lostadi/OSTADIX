@@ -233,6 +233,16 @@ Package SemVer is only one of the independent coordinates documented in
   `$greeting`. To print the literal text `$name`, write `\\$name` inside
   double quotes.
 
+- A failing member of `batch(...)` now settles as its own error value while
+  the other members still return their values. The batch fails only when every
+  member failed; otherwise `O` prints the value, reports each member error,
+  and exits with status 1.
+
+- Failure output changed for documents with failing batch members:
+  `benchmarks/hgraph_hosted/heterogeneous.O` now prints partial results with
+  `[error]` members, and `benchmarks/real_world/video_previews.O` reports
+  each failing member separately. Both still exit with status 1.
+
 - Fresh automatic `o node start` PKI can explicitly use ECDSA P-256 while
   retaining RSA-3072 as the default. The hosted-live cross-architecture gate
   uses P-256 so it still proves fresh CA, node, client, and pairing identity
