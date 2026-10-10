@@ -280,6 +280,34 @@ mod tests {
         root
     }
     #[test]
+    fn real_generated_main_keeps_both_bootstrap_insertion_points() {
+        // the other tests splice into a stand-in main.rs; this one uses the real
+        // template, so moving its `let shim_dir =` line cannot silently break
+        // every --runtime-bundle and linux-rootfs-v1 compile.
+        for manifest in [
+            r#"{"schema":"ostadix.embedded-runtime/v1"}"#,
+            r#"{"schema":"ostadix.embedded-runtime/v1","execution":"linux-rootfs-v1"}"#,
+        ] {
+            let root = fixture();
+            fs::write(root.path().join("runtime.json"), manifest).unwrap();
+            let out = tempfile::tempdir().unwrap();
+            fs::create_dir(out.path().join("src")).unwrap();
+            fs::write(
+                out.path().join("src/main.rs"),
+                crate::generate_main_rs("probe", "program.O", &[], &[]),
+            )
+            .unwrap();
+            embed(root.path(), out.path()).unwrap();
+            let main = fs::read_to_string(out.path().join("src/main.rs")).unwrap();
+            assert!(
+                main.find("embedded_runtime::activate()").unwrap()
+                    < main.find("create_private_shim_dir().context").unwrap(),
+                "{manifest}"
+            );
+        }
+    }
+
+    #[test]
     fn rootfs_gate_precedes_multicall_and_binds_the_image_inventory() {
         let root = fixture();
         fs::write(

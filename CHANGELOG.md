@@ -230,6 +230,13 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Fixed
 
+- Generated AOT binaries now extract their backend adapters to a private
+  `0700` directory under `$TMPDIR` (falling back to `/tmp`) instead of a
+  `.o_shims_<pid>` directory in the current working directory. Programs run
+  from `/` or a read-only directory no longer fail with `Permission denied`,
+  and no adapter files appear where the user works. The directory is removed
+  on normal exit, evaluation failure, and handled termination signals.
+
 - Gemini's local Ostadix integration now requires an explicit `Use Ostadix`
   typed request, preserving normal assistant responses and device actions.
   Voice, attachments, selected suggestions and device context retain Google's
