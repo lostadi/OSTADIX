@@ -1038,7 +1038,7 @@ Adding a new language: write a Backend subclass, add it to
   execution plan and HGraph, each shim block is given only the visible `let`
   bindings whose names its body references, either as a `$name` splice or as a
   whole identifier token anywhere in its OIR subtree, including nested typed
-  blocks. This applies to every backend, including bash and sh, and to each
+  blocks, and this applies to each
   branch of `autonomous(...)` and coordination groups separately. Access that
   does not name a binding gets nothing: Python `globals()`, `vars()`, or frame
   access, JavaScript `globalThis` or a read of the script source, a shell
@@ -1049,11 +1049,26 @@ Adding a new language: write a Backend subclass, add it to
   expression uses. Variables created inside a block belong to that block's
   environment: a plain block such as `bash^(...)_bash` or
   `python^(...)_python` is ephemeral, and its state disappears when the block
-  finishes. A numbered environment such as `python[0]^(...)_python[0]` keeps
-  its interpreter state across blocks with the same number and never shares it
-  with another number. Effect ordering is unaffected: source sequence edges
-  and resource-state chains are independent of these data edges. The Python
-  ref impl threads the complete scope through `_eval_expression`.
+  finishes. A numbered environment such as `bash[0]^(...)_bash[0]` or
+  `python[0]^(...)_python[0]` keeps its interpreter state across blocks with
+  the same number and never shares it with another number. In a numbered bash
+  environment, injected `let` values are unset after each block, so they never
+  persist as session state. Shell blocks (`bash`, `sh`, `shell`) receive no
+  `let` bindings as environment variables. A shell block reads a `let` value
+  through a `$name` splice, which O substitutes into the block text. A bash
+  block also references a `let` through braced parameter expansion: `${name}`,
+  `${#name}`, or `${name` followed by an operator such as `:-`, `%`, `/`, or
+  `^`. Each such reference is a data edge from the binding to the block, and
+  the value is assigned as a non-exported shell variable at the top of that
+  block only, so bash evaluates the operator itself, child processes do not
+  see it, and in a numbered environment it takes precedence over a session
+  variable of the same name. A bare word such as `v=name` is not a reference,
+  and indirection `${!v}` names no binding. If a `bash[N]` block assigns to
+  the name of a `let` binding, the next block that references that binding
+  gets the `let` value: the session assignment is overridden for that block
+  and unset after it. Effect ordering is unaffected: source sequence edges and
+  resource-state chains are independent of these data edges. The Python ref
+  impl threads the complete scope through `_eval_expression`.
 * **Async coordination.** `{lazy}` and `{defer}` attributes create
   deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
   deferred requests require explicit `now()`. `lazy(…)` and `autonomous(…)`

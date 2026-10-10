@@ -6,6 +6,6 @@ __oval_result__ = "world"
 )_python
 
 bash^(
-echo "hello \$greeting"
+echo "hello $greeting"
 )_bash
 )_O
