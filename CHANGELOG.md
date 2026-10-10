@@ -170,6 +170,15 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Changed
 
+- Shim blocks now receive only the visible `let` bindings they reference, by
+  `$name` splice or whole identifier token anywhere in the block's OIR
+  subtree, for every backend including bash and sh and for each parallel
+  branch separately. `O.scope` is O syntax and references every visible
+  binding. Reflective or runtime-built access to an unreferenced name, such as
+  Python `globals()` or a shell `${!name}`, gets nothing. Plans for long `let`
+  chains are now linear in chain length instead of quadratic, and effect
+  ordering is unchanged.
+
 - Fresh automatic `o node start` PKI can explicitly use ECDSA P-256 while
   retaining RSA-3072 as the default. The hosted-live cross-architecture gate
   uses P-256 so it still proves fresh CA, node, client, and pairing identity
