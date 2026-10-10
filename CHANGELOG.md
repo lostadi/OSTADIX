@@ -218,6 +218,21 @@ Package SemVer is only one of the independent coordinates documented in
   chains are now linear in chain length instead of quadratic, and effect
   ordering is unchanged.
 
+- Numbered bash environments such as `bash[0]^(...)_bash[0]` now keep shell
+  variables, functions, options, and the working directory across blocks with
+  the same number. Plain `bash^(...)_bash` blocks remain ephemeral. Shell
+  blocks no longer receive `let` bindings as environment variables; they read
+  `let` values through `$name` splices, and bash blocks also through braced
+  expansions such as `${name}`, `${name:-x}`, `${#name}`, and `${name%2}`,
+  which receive the value as a non-exported variable of that block.
+
+- Breaking: `\$name` in a shell block no longer reads a `let` binding.
+  `\$` remains the opt-out from O's splice, so bash still sees `$name`, but
+  bash no longer receives the binding as an environment variable and
+  `\$name` now expands to empty. `examples/bash_binding.O` now uses
+  `$greeting`. To print the literal text `$name`, write `\\$name` inside
+  double quotes.
+
 - Fresh automatic `o node start` PKI can explicitly use ECDSA P-256 while
   retaining RSA-3072 as the default. The hosted-live cross-architecture gate
   uses P-256 so it still proves fresh CA, node, client, and pairing identity

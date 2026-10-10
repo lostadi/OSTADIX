@@ -157,7 +157,129 @@ pub fn run_backend(lang: &str) -> Result<()> {
 
 struct RustBackend {
     sql: Option<SqlState>,
+    bash: Option<BashSession>,
     tools: BackendToolchain,
+}
+
+/// Persistent `bash` session for one backend process.
+///
+/// A backend process serves exactly one (language, environment) pair. Plain
+/// `bash^(...)_bash` blocks get a fresh backend process per block, so their
+/// variables vanish when the block finishes. Numbered environments such as
+/// `bash[0]^(...)_bash[0]` reuse one backend process, and this session keeps
+/// shell variables, functions, options, and the working directory across the
+/// blocks of that environment only. Each block runs through `source` in the
+/// session shell with stdout and stderr redirected to per-block files; a
+/// sentinel line on the session's own stdout reports the block's status. A
+/// block that exits the shell ends the session, reports that exit status, and
+/// the next block of the environment starts a fresh session.
+struct BashSession {
+    dir: TempDir,
+    child: Child,
+    stdin: Option<BufWriter<ChildStdin>>,
+    stdout: BufReader<ChildStdout>,
+    serial: u64,
+}
+
+const BASH_SESSION_SENTINEL: &str = "__O_BASH_BLOCK_DONE__";
+
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+impl BashSession {
+    fn start(tools: &BackendToolchain) -> Result<Self> {
+        let dir = TempDir::new("o-bash-session")?;
+        let mut command = tools.command("bash")?;
+        let mut child = command
+            .args(["--noprofile", "--norc", "-s"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("failed to launch admitted `bash` executable")?;
+        let stdin = child.stdin.take().context("bash session has no stdin")?;
+        let stdout = child.stdout.take().context("bash session has no stdout")?;
+        Ok(Self {
+            dir,
+            child,
+            stdin: Some(BufWriter::new(stdin)),
+            stdout: BufReader::new(stdout),
+            serial: 0,
+        })
+    }
+
+    /// Run one block and return its captured output and exit status, plus
+    /// whether the session shell is still alive afterwards.
+    fn run(&mut self, code: &str, env: &HashMap<String, String>) -> Result<(Output, bool)> {
+        use std::os::unix::process::ExitStatusExt;
+        self.serial += 1;
+        let base = self.dir.path().join(format!("block-{}", self.serial));
+        let code_path = base.with_extension("sh");
+        let out_path = base.with_extension("out");
+        let err_path = base.with_extension("err");
+        let mut script = String::new();
+        for (name, value) in env {
+            script.push_str(&format!("{name}={}\n", shell_single_quote(value)));
+        }
+        script.push_str(code);
+        script.push('\n');
+        fs::write(&code_path, script)?;
+        // Received `let` values are plain, non-exported shell variables
+        // visible to this block only, so child processes never see them;
+        // they are unset afterwards so they never persist as session state.
+        let mut names = env.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        let unset = if names.is_empty() {
+            String::new()
+        } else {
+            format!("unset -v {} 2>/dev/null; ", names.join(" "))
+        };
+        let request = format!(
+            "source {} </dev/null >{} 2>{}; __o_status=$?; {unset}printf '\\n{BASH_SESSION_SENTINEL}%d\\n' \"$__o_status\"; unset -v __o_status\n",
+            shell_single_quote(&code_path.to_string_lossy()),
+            shell_single_quote(&out_path.to_string_lossy()),
+            shell_single_quote(&err_path.to_string_lossy()),
+        );
+        let stdin = self.stdin.as_mut().context("bash session stdin closed")?;
+        stdin.write_all(request.as_bytes())?;
+        stdin.flush()?;
+        let mut status_code = None;
+        let mut line = String::new();
+        loop {
+            line.clear();
+            if self.stdout.read_line(&mut line)? == 0 {
+                break;
+            }
+            if let Some(rest) = line.trim_end().strip_prefix(BASH_SESSION_SENTINEL) {
+                status_code = Some(rest.parse::<i32>().unwrap_or(1));
+                break;
+            }
+        }
+        let alive = status_code.is_some();
+        let status = match status_code {
+            Some(code) => std::process::ExitStatus::from_raw((code & 0xff) << 8),
+            None => {
+                self.stdin.take();
+                self.child.wait()?
+            }
+        };
+        let output = Output {
+            status,
+            stdout: fs::read(&out_path).unwrap_or_default(),
+            stderr: fs::read(&err_path).unwrap_or_default(),
+        };
+        for path in [&code_path, &out_path, &err_path] {
+            let _ = fs::remove_file(path);
+        }
+        Ok((output, alive))
+    }
+
+    fn shutdown(&mut self) {
+        self.stdin.take();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
 }
 
 /// Persistent `sqlite3` CLI session.
@@ -179,7 +301,11 @@ struct SqlState {
 
 impl RustBackend {
     fn new(tools: BackendToolchain) -> Self {
-        Self { sql: None, tools }
+        Self {
+            sql: None,
+            bash: None,
+            tools,
+        }
     }
 
     fn exec(
@@ -189,12 +315,20 @@ impl RustBackend {
         bindings: HashMap<String, OValue>,
     ) -> Result<OValue> {
         match lang {
-            "bash" => run_shell(
-                &self.tools,
-                "bash",
-                &["-c", code],
-                Some(scalar_env(bindings)),
-            ),
+            "bash" => {
+                let env = scalar_env(bindings);
+                if self.bash.is_none() {
+                    self.bash = Some(BashSession::start(&self.tools)?);
+                }
+                let session = self.bash.as_mut().expect("bash session started");
+                let (output, alive) = session.run(code, &env)?;
+                if !alive {
+                    if let Some(mut ended) = self.bash.take() {
+                        ended.shutdown();
+                    }
+                }
+                output_to_value("bash", output)
+            }
             "shell" => run_shell(&self.tools, "sh", &["-c", code], Some(scalar_env(bindings))),
             "javascript" => run_script(
                 &self.tools,
@@ -249,6 +383,9 @@ impl RustBackend {
     }
 
     fn cleanup(&mut self) -> Result<()> {
+        if let Some(mut bash) = self.bash.take() {
+            bash.shutdown();
+        }
         if let Some(mut sql) = self.sql.take() {
             sql.shutdown(crate::process::backend_shutdown_timeout())?;
         }

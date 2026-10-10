@@ -5864,6 +5864,89 @@ mod tests {
     }
 
     #[test]
+    fn bash_braced_expansions_see_referenced_lets_without_exporting_them() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash^(echo ${secret_val} ${secret_val:-x} ${#secret_val} ${secret_val%2} ${secret_val/4/9} \"[$(bash -c 'echo ${secret_val}')]\")_bash\n";
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        assert_eq!(
+            evaluator.eval_document(nodes).unwrap(),
+            OValue::str_("42 42 2 4 92 []")
+        );
+    }
+
+    #[test]
+    fn referenced_let_wins_over_numbered_bash_session_variable() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash[1]^(secret_val=5; other=7)_bash[1]\n\
+             let braced = bash[1]^(echo ${secret_val})_bash[1]\n\
+             let both = bash[1]^(echo $secret_val ${secret_val} ${other})_bash[1]\n\
+             python^(__oval_result__ = f'{$braced}|{$both}')_python\n";
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        assert_eq!(
+            evaluator.eval_document(nodes).unwrap(),
+            OValue::str_("42|42 42 7")
+        );
+    }
+
+    #[test]
+    fn escaped_dollar_opts_out_of_let_references_in_bash() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let run = |block: &str| {
+            let source = format!(
+                "let secret_val = python^(__oval_result__ = 42)_python\nbash^({block})_bash\n"
+            );
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(&source, &backends).parse().unwrap();
+            evaluator.eval_document(nodes).unwrap()
+        };
+        assert_eq!(run(r#"echo "v=[\$secret_val]""#), OValue::str_("v=[]"));
+        assert_eq!(run(r#"echo "v=[\\\$secret_val]""#), OValue::str_("v=[\\]"));
+        assert_eq!(
+            run(r#"echo "v=[\\$secret_val]""#),
+            OValue::str_("v=[$secret_val]")
+        );
+    }
+
+    #[test]
+    fn numbered_bash_environments_persist_and_plain_bash_is_ephemeral() {
+        if which::which("bash").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = "bash[0]^(X=5; f() { echo fn; })_bash[0]\n\
+             bash[1]^(X=6)_bash[1]\n\
+             bash^(Y=7)_bash\n\
+             let p = bash[0]^(echo \"x=\\$X $(f)\")_bash[0]\n\
+             let q = bash[1]^(echo \"x=\\$X\")_bash[1]\n\
+             let r = bash^(echo \"y=\\${Y:-unset}\")_bash\n\
+             python^(__oval_result__ = ' '.join(str(v) for v in [$p, $q, $r]))_python\n";
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        assert_eq!(
+            evaluator.eval_document(nodes).unwrap(),
+            OValue::str_("x=5 fn x=6 y=unset")
+        );
+    }
+
+    #[test]
     fn trimmed_shim_scope_matches_complete_scope_result() {
         if which::which("python3").is_err() {
             return;
