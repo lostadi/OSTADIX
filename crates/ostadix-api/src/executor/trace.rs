@@ -64,6 +64,10 @@ impl TraceSink {
         });
     }
 
+    pub fn batch_member_failed(&mut self, id: PlanNodeId, message: String) {
+        self.trace.failed_batch_members.push((id, message));
+    }
+
     pub fn failed(&mut self, id: PlanNodeId, message: String) {
         self.trace
             .events

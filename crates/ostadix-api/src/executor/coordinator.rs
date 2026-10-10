@@ -1193,6 +1193,31 @@ impl<'a> Coordinator<'a> {
                             kind: WorkerFailureKind::Infrastructure,
                         });
                     }
+                    if crate::eval_core::batch_member_absorbs_failure(
+                        self.plan,
+                        &self.frame.plan_index,
+                        id,
+                    ) {
+                        let message = format!("{error:#}");
+                        self.trace.batch_member_failed(id, message.clone());
+                        let value = OValue::error(message);
+                        let output_type = value.type_name().to_string();
+                        let fingerprint = trace_fingerprint(&value);
+                        if let Err(error) = self.frame.set_value(id, value) {
+                            return Some(WorkerFailure {
+                                index,
+                                error,
+                                kind: WorkerFailureKind::Infrastructure,
+                            });
+                        }
+                        self.trace.finished(id, output_type, fingerprint);
+                        self.materialize_success(index);
+                        crate::process::lifecycle_trace(
+                            "coordinator.result_settled",
+                            format!("token={index} plan_node={} outcome=member_error", id.0),
+                        );
+                        continue;
+                    }
                     self.trace.failed(id, error.to_string());
                     self.record_failure(index, &error.to_string());
                     crate::process::lifecycle_trace(
@@ -1414,6 +1439,23 @@ impl<'a> Coordinator<'a> {
                     } else {
                         RuntimeCrossingStateV1::Failed
                     };
+                }
+                if crate::eval_core::batch_member_absorbs_failure(
+                    self.plan,
+                    &self.frame.plan_index,
+                    id,
+                ) {
+                    let message = format!("{err:#}");
+                    self.trace.batch_member_failed(id, message.clone());
+                    let value = OValue::error(message);
+                    self.trace.finished(
+                        id,
+                        value.type_name().to_string(),
+                        trace_fingerprint(&value),
+                    );
+                    self.frame.set_value(id, value)?;
+                    self.materialize_success(index);
+                    return Ok(());
                 }
                 self.trace.failed(id, err.to_string());
                 self.record_failure(index, &err.to_string());
@@ -2355,8 +2397,8 @@ mod tests {
                     fn_name: "autonomous".into(),
                     mode: InvokeMode::Autonomous,
                     args: vec![OIr::Invoke {
-                        fn_name: "batch".into(),
-                        mode: InvokeMode::Group(crate::value::GroupMode::Batch),
+                        fn_name: "all".into(),
+                        mode: InvokeMode::Group(crate::value::GroupMode::All),
                         args: vec![
                             exec("python", vec![OIr::Text("left".into())]),
                             exec(
