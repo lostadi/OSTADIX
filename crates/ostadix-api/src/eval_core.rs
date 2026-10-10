@@ -1497,12 +1497,14 @@ fn render_markdown(val: &OValue) -> String {
         OValue::Char { scalar } => scalar.to_string(),
         OValue::Html { v } => v.clone(),
         OValue::StorePath { path } => format!("`{}`", path),
-        OValue::List { v } => v.iter().map(render_markdown).collect::<Vec<_>>().join("\n"),
+        // Inline presentation: lists/sequences/sets render on one line,
+        // matching the LaTeX renderer, so `A: py^([1,2])_py` stays inline.
+        OValue::List { v } => v.iter().map(render_markdown).collect::<Vec<_>>().join(", "),
         OValue::Seq { items, .. } | OValue::Set { items, .. } => items
             .iter()
             .map(render_markdown)
             .collect::<Vec<_>>()
-            .join("\n"),
+            .join(", "),
         OValue::Map { v } => sorted_map_entries(v)
             .into_iter()
             .map(|(k, val)| format!("**{}**: {}", k, render_markdown(val)))
