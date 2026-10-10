@@ -397,6 +397,6 @@ After the 2026-09-03 attribution-only history rewrite, the immutable `v0.3.0`
 tag remains on its archival lineage. The Unreleased comparison therefore starts
 from its tree-identical rewritten commit recorded in the sealed provenance map.
 
-[Unreleased]: https://github.com/lostadi/Ostadix-lang/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD
+[Unreleased]: https://github.com/lostadi/ostadix-BM/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD
 [0.3.0]: https://github.com/lostadi/Ostadix-lang/tree/v0.3.0
 [0.2.0]: https://github.com/lostadi/Ostadix-lang/tree/v0.2.0

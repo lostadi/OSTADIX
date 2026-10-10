@@ -1,9 +1,11 @@
 <p align="center">
   <img src="./assets/olang-logo.png" alt="Ostadix-lang" width="900" />
-</p><h1>Ostadix-lang</h1>
+</p><h1>ostadix-BM</h1>
 <p><em>By Lee Daghlar Ostadi</em></p>
-<p><a href="https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml"><img src="https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-<a href="https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml"><img src="https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml/badge.svg" alt="Parser fuzz campaign"></a></p>
+<p>Independent development repository for Ostadix-lang and O-core, derived from
+<a href="https://github.com/lostadi/OSTADIX">lostadi/OSTADIX</a>.</p>
+<p><a href="https://github.com/lostadi/ostadix-BM/actions/workflows/ci.yml"><img src="https://github.com/lostadi/ostadix-BM/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/lostadi/ostadix-BM/actions/workflows/fuzz.yml"><img src="https://github.com/lostadi/ostadix-BM/actions/workflows/fuzz.yml/badge.svg" alt="Parser fuzz campaign"></a></p>
 <blockquote>
 <p><strong>Every expression carries its evaluator as part of its syntax.</strong></p>
 </blockquote>
@@ -231,8 +233,8 @@ from source bytes to observed execution.</p>
 installed tools. <code>setup.sh</code> also refreshes the native commands, so the commands
 below exercise the source revision you just checked out rather than an older
 binary already on <code>PATH</code>:</p>
-<pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
-cd OSTADIX
+<pre><code class="language-bash">git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
+cd ostadix-BM
 ./setup.sh -y --minimal
 source &quot;$HOME/.config/ostadix/env.sh&quot;
 
@@ -1290,8 +1292,8 @@ mean that O-core boots, contains, or governs those foreign kernels.</p>
 <p>The included <code>setup.sh</code> script detects the host, installs the ordinary hosted
 runtime dependencies, builds the Rust and C17 editions, prepares the Python
 reference, builds the local MCP server, and installs native command binaries:</p>
-<pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
-cd OSTADIX
+<pre><code class="language-bash">git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
+cd ostadix-BM
 ./setup.sh
 </code></pre>
 <p>The script supports composable setup profiles and non-installing checks:</p>
@@ -1364,8 +1366,8 @@ cargo run -- examples/hello.O
 python3 -m o_lang examples/hello.O
 </code></pre>
 <h3>Option B: Manual Rust setup</h3>
-<pre><code class="language-bash">git clone https://github.com/lostadi/OSTADIX.git OSTADIX
-cd OSTADIX
+<pre><code class="language-bash">git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
+cd ostadix-BM
 cargo build --release
 
 ./target/release/O examples/hello.O backends
@@ -6713,7 +6715,7 @@ identify the repository version and exact revision:</p>
 Whole-Program Polyglot Execution. Version 0.4.0.
 Unreleased development source; identify the exact commit used.
 Commit: `FULL_COMMIT_SHA_USED`.
-https://github.com/lostadi/OSTADIX
+https://github.com/lostadi/ostadix-BM
 </code></pre>
 <p>Once Zenodo archives a future tagged source release, cite that separate,
 version-specific source-release DOI for the exact source snapshot used. The

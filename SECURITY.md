@@ -8,7 +8,7 @@ security certification.
 
 Prefer GitHub private vulnerability reporting:
 
-<https://github.com/lostadi/Ostadix-lang/security/advisories/new>
+<https://github.com/lostadi/ostadix-BM/security/advisories/new>
 
 Do not disclose a suspected vulnerability in public issues, discussions, pull
 requests, patches, logs, or demonstrations. If private vulnerability reporting

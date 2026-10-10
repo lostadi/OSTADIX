@@ -2,12 +2,15 @@
   <img src="./assets/olang-logo.png" alt="Ostadix-lang" width="900" />
 </p>
 
-# Ostadix-lang
+# ostadix-BM
 
 *By Lee Daghlar Ostadi*
 
-[![CI](https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml/badge.svg)](https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml)
-[![Parser fuzz campaign](https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml/badge.svg)](https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml)
+Independent development repository for Ostadix-lang and O-core, derived from
+[lostadi/OSTADIX](https://github.com/lostadi/OSTADIX).
+
+[![CI](https://github.com/lostadi/ostadix-BM/actions/workflows/ci.yml/badge.svg)](https://github.com/lostadi/ostadix-BM/actions/workflows/ci.yml)
+[![Parser fuzz campaign](https://github.com/lostadi/ostadix-BM/actions/workflows/fuzz.yml/badge.svg)](https://github.com/lostadi/ostadix-BM/actions/workflows/fuzz.yml)
 
 > **Every expression carries its evaluator as part of its syntax.**
 
@@ -268,8 +271,8 @@ below exercise the source revision you just checked out rather than an older
 binary already on `PATH`:
 
 ```bash
-git clone https://github.com/lostadi/OSTADIX.git OSTADIX
-cd OSTADIX
+git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
+cd ostadix-BM
 ./setup.sh -y --minimal
 source "$HOME/.config/ostadix/env.sh"
 
@@ -1384,8 +1387,8 @@ runtime dependencies, builds the Rust and C17 editions, prepares the Python
 reference, builds the local MCP server, and installs native command binaries:
 
 ```bash
-git clone https://github.com/lostadi/OSTADIX.git OSTADIX
-cd OSTADIX
+git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
+cd ostadix-BM
 ./setup.sh
 ```
 
@@ -1472,8 +1475,8 @@ python3 -m o_lang examples/hello.O
 ### Option B: Manual Rust setup
 
 ```bash
-git clone https://github.com/lostadi/OSTADIX.git OSTADIX
-cd OSTADIX
+git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
+cd ostadix-BM
 cargo build --release
 
 ./target/release/O examples/hello.O backends
@@ -6332,7 +6335,7 @@ identify the repository version and exact revision:
     Whole-Program Polyglot Execution. Version 0.4.0.
     Unreleased development source; identify the exact commit used.
     Commit: `FULL_COMMIT_SHA_USED`.
-    https://github.com/lostadi/OSTADIX
+    https://github.com/lostadi/ostadix-BM
 
 Once Zenodo archives a future tagged source release, cite that separate,
 version-specific source-release DOI for the exact source snapshot used. The

@@ -3334,7 +3334,7 @@ impl ServerHandler for OstadixMcp {
                 name: "ostadix-mcp".into(),
                 title: Some("Ostadix runtime and toolchain".into()),
                 version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.3").into(),
-                website_url: Some("https://github.com/lostadi/OSTADIX".into()),
+                website_url: Some("https://github.com/lostadi/ostadix-BM".into()),
                 icons: None,
             },
             instructions: Some(

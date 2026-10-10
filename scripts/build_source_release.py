@@ -45,7 +45,7 @@ MANIFEST_NAME = "SOURCE-MANIFEST.json"
 CHECKSUMS_NAME = "SHA256SUMS"
 FIXED_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 ROOT_LICENSE_SPDX = "LGPL-2.1-only"
-ROOT_REPOSITORY = "https://github.com/lostadi/OSTADIX"
+ROOT_REPOSITORY = "https://github.com/lostadi/ostadix-BM"
 EXISTING_PREPRINT_DOI = "10.5281/zenodo.21544345"
 
 # `olangc` owns the generated-project writer, while the independent engine

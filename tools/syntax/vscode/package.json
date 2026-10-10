@@ -8,7 +8,7 @@
   "license": "LGPL-2.1-only",
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Programming Languages"],
-  "repository": { "type": "git", "url": "https://github.com/lostadi/Ostadix-lang.git", "directory": "tools/syntax/vscode" },
+  "repository": { "type": "git", "url": "https://github.com/lostadi/ostadix-BM.git", "directory": "tools/syntax/vscode" },
   "scripts": { "generate": "node generate.mjs", "test": "node test.mjs" },
   "contributes": {
     "languages": [{

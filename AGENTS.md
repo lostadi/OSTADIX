@@ -1,6 +1,7 @@
-# Ostadix-lang — agent instructions
+# ostadix-BM — agent instructions
 
-This is the **canonical** O / Ostadix-lang runtime monorepo.
+This is the **ostadix-BM** development repository for O / Ostadix-lang and
+O-core, derived from `lostadi/OSTADIX`.
 
 ## Scale and ambition
 
@@ -24,7 +25,7 @@ identifiers for OSTADIX and are not renamed by this preference.
 ## Roots
 
 ```bash
-export O_LANG_ROOT="$HOME/OSTADIX"
+export O_LANG_ROOT="$HOME/ostadix-BM"
 export O_BACKENDS_DIR=$O_LANG_ROOT/backends
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH"
 ```
