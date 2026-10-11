@@ -211,8 +211,10 @@ Package SemVer is only one of the independent coordinates documented in
 
 - Shim blocks now receive only the visible `let` bindings they reference, by
   `$name` splice or whole identifier token anywhere in the block's OIR
-  subtree, for every backend including bash and sh and for each parallel
-  branch separately. `O.scope` is O syntax and references every visible
+  subtree, and for each parallel branch separately. Shell blocks (`bash`,
+  `sh`, `shell`) instead use the shell reference rules: `$name` splices,
+  `${name}` references, and bare names in arithmetic contexts and array
+  subscripts, not whole-token matching. `O.scope` is O syntax and references every visible
   binding. Reflective or runtime-built access to an unreferenced name, such as
   Python `globals()` or a shell `${!name}`, gets nothing. Plans for long `let`
   chains are now linear in chain length instead of quadratic, and effect
@@ -232,6 +234,13 @@ Package SemVer is only one of the independent coordinates documented in
   `\$name` now expands to empty. `examples/bash_binding.O` now uses
   `$greeting`. To print the literal text `$name`, write `\\$name` inside
   double quotes.
+
+- Bash blocks again see `let` values that bash reads as bare names in
+  arithmetic context: `$(( ))`, `(( ))`, `for (( ))`, `$[ ]`, `let`
+  arguments, `declare -i x=EXPR`, `${s:off:len}`, `[[ -eq ]]`-style
+  operators (also after `if`, `elif`, `while`, `until`, and `time`), and
+  array subscripts. Since the previous entry they evaluated to
+  0. Runtime-built names (`v=name; $((v))`) still see nothing.
 
 - A failing member of `batch(...)` now settles as its own error value while
   the other members still return their values. The batch fails only when every

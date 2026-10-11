@@ -1039,7 +1039,10 @@ Adding a new language: write a Backend subclass, add it to
   bindings whose names its body references, either as a `$name` splice or as a
   whole identifier token anywhere in its OIR subtree, including nested typed
   blocks, and this applies to each
-  branch of `autonomous(...)` and coordination groups separately. Access that
+  branch of `autonomous(...)` and coordination groups separately. Shell blocks
+  (`bash`, `sh`, `shell`) are the exception: they use only the reference rules
+  below, which also cover bare names in arithmetic contexts and array
+  subscripts, not whole-token matching. Access that
   does not name a binding gets nothing: Python `globals()`, `vars()`, or frame
   access, JavaScript `globalThis` or a read of the script source, a shell
   `${!name}` indirection, and a child process reading environment variables by
@@ -1062,9 +1065,23 @@ Adding a new language: write a Backend subclass, add it to
   the value is assigned as a non-exported shell variable at the top of that
   block only, so bash evaluates the operator itself, child processes do not
   see it, and in a numbered environment it takes precedence over a session
-  variable of the same name. A bare word such as `v=name` is not a reference,
-  and indirection `${!v}` names no binding. If a `bash[N]` block assigns to the name of a
-  `let` binding, the next block that references that binding gets the `let`
+  variable of the same name. Bash also reads a bare name as a variable in
+  arithmetic context, so a bare `let` name is a reference there too, with the
+  same edge and injection: inside `$(( ))`, `(( ))`, `for (( ; ; ))`, and
+  `$[ ]`; in the arguments of the `let` builtin; on the right of a
+  `declare -i`, `local -i`, or `typeset -i` assignment in the same statement;
+  in the offset and length of `${s:offset:length}`; as an operand of the
+  `[[ ]]` operators `-eq`, `-ne`, `-lt`, `-le`, `-gt`, and `-ge`; and in any
+  array subscript, `name[...]=` or `${name[...]}`. A `let` name in a
+  subscript counts as a reference whatever the array kind. `[[ == ]]`, `!=`,
+  and `=~` compare strings and are not references, and `[ ]` or `test` is
+  not arithmetic. A bare word such as `v=name` is not a reference, and
+  indirection `${!v}` names no binding. Names built at runtime get nothing:
+  with `v=name`, both `${!v}` and `$((v + 1))` read an unset `name`, and the
+  same holds for a later plain assignment to a `-i` variable, a nameref
+  (`declare -n`), and `eval`. Session variables of a `bash[N]` environment
+  must be read as `\$z`, because O splices every `$IDENT`. If a `bash[N]`
+  block assigns to the name of a `let` binding, the next block that references that binding gets the `let`
   value: the session assignment is overridden for that block and unset after
   it. A failing member of `batch(...)` settles as its
   own error value; the other members still return their values, and the batch
