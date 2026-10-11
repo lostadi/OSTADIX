@@ -1,0 +1,392 @@
+{
+  "scope": "Saved private source candidates; original whole Rust compiler and full dependency closure remain incomplete",
+  "production_base_commit": "d953f1517c5f2a167842328c4f20ab4e81a94e28",
+  "native_source_patch": {
+    "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/research/2026-10-10/ocore-wide-fp-vector-dor-private-candidate.patch",
+    "bytes": 443348,
+    "sha256": "fefe47b95dba13666e981317a493673b037423cb1ee209bc8da4b501b2fa2f58"
+  },
+  "changed_source_files": [
+    {
+      "file": "crates/ostadix-api/src/ocore/driver.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/driver.rs",
+        "bytes": 24342,
+        "sha256": "8ec527cea172fdc2ce573dfbde1cd93c6952040a6ca761d5eb5f447f0c060372"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/driver.rs",
+        "bytes": 24462,
+        "sha256": "34e1a267fe323cb726cc6d620cd7fecc276618c4230cee4504c6e8597f038117"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/mod.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/mod.rs",
+        "bytes": 1622,
+        "sha256": "3e3fb2ecf15d7e81b7125e12fd8fc08a9c22d3f16bd6bd0fd11d87a6a39e0322"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/mod.rs",
+        "bytes": 1716,
+        "sha256": "6923d1f2b6eb61122b3622672a70aca59a6b77b003c1dfe642aea07bd98023d3"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_abi.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_abi.rs",
+        "bytes": 43306,
+        "sha256": "fa895eb7f2cc9f46f62cd4856fb60d70866c7ca7d8f942eeba6f86bd12cdd3a7"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_abi.rs",
+        "bytes": 51061,
+        "sha256": "b5bc8932674b37fa2aa8924a13135a629ce88fc1be384715d07692bf9635bb48"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+        "bytes": 55533,
+        "sha256": "32bf0bf05b9b1936fc7b7283991933fa304876f6509f5049888a9a7186c10c19"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+        "bytes": 55628,
+        "sha256": "36f6d911933553d81ed5ae7e084070a2b9f660b0ac83b5f9ecabb1cab27e03e0"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_atomic_verify_tests.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_atomic_verify_tests.rs",
+        "bytes": 40288,
+        "sha256": "ed7025683dd1debaab192b2ad4a68563e22eb03a3bb741b9635c56b6c0984ac7"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_atomic_verify_tests.rs",
+        "bytes": 40792,
+        "sha256": "076515f6e5e53d9b7a22f62f32176dc52be66ce9aad4bbec34e3dad4e235f918"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_codegen.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_codegen.rs",
+        "bytes": 128988,
+        "sha256": "192083180ffaa029bd3c4cd39730e232d59e98b7281e5d89e9b8d53671f94ad8"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_codegen.rs",
+        "bytes": 148732,
+        "sha256": "36fc7a4db25bc0f2ca7e5ef3ac1177b3a224eba42a61c6dda379e832b03fe728"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_eh.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_eh.rs",
+        "bytes": 10470,
+        "sha256": "684f8b17d7f1587857267becb0f517a751cc310473dab5f64cce25c16cf57fc0"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_eh.rs",
+        "bytes": 10470,
+        "sha256": "101e202abb827aabbcc9f065ff59df46e054dbea29694b460568cd0f7b8e2815"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_exception_codegen.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_exception_codegen.rs",
+        "bytes": 14764,
+        "sha256": "fb221fad13d9e75d9cac5bf0de8262c59883ca3cf4d0594f3c3ed4df52808320"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_exception_codegen.rs",
+        "bytes": 14892,
+        "sha256": "dc430d930ed03c462daa6b2e3d425219af4ae024cf8b0902c250272c22793241"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_fp_codegen.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_fp_codegen.rs",
+        "bytes": 21730,
+        "sha256": "33977a1e54a64c8a8d6f0a2018f6e374c4b9e472fbf43ef5413a2071d2eac5b2"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_fp_intrinsic_codegen.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_fp_intrinsic_codegen.rs",
+        "bytes": 26377,
+        "sha256": "1e152c6934972b68252c87c392f78f27f41f3ac193de661f36eef5ce6d5446f5"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_fp_tests.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_fp_tests.rs",
+        "bytes": 34120,
+        "sha256": "c32e25d7db4d03f18253ee2e75181575ed4b04f93fab0903a99a6f8794262b04"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_integer_unary_verify_tests.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_integer_unary_verify_tests.rs",
+        "bytes": 20603,
+        "sha256": "c08c1b47656214522f8b0e7c75722fe54dc470537c00d448c03f23dba7fb7035"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_interpret.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_interpret.rs",
+        "bytes": 87861,
+        "sha256": "da33256ffdbe5f79b21326ac9139a367b5660bea7035b5f12340f4a3d06dff40"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_interpret.rs",
+        "bytes": 92745,
+        "sha256": "65a35f6ae166f6bb13378ce7d8f61dd2fe836502d1935f16c4cbd24db16f5223"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_ir.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_ir.rs",
+        "bytes": 26947,
+        "sha256": "9d16d08763dcec4ddd2350ded6c57ae09dc8c3d8b62682c0a899840f35c563ae"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_ir.rs",
+        "bytes": 34339,
+        "sha256": "e7c4bccab1fde81ae8c525c492e0f60cc7996fb84a8fe9b1cfe2853fa35ce0a5"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_minmax_verify_tests.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_minmax_verify_tests.rs",
+        "bytes": 31525,
+        "sha256": "84198fc37311bed025ba33bdf2a208fc7e3d9f20ee3c1e182420b7429f6bc827"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_minmax_verify_tests.rs",
+        "bytes": 32108,
+        "sha256": "0da012ecd7207dfa611a4dcbedc030e1514cdbffdf68a5e85604a3af64c86bae"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_value_parts.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_value_parts.rs",
+        "bytes": 4852,
+        "sha256": "4863537d7b533aaaeffac84c344fbd703256e808c393d9c012ff9a58f4755978"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_vector_codegen.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_vector_codegen.rs",
+        "bytes": 32231,
+        "sha256": "fee840bd8db54110888ca22280a461cae6675dcd860915f4b09aada59c8afd87"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_vector_contract.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_vector_contract.rs",
+        "bytes": 4545,
+        "sha256": "4d7db74297727cecb6a859f109e52e50348f9709774291edc7f90050c0748c47"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_verify.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/crates/ostadix-api/src/ocore/native_verify.rs",
+        "bytes": 380608,
+        "sha256": "81c42d8d18405b8dc33e332f6a4fafc2a60c0515f7c5ef2a8d0e3d91cca820b1"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_verify.rs",
+        "bytes": 417934,
+        "sha256": "f934f5ddcbdbf38a98a1df9d89d442e9d998c92e3e8c65bd0cfd608bbb6f441f"
+      }
+    },
+    {
+      "file": "crates/ostadix-api/src/ocore/native_wide_codegen.rs",
+      "production": null,
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/crates/ostadix-api/src/ocore/native_wide_codegen.rs",
+        "bytes": 20992,
+        "sha256": "45e9ef577da436497e3a64e0be1863729b3103375b87df83fb33ea131e8de97a"
+      }
+    },
+    {
+      "file": "scripts/ocore_llvm_bitcode.py",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/scripts/ocore_llvm_bitcode.py",
+        "bytes": 20428,
+        "sha256": "022acd6c0c9629207dee72d53767edebdb051ec26d48b65ed1ca854346ca22cd"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/scripts/ocore_llvm_bitcode.py",
+        "bytes": 22555,
+        "sha256": "b240a3bd1fba130e6d603bd9ea635d42bfff21c683d8849db43efdf16a919c6a"
+      }
+    },
+    {
+      "file": "scripts/ocore_llvm_import.py",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/scripts/ocore_llvm_import.py",
+        "bytes": 157148,
+        "sha256": "6df08e6e20fa98dd874712bb438e8239218ebc6408ee7cdf84259b492c20defd"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/scripts/ocore_llvm_import.py",
+        "bytes": 192328,
+        "sha256": "b8a351b076e0b9202a669faacc52594103b9084353e003f89b0e4361dc187f9c"
+      }
+    },
+    {
+      "file": "src/bin/ocorec.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/src/bin/ocorec.rs",
+        "bytes": 15020,
+        "sha256": "8c00eb3bbbbe4262051fa24420238d8841e39585e677498638b2358fb1e45605"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/src/bin/ocorec.rs",
+        "bytes": 15632,
+        "sha256": "bdabbdfc94c3bbd0bfe4435d93422766d24b3bb77e47549bc6c0f4a004a3bdbc"
+      }
+    },
+    {
+      "file": "src/bin/olangc/native_runtime.rs",
+      "production": {
+        "path": "/home/ustad/ostadix-BM/src/bin/olangc/native_runtime.rs",
+        "bytes": 128691,
+        "sha256": "8f672a4a253a3593d3bd3ead1f868160f9ae6d91797a57bf9d7a00bb0452ed67"
+      },
+      "candidate": {
+        "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/workspace/src/bin/olangc/native_runtime.rs",
+        "bytes": 132611,
+        "sha256": "65fca1406d371f6d4a5b9d56465657054c1763d10096bf69788282e02c97af57"
+      }
+    }
+  ],
+  "actual_build_report": {
+    "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/actual-build-rmi10j9b/build-report.json",
+    "bytes": 1198844,
+    "sha256": "77fbfcc39814ed837202da7f4579dcf1c896364481a9dfceef224645074d0408"
+  },
+  "vector_dor_build_report": {
+    "path": "/home/ustad/ostadix-BM/target/ocore-wide-fp-full-checkout-twpm22yw/actual-build-7jeg5jnu/build-report.json",
+    "bytes": 1198300,
+    "sha256": "3ad260e67a30bd9e9e4a537f93de5ef0996d3367e2208e8a5d5f43b8a85fc88a"
+  },
+  "retained_54_byte_identical_objects": {
+    "path": "/home/ustad/ostadix-BM/target/ocore-floating-point-preparation-20261010/retained-native-byte-regression-ck1i0yno/root-run.json",
+    "bytes": 215457,
+    "sha256": "33cf12530a0c46f933c76388b0b661985ebcefe6af09ac228cc41273bb34e8db"
+  },
+  "original_compiler_implementation_lowered": false,
+  "dependency_closure_complete": false,
+  "new_vector_native_equivalence_qualified": false,
+  "new_fp_intrinsic_cross_isa_equivalence_qualified": false,
+  "original_latest_coverage": {
+    "attempted_whole_units": 1614,
+    "own_verified_x86_objects": 458,
+    "unsupported_units": 1156
+  },
+  "linker_candidate_handoff": {
+    "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/final-handoff.json",
+    "bytes": 7219,
+    "sha256": "28725e762782cacf06c5b85b633d803ad4b36c0e56a8f3f5bdd569bc353510a2"
+  },
+  "saved_linker_candidate_files": [
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/prepare_build.py",
+      "bytes": 7814,
+      "sha256": "22abd1e093029a90255bd4efcc64b044657846ef74ea6baacc172cdffd8af499"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/run_build.py",
+      "bytes": 6008,
+      "sha256": "e945b19e100048100d9a861206ca0ec315cfc3ac30cc6b5049bc3a81838b20e0"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/python/lld_capture.py",
+      "bytes": 27299,
+      "sha256": "f589aa401f8e1a0e57e26eb2ff0a10985735cde1b1e3405df260db16a126c075"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/python/test_lld_capture.py",
+      "bytes": 21977,
+      "sha256": "0f81dd6089231e258473a6126e425554e6fbc55fa69685c46f11194123b10a05"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/python/link_integration.py",
+      "bytes": 5064,
+      "sha256": "49626a38dd4087a7c9197b16140a17391d0c1c33d7207ad6f8669b1f6870bf17"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/original-source.json",
+      "bytes": 2992,
+      "sha256": "dae12be774c2d8f73d8328a7900d12d6f335f813104114800d857f85ff54fc94"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/original-lld22-native-link-capture.patch",
+      "bytes": 35242,
+      "sha256": "46501bf798ba929ddf2ff5eaa8cad5dbb6f530454f33ad8dff0bdd6bc49d87a1"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/integration-contract.md",
+      "bytes": 12862,
+      "sha256": "1b7dda395e5e7645b1f67a7cebb62407f41a32cfb500dd0efa1ce085add4489d"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/build-plan.json",
+      "bytes": 15056,
+      "sha256": "284ca5ccc3898cb69bb74b032d28645988b32a560425c8c116f61fe8b8b325a9"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/build-command-readback.json",
+      "bytes": 10674,
+      "sha256": "9f578210b3328a6188e7fba1305e3b68e9d42cb4d6cfeff32ceec2933b16cf72"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/hook-source-manifest.json",
+      "bytes": 3527,
+      "sha256": "5f5286f3a95b9c769d7923c02d59042cd8a59fb43b3c63f8c944268e566ad825"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/protocol-gate-tenth.log",
+      "bytes": 5603,
+      "sha256": "847a3c3ea8e9a0adc2fa300d6f52e4fb2f7463cfd1887c5048f4f16594b87283"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/static-checks.json",
+      "bytes": 2132,
+      "sha256": "ea597a239605e1d9e60ec2f5cc2c9e5e0b7a3fd928a4bb265262a5728e9fb58f"
+    },
+    {
+      "file": "tools/ocore-runtime/research/2026-10-10/lld-candidate/evidence/expansion-context-compiled-surface.json",
+      "bytes": 1199,
+      "sha256": "ac96326d5a571278740ccdf7b70af97603c37ae1fbd5079f5a865a2d1cdd28a8"
+    }
+  ]
+}

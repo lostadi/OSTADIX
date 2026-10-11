@@ -1,0 +1,834 @@
+--- a/lld/ELF/CMakeLists.txt
++++ b/lld/ELF/CMakeLists.txt
+@@ -51,6 +51,7 @@
+   MapFile.cpp
+   MarkLive.cpp
+   OutputSections.cpp
++  OcoreLinkCapture.cpp
+   Relocations.cpp
+   ScriptLexer.cpp
+   ScriptParser.cpp
+--- a/lld/ELF/Config.h
++++ b/lld/ELF/Config.h
+@@ -733,6 +733,9 @@
+   // STT_SECTION symbol associated to the .toc input section.
+   llvm::DenseSet<std::pair<const Symbol *, uint64_t>> ppc64noTocRelax;
+ 
++  // Optional original-link observation; shared_ptr supports the incomplete type.
++  std::shared_ptr<class OcoreLinkCapture> ocoreLinkCapture;
++
+   Ctx();
+ 
+   llvm::raw_fd_ostream openAuxiliaryFile(llvm::StringRef, std::error_code &);
+--- a/lld/ELF/Driver.cpp
++++ b/lld/ELF/Driver.cpp
+@@ -23,6 +23,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "Driver.h"
++#include "OcoreLinkCapture.h"
+ #include "Config.h"
+ #include "ICF.h"
+ #include "InputFiles.h"
+@@ -136,10 +137,14 @@
+   ctx.partitions.emplace_back(ctx);
+ 
+   ctx.arg.progName = args[0];
++  ctx.ocoreLinkCapture = OcoreLinkCapture::begin(ctx, args);
+ 
+   ctx.driver.linkerMain(args);
+ 
+-  return errCount(ctx) == 0;
++  bool success = errCount(ctx) == 0;
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->finish(ctx, success);
++  return success;
+ }
+ } // namespace elf
+ } // namespace lld
+@@ -194,13 +199,30 @@
+ 
+ // Returns slices of MB by parsing MB as an archive file.
+ // Each slice consists of a member file in the archive.
+-std::vector<std::pair<MemoryBufferRef, uint64_t>> static getArchiveMembers(
+-    Ctx &ctx, MemoryBufferRef mb) {
++struct OcoreArchiveMember {
++  MemoryBufferRef buffer;
++  uint64_t offset;
++  uint64_t receipt = 0;
++};
++std::vector<OcoreArchiveMember> static getArchiveMembers(
++    Ctx &ctx, MemoryBufferRef mb, uint64_t inputReceipt) {
+   std::unique_ptr<Archive> file =
+       CHECK(Archive::create(mb),
+             mb.getBufferIdentifier() + ": failed to parse archive");
+ 
+-  std::vector<std::pair<MemoryBufferRef, uint64_t>> v;
++  std::vector<OcoreArchiveMember> v;
++  // An independent original Archive traversal preserves physical indexes,
++  // including symbol/name resources skipped by the normal member iterator.
++  DenseMap<uint64_t, uint64_t> physicalIndexes;
++  if (ctx.ocoreLinkCapture) {
++    Error physicalError = Error::success();
++    uint64_t physical = 0;
++    for (const Archive::Child &c : file->children(physicalError, false))
++      physicalIndexes[c.getChildOffset()] = physical++;
++    if (physicalError)
++      ctx.ocoreLinkCapture->gap("archive_physical_inventory_failed",
++                                  toString(std::move(physicalError)));
++  }
+   Error err = Error::success();
+   bool addToTar = file->isThin() && ctx.tar;
+   for (const Archive::Child &c : file->children(err)) {
+@@ -211,7 +233,12 @@
+     if (addToTar)
+       ctx.tar->append(relativeToRoot(check(c.getFullName())),
+                       mbref.getBuffer());
+-    v.push_back(std::make_pair(mbref, c.getChildOffset()));
++    uint64_t receipt = 0;
++    if (ctx.ocoreLinkCapture)
++      receipt = ctx.ocoreLinkCapture->archiveMember(
++          inputReceipt, mb, c, mbref, file->isThin(),
++          physicalIndexes.lookup(c.getChildOffset()));
++    v.push_back({mbref, c.getChildOffset(), receipt});
+   }
+   if (err)
+     Fatal(ctx) << mb.getBufferIdentifier()
+@@ -251,9 +278,16 @@
+   if (!buffer)
+     return;
+   MemoryBufferRef mbref = *buffer;
++  uint64_t inputReceipt = 0;
++  if (ctx.ocoreLinkCapture)
++    inputReceipt = ctx.ocoreLinkCapture->input(
++        path, mbref, withLOption, inWholeArchive, inLib, isInGroup,
++        nextGroupId, ctx.arg.isStatic, ctx.arg.asNeeded);
+ 
+   if (ctx.arg.formatBinary) {
+     files.push_back(std::make_unique<BinaryFile>(ctx, mbref));
++    if (ctx.ocoreLinkCapture)
++      ctx.ocoreLinkCapture->bind(files.back().get(), inputReceipt, 0);
+     return;
+   }
+ 
+@@ -262,14 +296,17 @@
+     readLinkerScript(ctx, mbref);
+     return;
+   case file_magic::archive: {
+-    auto members = getArchiveMembers(ctx, mbref);
++    auto members = getArchiveMembers(ctx, mbref, inputReceipt);
+     if (inWholeArchive) {
+-      for (const std::pair<MemoryBufferRef, uint64_t> &p : members) {
+-        if (isBitcode(p.first))
+-          files.push_back(std::make_unique<BitcodeFile>(ctx, p.first, path,
+-                                                        p.second, false));
+-        else if (!tryAddFatLTOFile(p.first, path, p.second, false))
+-          files.push_back(createObjFile(ctx, p.first, path));
++      for (const OcoreArchiveMember &p : members) {
++        size_t priorSize = files.size();
++        if (isBitcode(p.buffer))
++          files.push_back(std::make_unique<BitcodeFile>(ctx, p.buffer, path,
++                                                        p.offset, false));
++        else if (!tryAddFatLTOFile(p.buffer, path, p.offset, false))
++          files.push_back(createObjFile(ctx, p.buffer, path));
++        if (ctx.ocoreLinkCapture && files.size() != priorSize)
++          ctx.ocoreLinkCapture->bind(files.back().get(), inputReceipt, p.receipt);
+       }
+       return;
+     }
+@@ -289,18 +326,21 @@
+     // All files within the archive get the same group ID to allow mutual
+     // references for --warn-backrefs.
+     SaveAndRestore saved(isInGroup, true);
+-    for (const std::pair<MemoryBufferRef, uint64_t> &p : members) {
+-      auto magic = identify_magic(p.first.getBuffer());
++    for (const OcoreArchiveMember &p : members) {
++      size_t priorSize = files.size();
++      auto magic = identify_magic(p.buffer.getBuffer());
+       if (magic == file_magic::elf_relocatable) {
+-        if (!tryAddFatLTOFile(p.first, path, p.second, true))
+-          files.push_back(createObjFile(ctx, p.first, path, true));
++        if (!tryAddFatLTOFile(p.buffer, path, p.offset, true))
++          files.push_back(createObjFile(ctx, p.buffer, path, true));
+       } else if (magic == file_magic::bitcode)
+         files.push_back(
+-            std::make_unique<BitcodeFile>(ctx, p.first, path, p.second, true));
++            std::make_unique<BitcodeFile>(ctx, p.buffer, path, p.offset, true));
+       else
+         Warn(ctx) << path << ": archive member '"
+-                  << p.first.getBufferIdentifier()
++                  << p.buffer.getBufferIdentifier()
+                   << "' is neither ET_REL nor LLVM bitcode";
++      if (ctx.ocoreLinkCapture && files.size() != priorSize)
++        ctx.ocoreLinkCapture->bind(files.back().get(), inputReceipt, p.receipt);
+     }
+     if (!saved.get())
+       ++nextGroupId;
+@@ -321,6 +361,8 @@
+         ctx, mbref, withLOption ? path::filename(path) : path);
+     f->init();
+     files.push_back(std::move(f));
++    if (ctx.ocoreLinkCapture)
++      ctx.ocoreLinkCapture->bind(files.back().get(), inputReceipt, 0);
+     return;
+   }
+   case file_magic::bitcode:
+@@ -332,7 +374,10 @@
+     break;
+   default:
+     ErrAlways(ctx) << path << ": unknown file type";
+-  }
++    return;
++  }
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->bind(files.back().get(), inputReceipt, 0);
+ }
+ 
+ // Add a given library by searching it from input search paths.
+@@ -701,6 +746,8 @@
+   }
+ 
+   readConfigs(ctx, args);
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->configurationRead();
+   checkZOptions(ctx, args);
+ 
+   // The behavior of -v or --version is a bit strange, but this is
+@@ -2096,6 +2143,8 @@
+   isInGroup = false;
+   bool hasInput = false, hasScript = false;
+   for (auto *arg : args) {
++    if (ctx.ocoreLinkCapture)
++      ctx.ocoreLinkCapture->argument(*arg, args);
+     switch (arg->getOption().getID()) {
+     case OPT_library:
+       addLibrary(arg->getValue());
+--- a/lld/ELF/DriverUtils.cpp
++++ b/lld/ELF/DriverUtils.cpp
+@@ -13,6 +13,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "Config.h"
++#include "OcoreLinkCapture.h"
+ #include "Driver.h"
+ #include "lld/Common/CommonLinkerContext.h"
+ #include "lld/Common/Reproduce.h"
+@@ -120,8 +121,22 @@
+ 
+   // Expand response files (arguments in the form of @<filename>)
+   // and then parse the argument again.
+-  cl::ExpandResponseFiles(ctx.saver, getQuotingStyle(ctx, args), vec);
++  if (!ctx.ocoreLinkCapture) {
++    cl::ExpandResponseFiles(ctx.saver, getQuotingStyle(ctx, args), vec);
++  } else {
++    cl::ExpansionContext expansion(ctx.saver.getAllocator(),
++                                    getQuotingStyle(ctx, args));
++    expansion.setResponseObserver([&ctx](StringRef name, StringRef bytes) {
++      ctx.ocoreLinkCapture->read("response", name, MemoryBufferRef(bytes, name));
++    });
++    if (Error error = expansion.expandResponseFiles(vec))
++      errs() << toString(std::move(error)) << '\n';
++  }
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->expandedArguments(vec, "response_expanded");
+   concatLTOPluginOptions(ctx, vec);
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->expandedArguments(vec, "plugin_options_normalized");
+   args = this->ParseArgs(vec, missingIndex, missingCount);
+ 
+   handleColorDiagnostics(ctx, args);
+--- a/lld/ELF/InputFiles.cpp
++++ b/lld/ELF/InputFiles.cpp
+@@ -7,6 +7,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "InputFiles.h"
++#include "OcoreLinkCapture.h"
+ #include "Config.h"
+ #include "DWARF.h"
+ #include "Driver.h"
+@@ -262,6 +263,8 @@
+ 
+   if (ctx.tar)
+     ctx.tar->append(relativeToRoot(path), mbref.getBuffer());
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->read("read_file", path, mbref);
+   return mbref;
+ }
+ 
+@@ -314,6 +317,9 @@
+     }
+     return;
+   }
++
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->selected(file);
+ 
+   if (ctx.arg.trace)
+     Msg(ctx) << file;
+--- a/lld/ELF/LTO.cpp
++++ b/lld/ELF/LTO.cpp
+@@ -7,6 +7,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "LTO.h"
++#include "OcoreLinkCapture.h"
+ #include "Config.h"
+ #include "InputFiles.h"
+ #include "SymbolTable.h"
+@@ -163,6 +164,13 @@
+     checkError(ctx.e, c.addSaveTemps(ctx.arg.outputFile.str() + ".",
+                                      /*UseInputModulePath*/ true,
+                                      ctx.arg.saveTempsArgs));
++  if (ctx.ocoreLinkCapture) {
++    auto original = std::move(c.PreCodeGenModuleHook);
++    c.PreCodeGenModuleHook = [&ctx, original](unsigned task, const Module &m) {
++      ctx.ocoreLinkCapture->ltoModule(task, m);
++      return !original || original(task, m);
++    };
++  }
+   return c;
+ }
+ 
+@@ -423,8 +431,13 @@
+     }
+     if (savePrelink || ctx.arg.ltoEmitAsm)
+       saveBuffer(buf[i].second, ltoObjName);
+-    if (!ctx.arg.ltoEmitAsm)
++    if (!ctx.arg.ltoEmitAsm) {
+       ret.push_back(createObjFile(ctx, MemoryBufferRef(objBuf, ltoObjName)));
++      if (ctx.ocoreLinkCapture)
++        ctx.ocoreLinkCapture->ltoObject(
++            ret.back().get(), i, MemoryBufferRef(objBuf, ltoObjName),
++            files[i] != nullptr);
++    }
+   }
+   return ret;
+ }
+--- /dev/null
++++ b/lld/ELF/OcoreLinkCapture.cpp
+@@ -0,0 +1,340 @@
++// Additive opt-in source-issued link packets; errors never change link decisions.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++#include "OcoreLinkCapture.h"
++#include "Config.h"
++#include "InputFiles.h"
++#include "SymbolTable.h"
++#include "Symbols.h"
++#include "llvm/ADT/StringExtras.h"
++#include "llvm/Bitcode/BitcodeWriter.h"
++#include "llvm/IR/Module.h"
++#include "llvm/Option/Arg.h"
++#include "llvm/Option/ArgList.h"
++#include "llvm/Support/FileSystem.h"
++#include "llvm/Support/FormatVariadic.h"
++#include "llvm/Support/MemoryBuffer.h"
++#include "llvm/Support/Path.h"
++#include "llvm/Support/Process.h"
++#include "llvm/Support/SHA256.h"
++#include "llvm/Support/raw_ostream.h"
++#include <cstdlib>
++#include <atomic>
++using namespace llvm;
++using namespace lld::elf;
++namespace {
++json::Array raw(StringRef s) {
++  json::Array result;
++  for (unsigned char c : s.bytes()) result.push_back(int64_t(c));
++  return result;
++}
++json::Array argvBytes(ArrayRef<const char *> args) {
++  json::Array result;
++  for (const char *arg : args)
++    result.push_back(arg ? json::Value(raw(arg)) : json::Value(nullptr));
++  return result;
++}
++std::string digest(StringRef bytes) {
++  SHA256 hash; hash.update(bytes); return toHex(hash.final(), true);
++}
++std::string absolute(StringRef locator) {
++  SmallString<256> path(locator);
++  if (sys::fs::make_absolute(path)) return {};
++  return std::string(path);
++}
++}
++OcoreLinkCapture::OcoreLinkCapture(std::string dir, json::Value context)
++    : Directory(std::move(dir)), Context(std::move(context)) {}
++json::Value OcoreLinkCapture::snapshot(StringRef bytes) {
++  std::string sha = digest(bytes);
++  SmallString<256> path(Directory);
++  sys::path::append(path, "blobs", sha);
++  if (!sys::fs::exists(path)) {
++    std::error_code ec;
++    raw_fd_ostream stream(path, ec, sys::fs::OF_None);
++    if (ec) { Failed = true; return nullptr; }
++    stream.write(bytes.data(), bytes.size()); stream.close();
++    if (stream.has_error()) { stream.clear_error(); Failed = true; return nullptr; }
++  }
++  return json::Object{{"path", json::fixUTF8(path)}, {"path_bytes", raw(path)},
++                      {"sha256", sha}, {"bytes", int64_t(bytes.size())}};
++}
++uint64_t OcoreLinkCapture::event(StringRef kind, json::Object payload) {
++  // The caller holds Mutex: one monotonically numbered source sequence.
++  uint64_t number = ++Sequence;
++  SmallString<256> path(Directory);
++  sys::path::append(path, formatv("event-{0:016}.json", number).str());
++  std::error_code ec;
++  raw_fd_ostream stream(path, ec, sys::fs::OF_None);
++  if (ec) { Failed = true; return number; }
++  stream << formatv("{0:2}\n", json::Value(json::Object{
++      {"schema", "ocore-lld-elf-event-v1"}, {"sequence", int64_t(number)},
++      {"kind", kind}, {"payload", std::move(payload)}}));
++  stream.close();
++  if (stream.has_error()) { stream.clear_error(); Failed = true; }
++  return number;
++}
++std::shared_ptr<OcoreLinkCapture> OcoreLinkCapture::begin(
++    Ctx &ctx, ArrayRef<const char *> args) {
++  const char *locator = std::getenv("OCORE_LLD_LINK_CONTEXT");
++  std::string sourceContext;
++  if (!locator || !*locator) {
++    // V3 already publishes this unique pending spawn before invoking the
++    // unchanged selected driver. Descendants inherit it; no PATH or -fuse-ld
++    // substitution is needed. An unhooked/other linker remains a typed gap.
++    const char *spawn = std::getenv("OCORE_RUST_LINK_ATTEMPT");
++    const char *registration = std::getenv("OCORE_LLD_HOOK_REGISTRATION");
++    const char *captureRoot = std::getenv("OCORE_LLD_CAPTURE_DIRECTORY");
++    if (!spawn || !registration || !captureRoot) return nullptr;
++    auto spawnFile = MemoryBuffer::getFile(spawn);
++    auto registrationFile = MemoryBuffer::getFile(registration);
++    if (!spawnFile || !registrationFile) return nullptr;
++    auto originalSpawn = json::parse((*spawnFile)->getBuffer());
++    if (!originalSpawn) { consumeError(originalSpawn.takeError()); return nullptr; }
++    auto *seed = originalSpawn->getAsObject();
++    if (!seed || seed->getString("schema") != "ocore-rust-native-link-spawn-v1" ||
++        seed->getString("observation") != "original_driver_spawn_prepared")
++      return nullptr;
++    static std::atomic<uint64_t> nextInvocation{0};
++    std::string id = formatv("{0}-{1}", sys::Process::getProcessId(),
++                            nextInvocation.fetch_add(1)).str();
++    SmallString<256> root(absolute(captureRoot));
++    if (root.empty() || sys::fs::create_directories(root)) return nullptr;
++    SmallString<256> contextPath(root), packetPath(root);
++    sys::path::append(contextPath, id + ".context.json");
++    sys::path::append(packetPath, id + ".packets");
++    auto artifact = [](StringRef path, StringRef bytes) -> json::Value {
++      std::string full = absolute(path);
++      return json::Object{{"path", json::fixUTF8(full)}, {"path_bytes", raw(full)},
++                          {"sha256", digest(bytes)}, {"bytes", int64_t(bytes.size())}};
++    };
++    std::error_code ec;
++    raw_fd_ostream out(contextPath, ec, sys::fs::OF_None);
++    if (ec) return nullptr;
++    out << formatv("{0:2}\n", json::Value(json::Object{
++      {"schema", "ocore-lld-link-context-v1"}, {"packet_directory", json::fixUTF8(packetPath)},
++      {"invocation_id", id}, {"rust_spawn_seed", artifact(spawn, (*spawnFile)->getBuffer())},
++      {"linker_registration", artifact(registration, (*registrationFile)->getBuffer())},
++      {"driver_trace_seed", nullptr}}));
++    out.close();
++    if (out.has_error()) { out.clear_error(); return nullptr; }
++    sourceContext = std::string(contextPath);
++    locator = sourceContext.c_str();
++  }
++  auto buffer = MemoryBuffer::getFile(locator);
++  if (!buffer) return nullptr;
++  auto parsed = json::parse((*buffer)->getBuffer());
++  if (!parsed) { consumeError(parsed.takeError()); return nullptr; }
++  auto *object = parsed->getAsObject();
++  if (!object || object->getString("schema") != "ocore-lld-link-context-v1")
++    return nullptr;
++  auto directory = object->getString("packet_directory");
++  if (!directory || directory->empty()) return nullptr;
++  std::string dir = absolute(*directory);
++  if (dir.empty() || sys::fs::exists(dir)) return nullptr;
++  SmallString<256> blobs(dir); sys::path::append(blobs, "blobs");
++  if (sys::fs::create_directories(blobs)) return nullptr;
++  auto capture = std::shared_ptr<OcoreLinkCapture>(
++      new OcoreLinkCapture(dir, std::move(*parsed)));
++  std::lock_guard<std::mutex> lock(capture->Mutex);
++  SmallString<256> cwd;
++  sys::fs::current_path(cwd);
++  std::string executable = sys::fs::getMainExecutable(args[0],
++      reinterpret_cast<void *>(&OcoreLinkCapture::begin));
++  json::Value image = nullptr;
++  if (auto file = MemoryBuffer::getFile(executable))
++    image = capture->snapshot((*file)->getBuffer());
++  json::Value processArgs = nullptr, processArgSnapshot = nullptr;
++#if defined(__linux__)
++  if (auto argsFile = MemoryBuffer::getFile("/proc/self/cmdline")) {
++    StringRef remaining = (*argsFile)->getBuffer();
++    processArgSnapshot = capture->snapshot(remaining);
++    json::Array words;
++    while (!remaining.empty()) {
++      auto part = remaining.split('\0');
++      words.push_back(raw(part.first));
++      remaining = part.second;
++    }
++    processArgs = std::move(words);
++  }
++#endif
++  capture->event("session", {
++      {"source_revision", "dcc3606807c989700e0ac1cac18c31741bcd40d9"},
++      {"context", capture->snapshot((*buffer)->getBuffer())},
++      {"pid", int64_t(sys::Process::getProcessId())}, {"cwd", raw(cwd)},
++      {"executable_locator", raw(executable)}, {"executable", std::move(image)},
++      {"incoming_argv", argvBytes(args)}, {"process_argv", std::move(processArgs)},
++      {"process_argv_snapshot", std::move(processArgSnapshot)}});
++  return capture;
++}
++void OcoreLinkCapture::configurationRead() {
++  std::lock_guard<std::mutex> lock(Mutex);
++  ConfigurationRead = true;
++}
++void OcoreLinkCapture::gap(StringRef kind, StringRef reason) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("gap", {{"kind", kind}, {"reason", json::fixUTF8(reason)}});
++}
++void OcoreLinkCapture::read(StringRef role, StringRef locator, MemoryBufferRef mb) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  Reads[mb.getBufferStart()] = event("read", {
++      {"role", role}, {"locator", raw(locator)}, {"buffer", snapshot(mb.getBuffer())}});
++}
++void OcoreLinkCapture::expandedArguments(ArrayRef<const char *> args, StringRef phase) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("arguments", {{"phase", phase}, {"argv", argvBytes(args)}});
++}
++void OcoreLinkCapture::argument(const opt::Arg &arg, const opt::InputArgList &args) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  json::Array values;
++  for (unsigned i = 0; i < arg.getNumValues(); ++i) values.push_back(raw(arg.getValue(i)));
++  event("argument", {{"option_id", int64_t(arg.getOption().getID())},
++      {"index", int64_t(arg.getIndex())}, {"spelling", raw(arg.getSpelling())},
++      {"rendered", raw(arg.getAsString(args))}, {"values", std::move(values)}});
++}
++uint64_t OcoreLinkCapture::input(StringRef locator, MemoryBufferRef mb, bool withL,
++    bool whole, bool startLib, bool group, uint32_t groupID, bool isStatic, bool asNeeded) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  uint64_t receipt = event("input", {{"locator", raw(locator)}, {"buffer", snapshot(mb.getBuffer())},
++      {"read_event", int64_t(Reads.lookup(mb.getBufferStart()))},
++      {"script_operand_id", int64_t(ActiveScriptOperand)},
++      {"with_l_option", withL}, {"whole_archive", whole}, {"start_lib", startLib},
++      {"in_group", group}, {"group_id", int64_t(groupID)},
++      {"static", isStatic}, {"as_needed", asNeeded}});
++  SourceBuffers[receipt] = mb;
++  return receipt;
++}
++uint64_t OcoreLinkCapture::archiveMember(uint64_t input, MemoryBufferRef archive,
++    const object::Archive::Child &child, MemoryBufferRef mb, bool thin, uint64_t physical) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  auto rawName = child.getRawName(); auto name = child.getName();
++  if (!rawName || !name) {
++    if (!rawName) consumeError(rawName.takeError());
++    if (!name) consumeError(name.takeError());
++    event("gap", {{"kind", "archive_name_unreadable"}, {"reason", "original child name read failed"}});
++    return 0;
++  }
++  uint64_t receipt = event("archive_member", {{"input_id", int64_t(input)},
++      {"physical_index", int64_t(physical)}, {"header_offset", int64_t(child.getChildOffset())},
++      {"data_offset", int64_t(child.getDataOffset())}, {"raw_name", raw(*rawName)},
++      {"name", raw(*name)}, {"thin", thin}, {"archive", snapshot(archive.getBuffer())},
++      {"buffer", snapshot(mb.getBuffer())}, {"member_locator", raw(mb.getBufferIdentifier())}});
++  SourceBuffers[receipt] = mb;
++  return receipt;
++}
++void OcoreLinkCapture::bind(const InputFile *file, uint64_t input, uint64_t member) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  json::Value sourceRange = nullptr;
++  auto origin = SourceBuffers.find(member ? member : input);
++  if (origin != SourceBuffers.end()) {
++    uintptr_t start = reinterpret_cast<uintptr_t>(origin->second.getBufferStart());
++    uintptr_t actual = reinterpret_cast<uintptr_t>(file->mb.getBufferStart());
++    uint64_t size = origin->second.getBufferSize();
++    if (actual >= start && actual - start <= size &&
++        file->mb.getBufferSize() <= size - (actual - start))
++      sourceRange = json::Object{{"offset", int64_t(actual - start)},
++                                {"bytes", int64_t(file->mb.getBufferSize())}};
++  }
++  Files[file] = event("file", {{"input_id", int64_t(input)}, {"member_id", int64_t(member)},
++      {"kind", int64_t(file->kind())}, {"group_id", int64_t(file->groupId)},
++      {"lazy", file->lazy}, {"buffer", snapshot(file->mb.getBuffer())},
++      {"source_range", std::move(sourceRange)}});
++}
++uint64_t OcoreLinkCapture::fileID(const InputFile *file) {
++  if (!file) return 0;
++  auto it = Files.find(file);
++  if (it != Files.end()) return it->second;
++  // Never manufacture a direct/archived input occurrence from a basename.
++  uint64_t id = event("unbound_file", {{"kind", int64_t(file->kind())},
++      {"locator", raw(file->getName())}, {"buffer", snapshot(file->mb.getBuffer())}});
++  Files[file] = id;
++  return id;
++}
++void OcoreLinkCapture::extraction(const InputFile *file, StringRef symbol) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("extract", {{"file_id", int64_t(fileID(file))}, {"symbol", raw(symbol)}});
++}
++void OcoreLinkCapture::selected(const InputFile *file) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("selected", {{"file_id", int64_t(fileID(file))}});
++}
++void OcoreLinkCapture::ltoModule(unsigned task, const Module &module) {
++  SmallVector<char, 0> bytes; raw_svector_ostream stream(bytes);
++  WriteBitcodeToFile(module, stream, false);
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("lto_ir", {{"task", int64_t(task)}, {"phase", "original_pre_codegen_module"},
++      {"module_id", raw(module.getModuleIdentifier())},
++      {"triple", raw(module.getTargetTriple().str())},
++      {"data_layout", raw(module.getDataLayoutStr())}, {"bitcode", snapshot(stream.str())}});
++}
++void OcoreLinkCapture::ltoObject(const InputFile *file, unsigned task, MemoryBufferRef mb, bool cacheHit) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  Files[file] = event("lto_object", {{"task", int64_t(task)}, {"cache_hit", cacheHit},
++      {"buffer", snapshot(mb.getBuffer())}, {"locator", raw(mb.getBufferIdentifier())}});
++}
++void OcoreLinkCapture::finish(Ctx &ctx, bool success) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  json::Array symbols, providers, versions;
++  for (const Symbol *sym : ctx.symtab->getSymbols())
++    symbols.push_back(json::Object{{"name", raw(sym->getName())},
++      {"kind", int64_t(sym->kind())}, {"file_id", int64_t(fileID(sym->file))},
++      {"binding", int64_t(sym->binding)}, {"type", int64_t(sym->type)},
++      {"visibility", int64_t(sym->visibility())}, {"version_id", int64_t(sym->versionId)},
++      {"used", bool(sym->used)}, {"preemptible", bool(sym->isPreemptible)}});
++  for (const SharedFile *file : ctx.sharedFiles) {
++    json::Array needed;
++    for (StringRef value : file->dtNeeded) needed.push_back(raw(value));
++    providers.push_back(json::Object{{"file_id", int64_t(fileID(file))},
++        {"soname", raw(file->soName)}, {"needed", file->isNeeded},
++        {"dt_needed", std::move(needed)}});
++  }
++  for (const VersionDefinition &version : ctx.arg.versionDefinitions) {
++    json::Array local, global;
++    for (const SymbolVersion &pat : version.localPatterns)
++      local.push_back(json::Object{{"name", raw(pat.name)}, {"extern_cpp", pat.isExternCpp}, {"wildcard", pat.hasWildcard}});
++    for (const SymbolVersion &pat : version.nonLocalPatterns)
++      global.push_back(json::Object{{"name", raw(pat.name)}, {"extern_cpp", pat.isExternCpp}, {"wildcard", pat.hasWildcard}});
++    versions.push_back(json::Object{{"id", int64_t(version.id)}, {"name", raw(version.name)},
++        {"local", std::move(local)}, {"global", std::move(global)}});
++  }
++  json::Value output = nullptr;
++  if (!ctx.arg.outputFile.empty())
++    if (auto file = MemoryBuffer::getFile(ctx.arg.outputFile)) output = snapshot((*file)->getBuffer());
++  event("finish", {{"prior_event_count", int64_t(Sequence)}, {"capture_write_failed", Failed},
++      {"source_return_success", success}, {"source_error_count", int64_t(ctx.e.errorCount)},
++      {"output_locator", raw(ctx.arg.outputFile)}, {"output", std::move(output)},
++      {"emachine", int64_t(ctx.arg.emachine)}, {"elf_kind", int64_t(ctx.arg.ekind)},
++      {"configuration_read", ConfigurationRead},
++      {"shared", ConfigurationRead && ctx.arg.shared},
++      {"relocatable", ConfigurationRead && ctx.arg.relocatable},
++      {"symbols", std::move(symbols)}, {"providers", std::move(providers)},
++      {"versions", std::move(versions)}});
++}
++
++void OcoreLinkCapture::script(StringRef role, MemoryBufferRef mb) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("script", {{"role", role}, {"locator", raw(mb.getBufferIdentifier())},
++      {"read_event", int64_t(Reads.lookup(mb.getBufferStart()))},
++      {"buffer", snapshot(mb.getBuffer())}});
++}
++void OcoreLinkCapture::scriptInclude(MemoryBufferRef parent, MemoryBufferRef child, StringRef operand) {
++  std::lock_guard<std::mutex> lock(Mutex);
++  event("script_include", {{"parent", snapshot(parent.getBuffer())},
++      {"child", snapshot(child.getBuffer())}, {"operand", raw(operand)},
++      {"parent_locator", raw(parent.getBufferIdentifier())},
++      {"child_locator", raw(child.getBufferIdentifier())}});
++}
++OcoreScriptOperandScope::OcoreScriptOperandScope(Ctx &ctx, MemoryBufferRef source, StringRef operand) {
++  Capture = ctx.ocoreLinkCapture.get();
++  if (!Capture) return;
++  std::lock_guard<std::mutex> lock(Capture->Mutex);
++  Prior = Capture->ActiveScriptOperand;
++  Capture->ActiveScriptOperand = Capture->event("script_operand", {
++      {"parent_operand_id", int64_t(Prior)}, {"operand", raw(operand)},
++      {"source", Capture->snapshot(source.getBuffer())},
++      {"source_locator", raw(source.getBufferIdentifier())}});
++}
++OcoreScriptOperandScope::~OcoreScriptOperandScope() {
++  if (!Capture) return;
++  std::lock_guard<std::mutex> lock(Capture->Mutex);
++  Capture->ActiveScriptOperand = Prior;
++}
+--- /dev/null
++++ b/lld/ELF/OcoreLinkCapture.h
+@@ -0,0 +1,67 @@
++// Additive observation of original LLVM/LLD implementation, never admission.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++#ifndef LLD_ELF_OCORE_LINK_CAPTURE_H
++#define LLD_ELF_OCORE_LINK_CAPTURE_H
++#include "llvm/ADT/ArrayRef.h"
++#include "llvm/ADT/DenseMap.h"
++#include "llvm/Support/JSON.h"
++#include "llvm/Support/MemoryBufferRef.h"
++#include <memory>
++#include <mutex>
++#include <string>
++namespace llvm {
++class Module;
++namespace opt { class Arg; class InputArgList; }
++namespace object { class Archive; }
++}
++#include "llvm/Object/Archive.h"
++namespace lld::elf {
++struct Ctx;
++class InputFile;
++class OcoreLinkCapture {
++  std::string Directory;
++  std::mutex Mutex;
++  uint64_t Sequence = 0;
++  bool Failed = false;
++  bool ConfigurationRead = false;
++  uint64_t ActiveScriptOperand = 0;
++  friend class OcoreScriptOperandScope;
++  llvm::DenseMap<const char *, uint64_t> Reads;
++  llvm::DenseMap<const InputFile *, uint64_t> Files;
++  llvm::DenseMap<uint64_t, llvm::MemoryBufferRef> SourceBuffers;
++  llvm::json::Value Context;
++  explicit OcoreLinkCapture(std::string directory, llvm::json::Value context);
++  llvm::json::Value snapshot(llvm::StringRef bytes);
++  uint64_t event(llvm::StringRef kind, llvm::json::Object payload);
++  uint64_t fileID(const InputFile *file);
++public:
++  static std::shared_ptr<OcoreLinkCapture> begin(Ctx &, llvm::ArrayRef<const char *>);
++  void configurationRead();
++  void gap(llvm::StringRef kind, llvm::StringRef reason);
++  void read(llvm::StringRef role, llvm::StringRef locator, llvm::MemoryBufferRef);
++  void expandedArguments(llvm::ArrayRef<const char *>, llvm::StringRef phase);
++  void script(llvm::StringRef role, llvm::MemoryBufferRef);
++  void scriptInclude(llvm::MemoryBufferRef parent, llvm::MemoryBufferRef child, llvm::StringRef operand);
++  void argument(const llvm::opt::Arg &, const llvm::opt::InputArgList &);
++  uint64_t input(llvm::StringRef locator, llvm::MemoryBufferRef, bool withL,
++                 bool whole, bool startLib, bool group, uint32_t groupID,
++                 bool isStatic, bool asNeeded);
++  uint64_t archiveMember(uint64_t input, llvm::MemoryBufferRef archive,
++                         const llvm::object::Archive::Child &, llvm::MemoryBufferRef,
++                         bool thin, uint64_t physicalIndex);
++  void bind(const InputFile *, uint64_t input, uint64_t member);
++  void extraction(const InputFile *, llvm::StringRef symbol);
++  void selected(const InputFile *);
++  void ltoModule(unsigned task, const llvm::Module &);
++  void ltoObject(const InputFile *, unsigned task, llvm::MemoryBufferRef, bool cacheHit);
++  void finish(Ctx &, bool sourceSuccess);
++};
++class OcoreScriptOperandScope {
++  OcoreLinkCapture *Capture = nullptr;
++  uint64_t Prior = 0;
++public:
++  OcoreScriptOperandScope(Ctx &, llvm::MemoryBufferRef source, llvm::StringRef operand);
++  ~OcoreScriptOperandScope();
++};
++}
++#endif
+--- a/lld/ELF/ScriptParser.cpp
++++ b/lld/ELF/ScriptParser.cpp
+@@ -13,6 +13,7 @@
+ 
+ #include "ScriptParser.h"
+ #include "Config.h"
++#include "OcoreLinkCapture.h"
+ #include "Driver.h"
+ #include "InputFiles.h"
+ #include "LinkerScript.h"
+@@ -313,6 +314,8 @@
+ }
+ 
+ void ScriptParser::addFile(StringRef s) {
++  OcoreScriptOperandScope captureSource(
++      ctx, ctx.ocoreLinkCapture ? getCurrentMB() : MemoryBufferRef(), s);
+   if (curBuf.isUnderSysroot && s.starts_with("/")) {
+     SmallString<128> pathData;
+     StringRef path = (ctx.arg.sysroot + s).toStringRef(pathData);
+@@ -401,6 +404,8 @@
+ 
+   if (std::optional<std::string> path = searchScript(ctx, name)) {
+     if (std::optional<MemoryBufferRef> mb = readFile(ctx, *path)) {
++      if (ctx.ocoreLinkCapture)
++        ctx.ocoreLinkCapture->scriptInclude(getCurrentMB(), *mb, name);
+       buffers.push_back(curBuf);
+       curBuf = Buffer(ctx, *mb);
+       mbs.push_back(*mb);
+@@ -1897,22 +1902,30 @@
+ }
+ 
+ void elf::readLinkerScript(Ctx &ctx, MemoryBufferRef mb) {
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->script("linker_script", mb);
+   llvm::TimeTraceScope timeScope("Read linker script",
+                                  mb.getBufferIdentifier());
+   ScriptParser(ctx, mb).readLinkerScript();
+ }
+ 
+ void elf::readVersionScript(Ctx &ctx, MemoryBufferRef mb) {
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->script("version_script", mb);
+   llvm::TimeTraceScope timeScope("Read version script",
+                                  mb.getBufferIdentifier());
+   ScriptParser(ctx, mb).readVersionScript();
+ }
+ 
+ void elf::readDynamicList(Ctx &ctx, MemoryBufferRef mb) {
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->script("dynamic_list", mb);
+   llvm::TimeTraceScope timeScope("Read dynamic list", mb.getBufferIdentifier());
+   ScriptParser(ctx, mb).readDynamicList();
+ }
+ 
+ void elf::readDefsym(Ctx &ctx, MemoryBufferRef mb) {
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->script("defsym", mb);
+   ScriptParser(ctx, mb).readDefsym();
+ }
+--- a/lld/ELF/Symbols.cpp
++++ b/lld/ELF/Symbols.cpp
+@@ -7,6 +7,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "Symbols.h"
++#include "OcoreLinkCapture.h"
+ #include "Driver.h"
+ #include "InputFiles.h"
+ #include "InputSection.h"
+@@ -254,6 +255,8 @@
+ 
+ void Symbol::extract(Ctx &ctx) const {
+   assert(file->lazy);
++  if (ctx.ocoreLinkCapture)
++    ctx.ocoreLinkCapture->extraction(file, getName());
+   file->lazy = false;
+   parseFile(ctx, file);
+ }
+--- a/llvm/include/llvm/Support/CommandLine.h
++++ b/llvm/include/llvm/Support/CommandLine.h
+@@ -2195,6 +2195,9 @@
+   /// Tokenization strategy. Typically Unix or Windows.
+   TokenizerCallback Tokenizer;
+ 
++  /// Optional observation of the original response buffer before normalization.
++  std::function<void(StringRef, StringRef)> ResponseObserver;
++
+   /// File system used for all file access when running the expansion.
+   vfs::FileSystem *FS;
+ 
+@@ -2222,6 +2225,12 @@
+ public:
+   LLVM_ABI ExpansionContext(BumpPtrAllocator &A, TokenizerCallback T,
+                             vfs::FileSystem *FS = nullptr);
++
++  ExpansionContext &setResponseObserver(
++      std::function<void(StringRef, StringRef)> X) {
++    ResponseObserver = std::move(X);
++    return *this;
++  }
+ 
+   ExpansionContext &setMarkEOLs(bool X) {
+     MarkEOLs = X;
+--- a/llvm/lib/Support/CommandLine.cpp
++++ b/llvm/lib/Support/CommandLine.cpp
+@@ -1177,6 +1177,8 @@
+   }
+   MemoryBuffer &MemBuf = *MemBufOrErr.get();
+   StringRef Str(MemBuf.getBufferStart(), MemBuf.getBufferSize());
++  if (ResponseObserver)
++    ResponseObserver(FName, Str);
+ 
+   // If we have a UTF-16 byte order mark, convert to UTF-8 for parsing.
+   ArrayRef<char> BufRef(MemBuf.getBufferStart(), MemBuf.getBufferEnd());

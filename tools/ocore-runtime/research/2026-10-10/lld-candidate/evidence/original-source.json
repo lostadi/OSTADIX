@@ -1,0 +1,67 @@
+{
+  "schema": "ocore-lld-source-base-v1",
+  "source_revision": "dcc3606807c989700e0ac1cac18c31741bcd40d9",
+  "files": [
+    {
+      "relative_path": "lld/ELF/CMakeLists.txt",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/CMakeLists.txt",
+      "sha256": "252e0802feb877b406697a5f583c3b015f1513d10d57ff384c6d40e9c9d1b44f",
+      "bytes": 1522
+    },
+    {
+      "relative_path": "lld/ELF/Config.h",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/Config.h",
+      "sha256": "17e2f068cf449cfead6ae87ca620f963ee40a15ee7b8fd6fe2121d14b15a69bb",
+      "bytes": 26243
+    },
+    {
+      "relative_path": "lld/ELF/Driver.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/Driver.cpp",
+      "sha256": "9a0caaacd42eb01d099653b76bf6be4886b21c931bf76db99ee0284788fe2955",
+      "bytes": 138858
+    },
+    {
+      "relative_path": "lld/ELF/DriverUtils.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/DriverUtils.cpp",
+      "sha256": "e9e55155631d2e7da1e67e71651c951bd6b49b1758ca018137488fb201bccbd0",
+      "bytes": 9609
+    },
+    {
+      "relative_path": "lld/ELF/InputFiles.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/InputFiles.cpp",
+      "sha256": "20e2ad6011bf771f908ab85dc508eb12727a2d149bd13df2af8b93ee83cc976e",
+      "bytes": 78703
+    },
+    {
+      "relative_path": "lld/ELF/Symbols.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/Symbols.cpp",
+      "sha256": "2b673d4d4f3ad4f514ca0abf2abf31149631f948ded4f559f8726d40e446fed0",
+      "bytes": 24842
+    },
+    {
+      "relative_path": "lld/ELF/LTO.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/LTO.cpp",
+      "sha256": "f1df8426e17107823714a5f7f04e3c464fdeec198465f35749ea5c615463a420",
+      "bytes": 17036
+    },
+    {
+      "relative_path": "llvm/include/llvm/Support/CommandLine.h",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/llvm/include/llvm/Support/CommandLine.h",
+      "sha256": "439fc9841bd4f72bf9fbcd74db5dbcc5faa908e4cda66f4e67d76a59246422ff",
+      "bytes": 79807
+    },
+    {
+      "relative_path": "llvm/lib/Support/CommandLine.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/llvm/lib/Support/CommandLine.cpp",
+      "sha256": "6339e0f251c8e5d5e0f479e859854b367f919f05967e97186b9c441dc404e55e",
+      "bytes": 99520
+    },
+    {
+      "relative_path": "lld/ELF/ScriptParser.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/ELF/ScriptParser.cpp",
+      "sha256": "03bea05d2ef2e5f8d5e0df27cbd9f47b3bf5a4e0f1e49ba789ae17b65e9df549",
+      "bytes": 60756
+    }
+  ],
+  "original_sources_modified": false
+}

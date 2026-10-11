@@ -1,0 +1,79 @@
+{
+  "schema": "ocore-lld-hook-source-manifest-v1",
+  "source_revision": "dcc3606807c989700e0ac1cac18c31741bcd40d9",
+  "files": [
+    {
+      "relative": "lld/ELF/CMakeLists.txt",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/CMakeLists.txt",
+      "sha256": "e64cfc43e55192605610ecefd96401b50538f177761c422e61ce5096fcf542ba",
+      "bytes": 1545
+    },
+    {
+      "relative": "lld/ELF/Config.h",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/Config.h",
+      "sha256": "5bff2cebeb8ec1d30b046a7e91e4e06e2ad84795b377a0aefecf114f13845210",
+      "bytes": 26386
+    },
+    {
+      "relative": "lld/ELF/Driver.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/Driver.cpp",
+      "sha256": "e84f618d1def2c0aa148a770cb7693213e59b2dda4846f27211ac36d9fe429ff",
+      "bytes": 140999
+    },
+    {
+      "relative": "lld/ELF/DriverUtils.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/DriverUtils.cpp",
+      "sha256": "c6732875f36492e2fb35136086110854225d82182758494135a84db5fc9d6274",
+      "bytes": 10295
+    },
+    {
+      "relative": "lld/ELF/InputFiles.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/InputFiles.cpp",
+      "sha256": "a37e348f7f5f817cbbf5214a63f250dbac97d4ed6aac63057aa38347f98f28e6",
+      "bytes": 78890
+    },
+    {
+      "relative": "lld/ELF/LTO.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/LTO.cpp",
+      "sha256": "76585cb56e05f560f6bb573bfb747d7924024901e309c9e763da171a6d5eff76",
+      "bytes": 17520
+    },
+    {
+      "relative": "lld/ELF/OcoreLinkCapture.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/OcoreLinkCapture.cpp",
+      "sha256": "5bf76071e23d3d3afb3180214d017f4f68a9e14c9ec1189f3c1e579998effc84",
+      "bytes": 17117
+    },
+    {
+      "relative": "lld/ELF/OcoreLinkCapture.h",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/OcoreLinkCapture.h",
+      "sha256": "3a01ebeecd99abcc410706ce526c4cc059054f694f67ceacacf0225b98fe7213",
+      "bytes": 2851
+    },
+    {
+      "relative": "lld/ELF/ScriptParser.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/ScriptParser.cpp",
+      "sha256": "8526e5f69bcc2880e2e6aff85ed1b847bf51351814b515cbecc658627ff81c27",
+      "bytes": 61330
+    },
+    {
+      "relative": "lld/ELF/Symbols.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/lld/ELF/Symbols.cpp",
+      "sha256": "02d79f31c2bd37870968372010bc08870a4b9f7a993e7ce5d94cd5da05621760",
+      "bytes": 24955
+    },
+    {
+      "relative": "llvm/include/llvm/Support/CommandLine.h",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/llvm/include/llvm/Support/CommandLine.h",
+      "sha256": "324354d37eb5495b188bf396755aa5eae90f4b8ec7742734b15ab9005f7944fb",
+      "bytes": 80105
+    },
+    {
+      "relative": "llvm/lib/Support/CommandLine.cpp",
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/stage/llvm/lib/Support/CommandLine.cpp",
+      "sha256": "59fca8d294388c58b32f4e171e310568651cc281b4762a56e17e6545ce9f556a",
+      "bytes": 99578
+    }
+  ],
+  "source_hook_built": false
+}

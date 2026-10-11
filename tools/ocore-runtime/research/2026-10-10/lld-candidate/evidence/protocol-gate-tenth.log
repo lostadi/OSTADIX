@@ -1,0 +1,49 @@
+test_authored_driver_packet_binding_does_not_claim_execution (test_lld_capture.DescendantProtocolTests.test_authored_driver_packet_binding_does_not_claim_execution) ... ok
+test_changed_lld_image_rejects (test_lld_capture.DescendantProtocolTests.test_changed_lld_image_rejects) ... ok
+test_changed_lld_waited_status_rejects (test_lld_capture.DescendantProtocolTests.test_changed_lld_waited_status_rejects) ... ok
+test_changed_original_selected_driver_argv_rejects (test_lld_capture.DescendantProtocolTests.test_changed_original_selected_driver_argv_rejects) ... ok
+test_context_from_another_original_attempt_rejects (test_lld_capture.DescendantProtocolTests.test_context_from_another_original_attempt_rejects) ... ok
+test_parent_generation_not_observed_rejects (test_lld_capture.DescendantProtocolTests.test_parent_generation_not_observed_rejects) ... ok
+test_wrong_actual_ancestor_rejects (test_lld_capture.DescendantProtocolTests.test_wrong_actual_ancestor_rejects) ... ok
+test_actual_member_occurrence_not_basename (test_lld_capture.ProtocolTests.test_actual_member_occurrence_not_basename) ... ok
+test_actual_process_image_differs_rejects (test_lld_capture.ProtocolTests.test_actual_process_image_differs_rejects) ... ok
+test_caller_cannot_skip_producer_readmission (test_lld_capture.ProtocolTests.test_caller_cannot_skip_producer_readmission) ... ok
+test_derived_buffer_slice_detached_rejects (test_lld_capture.ProtocolTests.test_derived_buffer_slice_detached_rejects) ... ok
+test_detached_input_read_rejects (test_lld_capture.ProtocolTests.test_detached_input_read_rejects) ... ok
+test_drop_manifest_resource_rejects (test_lld_capture.ProtocolTests.test_drop_manifest_resource_rejects) ... ok
+test_dropped_lto_native_ir_no_false_equivalence (test_lld_capture.ProtocolTests.test_dropped_lto_native_ir_no_false_equivalence) ... ok
+test_duplicate_json_keys_reject (test_lld_capture.ProtocolTests.test_duplicate_json_keys_reject) ... ok
+test_duplicated_archive_header_rejects (test_lld_capture.ProtocolTests.test_duplicated_archive_header_rejects) ... ok
+test_external_waited_status_mismatch_rejects (test_lld_capture.ProtocolTests.test_external_waited_status_mismatch_rejects) ... ok
+test_forward_source_reference_rejects (test_lld_capture.ProtocolTests.test_forward_source_reference_rejects) ... ok
+test_member_bytes_changed_rejects (test_lld_capture.ProtocolTests.test_member_bytes_changed_rejects) ... ok
+test_member_raw_name_rejects (test_lld_capture.ProtocolTests.test_member_raw_name_rejects) ... ok
+test_missing_actual_extract_rejects (test_lld_capture.ProtocolTests.test_missing_actual_extract_rejects) ... ok
+test_nonlazy_extract_rejects (test_lld_capture.ProtocolTests.test_nonlazy_extract_rejects) ... ok
+test_ordinary_provider_retains_dependencies (test_lld_capture.ProtocolTests.test_ordinary_provider_retains_dependencies) ... ok
+test_original_derived_buffer_slice_accepted (test_lld_capture.ProtocolTests.test_original_derived_buffer_slice_accepted) ... ok
+test_original_failure_status_remains_failure (test_lld_capture.ProtocolTests.test_original_failure_status_remains_failure) ... ok
+test_original_lto_ir_and_object_cache_gap (test_lld_capture.ProtocolTests.test_original_lto_ir_and_object_cache_gap) ... ok
+test_process_argv_snapshot_exact_bytes (test_lld_capture.ProtocolTests.test_process_argv_snapshot_exact_bytes) ... ok
+test_real_v3_packets_join_compatibility_no_replay (test_lld_capture.ProtocolTests.test_real_v3_packets_join_compatibility_no_replay) ... ok
+test_source_capture_write_failure_rejects (test_lld_capture.ProtocolTests.test_source_capture_write_failure_rejects) ... ok
+test_source_count_hole_rejects (test_lld_capture.ProtocolTests.test_source_count_hole_rejects) ... ok
+test_source_script_resource_and_operand_retained (test_lld_capture.ProtocolTests.test_source_script_resource_and_operand_retained) ... ok
+test_strict_unknown_event_field_rejects (test_lld_capture.ProtocolTests.test_strict_unknown_event_field_rejects) ... ok
+test_trust_registry_mismatch_rejects (test_lld_capture.ProtocolTests.test_trust_registry_mismatch_rejects) ... ok
+test_unobserved_native_descendants_cannot_become_complete (test_lld_capture.ProtocolTests.test_unobserved_native_descendants_cannot_become_complete) ... ok
+test_unretained_script_operand_rejects (test_lld_capture.ProtocolTests.test_unretained_script_operand_rejects) ... ok
+test_worker_integration_missing_hook_is_gap_not_linker_replacement (test_lld_capture.ProtocolTests.test_worker_integration_missing_hook_is_gap_not_linker_replacement) ... ok
+test_worker_original_root_manifest_drop_rejects (test_lld_capture.ProtocolTests.test_worker_original_root_manifest_drop_rejects) ... ok
+test_wrong_data_offset_rejects (test_lld_capture.ProtocolTests.test_wrong_data_offset_rejects) ... ok
+test_wrong_final_symbol_owner_rejects (test_lld_capture.ProtocolTests.test_wrong_final_symbol_owner_rejects) ... ok
+test_wrong_header_offset_rejects (test_lld_capture.ProtocolTests.test_wrong_header_offset_rejects) ... ok
+test_wrong_member_name_rejects (test_lld_capture.ProtocolTests.test_wrong_member_name_rejects) ... ok
+test_wrong_physical_index_rejects (test_lld_capture.ProtocolTests.test_wrong_physical_index_rejects) ... ok
+test_dynamic_provider_sources_not_admitted_by_link_success (test_lld_capture.StageBarrierTests.test_dynamic_provider_sources_not_admitted_by_link_success) ... ok
+test_source_registration_is_not_a_version_label (test_lld_capture.StageBarrierTests.test_source_registration_is_not_a_version_label) ... ok
+
+----------------------------------------------------------------------
+Ran 44 tests in 0.337s
+
+OK

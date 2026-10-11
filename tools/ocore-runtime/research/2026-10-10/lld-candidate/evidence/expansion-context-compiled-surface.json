@@ -1,0 +1,32 @@
+{
+  "schema": "ocore-primary-compiled-surface-review-v1",
+  "primary_files": [
+    {
+      "relative": "llvm/lib/Support/CommandLine.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/llvm/lib/Support/CommandLine.cpp",
+      "sha256": "6339e0f251c8e5d5e0f479e859854b367f919f05967e97186b9c441dc404e55e",
+      "bytes": 99520,
+      "ExpansionContext_lines": [
+        1168,
+        1251,
+        1385,
+        1395,
+        1403,
+        1407,
+        1444,
+        1527
+      ]
+    },
+    {
+      "relative": "lld/Common/DriverDispatcher.cpp",
+      "path": "/home/ustad/.cache/ostadix-runtime-sources/rust-8bab26f4/src/llvm-project/lld/Common/DriverDispatcher.cpp",
+      "sha256": "4c3229fa90f564fdb7cf8cc21599a097401a3cc2edfe82738940fef07a04dfd2",
+      "bytes": 6609,
+      "ExpansionContext_lines": [
+        64
+      ]
+    }
+  ],
+  "method": "Primary source rg over llvm/lib and lld; only these two translation units name llvm::cl::ExpansionContext. Other CommandLine.h users do not instantiate this class. LLVM Support and all original LLD components are rebuilt; original unchanged codegenerators remain retained.",
+  "source_hook_built": false
+}

@@ -1,0 +1,159 @@
+{
+  "schema": "ocore-original-lld-link-hook-handoff-v1",
+  "source_revision": "dcc3606807c989700e0ac1cac18c31741bcd40d9",
+  "candidate_root": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh",
+  "files": [
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/prepare_build.py",
+      "sha256": "22abd1e093029a90255bd4efcc64b044657846ef74ea6baacc172cdffd8af499",
+      "bytes": 7814
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/run_build.py",
+      "sha256": "e945b19e100048100d9a861206ca0ec315cfc3ac30cc6b5049bc3a81838b20e0",
+      "bytes": 6008
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/hook-source-manifest.json",
+      "sha256": "5f5286f3a95b9c769d7923c02d59042cd8a59fb43b3c63f8c944268e566ad825",
+      "bytes": 3527
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/python/lld_capture.py",
+      "sha256": "f589aa401f8e1a0e57e26eb2ff0a10985735cde1b1e3405df260db16a126c075",
+      "bytes": 27299
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/python/test_lld_capture.py",
+      "sha256": "0f81dd6089231e258473a6126e425554e6fbc55fa69685c46f11194123b10a05",
+      "bytes": 21977
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/python/link_integration.py",
+      "sha256": "49626a38dd4087a7c9197b16140a17391d0c1c33d7207ad6f8669b1f6870bf17",
+      "bytes": 5064
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/original-source.json",
+      "sha256": "dae12be774c2d8f73d8328a7900d12d6f335f813104114800d857f85ff54fc94",
+      "bytes": 2992
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/original-lld22-native-link-capture.patch",
+      "sha256": "46501bf798ba929ddf2ff5eaa8cad5dbb6f530454f33ad8dff0bdd6bc49d87a1",
+      "bytes": 35242
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/static-checks.json",
+      "sha256": "ea597a239605e1d9e60ec2f5cc2c9e5e0b7a3fd928a4bb265262a5728e9fb58f",
+      "bytes": 2132
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/patch-apply-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/integration-contract.md",
+      "sha256": "1b7dda395e5e7645b1f67a7cebb62407f41a32cfb500dd0efa1ce085add4489d",
+      "bytes": 12862
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/protocol-gate-tenth.log",
+      "sha256": "847a3c3ea8e9a0adc2fa300d6f52e4fb2f7463cfd1887c5048f4f16594b87283",
+      "bytes": 5603
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/build-plan.json",
+      "sha256": "284ca5ccc3898cb69bb74b032d28645988b32a560425c8c116f61fe8b8b325a9",
+      "bytes": 15056
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/build-command-readback.json",
+      "sha256": "9f578210b3328a6188e7fba1305e3b68e9d42cb4d6cfeff32ceec2933b16cf72",
+      "bytes": 10674
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/private-original-source-tree.json",
+      "sha256": "802710eec7324069b724c4c7c4c5216616e21ec2ba69f10fe43c2dd87edd80c1",
+      "bytes": 166690269
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/private-original-llvm-prefix.json",
+      "sha256": "e5156f1713140601def0b5d8d97d935d33c0c47a91bde40dff8ef82ec0eda76c",
+      "bytes": 2704978
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/expansion-context-compiled-surface.json",
+      "sha256": "ac96326d5a571278740ccdf7b70af97603c37ae1fbd5079f5a865a2d1cdd28a8",
+      "bytes": 1199
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/first-authored-fixture-failure.log",
+      "sha256": "73792eff46a31b33218cb54f6a59924056663b47b8895d52488dafe1120cda55",
+      "bytes": 35551
+    },
+    {
+      "path": "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/evidence/first-authored-fixture-failure.json",
+      "sha256": "8b496ded7d9e265fc256e82559c24acb12dc3a3089709be131c16bc8fbcc97de",
+      "bytes": 177
+    }
+  ],
+  "held_live_sources_unchanged": {
+    "capture_worker": {
+      "path": "/home/ustad/ostadix-BM/scripts/ocore_runtime_capture.py",
+      "sha256": "b6a84b58a09c0893371eae60fd5f8845296aa13ba722915f386e6a37c6b46482",
+      "bytes": 142321
+    },
+    "cgu_test": {
+      "path": "/home/ustad/ostadix-BM/tests/test_ocore_runtime_capture_rust_cgu.py",
+      "sha256": "fe15a1ab95f38c40f8deaf9062e4c06f4f6b60a94dbac4b630dcf7a11ef28893",
+      "bytes": 41399
+    },
+    "payload_extractor": {
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/rust/payload_inventory.py",
+      "sha256": "0190404305ffa887b60d5f23e9af64029c1fe770ce6c705d19a65ee3a89d6767",
+      "bytes": 43028
+    },
+    "cargo_observer": {
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/rust/observe_cargo.py",
+      "sha256": "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993",
+      "bytes": 34747
+    },
+    "full_recipe": {
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/rust/full.recipe.json",
+      "sha256": "67e8d8e43dc94e5fa8785e768b14e4302336f29e6c6ecee364673ddc26732066",
+      "bytes": 9979
+    }
+  },
+  "original_llvm_git_clean": true,
+  "python_protocol_gate": {
+    "methods": 44,
+    "passed": 44,
+    "skips": 0,
+    "scope": "Authored unbuilt LLD source packets and immutable original V3 producer readmission; no original producer or native link replay."
+  },
+  "source_patch_apply_check_passed": true,
+  "source_hook_build_attempted": false,
+  "source_hook_execution_qualified": false,
+  "private_source_entries": 169028,
+  "private_package_entries": 2633,
+  "build_command": [
+    "python3",
+    "/home/ustad/.cache/ostadix-research/lld-native-link-capture-r1wbctzh/run_build.py",
+    "--execute"
+  ],
+  "actual_driver_descendants_verified": false,
+  "selected_provider_source_closure_complete": false,
+  "ordered_full_program_dependency_closure_complete": false,
+  "ocore_lowering_complete": false,
+  "whole_original_compiler_ocore_lowered": false,
+  "runtime_complete": false,
+  "remaining_real_gates": [
+    "Original additive C++ source hook must compile and emit real packets",
+    "Real responses/repeated inputs/archives/scripts/providers/LTO original-link gate",
+    "Actual cc-to-linker observer and original selected image/dependency closure",
+    "Every selected native member/provider joins to original source production; thin archives remain unqualified",
+    "Later LTO machine semantics and O-core import/lowering/whole compiler execution"
+  ]
+}
