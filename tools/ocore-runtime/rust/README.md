@@ -177,3 +177,41 @@ selection and complete runtime/compiler dependency closure remain unresolved.
 Missing, compressed, ambiguous or unsupported embedded sections and archive
 forms stay typed gaps. This policy supplies producer byte evidence; it does
 not fill missing provider edges or qualify a complete native runtime/compiler.
+
+The completed integer-min/max diagnostic attempts the same 1,614 original
+Rust build units and emits 458 verified own x86-64 objects: 279 contain
+definitions and 179 are empty. All 429 earlier objects remain byte-identical;
+29 additional whole units retain 388 function definitions, 758 global
+definitions and two aliases. The remaining 1,156 units fail explicitly.
+Independent original-source, CAPI and structural ELF readback checks the
+recorded inventories, initializers, relocations and metadata. The audit keeps
+each original target and uses explicit coherent-RAM and static nonpreemptive
+ELF TLS profiles. Audit SHA-256:
+`1db0e5c99f4ba2d46255a57d95cc554bc23712fd568e4df5ca53b1a14a71ac33`;
+completed independent readback SHA-256:
+`515f424741200fa2d016414fbd88ce4ece6ea2f572353bc9281a65b98a93c9d4`.
+See the [O-core evidence and completion criterion](../../../docs/OCORE.md)
+for the retained limitations and separate authored conformance gates.
+
+The corrected private source/API regression suite passes all 475 methods
+with zero skips: 451 earlier methods and 24 unary methods. Its 40 source
+files and seven bound tool roles remain byte-stable. It qualifies the fixed
+`141f88a9` unary importer and `022acd6c` decoder baseline; newer wide-integer,
+floating-point, vector and metadata candidates require their own gates.
+LLVM's legacy one-argument `ctlz` and `cttz` forms are checked after its
+canonical two-parameter upgrade, including the inserted false flag and the
+complete original input SHA. Malformed signatures remain negative controls;
+the earlier failed fixture expectation is retained separately. Completed
+source-run SHA-256:
+`68efb63403855a9d12e5a174cb640650b97d5938c408e50c7d4e85fd0a81a3f2`;
+completed independent evidence-review SHA-256:
+`21ce137cc42f40bebec393b11ed398c79aa46687f2902cd0bf55eabcb1789c0d`.
+Separate private Rust checks pass all 13 unary verification tests and API
+and CLI Clippy with `-D warnings`. These gates qualify their bound candidates.
+
+The full original compiler, final linker selection, dependency and platform
+provider closure, native compiler execution and lowering of its generated
+programs remain required. Authored integer-min/max and unary fixtures exercise
+LL/BC import and defined-value native arithmetic on x86-64, AArch64 and RV64GC;
+they do not establish execution of the original Rust compiler, physical memory
+ordering, runtime TLS services or cross-ISA compiler equivalence.
