@@ -1,0 +1,245 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "rust-full-hosted-source-trusted-capture",
+  "source": {
+    "url": "https://github.com/rust-lang/rust.git",
+    "revision": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
+    "submodules": true
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6",
+    "rustc_release": "1.97.1",
+    "cargo_release": "1.97.1",
+    "rustc_commit": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
+    "cargo_observer_worker_sha256": "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+  },
+  "capture_profile": "hosted-source-bootstrap",
+  "intended_execution_profile": "ostadix-kernel",
+  "intended_targets": [
+    "x86_64-unknown-none",
+    "aarch64-unknown-none",
+    "riscv64-unknown-none"
+  ],
+  "commands": [
+    {
+      "name": "prepare-pinned-cargo-parent-observer",
+      "argv": [
+        "python3",
+        "-c",
+        "import hashlib,pathlib,sys; p=pathlib.Path(sys.argv.pop(1)); s=p.read_bytes(); assert hashlib.sha256(s).hexdigest()=='9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993', 'pinned Cargo observer helper changed'; sys.argv[0]=str(p); exec(compile(s,str(p),'exec'),dict(__name__='__main__',__file__=str(p)))",
+        "{recipe_dir}/observe_cargo.py",
+        "--directory",
+        "{build}/cargo-observer",
+        "--cargo",
+        "{cargo}",
+        "--capture",
+        "{output}",
+        "--expected-worker-sha256",
+        "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+      ],
+      "cwd": "{build}"
+    },
+    {
+      "name": "prepare-pinned-source-bootstrap",
+      "argv": [
+        "python3",
+        "-c",
+        "import hashlib,pathlib,sys; p=pathlib.Path(sys.argv.pop(1)); s=p.read_bytes(); assert hashlib.sha256(s).hexdigest()=='1a9f6a49955ac384287f896b180e8b5f4f430a0f6fd139ab5b5187a56274616c', 'pinned bootstrap configuration helper changed'; sys.argv[0]=str(p); exec(compile(s,str(p),'exec'),dict(__name__='__main__',__file__=str(p)))",
+        "{recipe_dir}/../prepare_rust_bootstrap.py",
+        "--output",
+        "{build}/bootstrap.toml",
+        "--rustc",
+        "{rustc}",
+        "--cargo",
+        "{build}/cargo-observer/cargo",
+        "--cc",
+        "{cc}",
+        "--cxx",
+        "{cxx}",
+        "--jobs",
+        "{jobs}"
+      ],
+      "cwd": "{build}"
+    },
+    {
+      "name": "bootstrap-stdlib-rustc-and-cargo",
+      "argv": [
+        "python3",
+        "{source}/x.py",
+        "--config",
+        "{build}/bootstrap.toml",
+        "--build-dir",
+        "{build}/bootstrap",
+        "--set",
+        "build.rustc={rustc}",
+        "--set",
+        "build.cargo={build}/cargo-observer/cargo",
+        "--set",
+        "rust.download-rustc=false",
+        "--set",
+        "llvm.download-ci-llvm=false",
+        "--set",
+        "rust.channel=stable",
+        "--set",
+        "build.extended=true",
+        "build",
+        "--stage",
+        "2",
+        "-j",
+        "{jobs}",
+        "library",
+        "compiler/rustc",
+        "src/tools/cargo"
+      ],
+      "cwd": "{source}"
+    },
+    {
+      "name": "verify-pinned-cargo-parent-observations",
+      "argv": [
+        "python3",
+        "-c",
+        "import hashlib,json,pathlib,sys; p=pathlib.Path(sys.argv[1]); s=p.read_bytes(); expected='9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993'; assert hashlib.sha256(s).hexdigest()==expected, 'pinned Cargo observer helper changed'; ns=dict(__name__='ocore_cargo_observer_verifier',__file__=str(p)); exec(compile(s,str(p),'exec'),ns); result=ns['verify'](pathlib.Path(sys.argv[2]),expected_worker_sha256=expected); output=pathlib.Path(sys.argv[3]); stream=output.open('x'); json.dump(result,stream,indent=2); stream.write(chr(10)); stream.close(); print(json.dumps(dict(output=str(output),parent_invocations=len(result['events']),observer_errors=len(result['observer_errors']),runtime_complete=False)))",
+        "{recipe_dir}/observe_cargo.py",
+        "{build}/cargo-observer",
+        "{build}/cargo-parent-observer-verification.json"
+      ],
+      "cwd": "{build}"
+    },
+    {
+      "name": "observe-whole-original-source-build",
+      "argv": [
+        "python3",
+        "-c",
+        "import hashlib,json,pathlib,sys,subprocess; p=pathlib.Path(sys.argv[1]); s=p.read_bytes(); assert hashlib.sha256(s).hexdigest()=='c2c63dfee3f4cf71eabad0215bf803ed0aa322806a881444b0c1fff015759fc7', 'pinned Rust build inventory helper changed'; source,build,capture,rustc=sys.argv[2:]; host=next(l.removeprefix('host: ') for l in subprocess.check_output([rustc,'-vV'],text=True).splitlines() if l.startswith('host: ')); llvm=pathlib.Path(build)/'bootstrap'/host/'llvm/build'; args=[str(p),'--source',source,'--build',build,'--capture',capture,'--compile-commands',str(llvm/'compile_commands.json'),'--ninja',str(llvm/'build.ninja'),'--manifest',str(pathlib.Path(source)/'Cargo.toml'),'--metadata',str(pathlib.Path(build)/'bootstrap.toml'),'--metadata',str(pathlib.Path(build)/'cargo-parent-observer-verification.json'),'--output',str(pathlib.Path(build)/'full-source-build-inventory-observation.json')]; events=sorted((pathlib.Path(build)/'cargo-observer/events').glob('*.json')); records=[json.loads(e.read_bytes()) for e in events]; args.extend(a for e in events for a in ('--metadata',str(e))); args.extend(a for e in records if e.get('graph_query',dict()).get('status')=='recorded' for a in ('--cargo-unit-graph',e['graph_query']['stdout']['path'])); sys.argv=args; exec(compile(s,str(p),'exec'),dict(__name__='__main__',__file__=str(p)))",
+        "{recipe_dir}/build_inventory.py",
+        "{source}",
+        "{build}",
+        "{output}",
+        "{rustc}"
+      ],
+      "cwd": "{build}"
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "bootstrap/*/stage2/bin/rustc",
+      "bootstrap/*/stage2-tools/**/cargo"
+    ],
+    "required_units": [
+      {
+        "id": "core",
+        "kind": "rustc",
+        "source": "library/core/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "alloc",
+        "kind": "rustc",
+        "source": "library/alloc/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "std",
+        "kind": "rustc",
+        "source": "library/std/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "panic-abort",
+        "kind": "rustc",
+        "source": "library/panic_abort/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "panic-unwind",
+        "kind": "rustc",
+        "source": "library/panic_unwind/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "unwind",
+        "kind": "rustc",
+        "source": "library/unwind/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "proc-macro",
+        "kind": "rustc",
+        "source": "library/proc_macro/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "test-runtime",
+        "kind": "rustc",
+        "source": "library/test/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "compiler-builtins",
+        "kind": "rustc",
+        "source": "library/compiler-builtins/compiler-builtins/src/lib.rs",
+        "role": "runtime"
+      },
+      {
+        "id": "rustc-entrypoint",
+        "kind": "rustc",
+        "source": "compiler/rustc/src/main.rs",
+        "role": "compiler"
+      },
+      {
+        "id": "rustc-driver",
+        "kind": "rustc",
+        "source": "compiler/rustc_driver*/src/lib.rs",
+        "role": "compiler"
+      },
+      {
+        "id": "rustc-llvm-backend",
+        "kind": "rustc",
+        "source": "compiler/rustc_codegen_llvm/src/lib.rs",
+        "role": "compiler"
+      },
+      {
+        "id": "llvm-implementation",
+        "kind": "clang",
+        "source": "src/llvm-project/llvm/lib/IR/LLVMContext.cpp",
+        "role": "compiler"
+      },
+      {
+        "id": "cargo",
+        "kind": "rustc",
+        "source": "src/tools/cargo/src/bin/cargo/main.rs",
+        "role": "compiler-helper"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "LLVM-and-Cargo-submodules",
+      "status": "source-superproject-pinned"
+    },
+    {
+      "name": "Cargo.lock-crates-compiler-builtins-proc-macro-build-helpers",
+      "status": "required-source-closure"
+    },
+    {
+      "name": "libc-libm-unwinder-C++-runtime-linker-system-libraries",
+      "source_pin": null,
+      "status": "required-unresolved"
+    }
+  ],
+  "blockers": [
+    "Rust has no interpreter runtime: stdlib and rustc/LLVM implementations, plus the programs rustc generates, must traverse O-core separately.",
+    "The pinned bootstrap preserves an existing RUSTC_WRAPPER as RUSTC_WRAPPER_REAL; every stage-specific compiler must satisfy the recorded LLVM version contract.",
+    "Bootstrap or CMake may select absolute C/C++ drivers; any such object bypass is incomplete until explicit target compiler configuration uses the wrappers.",
+    "Native OSTADIX std platform port, unwinding, TLS, threads, full ABI, wide arithmetic and floating-point are required on all three ISAs.",
+    "Cargo proc macros, build.rs scripts, C/C++ dependencies and the LLVM implementation require complete source-built dependency coverage.",
+    "Building rustc does not redirect its normal LLVM machine-code output through O-core; native generated-program lowering and compiler bootstrap witnesses remain required.",
+    "The whole original source build observation is diagnostic; exact observed parent Cargo commands and supplementary configured graphs do not establish payload roles or source/native-provider ownership by themselves.",
+    "RUSTC_STAGE alone does not identify the actual producer generation; the installed and source-built compilers, sysroots, host helpers, and payload output paths remain distinct.",
+    "The capture worker snapshot and Cargo observer/prepare/inventory helper bytes are independently digest-bound. Original legacy captures remain immutable and incomplete."
+  ]
+}

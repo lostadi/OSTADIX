@@ -1,0 +1,330 @@
+{
+  "schema": "ostadix.compiler-progress-checkpoint/v1",
+  "objective": "Complete original Rust compiler and dependency closure automatically lowered through O-core, plus generated-program lowering, on x86-64/AArch64/RV64GC",
+  "objective_achieved": false,
+  "manual_compiler_or_runtime_reimplementation": false,
+  "production_baseline": {
+    "selected_original_units": 1614,
+    "whole_units_with_verified_owned_x86_objects": 458,
+    "nonempty": 279,
+    "empty": 179,
+    "unsupported": 1156,
+    "complete_compiler_source_units": 18,
+    "distinct_compiler_source_files": 9,
+    "source_unit_coverage_is_complete_engine_support": false
+  },
+  "private_combined_candidate": {
+    "applied_to_production": false,
+    "patch": "ocore-wide-fp-private-candidate.patch",
+    "bytes": 291910,
+    "sha256": "bfdd076cde5bd166964b9954d82df768e71c13eae72a2a480bd6069d934b738b",
+    "source_bindings": [
+      {
+        "path": "crates/ostadix-api/src/ocore/driver.rs",
+        "base": {
+          "bytes": 24342,
+          "sha256": "8ec527cea172fdc2ce573dfbde1cd93c6952040a6ca761d5eb5f447f0c060372"
+        },
+        "candidate": {
+          "bytes": 24462,
+          "sha256": "34e1a267fe323cb726cc6d620cd7fecc276618c4230cee4504c6e8597f038117"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/mod.rs",
+        "base": {
+          "bytes": 1622,
+          "sha256": "3e3fb2ecf15d7e81b7125e12fd8fc08a9c22d3f16bd6bd0fd11d87a6a39e0322"
+        },
+        "candidate": {
+          "bytes": 1684,
+          "sha256": "e97d937cfcad247c7d6c5b8032645dffebbe256c189f65433ae74adbf7cae034"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_abi.rs",
+        "base": {
+          "bytes": 43306,
+          "sha256": "fa895eb7f2cc9f46f62cd4856fb60d70866c7ca7d8f942eeba6f86bd12cdd3a7"
+        },
+        "candidate": {
+          "bytes": 51061,
+          "sha256": "b5bc8932674b37fa2aa8924a13135a629ce88fc1be384715d07692bf9635bb48"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+        "base": {
+          "bytes": 55533,
+          "sha256": "32bf0bf05b9b1936fc7b7283991933fa304876f6509f5049888a9a7186c10c19"
+        },
+        "candidate": {
+          "bytes": 55628,
+          "sha256": "36f6d911933553d81ed5ae7e084070a2b9f660b0ac83b5f9ecabb1cab27e03e0"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_atomic_verify_tests.rs",
+        "base": {
+          "bytes": 40288,
+          "sha256": "ed7025683dd1debaab192b2ad4a68563e22eb03a3bb741b9635c56b6c0984ac7"
+        },
+        "candidate": {
+          "bytes": 40792,
+          "sha256": "076515f6e5e53d9b7a22f62f32176dc52be66ce9aad4bbec34e3dad4e235f918"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_codegen.rs",
+        "base": {
+          "bytes": 128988,
+          "sha256": "192083180ffaa029bd3c4cd39730e232d59e98b7281e5d89e9b8d53671f94ad8"
+        },
+        "candidate": {
+          "bytes": 144194,
+          "sha256": "f29365ea346fedd56685733acbe11fe93a3cf289ab54eca6c8102cd53e7a66f1"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_eh.rs",
+        "base": {
+          "bytes": 10470,
+          "sha256": "684f8b17d7f1587857267becb0f517a751cc310473dab5f64cce25c16cf57fc0"
+        },
+        "candidate": {
+          "bytes": 10470,
+          "sha256": "101e202abb827aabbcc9f065ff59df46e054dbea29694b460568cd0f7b8e2815"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_exception_codegen.rs",
+        "base": {
+          "bytes": 14764,
+          "sha256": "fb221fad13d9e75d9cac5bf0de8262c59883ca3cf4d0594f3c3ed4df52808320"
+        },
+        "candidate": {
+          "bytes": 14892,
+          "sha256": "dc430d930ed03c462daa6b2e3d425219af4ae024cf8b0902c250272c22793241"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_fp_codegen.rs",
+        "base": null,
+        "candidate": {
+          "bytes": 21446,
+          "sha256": "58da12c1313c3340dd16452d58a1d9ae326663356543af2c55a155e5817b2d14"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_fp_tests.rs",
+        "base": null,
+        "candidate": {
+          "bytes": 11334,
+          "sha256": "3c3ced01ee9f93145347f733bdce03a5d293877c801a42a5a7475474e5221d7b"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_integer_unary_verify_tests.rs",
+        "base": null,
+        "candidate": {
+          "bytes": 20410,
+          "sha256": "167d4953478ceb979ffcd1d3f5822bb08cd6ae427d5bc3c9210786c1a7c4ff0a"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_interpret.rs",
+        "base": {
+          "bytes": 87861,
+          "sha256": "da33256ffdbe5f79b21326ac9139a367b5660bea7035b5f12340f4a3d06dff40"
+        },
+        "candidate": {
+          "bytes": 92145,
+          "sha256": "8dadb4a81c761abde29f08e6b5d59a43e7fd1cd6de11d03e41b2e44680a474f0"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_ir.rs",
+        "base": {
+          "bytes": 26947,
+          "sha256": "9d16d08763dcec4ddd2350ded6c57ae09dc8c3d8b62682c0a899840f35c563ae"
+        },
+        "candidate": {
+          "bytes": 32590,
+          "sha256": "20d1c7292bd0b6dc7c86809bad9f51a9e3dd0e5ec4e1f79e4e8e04487e491fd0"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_minmax_verify_tests.rs",
+        "base": {
+          "bytes": 31525,
+          "sha256": "84198fc37311bed025ba33bdf2a208fc7e3d9f20ee3c1e182420b7429f6bc827"
+        },
+        "candidate": {
+          "bytes": 32108,
+          "sha256": "0da012ecd7207dfa611a4dcbedc030e1514cdbffdf68a5e85604a3af64c86bae"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_value_parts.rs",
+        "base": null,
+        "candidate": {
+          "bytes": 2884,
+          "sha256": "bb703764d111c8d72b126eb0f53a8ad4d47951ab829f8fab2fd4cb2f23e74bdd"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_verify.rs",
+        "base": {
+          "bytes": 380608,
+          "sha256": "81c42d8d18405b8dc33e332f6a4fafc2a60c0515f7c5ef2a8d0e3d91cca820b1"
+        },
+        "candidate": {
+          "bytes": 398124,
+          "sha256": "322f6759dc488448ea3161eb7b4bdab8702c4ee7d9a17a8675979aa928a1fbc1"
+        }
+      },
+      {
+        "path": "crates/ostadix-api/src/ocore/native_wide_codegen.rs",
+        "base": null,
+        "candidate": {
+          "bytes": 17318,
+          "sha256": "a1866f74d86c36065f15874a391b5cb91429b12b51ac54d9562c5fa3175d9866"
+        }
+      },
+      {
+        "path": "scripts/ocore_llvm_import.py",
+        "base": {
+          "bytes": 157148,
+          "sha256": "6df08e6e20fa98dd874712bb438e8239218ebc6408ee7cdf84259b492c20defd"
+        },
+        "candidate": {
+          "bytes": 173537,
+          "sha256": "abfa82319c9164b9db566da4912cda646c345bf1ff02c72161b1db511433681d"
+        }
+      },
+      {
+        "path": "src/bin/ocorec.rs",
+        "base": {
+          "bytes": 15020,
+          "sha256": "8c00eb3bbbbe4262051fa24420238d8841e39585e677498638b2358fb1e45605"
+        },
+        "candidate": {
+          "bytes": 15632,
+          "sha256": "bdabbdfc94c3bbd0bfe4435d93422766d24b3bb77e47549bc6c0f4a004a3bdbc"
+        }
+      },
+      {
+        "path": "src/bin/olangc/native_runtime/atomic_tests.rs",
+        "base": {
+          "bytes": 5307,
+          "sha256": "7c0c96fdab37c174b2c8defda9759af14c1a802375cec7ef60a1a20e0fdd5014"
+        },
+        "candidate": {
+          "bytes": 5487,
+          "sha256": "0a9c11df714e911f2b3a2ad967c99fb5bb4ac21bd1da30193617f4fc45a66b13"
+        }
+      },
+      {
+        "path": "src/bin/olangc/native_runtime/exception_inventory.rs",
+        "base": {
+          "bytes": 60550,
+          "sha256": "46a497d6108864ea08691546cd6cec1ad9833b4dee67d2e5bdc6d6c7eec693ab"
+        },
+        "candidate": {
+          "bytes": 60592,
+          "sha256": "26dd89cf29963a5e4b347bc68d57397a058ed4defa557c003b353a9aa16abfbe"
+        }
+      },
+      {
+        "path": "src/bin/olangc/native_runtime/exception_tests.rs",
+        "base": {
+          "bytes": 28403,
+          "sha256": "525c06472b56b257346fbcbbafba7ac78cbf8588d711c7717f0ed4fda207e234"
+        },
+        "candidate": {
+          "bytes": 29154,
+          "sha256": "d604ce4e61b862717f66dcd32d15380580b2692990bfd790c812e73529c4a1e7"
+        }
+      },
+      {
+        "path": "src/bin/olangc/native_runtime/noalias_tests.rs",
+        "base": {
+          "bytes": 18094,
+          "sha256": "e3207fc49d1cece628a8e3e49184d4d3e3636686d101908155ea38568d632c01"
+        },
+        "candidate": {
+          "bytes": 18370,
+          "sha256": "5f0caca2af97f7c06373cde406d0f59872a2d6f59a95edc6f8d313150863c642"
+        }
+      },
+      {
+        "path": "src/bin/olangc/native_runtime/object_inventory_tests.rs",
+        "base": {
+          "bytes": 97108,
+          "sha256": "fea64f01686f3681b8fc2db11fb5ff0e66cb08dfc0295fe23e3a95228311fd07"
+        },
+        "candidate": {
+          "bytes": 97355,
+          "sha256": "70c2c8eccdaa74b326afcbf3898fba9a6dbf9e72f6eb9e2b18e077f7840ec20d"
+        }
+      },
+      {
+        "path": "src/bin/olangc/native_runtime.rs",
+        "base": {
+          "bytes": 128691,
+          "sha256": "8f672a4a253a3593d3bd3ead1f868160f9ae6d91797a57bf9d7a00bb0452ed67"
+        },
+        "candidate": {
+          "bytes": 131040,
+          "sha256": "15466f233d998e3205d7b776263bc2ea710657f6c4f60fcad9127e4c0ccb6154"
+        }
+      },
+      {
+        "path": "src/bin/olangc.rs",
+        "base": {
+          "bytes": 252137,
+          "sha256": "c03bdc648867590f325ec079995aefe768ba16da150eff5843d90297097fdb3c"
+        },
+        "candidate": {
+          "bytes": 252462,
+          "sha256": "42e30c93ea9523e381fe155bd0b1b04ab5da57f9c71b278207bd17cb0479571c"
+        }
+      }
+    ],
+    "actual_build_report": {
+      "bytes": 1196216,
+      "sha256": "9e135ae7e8b6b3a0786db3ed045e5a17a320a437f976a1a4ac76cce8da061e35"
+    },
+    "unit_results": {
+      "ocore": 354,
+      "native_runtime": 105
+    },
+    "native_wide_arithmetic": {
+      "bytes": 124462,
+      "sha256": "a15a531d6393344b96dce8670c81130bbf5e137edb3f7858484a98fe920e7065"
+    },
+    "native_i128_bidirectional_abi": {
+      "bytes": 179055,
+      "sha256": "97ec4158c1bb576e55655116c567de906a3fb64a861d65381f338cc5397f581c"
+    },
+    "floating_native_crossings": "pending",
+    "complete_rust_compiler_lowered": false
+  },
+  "private_native_link_capture_candidate": {
+    "applied_to_production": false,
+    "patch": "private-producer-integration-final.patch",
+    "bytes": 98844,
+    "sha256": "f862303eabca5b0dfb1928f394150c5a143f86b938b98250abcdb80e2e4f7b49",
+    "original_packet_tests_passed": 51,
+    "dependency_closure_complete": false,
+    "entire_rust_compiler_lowered": false
+  },
+  "remaining_work": [
+    "Finish and qualify original wide/vector/floating constructs and ABIs without dropping source bodies.",
+    "Capture, resolve and lower complete ordered linker/library/compiler-helper closure, initializers, relocations and platform interfaces.",
+    "Link and run the complete O-core-lowered original Rust compiler.",
+    "Route programs generated by that compiler through the supported O-core path.",
+    "Qualify observable semantics for all three ISA execution profiles."
+  ],
+  "evidence_policy": "Native conformance fixtures verify compiler features; they do not replace any original Rust compiler implementation or establish full-engine support."
+}

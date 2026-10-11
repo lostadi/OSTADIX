@@ -1,0 +1,185 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-compiler-rt-aarch64-linux-musl-full-builtins-crt",
+  "source": {
+    "url": "https://github.com/rust-lang/llvm-project.git",
+    "revision": "dcc3606807c989700e0ac1cac18c31741bcd40d9",
+    "submodules": true
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "original-linux-musl-whole-builtins-crt",
+  "source_inventory_helper": {
+    "path": "compiler_rt_capture.py",
+    "sha256": "4060675327c31ca3bac285a81fc9f85bdcbe6708f07ca3ed69775e27ee81be6f",
+    "dependencies": [
+      {
+        "path": "linux_musl_inventory.py",
+        "sha256": "222699ccb07e93f925d82e010187874d50d97df47954a021af59b1efebf37e41"
+      },
+      {
+        "path": "build_inventory.py",
+        "sha256": "fc11249b7820b146fb195175c839df1209e3d3c79ced560560db9a3acb6987e0"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "name": "configure-original-provider",
+      "argv": [
+        "python3",
+        "{recipe_dir}/compiler_rt_capture.py",
+        "configure",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "aarch64",
+        "--expected-helper-sha256",
+        "4060675327c31ca3bac285a81fc9f85bdcbe6708f07ca3ed69775e27ee81be6f",
+        "--cc",
+        "{cc}",
+        "--cxx",
+        "{cxx}",
+        "--ar",
+        "{llvm_ar}",
+        "--ranlib",
+        "{llvm_ranlib}"
+      ]
+    },
+    {
+      "name": "inventory-original-provider-before-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/compiler_rt_capture.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "aarch64",
+        "--expected-helper-sha256",
+        "4060675327c31ca3bac285a81fc9f85bdcbe6708f07ca3ed69775e27ee81be6f",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    },
+    {
+      "name": "build-original-provider",
+      "argv": [
+        "cmake",
+        "--build",
+        "{build}",
+        "--target",
+        "builtins",
+        "crt",
+        "--",
+        "-j{jobs}",
+        "-k0"
+      ]
+    },
+    {
+      "name": "inventory-original-provider-after-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/compiler_rt_capture.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "aarch64",
+        "--expected-helper-sha256",
+        "4060675327c31ca3bac285a81fc9f85bdcbe6708f07ca3ed69775e27ee81be6f",
+        "--after-build",
+        "--output",
+        "{build}/post-build-inventory.json"
+      ]
+    },
+    {
+      "name": "finalize-whole-original-provider-inventory",
+      "argv": [
+        "python3",
+        "-c",
+        "import shutil,sys; shutil.copyfile(sys.argv[1],sys.argv[2])",
+        "{build}/post-build-inventory.json",
+        "{build}/unit-inventory.json"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "lib/linux/libclang_rt.builtins-aarch64.a"
+    ],
+    "required_units": [
+      {
+        "id": "floor-muldc3.c",
+        "kind": "clang",
+        "source": "compiler-rt/lib/builtins/muldc3.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "floor-mulsc3.c",
+        "kind": "clang",
+        "source": "compiler-rt/lib/builtins/mulsc3.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "floor-crtbegin.c",
+        "kind": "clang",
+        "source": "compiler-rt/lib/builtins/crtbegin.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "floor-crtend.c",
+        "kind": "clang",
+        "source": "compiler-rt/lib/builtins/crtend.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "floor-atomic.c",
+        "kind": "clang",
+        "source": "compiler-rt/lib/builtins/atomic.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "source-built-original-musl-target-headers-and-provider-graph",
+      "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+      "receipt_environment": "OCORE_LIBUNWIND_MUSL_PROVENANCE",
+      "status": "source-and-native-reference-only-no-ocore-admission"
+    },
+    {
+      "name": "matching-LLVM22.1.6-SDK-frontend-and-CMake-package",
+      "sdk_environment": "OCORE_COMPILER_RT_SDK",
+      "status": "authenticated-build-tools-not-target-library-provider"
+    }
+  ],
+  "blockers": [
+    "Every original configured builtins/CRT source and archive member is required, including native assembly and floating-point context.",
+    "Original compiler helpers and CRT are source/reference build evidence until their original whole modules are imported and lowered through O-core.",
+    "Original target aliases, FP/i128 operations, generic atomics, TLS, init/fini arrays and platform services remain closure requirements.",
+    "Configure probes remain unclassified diagnostic evidence unless independently proven absent from every final runtime root."
+  ]
+}

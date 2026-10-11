@@ -1,0 +1,209 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-llvm-libunwind-riscv64-threaded",
+  "source": {
+    "url": "https://github.com/rust-lang/llvm-project.git",
+    "revision": "dcc3606807c989700e0ac1cac18c31741bcd40d9",
+    "submodules": true
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "original-freestanding-elf64-static-threaded",
+  "intended_execution_profile": "ostadix-kernel-declared-provider-profile-not-qualified",
+  "source_inventory_helper": {
+    "path": "build_inventory.py",
+    "sha256": "fc11249b7820b146fb195175c839df1209e3d3c79ced560560db9a3acb6987e0"
+  },
+  "commands": [
+    {
+      "name": "configure-original-provider",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "configure",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "riscv64",
+        "--profile",
+        "threaded",
+        "--expected-helper-sha256",
+        "fc11249b7820b146fb195175c839df1209e3d3c79ced560560db9a3acb6987e0",
+        "--cc",
+        "{cc}",
+        "--cxx",
+        "{cxx}",
+        "--ar",
+        "{llvm_ar}",
+        "--ranlib",
+        "{llvm_ranlib}"
+      ]
+    },
+    {
+      "name": "inventory-original-provider-before-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "riscv64",
+        "--profile",
+        "threaded",
+        "--expected-helper-sha256",
+        "fc11249b7820b146fb195175c839df1209e3d3c79ced560560db9a3acb6987e0",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    },
+    {
+      "name": "build-original-provider",
+      "argv": [
+        "cmake",
+        "--build",
+        "{build}",
+        "--target",
+        "unwind_static",
+        "--",
+        "-j{jobs}",
+        "-k0"
+      ]
+    },
+    {
+      "name": "inventory-original-provider-after-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "riscv64",
+        "--profile",
+        "threaded",
+        "--expected-helper-sha256",
+        "fc11249b7820b146fb195175c839df1209e3d3c79ced560560db9a3acb6987e0",
+        "--output",
+        "{build}/post-build-inventory.json"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "lib/libunwind.a"
+    ],
+    "required_units": [
+      {
+        "id": "original-source-00",
+        "kind": "clang",
+        "source": "libunwind/src/libunwind.cpp",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-01",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-EHABI.cpp",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-02",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-seh.cpp",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-03",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindLevel1.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-04",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindLevel1-gcc-ext.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-05",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-sjlj.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-06",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-wasm.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-07",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindRegistersRestore.S",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-08",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindRegistersSave.S",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "original-Newlib-build-headers",
+      "package": "libnewlib-dev",
+      "source_package": "newlib",
+      "version": "4.6.0.20260123-1",
+      "archive_sha256": "5c90e34938803a087deba5f79417076a71193e4d60c451a26211abbf24190ab9",
+      "status": "authenticated-headers-only-not-library-provider"
+    },
+    {
+      "name": "memory-stdio-abort-assert-locking-services",
+      "status": "required-unresolved-source-or-platform-interfaces"
+    },
+    {
+      "name": "frame-section-bounds-registration-loader-JIT-publication",
+      "status": "required-declared-profile-platform-closure"
+    }
+  ],
+  "blockers": [
+    "Original preprocessed .S files remain mandatory source implementation inputs; the LLVM-IR capture cannot lower them.",
+    "This baremetal static archive build does not qualify full Rust threads/TLS/JIT/loader/unwind semantics or native OSTADIX.",
+    "Original hosted Rust gcc_s selection is unchanged; this is a separately declared prospective provider profile.",
+    "Configure probes remain unclassified evidence unless independently bound to the final output graph; no false capture-complete receipt."
+  ],
+  "rv_context": {
+    "isa": "rv64gc",
+    "abi": "lp64d",
+    "flen": 64,
+    "floating_register_save_restore_required": true
+  }
+}

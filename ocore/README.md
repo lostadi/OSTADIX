@@ -25,7 +25,7 @@ and nonexecuting VM object boundary are documented in
 ## Compiler
 
 ```bash
-cargo build --bin ocorec
+cargo build --locked --bin ocorec
 
 # Inspect typed layout and name resolution
 target/debug/ocorec ocore/examples/minimal.oc --emit hir -o -
@@ -36,13 +36,46 @@ target/debug/ocorec ocore/examples/minimal.oc --emit mir -o -
 # Emit freestanding x86_64 ELF object and retain assembly
 target/debug/ocorec ocore/examples/minimal.oc --emit obj --keep-asm -o target/minimal.o
 
-# Emit the bounded freestanding AArch64 scalar subset
+# Emit freestanding AArch64 ELF and retain assembly
 target/debug/ocorec ocore/examples/minimal.oc \
   --target aarch64-unknown-none --emit obj --keep-asm -o target/minimal-aarch64.o
+
+# Emit freestanding RV64GC ELF with the integer LP64 ABI
+target/debug/ocorec ocore/examples/minimal.oc \
+  --target riscv64-unknown-none --emit obj --keep-asm -o target/minimal-riscv64.o
 ```
 
 Multiple input files form one compilation unit. Each starts with a unique
 `module name;` declaration and may import items with `use path::item;`.
+
+All three backends lower the same typed HIR/MIR to native assembly and ELF64.
+Portable `extern "C"` selects integer System V AMD64, AAPCS64, or RISC-V LP64
+calls for the chosen target. Arguments beyond six x86_64 or eight AArch64/RISC-V
+registers travel on the stack. Direct and function-pointer calls support these
+stack arguments; indirect calls require an unsafe context and retain their
+declared ABI. C function definitions and relocatable static function-pointer
+dispatch tables are supported. Aggregate arguments/results must cross through
+pointers.
+
+To check native behavior against the shared independent C reference:
+
+```bash
+cargo build --locked --bin ocorec
+python3 scripts/check_ocore_native_equivalence.py \
+  --ocorec target/debug/ocorec --output-dir target/ocore-native-equivalence
+```
+
+Use an x86_64 Linux host with `clang`, `lld`, and `qemu-user`. The gate executes the same `.oc`
+corpus on x86_64 natively and on AArch64/RISC-V through QEMU, checks 12,288
+arithmetic reference results per ISA plus C calls, memory, and all four atomic
+integer widths, requires six synchronous fault cases per ISA (division,
+remainder, and misaligned volatile/atomic access), compares
+successful output bytes, and verifies reproducible object bytes. The output
+directory retains assembly, ELF artifacts, and `equivalence.json`. Missing
+tools fail the gate. This compiler check complements the kernel gates below.
+The ABI sources are [System V AMD64](https://gitlab.com/x86-psABIs/x86-64-ABI/-/blob/master/x86-64-ABI/low-level-sys-info.tex),
+[AAPCS64](https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst), and
+[RISC-V LP64](https://riscv-non-isa.github.io/riscv-elf-psabi-doc/#_integer_calling_convention).
 
 ## Bootable kernel proof
 
@@ -372,15 +405,24 @@ or IOMMU behavior.
 
 ## Current boundary
 
-This is not yet a self-hosting general-purpose compiler. The broad kernel and
-runtime remain x86_64; G2 adds a separate conservative scalar AArch64
-stack-spill backend and one bounded native image. Both targets currently require
-aggregate arguments/returns to travel through pointers. Indirect function
-calls, enum pattern matching, floating-point computation, and executable
-loading beyond the current bounded static-ELF gates remain follow-on work.
-Float operations, casts, and
-`sysv64` float crossings are rejected during type checking, so the layout-only
-float types cannot reach integer machine operations.
+The compiler has x86_64, AArch64, and RV64GC stack-spill backends with direct and
+unsafe indirect calls, portable scalar integer C ABI crossings, aligned local
+frames, packed ordinary memory access, overlap-safe aggregate copies, parallel
+phi edge transfers, and 8/16/32/64-bit integer atomics. Aggregate parameters and
+results still travel through pointers. Enum pattern matching, floating-point
+computation, variadic/full C ABI classification, optimization, and a general
+register allocator remain follow-on work. Float operations, casts, indirect
+float calls, and `C`/`sysv64` float crossings are rejected during type checking.
+
+The broad kernel/runtime remains x86_64, with separate bounded AArch64 images
+and a new RISC-V supervisor bootstrap under OpenSBI. That bootstrap exercises
+integer/floating-point trap state, TLS-register preservation and timer delivery;
+it does not implement protected processes or a full runtime service platform.
+The compiler is host-built and does not self-host. Foreign `.O` blocks still use
+registered hosted backends. The separate [verified native import boundary](../docs/OCORE.md#implemented-native-import-boundary)
+now lowers bounded C and Rust frontend LLVM output through O-core-owned emitters
+for all three ISAs. Complete runtime/compiler lowering, required platform
+services, and executable loading beyond the bounded static-ELF gates remain work.
 
 The current verified kernel boundary includes G2's resident AArch64 EL2 vector,
 one domain-separated EL1 HVC/ERET integrity round trip, and its bounded MMU-off
@@ -441,10 +483,15 @@ corpus rather than a Plan 9 binary or general namespace.
 The early bootstrap/fault gates still use a linked `native[0]` payload; later
 claims have separate bounded gates.
 
-The x86_64 backend rechecks MIR operand, result, call, branch, index, atomic,
-volatile, and assembly contracts so unsupported type shapes fail instead of
-falling through to integer-shaped instructions.
-The AArch64 backend supports AAPCS64-like compiler-versioned `extern "ocore"`
-scalar calls and `syscall0` through `syscall6`, and fails closed on AMD64
-`sysv64`, atomics, inline assembly, interrupt/naked functions, floating point,
-and calls with more than eight integer arguments.
+All three backends recheck MIR operand, result, call, branch, index, atomic,
+volatile, and assembly contracts. Calls preserve their ABI's stack alignment
+and callee-preserved registers, including dynamically aligned local frames.
+Integer widths, modulo-64 shifts, and synchronous division/remainder traps
+share the rules specified in [`docs/OCORE.md`](../docs/OCORE.md).
+Privileged operations retain target-specific meanings: x86 port I/O and
+`@interrupt` are rejected by AArch64/RISC-V, while those targets support native
+inline assembly and operand-free naked trap glue. Volatile scalar memory and
+atomics explicitly trap on misaligned addresses; ordinary packed access and
+bytewise aggregate copies remain valid. The native equivalence corpus proves
+its checked behavior; kernel lifecycle and hardware claims remain bounded by
+their separate gates.

@@ -9,10 +9,18 @@ pub mod boot_info;
 pub mod capability_bridge;
 pub mod codegen;
 pub mod codegen_aarch64;
+pub mod codegen_riscv64;
 pub mod driver;
 pub mod hir;
 pub mod lexer;
 pub mod mir;
+pub mod native_abi;
+pub mod native_codegen;
+pub mod native_eh;
+mod native_exception_codegen;
+pub mod native_interpret;
+pub mod native_ir;
+pub mod native_verify;
 pub mod parser;
 pub mod typeck;
 

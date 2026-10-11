@@ -89,6 +89,13 @@
     "ostadix-lang-info.md",
     "setup/os/README.md",
     "src/bin/olangc/wasm_exit/README.md",
+    "tools/ocore-runtime/README.md",
+    "tools/ocore-runtime/cpython/README.md",
+    "tools/ocore-runtime/dependencies/README.md",
+    "tools/ocore-runtime/java/README.md",
+    "tools/ocore-runtime/libc/README.md",
+    "tools/ocore-runtime/rust/README.md",
+    "tools/ocore-runtime/unwind/README.md",
     "tools/syntax/README.md",
     "tools/syntax/vscode/README.md"
   ]

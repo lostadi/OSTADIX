@@ -1,0 +1,158 @@
+<h1>Full OpenJDK and compiler-method lowering</h1>
+<p>The retained target is upstream OpenJDK 25.0.4.1, commit
+<code>7b65d74bcbd7c3a0b4c1f5c5bd85e64aa2e51b4a</code>, with full HotSpot server,
+JNI, garbage collectors, C1/C2, JDK modules and their declared dependencies.
+Execution is required on native OSTADIX for x86-64, AArch64 and RV64GC.
+The Java compiler implementation additionally requires every concrete method
+body in verified O-core IR before execution. Classfile packaging, native VM
+compilation and method inventory do not satisfy that lowering requirement.</p>
+<p><code>openjdk.recipe.json</code> uses the shared source-capture runner and LLVM 22.1.6.
+It captures a hosted source build as frontend evidence. It requires a complete
+build-generated native-unit inventory; the named units are an essential floor.
+The post-configure profile check rejects filtered C1/C2, GC and related features,
+headless trimming, and supplied prebuilt module/class/library imports. A real
+boot JDK is a declared build-time requirement. OSTADIX OS services, compiled
+library closure and genuine managed-code lowering remain explicit requirements.</p>
+<p>For a source capture, select an explicit complete bootstrap SDK in
+<code>OCORE_BOOT_JDK</code> and the pinned LLVM binaries in <code>OCORE_LLVM22_BIN</code>.
+The original upstream configuration accepts boot JDK 24 or 25. The scoped
+configure helper requires <code>javac</code>, <code>jar</code>, <code>jmod</code>, <code>jlink</code>, the module image and
+<code>ct.sym</code>; a JRE cannot satisfy that requirement. It records their hashes, uses
+the capture compiler wrappers, and serializes linker invocations. Optional
+<code>OCORE_OPENJDK_DEPS_ROOT</code> supplies privately extracted Autoconf and full desktop
+development dependencies without installing them globally.</p>
+<pre><code class="language-bash">export OCORE_BOOT_JDK=/path/to/qualified/boot-jdk
+export OCORE_LLVM22_BIN=/path/to/LLVM-22.1.6/bin
+export OCORE_OPENJDK_DEPS_ROOT=/path/to/scoped/build-dependencies
+python3 scripts/ocore_runtime_capture.py capture \
+  tools/ocore-runtime/java/openjdk.recipe.json \
+  --source /path/to/pinned/openjdk-source \
+  --build /path/to/new/build --output /path/to/new/capture --jobs 2 \
+  --cc &quot;$OCORE_LLVM22_BIN/clang&quot; --cxx &quot;$OCORE_LLVM22_BIN/clang++&quot; \
+  --llvm-nm &quot;$OCORE_LLVM22_BIN/llvm-nm&quot; \
+  --unit-inventory /path/to/full/build-generated/role-inventory.json
+</code></pre>
+<p>The recipe requests the full upstream <code>compile-commands</code> graph and <code>images</code>,
+retaining <code>compile_commands.json</code> and the resulting <code>images/jdk</code> tree.
+The configured graph alone does not establish the complete role inventory or
+library closure: configure probes, host tools, runtime libraries, generated
+sources, compiler bodies and native output membership require explicit evidence.
+Missing inventory, failed required units and unaccounted dependencies keep
+capture admission incomplete. Bootstrap tools and supplied development packages
+are hosted prerequisites, with their runtime implementations still requiring
+their own source capture and lowering. Building javac class files supplies
+original compiler bytes for the managed-method inventory; it does not lower
+those bodies into O-core.</p>
+<h2>Original compiler-method inventory</h2>
+<p>Read classes, class directories, JARs or JMODs without executing their methods:</p>
+<pre><code class="language-bash">python3 scripts/ocore_java_inventory.py inventory \
+  --input jdk.compiler=/path/to/jmods/jdk.compiler.jmod \
+  --output /tmp/jdk.compiler.inventory.json
+</code></pre>
+<p>This single-module scan reports missing declared dependency modules. Complete
+method coverage requires those modules too, including declared static requires.
+Multi-release JAR selection follows the requested Java feature and its manifest.
+Class files are structurally parsed with bounded binary reads, JVM modified
+UTF-8, constant-pool references, method descriptors, Code attributes, exception
+ranges and module descriptors. This reader does not replace the JVM verifier.</p>
+<p>The installed pinned JRE can provide a measured module closure through its
+standard <code>jrt:/</code> filesystem even when standalone JDK tools are absent:</p>
+<pre><code class="language-bash">python3 scripts/ocore_java_inventory.py runtime-image \
+  --java /usr/lib/jvm/java-25-openjdk-amd64/bin/java \
+  --output-dir /tmp/javac-original-classes \
+  --output /tmp/javac-original-inventory.json
+</code></pre>
+<p><code>ExtractRuntimeImage.java</code> is a host inventory helper run by the original Java
+source launcher. It includes all declared requires, records the actual image,
+Java executable and helper hashes, and refuses a nonempty output directory.
+Use <code>--all-modules</code> to inventory the full installed JDK module image. Installed
+Ubuntu class bytes are a measured baseline; rebuilding pinned upstream source
+must produce its own inventory and hashes.</p>
+<p>The checked-in measurement records five javac dependency modules, 9,260 classes,
+76,662 bytecode bodies, 699 native declarations and 5,068 abstract declarations.
+<code>jdk.compiler</code> alone contains 13,475 bodies. These counts establish an original
+implementation inventory; the measurement records zero lowered compiler methods.</p>
+<h2>Exact verified body coverage</h2>
+<pre><code class="language-bash">python3 scripts/ocore_java_inventory.py compare \
+  --inventory /tmp/javac-original-inventory.json \
+  --native-module /path/to/compiler.native.json \
+  --native-module /path/to/native-providers.native.json \
+  --native-bindings /path/to/native-bindings.json \
+  --verifier /path/to/current/ocorec \
+  --output /tmp/javac-method-coverage.json
+</code></pre>
+<p>The command recomputes original inputs to reject stale or shrunk inventories.
+It invokes <code>ocorec MODULE --verify-native --receipt FILE</code> on an immutable copy of
+each module and requires a fresh SHA-256-bound structural-verification receipt.
+Self-reported <code>verified: true</code> fields do not count. Compare each target layout
+separately; multiple target realizations cannot hide missing target coverage.</p>
+<p>Every Code-bearing method, including private, synthetic, bridge, lambda,
+constructor, initializer, interface default and cold bodies, needs an exact
+<code>managed_method</code> identity on a concrete verified NativeModule function:</p>
+<pre><code class="language-json">{
+  &quot;module&quot;: &quot;jdk.compiler&quot;,
+  &quot;loader_namespace&quot;: &quot;boot&quot;,
+  &quot;class_name&quot;: &quot;com/sun/tools/javac/main/JavaCompiler&quot;,
+  &quot;method_name&quot;: &quot;compile&quot;,
+  &quot;descriptor&quot;: &quot;()V&quot;,
+  &quot;class_sha256&quot;: &quot;&lt;SHA-256 of the entire original class file&gt;&quot;,
+  &quot;code_sha256&quot;: &quot;&lt;SHA-256 of the original Code bytecode array&gt;&quot;
+}
+</code></pre>
+<p>This illustrative descriptor is not an assertion about an upstream signature.
+The class hash binds exception tables, stack maps and other original metadata.
+Declarations, duplicate definitions, missing bodies, changed hashes and unexpected
+methods fail. Native/abstract records have an empty Code hash; they cannot be
+misrepresented as bytecode bodies. Native bindings use a separate manifest:</p>
+<pre><code class="language-json">{
+  &quot;format&quot;: &quot;ocore-java-method-exports-v1&quot;,
+  &quot;native_bindings&quot;: [
+    {
+      &quot;method&quot;: &quot;&lt;the complete original native method identity object&gt;&quot;,
+      &quot;provider_module_sha256&quot;: &quot;&lt;included verified module SHA-256&gt;&quot;,
+      &quot;provider_symbol&quot;: &quot;Java_example_nativeMethod&quot;
+    }
+  ]
+}
+</code></pre>
+<p>Every native binding needs an actual definition in an included verified module.
+Abstract declarations retain dispatch information without fabricated bodies.
+An exact body inventory receipt is structural evidence: it does not establish
+that the translated method faithfully implements its bytecode, that ordinary
+native linkage is closed, or that Java runs on OSTADIX. Semantic equivalence,
+closed linkage, managed metadata and native execution remain separate gates.</p>
+<p>Authentic class/method hashes can be attached to an unrelated return-only native
+body. The permanent actual-verifier counterexample confirms that this still has
+inventory coverage while semantic equivalence and runtime completion remain
+false. Current structural verification does not connect a Java descriptor to a
+managed calling convention or establish derivation from the original bytecode.</p>
+<p>Admission must separately bind the pinned original source/profile inventory,
+trusted exporter and verifier identities, and the bytecode/C1 translation to an
+explicit managed ABI. That ABI needs receiver, reference and dispatch contracts,
+class initialization, Java exceptions, GC roots, safepoints and deoptimization.
+JNI providers need their own ABI/behavior checks. Original compiler execution
+and cross-ISA semantic tests then qualify the implementation. Caller-selected
+inventory inputs and verifier executables are trust anchors; hashing them records
+their identity without proving their authenticity.</p>
+<h2>Prepared upstream C1 hook</h2>
+<p><code>c1-exporter-hook.patch</code> applies to the pinned <code>c1_Compilation.cpp/.hpp</code> and adds
+the abstract <code>OcoreC1ExportSink</code> interface. It has been checked against those exact
+upstream files with <code>git apply --check</code>. The optional constructor sink receives
+the existing C1 HIR immediately after <code>build_hir()</code> and its bailout check, before
+<code>FrameMap</code>, register allocation and ISA encoding. Offline export requires
+<code>install_code=false</code>; failures use the existing bailout path. Existing compiler
+algorithms and the default C1 call path are retained.</p>
+<p>The patch is prepared and is not applied to or built as an upstream JVM here.
+No semantic sink implementation, all-method build-time driver, C2 exporter,
+runtime-stub exporter or JIT publication adapter is provided by this hook.
+There is no fallback that counts PrintIR dumps, bytecode wrappers or interpreter
+execution as a lowered method. The next implementation must traverse the existing
+HIR and emit original method bodies plus shared managed references, safepoints,
+GC roots, exception/monitor behavior, symbolic class initialization/resolution,
+deoptimization/OSR state and exact source identities into verified O-core modules.</p>
+<p>Class initialization and dynamic bootstrap methods execute at their original
+runtime points. Retained reflection data, defining-loader identities, dynamic
+loading, JNI callbacks and optimized-code invalidation must continue to work.
+The same complete frontend and verifier must also admit newly loaded/generated
+methods; C1/C2 and every interpreter/stub generator must ultimately publish only
+accounted O-core realizations on all three targets.</p>

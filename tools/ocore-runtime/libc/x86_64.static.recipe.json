@@ -1,0 +1,222 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-musl-1.2.5-x86_64-full-static-linux-profile",
+  "source": {
+    "url": "https://git.musl-libc.org/git/musl",
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "complete-original-configured-linux-compatible-static-libc",
+  "intended_execution_profile": "ostadix-kernel-platform-adaptation-required",
+  "source_inventory_helper": {
+    "path": "build_inventory.py",
+    "sha256": "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9"
+  },
+  "env": {
+    "CFLAGS": "",
+    "CPPFLAGS": "",
+    "LDFLAGS": ""
+  },
+  "commands": [
+    {
+      "name": "configure-original-libc",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "configure",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "x86_64",
+        "--expected-helper-sha256",
+        "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9"
+      ]
+    },
+    {
+      "name": "plan-whole-original-libc",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "plan",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "x86_64",
+        "--expected-helper-sha256",
+        "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9"
+      ]
+    },
+    {
+      "name": "inventory-original-libc-before-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "x86_64",
+        "--expected-helper-sha256",
+        "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    },
+    {
+      "name": "build-original-libc",
+      "argv": [
+        "make",
+        "-j{jobs}",
+        "-k",
+        "all"
+      ]
+    },
+    {
+      "name": "inventory-original-libc-after-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "x86_64",
+        "--expected-helper-sha256",
+        "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9",
+        "--post",
+        "--output",
+        "{build}/post-build-inventory.json"
+      ]
+    },
+    {
+      "name": "finalize-whole-original-libc-inventory",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "x86_64",
+        "--expected-helper-sha256",
+        "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9",
+        "--post",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    },
+    {
+      "name": "install-original-target-headers",
+      "argv": [
+        "make",
+        "install-headers"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "lib/libc.a",
+      "lib/crt1.o",
+      "lib/libm.a",
+      "lib/libpthread.a"
+    ],
+    "required_units": [
+      {
+        "id": "threads",
+        "kind": "clang",
+        "source": "src/thread/pthread_create.c",
+        "role": "runtime",
+        "build_step": "build-original-libc"
+      },
+      {
+        "id": "tls",
+        "kind": "clang",
+        "source": "src/env/__init_tls.c",
+        "role": "runtime",
+        "build_step": "build-original-libc"
+      },
+      {
+        "id": "allocator",
+        "kind": "clang",
+        "source": "src/malloc/mallocng/malloc.c",
+        "role": "runtime",
+        "build_step": "build-original-libc"
+      },
+      {
+        "id": "stdio",
+        "kind": "clang",
+        "source": "src/stdio/vfprintf.c",
+        "role": "runtime",
+        "build_step": "build-original-libc"
+      },
+      {
+        "id": "libm",
+        "kind": "clang",
+        "source": "src/math/*",
+        "role": "runtime",
+        "build_step": "build-original-libc"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "implementation-language-compiler-helpers",
+      "status": "required-unresolved-original-LIBCC-and-symbol-provider-identities-retained"
+    },
+    {
+      "name": "Linux-compatible-kernel-interfaces",
+      "status": "explicit-OSTADIX-services-required-not-qualified",
+      "surfaces": [
+        "syscalls",
+        "futex",
+        "clone",
+        "mmap-mprotect",
+        "signals",
+        "clocks",
+        "TLS-thread-pointer",
+        "cancellation",
+        "filesystem",
+        "processes",
+        "networking"
+      ]
+    },
+    {
+      "name": "architecture-assembly-inline-assembly-TLS-and-full-floating-point",
+      "status": "required-original-source-features-not-fully-lowered"
+    }
+  ],
+  "blockers": [
+    "Whole source build success does not establish O-core implementation lowering or native OSTADIX Linux-compatible services.",
+    "Required original architecture .s/.S and inline assembly are retained, never replaced with opaque objects or hand-written providers.",
+    "Upstream math, allocator, pthread, TLS, startup, cold archive members and configured compatibility outputs remain required.",
+    "This independently declared static profile does not replace unchanged GNU/Newlib captures or qualify a dynamic loader/JIT/full Rust compiler execution closure.",
+    "Configure probes remain explicit unclassified provenance until independently bound to final output membership."
+  ]
+}

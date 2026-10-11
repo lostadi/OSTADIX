@@ -1,0 +1,157 @@
+module runtime::riscv64::rust_import_probe;
+
+// Independent unsigned oracle. The implementations under test come only from
+// tests/fixtures/ocore_import_scalar.rs through rustc LLVM and O-core import.
+const ORACLE_CORRUPT: u64 = 0;
+static PREFIX: [u8; 31] = b"RV64 native Rust scalar digest=";
+static COUNT: [u8; 13] = b" cases=29680\n";
+static SUCCESS: [u8; 37] = b"RV64 native Rust scalar bridge: PASS\n";
+static FAILURE: [u8; 34] = b"RV64 native Rust scalar FAIL code=";
+static HEX: [u8; 16] = b"0123456789abcdef";
+static EDGES: [u64; 12] = [0, 1, 127, 128, 255, 256, 32767, 32768,
+    65535, 0xffff_ffff, 0x8000_0000_0000_0000, 0xffff_ffff_ffff_ffff];
+static SHIFTS: [u32; 12] = [0, 1, 7, 8, 15, 16, 31, 32, 63, 64, 65, 0xffff_ffff];
+static mut CASES: u64 = 0;
+
+extern "C" fn rust_scalar_helper(a: u64, b: u64) -> u64;
+extern "C" fn rust_scalar_mix(a: u64, b: u64, shift: u32) -> u64;
+extern "C" fn rust_scalar_choose(a: i64, b: i64) -> u64;
+extern "C" fn rust_scalar_narrow(a: u64) -> u64;
+extern "C" fn rust_scalar_loop(seed: u64, count: u32) -> u64;
+extern "C" fn rust_scalar_u32(value: u32, shift: u32) -> u32;
+extern "C" fn rust_scalar_many(a: u64, b: u64, c: u64, d: u64, e: u64, f: u64,
+    g: u64, h: u64, i: u64, j: u64, k: u64, l: u64) -> u64;
+extern "ocore" fn rv_arch_putc(byte: u64) -> void;
+extern "ocore" fn rv_arch_shutdown(reason: u64) -> never;
+extern "ocore" fn __real_rv_boot_main(hart: u64, dtb: u64) -> never;
+
+unsafe fn emit(source: *const u8, length: usize) -> void {
+    let mut i: usize = 0;
+    while i < length {
+        let byte: u8 = *(source + i);
+        rv_arch_putc(byte as u64);
+        i = i + 1;
+    }
+}
+
+unsafe fn hex(value: u64) -> void {
+    let mut i: u64 = 0;
+    while i < 16 {
+        let shift: u64 = (15 - i) * 4;
+        let index: usize = ((value >> shift) & 15) as usize;
+        rv_arch_putc(HEX[index] as u64);
+        i = i + 1;
+    }
+}
+
+unsafe fn fail(code: u64) -> never {
+    emit((&FAILURE[0]) as *const u8, 34);
+    hex(code);
+    rv_arch_putc(10);
+    rv_arch_shutdown(1);
+}
+
+unsafe fn check(actual: u64, expected: u64, digest: *mut u64, code: u64) -> void {
+    if actual != (expected ^ ORACLE_CORRUPT) { fail(code); }
+    *digest = (*digest ^ actual) * 0x100_0000_01b3;
+    CASES = CASES + 1;
+}
+
+fn reference_helper(a: u64, b: u64) -> u64 { return 17 * a + b; }
+
+fn reference_mix(a: u64, b: u64, shift: u32) -> u64 {
+    let count: u64 = (shift as u64) & 63;
+    return reference_helper((a + b) ^ (a - b) ^ (a * b), b) ^ (a << count) ^ (a >> count);
+}
+
+fn reference_choose(a: u64, b: u64) -> u64 {
+    if (a ^ 0x8000_0000_0000_0000) < (b ^ 0x8000_0000_0000_0000) { return a - b; }
+    else { return a + b; }
+}
+
+fn signed_bits(value: u64, width: u64) -> u64 {
+    let one: u64 = 1;
+    let bit: u64 = width - 1;
+    let sign: u64 = one << bit;
+    let mask: u64 = (one << width) - 1;
+    return ((value & mask) ^ sign) - sign;
+}
+
+fn reference_narrow(a: u64) -> u64 {
+    return signed_bits(a, 8) + (a & 255) + signed_bits(a >> 8, 16)
+        + ((a >> 24) & 65535) + signed_bits(a >> 32, 32) + (a >> 32);
+}
+
+fn reference_loop(seed: u64, count: u32) -> u64 {
+    let mut result: u64 = seed;
+    let limit: u64 = (count as u64) & 31;
+    let mut i: u64 = 0;
+    while i < limit { result = 33 * result + i; i = i + 1; }
+    return result;
+}
+
+fn reference_u32(value: u64, shift: u32) -> u64 {
+    let input: u64 = value & 0xffff_ffff;
+    let count: u64 = (shift as u64) & 31;
+    return ((input * 0x9e37_79b9 + 0xf123_4567) ^ (input >> count) ^ (input << count)) & 0xffff_ffff;
+}
+
+fn reference_many(a: u64, b: u64, c: u64, d: u64, e: u64, f: u64,
+    g: u64, h: u64, i: u64, j: u64, k: u64, l: u64) -> u64 {
+    return a + 2*b + 3*c + 4*d + 5*e + 6*f + 7*g + 8*h + 9*i + 10*j + 11*k + 12*l;
+}
+
+unsafe fn check_pair(a: u64, b: u64, shift: u32, digest: *mut u64) -> void {
+    check(rust_scalar_helper(a, b), reference_helper(a, b), digest, 0x401);
+    check(rust_scalar_mix(a, b, shift), reference_mix(a, b, shift), digest, 0x402);
+    check(rust_scalar_choose(a as i64, b as i64), reference_choose(a, b), digest, 0x403);
+    check(rust_scalar_narrow(a), reference_narrow(a), digest, 0x404);
+    check(rust_scalar_loop(a, shift), reference_loop(a, shift), digest, 0x405);
+    let unsigned_result: u32 = rust_scalar_u32(a as u32, shift);
+    check(unsigned_result as u64, reference_u32(a, shift), digest, 0x406);
+    let c: u64 = a ^ 3;
+    let d: u64 = b + 4;
+    let e: u64 = a << 5;
+    let f: u64 = b >> 6;
+    let g: u64 = a + 7;
+    let h: u64 = b * 8;
+    let i: u64 = a ^ 9;
+    let j: u64 = b + 10;
+    let k: u64 = a - 11;
+    let l: u64 = b ^ 12;
+    check(rust_scalar_many(a,b,c,d,e,f,g,h,i,j,k,l),
+          reference_many(a,b,c,d,e,f,g,h,i,j,k,l), digest, 0x407);
+}
+
+// ld.lld --wrap=rv_boot_main redirects the existing assembly entry here;
+// __real_rv_boot_main then runs the unchanged architectural bootstrap gate.
+@export
+@no_mangle
+pub unsafe fn __wrap_rv_boot_main(hart: u64, dtb: u64) -> never {
+    CASES = 0;
+    let mut digest: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut state: u64 = 0x9e37_79b9_7f4a_7c15;
+    let mut index: u32 = 0;
+    while index < 4096 {
+        state = state ^ (state << 13);
+        state = state ^ (state >> 7);
+        state = state ^ (state << 17);
+        check_pair(state, state ^ (state >> 31), index, (&mut digest) as *mut u64);
+        index = index + 1;
+    }
+    let mut edge: usize = 0;
+    while edge < 12 {
+        let mut shift: usize = 0;
+        while shift < 12 {
+            check_pair(EDGES[edge], EDGES[(edge + shift) % 12], SHIFTS[shift], (&mut digest) as *mut u64);
+            shift = shift + 1;
+        }
+        edge = edge + 1;
+    }
+    if CASES != 29680 { fail(0x408); }
+    emit((&PREFIX[0]) as *const u8, 31);
+    hex(digest);
+    emit((&COUNT[0]) as *const u8, 13);
+    emit((&SUCCESS[0]) as *const u8, 37);
+    __real_rv_boot_main(hart, dtb);
+}

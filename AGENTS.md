@@ -3,6 +3,53 @@
 This is the **ostadix-BM** development repository for O / Ostadix-lang and
 O-core, derived from `lostadi/OSTADIX`.
 
+## Primary compiler objective
+
+The highest compiler priority is for `olangc` to fully and automatically
+compile existing external runtime and compiler implementations in terms of
+O-core. General support for arbitrary implementations is the architectural
+objective; do not restrict it to a fixed language list or interpreter-only
+tier. Preserve the original language engines without requiring manual
+language-runtime reimplementation.
+
+`olangc` must own the source/build recipe, frontend invocation, O-core import,
+verification, ABI adaptation, dependency resolution, linking, and artifact
+construction. The result bundles the compiled runtime/compiler, `.O` program,
+foreign scripts, and complete declared dependency closure in native binary
+form, a complete verified O-core IR artifact, or a complete OIR program
+artifact for later native lowering. OIR may contain the orchestration and
+verified native O-core modules together, with explicit linkage, scripts,
+resources, execution profile, and provenance. Native module references must
+resolve within the included dependency closure. All forms must preserve
+observable semantics on x86-64, AArch64, and RV64GC.
+In this objective, "bundling runtimes with scripts" means this compiled whole
+program, not merely embedding supplied executable files.
+
+Completeness includes required functions, globals, initializers, relocations,
+ABI features, libraries, compiler helpers, modules, and explicit platform
+interfaces. Partial imports and feature-census percentages do not establish
+complete runtime/compiler support. Report current coverage and unsupported
+constructs honestly; the universal objective is not a claim of present support.
+
+Embedding a supplied runtime executable, generating O-core source from a
+polyglot block, or shipping an interpreter for an unchanged imported IR is
+not evidence that the external runtime itself was lowered through O-core.
+Report those mechanisms accurately. Keep OIR/ExecutionPlans and O-core MIR
+distinct and connect them through explicit runtime/operation interfaces.
+This separation of internal invariants does not forbid a complete OIR
+artifact from containing the native modules and their realization bindings.
+Foreign scripts may remain interpreted by the O-core-compiled language
+runtime. Compiler self-hosting is a separate objective.
+Compiling a compiler implementation and routing the programs it generates
+through O-core are distinct required capabilities of the overall design.
+Reuse existing implementation-language frontends and build metadata to make
+the import general. Manual runtime rewrites and O-core text staging do not
+satisfy the requested automated foreign-runtime/compiler lowering objective.
+Keep lowering and replayability separate. Preserve imported semantics and
+qualify cross-ISA equivalence per execution profile; do not infer purity from
+a runtime name. JIT implementations remain in scope, with generated-code
+lowering and publication requiring their own explicit supported path.
+
 ## Scale and ambition
 
 Default to ambitious, full-scope OSTADIX execution. There is no arbitrary

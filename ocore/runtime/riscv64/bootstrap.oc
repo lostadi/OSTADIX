@@ -1,0 +1,177 @@
+module runtime::riscv64::bootstrap;
+
+// All positive evidence and invariant decisions are compiled O-core. Assembly
+// supplies only privileged entry, CSR/register movement, and the firmware ABI.
+struct TrapFrameV1 {
+    x: [u64; 32],
+    sepc: u64,
+    sstatus: u64,
+    scause: u64,
+    stval: u64,
+    fcsr: u64,
+    reserved: u64,
+    f: [u64; 32],
+    fp_present: u64,
+    reserved2: u64,
+}
+
+static SUPERVISOR: [u8; 39] = b"RV64 bootstrap O-core supervisor: PASS\n";
+static STACK_DTB: [u8; 35] = b"RV64 bootstrap stack and DTB: PASS\n";
+static INTEGER_OFF: [u8; 41] = b"RV64 bootstrap integer FS-off trap: PASS\n";
+static INTEGER_FP: [u8; 43] = b"RV64 bootstrap integer and FP64 trap: PASS\n";
+static TLS_PASS: [u8; 44] = b"RV64 bootstrap private TLS round-trip: PASS\n";
+static TIMER_PASS: [u8; 38] = b"RV64 bootstrap supervisor timer: PASS\n";
+static ASYNC_PASS: [u8; 45] = b"RV64 bootstrap asynchronous FP and TLS: PASS\n";
+static COMPLETE: [u8; 33] = b"RV64 native bootstrap gate: PASS\n";
+static FAILURE: [u8; 25] = b"RV64 bootstrap FAIL code=";
+static HEX: [u8; 16] = b"0123456789abcdef";
+
+static mut BREAK_COUNT: u64 = 0;
+static mut TIMER_COUNT: u64 = 0;
+static mut EXPECT_FP: u64 = 0;
+
+extern "ocore" fn rv_arch_putc(byte: u64) -> void;
+extern "ocore" fn rv_arch_shutdown(reason: u64) -> never;
+extern "ocore" fn rv_arch_state_probe(fp: u64) -> *const TrapFrameV1;
+extern "ocore" fn rv_arch_timer_wait(counter: *const u64) -> u64;
+extern "ocore" fn rv_arch_fp_snapshot() -> *const TrapFrameV1;
+extern "ocore" fn rv_arch_set_timer(deadline: u64) -> u64;
+extern "ocore" fn rv_arch_kernel_tls() -> u64;
+extern "ocore" fn rv_arch_probe_tls() -> u64;
+extern "ocore" fn rv_arch_expected_gp() -> u64;
+extern "ocore" fn rv_arch_expected_sp() -> u64;
+extern "ocore" fn rv_arch_probe_pc() -> u64;
+extern "ocore" fn rv_arch_current_tp() -> u64;
+extern "ocore" fn rv_arch_current_sp() -> u64;
+extern "ocore" fn rv_arch_trap_stack_low() -> u64;
+extern "ocore" fn rv_arch_trap_stack_high() -> u64;
+extern "ocore" fn rv_arch_satp() -> u64;
+
+unsafe fn emit(source: *const u8, length: usize) -> void {
+    let mut i: usize = 0;
+    while i < length {
+        let byte: u8 = *(source + i);
+        rv_arch_putc(byte as u64);
+        i = i + 1;
+    }
+}
+
+unsafe fn fail(code: u64) -> never {
+    emit((&FAILURE[0]) as *const u8, 25);
+    let mut i: u64 = 0;
+    while i < 16 {
+        let shift: u64 = (15 - i) * 4;
+        let digit: usize = ((code >> shift) & 15) as usize;
+        rv_arch_putc(HEX[digit] as u64);
+        i = i + 1;
+    }
+    rv_arch_putc(10);
+    rv_arch_shutdown(1);
+}
+
+unsafe fn require(condition: bool, code: u64) -> void {
+    if !condition { fail(code); }
+}
+
+unsafe fn validate_registers(frame: *const TrapFrameV1, fp: u64) -> void {
+    let mut i: usize = 0;
+    while i < 32 {
+        let mut expected: u64 = 0x5a00_0000_0000_0000 + i as u64;
+        if i == 0 { expected = 0; }
+        if i == 2 { expected = rv_arch_expected_sp(); }
+        if i == 3 { expected = rv_arch_expected_gp(); }
+        if i == 4 { expected = rv_arch_probe_tls(); }
+        require((*frame).x[i] == expected, 0x100 + i as u64);
+        i = i + 1;
+    }
+    require(((*frame).x[2] & 15) == 0, 0x140);
+    require((*frame).fp_present == fp, 0x141);
+    if fp == 0 {
+        require(((*frame).sstatus & 0x6000) == 0, 0x142);
+    } else {
+        require(((*frame).sstatus & 0x6000) != 0, 0x143);
+        require((*frame).fcsr == 0x65, 0x144);
+        i = 0;
+        while i < 32 {
+            require((*frame).f[i] == 0x3ff0_0000_0000_0000 + i as u64, 0x180 + i as u64);
+            i = i + 1;
+        }
+    }
+}
+
+@export
+@no_mangle
+pub unsafe fn rv_boot_trap(frame: *mut TrapFrameV1) -> void {
+    let address: u64 = frame as u64;
+    require(address == rv_arch_trap_stack_high() - 576, 0x201);
+    require((address & 15) == 0, 0x202);
+    let sp: u64 = rv_arch_current_sp();
+    require(sp >= rv_arch_trap_stack_low() && sp < address, 0x203);
+    require(rv_arch_current_tp() == rv_arch_kernel_tls(), 0x204);
+    require(*(rv_arch_current_tp() as *const u64) == 0x4f43_4f52_4554_4c53, 0x205);
+    require(((*frame).sstatus & 0x100) != 0, 0x206);
+    require(((*frame).sstatus & 2) == 0, 0x207);
+    // These byte offsets are the public assembly/OCore trap-frame ABI.
+    require(((&(*frame).sepc) as u64) - address == 256, 0x208);
+    require(((&(*frame).f[0]) as u64) - address == 304, 0x209);
+    require(((&(*frame).fp_present) as u64) - address == 560, 0x20a);
+    if (*frame).scause == 3 {
+        require(BREAK_COUNT < 2, 0x210);
+        require((*frame).sepc == rv_arch_probe_pc(), 0x211);
+        validate_registers(frame as *const TrapFrameV1, EXPECT_FP);
+        BREAK_COUNT = BREAK_COUNT + 1;
+        // Probe's ebreak is deliberately a 32-bit instruction (.option norvc).
+        (*frame).sepc = (*frame).sepc + 4;
+    } else {
+        require((*frame).scause == 0x8000_0000_0000_0005, 0x220);
+        require(((*frame).sstatus & 0x20) != 0, 0x221);
+        require(TIMER_COUNT == 0, 0x222);
+        require(rv_arch_set_timer(0xffff_ffff_ffff_ffff) == 0, 0x223);
+        TIMER_COUNT = 1;
+    }
+}
+
+@export
+@no_mangle
+pub unsafe fn rv_boot_main(hart: u64, dtb: u64) -> never {
+    require(hart == 0, 0x301);
+    require(rv_arch_satp() == 0, 0x302);
+    require(rv_arch_current_tp() == rv_arch_kernel_tls(), 0x303);
+    emit((&SUPERVISOR[0]) as *const u8, 39);
+    require((rv_arch_current_sp() & 15) == 0, 0x304);
+    require(dtb >= 0x8000_0000 && dtb <= 0x87ff_ffd8, 0x305);
+    let device_tree: *const u8 = dtb as *const u8;
+    require(*device_tree == 0xd0 && *(device_tree + 1) == 0x0d && *(device_tree + 2) == 0xfe && *(device_tree + 3) == 0xed, 0x306);
+    emit((&STACK_DTB[0]) as *const u8, 35);
+    EXPECT_FP = 0;
+    let integer_state: *const TrapFrameV1 = rv_arch_state_probe(0);
+    require(BREAK_COUNT == 1, 0x310);
+    validate_registers(integer_state, 0);
+    require((*integer_state).sepc == rv_arch_probe_pc() + 4, 0x311);
+    emit((&INTEGER_OFF[0]) as *const u8, 41);
+    EXPECT_FP = 1;
+    let fp_state: *const TrapFrameV1 = rv_arch_state_probe(1);
+    require(BREAK_COUNT == 2, 0x320);
+    validate_registers(fp_state, 1);
+    require((*fp_state).sepc == rv_arch_probe_pc() + 4, 0x321);
+    emit((&INTEGER_FP[0]) as *const u8, 43);
+    require(rv_arch_current_tp() == rv_arch_kernel_tls(), 0x330);
+    require((*fp_state).x[4] == rv_arch_probe_tls(), 0x331);
+    require(*(rv_arch_probe_tls() as *const u64) == 0x5052_4f42_4554_4c53, 0x332);
+    emit((&TLS_PASS[0]) as *const u8, 44);
+    require(rv_arch_timer_wait((&TIMER_COUNT) as *const u64) == 0, 0x340);
+    require(TIMER_COUNT == 1, 0x341);
+    emit((&TIMER_PASS[0]) as *const u8, 38);
+    let after_interrupt: *const TrapFrameV1 = rv_arch_fp_snapshot();
+    require((*after_interrupt).fp_present == 1, 0x350);
+    require((*after_interrupt).fcsr == 0x65, 0x351);
+    let mut i: usize = 0;
+    while i < 32 {
+        require((*after_interrupt).f[i] == 0x3ff0_0000_0000_0000 + i as u64, 0x380 + i as u64);
+        i = i + 1;
+    }
+    require(rv_arch_current_tp() == rv_arch_kernel_tls(), 0x3a0);
+    emit((&ASYNC_PASS[0]) as *const u8, 45);
+    emit((&COMPLETE[0]) as *const u8, 33);
+    rv_arch_shutdown(0);
+}

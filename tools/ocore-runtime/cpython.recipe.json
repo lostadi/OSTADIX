@@ -1,0 +1,70 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "cpython",
+  "source": {
+    "url": "https://github.com/python/cpython.git",
+    "revision": "c35ca4cb6e296d1770fe45f9414b58eb06242e02",
+    "submodules": true
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "hosted-source-build",
+  "intended_execution_profile": "ostadix-kernel",
+  "intended_targets": ["x86_64-unknown-none", "aarch64-unknown-none", "riscv64-unknown-none"],
+  "env": {
+    "CFLAGS": "-O2 -g0",
+    "CXXFLAGS": "-O2 -g0"
+  },
+  "commands": [
+    {
+      "name": "configure",
+      "argv": ["{source}/configure", "--prefix={build}/install", "--without-ensurepip"],
+      "cwd": "{build}"
+    },
+    {
+      "name": "build-runtime-and-extensions",
+      "argv": ["make", "-j{jobs}"],
+      "cwd": "{build}"
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": ["{build}"],
+    "required_outputs": ["python", "libpython*.a"],
+    "required_units": [
+      {"id": "interpreter", "kind": "clang", "source": "Python/ceval.c", "role": "runtime"},
+      {"id": "compiler", "kind": "clang", "source": "Python/compile.c", "role": "compiler"},
+      {"id": "execution-api", "kind": "clang", "source": "Python/pythonrun.c", "role": "runtime"},
+      {"id": "object-model", "kind": "clang", "source": "Objects/object.c", "role": "runtime"},
+      {"id": "arbitrary-integers", "kind": "clang", "source": "Objects/longobject.c", "role": "runtime"},
+      {"id": "float-model", "kind": "clang", "source": "Objects/floatobject.c", "role": "runtime"},
+      {"id": "entrypoint", "kind": "clang", "source": "Modules/main.c", "role": "runtime"},
+      {"id": "io", "kind": "clang", "source": "Modules/_io/_iomodule.c", "role": "extension"},
+      {"id": "os", "kind": "clang", "source": "Modules/posixmodule.c", "role": "extension"},
+      {"id": "threads", "kind": "clang", "source": "Modules/_threadmodule.c", "role": "extension"},
+      {"id": "ssl", "kind": "clang", "source": "Modules/_ssl.c", "role": "extension"},
+      {"id": "sqlite", "kind": "clang", "source": "Modules/_sqlite/module.c", "role": "extension"},
+      {"id": "ctypes", "kind": "clang", "source": "Modules/_ctypes/_ctypes.c", "role": "extension"},
+      {"id": "compression-zlib", "kind": "clang", "source": "Modules/zlibmodule.c", "role": "extension"},
+      {"id": "compression-bzip2", "kind": "clang", "source": "Modules/_bz2module.c", "role": "extension"},
+      {"id": "compression-lzma", "kind": "clang", "source": "Modules/_lzmamodule.c", "role": "extension"},
+      {"id": "tk", "kind": "clang", "source": "Modules/_tkinter.c", "role": "extension"}
+    ]
+  },
+  "dependencies": [
+    {"name": "libc-and-libm", "source_pin": null, "status": "required-unresolved"},
+    {"name": "OpenSSL", "source_pin": null, "status": "required-unresolved"},
+    {"name": "SQLite", "source_pin": null, "status": "required-unresolved"},
+    {"name": "libffi", "source_pin": null, "status": "required-unresolved"},
+    {"name": "zlib-bzip2-xz", "source_pin": null, "status": "required-unresolved"},
+    {"name": "Tcl-Tk-terminal-database-uuid-libraries", "source_pin": null, "status": "required-unresolved"}
+  ],
+  "blockers": [
+    "This recipe captures a hosted source build; it does not port CPython or libc to the native OSTADIX kernel.",
+    "A build-generated inventory must account for all required standard-library extensions; successful configure omission is not full stdlib support.",
+    "Every external library must receive its own pinned source recipe and verified O-core dependency closure.",
+    "Floating-point, complete C ABI, TLS, native OS services, dynamic modules and all three native execution gates remain required.",
+    "Foreign Python scripts may be interpreted by the compiled CPython engine; compile()/py_compile() still require native compiler and writable-filesystem witnesses."
+  ]
+}

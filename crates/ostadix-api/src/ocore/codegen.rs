@@ -63,6 +63,13 @@ fn emit_const(
     out: &mut String,
 ) -> Result<(), Diagnostic> {
     match (value, &hir.types.types[ty]) {
+        (HirConstValue::Function(id), Type::Function { .. }) => {
+            let target = hir
+                .functions
+                .get(*id)
+                .ok_or_else(|| codegen_error("invalid function-pointer constant"))?;
+            writeln!(out, ".quad {}", target.symbol).unwrap();
+        }
         (HirConstValue::Integer(value), Type::Int { .. } | Type::Usize | Type::Isize) => {
             emit_integer(hir.types.layout(ty).size, *value, out)?;
         }
@@ -158,9 +165,9 @@ fn emit_const(
 
 fn emit_integer(size: u64, value: u64, out: &mut String) -> Result<(), Diagnostic> {
     match size {
-        1 => writeln!(out, ".byte {value}").unwrap(),
-        2 => writeln!(out, ".word {value}").unwrap(),
-        4 => writeln!(out, ".long {value}").unwrap(),
+        1 => writeln!(out, ".byte {}", value as u8).unwrap(),
+        2 => writeln!(out, ".word {}", value as u16).unwrap(),
+        4 => writeln!(out, ".long {}", value as u32).unwrap(),
         8 => writeln!(out, ".quad {value}").unwrap(),
         _ => return Err(codegen_error(format!("cannot emit {size}-byte scalar"))),
     }
@@ -171,16 +178,20 @@ struct FrameLayout {
     locals: Vec<u64>,
     values: Vec<u64>,
     size: u64,
+    alignment: u64,
 }
 
 impl FrameLayout {
     fn new(types: &TypeContext, function: &MirFunction) -> Self {
         let mut cursor = 0u64;
+        let mut alignment = 16;
         let mut locals = Vec::new();
         for ty in &function.local_types {
             let layout = types.layout(*ty);
-            cursor = align_up(cursor, layout.align.max(1));
-            cursor += layout.size.max(1);
+            alignment = alignment.max(layout.align);
+            // Locals grow down from the frame base, so their final address
+            // (base - offset), rather than the preceding slot, is aligned.
+            cursor = align_up(cursor + layout.size.max(1), layout.align.max(1));
             locals.push(cursor);
         }
         let mut values = Vec::new();
@@ -193,6 +204,7 @@ impl FrameLayout {
             locals,
             values,
             size: align_up(cursor, 16),
+            alignment,
         }
     }
 }
@@ -254,6 +266,23 @@ impl<'a> FunctionCodegen<'a> {
         } else {
             out.push_str("  push rbp\n  mov rbp, rsp\n");
         }
+        if self.has_aligned_frame() {
+            // Keep the entry frame pointer for incoming stack arguments and
+            // restoration; r12 is callee-preserved and never an asm operand.
+            out.push_str("  push r12\n");
+            if self.frame.alignment <= i32::MAX as u64 {
+                writeln!(out, "  and rsp, -{}", self.frame.alignment).unwrap();
+            } else {
+                writeln!(
+                    out,
+                    "  mov rax, {}",
+                    0u64.wrapping_sub(self.frame.alignment)
+                )
+                .unwrap();
+                out.push_str("  and rsp, rax\n");
+            }
+            out.push_str("  mov r12, rsp\n");
+        }
         let stack_size = self.stack_size();
         if stack_size != 0 {
             writeln!(out, "  sub rsp, {stack_size}").unwrap();
@@ -304,7 +333,7 @@ impl<'a> FunctionCodegen<'a> {
 
     fn emit_interrupt_prologue(&self, out: &mut String) {
         out.push_str(
-            "  push rax\n  push rcx\n  push rdx\n  push rsi\n  push rdi\n  push r8\n  push r9\n  push r10\n  push r11\n  push rbp\n  mov rbp, rsp\n",
+            "  push rax\n  push rcx\n  push rdx\n  push rsi\n  push rdi\n  push r8\n  push r9\n  push r10\n  push r11\n  push rbp\n  mov rbp, rsp\n  cld\n",
         );
     }
 
@@ -315,7 +344,7 @@ impl<'a> FunctionCodegen<'a> {
             if !self.hir.types.is_scalar(ty) {
                 return Err(codegen_error("aggregate parameters are not implemented"));
             }
-            if self.source.abi == Abi::SysV64 && self.hir.types.is_float(ty) {
+            if matches!(self.source.abi, Abi::SysV64 | Abi::C) && self.hir.types.is_float(ty) {
                 return Err(codegen_error(
                     "floating-point parameter escaped sysv64 ABI checking",
                 ));
@@ -339,12 +368,21 @@ impl<'a> FunctionCodegen<'a> {
     ) -> Result<(), Diagnostic> {
         match instruction {
             Instruction::Const { dst, value } => {
+                // MIR gives effect-only/never expressions an unused zero
+                // placeholder so every ValueId still has a definition.
+                if !matches!(
+                    self.hir.types.types[self.mir.values[*dst]],
+                    Type::Void | Type::Never
+                ) {
+                    self.require_scalar_type(self.mir.values[*dst], "constant result")?;
+                }
                 if self.hir.types.is_float(self.mir.values[*dst]) {
                     return Err(codegen_error(
                         "floating-point constant escaped O-core type checking",
                     ));
                 }
                 writeln!(out, "  mov rax, {value}").unwrap();
+                self.normalize_scalar("rax", self.mir.values[*dst], out)?;
                 self.store_value(*dst, "rax", out);
             }
             Instruction::FunctionAddress { dst, function } => {
@@ -368,18 +406,32 @@ impl<'a> FunctionCodegen<'a> {
                 self.place_address(place, "r11", out)?;
                 self.store_value(*dst, "r11", out);
             }
-            Instruction::Load { dst, place, .. } => {
+            Instruction::Load {
+                dst,
+                place,
+                volatile,
+            } => {
                 self.require_same_type(self.mir.values[*dst], place.ty, "load result")?;
                 self.require_scalar_type(place.ty, "load")?;
                 self.place_address(place, "r11", out)?;
+                if *volatile {
+                    self.emit_alignment_check("r11", place.ty, out);
+                }
                 self.load_memory("rax", "r11", place.ty, out)?;
                 self.store_value(*dst, "rax", out);
             }
-            Instruction::Store { place, value, .. } => {
+            Instruction::Store {
+                place,
+                value,
+                volatile,
+            } => {
                 self.require_same_type(self.mir.values[*value], place.ty, "store value")?;
                 self.require_scalar_type(place.ty, "store")?;
                 self.load_value(*value, "rax", out);
                 self.place_address(place, "r11", out)?;
+                if *volatile {
+                    self.emit_alignment_check("r11", place.ty, out);
+                }
                 self.store_memory("rax", "r11", place.ty, out)?;
             }
             Instruction::Copy {
@@ -394,8 +446,20 @@ impl<'a> FunctionCodegen<'a> {
                 }
                 self.place_address(destination, "rdi", out)?;
                 self.place_address(source, "rsi", out)?;
-                writeln!(out, "  mov rcx, {size}").unwrap();
-                out.push_str("  rep movsb\n");
+                if *size != 0 {
+                    let label = format!("{}_copy_{}", self.label_prefix, out.len());
+                    writeln!(
+                        out,
+                        "  mov rcx, {size}\n  cmp rdi, rsi\n  jbe {label}_forward"
+                    )
+                    .unwrap();
+                    out.push_str("  lea rdi, [rdi+rcx-1]\n  lea rsi, [rsi+rcx-1]\n  std\n  rep movsb\n  cld\n");
+                    writeln!(
+                        out,
+                        "  jmp {label}_done\n{label}_forward:\n  rep movsb\n{label}_done:"
+                    )
+                    .unwrap();
+                }
             }
             Instruction::Unary { dst, op, operand } => {
                 self.validate_unary(*dst, *op, *operand)?;
@@ -408,6 +472,7 @@ impl<'a> FunctionCodegen<'a> {
                         return Err(codegen_error("place unary operation escaped MIR lowering"))
                     }
                 }
+                self.normalize_scalar("rax", self.mir.values[*dst], out)?;
                 self.store_value(*dst, "rax", out);
             }
             Instruction::Binary { dst, op, lhs, rhs } => {
@@ -438,6 +503,9 @@ impl<'a> FunctionCodegen<'a> {
                 function,
                 args,
             } => self.emit_call(*dst, *function, args, out)?,
+            Instruction::CallIndirect { dst, callee, args } => {
+                self.emit_indirect_call(*dst, *callee, args, out)?;
+            }
             Instruction::Intrinsic {
                 dst,
                 intrinsic,
@@ -561,41 +629,82 @@ impl<'a> FunctionCodegen<'a> {
         args: &[ValueId],
     ) -> Result<(), Diagnostic> {
         let target = &self.hir.functions[function];
-        if target.abi == Abi::Interrupt {
+        let parameter_types = target
+            .params
+            .iter()
+            .map(|local| target.locals[*local].ty)
+            .collect::<Vec<_>>();
+        self.validate_scalar_call(
+            dst,
+            args,
+            &parameter_types,
+            target.result,
+            &target.abi,
+            "direct call",
+        )
+    }
+
+    fn validate_indirect_call(
+        &self,
+        dst: Option<ValueId>,
+        callee: ValueId,
+        args: &[ValueId],
+    ) -> Result<(), Diagnostic> {
+        let Type::Function {
+            params,
+            result,
+            abi,
+        } = &self.hir.types.types[self.mir.values[callee]]
+        else {
+            return Err(codegen_error("indirect call requires a function pointer"));
+        };
+        self.validate_scalar_call(dst, args, params, *result, abi, "indirect call")
+    }
+
+    fn validate_scalar_call(
+        &self,
+        dst: Option<ValueId>,
+        args: &[ValueId],
+        parameter_types: &[TypeId],
+        result: TypeId,
+        abi: &Abi,
+        context: &str,
+    ) -> Result<(), Diagnostic> {
+        if *abi == Abi::Interrupt {
             return Err(codegen_error(
-                "interrupt handler reached direct-call lowering",
+                "interrupt handler reached ordinary-call lowering",
             ));
         }
-        if args.len() != target.params.len() {
-            return Err(codegen_error("direct call argument count mismatch"));
+        if args.len() != parameter_types.len() {
+            return Err(codegen_error(format!("{context} argument count mismatch")));
         }
-        for (arg, local) in args.iter().zip(&target.params) {
-            let expected = target.locals[*local].ty;
-            self.require_scalar_type(expected, "direct call argument")?;
-            self.require_same_type(self.mir.values[*arg], expected, "direct call argument")?;
-            if target.abi == Abi::SysV64 && self.hir.types.is_float(expected) {
+        for (arg, expected) in args.iter().zip(parameter_types.iter().copied()) {
+            self.require_scalar_type(expected, &format!("{context} argument"))?;
+            self.require_same_type(
+                self.mir.values[*arg],
+                expected,
+                &format!("{context} argument"),
+            )?;
+            if matches!(abi, Abi::SysV64 | Abi::C) && self.hir.types.is_float(expected) {
                 return Err(codegen_error(
                     "floating-point argument escaped sysv64 ABI checking",
                 ));
             }
         }
-        let no_result = matches!(
-            self.hir.types.types[target.result],
-            Type::Void | Type::Never
-        );
+        let no_result = matches!(self.hir.types.types[result], Type::Void | Type::Never);
         match (dst, no_result) {
             (None, true) => Ok(()),
             (Some(dst), false) => {
-                self.require_scalar_type(target.result, "direct call result")?;
-                self.require_same_type(self.mir.values[dst], target.result, "direct call result")?;
-                if target.abi == Abi::SysV64 && self.hir.types.is_float(target.result) {
+                self.require_scalar_type(result, &format!("{context} result"))?;
+                self.require_same_type(self.mir.values[dst], result, &format!("{context} result"))?;
+                if matches!(abi, Abi::SysV64 | Abi::C) && self.hir.types.is_float(result) {
                     return Err(codegen_error(
                         "floating-point result escaped sysv64 ABI checking",
                     ));
                 }
                 Ok(())
             }
-            _ => Err(codegen_error("direct call result shape mismatch")),
+            _ => Err(codegen_error(format!("{context} result shape mismatch"))),
         }
     }
 
@@ -670,6 +779,7 @@ impl<'a> FunctionCodegen<'a> {
         for value in &args[1..1 + value_count] {
             self.require_same_type(self.mir.values[*value], pointee, "atomic value")?;
         }
+        let mut orders = Vec::with_capacity(order_count);
         for order in &args[1 + value_count..] {
             self.require_same_type(self.mir.values[*order], u8_ty, "atomic ordering")?;
             let order = self
@@ -677,6 +787,11 @@ impl<'a> FunctionCodegen<'a> {
                 .and_then(|value| u8::try_from(value).ok())
                 .ok_or_else(|| codegen_error("atomic ordering must be constant in MIR"))?;
             super::typeck::validate_memory_order(intrinsic, order).map_err(codegen_error)?;
+            orders.push(order);
+        }
+        if intrinsic == Intrinsic::AtomicCompareExchange {
+            super::typeck::validate_compare_exchange_orders(orders[0], orders[1])
+                .map_err(codegen_error)?;
         }
         let result = (intrinsic != Intrinsic::AtomicStore).then_some(pointee);
         self.require_optional_result(dst, result, "atomic result")
@@ -741,7 +856,7 @@ impl<'a> FunctionCodegen<'a> {
                 if let Type::Pointer { pointee, .. } = self.hir.types.types[self.mir.values[lhs]] {
                     let scale = self.hir.types.layout(pointee).size;
                     if scale != 1 {
-                        writeln!(out, "  imul rcx, {scale}").unwrap();
+                        self.multiply_constant("rcx", "r11", scale, out);
                     }
                 }
                 writeln!(
@@ -814,6 +929,45 @@ impl<'a> FunctionCodegen<'a> {
         out: &mut String,
     ) -> Result<(), Diagnostic> {
         self.validate_call(dst, function, args)?;
+        let stack_bytes = self.emit_call_arguments(args, out);
+        writeln!(out, "  call {}", self.hir.functions[function].symbol).unwrap();
+        self.prepare_foreign_boolean_result(dst, self.hir.functions[function].abi, out);
+        self.finish_call(dst, stack_bytes, out)
+    }
+
+    fn emit_indirect_call(
+        &self,
+        dst: Option<ValueId>,
+        callee: ValueId,
+        args: &[ValueId],
+        out: &mut String,
+    ) -> Result<(), Diagnostic> {
+        self.validate_indirect_call(dst, callee, args)?;
+        let stack_bytes = self.emit_call_arguments(args, out);
+        // Argument preparation can consume scratch registers. Load the callee
+        // last, into a caller-saved register outside the integer argument set.
+        self.load_value(callee, "r11", out);
+        out.push_str("  call r11\n");
+        let Type::Function { abi, .. } = self.hir.types.types[self.mir.values[callee]] else {
+            unreachable!("validated function-pointer call")
+        };
+        self.prepare_foreign_boolean_result(dst, abi, out);
+        self.finish_call(dst, stack_bytes, out)
+    }
+
+    fn prepare_foreign_boolean_result(&self, dst: Option<ValueId>, abi: Abi, out: &mut String) {
+        if matches!(abi, Abi::C | Abi::SysV64)
+            && dst
+                .is_some_and(|dst| matches!(self.hir.types.types[self.mir.values[dst]], Type::Bool))
+        {
+            // INTEGER return bits outside the declared scalar width are
+            // unspecified in the AMD64 ABI. A false AL with junk upper bits
+            // must stay false before full-value Boolean normalization.
+            out.push_str("  movzx rax, al\n");
+        }
+    }
+
+    fn emit_call_arguments(&self, args: &[ValueId], out: &mut String) -> usize {
         let registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
         let stack_count = args.len().saturating_sub(registers.len());
         let pad = stack_count % 2;
@@ -827,9 +981,17 @@ impl<'a> FunctionCodegen<'a> {
         for (value, register) in args.iter().zip(registers) {
             self.load_value(*value, register, out);
         }
-        writeln!(out, "  call {}", self.hir.functions[function].symbol).unwrap();
-        if stack_count + pad != 0 {
-            writeln!(out, "  add rsp, {}", (stack_count + pad) * 8).unwrap();
+        (stack_count + pad) * 8
+    }
+
+    fn finish_call(
+        &self,
+        dst: Option<ValueId>,
+        stack_bytes: usize,
+        out: &mut String,
+    ) -> Result<(), Diagnostic> {
+        if stack_bytes != 0 {
+            writeln!(out, "  add rsp, {stack_bytes}").unwrap();
         }
         if let Some(dst) = dst {
             self.normalize_scalar("rax", self.mir.values[dst], out)?;
@@ -846,6 +1008,18 @@ impl<'a> FunctionCodegen<'a> {
         out: &mut String,
     ) -> Result<(), Diagnostic> {
         self.validate_intrinsic(dst, intrinsic, args)?;
+        if matches!(
+            intrinsic,
+            Intrinsic::AtomicLoad
+                | Intrinsic::AtomicStore
+                | Intrinsic::AtomicExchange
+                | Intrinsic::AtomicCompareExchange
+                | Intrinsic::AtomicFetchAdd
+        ) {
+            self.load_value(args[0], "r11", out);
+            let pointee = pointer_pointee(&self.hir.types, self.mir.values[args[0]])?;
+            self.emit_alignment_check("r11", pointee, out);
+        }
         match intrinsic {
             Intrinsic::In8 | Intrinsic::In16 | Intrinsic::In32 => {
                 self.load_value(args[0], "rdx", out);
@@ -880,12 +1054,10 @@ impl<'a> FunctionCodegen<'a> {
                 out.push_str("  syscall\n");
             }
             Intrinsic::AtomicLoad => {
-                self.load_value(args[0], "r11", out);
                 let ty = self.mir.values[dst.unwrap()];
                 self.load_memory("rax", "r11", ty, out)?;
             }
             Intrinsic::AtomicStore => {
-                self.load_value(args[0], "r11", out);
                 self.load_value(args[1], "rax", out);
                 let pointee = pointer_pointee(&self.hir.types, self.mir.values[args[0]])?;
                 let order = self.const_from_value(args[2]);
@@ -896,13 +1068,11 @@ impl<'a> FunctionCodegen<'a> {
                 }
             }
             Intrinsic::AtomicExchange => {
-                self.load_value(args[0], "r11", out);
                 self.load_value(args[1], "rax", out);
                 let ty = self.mir.values[dst.unwrap()];
                 self.emit_xchg("rax", "r11", ty, out)?;
             }
             Intrinsic::AtomicFetchAdd => {
-                self.load_value(args[0], "r11", out);
                 self.load_value(args[1], "rax", out);
                 let ty = self.mir.values[dst.unwrap()];
                 let size = self.hir.types.layout(ty).size;
@@ -915,7 +1085,6 @@ impl<'a> FunctionCodegen<'a> {
                 .unwrap();
             }
             Intrinsic::AtomicCompareExchange => {
-                self.load_value(args[0], "r11", out);
                 self.load_value(args[1], "rax", out);
                 self.load_value(args[2], "rcx", out);
                 let ty = self.mir.values[dst.unwrap()];
@@ -1012,10 +1181,17 @@ impl<'a> FunctionCodegen<'a> {
         for line in template.lines() {
             writeln!(out, "  {line}").unwrap();
         }
-        for (register, target) in outputs {
-            let address = if register == "r11" { "r10" } else { "r11" };
-            self.place_address(target, address, out)?;
-            self.store_memory(register, address, target.ty, out)?;
+        // Output-place evaluation uses r10/r11 as scratch. Snapshot every
+        // output before evaluating any destination so one address cannot
+        // destroy another output register (including indexed destinations).
+        for (register, _) in outputs.iter().rev() {
+            writeln!(out, "  push {register}").unwrap();
+        }
+        for (_, target) in outputs {
+            out.push_str("  pop rax\n");
+            self.normalize_scalar("rax", target.ty, out)?;
+            self.place_address(target, "r11", out)?;
+            self.store_memory("rax", "r11", target.ty, out)?;
         }
         Ok(())
     }
@@ -1052,7 +1228,7 @@ impl<'a> FunctionCodegen<'a> {
                             self.source.result,
                             "return value",
                         )?;
-                        if self.source.abi == Abi::SysV64
+                        if matches!(self.source.abi, Abi::SysV64 | Abi::C)
                             && self.hir.types.is_float(self.source.result)
                         {
                             return Err(codegen_error(
@@ -1097,27 +1273,46 @@ impl<'a> FunctionCodegen<'a> {
         to: BlockId,
         out: &mut String,
     ) -> Result<(), Diagnostic> {
+        let mut copies = Vec::new();
         for instruction in &self.mir.blocks[to].instructions {
             let Instruction::Phi { dst, incoming } = instruction else {
                 continue;
             };
-            if let Some((_, value)) = incoming.iter().find(|(block, _)| *block == from) {
-                self.require_same_type(
-                    self.mir.values[*value],
-                    self.mir.values[*dst],
-                    "phi incoming value",
-                )?;
-                self.load_value(*value, "rax", out);
-                self.store_value(*dst, "rax", out);
+            let (_, value) = incoming
+                .iter()
+                .find(|(block, _)| *block == from)
+                .ok_or_else(|| codegen_error("phi has no incoming value for control-flow edge"))?;
+            self.require_same_type(
+                self.mir.values[*value],
+                self.mir.values[*dst],
+                "phi incoming value",
+            )?;
+            self.require_scalar_type(self.mir.values[*dst], "phi result")?;
+            if value != dst {
+                copies.push((*dst, *value));
             }
+        }
+        // Phi assignments happen simultaneously. Snapshot sources before
+        // replacing any destinations; this also handles loop-carried cycles.
+        for (_, value) in &copies {
+            self.load_value(*value, "rax", out);
+            out.push_str("  push rax\n");
+        }
+        for (dst, _) in copies.into_iter().rev() {
+            out.push_str("  pop rax\n");
+            self.store_value(dst, "rax", out);
         }
         Ok(())
     }
 
     fn emit_epilogue(&self, out: &mut String) {
-        let stack_size = self.stack_size();
-        if stack_size != 0 {
-            writeln!(out, "  add rsp, {stack_size}").unwrap();
+        if self.has_aligned_frame() {
+            out.push_str("  lea rsp, [rbp-8]\n  pop r12\n");
+        } else {
+            let stack_size = self.stack_size();
+            if stack_size != 0 {
+                writeln!(out, "  add rsp, {stack_size}").unwrap();
+            }
         }
         if self.source.abi == Abi::Interrupt {
             out.push_str(
@@ -1134,7 +1329,20 @@ impl<'a> FunctionCodegen<'a> {
         // volatile registers plus RBP, the stack is eight bytes off the SysV
         // call boundary. Reserve one padding slot so interrupt handlers can
         // safely call ordinary O-core functions.
-        self.frame.size + u64::from(self.source.abi == Abi::Interrupt) * 8
+        self.frame.size
+            + u64::from(self.source.abi == Abi::Interrupt && !self.has_aligned_frame()) * 8
+    }
+
+    fn has_aligned_frame(&self) -> bool {
+        self.frame.alignment > 16
+    }
+
+    fn frame_base(&self) -> &'static str {
+        if self.has_aligned_frame() {
+            "r12"
+        } else {
+            "rbp"
+        }
     }
 
     fn place_address(
@@ -1145,7 +1353,13 @@ impl<'a> FunctionCodegen<'a> {
     ) -> Result<(), Diagnostic> {
         match place.base {
             PlaceBase::Local(local) => {
-                writeln!(out, "  lea {register}, [rbp-{}]", self.frame.locals[local]).unwrap();
+                writeln!(
+                    out,
+                    "  lea {register}, [{}-{}]",
+                    self.frame_base(),
+                    self.frame.locals[local]
+                )
+                .unwrap();
             }
             PlaceBase::Static(static_id) => {
                 writeln!(
@@ -1169,7 +1383,16 @@ impl<'a> FunctionCodegen<'a> {
             match projection {
                 Projection::Field { offset } => {
                     if *offset != 0 {
-                        writeln!(out, "  add {register}, {offset}").unwrap();
+                        if *offset <= i32::MAX as u64 {
+                            writeln!(out, "  add {register}, {offset}").unwrap();
+                        } else {
+                            let scratch = if register == "r10" { "r11" } else { "r10" };
+                            writeln!(
+                                out,
+                                "  mov {scratch}, {offset}\n  add {register}, {scratch}"
+                            )
+                            .unwrap();
+                        }
                     }
                 }
                 Projection::Index {
@@ -1180,7 +1403,7 @@ impl<'a> FunctionCodegen<'a> {
                     let scratch = if register == "r10" { "r11" } else { "r10" };
                     self.load_value(*index, scratch, out);
                     if *element_size != 1 {
-                        writeln!(out, "  imul {scratch}, {element_size}").unwrap();
+                        self.multiply_constant(scratch, "rcx", *element_size, out);
                     }
                     writeln!(out, "  add {register}, {scratch}").unwrap();
                 }
@@ -1189,10 +1412,36 @@ impl<'a> FunctionCodegen<'a> {
         Ok(())
     }
 
+    fn multiply_constant(&self, register: &str, scratch: &str, value: u64, out: &mut String) {
+        if value <= i32::MAX as u64 {
+            writeln!(out, "  imul {register}, {value}").unwrap();
+        } else {
+            writeln!(
+                out,
+                "  mov {scratch}, {value}\n  imul {register}, {scratch}"
+            )
+            .unwrap();
+        }
+    }
+
+    fn emit_alignment_check(&self, address: &str, ty: TypeId, out: &mut String) {
+        let alignment = self.hir.types.layout(ty).size;
+        if alignment > 1 {
+            let label = format!("{}_aligned_{}", self.label_prefix, out.len());
+            writeln!(
+                out,
+                "  test {address}, {}\n  jz {label}\n  ud2\n{label}:",
+                alignment - 1
+            )
+            .unwrap();
+        }
+    }
+
     fn load_value(&self, value: ValueId, register: &str, out: &mut String) {
         writeln!(
             out,
-            "  mov {register}, qword ptr [rbp-{}]",
+            "  mov {register}, qword ptr [{}-{}]",
+            self.frame_base(),
             self.frame.values[value]
         )
         .unwrap();
@@ -1201,7 +1450,8 @@ impl<'a> FunctionCodegen<'a> {
     fn store_value(&self, value: ValueId, register: &str, out: &mut String) {
         writeln!(
             out,
-            "  mov qword ptr [rbp-{}], {register}",
+            "  mov qword ptr [{}-{}], {register}",
+            self.frame_base(),
             self.frame.values[value]
         )
         .unwrap();
@@ -1217,8 +1467,9 @@ impl<'a> FunctionCodegen<'a> {
         let size = self.hir.types.layout(ty).size;
         writeln!(
             out,
-            "  mov {} ptr [rbp-{offset}], {}",
+            "  mov {} ptr [{}-{offset}], {}",
             size_name(size)?,
+            self.frame_base(),
             subreg(register, size)?
         )
         .unwrap();
@@ -1245,6 +1496,9 @@ impl<'a> FunctionCodegen<'a> {
             (4, true) => writeln!(out, "  movsxd {dst}, dword ptr [{address}]").unwrap(),
             (8, _) => writeln!(out, "  mov {dst}, qword ptr [{address}]").unwrap(),
             _ => return Err(codegen_error(format!("cannot scalar-load {size} bytes"))),
+        }
+        if matches!(self.hir.types.types[ty], Type::Bool) {
+            self.normalize_scalar(dst, ty, out)?;
         }
         Ok(())
     }
@@ -1273,6 +1527,15 @@ impl<'a> FunctionCodegen<'a> {
         ty: TypeId,
         out: &mut String,
     ) -> Result<(), Diagnostic> {
+        if matches!(self.hir.types.types[ty], Type::Bool) {
+            let byte = subreg(register, 1)?;
+            writeln!(
+                out,
+                "  test {register}, {register}\n  setne {byte}\n  movzx {register}, {byte}"
+            )
+            .unwrap();
+            return Ok(());
+        }
         let size = self.hir.types.layout(ty).size;
         let signed = is_signed(&self.hir.types.types[ty]);
         match (size, signed) {
@@ -1366,6 +1629,407 @@ fn codegen_error(message: impl Into<String>) -> Diagnostic {
 mod tests {
     use super::*;
     use crate::ocore::{mir, parser, typeck};
+
+    fn compile_source(source: &str) -> (HirProgram, MirProgram) {
+        let ast = parser::parse("native.oc", source).unwrap();
+        let hir = typeck::check(&[("native.oc".into(), ast)]).unwrap();
+        let mir = mir::lower(&hir).unwrap();
+        (hir, mir)
+    }
+
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    fn execute_with_c(assembly: &str, harness: &str) {
+        use std::process::Command;
+
+        if Command::new("clang").arg("--version").output().is_err() {
+            eprintln!("SKIP-OPTIONAL: native x86_64 execution requires clang");
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let assembly_path = directory.path().join("program.s");
+        let harness_path = directory.path().join("harness.c");
+        let executable = directory.path().join("program");
+        std::fs::write(&assembly_path, assembly).unwrap();
+        std::fs::write(&harness_path, harness).unwrap();
+        let compile = Command::new("clang")
+            .args(["-O2", "-fno-pie", "-no-pie"])
+            .arg(&assembly_path)
+            .arg(&harness_path)
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .unwrap();
+        assert!(
+            compile.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+        let run = Command::new(&executable).output().unwrap();
+        assert!(
+            run.status.success(),
+            "native execution returned {:?}: {}{}",
+            run.status.code(),
+            String::from_utf8_lossy(&run.stdout),
+            String::from_utf8_lossy(&run.stderr)
+        );
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    fn executes_scalar_widths_asm_outputs_and_overaligned_stack_arguments() {
+        let (hir, mir) = compile_source(
+            r#"
+module native_regressions;
+@align(64) struct Aligned { value: u64 }
+struct FarField { before: [u8; 2147483648], value: u8 }
+@export @no_mangle fn bitnot_u8(value: u8) -> bool { return ~value == 255; }
+@export @no_mangle fn negate_u8(value: u8) -> bool { return -value == 255; }
+@export @no_mangle fn bitnot_divide(value: u8) -> u8 { return ~value / 2; }
+@export @no_mangle unsafe fn scratch_outputs() -> u64 {
+    let mut first: u64 = 0;
+    let mut second: u64 = 0;
+    asm!("mov r10, 11\nmov r11, 22", out("r10") first, out("r11") second, options(nostack));
+    return first * 100 + second;
+}
+@export @no_mangle unsafe fn indexed_outputs() -> u64 {
+    let mut values: [u64; 2] = [0; 2];
+    let index: usize = 1;
+    let mut first: u64 = 0;
+    asm!("mov r11, 22\nmov r10, 11", out("r11") values[index], out("r10") first, options(nostack));
+    return first * 100 + values[index];
+}
+@export @no_mangle unsafe fn aligned_stack(
+    a: u64, b: u64, c: u64, d: u64, e: u64, f: u64, g: u64, h: u64, i: u64
+) -> u64 {
+    let value: Aligned = Aligned { value: a + b + c + d + e + f + g + h + i };
+    let address: usize = (&value) as usize;
+    return value.value + (address & 63) as u64;
+}
+@export @no_mangle unsafe fn copy_eight(destination: *mut [u8; 8], source: *const [u8; 8]) {
+    *destination = *source;
+}
+@export @no_mangle unsafe fn wide_pointer_offset(pointer: *const [u8; 2147483648]) -> usize {
+    return (pointer + 1) as usize;
+}
+@export @no_mangle unsafe fn wide_field_offset(pointer: *const FarField) -> usize {
+    return (&(*pointer).value) as usize;
+}
+@export @no_mangle unsafe fn wide_index_offset(pointer: *const [u8; 2147483648], index: usize) -> usize {
+    return (&pointer[index]) as usize;
+}
+"#,
+        );
+        let assembly = emit_assembly(&hir, &mir).unwrap();
+        assert!(assembly.contains("and rsp, -64"));
+        assert!(assembly.contains("mov rax, qword ptr [rbp+32]"));
+        execute_with_c(
+            &assembly,
+            r#"
+#include <stdbool.h>
+#include <stdint.h>
+extern bool bitnot_u8(uint8_t);
+extern bool negate_u8(uint8_t);
+extern uint8_t bitnot_divide(uint8_t);
+extern uint64_t scratch_outputs(void);
+extern uint64_t indexed_outputs(void);
+extern uint64_t aligned_stack(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t);
+extern void copy_eight(void *, const void *);
+extern uintptr_t wide_pointer_offset(const void *);
+extern uintptr_t wide_field_offset(const void *);
+extern uintptr_t wide_index_offset(const void *, uintptr_t);
+int main(void) {
+    if (!bitnot_u8(0) || !negate_u8(1) || bitnot_divide(0) != 127) return 1;
+    if (scratch_outputs() != 1122 || indexed_outputs() != 1122) return 2;
+    for (unsigned n = 0; n < 64; ++n) {
+        if (aligned_stack(1,2,3,4,5,6,7,8,9) != 45) return 3;
+    }
+    uint8_t backward[9] = {0,1,2,3,4,5,6,7,8};
+    uint8_t forward[9] = {0,1,2,3,4,5,6,7,8};
+    copy_eight(backward + 1, backward);
+    copy_eight(forward, forward + 1);
+    for (unsigned n = 0; n < 8; ++n) {
+        if (backward[n + 1] != n || forward[n] != n + 1) return 4;
+    }
+    copy_eight(backward, backward);
+    unsigned long flags;
+    __asm__ volatile("pushfq; popq %0" : "=r"(flags));
+    if (flags & (1UL << 10)) return 5;
+    register uint64_t sentinel __asm__("r12") = UINT64_C(0x123456789abcdef0);
+    __asm__ volatile("" : "+r"(sentinel));
+    if (aligned_stack(1,2,3,4,5,6,7,8,9) != 45) return 6;
+    __asm__ volatile("" : "+r"(sentinel));
+    if (sentinel != UINT64_C(0x123456789abcdef0)) return 7;
+    const void *address = (const void *)(uintptr_t)UINT64_C(0x100000000);
+    if (wide_pointer_offset(address) != UINT64_C(0x180000000)) return 8;
+    if (wide_field_offset(address) != UINT64_C(0x180000000)) return 9;
+    if (wide_index_offset(address, 2) != UINT64_C(0x200000000)) return 10;
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    fn executes_direct_and_indirect_c_calls_with_stack_arguments() {
+        let (hir, mir) = compile_source(
+            r#"
+module c_calls;
+extern "C" fn c7(a: u64,b: u64,c: u64,d: u64,e: u64,f: u64,g: u64) -> u64;
+extern "C" fn c8(a: u64,b: u64,c: u64,d: u64,e: u64,f: u64,g: u64,h: u64) -> u64;
+extern "C" fn c9(a: u64,b: u64,c: u64,d: u64,e: u64,f: u64,g: u64,h: u64,i: u64) -> u64;
+extern "C" fn align7(a: u64,b: u64,c: u64,d: u64,e: u64,f: u64,g: u64) -> u64;
+extern "C" fn align8(a: u64,b: u64,c: u64,d: u64,e: u64,f: u64,g: u64,h: u64) -> u64;
+extern "C" fn align9(a: u64,b: u64,c: u64,d: u64,e: u64,f: u64,g: u64,h: u64,i: u64) -> u64;
+@export @no_mangle fn direct_calls() -> u64 {
+    return c7(1,2,3,4,5,6,7) + c8(1,2,3,4,5,6,7,8) + c9(1,2,3,4,5,6,7,8,9);
+}
+@export @no_mangle fn call_alignment() -> u64 {
+    return align7(1,2,3,4,5,6,7) + align8(1,2,3,4,5,6,7,8) + align9(1,2,3,4,5,6,7,8,9);
+}
+@export @no_mangle unsafe fn indirect_call(
+    callback: extern "C" fn(u64,u64,u64,u64,u64,u64,u64,u64,u64) -> u64
+) -> u64 { return callback(1,2,3,4,5,6,7,8,9); }
+@export @no_mangle unsafe fn indirect_u32(callback: extern "C" fn(u32) -> u32, value: u32) -> bool {
+    return callback(value) == value;
+}
+"#,
+        );
+        let mut assembly = emit_assembly(&hir, &mir).unwrap();
+        assert!(assembly.contains("call r11"));
+        for symbol in ["align7", "align8", "align9"] {
+            writeln!(
+                assembly,
+                ".text\n.globl {symbol}\n{symbol}:\n  mov rax, rsp\n  and rax, 15\n  ret"
+            )
+            .unwrap();
+        }
+        execute_with_c(
+            &assembly,
+            r#"
+#include <stdbool.h>
+#include <stdint.h>
+uint64_t c7(uint64_t a,uint64_t b,uint64_t c,uint64_t d,uint64_t e,uint64_t f,uint64_t g) {
+    return a + 2*b + 3*c + 4*d + 5*e + 6*f + 7*g;
+}
+uint64_t c8(uint64_t a,uint64_t b,uint64_t c,uint64_t d,uint64_t e,uint64_t f,uint64_t g,uint64_t h) {
+    return c7(a,b,c,d,e,f,g) + 8*h;
+}
+uint64_t c9(uint64_t a,uint64_t b,uint64_t c,uint64_t d,uint64_t e,uint64_t f,uint64_t g,uint64_t h,uint64_t i) {
+    return c8(a,b,c,d,e,f,g,h) + 9*i;
+}
+uint32_t identity32(uint32_t value) { return value; }
+extern uint64_t direct_calls(void);
+extern uint64_t call_alignment(void);
+extern uint64_t indirect_call(uint64_t (*)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t));
+extern bool indirect_u32(uint32_t (*)(uint32_t), uint32_t);
+int main(void) {
+    if (direct_calls() != 629 || indirect_call(c9) != 285) return 1;
+    if (call_alignment() != 24) return 2;
+    if (!indirect_u32(identity32, UINT32_C(0xf1234567))) return 3;
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    fn executes_parallel_phi_cycle() {
+        let (hir, mut mir) =
+            compile_source("module phis; @export @no_mangle fn phi_swap() -> u64 { return 0; }");
+        let u64_ty = hir.types.primitive("u64").unwrap();
+        let bool_ty = hir.types.primitive("bool").unwrap();
+        mir.functions[0] = MirFunction {
+            source: 0,
+            local_types: vec![],
+            values: vec![
+                u64_ty, u64_ty, u64_ty, u64_ty, u64_ty, u64_ty, u64_ty, u64_ty, u64_ty, bool_ty,
+                u64_ty, u64_ty, u64_ty,
+            ],
+            entry: 0,
+            blocks: vec![
+                BasicBlock {
+                    instructions: vec![
+                        Instruction::Const { dst: 0, value: 1 },
+                        Instruction::Const { dst: 1, value: 2 },
+                        Instruction::Const { dst: 2, value: 0 },
+                        Instruction::Const { dst: 6, value: 1 },
+                        Instruction::Const { dst: 8, value: 3 },
+                        Instruction::Const { dst: 10, value: 10 },
+                    ],
+                    terminator: Terminator::Jump(1),
+                },
+                BasicBlock {
+                    instructions: vec![
+                        Instruction::Phi {
+                            dst: 3,
+                            incoming: vec![(0, 0), (1, 4)],
+                        },
+                        Instruction::Phi {
+                            dst: 4,
+                            incoming: vec![(0, 1), (1, 3)],
+                        },
+                        Instruction::Phi {
+                            dst: 5,
+                            incoming: vec![(0, 2), (1, 7)],
+                        },
+                        Instruction::Binary {
+                            dst: 7,
+                            op: BinaryOp::Add,
+                            lhs: 5,
+                            rhs: 6,
+                        },
+                        Instruction::Binary {
+                            dst: 9,
+                            op: BinaryOp::Less,
+                            lhs: 7,
+                            rhs: 8,
+                        },
+                    ],
+                    terminator: Terminator::Branch {
+                        condition: 9,
+                        then_block: 1,
+                        else_block: 2,
+                    },
+                },
+                BasicBlock {
+                    instructions: vec![
+                        Instruction::Binary {
+                            dst: 11,
+                            op: BinaryOp::Mul,
+                            lhs: 3,
+                            rhs: 10,
+                        },
+                        Instruction::Binary {
+                            dst: 12,
+                            op: BinaryOp::Add,
+                            lhs: 11,
+                            rhs: 4,
+                        },
+                    ],
+                    terminator: Terminator::Return(Some(12)),
+                },
+            ],
+        };
+        execute_with_c(
+            &emit_assembly(&hir, &mir).unwrap(),
+            r#"
+#include <stdint.h>
+extern uint64_t phi_swap(void);
+int main(void) { return phi_swap() == 12 ? 0 : 1; }
+"#,
+        );
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    fn traps_before_misaligned_volatile_and_atomic_memory_access() {
+        let (hir, mir) = compile_source(
+            r#"
+module alignment;
+@export @no_mangle unsafe fn vload(pointer: *const u64) -> u64 { return volatile_load(pointer); }
+@export @no_mangle unsafe fn vstore(pointer: *mut u64) { volatile_store(pointer, 1); }
+@export @no_mangle unsafe fn aload(pointer: *const u16) -> u16 { return atomic_load(pointer, acquire); }
+@export @no_mangle unsafe fn astore(pointer: *mut u16) { atomic_store(pointer, 1, seq_cst); }
+@export @no_mangle unsafe fn exchange(pointer: *mut u32) -> u32 { return atomic_exchange(pointer, 1, acq_rel); }
+@export @no_mangle unsafe fn add(pointer: *mut u64) -> u64 { return atomic_fetch_add(pointer, 1, relaxed); }
+@export @no_mangle unsafe fn cas(pointer: *mut u64) -> u64 { return atomic_compare_exchange(pointer, 1, 2, seq_cst, acquire); }
+"#,
+        );
+        execute_with_c(
+            &emit_assembly(&hir, &mir).unwrap(),
+            r#"
+#include <stdint.h>
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern uint64_t vload(const void *);
+extern void vstore(void *);
+extern uint16_t aload(const void *);
+extern void astore(void *);
+extern uint32_t exchange(void *);
+extern uint64_t add(void *);
+extern uint64_t cas(void *);
+int main(void) {
+    struct rlimit no_core = {0, 0};
+    if (setrlimit(RLIMIT_CORE, &no_core)) return 20;
+    for (unsigned test = 0; test < 7; ++test) {
+        pid_t child = fork();
+        if (child < 0) return 21;
+        if (!child) {
+            void *pointer = (void *)(uintptr_t)1;
+            switch (test) {
+                case 0: vload(pointer); break;
+                case 1: vstore(pointer); break;
+                case 2: aload(pointer); break;
+                case 3: astore(pointer); break;
+                case 4: exchange(pointer); break;
+                case 5: add(pointer); break;
+                case 6: cas(pointer); break;
+            }
+            _exit(100);
+        }
+        int status;
+        if (waitpid(child, &status, 0) != child) return 22;
+        if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGILL) return test + 1;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    fn canonicalizes_boolean_casts_memory_assembly_and_foreign_returns() {
+        let (hir, mir) = compile_source(
+            r#"
+module booleans;
+extern "C" fn foreign_bool(value: u64) -> bool;
+@export @no_mangle fn bool_cast(value: u64) -> u64 { return (value as bool) as u64; }
+@export @no_mangle fn bool_not(value: u64) -> u64 { return (!(value as bool)) as u64; }
+@export @no_mangle unsafe fn bool_load(pointer: *const bool) -> u64 { return (*pointer) as u64; }
+@export @no_mangle unsafe fn bool_asm() -> u64 {
+    let mut value: bool = false;
+    asm!("mov rax, 256", out("rax") value);
+    return value as u64;
+}
+@export @no_mangle fn bool_direct(value: u64) -> u64 { return foreign_bool(value) as u64; }
+@export @no_mangle unsafe fn bool_indirect(callback: extern "C" fn(u64) -> bool, value: u64) -> u64 {
+    return callback(value) as u64;
+}
+"#,
+        );
+        execute_with_c(
+            &emit_assembly(&hir, &mir).unwrap(),
+            r#"
+#include <stdbool.h>
+#include <stdint.h>
+__asm__(".text\n.globl foreign_bool\nforeign_bool:\nmovq %rdi, %rax\nret\n");
+extern bool foreign_bool(uint64_t);
+extern uint64_t bool_cast(uint64_t);
+extern uint64_t bool_not(uint64_t);
+extern uint64_t bool_load(const void *);
+extern uint64_t bool_asm(void);
+extern uint64_t bool_direct(uint64_t);
+extern uint64_t bool_indirect(bool (*)(uint64_t), uint64_t);
+int main(void) {
+    const uint64_t values[] = {0,1,2,255,256,257,UINT64_MAX};
+    for (unsigned i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
+        if (bool_cast(values[i]) != (values[i] != 0)) return 1;
+        if (bool_not(values[i]) != (values[i] == 0)) return 2;
+    }
+    uint8_t memory = 2;
+    if (bool_load(&memory) != 1 || bool_asm() != 1) return 3;
+    if (bool_direct(256) != 0 || bool_direct(257) != 1) return 4;
+    if (bool_indirect(foreign_bool, 256) != 0 || bool_indirect(foreign_bool, 257) != 1) return 5;
+    return 0;
+}
+"#,
+        );
+    }
 
     #[test]
     fn emits_freestanding_x86_64_assembly() {

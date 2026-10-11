@@ -1,0 +1,214 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-llvm-libunwind-aarch64-linux-musl-threaded",
+  "source": {
+    "url": "https://github.com/rust-lang/llvm-project.git",
+    "revision": "dcc3606807c989700e0ac1cac18c31741bcd40d9",
+    "submodules": true
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "original-linux-musl-elf64-static-threaded",
+  "intended_execution_profile": "linux-musl-threaded-reference-profile-not-ostadix-qualified",
+  "source_inventory_helper": {
+    "path": "linux_musl_inventory.py",
+    "sha256": "222699ccb07e93f925d82e010187874d50d97df47954a021af59b1efebf37e41",
+    "dependencies": [
+      {
+        "path": "build_inventory.py",
+        "sha256": "fc11249b7820b146fb195175c839df1209e3d3c79ced560560db9a3acb6987e0"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "name": "configure-original-provider",
+      "argv": [
+        "python3",
+        "{recipe_dir}/linux_musl_inventory.py",
+        "configure",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "aarch64",
+        "--expected-helper-sha256",
+        "222699ccb07e93f925d82e010187874d50d97df47954a021af59b1efebf37e41",
+        "--cc",
+        "{cc}",
+        "--cxx",
+        "{cxx}",
+        "--ar",
+        "{llvm_ar}",
+        "--ranlib",
+        "{llvm_ranlib}"
+      ]
+    },
+    {
+      "name": "inventory-original-provider-before-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/linux_musl_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "aarch64",
+        "--expected-helper-sha256",
+        "222699ccb07e93f925d82e010187874d50d97df47954a021af59b1efebf37e41",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    },
+    {
+      "name": "build-original-provider",
+      "argv": [
+        "cmake",
+        "--build",
+        "{build}",
+        "--target",
+        "unwind_static",
+        "--",
+        "-j{jobs}",
+        "-k0"
+      ]
+    },
+    {
+      "name": "inventory-original-provider-after-build",
+      "argv": [
+        "python3",
+        "{recipe_dir}/linux_musl_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--isa",
+        "aarch64",
+        "--expected-helper-sha256",
+        "222699ccb07e93f925d82e010187874d50d97df47954a021af59b1efebf37e41",
+        "--output",
+        "{build}/post-build-inventory.json",
+        "--after-build"
+      ]
+    },
+    {
+      "name": "finalize-whole-original-provider-inventory",
+      "argv": [
+        "python3",
+        "-c",
+        "import shutil,sys; shutil.copyfile(sys.argv[1],sys.argv[2])",
+        "{build}/post-build-inventory.json",
+        "{build}/unit-inventory.json"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "lib/libunwind.a"
+    ],
+    "required_units": [
+      {
+        "id": "original-source-00",
+        "kind": "clang",
+        "source": "libunwind/src/libunwind.cpp",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-01",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-EHABI.cpp",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-02",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-seh.cpp",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-03",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindLevel1.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-04",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindLevel1-gcc-ext.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-05",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-sjlj.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-06",
+        "kind": "clang",
+        "source": "libunwind/src/Unwind-wasm.c",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-07",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindRegistersRestore.S",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      },
+      {
+        "id": "original-source-08",
+        "kind": "clang",
+        "source": "libunwind/src/UnwindRegistersSave.S",
+        "role": "runtime",
+        "build_step": "build-original-provider"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "original-source-built-musl-target-inputs",
+      "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+      "receipt_sha256": "81a48df6ce48f2afdfe78f283bc5ace366e0f5344ff58beaf19e823be96fb7ff",
+      "receipt_environment": "OCORE_LIBUNWIND_MUSL_PROVENANCE",
+      "status": "source-build-and-header-provenance-only-no-ocore-provider-admission"
+    },
+    {
+      "name": "original-target-compiler-helpers",
+      "status": "required-source-owned-provider-closure-unresolved-sdk-only-has-x86-host-builtins"
+    },
+    {
+      "name": "Linux-loader-dl-threads-TLS-syscalls-framebounds-and-JIT-publication",
+      "status": "required-reference-services-not-OSTADIX-qualified"
+    }
+  ],
+  "blockers": [
+    "All nine original configured source units are required, including both preprocessed assembly implementations; LLVM-IR-only capture cannot lower those .S files.",
+    "This is a newly declared genuine Linux/musl THREADS-ON profile, distinct from original hosted Rust gcc_s and Generic/Newlib captures.",
+    "Original complete musl source archive/startup objects and target headers are reference providers only, not supplied-object O-core admission.",
+    "Full floating-point context, pthread/TLS/loader behavior, compiler-helper dependencies and OSTADIX platform interfaces remain required.",
+    "Configure probes remain unclassified unless causal source/build inventory independently proves they are absent from runtime closure."
+  ]
+}

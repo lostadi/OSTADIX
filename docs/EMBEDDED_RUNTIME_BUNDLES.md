@@ -1,5 +1,15 @@
 # Embedded foreign runtime bundles
 
+The central compiler objective is [automated runtime/compiler lowering through O-core](OCORE.md#external-runtime-lowering-and-script-bundles)
+by `olangc`, yielding a complete program containing the compiled implementation,
+scripts, and dependencies in native binary form, a complete OIR program
+artifact containing verified O-core modules, or a verified native O-core IR
+artifact for later native lowering. That is the intended meaning of
+"bundling runtimes with scripts" in the compiler objective. The feature
+documented here embeds supplied runtime files; it does not compile their
+implementations into O-core IR or machine code. It is reusable packaging
+infrastructure for that future compilation path.
+
 `olangc --runtime-bundle DIR` embeds the regular files of an explicitly supplied
 relocatable runtime tree in an ordinary native `.O` binary. The tree contains
 `bin/` and this manifest:
@@ -83,9 +93,11 @@ environment marker alone cannot enable execution. Namespace creation failure
 stops before program evaluation; the launcher does not fall back to the host
 profile or modify the host's namespace policy.
 
-This profile currently supports Linux x86-64 and AArch64 with the requisite
-namespace permissions and syscalls. The host kernel, the initial trusted
-Linux executable loader, and the three standard streams remain its execution
+The launcher has Linux x86-64, AArch64, and RISC-V RV64 paths, requiring the
+requisite namespace permissions and syscalls. Each ISA/image combination needs
+compatible-kernel execution qualification; the single-host CI integration gate
+does not establish qualification on all three ISAs. The host kernel, the
+initial trusted Linux executable loader, and the three standard streams remain its execution
 substrate. This is filesystem/network isolation after entry, not a replacement
 kernel or protection against a malicious host. Runtime services and libraries
 loaded by computed names must be included explicitly. Mount-dependent runtimes

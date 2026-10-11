@@ -1,0 +1,77 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "rust-stdlib-and-compiler",
+  "source": {
+    "url": "https://github.com/rust-lang/rust.git",
+    "revision": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
+    "submodules": true
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6",
+    "rustc_release": "1.97.1",
+    "cargo_release": "1.97.1",
+    "rustc_commit": "8bab26f4f68e0e26f0bb7960be334d5b520ea452"
+  },
+  "capture_profile": "hosted-source-bootstrap",
+  "intended_execution_profile": "ostadix-kernel",
+  "intended_targets": ["x86_64-unknown-none", "aarch64-unknown-none", "riscv64-unknown-none"],
+  "commands": [
+    {
+      "name": "prepare-pinned-source-bootstrap",
+      "argv": [
+        "python3", "{recipe_dir}/prepare_rust_bootstrap.py",
+        "--output", "{build}/bootstrap.toml", "--rustc", "{rustc}",
+        "--cargo", "{cargo}", "--cc", "{cc}", "--cxx", "{cxx}",
+        "--jobs", "{jobs}"
+      ],
+      "cwd": "{build}"
+    },
+    {
+      "name": "bootstrap-stdlib-rustc-and-cargo",
+      "argv": [
+        "python3", "{source}/x.py", "--config", "{build}/bootstrap.toml",
+        "--build-dir", "{build}/bootstrap",
+        "--set", "build.rustc={rustc}", "--set", "build.cargo={cargo}",
+        "--set", "rust.download-rustc=false", "--set", "llvm.download-ci-llvm=false",
+        "--set", "rust.channel=stable", "--set", "build.extended=true",
+        "build", "--stage", "2", "-j", "{jobs}",
+        "library", "compiler/rustc", "src/tools/cargo"
+      ],
+      "cwd": "{source}"
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": ["{build}"],
+    "required_outputs": ["bootstrap/*/stage2/bin/rustc", "bootstrap/*/stage2-tools/**/cargo"],
+    "required_units": [
+      {"id": "core", "kind": "rustc", "source": "library/core/src/lib.rs", "role": "runtime"},
+      {"id": "alloc", "kind": "rustc", "source": "library/alloc/src/lib.rs", "role": "runtime"},
+      {"id": "std", "kind": "rustc", "source": "library/std/src/lib.rs", "role": "runtime"},
+      {"id": "panic-abort", "kind": "rustc", "source": "library/panic_abort/src/lib.rs", "role": "runtime"},
+      {"id": "panic-unwind", "kind": "rustc", "source": "library/panic_unwind/src/lib.rs", "role": "runtime"},
+      {"id": "unwind", "kind": "rustc", "source": "library/unwind/src/lib.rs", "role": "runtime"},
+      {"id": "proc-macro", "kind": "rustc", "source": "library/proc_macro/src/lib.rs", "role": "runtime"},
+      {"id": "test-runtime", "kind": "rustc", "source": "library/test/src/lib.rs", "role": "runtime"},
+      {"id": "compiler-builtins", "kind": "rustc", "source": "library/compiler-builtins/compiler-builtins/src/lib.rs", "role": "runtime"},
+      {"id": "rustc-entrypoint", "kind": "rustc", "source": "compiler/rustc/src/main.rs", "role": "compiler"},
+      {"id": "rustc-driver", "kind": "rustc", "source": "compiler/rustc_driver*/src/lib.rs", "role": "compiler"},
+      {"id": "rustc-llvm-backend", "kind": "rustc", "source": "compiler/rustc_codegen_llvm/src/lib.rs", "role": "compiler"},
+      {"id": "llvm-implementation", "kind": "clang", "source": "src/llvm-project/llvm/lib/IR/LLVMContext.cpp", "role": "compiler"},
+      {"id": "cargo", "kind": "rustc", "source": "src/tools/cargo/src/bin/cargo/main.rs", "role": "compiler-helper"}
+    ]
+  },
+  "dependencies": [
+    {"name": "LLVM-and-Cargo-submodules", "status": "source-superproject-pinned"},
+    {"name": "Cargo.lock-crates-compiler-builtins-proc-macro-build-helpers", "status": "required-source-closure"},
+    {"name": "libc-libm-unwinder-C++-runtime-linker-system-libraries", "source_pin": null, "status": "required-unresolved"}
+  ],
+  "blockers": [
+    "Rust has no interpreter runtime: stdlib and rustc/LLVM implementations, plus the programs rustc generates, must traverse O-core separately.",
+    "The pinned bootstrap preserves an existing RUSTC_WRAPPER as RUSTC_WRAPPER_REAL; every stage-specific compiler must satisfy the recorded LLVM version contract.",
+    "Bootstrap or CMake may select absolute C/C++ drivers; any such object bypass is incomplete until explicit target compiler configuration uses the wrappers.",
+    "Native OSTADIX std platform port, unwinding, TLS, threads, full ABI, wide arithmetic and floating-point are required on all three ISAs.",
+    "Cargo proc macros, build.rs scripts, C/C++ dependencies and the LLVM implementation require complete source-built dependency coverage.",
+    "Building rustc does not redirect its normal LLVM machine-code output through O-core; native generated-program lowering and compiler bootstrap witnesses remain required."
+  ]
+}

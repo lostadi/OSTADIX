@@ -1,0 +1,62 @@
+<h1>Original musl source capture</h1>
+<p>These independently declared Linux-compatible static profiles capture the unchanged complete configured musl 1.2.5 implementation at commit <code>0784374d561435f7c787a555aeab8ede699ed298</code>. They retain libc, libm, pthread, TLS, allocation, stdio, startup objects, architecture assembly, compatibility archives and every configured upstream compiler-driver tool. They do not replace existing GNU or Generic/Newlib profiles. Source-build success does not establish O-core implementation lowering, full Rust compiler execution, or native OSTADIX platform support.</p>
+<p>Each ISA receives a genuine Clang/LLVM 22.1.6 source frontend: <code>x86_64-unknown-linux-musl</code>, <code>aarch64-unknown-linux-musl</code>, or <code>riscv64-unknown-linux-musl</code>. RV64GC uses <code>-march=rv64gc -mabi=lp64d</code>; original floating-point math, register context and helpers remain requirements. The recipes select the original <code>--enable-static --disable-shared</code> profile and build upstream <code>make all</code>. No libc, pthread, TLS or math source is rewritten or disabled. The separately declared static profile alone cannot qualify the dynamic loader, JIT publication or complete Rust native dependency profile.</p>
+<p>The original configure script chooses optimization, math, assembler, allocator and helper-library settings. The controlled driver selects scoped lld explicitly. <code>-Qunused-arguments</code> is supplied before configure&#39;s compile-only probes so the linker-selection flag does not corrupt flag detection; upstream also selects that diagnostic flag later for Clang. No <code>LIBCC</code> empty override, fast-math flag, source-body filter, host-header typedef substitution, or LLVM triple/DataLayout rewrite is used. Original <code>LIBCC</code> decisions and actual archive symbol providers remain dependency evidence, not admission of supplied compiler-helper objects.</p>
+<p><code>build_inventory.py</code> queries the complete evaluated original GNU Make graph and records the expanded source, replacement, startup, output, header and archive lists. It binds every planned compiler output to an original source and exact argv, including cold members and architecture overrides. Before building, <code>make --dry-run all</code> establishes the entire command plan. After building, each production frontend occurrence must match that plan exactly, and the full ordered <code>libc.a</code> member names and bytes must match the evaluated <code>AOBJS</code> graph. Generated <code>bits/alltypes.h</code>, <code>bits/syscall.h</code> and the source version header retain their original producer graph. No supplied native object is treated as an O-core implementation.</p>
+<p>The 2026-10-10 original source builds completed every configured upstream <code>make all</code> output and <code>make install-headers</code> on all three targets. The complete evaluated graph produced these results:</p>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th align="right">Original source units</th>
+<th align="right">Ordered <code>libc.a</code> members</th>
+<th align="right">Whole C LLVM inputs</th>
+<th align="right">Required original assembly</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>x86-64</td>
+<td align="right">1,350</td>
+<td align="right">1,345</td>
+<td align="right">1,318</td>
+<td align="right">32</td>
+</tr>
+<tr>
+<td>AArch64</td>
+<td align="right">1,350</td>
+<td align="right">1,345</td>
+<td align="right">1,334</td>
+<td align="right">16</td>
+</tr>
+<tr>
+<td>RV64GC LP64D</td>
+<td align="right">1,351</td>
+<td align="right">1,346</td>
+<td align="right">1,339</td>
+<td align="right">12</td>
+</tr>
+</tbody></table>
+<p>Each graph also retains five startup objects and installs 218 original/generated target headers. Every source object passed ELF64 target-machine checks; RV objects retained LP64D flags. Archive member order and bytes, original source hashes, complete C LLVM input hashes, exact production invocation plans and generated-header provenance were verified. The immutable local receipt is <code>~/.cache/ostadix-runtime-captures/original-musl-0784374d-20261010/whole-source-build-observation-v1.json</code>, SHA-256 <code>f6df8192764741427588393d7386c6160ec92ee87b37c62edf633c0d667d3210</code>.</p>
+<p>All three capture reports remain incomplete: original assembly is a required unsupported import, and configure probes still require independently verified role exclusions. Original <code>LIBCC</code> selection was <code>-lgcc -lgcc_eh</code> on x86-64 and empty on the two cross targets where the matching helper libraries were unavailable; no override supplied those decisions. Full-archive symbol receipts retain required complex arithmetic helpers on x86-64, additional quad-precision arithmetic/conversion/comparison helpers on AArch64/RV64GC, and linker-owned <code>_DYNAMIC</code> and init/fini boundary symbols. Their source ownership and final-link applicability remain unresolved closure obligations. These source builds do not qualify libc/TLS/thread execution or any O-core provider, runtime/compiler or OSTADIX execution profile.</p>
+<p>Prerequisites are GNU Make, a clean complete original source checkout at the pinned commit, the matching scoped LLVM 22.1.6 SDK and any installation-specific compatibility libraries. Headers come from the original source and its per-architecture Make generation; they require no manually supplied pthread definitions or POSIX ABI macros. A recipe and helper snapshot should be placed in a new empty directory before starting:</p>
+<pre><code class="language-bash">export MUSL_SOURCE=/path/to/pinned/musl
+export MUSL_SDK=/path/to/LLVM-22.1.6-Linux-X64
+export PATH=&quot;$MUSL_SDK/bin:$PATH&quot;
+export MUSL_RUN=/path/to/new/riscv64-musl-static-capture
+mkdir -p &quot;$MUSL_RUN/recipe&quot;
+cp tools/ocore-runtime/libc/build_inventory.py &quot;$MUSL_RUN/recipe/&quot;
+cp tools/ocore-runtime/libc/riscv64.static.recipe.json &quot;$MUSL_RUN/recipe/&quot;
+chmod a-w &quot;$MUSL_RUN/recipe/&quot;*
+python3 scripts/ocore_runtime_capture.py capture \
+  &quot;$MUSL_RUN/recipe/riscv64.static.recipe.json&quot; \
+  --source &quot;$MUSL_SOURCE&quot; --build &quot;$MUSL_RUN/build&quot; \
+  --output &quot;$MUSL_RUN/capture&quot; --cc &quot;$MUSL_SDK/bin/clang&quot; \
+  --cxx &quot;$MUSL_SDK/bin/clang++&quot; --llvm-nm &quot;$MUSL_SDK/bin/llvm-nm&quot; \
+  --unit-inventory &quot;$MUSL_RUN/build/unit-inventory.json&quot; --jobs 2
+</code></pre>
+<p>Use the correspondingly named x86-64/AArch64 recipes with fresh frontends. SDK compatibility libraries may require the installation&#39;s recorded <code>LD_LIBRARY_PATH</code>. Each helper invocation checks the digest bound by its recipe, and the generic capture worker retains its own immutable snapshot and event binding. The build uses Make <code>-k</code> so independent required sources are attempted after another source fails. The original upstream status, raw failures, journals and reports remain evidence; an independent later diagnostic never rewrites them.</p>
+<p>The required source assembly, inline assembly, full floating-point/long-double operations, atomics and TLS accesses still need supported O-core import and emission. Linux-compatible syscall semantics—including futex, clone, memory mapping/protection, signals, clocks, thread pointer/TLS, cancellation, files, processes and networking—need compiled dependencies or explicit verified OSTADIX interfaces. Authentic headers alone do not implement those services. Configure probes remain unclassified provenance unless their roles and absence from every runtime output are independently verified. All engine, provider, dependency-closure and native OSTADIX qualification flags remain false.</p>
+<p>Run the inventory regression gate with:</p>
+<pre><code class="language-bash">python3 -m unittest discover -s tools/ocore-runtime/libc -p &#39;test_*.py&#39; -v
+</code></pre>
+<p>Primary source contracts are the pinned original <a href="https://git.musl-libc.org/cgit/musl/tree/Makefile?id=0784374d561435f7c787a555aeab8ede699ed298">Makefile</a>, <a href="https://git.musl-libc.org/cgit/musl/tree/configure?id=0784374d561435f7c787a555aeab8ede699ed298">configure script</a>, <a href="https://git.musl-libc.org/cgit/musl/tree/include/pthread.h?id=0784374d561435f7c787a555aeab8ede699ed298">pthread declarations</a>, <a href="https://git.musl-libc.org/cgit/musl/tree/include/alltypes.h.in?id=0784374d561435f7c787a555aeab8ede699ed298">generated type inputs</a>, and <a href="https://git.musl-libc.org/cgit/musl/tree/src/thread/pthread_create.c?id=0784374d561435f7c787a555aeab8ede699ed298">thread creation implementation</a>.</p>

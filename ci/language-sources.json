@@ -568,6 +568,51 @@
       ]
     },
     {
+      "id": "ocore-native-equivalence-fixture",
+      "category": "fixture",
+      "reason": "One O-core corpus executes on all three native ISAs against independent C results and exact output bytes.",
+      "coverage": [
+        {
+          "path": "scripts/check_ocore_native_equivalence.py",
+          "kind": "runtime",
+          "conditions": "Built ocorec, Clang/LLD, native x86_64 host and qemu-user for AArch64 and RISC-V; all three executions required for equivalence evidence."
+        }
+      ],
+      "sources": [
+        "tests/fixtures/ocore_native_equivalence.oc"
+      ]
+    },
+    {
+      "id": "ocore-riscv64-native-bootstrap",
+      "category": "runtime-module",
+      "reason": "Native RV64 supervisor bootstrap with architectural trap, FP, TLS and timer invariants.",
+      "coverage": [
+        {
+          "path": "scripts/check_ocore_riscv64_boot.py",
+          "kind": "runtime",
+          "conditions": "Built ocorec, Clang/LLD, qemu-system-riscv64 and OpenSBI; one-hart LP64 RV64GC S-mode bootstrap and deliberate corruption controls. This is not complete runtime or userspace admission."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/riscv64/bootstrap.oc"
+      ]
+    },
+    {
+      "id": "ocore-riscv64-native-rust-import-probe",
+      "category": "fixture",
+      "reason": "Native RV64 O-core oracle calls seven original Rust scalar bodies imported through LLVM and verified O-core IR.",
+      "coverage": [
+        {
+          "path": "scripts/check_ocore_riscv64_rust_bridge.py",
+          "kind": "runtime",
+          "conditions": "Exact Rust 1.97.1/LLVM 22.1.6 with riscv64imac-unknown-none-elf core, built ocorec, Clang/LLD, qemu-system-riscv64 and OpenSBI. Requires the original Rust bodies, matching digest and corrupted-code rejection; this does not establish Rust std or rustc completion."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/riscv64/rust_import_probe.oc"
+      ]
+    },
+    {
       "id": "packaged-source-mirrors",
       "category": "package-mirror",
       "reason": "Published engine test assets must equal their tracked source originals.",

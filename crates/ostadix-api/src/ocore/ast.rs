@@ -58,9 +58,11 @@ pub struct Function {
     pub body: Option<Block>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Abi {
     OCore,
+    /// The selected target's native scalar C calling convention.
+    C,
     SysV64,
     Interrupt,
 }
@@ -131,6 +133,7 @@ pub enum TypeExprKind {
         len: u64,
     },
     FnPointer {
+        abi: Abi,
         params: Vec<TypeExpr>,
         result: Box<TypeExpr>,
     },

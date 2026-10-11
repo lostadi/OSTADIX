@@ -4,13 +4,14 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::hir::{HirProgram, Type};
-use super::{codegen, codegen_aarch64};
+use super::{codegen, codegen_aarch64, codegen_riscv64};
 use super::{mir, parser, typeck, Diagnostic, Span};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Target {
     X86_64UnknownNone,
     Aarch64UnknownNone,
+    Riscv64UnknownNone,
 }
 
 impl Target {
@@ -18,6 +19,9 @@ impl Target {
         match value {
             "x86_64-unknown-none" | "x86_64-unknown-none-elf" => Some(Target::X86_64UnknownNone),
             "aarch64-unknown-none" | "aarch64-unknown-none-elf" => Some(Target::Aarch64UnknownNone),
+            "riscv64-unknown-none" | "riscv64-unknown-none-elf" | "riscv64gc-unknown-none-elf" => {
+                Some(Target::Riscv64UnknownNone)
+            }
             _ => None,
         }
     }
@@ -26,6 +30,7 @@ impl Target {
         match self {
             Target::X86_64UnknownNone => "x86_64-unknown-none",
             Target::Aarch64UnknownNone => "aarch64-unknown-none",
+            Target::Riscv64UnknownNone => "riscv64-unknown-none",
         }
     }
 
@@ -33,6 +38,7 @@ impl Target {
         match self {
             Target::X86_64UnknownNone => "x86_64-unknown-none-elf",
             Target::Aarch64UnknownNone => "aarch64-unknown-none-elf",
+            Target::Riscv64UnknownNone => "riscv64-unknown-none-elf",
         }
     }
 
@@ -40,6 +46,7 @@ impl Target {
         match self {
             Target::X86_64UnknownNone => "x86_64",
             Target::Aarch64UnknownNone => "aarch64",
+            Target::Riscv64UnknownNone => "riscv64",
         }
     }
 }
@@ -69,6 +76,39 @@ pub struct CompileOutput {
 
 pub fn compile(inputs: &[PathBuf], options: &CompileOptions) -> Result<CompileOutput, Diagnostic> {
     compile_with_function_sections(inputs, options, false)
+}
+
+/// Compile a complete imported module through O-core's own ISA emitter.
+/// Textual MIR output here is a reloadable, verified native module.
+pub fn compile_native_module(
+    input: &Path,
+    options: &CompileOptions,
+) -> Result<CompileOutput, Diagnostic> {
+    let bytes = fs::read(input)
+        .map_err(|e| driver_error(format!("failed to read {}: {e}", input.display())))?;
+    let module = super::native_ir::NativeModule::from_json(&bytes)?;
+    if options.emit == EmitKind::Mir {
+        let json = module.to_json()?;
+        write_text(&options.output, std::str::from_utf8(&json).unwrap())?;
+        return Ok(CompileOutput {
+            output: options.output.clone(),
+            assembly: None,
+        });
+    }
+    if matches!(options.emit, EmitKind::Ast | EmitKind::Hir) {
+        return Err(driver_error(
+            "imported native modules have no .oc AST/HIR; use --emit mir",
+        ));
+    }
+    let assembly = super::native_codegen::emit(&module, options.target)?;
+    if options.emit == EmitKind::Assembly {
+        write_text(&options.output, &assembly)?;
+        return Ok(CompileOutput {
+            output: options.output.clone(),
+            assembly: Some(options.output.clone()),
+        });
+    }
+    emit_object(options, &assembly, module.target.abi.as_deref())
 }
 
 pub fn compile_with_function_sections(
@@ -123,6 +163,9 @@ pub fn compile_with_function_sections(
         Target::Aarch64UnknownNone => {
             codegen_aarch64::emit_assembly_with_function_sections(&hir, &mir, function_sections)?
         }
+        Target::Riscv64UnknownNone => {
+            codegen_riscv64::emit_assembly_with_function_sections(&hir, &mir, function_sections)?
+        }
     };
     if options.emit == EmitKind::Assembly {
         write_text(&options.output, &assembly)?;
@@ -132,10 +175,30 @@ pub fn compile_with_function_sections(
         });
     }
 
-    emit_object(options, &assembly)
+    emit_object(options, &assembly, None)
 }
 
-fn emit_object(options: &CompileOptions, assembly: &str) -> Result<CompileOutput, Diagnostic> {
+fn object_assembler_abi(
+    target: Target,
+    imported_abi: Option<&str>,
+) -> Result<Option<&'static str>, Diagnostic> {
+    match (target, imported_abi) {
+        (Target::Riscv64UnknownNone, None | Some("lp64")) => Ok(Some("lp64")),
+        (Target::Riscv64UnknownNone, Some("lp64d")) => Ok(Some("lp64d")),
+        (_, None) => Ok(None),
+        (_, Some(abi)) => Err(driver_error(format!(
+            "unsupported imported assembler ABI `{abi}` for {}",
+            target.architecture()
+        ))),
+    }
+}
+
+fn emit_object(
+    options: &CompileOptions,
+    assembly: &str,
+    imported_abi: Option<&str>,
+) -> Result<CompileOutput, Diagnostic> {
+    let abi = object_assembler_abi(options.target, imported_abi)?;
     if let Some(parent) = options.output.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent)
@@ -160,16 +223,23 @@ fn emit_object(options: &CompileOptions, assembly: &str) -> Result<CompileOutput
             options.target.architecture()
         ))
     })?;
-    let output = Command::new(&clang)
-        .args([
-            "-target",
-            options.target.triple(),
-            "-ffreestanding",
-            "-fno-stack-protector",
-            "-c",
-            "-x",
-            "assembler",
-        ])
+    let mut command = Command::new(&clang);
+    command.args([
+        "-target",
+        options.target.triple(),
+        "-ffreestanding",
+        "-fno-stack-protector",
+        "-c",
+        "-x",
+        "assembler",
+    ]);
+    if let Some(abi) = abi {
+        // Preserve the imported scalar module's ABI marker. LP64D integer
+        // arguments use the same integer convention; FP values remain rejected
+        // by native_codegen rather than silently converted to an integer ABI.
+        command.arg("-march=rv64gc").arg(format!("-mabi={abi}"));
+    }
+    let output = command
         .arg(&assembly_path)
         .arg("-o")
         .arg(&options.output)
@@ -344,6 +414,102 @@ unsafe fn kernel_main() -> never {
             Some(Target::Aarch64UnknownNone)
         );
         assert_eq!(Target::parse("aarch64-linux-gnu"), None);
+        for alias in [
+            "riscv64-unknown-none",
+            "riscv64-unknown-none-elf",
+            "riscv64gc-unknown-none-elf",
+        ] {
+            assert_eq!(Target::parse(alias), Some(Target::Riscv64UnknownNone));
+        }
+        assert_eq!(Target::parse("riscv32-unknown-none"), None);
+    }
+
+    #[test]
+    fn imported_rv64_integer_objects_preserve_declared_float_abi_marker() {
+        let dir = std::env::temp_dir().join(format!(
+            "ocore-riscv64-imported-abi-test-{}",
+            monotonic_nonce()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        for (name, abi, expected_flags) in [
+            ("unspecified", None, 0),
+            ("lp64", Some("lp64"), 0),
+            ("lp64d", Some("lp64d"), 4),
+        ] {
+            let source = dir.join(format!("{name}.json"));
+            let object = dir.join(format!("{name}.o"));
+            fs::write(
+                &source,
+                serde_json::to_vec(&serde_json::json!({
+                    "format":"ocore-native-module-v1", "name":"integer-abi-profile",
+                    "target":{"triple":"riscv64-unknown-linux-gnu",
+                              "data_layout":"e-p:64:64-i64:64", "pointer_bits":64,
+                              "little_endian":true, "abi":abi},
+                    "semantics":"llvm_defined_behavior_v1",
+                    "types":[{"kind":"void"},{"kind":"int","bits":64}],
+                    "globals":[],
+                    "functions":[{"name":"answer", "linkage":"external",
+                                  "signature":{"params":[], "result":1, "abi":"c",
+                                               "variadic":false},
+                                  "params":[], "entry":0,
+                                  "blocks":[{"id":0, "instructions":[],
+                                             "terminator":{"op":"return", "value":{
+                                                 "kind":"int", "ty":1, "bits":"42"}}}]}],
+                    "provenance":{"input_sha256":"0".repeat(64), "frontend":"test",
+                                  "frontend_version":"1", "importer":"test",
+                                  "importer_version":"1", "source_function_count":1,
+                                  "source_global_count":0, "refinements":[]}
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            compile_native_module(
+                &source,
+                &CompileOptions {
+                    target: Target::Riscv64UnknownNone,
+                    emit: EmitKind::Object,
+                    output: object.clone(),
+                    keep_assembly: false,
+                },
+            )
+            .unwrap();
+            let bytes = fs::read(object).unwrap();
+            assert_eq!(u16::from_le_bytes(bytes[18..20].try_into().unwrap()), 243);
+            let flags = u32::from_le_bytes(bytes[48..52].try_into().unwrap());
+            assert_eq!(flags & !1, expected_flags, "lost imported {name} ABI");
+        }
+        let source = dir.join("ordinary.oc");
+        let object = dir.join("ordinary.o");
+        fs::write(
+            &source,
+            "module ordinary; @export @no_mangle fn answer() -> u64 { return 42; }",
+        )
+        .unwrap();
+        compile(
+            &[source],
+            &CompileOptions {
+                target: Target::Riscv64UnknownNone,
+                emit: EmitKind::Object,
+                output: object.clone(),
+                keep_assembly: false,
+            },
+        )
+        .unwrap();
+        let bytes = fs::read(object).unwrap();
+        let flags = u32::from_le_bytes(bytes[48..52].try_into().unwrap());
+        assert_eq!(flags & !1, 0, "ordinary .oc changed from LP64");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn assembler_abi_selection_rejects_unsupported_profiles() {
+        for abi in ["lp64f", "lp64q", "ilp32", "LP64D", "", "lp64d "] {
+            assert!(object_assembler_abi(Target::Riscv64UnknownNone, Some(abi)).is_err());
+        }
+        for target in [Target::X86_64UnknownNone, Target::Aarch64UnknownNone] {
+            assert_eq!(object_assembler_abi(target, None).unwrap(), None);
+            assert!(object_assembler_abi(target, Some("lp64d")).is_err());
+        }
     }
 
     #[test]

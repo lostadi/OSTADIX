@@ -88,6 +88,11 @@ pub enum Instruction {
         function: FunctionId,
         args: Vec<ValueId>,
     },
+    CallIndirect {
+        dst: Option<ValueId>,
+        callee: ValueId,
+        args: Vec<ValueId>,
+    },
     Intrinsic {
         dst: Option<ValueId>,
         intrinsic: Intrinsic,
@@ -176,6 +181,7 @@ struct FunctionBuilder<'a> {
     program: &'a HirProgram,
     source: FunctionId,
     function: &'a HirFunction,
+    local_types: Vec<TypeId>,
     values: Vec<TypeId>,
     blocks: Vec<BasicBlock>,
     current: BlockId,
@@ -188,6 +194,11 @@ impl<'a> FunctionBuilder<'a> {
             program,
             source,
             function: &program.functions[source],
+            local_types: program.functions[source]
+                .locals
+                .iter()
+                .map(|local| local.ty)
+                .collect(),
             values: Vec::new(),
             blocks: vec![BasicBlock {
                 instructions: Vec::new(),
@@ -211,7 +222,7 @@ impl<'a> FunctionBuilder<'a> {
         }
         Ok(MirFunction {
             source: self.source,
-            local_types: self.function.locals.iter().map(|l| l.ty).collect(),
+            local_types: self.local_types,
             values: self.values,
             blocks: self.blocks,
             entry: 0,
@@ -247,7 +258,9 @@ impl<'a> FunctionBuilder<'a> {
                     .as_ref()
                     .map(|value| self.lower_expr(value))
                     .transpose()?;
-                self.terminate(Terminator::Return(value));
+                if !self.terminated(self.current) {
+                    self.terminate(Terminator::Return(value));
+                }
             }
             HirStmtKind::If {
                 condition,
@@ -255,6 +268,9 @@ impl<'a> FunctionBuilder<'a> {
                 else_block,
             } => {
                 let condition = self.lower_expr(condition)?;
+                if self.terminated(self.current) {
+                    return Ok(());
+                }
                 let then_id = self.new_block();
                 let else_id = self.new_block();
                 let join_id = self.new_block();
@@ -281,11 +297,14 @@ impl<'a> FunctionBuilder<'a> {
             }
             HirStmtKind::While { condition, body } => {
                 let condition_block = self.new_block();
-                let body_block = self.new_block();
-                let exit_block = self.new_block();
                 self.terminate(Terminator::Jump(condition_block));
                 self.current = condition_block;
                 let condition = self.lower_expr(condition)?;
+                if self.terminated(self.current) {
+                    return Ok(());
+                }
+                let body_block = self.new_block();
+                let exit_block = self.new_block();
                 self.terminate(Terminator::Branch {
                     condition,
                     then_block: body_block,
@@ -326,16 +345,24 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     fn lower_initializer(&mut self, place: Place, expr: &HirExpr) -> Result<(), Diagnostic> {
+        if matches!(self.program.types.types[expr.ty], Type::Never) {
+            self.lower_expr(expr)?;
+            return Ok(());
+        }
         match &expr.kind {
             HirExprKind::Struct { struct_id, fields } => {
                 let def = &self.program.types.structs[*struct_id];
-                for (field, value) in def.fields.iter().zip(fields) {
+                for (index, value) in fields {
+                    let field = &def.fields[*index];
                     let mut field_place = place.clone();
                     field_place.projections.push(Projection::Field {
                         offset: field.offset,
                     });
                     field_place.ty = field.ty;
                     self.lower_initializer(field_place, value)?;
+                    if self.terminated(self.current) {
+                        return Ok(());
+                    }
                 }
             }
             HirExprKind::EnumVariant {
@@ -371,6 +398,9 @@ impl<'a> FunctionBuilder<'a> {
                     });
                     payload_place.ty = ty;
                     self.lower_initializer(payload_place, value)?;
+                    if self.terminated(self.current) {
+                        return Ok(());
+                    }
                     offset += layout.size;
                 }
             }
@@ -389,6 +419,9 @@ impl<'a> FunctionBuilder<'a> {
                     });
                     element_place.ty = element;
                     self.lower_initializer(element_place, value)?;
+                    if self.terminated(self.current) {
+                        return Ok(());
+                    }
                 }
             }
             HirExprKind::ArrayRepeat { value, len } => {
@@ -396,16 +429,49 @@ impl<'a> FunctionBuilder<'a> {
                     return Err(self.error(expr.span, "array repeat reached non-array place"));
                 };
                 let element_size = self.program.types.layout(element).size;
+                // Repeat is a value operation: evaluate its operand once,
+                // including for an empty array. Aggregate operands need a
+                // private snapshot so later writes cannot change that value.
+                let scalar_value;
+                let aggregate_value;
+                if self.program.types.is_scalar(element) {
+                    scalar_value = Some(self.lower_expr(value)?);
+                    aggregate_value = None;
+                } else {
+                    let local = self.local_types.len();
+                    self.local_types.push(element);
+                    let temporary = Place {
+                        base: PlaceBase::Local(local),
+                        projections: Vec::new(),
+                        ty: element,
+                    };
+                    self.lower_initializer(temporary.clone(), value)?;
+                    scalar_value = None;
+                    aggregate_value = Some(temporary);
+                }
+                if self.terminated(self.current) {
+                    return Ok(());
+                }
                 for index in 0..*len {
-                    let index_value =
-                        self.const_value(index, self.program.types.primitive("usize").unwrap());
                     let mut element_place = place.clone();
-                    element_place.projections.push(Projection::Index {
-                        index: index_value,
-                        element_size,
-                    });
+                    let offset = index.checked_mul(element_size).ok_or_else(|| {
+                        self.error(expr.span, "array repeat element offset overflow")
+                    })?;
+                    element_place.projections.push(Projection::Field { offset });
                     element_place.ty = element;
-                    self.lower_initializer(element_place, value)?;
+                    if let Some(value) = scalar_value {
+                        self.emit(Instruction::Store {
+                            place: element_place,
+                            value,
+                            volatile: false,
+                        });
+                    } else {
+                        self.emit(Instruction::Copy {
+                            destination: element_place,
+                            source: aggregate_value.as_ref().unwrap().clone(),
+                            size: element_size,
+                        });
+                    }
                 }
             }
             HirExprKind::Constant(HirConstValue::Bytes(bytes)) => {
@@ -432,6 +498,9 @@ impl<'a> FunctionBuilder<'a> {
             _ => {
                 if !self.program.types.is_scalar(expr.ty) {
                     let source = self.lower_place(expr)?;
+                    if self.terminated(self.current) {
+                        return Ok(());
+                    }
                     self.emit(Instruction::Copy {
                         destination: place,
                         source,
@@ -440,6 +509,9 @@ impl<'a> FunctionBuilder<'a> {
                     return Ok(());
                 }
                 let value = self.lower_expr(expr)?;
+                if self.terminated(self.current) {
+                    return Ok(());
+                }
                 self.emit(Instruction::Store {
                     place,
                     value,
@@ -458,6 +530,14 @@ impl<'a> FunctionBuilder<'a> {
             HirExprKind::Constant(HirConstValue::Bool(value)) => {
                 Ok(self.const_value(u64::from(*value), expr.ty))
             }
+            HirExprKind::Constant(HirConstValue::Function(function)) => {
+                let dst = self.new_value(expr.ty);
+                self.emit(Instruction::FunctionAddress {
+                    dst,
+                    function: *function,
+                });
+                Ok(dst)
+            }
             HirExprKind::Constant(_) => Err(self.error(
                 expr.span,
                 "aggregate constant is valid only as an initializer",
@@ -467,6 +547,9 @@ impl<'a> FunctionBuilder<'a> {
             | HirExprKind::Field { .. }
             | HirExprKind::Index { .. } => {
                 let place = self.lower_place(expr)?;
+                if self.terminated(self.current) {
+                    return Ok(self.diverged_value());
+                }
                 let dst = self.new_value(expr.ty);
                 self.emit(Instruction::Load {
                     dst,
@@ -493,12 +576,18 @@ impl<'a> FunctionBuilder<'a> {
             HirExprKind::Unary { op, operand } => match op {
                 UnaryOp::AddressOf { .. } => {
                     let place = self.lower_place(operand)?;
+                    if self.terminated(self.current) {
+                        return Ok(self.diverged_value());
+                    }
                     let dst = self.new_value(expr.ty);
                     self.emit(Instruction::AddressOf { dst, place });
                     Ok(dst)
                 }
                 UnaryOp::Deref => {
                     let place = self.lower_place(expr)?;
+                    if self.terminated(self.current) {
+                        return Ok(self.diverged_value());
+                    }
                     let dst = self.new_value(expr.ty);
                     self.emit(Instruction::Load {
                         dst,
@@ -509,6 +598,9 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 _ => {
                     let operand = self.lower_expr(operand)?;
+                    if self.terminated(self.current) {
+                        return Ok(operand);
+                    }
                     let dst = self.new_value(expr.ty);
                     self.emit(Instruction::Unary {
                         dst,
@@ -525,7 +617,13 @@ impl<'a> FunctionBuilder<'a> {
             }
             HirExprKind::Binary { op, lhs, rhs } => {
                 let lhs = self.lower_expr(lhs)?;
+                if self.terminated(self.current) {
+                    return Ok(lhs);
+                }
                 let rhs = self.lower_expr(rhs)?;
+                if self.terminated(self.current) {
+                    return Ok(rhs);
+                }
                 let dst = self.new_value(expr.ty);
                 self.emit(Instruction::Binary {
                     dst,
@@ -537,8 +635,14 @@ impl<'a> FunctionBuilder<'a> {
             }
             HirExprKind::Assign { op, target, value } => {
                 let place = self.lower_place(target)?;
+                if self.terminated(self.current) {
+                    return Ok(self.diverged_value());
+                }
                 if op.is_none() && !self.program.types.is_scalar(target.ty) {
                     let source = self.lower_place(value)?;
+                    if self.terminated(self.current) {
+                        return Ok(self.diverged_value());
+                    }
                     self.emit(Instruction::Copy {
                         destination: place,
                         source,
@@ -554,6 +658,9 @@ impl<'a> FunctionBuilder<'a> {
                         volatile: false,
                     });
                     let rhs = self.lower_expr(value)?;
+                    if self.terminated(self.current) {
+                        return Ok(rhs);
+                    }
                     let combined = self.new_value(target.ty);
                     self.emit(Instruction::Binary {
                         dst: combined,
@@ -565,6 +672,9 @@ impl<'a> FunctionBuilder<'a> {
                 } else {
                     self.lower_expr(value)?
                 };
+                if self.terminated(self.current) {
+                    return Ok(value);
+                }
                 self.emit(Instruction::Store {
                     place,
                     value,
@@ -573,10 +683,10 @@ impl<'a> FunctionBuilder<'a> {
                 Ok(self.const_value(0, expr.ty))
             }
             HirExprKind::Call { function, args } => {
-                let args = args
-                    .iter()
-                    .map(|arg| self.lower_expr(arg))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let args = self.lower_arguments(args)?;
+                if self.terminated(self.current) {
+                    return Ok(self.diverged_value());
+                }
                 let void = self.program.types.primitive("void").unwrap();
                 let never = self.program.types.primitive("never").unwrap();
                 let dst = if expr.ty == void || expr.ty == never {
@@ -610,9 +720,48 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 Ok(value)
             }
+            HirExprKind::CallIndirect { callee, args } => {
+                // Evaluate the target before arguments, matching source order.
+                // Its SSA slot remains stable across nested argument calls.
+                let callee = self.lower_expr(callee)?;
+                if self.terminated(self.current) {
+                    return Ok(callee);
+                }
+                let args = self.lower_arguments(args)?;
+                if self.terminated(self.current) {
+                    return Ok(self.diverged_value());
+                }
+                let void = self.program.types.primitive("void").unwrap();
+                let never = self.program.types.primitive("never").unwrap();
+                let dst = if expr.ty == void || expr.ty == never {
+                    None
+                } else {
+                    Some(self.new_value(expr.ty))
+                };
+                let never_value = if expr.ty == never {
+                    Some(self.const_value(0, expr.ty))
+                } else {
+                    None
+                };
+                self.emit(Instruction::CallIndirect { dst, callee, args });
+                let value = if let Some(dst) = dst {
+                    dst
+                } else if let Some(value) = never_value {
+                    value
+                } else {
+                    self.const_value(0, expr.ty)
+                };
+                if expr.ty == never {
+                    self.terminate(Terminator::Unreachable);
+                }
+                Ok(value)
+            }
             HirExprKind::Intrinsic { intrinsic, args } => {
                 if *intrinsic == Intrinsic::VolatileLoad {
                     let pointer = self.lower_expr(&args[0])?;
+                    if self.terminated(self.current) {
+                        return Ok(pointer);
+                    }
                     let place = Place {
                         base: PlaceBase::Pointer(pointer),
                         projections: Vec::new(),
@@ -628,7 +777,13 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 if *intrinsic == Intrinsic::VolatileStore {
                     let pointer = self.lower_expr(&args[0])?;
+                    if self.terminated(self.current) {
+                        return Ok(pointer);
+                    }
                     let value = self.lower_expr(&args[1])?;
+                    if self.terminated(self.current) {
+                        return Ok(value);
+                    }
                     self.emit(Instruction::Store {
                         place: Place {
                             base: PlaceBase::Pointer(pointer),
@@ -640,10 +795,10 @@ impl<'a> FunctionBuilder<'a> {
                     });
                     return Ok(self.const_value(0, expr.ty));
                 }
-                let args = args
-                    .iter()
-                    .map(|arg| self.lower_expr(arg))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let args = self.lower_arguments(args)?;
+                if self.terminated(self.current) {
+                    return Ok(self.diverged_value());
+                }
                 let void = self.program.types.primitive("void").unwrap();
                 let dst = if expr.ty == void {
                     None
@@ -660,6 +815,9 @@ impl<'a> FunctionBuilder<'a> {
             HirExprKind::Cast { value, to } => {
                 let from = value.ty;
                 let value = self.lower_expr(value)?;
+                if self.terminated(self.current) {
+                    return Ok(value);
+                }
                 let dst = self.new_value(*to);
                 self.emit(Instruction::Cast {
                     dst,
@@ -673,23 +831,45 @@ impl<'a> FunctionBuilder<'a> {
                 let mut operands = Vec::new();
                 for operand in &asm.operands {
                     operands.push(match operand {
-                        HirAsmOperand::In { register, value } => MirAsmOperand::In {
-                            register: register.clone(),
-                            value: self.lower_expr(value)?,
-                        },
-                        HirAsmOperand::Out { register, target } => MirAsmOperand::Out {
-                            register: register.clone(),
-                            target: self.lower_place(target)?,
-                        },
+                        HirAsmOperand::In { register, value } => {
+                            let value = self.lower_expr(value)?;
+                            if self.terminated(self.current) {
+                                return Ok(value);
+                            }
+                            MirAsmOperand::In {
+                                register: register.clone(),
+                                value,
+                            }
+                        }
+                        HirAsmOperand::Out { register, target } => {
+                            let target = self.lower_place(target)?;
+                            if self.terminated(self.current) {
+                                return Ok(self.diverged_value());
+                            }
+                            MirAsmOperand::Out {
+                                register: register.clone(),
+                                target,
+                            }
+                        }
                         HirAsmOperand::InOut {
                             register,
                             input,
                             output,
-                        } => MirAsmOperand::InOut {
-                            register: register.clone(),
-                            input: self.lower_expr(input)?,
-                            output: self.lower_place(output)?,
-                        },
+                        } => {
+                            let input = self.lower_expr(input)?;
+                            if self.terminated(self.current) {
+                                return Ok(input);
+                            }
+                            let output = self.lower_place(output)?;
+                            if self.terminated(self.current) {
+                                return Ok(self.diverged_value());
+                            }
+                            MirAsmOperand::InOut {
+                                register: register.clone(),
+                                input,
+                                output,
+                            }
+                        }
                     });
                 }
                 self.emit(Instruction::Asm {
@@ -710,6 +890,9 @@ impl<'a> FunctionBuilder<'a> {
         ty: TypeId,
     ) -> Result<ValueId, Diagnostic> {
         let lhs = self.lower_expr(lhs)?;
+        if self.terminated(self.current) {
+            return Ok(lhs);
+        }
         let rhs_block = self.new_block();
         let constant_block = self.new_block();
         let join_block = self.new_block();
@@ -727,7 +910,10 @@ impl<'a> FunctionBuilder<'a> {
         self.current = rhs_block;
         let rhs = self.lower_expr(rhs)?;
         let rhs_predecessor = self.current;
-        self.terminate(Terminator::Jump(join_block));
+        let rhs_returns = !self.terminated(self.current);
+        if rhs_returns {
+            self.terminate(Terminator::Jump(join_block));
+        }
 
         self.current = constant_block;
         let constant = self.const_value(constant, ty);
@@ -736,10 +922,11 @@ impl<'a> FunctionBuilder<'a> {
 
         self.current = join_block;
         let dst = self.new_value(ty);
-        self.emit(Instruction::Phi {
-            dst,
-            incoming: vec![(rhs_predecessor, rhs), (constant_predecessor, constant)],
-        });
+        let mut incoming = vec![(constant_predecessor, constant)];
+        if rhs_returns {
+            incoming.insert(0, (rhs_predecessor, rhs));
+        }
+        self.emit(Instruction::Phi { dst, incoming });
         Ok(dst)
     }
 
@@ -765,6 +952,9 @@ impl<'a> FunctionBuilder<'a> {
             }),
             HirExprKind::Field { base, offset, .. } => {
                 let mut place = self.lower_place(base)?;
+                if self.terminated(self.current) {
+                    return Ok(place);
+                }
                 place
                     .projections
                     .push(Projection::Field { offset: *offset });
@@ -772,7 +962,6 @@ impl<'a> FunctionBuilder<'a> {
                 Ok(place)
             }
             HirExprKind::Index { base, index } => {
-                let index = self.lower_expr(index)?;
                 let element_size = self.program.types.layout(expr.ty).size;
                 let mut place = match self.program.types.types[base.ty] {
                     Type::Pointer { .. } => Place {
@@ -783,6 +972,13 @@ impl<'a> FunctionBuilder<'a> {
                     Type::Array { .. } => self.lower_place(base)?,
                     _ => return Err(self.error(expr.span, "invalid indexed place")),
                 };
+                if self.terminated(self.current) {
+                    return Ok(place);
+                }
+                let index = self.lower_expr(index)?;
+                if self.terminated(self.current) {
+                    return Ok(place);
+                }
                 place.projections.push(Projection::Index {
                     index,
                     element_size,
@@ -798,6 +994,28 @@ impl<'a> FunctionBuilder<'a> {
         let dst = self.new_value(ty);
         self.emit(Instruction::Const { dst, value });
         dst
+    }
+
+    fn lower_arguments(&mut self, args: &[HirExpr]) -> Result<Vec<ValueId>, Diagnostic> {
+        let mut values = Vec::with_capacity(args.len());
+        for arg in args {
+            values.push(self.lower_expr(arg)?);
+            if self.terminated(self.current) {
+                break;
+            }
+        }
+        Ok(values)
+    }
+
+    fn diverged_value(&self) -> ValueId {
+        // A diverging call defines its unreachable placeholder before the
+        // call. Propagation must reuse that existing value, never allocate an
+        // undefined destination or emit into the terminated block.
+        debug_assert!(self.terminated(self.current));
+        self.values
+            .len()
+            .checked_sub(1)
+            .expect("diverging expression has a defined placeholder")
     }
 
     fn new_value(&mut self, ty: TypeId) -> ValueId {
@@ -902,6 +1120,14 @@ fn format_instruction(instruction: &Instruction) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
+        Instruction::CallIndirect { dst, callee, args } => format!(
+            "{}call_indirect %{callee}({})",
+            dst.map(|d| format!("%{d} = ")).unwrap_or_default(),
+            args.iter()
+                .map(|a| format!("%{a}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         Instruction::Intrinsic {
             dst,
             intrinsic,
@@ -990,6 +1216,240 @@ fn boot() -> never {
         ));
         let assembly = codegen::emit_assembly(&hir, &mir).unwrap();
         assert!(assembly.contains("call enter_user\n  ud2"));
+    }
+
+    #[test]
+    fn propagates_diverging_children_without_emitting_later_effects() {
+        for body in [
+            "return exit_now();",
+            "let x: u64 = exit_now(); return side();",
+            "return consume(exit_now(), side());",
+            "return !exit_now();",
+            "return side() + exit_now();",
+            "let mut x: u64 = 1; x += exit_now(); return side();",
+            "let pair: Pair = Pair { first: exit_now(), second: side() }; return side();",
+            "let values: [u64; 2] = [exit_now(), side()]; return side();",
+            "if exit_now() { side(); } return side();",
+            "while exit_now() { side(); } return side();",
+        ] {
+            let bool_result = body.contains("!exit_now()");
+            let source = format!(
+                "module mir; struct Pair {{ first:u64, second:u64 }} \
+                 extern \"C\" fn exit_now()->never; \
+                 extern \"C\" fn side()->u64; \
+                 extern \"C\" fn consume(a:u64,b:u64)->u64; \
+                 fn test()->{} {{ {body} }}",
+                if bool_result { "bool" } else { "u64" }
+            );
+            let ast = parser::parse("diverging.oc", &source).unwrap();
+            let hir = typeck::check(&[("diverging.oc".into(), ast)]).unwrap();
+            let mir = lower(&hir).unwrap();
+            let function = &mir.functions[0];
+            let exit = hir
+                .functions
+                .iter()
+                .position(|f| f.qualified_name == "mir::exit_now")
+                .unwrap();
+            let mut exit_blocks = 0;
+            for block in &function.blocks {
+                if let Some(index) = block.instructions.iter().position(|instruction| {
+                    matches!(instruction, Instruction::Call { function, .. } if *function == exit)
+                }) {
+                    exit_blocks += 1;
+                    assert_eq!(index + 1, block.instructions.len(), "{body}");
+                    assert!(matches!(block.terminator, Terminator::Unreachable), "{body}");
+                }
+            }
+            assert_eq!(exit_blocks, 1, "{body}");
+            assert_each_value_defined_once(function);
+            // Emission validates operand/result types as well as catching
+            // accidentally consumed Never placeholders in the surviving MIR.
+            codegen::emit_assembly(&hir, &mir).unwrap();
+        }
+    }
+
+    #[test]
+    fn short_circuit_divergence_keeps_only_returning_phi_predecessors() {
+        let ast = parser::parse(
+            "diverging.oc",
+            "module mir; extern \"C\" fn exit_now()->never; \
+             fn test(value:bool)->bool { return value && exit_now(); }",
+        )
+        .unwrap();
+        let hir = typeck::check(&[("diverging.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let function = &mir.functions[0];
+        let incoming = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.instructions)
+            .find_map(|instruction| match instruction {
+                Instruction::Phi { incoming, .. } => Some(incoming),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(incoming.len(), 1);
+        assert!(matches!(
+            function.blocks[incoming[0].0].terminator,
+            Terminator::Jump(_)
+        ));
+        assert!(function
+            .blocks
+            .iter()
+            .any(|block| matches!(block.terminator, Terminator::Unreachable)));
+        codegen::emit_assembly(&hir, &mir).unwrap();
+    }
+
+    #[test]
+    fn indirect_call_evaluates_target_before_arguments_and_stops_on_divergence() {
+        let ast = parser::parse(
+            "diverging.oc",
+            "module mir; extern \"C\" fn exit_now()->never; \
+             extern \"C\" fn side()->u64; \
+             fn select(value:u64)->fn(u64)->u64 { return side_one; } \
+             fn side_one(value:u64)->u64 { return value; } \
+             unsafe fn test()->u64 { return select(exit_now())(side()); }",
+        )
+        .unwrap();
+        let hir = typeck::check(&[("diverging.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let test = mir
+            .functions
+            .iter()
+            .find(|function| hir.functions[function.source].qualified_name == "mir::test")
+            .unwrap();
+        assert!(matches!(
+            test.blocks[0].instructions.as_slice(),
+            [
+                Instruction::Const { .. },
+                Instruction::Call { dst: None, .. }
+            ]
+        ));
+        assert!(matches!(test.blocks[0].terminator, Terminator::Unreachable));
+        codegen::emit_assembly(&hir, &mir).unwrap();
+    }
+
+    #[test]
+    fn index_evaluates_pointer_base_before_index() {
+        let ast = parser::parse(
+            "order.oc",
+            "module mir; extern \"C\" fn base()->*const u64; \
+             extern \"C\" fn index()->usize; \
+             unsafe fn test()->u64 { return base()[index()]; }",
+        )
+        .unwrap();
+        let hir = typeck::check(&[("order.oc".into(), ast)]).unwrap();
+        let mir = lower(&hir).unwrap();
+        let calls: Vec<_> = mir.functions[0].blocks[0]
+            .instructions
+            .iter()
+            .filter_map(|instruction| match instruction {
+                Instruction::Call { function, .. } => {
+                    Some(hir.functions[*function].qualified_name.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(calls, ["mir::base", "mir::index"]);
+    }
+
+    #[test]
+    fn scalar_repeat_evaluates_once_even_when_empty() {
+        for len in [0, 3, 8193] {
+            let source = format!("module mir; extern \"C\" fn step()->u64; fn test()->u64 {{ let values:[u64;{len}]=[step();{len}]; return 0; }}");
+            let ast = parser::parse("repeat.oc", &source).unwrap();
+            let hir = typeck::check(&[("repeat.oc".into(), ast)]).unwrap();
+            let mir = lower(&hir).unwrap();
+            let instructions = &mir.functions[0].blocks[0].instructions;
+            let results: Vec<_> = instructions
+                .iter()
+                .filter_map(|instruction| match instruction {
+                    Instruction::Call {
+                        dst: Some(value), ..
+                    } => Some(*value),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(results.len(), 1);
+            let stores: Vec<_> = instructions
+                .iter()
+                .filter_map(|instruction| match instruction {
+                    Instruction::Store { value, .. } => Some(*value),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(stores, vec![results[0]; len]);
+            // A large constant repeat must not allocate one SSA spill per
+            // repeated element; only the call and return values are needed.
+            assert_eq!(mir.functions[0].values.len(), 2);
+            assert_each_value_defined_once(&mir.functions[0]);
+        }
+    }
+
+    #[test]
+    fn aggregate_repeat_evaluates_once_into_private_snapshot_even_when_empty() {
+        for len in [0, 3] {
+            let source = format!("module mir; struct Pair{{first:u64,second:u64}} extern \"C\" fn step()->u64; fn test()->u64 {{ let values:[Pair;{len}]=[Pair{{first:step(),second:9}};{len}]; return 0; }}");
+            let ast = parser::parse("repeat.oc", &source).unwrap();
+            let hir = typeck::check(&[("repeat.oc".into(), ast)]).unwrap();
+            let mir = lower(&hir).unwrap();
+            let function = &mir.functions[0];
+            let source_function = &hir.functions[function.source];
+            assert_eq!(function.local_types.len(), source_function.locals.len() + 1);
+            assert_eq!(
+                function.blocks[0]
+                    .instructions
+                    .iter()
+                    .filter(|instruction| matches!(instruction, Instruction::Call { .. }))
+                    .count(),
+                1
+            );
+            let copies: Vec<_> = function.blocks[0]
+                .instructions
+                .iter()
+                .filter_map(|instruction| match instruction {
+                    Instruction::Copy { source, .. } => Some(source),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(copies.len(), len);
+            for source in copies {
+                assert!(
+                    matches!(source.base, PlaceBase::Local(local) if local == source_function.locals.len())
+                );
+            }
+            assert_each_value_defined_once(function);
+            codegen::emit_assembly(&hir, &mir).unwrap();
+        }
+    }
+
+    fn assert_each_value_defined_once(function: &MirFunction) {
+        let mut definitions = vec![0; function.values.len()];
+        for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+            let dst = match instruction {
+                Instruction::Const { dst, .. }
+                | Instruction::FunctionAddress { dst, .. }
+                | Instruction::Load { dst, .. }
+                | Instruction::AddressOf { dst, .. }
+                | Instruction::Unary { dst, .. }
+                | Instruction::Binary { dst, .. }
+                | Instruction::Cast { dst, .. }
+                | Instruction::Phi { dst, .. } => Some(*dst),
+                Instruction::Call { dst, .. }
+                | Instruction::CallIndirect { dst, .. }
+                | Instruction::Intrinsic { dst, .. } => *dst,
+                Instruction::Store { .. } | Instruction::Copy { .. } | Instruction::Asm { .. } => {
+                    None
+                }
+            };
+            if let Some(dst) = dst {
+                definitions[dst] += 1;
+            }
+        }
+        assert!(
+            definitions.iter().all(|count| *count == 1),
+            "SSA definitions: {definitions:?}"
+        );
     }
 
     #[test]

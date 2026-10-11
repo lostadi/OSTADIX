@@ -473,6 +473,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
         with:
           toolchain: 1.97.1
+          targets: aarch64-unknown-linux-gnu, riscv64gc-unknown-linux-gnu, riscv64imac-unknown-none-elf
       - name: Install freestanding build, ELF inspection, and QEMU tools
         run: |
           for source in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
@@ -481,8 +482,280 @@ jobs:
             fi
           done
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends clang lld llvm binutils qemu-system-x86 qemu-system-arm grub-efi-amd64-bin mtools ovmf xorriso
+          sudo apt-get install --yes --no-install-recommends clang lld llvm binutils qemu-user qemu-system-x86 qemu-system-arm qemu-system-riscv opensbi default-jdk-headless grub-efi-amd64-bin mtools ovmf xorriso
           qemu-system-x86_64 --version
+      - name: Build the O-core compiler for native equivalence
+        run: cargo build --locked --bin ocorec --bin olangc
+      - name: Verify imported IR contracts and complete capture inventories
+        env:
+          OCORE_TEST_POINTER_CONSTANTS_OUTPUT_DIR: target/ocore-pointer-initializers
+          OCORE_TEST_OPTIMIZER_PROMISES_OUTPUT_DIR: target/ocore-optimizer-promises
+          OCORE_TEST_AGGREGATE_EVIDENCE: target/ocore-aggregate-source
+          OCORE_TEST_UWTABLE_DECLARATIONS_OUTPUT_DIR: target/ocore-uwtable-declarations-source
+          OCORE_TEST_NOALIAS_OUTPUT_DIR: target/ocore-noalias-source
+          OCORE_TEST_ATOMIC_OUTPUT_DIR: target/ocore-atomics-source
+          OCORE_TEST_CAPTURE_CARGO_PARENT_OUTPUT_DIR: target/ocore-capture-cargo-parent
+          OCORE_TEST_CAPTURE_OWNERSHIP_OUTPUT_DIR: target/ocore-capture-ownership
+        run: |
+          cargo test --locked --package ostadix-api --lib ocore::native_
+          cargo test --locked --bin olangc native_runtime::
+          python3 -m unittest -v tests.test_ocore_llvm_bitcode tests.test_ocore_llvm_import tests.test_ocore_llvm_switch_import tests.test_ocore_llvm_alignment tests.test_ocore_llvm_aliases tests.test_ocore_llvm_comdats tests.test_ocore_llvm_memory_import tests.test_ocore_llvm_pointer_attributes tests.test_ocore_llvm_additional_attributes tests.test_ocore_llvm_symbol_offsets tests.test_ocore_llvm_trap tests.test_ocore_llvm_sret tests.test_ocore_llvm_allocsize tests.test_ocore_llvm_aggregates tests.test_ocore_llvm_aggregate_abi tests.test_ocore_llvm_integer_overflow tests.test_ocore_llvm_uwtable_declarations tests.test_ocore_llvm_noalias_scope_decl tests.test_ocore_llvm_atomics_import tests.test_ocore_llvm_pointer_constants tests.test_ocore_llvm_pointer_operands tests.test_ocore_llvm_optimizer_promises tests.test_ocore_native_weak.WeakSourceApiTests tests.test_ocore_native_alias.AliasSourceApiTests tests.test_ocore_native_comdat.ComdatSourceApiTests tests.test_ocore_native_import_backend tests.test_ocore_java_inventory tests.test_ocore_foreign_frontends tests.test_ocore_cpython_token
+          python3 -m unittest -v tests.test_ocore_runtime_capture_cargo_parent tests.test_ocore_runtime_capture_ownership
+          python3 tools/ocore-runtime/test_capture.py -v
+          python3 -m unittest discover -s tools/ocore-runtime -p test_provider_sources.py -v
+          python3 -m unittest discover -s tools/ocore-runtime/rust -p test_build_inventory.py -v
+          python3 -m unittest discover -s tools/ocore-runtime/rust -p test_stage_roles.py -v
+          python3 -m unittest discover -s tools/ocore-runtime/rust -p test_observe_cargo.py -v
+      - name: Test runtime admission and ELF selection with an installed exact LLVM SDK
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, shutil, subprocess, sys
+          evidence = pathlib.Path("target/ocore-native-runtime-cli")
+          evidence.mkdir(parents=True, exist_ok=True)
+          candidates = []
+          if os.environ.get("OCORE_TEST_LLVM22_BIN"):
+              candidates.append(pathlib.Path(os.environ["OCORE_TEST_LLVM22_BIN"]))
+          candidates.extend([
+              pathlib.Path.home()/".cache/ostadix-toolchains/llvm-22.1.6/sdk/LLVM-22.1.6-Linux-X64/bin",
+              pathlib.Path("/usr/lib/llvm-22/bin"),
+          ])
+          attempts = []
+          sdk = None
+          for candidate in candidates:
+              versions = {}
+              compatible = True
+              for name in ("clang", "clang++", "llvm-nm", "llvm-as", "llvm-dis", "llvm-readobj", "llvm-objdump", "llvm-objcopy", "llvm-dwarfdump", "ld.lld"):
+                  tool = candidate/name
+                  if not tool.is_file() or not os.access(tool, os.X_OK):
+                      compatible = False
+                      break
+                  result = subprocess.run([str(tool), "--version"], capture_output=True, text=True, timeout=10)
+                  versions[name] = result.stdout + result.stderr
+                  if result.returncode or not re.search(r"\b(?:clang version|LLVM version|LLD) 22\.1\.6(?:\s|$)", versions[name]):
+                      compatible = False
+                      break
+              attempts.append({"directory": str(candidate), "versions": versions})
+              if compatible:
+                  sdk = candidate
+                  break
+          report = {"scope": "real capture admission and all-three-ISA ELF, address/relative-table, trap, scalar/aggregate ABI, aggregate SSA, integer overflow, noalias scope, static EH metadata, scalar integer min/max source/native conformance, original Rust native-byte capture/payload inventory and optional original-provider EH/TLS/atomic execution tests", "sdk_attempts": attempts,
+                    "runtime_complete": False, "kernel_execution_verified": False}
+          if sdk is None:
+              report.update(status="skipped", reason="Exact Clang/Clang++/LLVM tools 22.1.6 are not installed; these optional suites do not download the SDK.")
+              print("::notice::SKIP exact-SDK minmax source/native conformance, Rust CGU capture/payload, native-runtime, ELF, address/relative-table, trap, scalar/aggregate ABI, aggregate SSA, integer overflow, noalias scope, static EH and atomic suites: " + report["reason"])
+              result_code = 0
+          else:
+              environment = dict(os.environ, OCORE_TEST_LLVM22_BIN=str(sdk),
+                                 OCORE_TEST_NATIVE_RUNTIME_OUTPUT_DIR=str(evidence/"artifacts"),
+                                 OCORE_TEST_NATIVE_WEAK_OUTPUT_DIR="target/ocore-native-weak",
+                                 OCORE_TEST_NATIVE_ALIAS_OUTPUT_DIR="target/ocore-native-alias",
+                                 OCORE_TEST_NATIVE_COMDAT_OUTPUT_DIR="target/ocore-native-comdat",
+                                 OCORE_TEST_NATIVE_SYMBOL_OFFSETS_OUTPUT_DIR="target/ocore-native-symbol-offsets",
+                                 OCORE_TEST_NATIVE_TRAP_OUTPUT_DIR="target/ocore-native-trap",
+                                 OCORE_TEST_NATIVE_INTEGER_WIDTHS_OUTPUT_DIR="target/ocore-native-integer-widths",
+                                 OCORE_TEST_NATIVE_SRET_OUTPUT_DIR="target/ocore-native-sret",
+                                 OCORE_TEST_NATIVE_ALLOCSIZE_OUTPUT_DIR="target/ocore-native-allocsize",
+                                 OCORE_TEST_NATIVE_AGGREGATES_OUTPUT_DIR="target/ocore-native-aggregates",
+                                 OCORE_TEST_NATIVE_AGGREGATE_EDGES_OUTPUT_DIR="target/ocore-native-aggregate-edges",
+                                 OCORE_TEST_NATIVE_AGGREGATE_ABI_OUTPUT_DIR="target/ocore-native-aggregate-abi",
+                                 OCORE_TEST_NATIVE_INTEGER_OVERFLOW_OUTPUT_DIR="target/ocore-native-integer-overflow",
+                                 OCORE_TEST_NATIVE_EH_OBJECTS_OUTPUT_DIR="target/ocore-native-eh-objects",
+                                 OCORE_TEST_NATIVE_RELATIVE_OUTPUT_DIR="target/ocore-native-relative",
+                                 OCORE_TEST_NATIVE_EH_EXECUTION_OUTPUT_DIR="target/ocore-native-eh-execution",
+                                 OCORE_TEST_NATIVE_TLS_EXECUTION_OUTPUT_DIR="target/ocore-native-tls-execution",
+                                 OCORE_TEST_NATIVE_NOALIAS_OUTPUT_DIR="target/ocore-native-noalias",
+                                 OCORE_TEST_NATIVE_ATOMICS_OUTPUT_DIR="target/ocore-native-atomics",
+                                 OCORE_TEST_NATIVE_MINMAX_OUTPUT_DIR="target/ocore-native-minmax",
+                                 OCORE_TEST_CLANG22=str(sdk/"clang"),
+                                 OCORE_TEST_MINMAX_OUTPUT_DIR="target/ocore-minmax-source",
+                                 OCORE_TEST_RUST_CGU_LLVM_BIN=str(sdk),
+                                 OCORE_TEST_CAPTURE_RUST_CGU_OUTPUT_DIR="target/ocore-rust-cgu-capture",
+                                 OCORE_TEST_RUST_PAYLOAD_OUTPUT_DIR="target/ocore-rust-payload",
+                                 OCORE_TEST_REQUIRE_ALL_ISAS="1")
+              frontends = {}
+              for name in ("rustc", "cargo"):
+                  tool = pathlib.Path(subprocess.check_output(
+                      ["rustup", "which", "--toolchain", "1.97.1", name], text=True).strip()).resolve()
+                  version = subprocess.check_output([str(tool), "-vV" if name == "rustc" else "--version"], text=True)
+                  if name == "rustc":
+                      assert "release: 1.97.1\n" in version and "LLVM version: 22.1.6\n" in version
+                      assert "commit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\n" in version
+                  else:
+                      assert re.match(r"cargo 1\.97\.1(?:\s|$)", version)
+                  frontends[name] = {"path": str(tool), "version": version,
+                                     "bytes": tool.stat().st_size, "sha256": hashlib.sha256(tool.read_bytes()).hexdigest()}
+              rustc = frontends["rustc"]["path"]
+              rust_sysroot = pathlib.Path(subprocess.check_output([rustc, "--print", "sysroot"], text=True).strip())
+              libraries = sorted((rust_sysroot/"lib").glob("libLLVM.so.22.1-rust-1.97.1-*"))
+              assert len(libraries) == 1, "exact Rust LLVM22 parser library is required"
+              environment.update(OCORE_TEST_RUSTC=rustc, OCORE_TEST_LLVM_LIBRARY=str(libraries[0]),
+                                 OCORE_TEST_RUST_CGU_RUSTC=rustc, OCORE_TEST_RUST_CGU_CARGO=frontends["cargo"]["path"],
+                                 OCORE_TEST_RUST_PAYLOAD_RUSTC=rustc)
+              report["selected_frontends"] = frontends
+              environment.pop("OCORE_TEST_MINMAX_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_ALLOCSIZE_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_AGGREGATES_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_AGGREGATE_ABI_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_INTEGER_OVERFLOW_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_RELATIVE_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_EH_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_TLS_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_NOALIAS_REFERENCE_ONLY", None)
+              environment.pop("OCORE_TEST_ATOMICS_REFERENCE_ONLY", None)
+              suites = [("integer-minmax-source-and-original-frontends", ["tests.test_ocore_llvm_integer_minmax"]),
+                        ("rust-cgu-native-byte-capture", ["tests.test_ocore_runtime_capture_rust_cgu"]),
+                        ("rust-native-payload-inventory", ["tools/ocore-runtime/rust/test_payload_inventory.py"]),
+                        ("runtime-admission", ["tests.test_ocore_native_runtime"]),
+                        ("weak-elf-and-closure", ["tests.test_ocore_native_weak.WeakNativeTests",
+                                                  "tests.test_ocore_native_weak.WeakRuntimeClosureTests"]),
+                        ("alias-elf-and-closure", ["tests.test_ocore_native_alias.AliasNativeTests",
+                                                   "tests.test_ocore_native_alias.AliasRuntimeClosureTests"]),
+                        ("comdat-elf-and-closure", ["tests.test_ocore_native_comdat.ComdatNativeTests",
+                                                    "tests.test_ocore_native_comdat.ComdatRuntimeClosureTests"]),
+                        ("symbolic-offsets", ["tests.test_ocore_native_symbol_offsets"]),
+                        ("target-local-traps", ["tests.test_ocore_native_trap"]),
+                        ("all-integer-widths-and-abi", ["tests.test_ocore_native_integer_widths"]),
+                        ("typed-aggregate-result-abi", ["tests.test_ocore_native_sret"]),
+                        ("allocation-size-promises", ["tests.test_ocore_native_allocsize"]),
+                        ("aggregate-ssa-and-memory", ["tests.test_ocore_native_aggregates"]),
+                        ("aggregate-select-and-odd-width-memory", ["tests.test_ocore_native_aggregate_edges"]),
+                        ("fixed-c-fastcc-integer-pointer-aggregate-abi-rv-lp64", ["tests.test_ocore_native_aggregate_abi"]),
+                        ("all-integer-overflow-families-and-widths-rv-lp64", ["tests.test_ocore_native_integer_overflow"]),
+                        ("static-itanium-dwarf-eh-object-metadata", ["tests.test_ocore_native_eh_objects"]),
+                        ("static-relative32-tables-and-signed-load-relative", ["tests.test_ocore_native_relative"]),
+                        ("compiler-only-noalias-scopes-freestanding-linux-execution", ["tests.test_ocore_native_noalias_scope"]),
+                        ("coherent-ram-integer-atomics-original-provider-pthread-execution", ["tests.test_ocore_native_atomics"]),
+                        ("scalar-integer-minmax-native-conformance", ["tests.test_ocore_native_minmax"]),
+                        ("static-itanium-dwarf-eh-original-provider-execution", ["tests.test_ocore_native_eh_execution"]),
+                        ("static-nonpreemptive-linux-tls-original-provider-execution", ["tests.test_ocore_native_tls_execution"])]
+              results = []
+              for name, modules in suites:
+                  suite_environment = environment
+                  if name in {"static-itanium-dwarf-eh-object-metadata", "static-relative32-tables-and-signed-load-relative",
+                              "compiler-only-noalias-scopes-freestanding-linux-execution",
+                              "coherent-ram-integer-atomics-original-provider-pthread-execution",
+                              "scalar-integer-minmax-native-conformance",
+                              "static-itanium-dwarf-eh-original-provider-execution",
+                              "static-nonpreemptive-linux-tls-original-provider-execution"}:
+                      suite_environment = dict(environment, PATH=str(sdk) + os.pathsep + environment.get("PATH", ""))
+                  if name == "static-relative32-tables-and-signed-load-relative":
+                      # Record the selected carrier linker before adding the
+                      # SDK assembler to PATH; host linker selection is explicit.
+                      suite_environment["LD_LLD"] = environment.get("LD_LLD") or shutil.which("ld.lld") or "ld.lld"
+                  if name == "compiler-only-noalias-scopes-freestanding-linux-execution":
+                      suite_environment["LD_LLD"] = str(sdk/"ld.lld")
+                      compatibility = sdk.resolve().parents[2]/"compat/root/usr/lib/x86_64-linux-gnu"
+                      if compatibility.is_dir():
+                          suite_environment["LD_LIBRARY_PATH"] = str(compatibility) + os.pathsep + environment.get("LD_LIBRARY_PATH", "")
+                  if name in {"static-itanium-dwarf-eh-original-provider-execution",
+                              "coherent-ram-integer-atomics-original-provider-pthread-execution",
+                              "static-nonpreemptive-linux-tls-original-provider-execution"}:
+                      from tests.test_ocore_native_eh_execution import PROVIDERS
+                      capture_root = pathlib.Path(environment.get("OCORE_TEST_RUNTIME_CAPTURE_ROOT",
+                          str(pathlib.Path.home()/".cache/ostadix-runtime-captures")))
+                      missing = [str(capture_root/folder/filename) for folder, filename, _ in PROVIDERS.values()
+                                 if not (capture_root/folder/filename).is_file()]
+                      if missing:
+                          reason = "immutable original full-source provider observations unavailable: " + ", ".join(missing)
+                          print("::notice::SKIP " + name + ": " + reason)
+                          results.append({"suite": name, "status": "skipped", "reason": reason, "exit_code": 0})
+                          continue
+                      suite_environment["LD_LLD"] = str(sdk/"ld.lld")
+                      # A preinstalled release SDK may have its pinned host
+                      # compatibility libraries alongside it; do not download them.
+                      compatibility = sdk.resolve().parents[2]/"compat/root/usr/lib/x86_64-linux-gnu"
+                      if compatibility.is_dir():
+                          suite_environment["LD_LIBRARY_PATH"] = str(compatibility) + os.pathsep + environment.get("LD_LIBRARY_PATH", "")
+                  command = ([sys.executable, *modules, "-v"] if name == "rust-native-payload-inventory"
+                             else [sys.executable, "-m", "unittest", "-v", *modules])
+                  result = subprocess.run(command, env=suite_environment)
+                  results.append({"suite": name, "exit_code": result.returncode})
+              result_code = next((item["exit_code"] for item in results if item["exit_code"]), 0)
+              status = "failed" if result_code else ("passed_with_skipped_suites"
+                  if any(item.get("status") == "skipped" for item in results) else "passed")
+              report.update(status=status, sdk=str(sdk),
+                            exit_code=result_code, suites=results)
+          (evidence/"status.json").write_text(json.dumps(report, indent=2) + "\n")
+          sys.exit(result_code)
+          PY
+      - name: Verify actual C and Rust frontend lowering through all own ISA emitters
+        run: |
+          python3 scripts/check_ocore_import_equivalence.py --output-dir target/ocore-import-equivalence
+          python3 scripts/check_ocore_foreign_frontends.py --output-dir target/ocore-foreign-frontends
+      - name: Verify switch bodies and large dispatch on all three ISA objects
+        env:
+          OCORE_TEST_REQUIRE_ALL_ISAS: "1"
+          OCORE_TEST_NATIVE_SWITCH_OUTPUT_DIR: target/ocore-native-switch
+        run: python3 -m unittest -v tests.test_ocore_native_switch
+      - name: Verify byte memory operations and guarded accesses on all three ISA objects
+        env:
+          OCORE_TEST_REQUIRE_ALL_ISAS: "1"
+          OCORE_TEST_NATIVE_MEMORY_OUTPUT_DIR: target/ocore-native-memory
+        run: python3 -m unittest -v tests.test_ocore_native_memory
+      - name: Verify actual call-frame rows on all three native object ISAs
+        run: >-
+          python3 scripts/check_ocore_native_cfi.py
+          --ocorec "$PWD/target/debug/ocorec"
+          --dwarfdump llvm-dwarfdump
+          --objdump llvm-objdump
+          --readobj llvm-readobj
+          --output-dir target/ocore-native-cfi
+      - name: Verify same-source x86_64, AArch64, and RISC-V native equivalence
+        run: >-
+          python3 scripts/check_ocore_native_equivalence.py
+          --ocorec "$PWD/target/debug/ocorec"
+          --output-dir target/ocore-native-equivalence
+      - name: Prove the native RV64 supervisor bootstrap and rejection controls
+        run: >-
+          python3 scripts/check_ocore_riscv64_boot.py
+          --ocorec "$PWD/target/debug/ocorec"
+          --build-dir target/ocore-riscv64-boot
+      - name: Prove original Rust bodies on the native RV64 supervisor
+        run: >-
+          python3 scripts/check_ocore_riscv64_rust_bridge.py
+          --ocorec "$PWD/target/debug/ocorec"
+          --build-dir target/ocore-riscv64-rust-bridge
+      - name: Retain native compiler equivalence evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ocore-native-equivalence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/ocore-native-equivalence/
+            target/ocore-import-equivalence/
+            target/ocore-foreign-frontends/
+            target/ocore-riscv64-boot/
+            target/ocore-riscv64-rust-bridge/
+            target/ocore-native-runtime-cli/
+            target/ocore-native-switch/
+            target/ocore-native-memory/
+            target/ocore-native-cfi/
+            target/ocore-pointer-initializers/
+            target/ocore-optimizer-promises/
+            target/ocore-native-weak/
+            target/ocore-native-alias/
+            target/ocore-native-comdat/
+            target/ocore-native-symbol-offsets/
+            target/ocore-native-trap/
+            target/ocore-native-integer-widths/
+            target/ocore-native-sret/
+            target/ocore-native-allocsize/
+            target/ocore-aggregate-source/
+            target/ocore-native-aggregates/
+            target/ocore-native-aggregate-edges/
+            target/ocore-native-aggregate-abi/
+            target/ocore-native-integer-overflow/
+            target/ocore-native-eh-objects/
+            target/ocore-native-relative/
+            target/ocore-native-eh-execution/
+            target/ocore-native-tls-execution/
+            target/ocore-native-noalias/
+            target/ocore-noalias-source/
+            target/ocore-atomics-source/
+            target/ocore-native-atomics/
+            target/ocore-uwtable-declarations-source/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify isolated minimal Linux personality corpus
         run: ocore/kernel/check-linux-minimal-slice.sh
       - name: Prove deterministic x86_64 UEFI media boot through OVMF

@@ -1,0 +1,244 @@
+<h1>External runtime source capture</h1>
+<p><code>scripts/ocore_runtime_capture.py</code> records source-built runtime/compiler frontend
+outputs for the O-core importer. It executes each declared build through compiler
+wrappers, preserves the original compiler command, and replays successful C/C++
+translation units or Rust crates into separate LLVM text units. A successful capture
+does not establish O-core lowering, dependency closure, or native OSTADIX execution.</p>
+<p>The pinned recipes retain the complete CPython engine and Rust stdlib/compiler
+objective. Their current capture profiles are hosted source builds. They do not
+pretend that the OSTADIX libc/std platform ports or full-runtime native gates already
+exist. CPython source is pinned to
+<code>c35ca4cb6e296d1770fe45f9414b58eb06242e02</code>; Rust source and initial compiler are
+pinned to <code>8bab26f4f68e0e26f0bb7960be334d5b520ea452</code> / Rust 1.97.1. Both recipes
+require LLVM/Clang/llvm-nm 22.1.6. A different installed version fails admission.</p>
+<pre><code class="language-sh">python3 scripts/ocore_runtime_capture.py validate tools/ocore-runtime/cpython.recipe.json
+python3 scripts/ocore_runtime_capture.py validate tools/ocore-runtime/rust.recipe.json
+python3 tools/ocore-runtime/test_capture.py -v
+
+python3 scripts/ocore_runtime_capture.py capture tools/ocore-runtime/cpython.recipe.json \
+  --source /absolute/pinned-cpython-checkout \
+  --build /absolute/empty-cpython-build \
+  --output /absolute/empty-cpython-capture \
+  --cc clang-22 --cxx clang++-22 --llvm-nm llvm-nm-22 \
+  --unit-inventory /absolute/build-generated-cpython-units.json
+</code></pre>
+<p>Check out the exact source revision, initialize its pinned submodules recursively,
+and keep the checkout clean. Use empty out-of-tree build and capture directories.
+The tool does not fetch sources, install tools, or accept a populated build cache
+as capture evidence. External libraries need separate pinned recipes; finding a
+host library during configure does not source-build that library through O-core.
+Build recipes expand <code>{source}</code>, <code>{build}</code>, <code>{output}</code>, <code>{recipe_dir}</code>, <code>{jobs}</code>,
+<code>{cc}</code>, <code>{cxx}</code>, <code>{rustc}</code>, <code>{cargo}</code>, and <code>{rustc_wrapper}</code> in argv/cwd/environment fields.
+The source commit timestamp supplies <code>SOURCE_DATE_EPOCH</code> unless explicitly set.
+Replay preserves source-argument spelling so <code>__FILE__</code> does not become an
+absolute-path variant of the original build.</p>
+<p>The same <code>capture</code> command accepts <code>rust.recipe.json</code>, <code>--rustc rustc</code>, and
+<code>--cargo cargo</code>; the initial Rust and Cargo releases are both pinned to 1.97.1.
+Its source-bootstrap command requests the library, rustc implementation and Cargo,
+disables downloaded rustc/LLVM substitutions, and uses the capture wrapper for Rust
+compiler calls. A preparation step writes an out-of-tree <code>bootstrap.toml</code> before
+<code>x.py</code> starts: the Python launcher reads initial Rust/Cargo paths from that file
+before the Rust bootstrap can apply command-line <code>--set</code> overrides. The generated
+configuration uses the upstream <code>dist</code> profile, locked dependencies and explicit
+captured C/C++ drivers and linker. LLVM builds from the pinned submodule; linking
+uses an external <code>lld</code> on <code>PATH</code>, with one LLVM linker job. Supply the scoped matching
+toolchain&#39;s library paths when its linker needs compatibility libraries.
+The pinned Rust bootstrap forwards an existing wrapper through
+<code>RUSTC_WRAPPER_REAL</code>; the capture records each actual stage compiler separately.
+Its C/C++ configuration must select the supplied wrappers. Object files produced
+by a compiler that bypasses them fail the output audit. A complete Rust milestone
+also needs native compiler execution and routing newly compiled programs through
+O-core; capturing rustc&#39;s own implementation provides only one side of that bridge.
+The required-unit floor retains <code>core</code>, <code>alloc</code>, <code>std</code>, both panic runtimes, unwind,
+proc macros, the test runtime and compiler builtins. Full Cargo unit graphs and LLVM
+<code>compile_commands.json</code>, together with final output membership, must account for
+bootstrap helpers, stage-specific library/compiler variants and source dependencies
+before a complete source inventory can be admitted.</p>
+<h2>Report contract</h2>
+<p><code>report.json</code> uses <code>ocore-runtime-capture-v1</code>. Important fields are:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>manifest</code>, <code>source</code>, <code>tools</code></td>
+<td>Recipe hash, exact Git commit/submodule state, compiler version and executable hashes</td>
+</tr>
+<tr>
+<td><code>build_steps</code></td>
+<td>Exact argument arrays, cwd, logs and exit status</td>
+</tr>
+<tr>
+<td><code>invocations</code></td>
+<td>Atomic per-call records, expanded response files, relevant build environment, original status, replay status and errors</td>
+</tr>
+<tr>
+<td><code>units[].ir</code></td>
+<td>LLVM text path, SHA-256, size, frontend target triple and DataLayout</td>
+</tr>
+<tr>
+<td><code>units[].dependencies</code></td>
+<td>Frontend dependency-file inputs with paths/hashes</td>
+</tr>
+<tr>
+<td><code>lowering_unit_ids</code>, <code>non_lowering_units</code></td>
+<td>Exact partition of runtime units and explicitly evidenced configure probes/host build tools; all IR remains in <code>units</code></td>
+</tr>
+<tr>
+<td><code>unit_inventory</code>, <code>unclassified_unit_ids</code></td>
+<td>Hashed complete inventory and any captured IR without a justified role</td>
+</tr>
+<tr>
+<td><code>runtime_output_membership</code></td>
+<td>Observed native final-output roots, link inputs, archive members and contributing compiler invocations</td>
+</tr>
+<tr>
+<td><code>invocations[].outputs</code></td>
+<td>Native reference outputs, hashes and defined/undefined symbols</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td>Observed link inputs, declared external dependencies and unresolved symbols; <code>closed</code> remains false</td>
+</tr>
+<tr>
+<td><code>failed_required_units</code></td>
+<td>Missing, failed or target-mismatched declared units</td>
+</tr>
+<tr>
+<td><code>uncaptured_outputs</code></td>
+<td>Native objects/Rust archives without matching captured production evidence</td>
+</tr>
+</tbody></table>
+<p>IR hashes and target metadata are checked again when generating a report. Exact
+copies of captured object/archive outputs retain their captured origin. LLVM IR is
+not retargeted: the importer must preserve or explicitly lower the frontend&#39;s ABI
+and target-specific semantics. Host tools and native payloads need distinct target
+profiles in their full build inventory.</p>
+<p><code>capture_complete</code> requires successful build steps, exact source/tool admission,
+all declared unit/output requirements, successful LLVM replay, and a clean native
+object audit. The pinned runtime recipes also require a complete build-generated
+unit inventory. Its schema is <code>ocore-runtime-unit-inventory-v1</code>, with <code>complete:true</code>
+and <code>units</code> containing <code>{id, kind, source, role?, target_triple?}</code> records. <code>kind</code> is
+<code>clang</code> for C/C++ or <code>rustc</code>; <code>source</code> is a checkout-relative path/glob. This inventory
+must come from the full build/module configuration, including required modules that
+configure could otherwise omit. The recipe&#39;s required-unit list is a floor, not a
+complete standard-library manifest. Without the full inventory the tool retains
+all captured evidence, reports incomplete coverage, and exits unsuccessfully.</p>
+<p>Every captured LLVM unit must belong to the inventory&#39;s lowering source units or
+an explicit <code>non_lowering_units</code> rule. A rule contains a unique <code>id</code>, a <code>role</code> of
+<code>configure_probe</code> or <code>host_build_tool</code>, and either exact <code>unit_ids</code> or a
+<code>{kind, source, build_step}</code> selector. Its <code>evidence</code> contains a concrete <code>reason</code>
+and nonempty <code>artifacts</code> with absolute paths and SHA-256 hashes. The report binds
+each exclusion to those artifacts, the inventory hash and the actual sequential
+build step&#39;s argv, status and log hash. Conflicting assignments, unmatched rules,
+changed evidence and unclassified units reject completeness. Every recipe-required
+capability must retain a selected runtime unit. Whole source units remain selected, including
+cold functions; selection does not use execution-frequency or percentage cutoffs.</p>
+<p><code>units</code> may use <code>build_step</code> or exact <code>invocation_ids</code> to distinguish host/bootstrap
+variants from runtime variants of the same source. The complete inventory determines
+the lowering set; each recipe-required capability must still have a selected runtime
+unit. One frontend invocation cannot split its Rust codegen units between runtime
+and host roles.</p>
+<p>Exclusions are also checked against actual native build/link membership. Roots are
+the recipe&#39;s required final outputs plus <code>runtime_outputs</code> entries in the inventory,
+each with an absolute <code>path</code>, <code>sha256</code> and optional <code>bytes</code>. Compiler link inputs and
+regular GNU/BSD archive member hashes connect those roots to captured object
+production. A claimed probe/helper whose object contributes to a declared runtime
+output is rejected, even when its function was never exercised. Thin archives and
+changed link artifacts cannot establish this exclusion proof. Dynamically loaded
+extensions must be explicit runtime roots. This observed graph does not prove that
+a caller-declared runtime inventory includes every platform service, library or
+resource; dependency closure and native qualification remain separate requirements.</p>
+<p>The report always leaves <code>dependency_closure_complete</code>, <code>ocore_lowering_complete</code>,
+<code>native_execution_qualified</code>, and <code>runtime_complete</code> false. Those require subsequent
+source dependency capture, verified O-core imports, linkage/platform implementation,
+and native execution gates. Percentages or counts of LLVM units cannot establish
+those properties.</p>
+<h2>Independent capture re-admission</h2>
+<p>Recheck the original evidence before importing a saved capture report:</p>
+<pre><code class="language-sh">python3 scripts/ocore_runtime_capture.py verify-report /absolute/capture/report.json \
+  --receipt /absolute/new-capture-verification.json
+</code></pre>
+<p>Verification reconstructs the report from the original recipe, pinned clean source,
+compiler artifacts, invocation journal, full unit inventory and declared native
+output graph. It checks every reconstructed report field, including source/stage
+selectors, exclusions, cold linked objects and archive members. Rewriting mutually
+consistent selected and required unit lists cannot replace that evidence. The final
+inventory and build-log hashes are bound in the original capture session, so changing
+those artifacts and regenerating a report also fails admission. Keep the
+original capture directory and its referenced artifacts available; the command
+does not rebuild, recapture or rewrite them. A failed recheck removes a stale receipt
+at the requested output path, and receipts cannot overwrite capture inputs.</p>
+<p><code>verify_report(report: dict)</code> provides the same read-only reconstruction for the
+embedded <code>olangc</code> worker. Its <code>report_content_sha256</code> hashes canonical JSON; the CLI
+also records the exact input file&#39;s hash in <code>report</code>. The receipt proves the capture
+partition and observed declared output membership. It does not establish a complete
+platform, dependency closure or native runtime execution.</p>
+<p>For an incomplete capture, diagnose all whole LLVM units belonging to one recorded
+successful build step without treating that selection as completeness admission:</p>
+<pre><code class="language-sh">python3 scripts/check_ocore_runtime_imports.py /absolute/capture/report.json \
+  --step build-runtime-and-extensions --ocorec target/debug/ocorec \
+  --llvm-library /absolute/matching/libLLVM.so --llvm-sha256 DIGEST \
+  --jobs 8 --output /absolute/new-import-audit
+</code></pre>
+<p>The audit snapshots the compiler, preserves every captured unit as provenance and
+retains per-unit diagnostics. Successful imports receive independent verification
+and O-core object emission. <code>audit_complete</code> means every selected unit was attempted;
+all runtime completeness and native qualification flags remain false.</p>
+<h2>O-core lowering driver</h2>
+<p>The opt-in <code>olangc</code> path consumes a complete capture report before the ordinary
+<code>.O</code> parser. It imports the explicitly selected runtime units with the matching LLVM parser through
+the sibling <code>ocorec</code>, verifies the resulting native IR, and optionally emits objects
+through O-core&#39;s own ISA backend:</p>
+<pre><code class="language-sh">cargo build --locked --bin olangc --bin ocorec
+target/debug/olangc /absolute/capture/report.json --native-runtime \
+  --native-isa x86_64-unknown-none --native-runtime-output ir \
+  -o /absolute/new-native-ir-directory
+</code></pre>
+<p>Use <code>--native-runtime-output obj</code> for relocatable objects. An explicitly selected
+LLVM parser uses <code>--llvm-library PATH --llvm-sha256 DIGEST</code>. The frontend module&#39;s
+architecture must match the selected ISA; its target triple and DataLayout are
+preserved. Cross-module platform/layout differences, unresolved declarations,
+incompatible ABI contracts, duplicate exported definitions and unverified declared
+dependencies fail closed. Module-local/private symbols retain their own scopes.</p>
+<p><code>coverage.json</code> binds the capture report, imported module hashes and structural
+verification receipts. It records every unit, including failures, and distinguishes
+unit lowering from symbol closure and native execution. Partial output directories
+remain inspectable after failure. A successful object-set result has not linked or
+booted a runtime, executed <code>.O</code>, or supplied an engine adapter; <code>runtime_complete</code>
+and <code>native_execution_qualified</code> remain false.</p>
+<p><code>rust_probe.rs</code> is a small actual <code>no_std</code> Rust frontend probe with three scalar
+C-ABI exports. It is not evidence of stdlib/rustc completeness or native compiler
+bootstrap. Its floating-point, unwinding and platform dependencies are intentionally
+outside this probe&#39;s scope, while the full Rust recipe continues to require them.</p>
+<h2>Current boundaries</h2>
+<p>Capture covers calls routed through <code>CC</code>, <code>CXX</code>, <code>RUSTC_WRAPPER</code>, and Rust&#39;s forwarded
+bootstrap wrapper. It is not a system-wide process tracer. The object audit checks
+the declared audit roots; outputs outside those roots are not silently claimed as
+covered. Archives/shared libraries supplied by the host are dependency evidence,
+not imported implementations. Required-unit inventories and source-built dependency
+recipes must account for those paths before a runtime can be complete.</p>
+<p>GNU Clang response files and Rust&#39;s line-based response files are supported, as
+are parallel compilation, multiple C/C++ source files in a command, and multiple
+Rust LLVM codegen units. Preprocessing/metadata-only calls and failed feature probes
+remain in the journal. Failed declared units fail completeness. Required assembly,
+stdin translation units, failed IR replay, and absent target metadata fail capture
+instead of disappearing from the inventory. Wrappers preserve the original native
+compiler exit status, so later units still build after a replay gap; the final
+capture command rejects the resulting incomplete report. LLVM-only builds without native outputs
+need a separate artifact policy rather than pretending to satisfy the current native
+reference-output audit.</p>
+<p>The CPython recipe explicitly requires representative standard-library extensions,
+including SSL, SQLite, ctypes, compression and Tk. Missing development dependencies
+therefore remain visible failures. It still needs a full extension inventory and
+source-built dependency recipes. The Rust recipe retains both panic profiles,
+core/alloc/std, rustc&#39;s LLVM implementation, Cargo and helper closure; an abort-only
+or <code>no_std</code> capture does not satisfy the requested full Rust scope.</p>
+<p>Relevant upstream contracts are <a href="https://clang.llvm.org/docs/CommandGuide/clang.html">Clang&#39;s LLVM emission options</a>,
+<a href="https://doc.rust-lang.org/rustc/command-line-arguments.html#--emit-specifies-the-types-of-output-files-to-generate">rustc output kinds</a>,
+<a href="https://github.com/rust-lang/rust/blob/8bab26f4f68e0e26f0bb7960be334d5b520ea452/src/bootstrap/src/core/builder/cargo.rs">the pinned Rust wrapper forwarding</a>,
+<a href="https://github.com/rust-lang/rust/blob/8bab26f4f68e0e26f0bb7960be334d5b520ea452/bootstrap.example.toml">its bootstrap options</a>,
+and <a href="https://github.com/python/cpython/blob/c35ca4cb6e296d1770fe45f9414b58eb06242e02/Modules/Setup.stdlib.in">CPython&#39;s extension build inventory</a>.</p>

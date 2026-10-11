@@ -1,0 +1,1526 @@
+--- a/scripts/ocore_runtime_capture.py
++++ b/scripts/ocore_runtime_capture.py
+@@ -35,6 +35,11 @@
+ # a supplied parent record nor its session may choose the production worker.
+ REGISTERED_CARGO_OBSERVER_SHA256 = "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
+ RUST_EMBEDDED_POLICY = "rust-embedded-bc-v1"
++RUST_PRODUCER_POLICY = "rust-producer-native-link-v1"
++# Private registration, not a report-controlled image selection. A production
++# integration must register its new source-built images independently.
++REGISTERED_RUST_HOOK_MANIFESTS = {"78f7b0f49e347f0f56c177222f3be74133b611c0934f954e0511d3454e6ac0d7"}
++REGISTERED_RUST_PRODUCER_DECODER_SHA256 = "1242605d37ee8bd6a6c88703ae9742508a4be4bdeccb3821e901921433967986"
+ REGISTERED_RUST_PAYLOAD_SHA256 = "0190404305ffa887b60d5f23e9af64029c1fe770ce6c705d19a65ee3a89d6767"
+ NATIVE_TOOL_KINDS = {"ld": "linker", "ld.lld": "linker", "ld.bfd": "linker",
+                      "ld.gold": "linker", "ar": "archive", "llvm-ar": "archive",
+@@ -113,7 +118,17 @@
+         raise CaptureError("capture worker source changed while snapshotting")
+     worker = {"schema": "ocore-runtime-capture-worker-v1", "source": original, "artifact": artifact,
+               "python": {**file_info(Path(sys.executable)), "invoked_path": sys.executable}, "wrappers": {}}
+-    if rust_policy is not None:
++    if rust_policy == RUST_PRODUCER_POLICY:
++        helper = source.parent.parent / "tools/ocore-runtime/rust/producer_capture.py"
++        original_helper = file_info(helper)
++        if original_helper["sha256"] != REGISTERED_RUST_PRODUCER_DECODER_SHA256:
++            raise CaptureError("Rust producer decoder differs from its independently registered SHA-256")
++        path = directory / "rust-producer-decoder.py"
++        path.write_bytes(helper.read_bytes())
++        path.chmod(0o444)
++        worker["rust_producer_decoder"] = {"schema": "ocore-rust-producer-decoder-worker-v1",
++            "source": original_helper, "artifact": file_info(path)}
++    elif rust_policy is not None:
+         if rust_policy != RUST_EMBEDDED_POLICY:
+             raise CaptureError("unsupported Rust capture policy")
+         helper = source.parent.parent / "tools/ocore-runtime/rust/payload_inventory.py"
+@@ -163,7 +178,10 @@
+         path = directory / "wrappers" / name
+         if file_info(path) != worker["wrappers"][name] or path.read_bytes() != wrapper_bytes(directory, kind, worker):
+             raise CaptureError("capture worker wrapper changed or does not execute the frozen worker: " + name)
+-    if session.get("recipe", {}).get("toolchain", {}).get("rust_capture_policy") is not None:
++    policy = session.get("recipe", {}).get("toolchain", {}).get("rust_capture_policy")
++    if policy == RUST_PRODUCER_POLICY:
++        rust_producer_decoder(session, directory)
++    elif policy is not None:
+         rust_payload_extractor(session, directory)
+     return worker
+ 
+@@ -183,6 +201,132 @@
+     namespace = {"__name__": "ocore_capture_rust_payload", "__file__": str(path)}
+     exec(compile(raw, str(path), "exec"), namespace)
+     return namespace
++
++
++def rust_producer_decoder(session: dict, directory: Path) -> dict:
++    record = session.get("capture_worker", {}).get("rust_producer_decoder")
++    if not isinstance(record, dict) or record.get("schema") != "ocore-rust-producer-decoder-worker-v1":
++        raise CaptureError("original Rust producer capture requires its pinned decoder")
++    path = directory.resolve() / "rust-producer-decoder.py"
++    raw = cargo_artifact_bytes(record["artifact"], path)
++    if record["artifact"]["sha256"] != REGISTERED_RUST_PRODUCER_DECODER_SHA256 or record["source"]["sha256"] != REGISTERED_RUST_PRODUCER_DECODER_SHA256:
++        raise CaptureError("Rust original producer decoder differs from its registered SHA-256")
++    namespace = {"__name__": "ocore_capture_rust_producer", "__file__": str(path)}
++    exec(compile(raw, str(path), "exec"), namespace)
++    return namespace
++
++
++def rust_hook_registration(session: dict, decoder: dict, compiler_artifact: dict) -> dict:
++    selected = session["recipe"]["toolchain"]["rust_hook_registration"]
++    digest = selected["expected_manifest_sha256"]
++    if digest not in REGISTERED_RUST_HOOK_MANIFESTS or selected["artifact"]["sha256"] != digest:
++        raise CaptureError("Rust hook image is absent from the independent registry")
++    return decoder["validate_registration"](selected["artifact"], digest, compiler_artifact)
++
++
++def prepare_rust_producer(event: dict, directory: Path, session: dict, session_path: Path,
++                          native_environment: dict, program: str, executed_args: list[str]) -> None:
++    decoder = rust_producer_decoder(session, session_path)
++    compiler_artifact = file_info(Path(event["frontend"]["invoked_path"]))
++    registration = rust_hook_registration(session, decoder, compiler_artifact)
++    root = directory / "original-producer"
++    root.mkdir()
++    seed = directory / "original-invocation-seed.json"
++    write_json(seed, {"schema": "ocore-rust-original-invocation-seed-v1", "compiler_invocation_id": event["id"],
++        "argv": [compiler_artifact["path"], *executed_args], "incoming_program": program, "cwd": event["cwd"],
++        "environment_before_context": native_environment, "compiler": compiler_artifact,
++        "cargo_parent": event.get("cargo_parent"), "capture_worker": event["capture_worker"],
++        "hook_registration": session["recipe"]["toolchain"]["rust_hook_registration"]["artifact"]})
++    context = directory / "original-producer-context.json"
++    write_json(context, {"schema": "ocore-rust-producer-context-v1", "compiler_invocation_id": event["id"],
++        "cargo_parent_invocation_id": event.get("cargo_parent_invocation_id"), "cargo_parent": event.get("cargo_parent"),
++        "output_directory": str(root), "invocation_seed": file_info(seed), "source_capture_worker": event["capture_worker"],
++        "hook_build_manifest": registration["hook_build_manifest"]})
++    event["rust_original_producer_context"] = file_info(context)
++    event["rust_original_producer_registration"] = session["recipe"]["toolchain"]["rust_hook_registration"]["artifact"]
++    native_environment["OCORE_RUST_PRODUCER_CONTEXT"] = str(context)
++
++
++def capture_rust_original_producer(event: dict, directory: Path, session: dict, session_path: Path) -> None:
++    if "rust_original_producer_context" not in event:
++        raise CaptureError("original Rust producer context was not registered before execution")
++    decoder = rust_producer_decoder(session, session_path)
++    compiler_artifact = file_info(Path(event["frontend"]["invoked_path"]))
++    registration = rust_hook_registration(session, decoder, compiler_artifact)
++    root = directory / "original-producer"
++    manifest = decoder["packet_manifest"](root, directory / "original-packet-manifest.json", event["rust_original_producer_context"])
++    event["rust_original_packet_manifest"] = manifest
++    observed = decoder["decode"](manifest, event["rust_original_producer_context"], registration,
++        invocation_id=event["id"], compiler=compiler_artifact, cargo_parent=event.get("cargo_parent"),
++        observed_compiler_status=event["exit_code"])
++    event["rust_original_producer"] = observed
++    for index, producer in enumerate(observed["producer_units"]):
++        path = directory / f"original-unit-{index}.bc"
++        path.write_bytes(decoder["checked"](producer["ir"]).read_bytes())
++        ir = ir_info(path, session["tools"]["llvm_dis"])
++        if ir["target_triple"].encode() != bytes(producer["target_triple_bytes"]) or ir["data_layout"].encode() != bytes(producer["data_layout_bytes"]):
++            raise CaptureError("original BC target/DataLayout differs from source-issued producer")
++        event["units"].append({"id": f"{event['id']}:producer:{producer['emission_id']}", "kind": "rustc",
++            "source": event["sources"][0] if event["sources"] else event["rust_original_producer_context"],
++            "source_role_resolved": bool(event["sources"]), "ir": ir,
++            "frontend_version": event["frontend"]["version"], "dependencies": [],
++            "original_producer": producer, "frontend_replay_used": False})
++    # Original objects and output associations are genuine. Every unresolved
++    # descendant/provider/source/assembly/LTO edge still blocks full closure.
++    event["capture_errors"].extend("original Rust producer closure gap: " + item["kind"] for item in observed["gaps"])
++
++
++def verify_rust_original_event(event: dict, session: dict, session_path: Path) -> None:
++    if event.get("kind") != "rustc" or session["recipe"]["toolchain"].get("rust_capture_policy") != RUST_PRODUCER_POLICY:
++        return
++    policy = event.get("rust_capture", {})
++    if policy.get("policy") != RUST_PRODUCER_POLICY or event.get("executed_argv") != event["argv"] or policy.get("frontend_replay_used") is not False:
++        raise CaptureError("original producer policy changed original argv or replayed the frontend")
++    if not policy.get("applied"):
++        if event.get("rust_original_producer") or event.get("units"):
++            raise CaptureError("query/analysis invocation unexpectedly contains native producer units")
++        return
++    decoder = rust_producer_decoder(session, session_path)
++    compiler_artifact = file_info(Path(event["frontend"]["invoked_path"]))
++    registration = rust_hook_registration(session, decoder, compiler_artifact)
++    observed = decoder["verify_observation"](event["rust_original_producer"], registration,
++        compiler=compiler_artifact, cargo_parent=event.get("cargo_parent"))
++    context = decoder["read_json"](decoder["checked"](event["rust_original_producer_context"]))
++    seed = decoder["read_json"](decoder["checked"](context["invocation_seed"]))
++    expected_registration = session["recipe"]["toolchain"]["rust_hook_registration"]["artifact"]
++    if (observed["context"] != event["rust_original_producer_context"]
++            or observed["source_event_seed"] != context["invocation_seed"]
++            or event["rust_original_producer_registration"] != expected_registration):
++        raise CaptureError("original producer context/seed/registration differs from journal")
++    if (set(seed) != {"schema", "compiler_invocation_id", "argv", "incoming_program", "cwd",
++            "environment_before_context", "compiler", "cargo_parent", "capture_worker", "hook_registration"}
++            or seed["schema"] != "ocore-rust-original-invocation-seed-v1"
++            or seed["compiler"] != compiler_artifact
++            or seed["cargo_parent"] != event.get("cargo_parent")
++            or seed["capture_worker"] != event["capture_worker"]
++            or seed["hook_registration"] != expected_registration):
++        raise CaptureError("original producer seed bindings differ from registered worker invocation")
++    if seed["argv"] != [compiler_artifact["path"], *event["argv"]] or seed["cwd"] != event["cwd"] or context["source_capture_worker"] != event["capture_worker"]:
++        raise CaptureError("original seed differs from original compiler invocation journal")
++    if observed["capture_invocation_id"] != event["id"] or observed["observed_compiler_status"] != event["exit_code"] or observed["packet_manifest"] != event["rust_original_packet_manifest"]:
++        raise CaptureError("original producer observation differs from final compiler journal")
++    producers = observed["producer_units"]
++    if len(event["units"]) != len(producers):
++        raise CaptureError("original producer unit count differs")
++    for index, (unit, producer) in enumerate(zip(event["units"], producers)):
++        if unit["original_producer"] != producer or unit["id"] != f"{event['id']}:producer:{producer['emission_id']}" or unit["frontend_replay_used"] is not False:
++            raise CaptureError("original producer unit identity differs")
++        if (unit["ir"]["sha256"], unit["ir"]["bytes"]) != (producer["ir"]["sha256"], producer["ir"]["bytes"]):
++            raise CaptureError("original producer input BC bytes differ from captured unit")
++        actual = file_info(Path(unit["ir"]["path"]))
++        if (actual["sha256"], actual["bytes"]) != (producer["ir"]["sha256"], producer["ir"]["bytes"]):
++            raise CaptureError("actual original unit BC differs from source-issued producer bytes")
++        if (unit["ir"].get("target_triple", "").encode() != bytes(producer["target_triple_bytes"])
++                or unit["ir"].get("data_layout", "").encode() != bytes(producer["data_layout_bytes"])):
++            raise CaptureError("original unit target/DataLayout differs from source-issued producer")
++    for gap in observed["gaps"]:
++        if "original Rust producer closure gap: " + gap["kind"] not in event["capture_errors"]:
++            raise CaptureError("original Rust producer closure gap omitted from journal")
+ 
+ 
+ def cargo_invocation_id(value: object) -> str:
+@@ -363,8 +507,17 @@
+     toolchain = recipe.get("toolchain", {})
+     if not re.fullmatch(r"\d+\.\d+\.\d+", toolchain.get("llvm_version", "")):
+         raise CaptureError("toolchain.llvm_version must pin an exact version")
+-    if "rust_capture_policy" in toolchain and toolchain["rust_capture_policy"] != RUST_EMBEDDED_POLICY:
+-        raise CaptureError("toolchain.rust_capture_policy must be rust-embedded-bc-v1 when present")
++    if "rust_capture_policy" in toolchain and toolchain["rust_capture_policy"] not in {RUST_EMBEDDED_POLICY, RUST_PRODUCER_POLICY}:
++        raise CaptureError("toolchain.rust_capture_policy is unsupported")
++    if toolchain.get("rust_capture_policy") == RUST_PRODUCER_POLICY:
++        selected = toolchain.get("rust_hook_registration")
++        if not isinstance(selected, dict) or set(selected) != {"artifact", "expected_manifest_sha256"}:
++            raise CaptureError("original producer policy requires exact independent hook registration")
++        digest = selected["expected_manifest_sha256"]
++        if digest not in REGISTERED_RUST_HOOK_MANIFESTS or selected.get("artifact", {}).get("sha256") != digest:
++            raise CaptureError("original Rust hook image is not independently registered")
++    elif "rust_hook_registration" in toolchain:
++        raise CaptureError("Rust hook registration occurs outside original producer policy")
+     commands = recipe.get("commands")
+     if not isinstance(commands, list) or not commands:
+         raise CaptureError("recipe needs build commands")
+@@ -855,6 +1008,9 @@
+ 
+ def verify_rust_capture_event(event: dict, session: dict, directory: Path) -> None:
+     policy = session.get("recipe", {}).get("toolchain", {}).get("rust_capture_policy")
++    if policy == RUST_PRODUCER_POLICY:
++        verify_rust_original_event(event, session, directory)
++        return
+     if policy is None or event.get("kind") != "rustc":
+         if event.get("rust_capture") is not None or event.get("saved_cgus") is not None:
+             raise CaptureError("Rust embedded CGUs occur outside their explicit capture policy")
+@@ -1297,14 +1453,14 @@
+         try:
+             args, response_files = expand_response_files(original_args, cwd, rust=kind == "rustc")
+         except (CaptureError, OSError, UnicodeError):
+-            if kind != "rustc" or rust_policy != RUST_EMBEDDED_POLICY:
++            if kind != "rustc" or rust_policy not in {RUST_EMBEDDED_POLICY, RUST_PRODUCER_POLICY}:
+                 raise
+             args, response_files = list(original_args), []
+             argfile_gap = {"kind": "rust_argfile_read_unsupported",
+                 "message": "original Rust argfile could not be decoded by capture; original command forwarded"}
+         event["expanded_argv"] = args
+         event["response_files"] = response_files
+-        if rust_policy is not None and rust_policy != RUST_EMBEDDED_POLICY:
++        if rust_policy is not None and rust_policy not in {RUST_EMBEDDED_POLICY, RUST_PRODUCER_POLICY}:
+             raise CaptureError("unsupported Rust capture policy")
+         if rust_policy is not None:
+             argfile_gap = argfile_gap or rust_argfile_gap(args)
+@@ -1323,7 +1479,7 @@
+                 "artifact": retain_range(artifact, 0, artifact["bytes"], directory / f"response-{index}.rsp")}
+                 for index, artifact in enumerate(response_files)]
+             applied = rust_translation(args, inputs) and argfile_gap is None
+-            instrumented, transformations = rust_instrumentation(args, applied)
++            instrumented, transformations = rust_instrumentation(args, applied) if rust_policy == RUST_EMBEDDED_POLICY else (list(original_args), [])
+             # Queries retain their exact incoming response-file invocation.
+             executed_args = instrumented if applied else original_args
+             event["rust_capture"] = {"policy": rust_policy, "applied": applied,
+@@ -1355,6 +1511,13 @@
+             event["frontend"] = session["tools"][driver_kind]
+         native_environment = dict(os.environ)
+         native_environment["OCORE_CAPTURE_PARENT_EVENT"] = event_id
++        if rust_policy == RUST_PRODUCER_POLICY and event["rust_capture"]["applied"]:
++            try:
++                prepare_rust_producer(event, directory, session, session_path, native_environment, program, executed_args)
++            except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
++                # Missing source-hook registration must not replace the
++                # original compiler's executed command or actual return code.
++                event["capture_errors"].append("Rust producer preparation: " + str(error))
+         if kind == "clang" and not any(arg in {"-c", "-S", "-E", "-M", "-MM", "-fsyntax-only", "--version"} for arg in args):
+             baseline_environment = dict(native_environment)
+             wrapper_dir = str(session_path / "wrappers")
+@@ -1377,6 +1540,11 @@
+             for item in option_value(args, "--emit").split(","))
+         event["translation_required"] = bool(inputs) and not query and not metadata_only and not header_compile
+         event["classification"] = "query" if query else "precompiled-header" if header_compile else "analysis-only" if metadata_only else "compile" if inputs else "link-or-query"
++        if rust_policy == RUST_PRODUCER_POLICY and event["rust_capture"]["applied"]:
++            try:
++                capture_rust_original_producer(event, directory, session, session_path)
++            except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
++                event["capture_errors"].append("Rust original producer ingestion: " + str(error))
+         if native_code == 0 and not query and event.get("driver_link_plan", {}).get("commands"):
+             links = [command for command in event["driver_link_plan"]["commands"]
+                      if Path(command[0]).name in {"ld", "ld.lld", "ld.bfd", "ld.gold"}]
+@@ -1435,6 +1603,8 @@
+                     event["units"].append(item)
+             elif rust_policy == RUST_EMBEDDED_POLICY:
+                 capture_rust_cgus(event, directory, session)
++            elif rust_policy == RUST_PRODUCER_POLICY:
++                pass  # Original input BC was consumed above; never replay it.
+             else:
+                 replay = [program, *rust_replay(args, directory)]
+                 with (directory / "replay.stderr").open("wb") as stderr:
+@@ -2269,10 +2439,10 @@
+             if executable is not None:
+                 session["native_tools"][name] = tool_info(executable, "native-tool")
+         if any(item["kind"] == "rustc" for item in recipe["coverage"]["required_units"]):
+-            if rust_policy == RUST_EMBEDDED_POLICY:
++            if rust_policy in {RUST_EMBEDDED_POLICY, RUST_PRODUCER_POLICY}:
+                 session["tools"]["llvm_dis"] = tool_info(arguments.llvm_dis, "llvm-dis")
+                 if session["tools"]["llvm_dis"]["llvm_version"] != toolchain["llvm_version"]:
+-                    raise CaptureError("embedded Rust bitcode decoder LLVM version mismatch")
++                    raise CaptureError("original Rust bitcode decoder LLVM version mismatch")
+             session["tools"]["rustc"] = tool_info(arguments.rustc, "rustc")
+             info = session["tools"]["rustc"]
+             for field, actual in [("rustc_release", info["release"]), ("rustc_commit", info["commit"]),
+@@ -2355,7 +2525,7 @@
+     run.add_argument("--rustc", default="rustc")
+     run.add_argument("--cargo", default="cargo")
+     run.add_argument("--llvm-nm", default="llvm-nm")
+-    run.add_argument("--llvm-dis", default="llvm-dis", help="pinned decoder used only by rust-embedded-bc-v1")
++    run.add_argument("--llvm-dis", default="llvm-dis", help="pinned decoder for exact original Rust BC policies")
+     run.add_argument("--unit-inventory", help="complete build-generated source-unit inventory JSON")
+     report = subparsers.add_parser("report", help="recompute completeness from immutable capture events")
+     report.add_argument("directory")
+--- /dev/null
++++ b/tools/ocore-runtime/rust/producer_capture.py
+@@ -0,0 +1,613 @@
++#!/usr/bin/env python3
++"""Read original source-issued rustc packets, not O-core or whole-link admission.
++
++Registration is a caller trust input. Packet locators, compiler version strings,
++CGU names, and a launcher hash cannot select that trust input. The production
++worker must bind its finalized manifest in the original invocation journal.
++"""
++from __future__ import annotations
++
++import hashlib
++import json
++import os
++from pathlib import Path
++import re
++
++POLICY = "rust-producer-native-link-v1"
++FLAGS = {name: False for name in (
++    "per_invocation_loaded_driver_verified", "source_production_inventory_complete",
++    "actual_driver_descendants_verified", "actual_linker_membership_verified",
++    "archive_member_selection_verified", "ordered_full_link_inputs_verified",
++    "lto_contribution_edges_complete", "native_machine_equivalence_verified",
++    "dependency_closure_complete", "whole_original_compiler_ocore_lowered",
++    "ocore_lowering_complete", "runtime_complete")}
++
++
++class ProducerError(ValueError):
++    pass
++
++
++def require(condition, message):
++    if not condition:
++        raise ProducerError(message)
++
++
++def file_info(path):
++    path = Path(path).absolute()
++    h = hashlib.sha256()
++    with path.open("rb") as stream:
++        for raw in iter(lambda: stream.read(1024 * 1024), b""):
++            h.update(raw)
++    return {"path": str(path), "sha256": h.hexdigest(), "bytes": path.stat().st_size}
++
++
++def checked(ref, *, optional_original=False):
++    require(isinstance(ref, dict) and set(ref) in (
++        {"path", "sha256", "bytes"}, {"path", "path_bytes", "sha256", "bytes"}), "artifact fields differ")
++    require(isinstance(ref["path"], str) and Path(ref["path"]).is_absolute(), "artifact requires absolute locator")
++    require(type(ref["bytes"]) is int and ref["bytes"] >= 0 and isinstance(ref["sha256"], str)
++        and re.fullmatch(r"[0-9a-f]{64}", ref["sha256"]), "artifact size/hash invalid")
++    if "path_bytes" in ref:
++        require(raw_bytes(ref["path_bytes"]).decode("utf-8", errors="replace") == ref["path"], "artifact lossy display differs from raw locator")
++    path = ref_path(ref)
++    if not (optional_original and not path.exists()):
++        actual = file_info(path)
++        require(all(actual[k] == ref[k] for k in ("sha256", "bytes")), "artifact bytes differ: " + str(path))
++    return path
++
++
++def ref_path(ref):
++    raw = raw_bytes(ref["path_bytes"]) if "path_bytes" in ref else os.fsencode(ref["path"])
++    require(b"\0" not in raw, "artifact OS locator contains NUL")
++    path = Path(os.fsdecode(raw))
++    require(path.is_absolute(), "raw artifact locator must be absolute")
++    return path
++
++
++def raw_bytes(value):
++    require(isinstance(value, list) and all(type(x) is int and 0 <= x <= 255 for x in value), "raw OS bytes invalid")
++    return bytes(value)
++
++
++def read_json(path):
++    def pairs(items):
++        result = {}
++        for key, value in items:
++            require(key not in result, "duplicate JSON key: " + key)
++            result[key] = value
++        return result
++    value = json.loads(Path(path).read_bytes(), object_pairs_hook=pairs)
++    require(isinstance(value, dict), "packet must be object")
++    return value
++
++
++def same_artifact(a, b):
++    return all(a.get(k) == b.get(k) for k in ("path", "sha256", "bytes"))
++
++
++def schema_validate(value, spec, root):
++    """The pinned source-hook schema subset; no network or package dependency."""
++    if "$ref" in spec:
++        require(spec["$ref"].startswith("#/$defs/"), "nonlocal schema reference")
++        schema_validate(value, root["$defs"][spec["$ref"].split("/")[-1]], root)
++        return
++    for name in ("allOf", "oneOf", "anyOf"):
++        if name in spec:
++            matches = 0
++            for branch in spec[name]:
++                try:
++                    schema_validate(value, branch, root)
++                    matches += 1
++                except ProducerError:
++                    pass
++            require(matches == len(spec[name]) if name == "allOf" else matches == 1 if name == "oneOf" else matches > 0,
++                "schema " + name + " differs")
++    if "if" in spec:
++        try:
++            schema_validate(value, spec["if"], root)
++            branch = "then"
++        except ProducerError:
++            branch = "else"
++        if branch in spec:
++            schema_validate(value, spec[branch], root)
++    types = {"object": isinstance(value, dict), "array": isinstance(value, list),
++        "integer": type(value) is int, "string": isinstance(value, str),
++        "boolean": type(value) is bool, "null": value is None}
++    if "type" in spec:
++        require(types.get(spec["type"], False), "schema type differs")
++    if "const" in spec:
++        require(type(value) is type(spec["const"]) and value == spec["const"], "schema constant differs")
++    if "enum" in spec:
++        require(any(type(value) is type(x) and value == x for x in spec["enum"]), "schema enum differs")
++    if isinstance(value, dict):
++        require(set(spec.get("required", [])) <= set(value), "schema required field missing")
++        properties = spec.get("properties", {})
++        if spec.get("additionalProperties") is False:
++            require(set(value) <= set(properties), "schema unknown field")
++        for key, child in value.items():
++            if key in properties:
++                schema_validate(child, properties[key], root)
++    if isinstance(value, list) and "items" in spec:
++        for child in value:
++            schema_validate(child, spec["items"], root)
++    if type(value) is int:
++        require("minimum" not in spec or value >= spec["minimum"], "schema minimum differs")
++        require("maximum" not in spec or value <= spec["maximum"], "schema maximum differs")
++    if isinstance(value, str) and "pattern" in spec:
++        require(re.search(spec["pattern"], value) is not None, "schema pattern differs")
++
++
++def validate_registration(ref, expected_sha256, selected_compiler):
++    """expected_sha256 comes from an independently fixed worker/recipe registry."""
++    require(ref.get("sha256") == expected_sha256, "hook registration differs from trusted registry")
++    registration = read_json(checked(ref))
++    require(set(registration) == {"schema", "compiler", "loaded_driver", "compiler_image_manifest",
++        "hook_build_manifest", "native_schema", "original_source_revision", "scope"}, "hook registration fields differ")
++    require(registration["schema"] == "ocore-rust-hook-registration-v1", "hook registration schema differs")
++    require(registration["original_source_revision"] == "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
++        "unregistered original source revision")
++    for name in ("compiler", "loaded_driver", "compiler_image_manifest", "hook_build_manifest", "native_schema"):
++        checked(registration[name])
++    require(same_artifact(registration["compiler"], selected_compiler), "actual selected compiler is not registered image")
++    image = read_json(Path(registration["compiler_image_manifest"]["path"]))
++    require(same_artifact(image["compiler"], registration["compiler"])
++        and same_artifact(image["actually_loaded_driver"], registration["loaded_driver"]), "image driver/compiler registration differs")
++    require(same_artifact(image["build_readback"], registration["hook_build_manifest"]), "image build lineage differs")
++    require(image["same_payload_bytes_distinct_inodes"] is True, "image copy has no independent payload observation")
++    readback = read_json(Path(registration["hook_build_manifest"]["path"]))
++    require(all(readback["actually_loaded_driver"][k] == registration["loaded_driver"][k] for k in ("sha256", "bytes")),
++        "compiled driver bytes differ from copied image build readback")
++    for name in ("source_manifest", "cached_native_manifest", "actual_loader_evidence"):
++        checked({key: readback[name][key] for key in ("path", "sha256", "bytes")})
++    require(readback["version_status"] == 0 and readback["all_source_and_native_input_hashes_match"] is True,
++        "original build readback incomplete")
++    # Validate payload bytes, not a launcher/version/sysroot label. This proves
++    # the registered image now exists, not which image every invocation mapped.
++    payloads = image["payloads"]
++    require(image["payload_count"] == len(payloads), "image payload count differs")
++    for payload in payloads:
++        checked(payload["copied"])
++    return registration
++
++
++def packet_manifest(root, destination, context):
++    """Finalize AFTER original process exits, outside the packet directory."""
++    root = Path(root).absolute()
++    require(root.is_dir() and not root.is_symlink(), "packet root is not a real directory")
++    entries = []
++    for path in sorted(root.rglob("*")):
++        require(not path.is_symlink(), "packet symlink not allowed")
++        if path.is_file():
++            entries.append({"relative_path": str(path.relative_to(root)), "artifact": file_info(path)})
++    value = {"schema": "ocore-rust-original-packet-manifest-v1", "root": str(root), "context": context,
++        "entries": entries, "packet_count": len(entries), "source_production_inventory_complete": False}
++    Path(destination).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
++    return file_info(destination)
++
++
++def decode(manifest_ref, context_ref, registration, *, invocation_id, compiler, cargo_parent=None,
++           observed_compiler_status=None):
++    """Reconstruct exact source-issued graph; return candidates plus typed gaps."""
++    manifest = read_json(checked(manifest_ref))
++    require(set(manifest) == {"schema", "root", "context", "entries", "packet_count", "source_production_inventory_complete"}
++        and manifest["schema"] == "ocore-rust-original-packet-manifest-v1", "packet manifest fields differ")
++    require(same_artifact(manifest["context"], context_ref), "manifest context differs")
++    context = read_json(checked(context_ref))
++    require(set(context) == {"schema", "compiler_invocation_id", "cargo_parent_invocation_id", "cargo_parent",
++        "output_directory", "invocation_seed", "source_capture_worker", "hook_build_manifest"}, "producer context fields differ")
++    require(context["schema"] == "ocore-rust-producer-context-v1" and context["compiler_invocation_id"] == invocation_id,
++        "producer context invocation differs")
++    require(context["cargo_parent"] == cargo_parent and context["cargo_parent_invocation_id"] ==
++        (None if cargo_parent is None else cargo_parent["id"]), "producer Cargo parent differs")
++    require(same_artifact(context["hook_build_manifest"], registration["hook_build_manifest"]), "context selected unregistered build")
++    for name in ("invocation_seed", "source_capture_worker", "hook_build_manifest"):
++        checked(context[name])
++    seed = read_json(Path(context["invocation_seed"]["path"]))
++    require(seed["compiler_invocation_id"] == invocation_id, "original invocation seed differs")
++    require(seed.get("argv", [None])[0] == compiler["path"], "original invocation seed compiler differs")
++    root = Path(manifest["root"])
++    require(root.is_absolute() and str(root) == context["output_directory"], "packet directory differs from original context")
++    require(not root.is_symlink(), "packet root symlink not allowed")
++    entries = manifest["entries"]
++    require(isinstance(entries, list) and manifest["packet_count"] == len(entries), "packet count differs")
++    paths = {}
++    for entry in entries:
++        require(set(entry) == {"relative_path", "artifact"}, "packet entry fields differ")
++        rel = Path(entry["relative_path"])
++        require(not rel.is_absolute() and ".." not in rel.parts and str(rel) not in paths, "packet path duplicate/outside directory")
++        path = checked(entry["artifact"])
++        require(path == root / rel and not path.is_symlink(), "packet artifact moved outside original directory")
++        paths[str(path)] = entry["artifact"]
++    actual_paths = set()
++    for path in root.rglob("*"):
++        require(not path.is_symlink(), "unexpected packet symlink")
++        if path.is_file():
++            actual_paths.add(str(path))
++    require(actual_paths == set(paths), "packet directory inventory differs from finalized manifest")
++    schema = read_json(checked(registration["native_schema"]))
++
++    def packet(ref, *, native=False):
++        path = checked(ref)
++        require(str(path) in paths and same_artifact(paths[str(path)], ref), "packet reference lacks finalized original binding")
++        value = read_json(path)
++        if native:
++            schema_validate(value, schema, schema)
++        return value
++
++    def load(path, native=False):
++        require(str(path) in paths, "source-issued packet absent: " + str(path))
++        return packet(paths[str(path)], native=native)
++
++    def original(ref):
++        checked(ref, optional_original=True)
++
++    def snapshot(ref, retained):
++        original(ref)
++        checked(retained)
++        require(ref["sha256"] == retained["sha256"] and ref["bytes"] == retained["bytes"], "retained source byte edge differs")
++        require(str(Path(retained["path"])) in paths, "retained source bytes not in finalized directory")
++
++    def identity(record):
++        require(record["compiler_invocation_id"] == invocation_id and same_artifact(record["context"], context_ref),
++            "source-issued packet compiler/context differs")
++
++    session = load(root / "producer-session.json")
++    require(set(session) == {"schema", "compiler_invocation_id", "context", "executable", "pid",
++        "source_production_inventory_complete"} and session["schema"] == "ocore-rust-producer-session-v1", "producer session fields differ")
++    identity(session)
++    require(type(session["pid"]) is int and session["pid"] > 0, "producer PID invalid")
++    checked(session["executable"])
++    require(same_artifact(session["executable"], compiler) and same_artifact(compiler, registration["compiler"]),
++        "producer executable differs from actual registered compiler")
++    producers = []
++    producer_paths = {}
++    used_emission_json = set()
++    emission_ids = set()
++    producer_fields = {"schema", "compiler_invocation_id", "cargo_parent_invocation_id", "context", "producer_executable",
++        "emission_id", "module_identifier_bytes", "module_kind", "crate_types", "target_triple_bytes", "data_layout_bytes",
++        "ir_stage", "codegen_phase", "lto_configuration", "use_linker_plugin_lto", "input_bitcode", "object",
++        "retained_object", "dwarf_object", "object_locator_bytes", "original_object_locator_bytes", "observation",
++        "source_production_inventory_complete", "lto_contribution_edges_complete", "dependency_closure_complete",
++        "native_machine_equivalence_verified", "runtime_complete"}
++    for path in sorted((root / "emissions").glob("*/producer.json")):
++        record = load(path)
++        require(set(record) == producer_fields and record["schema"] == "ocore-rust-cgu-producer-v1", "producer fields differ")
++        identity(record)
++        require(record["cargo_parent_invocation_id"] == context["cargo_parent_invocation_id"], "producer Cargo identity differs")
++        require(same_artifact(record["producer_executable"], compiler), "producer compiler artifact differs")
++        require(record["emission_id"] not in emission_ids and path.parent.name == record["emission_id"], "producer emission duplicate/moved")
++        emission_ids.add(record["emission_id"])
++        require(record["module_kind"] in {"regular", "allocator", "metadata"}, "unknown original module kind")
++        require(record["observation"] == "original_native_emission_returned_successfully"
++            and record["ir_stage"] == "llvm_ir_entering_native_target_codegen"
++            and record["codegen_phase"] in {"backend_object_emission", "fat_post_lto", "thin_post_lto"}, "producer native phase differs")
++        pending_path = path.parent / "pending.json"
++        pending = load(pending_path)
++        require(set(pending) == producer_fields - {"object", "retained_object", "dwarf_object"}
++            and pending["observation"] == "pending_native_emission", "producer pending fields differ")
++        for field in pending:
++            if field != "observation":
++                require(pending[field] == record[field], "producer immutable pending field differs: " + field)
++        used_emission_json.update((str(path), str(pending_path)))
++        require(raw_bytes(record["target_triple_bytes"]) and raw_bytes(record["data_layout_bytes"]), "producer target/DataLayout missing")
++        raw_bytes(record["module_identifier_bytes"])
++        bc = checked(record["input_bitcode"])
++        require(str(bc) in paths and bc.read_bytes()[:4] == b"BC\xc0\xde", "source input is not retained raw LLVM BC")
++        snapshot(record["object"], record["retained_object"])
++        require(raw_bytes(record["object_locator_bytes"]) == os.fsencode(ref_path(record["object"])), "source object locator differs")
++        incoming_locator = os.path.abspath(os.path.join(os.fsencode(seed["cwd"]), raw_bytes(record["original_object_locator_bytes"])))
++        require(incoming_locator == os.fsencode(ref_path(record["object"])), "original source object locator differs from actual cwd")
++        if record["dwarf_object"] is not None:
++            require(set(record["dwarf_object"]) == {"original", "retained"}, "split-DWARF snapshot fields differ")
++            snapshot(record["dwarf_object"]["original"], record["dwarf_object"]["retained"])
++        unit = {"emission_id": record["emission_id"], "producer_record": paths[str(path)],
++            "ir": record["input_bitcode"], "original_object": record["object"], "retained_object": record["retained_object"],
++            "module_kind": record["module_kind"], "module_identifier_bytes": record["module_identifier_bytes"],
++            "target_triple_bytes": record["target_triple_bytes"], "data_layout_bytes": record["data_layout_bytes"],
++            "ir_stage": record["ir_stage"], "codegen_phase": record["codegen_phase"], "lto_configuration": record["lto_configuration"],
++            "source_production_edge_verified": True, "later_machine_semantics_verified": False}
++        producers.append(unit)
++        producer_paths[str(path)] = record
++    gaps = [{"kind": key, "scope": "whole_original_program"} for key in (
++        "per_invocation_loaded_driver_unobserved", "descendant_exec_chain_unobserved",
++        "ordered_link_inputs_unobserved", "selected_archive_members_unobserved", "provider_source_closure_unresolved")]
++    for path in sorted((root / "emissions").glob("*/pending.json")):
++        if str(path) not in used_emission_json:
++            pending = load(path)
++            identity(pending)
++            require(set(pending) == producer_fields - {"object", "retained_object", "dwarf_object"}
++                and pending["observation"] == "pending_native_emission", "unfinished producer pending fields differ")
++            checked(pending["input_bitcode"])
++            used_emission_json.add(str(path))
++            gaps.append({"kind": "original_native_emission_unfinished", "pending": paths[str(path)]})
++    emission_json = {p for p in paths if p.startswith(str(root / "emissions") + os.sep) and p.endswith(".json")}
++    require(emission_json == used_emission_json, "source-issued emission packet omitted or extra")
++    consumers = []
++    referenced_consumers = set()
++    consumer_paths = {}
++    for path in sorted((root / "consumers").glob("*.json")):
++        record = load(path)
++        require(record.get("schema") == "ocore-rust-link-consumer-v1", "unsupported original archive/resource packet; retain explicit gap")
++        identity(record)
++        expected = {"schema", "compiler_invocation_id", "context", "scope_id", "scope_kind", "scope_ordinal", "role",
++            "module_identifier_bytes", "object", "original_locator_bytes", "retained_object", "producer_ir_requirement",
++            "producer_candidates", "producer_record", "gap", "scope", "actual_linker_membership_verified",
++            "archive_member_selection_verified", "dependency_closure_complete", "runtime_complete"}
++        require(set(record) == expected, "consumer fields differ")
++        snapshot(record["object"], record["retained_object"])
++        incoming_locator = os.path.abspath(os.path.join(os.fsencode(seed["cwd"]), raw_bytes(record["original_locator_bytes"])))
++        require(incoming_locator == os.fsencode(ref_path(record["object"])), "consumer object locator differs from original cwd")
++        candidates = record["producer_candidates"]
++        for ref in candidates:
++            candidate = packet(ref)
++            require(str(ref_path(ref)) in producer_paths and candidate == producer_paths[str(ref_path(ref))], "consumer points at unowned producer")
++        if record["role"] != "metadata_resource" and record["gap"] is None:
++            require(len(candidates) == 1 and record["producer_record"] is not None, "consumer sole original producer selection missing")
++        has_edge = record["role"] != "metadata_resource" and record["gap"] is None and len(candidates) == 1 and record["producer_record"] is not None
++        if has_edge:
++            require(same_artifact(candidates[0], record["producer_record"]), "consumer producer selection differs")
++            producer = producer_paths[str(ref_path(record["producer_record"]))]
++            require(producer["object"] == record["object"] and producer["module_identifier_bytes"] == record["module_identifier_bytes"],
++                "consumer is not exact producer-issued object/module")
++            expected_role = "local_allocator" if producer["module_kind"] == "allocator" else "local_regular"
++            require(record["role"] == expected_role, "consumer role differs from original module kind")
++        else:
++            gaps.append({"kind": "consumer_without_unique_original_producer", "consumer": paths[str(path)], "original_gap": record["gap"]})
++        consumers.append({"receipt": paths[str(path)], "record": record, "source_production_edge_verified": has_edge})
++        consumer_paths[str(path)] = record
++
++    def categories(values):
++        require(isinstance(values, list) and [v["category_ordinal"] for v in values] == list(range(len(values))), "category occurrence order differs")
++        scope_ids = set()
++        for category in values:
++            require(category["scope_id"] not in scope_ids, "duplicate consumer category scope")
++            scope_ids.add(category["scope_id"])
++            occurrences = category["occurrences"]
++            require([v["scope_ordinal"] for v in occurrences] == list(range(len(occurrences))), "consumer occurrence order differs")
++            for occurrence in occurrences:
++                ref = occurrence["consumer_record"]
++                record = packet(ref)
++                require(ref["path"] in consumer_paths, "output refers to unknown consumer")
++                require(record["scope_id"] == category["scope_id"] and record["scope_kind"] == category["scope_kind"]
++                    and record["scope_ordinal"] == occurrence["scope_ordinal"] and record["role"] == occurrence["role"], "output consumer scope/order/role differs")
++                require(ref["path"] not in referenced_consumers, "consumer reused in another output occurrence")
++                referenced_consumers.add(ref["path"])
++            require(category["archive_output_record"] is None, "archive output currently needs its own explicit decoder")
++
++    def status(result):
++        schema_validate(result, schema["$defs"]["result"], schema)
++        if result["io_error"] is not None:
++            return
++        value = result["status"]
++        raw = value["platform"]["raw"]
++        require(type(raw) is int, "source native Linux raw status missing")
++        if os.WIFEXITED(raw):
++            require(value["code"] == os.WEXITSTATUS(raw) and value["platform"]["signal"] is None
++                and value["success"] == (value["code"] == 0), "native child exit status differs")
++        elif os.WIFSIGNALED(raw):
++            require(value["code"] is None and value["platform"]["signal"] == os.WTERMSIG(raw)
++                and value["platform"]["core_dumped"] == os.WCOREDUMP(raw) and value["success"] is False, "native child signal differs")
++        else:
++            raise ProducerError("source native attempt did not terminate")
++
++    outputs, attempts = [], []
++    used_native = set()
++    for directory in sorted((root / "native-links").glob("*")):
++        seed_path = directory / "output.pending.json"
++        scope_seed = load(seed_path, native=True)
++        identity(scope_seed)
++        require(scope_seed["compiler_pid"] == session["pid"] and same_artifact(scope_seed["compiler_executable"], compiler), "output compiler PID/image differs")
++        scope_path = directory / "output.json"
++        scope = load(scope_path, native=True)
++        require(same_artifact(scope["seed"], paths[str(seed_path)]) and scope["output_scope_id"] == scope_seed["output_scope_id"]
++            and directory.name == scope["output_scope_id"], "output scope seed/ID differs")
++        used_native.update((str(seed_path), str(scope_path)))
++        categories(scope["consumer_category_occurrence_arrays"])
++        if scope["output_at_scope_close"] is not None:
++            output = scope["output_at_scope_close"]
++            snapshot(output["original"], output["retained"])
++            require(raw_bytes(scope_seed["output_locator_bytes"]) == os.fsencode(output["original"]["path"]), "original output locator differs")
++        calls = scope["exec_linker_calls"]
++        require(len(calls) == scope["exec_linker_call_count"], "exec count differs (source observation incomplete)")
++        for ordinal, cref in enumerate(calls):
++            call = packet(cref, native=True)
++            pending = packet(call["exec_seed"], native=True)
++            used_native.update((cref["path"], call["exec_seed"]["path"]))
++            require(call["exec_linker_ordinal"] == ordinal and same_artifact(call["output_scope_seed"], scope["seed"])
++                and call["output_scope_id"] == scope["output_scope_id"], "exec scope/ordinal differs")
++            for field in ("output_scope_seed", "output_scope_id", "exec_linker_ordinal", "linker_flavor", "retry_reason", "original_command", "consumer_category_occurrence_arrays"):
++                require(call[field] == pending[field], "exec immutable seed field differs: " + field)
++            # Exec snapshots precede output-close snapshots. Later categories
++            # may be appended; the original ordered prefix must remain exact.
++            old_categories = call["consumer_category_occurrence_arrays"]
++            final_categories = scope["consumer_category_occurrence_arrays"]
++            require(len(old_categories) <= len(final_categories), "exec has categories absent at output close")
++            for old_category, final_category in zip(old_categories, final_categories):
++                for field in ("scope_id", "scope_kind", "category_ordinal"):
++                    require(old_category[field] == final_category[field], "exec category identity differs")
++                require(final_category["occurrences"][:len(old_category["occurrences"])] == old_category["occurrences"],
++                    "exec original consumer prefix differs")
++            spawns = call["spawn_attempts"]
++            require(len(spawns) == call["spawn_attempt_count"], "spawn count differs (source observation incomplete)")
++            modes = [packet(ref, native=True)["mode"] for ref in spawns]
++            if call["direct_spawn_skipped_prediction"]:
++                require(modes == ([] if call["response_file_preparation_failed"] else ["response_file"]),
++                    "predicted response route differs from source algorithm")
++            else:
++                require(modes in (["direct"], ["direct", "response_file"]), "direct/fallback route differs from source algorithm")
++                if len(modes) == 2 or call["response_file_preparation_failed"]:
++                    first = packet(spawns[0], native=True)["observed_result"]
++                    require(first["io_error"] is not None and first["io_error"]["raw_os_error"] == 7,
++                        "response fallback lacks original Linux E2BIG spawn error")
++            for spawn_ordinal, sref in enumerate(spawns):
++                spawn = packet(sref, native=True)
++                ss = packet(spawn["spawn_seed"], native=True)
++                used_native.update((sref["path"], spawn["spawn_seed"]["path"]))
++                require(spawn["spawn_ordinal"] == spawn_ordinal and same_artifact(spawn["exec_linker_seed"], call["exec_seed"])
++                    and same_artifact(spawn["output_scope_seed"], scope["seed"]), "spawn scope/ordinal differs")
++                for field in ("exec_linker_seed", "output_scope_seed", "output_scope_id", "spawn_ordinal", "mode", "baseline_command", "executed_command", "stdio", "observer_environment_delta", "response_file", "consumer_category_occurrence_arrays"):
++                    require(spawn[field] == ss[field], "spawn immutable seed field differs: " + field)
++                require(spawn["output_scope_id"] == scope["output_scope_id"] and spawn["consumer_category_occurrence_arrays"] == call["consumer_category_occurrence_arrays"], "spawn lost output consumer association")
++                baseline, executed = spawn["baseline_command"], spawn["executed_command"]
++                original_command = call["original_command"]
++                for field in original_command:
++                    if field != "argv_bytes":
++                        require(baseline[field] == original_command[field], "spawn baseline differs from original selected command: " + field)
++                if spawn["mode"] == "direct":
++                    require(baseline["argv_bytes"] == original_command["argv_bytes"], "direct spawn original argument vector differs")
++                for field in ("program_bytes", "argv_bytes", "cwd_bytes", "environment_cleared", "argv0_policy", "os_string_encoding", "environment_case_semantics"):
++                    require(baseline[field] == executed[field], "hook changed original native command: " + field)
++                def env(command):
++                    result = {}
++                    for item in command["effective_environment"]:
++                        key = raw_bytes(item["key_bytes"])
++                        require(key not in result, "native environment duplicate")
++                        result[key] = raw_bytes(item["value_bytes"])
++                    return result
++                before = env(baseline)
++                after = dict(before)
++                marker = b"OCORE_RUST_LINK_ATTEMPT"
++                after[marker] = os.fsencode(spawn["spawn_seed"]["path"])
++                require(env(executed) == after, "hook environment changed beyond declared marker")
++                def overrides(command):
++                    result = {}
++                    for item in command["environment_overrides"]:
++                        key = raw_bytes(item["key_bytes"])
++                        require(key not in result, "native environment override duplicate")
++                        result[key] = None if item["value_bytes"] is None else raw_bytes(item["value_bytes"])
++                    return result
++                expected_overrides = overrides(baseline)
++                expected_overrides[marker] = after[marker]
++                require(overrides(executed) == expected_overrides, "hook command override differs beyond declared marker")
++                delta = spawn["observer_environment_delta"]
++                require(delta["variable"] == "OCORE_RUST_LINK_ATTEMPT" and
++                    (None if delta["before_bytes"] is None else raw_bytes(delta["before_bytes"])) == before.get(marker)
++                    and raw_bytes(delta["after_bytes"]) == after[marker], "native marker seed binding differs")
++                status(spawn["observed_result"])
++                if spawn["child_record"] is not None:
++                    child = packet(spawn["child_record"], native=True)
++                    used_native.add(spawn["child_record"]["path"])
++                    require(child["compiler_pid"] == session["pid"] and child["child_pid"] == spawn["child_pid"]
++                        and same_artifact(child["spawn_seed"], spawn["spawn_seed"]), "native source-issued child PID/seed differs")
++                else:
++                    require(spawn["child_pid"] is None, "native child PID lacks original source record")
++                if spawn["observed_result"]["io_error"] is None:
++                    require(spawn["child_record"] is not None, "completed child result lacks actual child record")
++                    checked(spawn["stdout"])
++                    checked(spawn["stderr"])
++                response = spawn["response_file"]
++                if response is not None:
++                    snapshot(response["original"], response["retained"])
++                    require(call["response_file_preparation"] is not None, "response attempt lacks original preparation")
++                    require(response["encoding"] == call["response_file_preparation"]["encoding"], "response encoding differs from original preparation")
++                    submitted = call["response_file_preparation"]["submitted_bytes"]
++                    checked(submitted)
++                    require(submitted["sha256"] == response["retained"]["sha256"] and submitted["bytes"] == response["retained"]["bytes"], "submitted response bytes differ")
++                    require(raw_bytes(call["response_file_preparation"]["locator_bytes"]) == os.fsencode(response["original"]["path"]),
++                        "submitted response locator differs")
++                    require(baseline["argv_bytes"] and raw_bytes(baseline["argv_bytes"][-1]) ==
++                        b"@" + raw_bytes(call["response_file_preparation"]["locator_bytes"]), "actual native response argv lacks original locator")
++                    prefix = baseline["argv_bytes"][:-1]
++                    require(original_command["argv_bytes"][:len(prefix)] == prefix, "response program prefix differs from original command")
++                    if prefix:
++                        # LLD/CmdBat prefixes are added by Program.command(),
++                        # while take_args() writes only logical user arguments.
++                        # The current source hook does not expose that boundary.
++                        gaps.append({"kind": "response_logical_argument_boundary_unobserved", "spawn_record": sref})
++                    # Preserve original pinned writer semantics, not shell
++                    # splitting of a fictional expanded native command.
++                    encoded = []
++                    mode = call["response_file_preparation"]["encoding"]
++                    for argument in ([] if prefix else call["original_command"]["argv_bytes"]):
++                        text = raw_bytes(argument).decode("utf-8")
++                        if mode == "utf8_posix_escape":
++                            text = text.replace("\\", "\\\\").replace(" ", "\\ ")
++                        else:
++                            text = '"' + text.replace('"', '\\"') + '"'
++                        encoded.append(text + "\n")
++                    expected_response = "".join(encoded).encode("utf-16le" if mode == "utf16le_bom_msvc_escape" else "utf-8")
++                    if mode == "utf16le_bom_msvc_escape":
++                        expected_response = b"\xff\xfe" + expected_response
++                    if not prefix:
++                        require(Path(submitted["path"]).read_bytes() == expected_response, "submitted response differs from original argument writer")
++                attempts.append({"record": sref, "exec_record": cref, "output_scope_id": scope["output_scope_id"],
++                    "spawn_ordinal": spawn_ordinal, "mode": spawn["mode"], "original_command": baseline,
++                    "executed_command": executed, "observed_result": spawn["observed_result"],
++                    "child_pid": spawn["child_pid"], "actual_executed_image_verified": False})
++            status(call["observed_child_result"])
++            status(call["returned_result"])
++            if spawns and not call["response_file_preparation_failed"]:
++                require(call["observed_child_result"] == packet(spawns[-1], native=True)["observed_result"], "exec result differs from final actual spawn")
++            if call["response_file_preparation_failed"]:
++                require(call["observed_child_result"]["io_error"] is not None and call["observed_child_result"]["status"] is None,
++                    "response preparation failure lost its original I/O result")
++            if call["flush_error"] is None:
++                require(call["returned_result"] == call["observed_child_result"], "returned linker result differs without flush error")
++            else:
++                require(call["returned_result"] == {"io_error": call["flush_error"], "status": None}, "flush error failed to preserve original child status")
++            if call["returned_result"]["io_error"] is not None or not call["returned_result"]["status"]["success"]:
++                gaps.append({"kind": "original_native_link_attempt_failed", "exec_record": cref, "result": call["returned_result"]})
++        outputs.append({"seed": paths[str(seed_path)], "record": paths[str(scope_path)],
++            "output_scope_id": scope["output_scope_id"], "crate_type": scope_seed["crate_type"],
++            "consumer_category_occurrence_arrays": scope["consumer_category_occurrence_arrays"],
++            "output_at_scope_close": scope["output_at_scope_close"], "compiler_return_status_bound": False})
++    require(referenced_consumers == set(consumer_paths), "original consumer omitted from output scopes")
++    native_json = {p for p in paths if p.startswith(str(root / "native-links") + os.sep) and p.endswith(".json")}
++    require(native_json == used_native, "source-issued native packet omitted or extra")
++    if not producers:
++        gaps.append({"kind": "no_original_native_producer_records"})
++    if not outputs:
++        gaps.append({"kind": "no_original_native_output_scopes"})
++    if any(p["lto_configuration"] != "No" for p in producers):
++        gaps.append({"kind": "final_lto_machine_stage_unobserved"})
++    return {"schema": "ocore-rust-original-producer-observation-v1", "policy": POLICY,
++        "capture_invocation_id": invocation_id, "context": context_ref, "packet_manifest": manifest_ref,
++        "producer_session": paths[str(root / "producer-session.json")], "producer_units": producers,
++        "consumers": consumers, "native_output_scopes": outputs, "native_attempts": attempts,
++        "observed_compiler_status": observed_compiler_status, "linked_input_candidates": [],
++        "registered_compiler_image": registration["compiler_image_manifest"],
++        "source_event_seed": context["invocation_seed"], "gaps": gaps, **FLAGS}
++
++
++def verify_observation(observation, registration, *, compiler, cargo_parent=None):
++    rebuilt = decode(observation["packet_manifest"], observation["context"], registration,
++        invocation_id=observation["capture_invocation_id"], compiler=compiler, cargo_parent=cargo_parent,
++        observed_compiler_status=observation["observed_compiler_status"])
++    require(rebuilt == observation, "normalized observation differs from original packet reconstruction")
++    return rebuilt
++
++
++def main(argv=None):
++    """Artifact-only diagnostic entrypoint; it never invokes a compiler."""
++    import argparse
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--registration", required=True)
++    parser.add_argument("--trusted-registration-sha256", required=True)
++    parser.add_argument("--context", required=True)
++    parser.add_argument("--packets", required=True)
++    parser.add_argument("--manifest-output", required=True)
++    parser.add_argument("--observation-output", required=True)
++    parser.add_argument("--observed-compiler-status", type=int, required=True)
++    args = parser.parse_args(argv)
++    context_ref = file_info(args.context)
++    context = read_json(args.context)
++    registration_ref = file_info(args.registration)
++    provisional = read_json(args.registration)
++    registration = validate_registration(registration_ref, args.trusted_registration_sha256, provisional["compiler"])
++    root = Path(args.packets).absolute()
++    outputs = [Path(args.manifest_output).absolute(), Path(args.observation_output).absolute()]
++    for output in outputs:
++        require(not output.exists() and not output.is_relative_to(root), "diagnostic output must be new and outside original packet root")
++        output.parent.mkdir(parents=True, exist_ok=True)
++    require(outputs[0] != outputs[1], "diagnostic outputs must differ")
++    manifest = packet_manifest(root, outputs[0], context_ref)
++    value = decode(manifest, context_ref, registration, invocation_id=context["compiler_invocation_id"],
++        compiler=registration["compiler"], cargo_parent=context["cargo_parent"], observed_compiler_status=args.observed_compiler_status)
++    outputs[1].write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
++    print(json.dumps({"observation": file_info(outputs[1]), "producer_units": len(value["producer_units"]),
++        "native_attempts": len(value["native_attempts"]), "original_compiler_reinvoked": False, **FLAGS}, indent=2))
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+--- a/tools/ocore-runtime/rust/full.recipe.json
++++ b/tools/ocore-runtime/rust/full.recipe.json
+@@ -1,6 +1,6 @@
+ {
+   "schema": "ocore-runtime-recipe-v1",
+-  "name": "rust-full-hosted-source-trusted-capture",
++  "name": "rust-full-original-source-producer-capture-private-candidate",
+   "source": {
+     "url": "https://github.com/rust-lang/rust.git",
+     "revision": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
+@@ -11,7 +11,16 @@
+     "rustc_release": "1.97.1",
+     "cargo_release": "1.97.1",
+     "rustc_commit": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
+-    "cargo_observer_worker_sha256": "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
++    "cargo_observer_worker_sha256": "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993",
++    "rust_capture_policy": "rust-producer-native-link-v1",
++    "rust_hook_registration": {
++      "artifact": {
++        "path": "/home/ustad/.cache/ostadix-research/rust-producer-capture-integration-8a5nodnt/implementation-evidence/registration.json",
++        "sha256": "78f7b0f49e347f0f56c177222f3be74133b611c0934f954e0511d3454e6ac0d7",
++        "bytes": 1511
++      },
++      "expected_manifest_sha256": "78f7b0f49e347f0f56c177222f3be74133b611c0934f954e0511d3454e6ac0d7"
++    }
+   },
+   "capture_profile": "hosted-source-bootstrap",
+   "intended_execution_profile": "ostadix-kernel",
+@@ -240,6 +249,8 @@
+     "Building rustc does not redirect its normal LLVM machine-code output through O-core; native generated-program lowering and compiler bootstrap witnesses remain required.",
+     "The whole original source build observation is diagnostic; exact observed parent Cargo commands and supplementary configured graphs do not establish payload roles or source/native-provider ownership by themselves.",
+     "RUSTC_STAGE alone does not identify the actual producer generation; the installed and source-built compilers, sysroots, host helpers, and payload output paths remain distinct.",
+-    "The capture worker snapshot and Cargo observer/prepare/inventory helper bytes are independently digest-bound. Original legacy captures remain immutable and incomplete."
++    "The capture worker snapshot and Cargo observer/prepare/inventory helper bytes are independently digest-bound. Original legacy captures remain immutable and incomplete.",
++    "Private candidate only: patched source manifest/registered stage-image barriers must be integrated before a full fresh original build. New stage/shim identities require observed registration, never stage labels.",
++    "Source-issued producer BC/object pairs do not establish descendant exec, ordered linker inputs, selected archive members, provider/source/ASM/LTO closure or O-core lowering."
+   ]
+ }
+--- /dev/null
++++ b/tests/test_ocore_runtime_capture_rust_producer.py
+@@ -0,0 +1,578 @@
++"""Cache-only original V3 packet ingestion; no compiler/native replay."""
++import copy
++import importlib.util
++import json
++from pathlib import Path
++import shutil
++import tempfile
++import unittest
++from unittest import mock
++
++STAGE = Path(__file__).absolute().parents[1]
++ROOT = STAGE.parent
++PILOT = Path('/home/ustad/.cache/ostadix-research/rust-native-link-pilot-c013d2ot')
++DIRECT = PILOT / 'runs/direct_vector-d71d5077b7ad4e7480b6564899843a62'
++RESPONSE = PILOT / 'runs/original_response_fallback_vector-6b816961d94042bab30ba10e6c9a2174'
++FAILED = PILOT / 'runs/original_response_fallback_vector-3c5f928895b0457cb8ab61fb80b01b13'
++HELPER = STAGE / 'tools/ocore-runtime/rust/producer_capture.py'
++spec = importlib.util.spec_from_file_location('private_producer_decoder', HELPER)
++h = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(h)
++
++
++class OriginalPacketTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.registration_ref = h.file_info(ROOT / 'implementation-evidence/registration.json')
++        cls.registration = h.validate_registration(cls.registration_ref, cls.registration_ref['sha256'],
++            h.read_json(Path(cls.registration_ref['path']))['compiler'])
++
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix='original-rust-packet-test-')
++        self.addCleanup(self.temp.cleanup)
++        self.root = Path(self.temp.name)
++
++    def observe(self, case=DIRECT, status=0):
++        context_ref = h.file_info(case / 'context.json')
++        context = h.read_json(case / 'context.json')
++        manifest = h.packet_manifest(case / 'producer', self.root / 'manifest.json', context_ref)
++        return h.decode(manifest, context_ref, self.registration,
++            invocation_id=context['compiler_invocation_id'], compiler=self.registration['compiler'],
++            observed_compiler_status=status)
++
++    def clone(self, change, *, invocation_seed=None):
++        """Derived mutation fixture, explicitly not another producer invocation.
++
++        Rebind copied packet refs to test semantic edges beyond byte-hash checks.
++        The original immutable context/seed/compiler/source files are untouched.
++        """
++        original_root = DIRECT / 'producer'
++        cloned = self.root / 'producer'
++        shutil.copytree(original_root, cloned)
++        context_path = self.root / 'context.json'
++        context = h.read_json(DIRECT / 'context.json')
++        context['output_directory'] = str(cloned)
++        if invocation_seed is not None:
++            seed_path = self.root / 'seed.json'
++            seed_path.write_text(json.dumps(invocation_seed) + '\n')
++            context['invocation_seed'] = h.file_info(seed_path)
++            context['source_capture_worker'] = invocation_seed['capture_worker']
++        context_path.write_text(json.dumps(context) + '\n')
++        packets = {str(p): h.read_json(p) for p in cloned.rglob('*.json')}
++        before_packet_paths = set(packets)
++        change(packets)
++        for dropped in before_packet_paths - set(packets):
++            Path(dropped).unlink(missing_ok=True)
++        old_context = str(DIRECT / 'context.json')
++        old_root = str(original_root)
++        visited = set()
++        visiting = set()
++
++        def mapped(path):
++            if path == old_context:
++                return str(context_path)
++            if path.startswith(old_root + '/'):
++                return str(cloned) + path[len(old_root):]
++            return path
++
++        def rewrite(value):
++            if isinstance(value, dict):
++                if set(value) in ({'path', 'sha256', 'bytes'}, {'path', 'path_bytes', 'sha256', 'bytes'}):
++                    new = mapped(value['path'])
++                    if new != value['path']:
++                        if new in packets:
++                            save(new)
++                        result = h.file_info(new)
++                        if 'path_bytes' in value:
++                            result['path_bytes'] = list(new.encode())
++                        return result
++                return {k: rewrite(v) for k, v in value.items()}
++            if isinstance(value, list):
++                if value and all(type(v) is int and 0 <= v <= 255 for v in value):
++                    raw = bytes(value)
++                    for old, new in ((old_root, str(cloned)), (old_context, str(context_path))):
++                        if raw.startswith(old.encode()):
++                            raw = new.encode() + raw[len(old.encode()):]
++                    return list(raw)
++                return [rewrite(v) for v in value]
++            return value
++
++        def save(path):
++            if path in visited:
++                return
++            if path in visiting:
++                raise AssertionError('fixture reference cycle')
++            visiting.add(path)
++            packets[path] = rewrite(packets[path])
++            Path(path).write_text(json.dumps(packets[path], sort_keys=True) + '\n')
++            visiting.remove(path)
++            visited.add(path)
++
++        for path in packets:
++            save(path)
++        context_ref = h.file_info(context_path)
++        manifest = h.packet_manifest(cloned, self.root / 'manifest.json', context_ref)
++        return lambda: h.decode(manifest, context_ref, self.registration,
++            invocation_id=context['compiler_invocation_id'], compiler=self.registration['compiler'], observed_compiler_status=0)
++
++    def reject_mutation(self, selector, field, value, diagnostic):
++        def change(packets):
++            packet = next(v for p, v in packets.items() if selector(p, v))
++            packet[field] = value(packet[field]) if callable(value) else value
++        with self.assertRaisesRegex(h.ProducerError, diagnostic):
++            self.clone(change)()
++
++    def test_original_direct_all_modules_and_roles(self):
++        result = self.observe()
++        self.assertEqual(len(result['producer_units']), 3)
++        self.assertEqual(len(result['consumers']), 3)
++        self.assertEqual(len(result['native_output_scopes']), 1)
++        self.assertEqual([v['mode'] for v in result['native_attempts']], ['direct'])
++        self.assertEqual(sorted(v['module_kind'] for v in result['producer_units']), ['allocator', 'regular', 'regular'])
++        self.assertTrue(all(v['source_production_edge_verified'] for v in result['producer_units']))
++        self.assertEqual(result['linked_input_candidates'], [])
++        h.verify_observation(result, self.registration, compiler=self.registration['compiler'])
++
++    def test_original_response_preserves_deleted_temp_snapshot(self):
++        result = self.observe(RESPONSE)
++        self.assertEqual([v['mode'] for v in result['native_attempts']], ['response_file'])
++        self.assertEqual(result['native_attempts'][0]['observed_result']['status']['code'], 0)
++        self.assertEqual(len(result['producer_units']), 3)
++
++    def test_original_failed_driver_keeps_status_and_null_output(self):
++        result = self.observe(FAILED, 1)
++        self.assertEqual(result['observed_compiler_status'], 1)
++        self.assertEqual(result['native_attempts'][0]['observed_result']['status']['code'], 1)
++        self.assertIsNone(result['native_output_scopes'][0]['output_at_scope_close'])
++        self.assertIn('original_native_link_attempt_failed', [v['kind'] for v in result['gaps']])
++
++    def test_positive_derived_rebound_fixture(self):
++        result = self.clone(lambda _: None)()
++        self.assertEqual(len(result['producer_units']), 3)
++
++    def test_every_completion_flag_remains_false(self):
++        result = self.observe()
++        for field in h.FLAGS:
++            self.assertIs(result[field], False, field)
++        self.assertEqual(len(result['gaps']), 5)
++
++    def test_registration_rejects_caller_selected_digest(self):
++        with self.assertRaisesRegex(h.ProducerError, 'trusted registry'):
++            h.validate_registration(self.registration_ref, '0' * 64, self.registration['compiler'])
++
++    def test_registration_rejects_same_launcher_different_image_path(self):
++        artifact = dict(self.registration['compiler'], path='/unregistered/rustc')
++        with self.assertRaisesRegex(h.ProducerError, 'selected compiler'):
++            h.validate_registration(self.registration_ref, self.registration_ref['sha256'], artifact)
++
++    def test_context_wrong_invocation(self):
++        result = self.observe()
++        with self.assertRaisesRegex(h.ProducerError, 'context invocation'):
++            h.decode(result['packet_manifest'], result['context'], self.registration,
++                invocation_id='0' * 32, compiler=self.registration['compiler'])
++
++    def test_context_wrong_cargo_parent(self):
++        result = self.observe()
++        with self.assertRaisesRegex(h.ProducerError, 'Cargo parent'):
++            h.decode(result['packet_manifest'], result['context'], self.registration,
++                invocation_id=result['capture_invocation_id'], compiler=self.registration['compiler'], cargo_parent={'id': '0' * 32})
++
++    def test_producer_wrong_context_id(self):
++        self.reject_mutation(lambda p, v: p.endswith('/producer.json'), 'compiler_invocation_id', '0' * 32, 'packet compiler/context')
++
++    def test_producer_wrong_phase(self):
++        self.reject_mutation(lambda p, v: p.endswith('/producer.json'), 'ir_stage', 'after_machine_lowering', 'phase differs|pending field')
++
++    def test_producer_duplicate_emission(self):
++        self.reject_mutation(lambda p, v: p.endswith('/producer.json'), 'emission_id', 'duplicate', 'duplicate/moved')
++
++    def test_consumer_allocator_role_mismatch(self):
++        self.reject_mutation(lambda p, v: v.get('role') == 'local_allocator', 'role', 'local_regular', 'role differs')
++
++    def test_consumer_producer_module_mismatch(self):
++        self.reject_mutation(lambda p, v: v.get('role') == 'local_regular', 'module_identifier_bytes', [97], 'object/module')
++
++    def test_consumer_selected_producer_not_sole_candidate(self):
++        self.reject_mutation(lambda p, v: v.get('role') == 'local_regular', 'producer_record', None, 'sole original producer')
++
++    def test_output_consumer_order_mismatch(self):
++        def change(packets):
++            value = next(v for p, v in packets.items() if p.endswith('/output.json'))
++            value['consumer_category_occurrence_arrays'][0]['occurrences'].reverse()
++        with self.assertRaisesRegex(h.ProducerError, 'occurrence order'):
++            self.clone(change)()
++
++    def test_output_omitted_consumer(self):
++        def change(packets):
++            value = next(v for p, v in packets.items() if p.endswith('/output.json'))
++            value['consumer_category_occurrence_arrays'].pop()
++        with self.assertRaisesRegex(h.ProducerError, 'exec has categories|consumer omitted'):
++            self.clone(change)()
++
++    def test_exec_count_mismatch(self):
++        self.reject_mutation(lambda p, v: p.endswith('/output.json'), 'exec_linker_call_count', 2, 'exec count')
++
++    def test_exec_immutable_original_command_changed(self):
++        def change(packets):
++            value = next(v for p, v in packets.items() if p.endswith('/exec.json'))
++            value['original_command']['program_bytes'] = list(b'/different/cc')
++        with self.assertRaisesRegex(h.ProducerError, 'immutable seed'):
++            self.clone(change)()
++
++    def test_spawn_changed_executed_argv(self):
++        def change(packets):
++            for p, value in packets.items():
++                if p.endswith(('/spawn.json', '/spawn.pending.json')):
++                    value['executed_command']['argv_bytes'].append(list(b'--changed'))
++        with self.assertRaisesRegex(h.ProducerError, 'changed original native command'):
++            self.clone(change)()
++
++    def test_coherent_spawn_seed_changes_cannot_change_original_exec(self):
++        def change(packets):
++            for p, value in packets.items():
++                if p.endswith(('/spawn.json', '/spawn.pending.json')):
++                    value['baseline_command']['argv_bytes'].append(list(b'--changed'))
++                    value['executed_command']['argv_bytes'].append(list(b'--changed'))
++        with self.assertRaisesRegex(h.ProducerError, 'original argument vector'):
++            self.clone(change)()
++
++    def test_spawn_raw_status_mismatch(self):
++        def change(packets):
++            value = next(v for p, v in packets.items() if p.endswith('/spawn.json'))
++            value['observed_result']['status']['code'] = 1
++        with self.assertRaisesRegex(h.ProducerError, 'child exit status'):
++            self.clone(change)()
++
++    def test_child_pid_mismatch(self):
++        self.reject_mutation(lambda p, v: p.endswith('/child.json'), 'child_pid', 987, 'child PID/seed')
++
++    def test_unknown_wire_field_rejected(self):
++        def change(packets):
++            value = next(v for p, v in packets.items() if p.endswith('/output.json'))
++            value['pretend_complete'] = True
++        with self.assertRaisesRegex(h.ProducerError, 'schema'):
++            self.clone(change)()
++
++    def test_byte_tamper_rejected_without_rebinding(self):
++        run = self.clone(lambda _: None)
++        path = next((self.root / 'producer/emissions').glob('*/input.bc'))
++        path.write_bytes(path.read_bytes() + b'x')
++        with self.assertRaisesRegex(h.ProducerError, 'artifact bytes differ'):
++            run()
++
++    def test_manifest_duplicate_entry_rejected(self):
++        run = self.clone(lambda _: None)
++        path = self.root / 'manifest.json'
++        value = h.read_json(path)
++        value['entries'].append(value['entries'][0])
++        value['packet_count'] += 1
++        path.write_text(json.dumps(value))
++        # The collector binding already rejects replacement of the manifest.
++        with self.assertRaisesRegex(h.ProducerError, 'artifact bytes differ'):
++            run()
++
++    def test_extra_source_packet_rejected(self):
++        run = self.clone(lambda _: None)
++        (self.root / 'producer/unlisted.json').write_text('{}')
++        with self.assertRaisesRegex(h.ProducerError, 'directory inventory'):
++            run()
++
++    def test_normalized_unit_drop_rejected(self):
++        observation = self.observe()
++        observation['producer_units'].pop()
++        with self.assertRaisesRegex(h.ProducerError, 'reconstruction'):
++            h.verify_observation(observation, self.registration, compiler=self.registration['compiler'])
++
++    def test_normalized_gap_erasure_rejected(self):
++        observation = self.observe()
++        observation['gaps'] = []
++        with self.assertRaisesRegex(h.ProducerError, 'reconstruction'):
++            h.verify_observation(observation, self.registration, compiler=self.registration['compiler'])
++
++    def test_normalized_link_candidates_cannot_become_producer_outputs(self):
++        observation = self.observe()
++        observation['linked_input_candidates'].append({'source_production_ownership': True})
++        with self.assertRaisesRegex(h.ProducerError, 'reconstruction'):
++            h.verify_observation(observation, self.registration, compiler=self.registration['compiler'])
++
++    def test_derived_split_dwarf_snapshot_preserves_paired_bytes(self):
++        def change(packets):
++            producer = next(v for p, v in packets.items() if p.endswith('/producer.json'))
++            producer['dwarf_object'] = {'original': producer['object'], 'retained': producer['retained_object']}
++        self.assertEqual(len(self.clone(change)()['producer_units']), 3)
++
++    def test_raw_artifact_locator_is_authoritative_for_non_utf8(self):
++        import os
++        raw = os.fsencode(self.root) + b'/name-\xff'
++        with open(raw, 'wb') as stream:
++            stream.write(b'exact raw locator')
++        ref = h.file_info(os.fsdecode(raw))
++        ref['path'] = raw.decode('utf8', errors='replace')
++        ref['path_bytes'] = list(raw)
++        self.assertEqual(os.fsencode(h.checked(ref)), raw)
++
++    def test_relative_original_object_locators_resolve_against_seed_cwd(self):
++        def change(packets):
++            for value in packets.values():
++                if value.get('schema') == 'ocore-rust-cgu-producer-v1':
++                    path = bytes(value['original_object_locator_bytes']).decode()
++                    value['original_object_locator_bytes'] = list(Path(path).name.encode())
++                elif value.get('schema') == 'ocore-rust-link-consumer-v1':
++                    path = bytes(value['original_locator_bytes']).decode()
++                    value['original_locator_bytes'] = list(Path(path).name.encode())
++        self.assertEqual(len(self.clone(change)()['producer_units']), 3)
++
++    def test_all_original_codegen_phases_are_retained_with_lto_gap(self):
++        for phase in ['fat_post_lto', 'thin_post_lto']:
++            with self.subTest(phase=phase), tempfile.TemporaryDirectory() as directory:
++                previous = self.root
++                self.root = Path(directory)
++                try:
++                    def change(packets):
++                        for value in packets.values():
++                            if value.get('schema') == 'ocore-rust-cgu-producer-v1':
++                                value['codegen_phase'] = phase
++                                value['lto_configuration'] = 'Fat' if phase.startswith('fat') else 'Thin'
++                    result = self.clone(change)()
++                    self.assertEqual({x['codegen_phase'] for x in result['producer_units']}, {phase})
++                    self.assertIn('final_lto_machine_stage_unobserved', [x['kind'] for x in result['gaps']])
++                finally:
++                    self.root = previous
++
++    def test_pending_only_failed_emissions_are_retained_as_gaps(self):
++        def change(packets):
++            for path in list(packets):
++                if path.endswith('/producer.json') or '/consumers/' in path or '/native-links/' in path:
++                    del packets[path]
++            shutil.rmtree(self.root / 'producer/native-links')
++        result = self.clone(change)()
++        self.assertEqual(result['producer_units'], [])
++        self.assertEqual(sum(x['kind'] == 'original_native_emission_unfinished' for x in result['gaps']), 3)
++        self.assertFalse(result['source_production_inventory_complete'])
++
++    def test_derived_response_prepare_failure_after_direct_spawn(self):
++        def change(packets):
++            call = next(v for p, v in packets.items() if p.endswith('/exec.json'))
++            error = {'kind': 'PermissionDenied', 'raw_os_error': 13, 'message': 'authored fixture response creation failure'}
++            call['direct_spawn_skipped_prediction'] = True
++            call['spawn_attempts'] = []
++            call['spawn_attempt_count'] = 0
++            call['response_file_preparation_failed'] = True
++            call['observed_child_result'] = {'io_error': error, 'status': None}
++            call['returned_result'] = {'io_error': error, 'status': None}
++            for key in list(packets):
++                if '/spawn-0/' in key:
++                    del packets[key]
++        result = self.clone(change)()
++        self.assertIn('original_native_link_attempt_failed', [x['kind'] for x in result['gaps']])
++
++
++class PrivateWorkerIntegrationTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        worker_spec = importlib.util.spec_from_file_location('private_original_producer_worker', STAGE / 'scripts/ocore_runtime_capture.py')
++        cls.worker = importlib.util.module_from_spec(worker_spec)
++        worker_spec.loader.exec_module(cls.worker)
++        cls.registration_ref = h.file_info(ROOT / 'implementation-evidence/registration.json')
++        cls.registration = h.read_json(Path(cls.registration_ref['path']))
++
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix='private-original-worker-test-')
++        self.addCleanup(self.temp.cleanup)
++        self.directory = Path(self.temp.name)
++        decoder = self.directory / 'rust-producer-decoder.py'
++        decoder.write_bytes(HELPER.read_bytes())
++        self.session = {'recipe': {'toolchain': {'rust_capture_policy': h.POLICY,
++            'rust_hook_registration': {'artifact': self.registration_ref,
++                'expected_manifest_sha256': self.registration_ref['sha256']}}},
++            'capture_worker': {'rust_producer_decoder': {'schema': 'ocore-rust-producer-decoder-worker-v1',
++                'source': h.file_info(HELPER), 'artifact': h.file_info(decoder)}}}
++
++    def recipe(self, policy=h.POLICY):
++        toolchain = {'llvm_version': '22.1.6'}
++        if policy:
++            toolchain['rust_capture_policy'] = policy
++        if policy == h.POLICY:
++            toolchain['rust_hook_registration'] = self.session['recipe']['toolchain']['rust_hook_registration']
++        return {'schema': self.worker.RECIPE_SCHEMA, 'name': 'private-policy-test',
++            'source': {'revision': '8bab26f4f68e0e26f0bb7960be334d5b520ea452', 'url': 'https://github.com/rust-lang/rust'},
++            'toolchain': toolchain, 'commands': [{'argv': ['original-x.py']}],
++            'coverage': {'required_units': [{'id': 'rust-source', 'kind': 'rustc', 'source': '*.rs'}]}}
++
++    def test_new_profile_is_explicit_and_default_retained(self):
++        self.worker.validate_recipe(self.recipe())
++        self.worker.validate_recipe(self.recipe(None))
++        self.worker.validate_recipe(self.recipe(self.worker.RUST_EMBEDDED_POLICY))
++        self.assertNotIn('rust_hook_registration', self.recipe(None)['toolchain'])
++
++    def test_profile_cannot_self_register_unknown_image(self):
++        recipe = copy.deepcopy(self.recipe())
++        recipe['toolchain']['rust_hook_registration']['expected_manifest_sha256'] = '0' * 64
++        with self.assertRaisesRegex(self.worker.CaptureError, 'independently registered'):
++            self.worker.validate_recipe(recipe)
++
++    def test_registration_disallowed_without_profile(self):
++        recipe = self.recipe(None)
++        recipe['toolchain']['rust_hook_registration'] = self.session['recipe']['toolchain']['rust_hook_registration']
++        with self.assertRaisesRegex(self.worker.CaptureError, 'outside original producer'):
++            self.worker.validate_recipe(recipe)
++
++    def test_decoder_snapshot_tamper_rejected(self):
++        (self.directory / 'rust-producer-decoder.py').write_bytes(b'changed')
++        with self.assertRaises(self.worker.CaptureError):
++            self.worker.rust_producer_decoder(self.session, self.directory)
++
++    def test_preexecution_context_preserves_native_argv_and_environment(self):
++        event = {'id': '1' * 32, 'frontend': {'invoked_path': self.registration['compiler']['path']},
++            'cwd': str(self.directory), 'capture_worker': h.file_info(STAGE / 'scripts/ocore_runtime_capture.py')}
++        unit = self.directory / 'unit'
++        unit.mkdir()
++        native_environment = {'PATH': '/original/path', 'CC': '/original/cc', 'OCORE_CAPTURE_PARENT_EVENT': event['id']}
++        args = ['@original-response.rsp']
++        before = copy.deepcopy(native_environment)
++        self.worker.prepare_rust_producer(event, unit, self.session, self.directory, native_environment,
++            self.registration['compiler']['path'], args)
++        self.assertEqual(args, ['@original-response.rsp'])
++        context = h.read_json(Path(event['rust_original_producer_context']['path']))
++        seed = h.read_json(Path(context['invocation_seed']['path']))
++        self.assertEqual(seed['argv'], [self.registration['compiler']['path'], '@original-response.rsp'])
++        self.assertEqual(seed['environment_before_context'], before)
++        self.assertEqual({k: v for k, v in native_environment.items() if k != 'OCORE_RUST_PRODUCER_CONTEXT'}, before)
++        self.assertEqual(seed['compiler'], self.registration['compiler'])
++        self.assertEqual(context['hook_build_manifest'], self.registration['hook_build_manifest'])
++
++    def actual_event(self):
++        context = h.read_json(DIRECT / 'context.json')
++        seed = h.read_json(DIRECT / 'seed.json')
++        new_seed = {'schema': 'ocore-rust-original-invocation-seed-v1',
++            'compiler_invocation_id': context['compiler_invocation_id'], 'argv': seed['argv'],
++            'incoming_program': seed['argv'][0], 'cwd': seed['cwd'],
++            'environment_before_context': seed['environment_before_context'],
++            'compiler': self.registration['compiler'], 'cargo_parent': None,
++            'capture_worker': h.file_info(STAGE / 'scripts/ocore_runtime_capture.py'), 'hook_registration': self.registration_ref}
++        model = OriginalPacketTests('test_positive_derived_rebound_fixture')
++        model.root = self.directory
++        observation = model.clone(lambda _: None, invocation_seed=new_seed)()
++        context_ref = observation['context']
++        manifest = observation['packet_manifest']
++        event = {'id': context['compiler_invocation_id'], 'kind': 'rustc', 'argv': seed['argv'][1:],
++            'executed_argv': seed['argv'][1:], 'cwd': seed['cwd'], 'exit_code': 0,
++            'frontend': {'invoked_path': self.registration['compiler']['path']},
++            'capture_worker': new_seed['capture_worker'], 'capture_errors': [
++                'original Rust producer closure gap: ' + x['kind'] for x in observation['gaps']],
++            'rust_capture': {'policy': h.POLICY, 'applied': True, 'frontend_replay_used': False},
++            'rust_original_producer_context': context_ref, 'rust_original_packet_manifest': manifest,
++            'rust_original_producer_registration': self.registration_ref,
++            'rust_original_producer': observation, 'units': []}
++        for producer in observation['producer_units']:
++            event['units'].append({'id': f"{event['id']}:producer:{producer['emission_id']}",
++                'original_producer': producer, 'frontend_replay_used': False,
++                'ir': dict(producer['ir'], target_triple=bytes(producer['target_triple_bytes']).decode(),
++                    data_layout=bytes(producer['data_layout_bytes']).decode())})
++        return event
++
++    def test_original_source_event_readmission_no_replay(self):
++        event = self.actual_event()
++        with mock.patch.object(self.worker.subprocess, 'run', side_effect=AssertionError('frontend replay forbidden')):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++        self.assertEqual(len(event['units']), 3)
++        self.assertNotIn('saved_cgus', event)
++        self.assertNotIn('outputs', event)
++
++    def test_original_unit_duplication_rejected(self):
++        event = self.actual_event()
++        event['units'].append(event['units'][0])
++        with self.assertRaisesRegex(self.worker.CaptureError, 'unit count'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_original_unit_byte_edge_changed_rejected(self):
++        event = self.actual_event()
++        event['units'][0]['ir']['sha256'] = '0' * 64
++        with self.assertRaisesRegex(self.worker.CaptureError, 'input BC bytes'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_original_copied_unit_actual_bytes_and_target_guard(self):
++        event = self.actual_event()
++        wrong = self.directory / 'wrong.bc'
++        wrong.write_bytes(b'BC\xc0\xdefake copied bytes')
++        event['units'][0]['ir']['path'] = str(wrong)
++        with self.assertRaisesRegex(self.worker.CaptureError, 'actual original unit BC'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++        event['units'][0]['ir']['path'] = event['units'][0]['original_producer']['ir']['path']
++        event['units'][0]['ir']['target_triple'] = 'wrong-target'
++        with self.assertRaisesRegex(self.worker.CaptureError, 'target/DataLayout'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_registration_journal_alias_cannot_replace_observation_binding(self):
++        event = self.actual_event()
++        event['rust_original_producer_registration'] = dict(self.registration_ref, sha256='0' * 64)
++        with self.assertRaisesRegex(self.worker.CaptureError, 'context/seed/registration'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_native_status_and_gap_changes_rejected(self):
++        event = self.actual_event()
++        event['exit_code'] = 1
++        with self.assertRaisesRegex(self.worker.CaptureError, 'final compiler journal'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++        event['exit_code'] = 0
++        event['capture_errors'] = []
++        with self.assertRaisesRegex(self.worker.CaptureError, 'gap omitted'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_changed_incoming_command_rejected(self):
++        event = self.actual_event()
++        event['argv'].append('-Copt-level=3')
++        event['executed_argv'] = event['argv']
++        with self.assertRaisesRegex(self.worker.CaptureError, 'original seed'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_original_query_cannot_gain_native_units(self):
++        event = {'id': '1' * 32, 'kind': 'rustc', 'argv': ['-vV'], 'executed_argv': ['-vV'],
++            'rust_capture': {'policy': h.POLICY, 'applied': False, 'frontend_replay_used': False}, 'units': []}
++        self.worker.verify_rust_original_event(event, self.session, self.directory)
++        event['units'] = [{'invented': True}]
++        with self.assertRaisesRegex(self.worker.CaptureError, 'query/analysis'):
++            self.worker.verify_rust_original_event(event, self.session, self.directory)
++
++    def test_wrapper_forwards_observed_native_failure_without_replay(self):
++        source = self.directory / 'source.rs'
++        source.write_text('fn main() {}\n')
++        (self.directory / 'events').mkdir()
++        (self.directory / 'units').mkdir()
++        session = copy.deepcopy(self.session)
++        session['tools'] = {'rustc': {'invoked_path': self.registration['compiler']['path']}}
++        session['recipe']['toolchain']['llvm_version'] = '22.1.6'
++        self.worker.write_json(self.directory / 'session.json', session)
++        args = [str(source), '--crate-name', 'original', '--crate-type', 'bin', '-o', str(self.directory / 'app')]
++        info = {'invoked_path': self.registration['compiler']['path'], 'default_sysroot': str(PILOT / 'compiler/stage1'),
++            'llvm_version': '22.1.6', 'release': '1.97.1', 'version': 'original-source fixture'}
++        with mock.patch.object(self.worker, 'verify_worker', return_value={'artifact': h.file_info(STAGE / 'scripts/ocore_runtime_capture.py')}), \
++                mock.patch.object(self.worker, 'tool_info', return_value=info), \
++                mock.patch.object(self.worker.subprocess, 'run', return_value=type('Result', (), {'returncode': 1})()) as run:
++            status = self.worker.compiler(self.directory, 'rustc', [self.registration['compiler']['path'], *args])
++        self.assertEqual(status, 1)
++        self.assertEqual(run.call_count, 1)
++        self.assertEqual(run.call_args.args[0], [self.registration['compiler']['path'], *args])
++        event = h.read_json(next((self.directory / 'events').glob('*.json')))
++        self.assertEqual(event['exit_code'], 1)
++        self.assertEqual(event['executed_argv'], args)
++        self.assertEqual(event['state'], 'finished')
++        self.assertTrue(any('producer ingestion' in x for x in event['capture_errors']))
++        self.assertNotIn('replay_argv', event)
++
++    def test_cli_diagnostic_reads_original_packets_without_reexecution(self):
++        outputs = [self.directory / 'packets-cli.json', self.directory / 'observation-cli.json']
++        args = ['--registration', self.registration_ref['path'], '--trusted-registration-sha256', self.registration_ref['sha256'],
++            '--context', str(DIRECT / 'context.json'), '--packets', str(DIRECT / 'producer'),
++            '--manifest-output', str(outputs[0]), '--observation-output', str(outputs[1]), '--observed-compiler-status', '0']
++        with mock.patch('subprocess.run', side_effect=AssertionError('no compiler replay')):
++            self.assertEqual(h.main(args), 0)
++        result = h.read_json(outputs[1])
++        self.assertEqual(len(result['producer_units']), 3)
++        self.assertFalse(result['whole_original_compiler_ocore_lowered'])
++        with self.assertRaisesRegex(h.ProducerError, 'must be new'):
++            h.main(args)
++
++
++if __name__ == '__main__':
++    unittest.main()

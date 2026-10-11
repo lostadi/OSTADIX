@@ -359,7 +359,7 @@ impl<'a> Checker<'a> {
                         let qn = qualify(&self.scopes[module_index].name, &def.name);
                         self.ensure_name_free(&qn, module_index, item.span)?;
                         let attrs = parse_attrs(&self.scopes[module_index].file, item)?;
-                        let mut abi = def.abi.clone();
+                        let mut abi = def.abi;
                         if attrs.interrupt {
                             abi = ast::Abi::Interrupt;
                         }
@@ -544,9 +544,62 @@ impl<'a> Checker<'a> {
         expected: TypeId,
     ) -> TcResult<HirConstValue> {
         let file = &self.scopes[module_index].file;
+        let positive_integer_limit = |ty: &Type| match ty {
+            Type::Int { bits: 64, .. } | Type::Usize | Type::Isize => Some(u64::MAX),
+            Type::Int {
+                signed: false,
+                bits,
+            } => Some((1u64 << bits) - 1),
+            Type::Int { signed: true, bits } => Some((1u64 << (bits - 1)) - 1),
+            _ => None,
+        };
         match (&expr.kind, &self.program.types.types[expected]) {
             (ast::ExprKind::Integer(v), ty) if is_integer_type(ty) => {
+                if *v > positive_integer_limit(ty).unwrap() {
+                    return Err(diag(
+                        file,
+                        expr.span,
+                        format!(
+                            "literal `{v}` does not fit `{}`",
+                            self.program.types.name(expected)
+                        ),
+                    ));
+                }
                 Ok(HirConstValue::Integer(*v))
+            }
+            (
+                ast::ExprKind::Unary {
+                    op: ast::UnaryOp::Neg,
+                    operand,
+                },
+                ty,
+            ) if is_integer_type(ty) => {
+                let ast::ExprKind::Integer(magnitude) = operand.kind else {
+                    return Err(diag(
+                        file,
+                        expr.span,
+                        "constant unary `-` requires an integer literal",
+                    ));
+                };
+                let limit = match ty {
+                    Type::Int { signed: true, bits } => 1u64 << (bits - 1),
+                    Type::Isize => 1u64 << 63,
+                    _ => positive_integer_limit(ty).unwrap(),
+                };
+                if magnitude > limit {
+                    return Err(diag(
+                        file,
+                        expr.span,
+                        format!(
+                            "negative integer literal does not fit `{}`",
+                            self.program.types.name(expected)
+                        ),
+                    ));
+                }
+                // HIR integer constants carry the full 64-bit two's-complement
+                // pattern. Loads/casts normalize to their declared type; data
+                // emission writes only the declared width's low bits.
+                Ok(HirConstValue::Integer(magnitude.wrapping_neg()))
             }
             (
                 ast::ExprKind::Byte(v),
@@ -603,7 +656,37 @@ impl<'a> Checker<'a> {
             }
             (ast::ExprKind::Path(path), _) => {
                 let qn = self.resolve_path(module_index, path);
-                if let Some(Symbol::Const(id)) = self.program.symbols.get(&qn) {
+                if let Some(Symbol::Function(id)) = self.program.symbols.get(&qn) {
+                    let function = &self.program.functions[*id];
+                    let Type::Function {
+                        params,
+                        result,
+                        abi,
+                    } = &self.program.types.types[expected]
+                    else {
+                        return Err(diag(
+                            file,
+                            expr.span,
+                            "function address requires a function-pointer constant type",
+                        ));
+                    };
+                    if *abi != function.abi
+                        || *result != function.result
+                        || *params
+                            != function
+                                .params
+                                .iter()
+                                .map(|p| function.locals[*p].ty)
+                                .collect::<Vec<_>>()
+                    {
+                        return Err(diag(
+                            file,
+                            expr.span,
+                            "function-pointer constant signature or ABI mismatch",
+                        ));
+                    }
+                    Ok(HirConstValue::Function(*id))
+                } else if let Some(Symbol::Const(id)) = self.program.symbols.get(&qn) {
                     if self.program.consts[*id].ty != expected {
                         return Err(diag(file, expr.span, "constant type mismatch"));
                     }
@@ -702,7 +785,11 @@ impl<'a> Checker<'a> {
                     .types
                     .intern(Type::Array { element, len: *len })
             }
-            ast::TypeExprKind::FnPointer { params, result } => {
+            ast::TypeExprKind::FnPointer {
+                abi,
+                params,
+                result,
+            } => {
                 let params = params
                     .iter()
                     .map(|p| self.resolve_type(module_index, p))
@@ -711,7 +798,7 @@ impl<'a> Checker<'a> {
                 self.program.types.intern(Type::Function {
                     params,
                     result,
-                    abi: ast::Abi::OCore,
+                    abi: *abi,
                 })
             }
         };
@@ -1023,8 +1110,11 @@ impl<'a> BodyChecker<'a> {
                     _ => None,
                 });
                 let value = self.check_expr(value, expected_element)?;
+                if let Some(element) = expected_element {
+                    self.expect_assignable(value.ty, element, value.span)?;
+                }
                 let ty = self.program.types.intern(Type::Array {
-                    element: value.ty,
+                    element: expected_element.unwrap_or(value.ty),
                     len: *len,
                 });
                 (
@@ -1050,15 +1140,22 @@ impl<'a> BodyChecker<'a> {
                     );
                 }
                 let mut ordered = Vec::new();
-                for field in &def.fields {
-                    let Some((_, value)) = fields.iter().find(|(n, _)| n == &field.name) else {
-                        return Err(
-                            self.error(expr.span, format!("missing field `{}`", field.name))
-                        );
+                let mut seen = HashSet::new();
+                for (name, value) in fields {
+                    let Some((index, field)) = def
+                        .fields
+                        .iter()
+                        .enumerate()
+                        .find(|(_, field)| field.name == *name)
+                    else {
+                        return Err(self.error(expr.span, format!("unknown field `{name}`")));
                     };
+                    if !seen.insert(index) {
+                        return Err(self.error(expr.span, format!("duplicate field `{name}`")));
+                    }
                     let value = self.check_expr(value, Some(field.ty))?;
                     self.expect_assignable(value.ty, field.ty, value.span)?;
-                    ordered.push(value);
+                    ordered.push((index, value));
                 }
                 (
                     HirExprKind::Struct {
@@ -1069,7 +1166,42 @@ impl<'a> BodyChecker<'a> {
                 )
             }
             ast::ExprKind::Unary { op, operand } => {
-                let operand = self.check_expr(operand, None)?;
+                let operand_expected = if matches!(op, ast::UnaryOp::Neg | ast::UnaryOp::BitNot) {
+                    expected.filter(|ty| self.program.types.is_integer(*ty))
+                } else {
+                    None
+                };
+                let signed_literal = if *op == ast::UnaryOp::Neg {
+                    match (&operand.kind, operand_expected) {
+                        (ast::ExprKind::Integer(value), Some(ty)) => {
+                            let bits = match self.program.types.types[ty] {
+                                Type::Int { signed: true, bits } => Some(bits),
+                                Type::Isize => Some(64),
+                                _ => None,
+                            };
+                            if let Some(bits) = bits {
+                                if *value > (1u64 << (bits - 1)) {
+                                    return Err(self.error(expr.span, "negative integer literal does not fit its expected signed type"));
+                                }
+                                Some(HirExpr {
+                                    kind: HirExprKind::Constant(HirConstValue::Integer(*value)),
+                                    ty,
+                                    span: operand.span,
+                                })
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                let operand = if let Some(literal) = signed_literal {
+                    literal
+                } else {
+                    self.check_expr(operand, operand_expected)?
+                };
                 let ty = match op {
                     ast::UnaryOp::Neg => {
                         if !self.program.types.is_integer(operand.ty) {
@@ -1305,11 +1437,29 @@ impl<'a> BodyChecker<'a> {
                 if !self.program.types.is_scalar(value.ty) || !self.program.types.is_scalar(to) {
                     return Err(self.error(expr.span, "casts are limited to scalar types"));
                 }
-                let pointer_crossing =
-                    matches!(self.program.types.types[value.ty], Type::Pointer { .. })
-                        != matches!(self.program.types.types[to], Type::Pointer { .. });
+                // Exposing a function's numeric address remains safe. Creating
+                // a callable address from an integer still requires unsafe.
+                let from_function =
+                    matches!(self.program.types.types[value.ty], Type::Function { .. });
+                let to_function = matches!(self.program.types.types[to], Type::Function { .. });
+                let from_pointer =
+                    matches!(self.program.types.types[value.ty], Type::Pointer { .. });
+                let to_pointer = matches!(self.program.types.types[to], Type::Pointer { .. });
+                let pointer_crossing = if from_function && self.program.types.is_integer(to) {
+                    false
+                } else {
+                    (from_pointer || from_function) != (to_pointer || to_function)
+                        || (from_function && to_pointer)
+                        || (from_pointer && to_function)
+                };
                 if pointer_crossing {
                     self.require_unsafe(expr.span, "pointer/integer cast")?;
+                }
+                if value.ty != to
+                    && matches!(self.program.types.types[value.ty], Type::Function { .. })
+                    && matches!(self.program.types.types[to], Type::Function { .. })
+                {
+                    self.require_unsafe(expr.span, "function-pointer signature or ABI cast")?;
                 }
                 (
                     HirExprKind::Cast {
@@ -1419,7 +1569,7 @@ impl<'a> BodyChecker<'a> {
                         .map(|p| function.locals[*p].ty)
                         .collect(),
                     result: function.result,
-                    abi: function.abi.clone(),
+                    abi: function.abi,
                 });
                 Ok(HirExpr {
                     kind: HirExprKind::Function(id),
@@ -1477,7 +1627,10 @@ impl<'a> BodyChecker<'a> {
             _ => None,
         };
         if let Some(path) = path {
-            if path.len() == 1 {
+            if path.len() == 1
+                && self.lookup_local(&path[0]).is_none()
+                && !self.program.symbols.contains_key(&self.resolve_path(path))
+            {
                 if let Some(intrinsic) = intrinsic(&path[0]) {
                     return self.check_intrinsic(span, intrinsic, args);
                 }
@@ -1509,7 +1662,54 @@ impl<'a> BodyChecker<'a> {
         }
         let callee = self.check_expr(callee, None)?;
         let HirExprKind::Function(function_id) = callee.kind else {
-            return Err(self.error(span, "v0.1 supports direct function calls only"));
+            let Type::Function {
+                params,
+                result,
+                abi,
+            } = self.program.types.types[callee.ty].clone()
+            else {
+                return Err(self.error(span, "call target must have a function-pointer type"));
+            };
+            if abi == ast::Abi::Interrupt {
+                return Err(self.error(span, "interrupt handlers cannot be called indirectly"));
+            }
+            // Function-pointer types currently carry the ABI and signature,
+            // but not the target's unsafe/effect contract. Calling through a
+            // pointer must therefore be explicit, including inferred pointers.
+            self.require_unsafe(span, "indirect function call")?;
+            if params
+                .iter()
+                .any(|ty| !self.program.types.is_scalar(*ty) || self.program.types.is_float(*ty))
+                || (!matches!(self.program.types.types[result], Type::Void | Type::Never)
+                    && (!self.program.types.is_scalar(result)
+                        || self.program.types.is_float(result)))
+            {
+                return Err(self.error(span, "indirect calls require non-floating scalar arguments and results; pass aggregates through pointers"));
+            }
+            if params.len() != args.len() {
+                return Err(self.error(
+                    span,
+                    format!(
+                        "function pointer takes {} arguments, got {}",
+                        params.len(),
+                        args.len()
+                    ),
+                ));
+            }
+            let mut checked = Vec::new();
+            for (arg, expected) in args.iter().zip(params) {
+                let arg = self.check_expr(arg, Some(expected))?;
+                self.expect_assignable(arg.ty, expected, arg.span)?;
+                checked.push(arg);
+            }
+            return Ok(HirExpr {
+                kind: HirExprKind::CallIndirect {
+                    callee: Box::new(callee),
+                    args: checked,
+                },
+                ty: result,
+                span,
+            });
         };
         let function = self.program.functions[function_id].clone();
         if function.abi == ast::Abi::Interrupt {
@@ -1693,22 +1893,33 @@ impl<'a> BodyChecker<'a> {
         }
         let mut checked = vec![ptr];
         for arg in &args[1..1 + value_count] {
-            checked.push(self.check_expr(arg, Some(pointee))?);
+            let value = self.check_expr(arg, Some(pointee))?;
+            self.expect_assignable(value.ty, pointee, value.span)?;
+            checked.push(value);
         }
+        let mut order_values = Vec::new();
         for arg in &args[1 + value_count..] {
-            let order = self.check_expr(arg, Some(self.program.types.primitive("u8").unwrap()))?;
+            let order_ty = self.program.types.primitive("u8").unwrap();
+            let order = self.check_expr(arg, Some(order_ty))?;
+            self.expect_assignable(order.ty, order_ty, order.span)?;
             let HirExprKind::Constant(HirConstValue::Integer(order_value)) = order.kind else {
                 return Err(self.error(
                     order.span,
                     "memory ordering must be a named ordering constant",
                 ));
             };
-            validate_memory_order(intrinsic, order_value as u8)
-                .map_err(|m| self.error(order.span, m))?;
+            let order_value = u8::try_from(order_value)
+                .map_err(|_| self.error(order.span, "invalid memory ordering"))?;
+            validate_memory_order(intrinsic, order_value).map_err(|m| self.error(order.span, m))?;
+            order_values.push(order_value);
             checked.push(HirExpr {
-                kind: HirExprKind::Constant(HirConstValue::Integer(order_value)),
+                kind: HirExprKind::Constant(HirConstValue::Integer(u64::from(order_value))),
                 ..order
             });
+        }
+        if intrinsic == Intrinsic::AtomicCompareExchange {
+            validate_compare_exchange_orders(order_values[0], order_values[1])
+                .map_err(|m| self.error(span, m))?;
         }
         let result = if matches!(intrinsic, Intrinsic::AtomicStore) {
             self.program.types.primitive("void").unwrap()
@@ -1797,7 +2008,11 @@ impl<'a> BodyChecker<'a> {
                     .types
                     .intern(Type::Array { element, len: *len }))
             }
-            ast::TypeExprKind::FnPointer { params, result } => {
+            ast::TypeExprKind::FnPointer {
+                abi,
+                params,
+                result,
+            } => {
                 let params = params
                     .iter()
                     .map(|p| self.resolve_type(p))
@@ -1806,7 +2021,7 @@ impl<'a> BodyChecker<'a> {
                 Ok(self.program.types.intern(Type::Function {
                     params,
                     result,
-                    abi: ast::Abi::OCore,
+                    abi: *abi,
                 }))
             }
         }
@@ -2023,6 +2238,15 @@ fn validate_function_attrs(
             "floating-point values are forbidden across the v0.1 sysv64 ABI",
         ));
     }
+    if *function.abi == ast::Abi::C
+        && (function.params.iter().any(|ty| types.is_float(*ty)) || types.is_float(function.result))
+    {
+        return Err(diag(
+            file,
+            span,
+            "floating-point values are forbidden across the current scalar C ABI",
+        ));
+    }
     if *function.abi != ast::Abi::Interrupt
         && (function.params.iter().any(|ty| !types.is_scalar(*ty))
             || (!matches!(types.types[function.result], Type::Void | Type::Never)
@@ -2069,6 +2293,25 @@ pub(super) fn validate_memory_order(intrinsic: Intrinsic, order: u8) -> Result<(
         return Err("atomic store cannot use acquire or acq_rel ordering");
     }
     Ok(())
+}
+
+pub(super) fn validate_compare_exchange_orders(
+    success: u8,
+    failure: u8,
+) -> Result<(), &'static str> {
+    // Failure performs only a load; its order cannot contain a release or
+    // exceed the successful read-modify-write's acquire/SC guarantees.
+    let allowed = match success {
+        0 | 2 => failure == 0,
+        1 | 3 => matches!(failure, 0 | 1),
+        4 => matches!(failure, 0 | 1 | 4),
+        _ => false,
+    };
+    if allowed {
+        Ok(())
+    } else {
+        Err("compare-exchange failure ordering must be load-only and no stronger than success ordering")
+    }
 }
 
 fn memory_order(name: &str) -> Option<MemoryOrder> {
@@ -2158,19 +2401,82 @@ fn item_symbol(module: &str, name: &str, attrs: &ItemAttrs, extern_: bool) -> St
 }
 
 fn block_terminates(block: &HirBlock, never_ty: TypeId) -> bool {
-    let Some(last) = block.stmts.last() else {
-        return false;
-    };
-    match &last.kind {
-        HirStmtKind::Return(_) | HirStmtKind::Loop(_) => true,
-        HirStmtKind::Expr(expr) => expr.ty == never_ty,
+    block.stmts.iter().any(|stmt| match &stmt.kind {
+        HirStmtKind::Return(_) => true,
+        HirStmtKind::Let { init, .. } | HirStmtKind::Expr(init) => expr_terminates(init, never_ty),
+        HirStmtKind::If {
+            condition,
+            then_block,
+            else_block,
+        } => {
+            expr_terminates(condition, never_ty)
+                || else_block.as_ref().is_some_and(|otherwise| {
+                    block_terminates(then_block, never_ty) && block_terminates(otherwise, never_ty)
+                })
+        }
+        HirStmtKind::While { condition, .. } => expr_terminates(condition, never_ty),
+        HirStmtKind::Loop(body) => !loop_has_break(body),
+        HirStmtKind::Unsafe(body) => block_terminates(body, never_ty),
+        HirStmtKind::Break | HirStmtKind::Continue => false,
+    })
+}
+
+fn loop_has_break(block: &HirBlock) -> bool {
+    block.stmts.iter().any(|stmt| match &stmt.kind {
+        HirStmtKind::Break => true,
         HirStmtKind::If {
             then_block,
-            else_block: Some(else_block),
+            else_block,
             ..
-        } => block_terminates(then_block, never_ty) && block_terminates(else_block, never_ty),
-        HirStmtKind::Unsafe(block) => block_terminates(block, never_ty),
+        } => loop_has_break(then_block) || else_block.as_ref().is_some_and(loop_has_break),
+        HirStmtKind::Unsafe(body) => loop_has_break(body),
+        // A break inside a nested loop belongs to that loop.
         _ => false,
+    })
+}
+
+fn expr_terminates(expr: &HirExpr, never_ty: TypeId) -> bool {
+    if expr.ty == never_ty {
+        return true;
+    }
+    match &expr.kind {
+        HirExprKind::Call { args, .. }
+        | HirExprKind::Intrinsic { args, .. }
+        | HirExprKind::EnumVariant { args, .. }
+        | HirExprKind::Array(args) => args.iter().any(|arg| expr_terminates(arg, never_ty)),
+        HirExprKind::CallIndirect { callee, args } => {
+            expr_terminates(callee, never_ty)
+                || args.iter().any(|arg| expr_terminates(arg, never_ty))
+        }
+        HirExprKind::Struct { fields, .. } => fields
+            .iter()
+            .any(|(_, value)| expr_terminates(value, never_ty)),
+        HirExprKind::ArrayRepeat { value, .. }
+        | HirExprKind::Cast { value, .. }
+        | HirExprKind::Unary { operand: value, .. }
+        | HirExprKind::Field { base: value, .. } => expr_terminates(value, never_ty),
+        HirExprKind::Binary { op, lhs, rhs } => {
+            expr_terminates(lhs, never_ty)
+                || (!matches!(op, ast::BinaryOp::LogicalAnd | ast::BinaryOp::LogicalOr)
+                    && expr_terminates(rhs, never_ty))
+        }
+        HirExprKind::Assign { target, value, .. } => {
+            expr_terminates(target, never_ty) || expr_terminates(value, never_ty)
+        }
+        HirExprKind::Index { base, index } => {
+            expr_terminates(base, never_ty) || expr_terminates(index, never_ty)
+        }
+        HirExprKind::Asm(asm) => asm.operands.iter().any(|operand| match operand {
+            HirAsmOperand::In { value, .. } => expr_terminates(value, never_ty),
+            HirAsmOperand::Out { target, .. } => expr_terminates(target, never_ty),
+            HirAsmOperand::InOut { input, output, .. } => {
+                expr_terminates(input, never_ty) || expr_terminates(output, never_ty)
+            }
+        }),
+        HirExprKind::Constant(_)
+        | HirExprKind::Local(_)
+        | HirExprKind::Static(_)
+        | HirExprKind::Function(_) => false,
     }
 }
 
@@ -2203,6 +2509,125 @@ mod tests {
     fn rejected(source: &str) -> Diagnostic {
         let ast = parser::parse("test.oc", source).unwrap();
         check(&[("test.oc".into(), ast)]).unwrap_err()
+    }
+
+    #[test]
+    fn portable_c_definitions_and_relocatable_callbacks_keep_their_signature() {
+        let program = checked(
+            r#"
+module callbacks;
+@export @no_mangle
+extern "C" fn add(value: u64) -> u64 { return value + 1; }
+static TABLE: [extern "C" fn(u64) -> u64; 1] = [add];
+const CALLBACK: extern "C" fn(u64) -> u64 = add;
+unsafe fn apply() -> u64 { return TABLE[0](CALLBACK(41)); }
+"#,
+        );
+        assert_eq!(program.functions[0].abi, ast::Abi::C);
+        assert!(program.functions[0].body.is_some());
+        assert!(matches!(
+            program.consts[0].value,
+            HirConstValue::Function(0)
+        ));
+        assert!(
+            matches!(&program.statics[0].init, HirConstValue::Array(values) if matches!(values[0], HirConstValue::Function(0)))
+        );
+    }
+
+    #[test]
+    fn indirect_calls_require_explicit_unsafe_and_matching_arguments() {
+        assert!(
+            rejected("module callbacks; fn apply(f: fn(u64)->u64)->u64 { return f(1); }")
+                .message
+                .contains("indirect function call requires an explicit unsafe block")
+        );
+        assert!(rejected(
+            "module callbacks; unsafe fn apply(f: fn(u64)->u64)->u64 { return f(); }"
+        )
+        .message
+        .contains("takes 1 arguments"));
+        assert!(rejected(
+            "module callbacks; unsafe fn apply(f: fn(u64)->u64, x:u32)->u64 { return f(x); }"
+        )
+        .message
+        .contains("expected `u64`"));
+        assert!(rejected(
+            "module callbacks; fn make(x:usize)->fn()->void { return x as fn()->void; }"
+        )
+        .message
+        .contains("requires an explicit unsafe block"));
+        assert!(rejected("module callbacks; extern \"C\" fn f(x:u32)->u32; static F:extern \"C\" fn(u64)->u64=f;").message.contains("signature or ABI mismatch"));
+    }
+
+    #[test]
+    fn callback_locals_can_shadow_predeclared_intrinsics() {
+        let program = checked("module callbacks; fn identity(x:u64)->u64{return x;} unsafe fn apply()->u64{let halt:fn(u64)->u64=identity;return halt(42);}");
+        let body = program.functions[1].body.as_ref().unwrap();
+        assert!(matches!(
+            &body.stmts[1].kind,
+            HirStmtKind::Return(Some(HirExpr {
+                kind: HirExprKind::CallIndirect { .. },
+                ..
+            }))
+        ));
+    }
+
+    #[test]
+    fn signed_negative_literals_accept_the_minimum_and_reject_overflow() {
+        checked("module numbers; fn a()->i8{return -128;} fn b()->i16{return -32768;} fn c()->i64{return -9223372036854775808;}");
+        assert!(rejected("module numbers; fn bad()->i8{return -129;}")
+            .message
+            .contains("negative integer literal does not fit"));
+    }
+
+    #[test]
+    fn compare_exchange_checks_all_success_failure_order_pairs() {
+        let names = ["relaxed", "acquire", "release", "acq_rel", "seq_cst"];
+        for (success, s) in names.iter().enumerate() {
+            for (failure, f) in names.iter().enumerate() {
+                let source = format!("module orders; unsafe fn test(p:*mut u64)->u64{{return atomic_compare_exchange(p,1,2,{s},{f});}}");
+                let ast = parser::parse("orders.oc", &source).unwrap();
+                let result = check(&[("orders.oc".into(), ast)]);
+                let valid = match success {
+                    0 | 2 => failure == 0,
+                    1 | 3 => matches!(failure, 0 | 1),
+                    4 => matches!(failure, 0 | 1 | 4),
+                    _ => unreachable!(),
+                };
+                assert_eq!(result.is_ok(), valid, "{s}/{f}: {result:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn portable_c_float_crossings_stay_explicitly_unsupported() {
+        assert!(rejected("module floats; extern \"C\" fn f(x:f64)->f64;")
+            .message
+            .contains("current scalar C ABI"));
+    }
+
+    #[test]
+    fn function_addresses_remain_safe_but_callable_reinterpretations_do_not() {
+        checked("module addresses; fn f()->void{} fn address()->usize{return f as usize;}");
+        assert!(rejected(
+            "module addresses; fn f()->void{} fn bad()->fn(u64)->void{return f as fn(u64)->void;}"
+        )
+        .message
+        .contains("signature or ABI cast"));
+        assert!(rejected(
+            "module addresses; fn f()->void{} fn bad()->*const u8{return f as *const u8;}"
+        )
+        .message
+        .contains("requires an explicit unsafe block"));
+    }
+
+    #[test]
+    fn nested_never_expressions_terminate_and_conditional_rhs_does_not() {
+        checked("module divergence; extern \"C\" fn stop()->never; fn pass(x:u64)->u64{return x;} fn a()->u64{let x:u64=stop();} fn b()->u64{pass(stop());} fn c()->u64{let x:[u64;0]=[stop();0];}");
+        assert!(rejected("module divergence; extern \"C\" fn stop()->never; fn a(flag:bool)->bool{flag && stop();}").message.contains("return"));
+        assert!(rejected("module divergence; fn a()->u64{loop{break;}}")
+            .message
+            .contains("return"));
     }
 
     #[test]
@@ -2358,6 +2783,59 @@ fn compound(value: u64, count: usize) -> u64 {
 "#,
         );
         assert_eq!(program.functions.len(), 3);
+    }
+
+    #[test]
+    fn static_and_const_integer_literals_obey_contextual_ranges() {
+        let program = checked(
+            "module constants; const SMALL:u8=255; static BYTE:i8=-128; \
+             static HALF:i16=-32768; static WORD:i32=-2147483648; \
+             static DOUBLE:i64=-9223372036854775808; static INDEX:isize=-9223372036854775808; \
+             static WRAPPED:u8=-1; static TABLE:[i8;3]=[-128,-1,127];",
+        );
+        let integers: Vec<_> = program.statics[..6]
+            .iter()
+            .map(|item| match item.init {
+                HirConstValue::Integer(value) => value,
+                _ => panic!("expected integer constant"),
+            })
+            .collect();
+        assert_eq!(
+            integers,
+            [
+                128u64.wrapping_neg(),
+                32768u64.wrapping_neg(),
+                2147483648u64.wrapping_neg(),
+                1u64 << 63,
+                1u64 << 63,
+                u64::MAX
+            ]
+        );
+        assert!(matches!(
+            program.consts[0].value,
+            HirConstValue::Integer(255)
+        ));
+        for item in [
+            "static VALUE:u8=256;",
+            "const VALUE:u16=65536;",
+            "static VALUE:i8=128;",
+            "static VALUE:i16=32768;",
+            "static VALUE:i32=2147483648;",
+            "static VALUE:i8=-129;",
+            "const VALUE:i16=-32769;",
+            "static VALUE:i32=-2147483649;",
+            "static VALUE:i64=-9223372036854775809;",
+            "static VALUE:isize=-9223372036854775809;",
+            "static VALUE:u8=-256;",
+            "static VALUE:[u8;1]=[256];",
+        ] {
+            let error = rejected(&format!("module constants; {item}"));
+            assert!(
+                error.message.contains("does not fit"),
+                "{item}: {}",
+                error.message
+            );
+        }
     }
 
     #[test]

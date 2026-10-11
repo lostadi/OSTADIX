@@ -70,12 +70,13 @@ impl<'a> Parser<'a> {
                 _ => return Err(self.error_at(token.span, "expected ABI string after `extern`")),
             };
             abi = match name.as_str() {
-                "sysv64" | "C" => Abi::SysV64,
+                "sysv64" => Abi::SysV64,
+                "C" => Abi::C,
                 "ocore" => Abi::OCore,
                 other => {
                     return Err(self.error_at(
                         token.span,
-                        format!("unsupported ABI `{other}`; expected `sysv64` or `ocore`"),
+                        format!("unsupported ABI `{other}`; expected `C`, `sysv64` or `ocore`"),
                     ))
                 }
             };
@@ -178,7 +179,7 @@ impl<'a> Parser<'a> {
         } else {
             self.synthetic_named_type("void")
         };
-        let body = if extern_ {
+        let body = if extern_ && !self.at(&TokenKind::LBrace) {
             self.expect(TokenKind::Semi, "extern function declarations end with `;`")?;
             None
         } else {
@@ -303,7 +304,25 @@ impl<'a> Parser<'a> {
                 },
             });
         }
-        if self.eat(&TokenKind::Fn).is_some() {
+        let explicit_abi = if self.eat(&TokenKind::Extern).is_some() {
+            let token = self.bump();
+            let abi = match &token.kind {
+                TokenKind::String(name) if name == "C" => Abi::C,
+                TokenKind::String(name) if name == "ocore" => Abi::OCore,
+                TokenKind::String(name) if name == "sysv64" => Abi::SysV64,
+                _ => {
+                    return Err(self.error_at(
+                        token.span,
+                        "expected `C`, `ocore` or `sysv64` function pointer ABI",
+                    ))
+                }
+            };
+            self.expect(TokenKind::Fn, "expected `fn` after function pointer ABI")?;
+            Some(abi)
+        } else {
+            None
+        };
+        if explicit_abi.is_some() || self.eat(&TokenKind::Fn).is_some() {
             self.expect(TokenKind::LParen, "expected `(` in function pointer type")?;
             let mut params = Vec::new();
             if !self.at(&TokenKind::RParen) {
@@ -320,6 +339,7 @@ impl<'a> Parser<'a> {
             return Ok(TypeExpr {
                 span: start.join(result.span),
                 kind: TypeExprKind::FnPointer {
+                    abi: explicit_abi.unwrap_or(Abi::OCore),
                     params,
                     result: Box::new(result),
                 },

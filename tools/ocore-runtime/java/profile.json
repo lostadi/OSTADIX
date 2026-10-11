@@ -1,0 +1,20 @@
+{
+  "format": "ocore-openjdk-profile-v1",
+  "upstream_version": "25.0.4.1",
+  "source_revision": "7b65d74bcbd7c3a0b4c1f5c5bd85e64aa2e51b4a",
+  "source_tag": "jdk-25.0.4.1-ga",
+  "vm": "HotSpot-server",
+  "execution_platform": "ostadix-kernel",
+  "targets": ["x86_64-unknown-none", "aarch64-unknown-none", "riscv64-unknown-none"],
+  "full_jdk_modules": true,
+  "jni_required": true,
+  "gc_required": true,
+  "jit_required": ["C1", "C2"],
+  "compiler_method_inventory_exact": true,
+  "compiler_methods_must_be_Ocore_IR": true,
+  "generated_code_must_be_verified_Ocore": true,
+  "ambient_native_engine_fallback": false,
+  "module_scope_may_be_silently_trimmed": false,
+  "inventory_is_lowering_evidence": false,
+  "runtime_complete": false
+}

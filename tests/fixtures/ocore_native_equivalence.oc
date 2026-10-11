@@ -1,0 +1,208 @@
+module conformance;
+
+// One source corpus for every native backend. The host-side harness checks
+// results against independent C arithmetic and compares exact output bytes.
+@packed
+struct Packet { tag: u8, value: u64, delta: i16 }
+@align(64)
+struct Aligned { data: [u8; 65] }
+struct Dispatch { callback: extern "C" fn(u64) -> u64 }
+
+static mut GLOBAL: u64 = 17;
+static BYTES: [u8; 5] = [2, 3, 5, 7, 11];
+static INTERNAL_TABLE: [fn(u64) -> u64; 2] = [recursive_sum, recursive_sum];
+static FOREIGN_TABLE: [extern "C" fn(u64) -> u64; 1] = [foreign_callback];
+const INTERNAL_CALLBACK: fn(u64) -> u64 = recursive_sum;
+struct Ordered { first: u64, second: u64 }
+struct AtomicNeighborhood { first: u8, signed: i8, half: i16, tail: u32 }
+static SIGNED_MIN8: i8 = -128;
+static SIGNED_MIN16: i16 = -32768;
+static SIGNED_MIN32: i32 = -2147483648;
+static SIGNED_MIN64: i64 = -9223372036854775808;
+const NEGATIVE: i16 = -19;
+
+extern "C" fn foreign_sum(a: u64, b: u64, c: u64, d: u64, e: u64,
+    f: u64, g: u64, h: u64, i: u64, j: u64, k: u64, l: u64) -> u64;
+extern "C" fn foreign_u32(value: u32) -> u32;
+extern "C" fn foreign_callback(value: u64) -> u64;
+extern "C" fn runtime_exit(code: u64) -> never;
+
+@export @no_mangle
+extern "C" fn unsigned_mix(a: u64, b: u64, shift: u32) -> u64 {
+    return ((a + b) ^ (a - b) ^ (a * b)) + (a / b) + (a % b)
+        + (a << shift) + (a >> shift);
+}
+
+@export @no_mangle
+extern "C" fn signed_mix(a: i64, b: i64, shift: u32) -> u64 {
+    return ((a / b) as u64) + ((a % b) as u64)
+        + ((a >> shift) as u64) + ((a << shift) as u64);
+}
+
+@export @no_mangle
+extern "C" fn narrow_mix(a: u8, b: u16, c: i8, d: i16) -> u64 {
+    // Keep each narrow intermediate observable before storing a local.
+    return (((~a) / 3) as u64) + (((-a) / 5) as u64)
+        + (((~b) / 7) as u64) + (((-b) / 11) as u64)
+        + (((-c) / 3) as u64) + (((~d) / 7) as u64);
+}
+
+@export @no_mangle
+extern "C" fn unsigned32_identity(value: u32) -> u32 { return value; }
+
+@export @no_mangle
+extern "C" fn many_args(a: u64, b: u64, c: u64, d: u64, e: u64,
+    f: u64, g: u64, h: u64, i: u64, j: u64, k: u64, l: u64) -> u64 {
+    return a + 2*b + 3*c + 4*d + 5*e + 6*f + 7*g + 8*h + 9*i + 10*j + 11*k + 12*l;
+}
+
+fn recursive_sum(n: u64) -> u64 {
+    if n == 0 { return 0; }
+    return n + recursive_sum(n - 1);
+}
+
+unsafe fn step() -> u64 { GLOBAL += 1; return GLOBAL; }
+unsafe fn ordered_base() -> *const u8 { GLOBAL = GLOBAL * 10 + 1; return &BYTES[0]; }
+unsafe fn ordered_index() -> usize { GLOBAL = GLOBAL * 10 + 2; return 0; }
+unsafe fn ordered_callee() -> fn(u64) -> u64 { GLOBAL = GLOBAL * 10 + 1; return recursive_sum; }
+unsafe fn ordered_argument() -> u64 { GLOBAL = GLOBAL * 10 + 2; return 7; }
+
+unsafe fn atomic8() -> bool {
+    let mut cell: u8 = 250;
+    atomic_store(&mut cell, 250, relaxed);
+    if atomic_fetch_add(&mut cell, 10, acq_rel) != 250 { return false; }
+    if atomic_load(&cell, acquire) != 4 { return false; }
+    if atomic_exchange(&mut cell, 7, seq_cst) != 4 { return false; }
+    if atomic_compare_exchange(&mut cell, 9, 11, acquire, relaxed) != 7 { return false; }
+    if atomic_compare_exchange(&mut cell, 7, 13, seq_cst, acquire) != 7 { return false; }
+    return atomic_load(&cell, seq_cst) == 13;
+}
+
+unsafe fn atomic16() -> bool {
+    let mut cell: u16 = 65530;
+    atomic_store(&mut cell, 65530, release);
+    if atomic_fetch_add(&mut cell, 10, relaxed) != 65530 { return false; }
+    if atomic_load(&cell, relaxed) != 4 { return false; }
+    if atomic_exchange(&mut cell, 9, acquire) != 4 { return false; }
+    if atomic_compare_exchange(&mut cell, 0, 11, release, relaxed) != 9 { return false; }
+    if atomic_compare_exchange(&mut cell, 9, 15, acq_rel, acquire) != 9 { return false; }
+    return atomic_load(&cell, acquire) == 15;
+}
+
+unsafe fn atomic32() -> bool {
+    let mut cell: u32 = 4294967290;
+    atomic_store(&mut cell, 4294967290, seq_cst);
+    if atomic_fetch_add(&mut cell, 10, seq_cst) != 4294967290 { return false; }
+    if atomic_load(&cell, acquire) != 4 { return false; }
+    if atomic_exchange(&mut cell, 2147483649, release) != 4 { return false; }
+    if atomic_compare_exchange(&mut cell, 0, 11, relaxed, relaxed) != 2147483649 { return false; }
+    if atomic_compare_exchange(&mut cell, 2147483649, 17, seq_cst, seq_cst) != 2147483649 { return false; }
+    return atomic_load(&cell, seq_cst) == 17;
+}
+
+unsafe fn atomic64() -> bool {
+    let mut cell: u64 = 18446744073709551610;
+    atomic_store(&mut cell, 18446744073709551610, seq_cst);
+    if atomic_fetch_add(&mut cell, 10, acq_rel) != 18446744073709551610 { return false; }
+    if atomic_load(&cell, relaxed) != 4 { return false; }
+    if atomic_exchange(&mut cell, 19, relaxed) != 4 { return false; }
+    if atomic_compare_exchange(&mut cell, 0, 11, seq_cst, acquire) != 19 { return false; }
+    if atomic_compare_exchange(&mut cell, 19, 23, acq_rel, relaxed) != 19 { return false; }
+    return atomic_load(&cell, acquire) == 23;
+}
+
+@export @no_mangle
+extern "C" unsafe fn ocore_selftest() -> u64 {
+    let mut packet: Packet = Packet { tag: 3, value: 0xfedcba9876543210, delta: -19 };
+    let copy: Packet = packet;
+    packet.value = 7;
+    if copy.value != 0xfedcba9876543210 || copy.delta != -19 || packet.value != 7 { return 1; }
+    let aligned: Aligned = Aligned { data: [0; 65] };
+    if (((&aligned) as usize) & 63) != 0 { return 2; }
+    let mut large: [u8; 8193] = [0; 8193];
+    large[8192] = 37;
+    if large[0] != 0 || large[8192] != 37 { return 3; }
+    let mut index: usize = 0;
+    let mut total: u64 = 0;
+    while index < 5 { total += BYTES[index] as u64; index += 1; }
+    if total != 28 || recursive_sum(20) != 210 { return 4; }
+    if many_args(1,2,3,4,5,6,7,8,9,10,11,12) != 650 { return 5; }
+    if foreign_sum(1,2,3,4,5,6,7,8,9,10,11,12) != 650 { return 6; }
+    let sum: extern "C" fn(u64,u64,u64,u64,u64,u64,u64,u64,u64,u64,u64,u64) -> u64 = foreign_sum;
+    if sum(1,2,3,4,5,6,7,8,9,10,11,12) != 650 { return 7; }
+    let dispatch: Dispatch = Dispatch { callback: foreign_callback };
+    if dispatch.callback(13) != 40 { return 8; }
+    let mut internal: fn(u64) -> u64 = recursive_sum;
+    if internal(10) != 55 { return 9; }
+    internal = recursive_sum;
+    if internal(7) != 28 { return 10; }
+    if foreign_u32(0xf1234567) != 0xf1234567 { return 11; }
+    GLOBAL = 41;
+    volatile_store(&mut GLOBAL, volatile_load(&GLOBAL) + 1);
+    if GLOBAL != 42 { return 12; }
+    if !atomic8() || !atomic16() || !atomic32() || !atomic64() { return 13; }
+    let mut bytes: [u8; 10] = [0,1,2,3,4,5,6,7,8,9];
+    let src: *mut [u8; 8] = (&mut bytes[0]) as *mut [u8; 8];
+    let dst: *mut [u8; 8] = (&mut bytes[1]) as *mut [u8; 8];
+    *dst = *src;
+    index = 1;
+    while index < 9 {
+        if bytes[index] != (index - 1) as u8 { return 14; }
+        index += 1;
+    }
+    *src = *dst;
+    index = 0;
+    while index < 8 {
+        if bytes[index] != index as u8 { return 15; }
+        index += 1;
+    }
+    *src = *src;
+    if bytes[7] != 7 { return 16; }
+    if INTERNAL_TABLE[1](7) != 28 || FOREIGN_TABLE[0](9) != 28 || INTERNAL_CALLBACK(7) != 28 { return 17; }
+    GLOBAL = 0;
+    let ordered: Ordered = Ordered { second: step(), first: step() };
+    if ordered.second != 1 || ordered.first != 2 { return 18; }
+    GLOBAL = 0;
+    let repeated: [u64; 3] = [step(); 3];
+    if GLOBAL != 1 || repeated[0] != 1 || repeated[2] != 1 { return 19; }
+    let empty: [u64; 0] = [step(); 0];
+    if GLOBAL != 2 { return 20; }
+    let aggregate: [Ordered; 3] = [Ordered { first: step(), second: step() }; 3];
+    if GLOBAL != 4 || aggregate[0].first != 3 || aggregate[2].second != 4 { return 21; }
+    let unaligned: *mut u64 = &mut packet.value;
+    *unaligned = 0x123456789abcdef0;
+    if *unaligned != 0x123456789abcdef0 || packet.value != 0x123456789abcdef0 { return 22; }
+    if !(2 as bool) || !(256 as bool) || (0 as bool) || ((2 as bool) as u64) != 1 { return 23; }
+    let mut raw_bool: u8 = 2;
+    let bool_pointer: *mut bool = (&mut raw_bool) as *mut bool;
+    if !*bool_pointer || ((*bool_pointer) as u64) != 1 { return 24; }
+    GLOBAL = 0;
+    if ordered_base()[ordered_index()] != 2 || GLOBAL != 12 { return 25; }
+    GLOBAL = 0;
+    if ordered_callee()(ordered_argument()) != 28 || GLOBAL != 12 { return 26; }
+    if SIGNED_MIN8 != -128 || SIGNED_MIN16 != -32768 || SIGNED_MIN32 != -2147483648
+        || SIGNED_MIN64 != -9223372036854775808 || NEGATIVE != -19 { return 27; }
+    let mut adjacent: AtomicNeighborhood = AtomicNeighborhood { first: 0xa5, signed: -128, half: 32767, tail: 0xabcdef01 };
+    if atomic_fetch_add(&mut adjacent.signed, -1, seq_cst) != -128 { return 28; }
+    if atomic_compare_exchange(&mut adjacent.signed, 127, -3, acq_rel, acquire) != 127 { return 29; }
+    if atomic_fetch_add(&mut adjacent.half, 1, seq_cst) != 32767 { return 30; }
+    if atomic_load(&adjacent.signed, acquire) != -3 || atomic_load(&adjacent.half, acquire) != -32768
+        || adjacent.first != 0xa5 || adjacent.tail != 0xabcdef01 { return 31; }
+    return 0;
+}
+
+@export @no_mangle
+extern "C" fn diverging_repeat() -> u64 {
+    let empty: [u64; 0] = [runtime_exit(42); 0];
+}
+@export @no_mangle
+extern "C" fn diverging_argument() -> u64 { recursive_sum(runtime_exit(42)); }
+
+@export @no_mangle
+extern "C" fn fault_div(a: i64, b: i64) -> i64 { return a / b; }
+@export @no_mangle
+extern "C" fn fault_rem(a: i64, b: i64) -> i64 { return a % b; }
+@export @no_mangle
+extern "C" unsafe fn fault_volatile(p: *const u64) -> u64 { return volatile_load(p); }
+@export @no_mangle
+extern "C" unsafe fn fault_atomic(p: *const u64) -> u64 { return atomic_load(p, seq_cst); }

@@ -17,13 +17,1017 @@ never available in freestanding O-core code.</p>
 </code></pre>
 <p>OIR and O-core MIR are different representations with different invariants.
 OIR models dependency and backend execution. MIR models typed machine-level
-computation. Neither is implicitly converted to the other.</p>
-<p>The primary target is <code>x86_64-unknown-none</code>. G2 also provides a bounded
-<code>aarch64-unknown-none</code> scalar backend. Both emit little-endian ELF64 and use an
-LP64 data model. The x86_64 default calling convention is System V AMD64; the
-AArch64 compiler-versioned <code>extern &quot;ocore&quot;</code> convention uses scalar AAPCS64
-register placement. <code>extern &quot;sysv64&quot;</code> remains AMD64-only and is rejected by the
-AArch64 backend.</p>
+computation. Neither is implicitly converted to the other. This internal
+separation does not prevent a future complete OIR artifact from containing
+verified native O-core modules and explicit realization bindings.</p>
+<p>Supported native targets are <code>x86_64-unknown-none</code>, <code>aarch64-unknown-none</code>, and
+<code>riscv64-unknown-none</code> (RV64GC). All emit target assembly and little-endian ELF64
+objects with an LP64 data model. <code>extern &quot;C&quot;</code> selects the target&#39;s integer C
+calling convention: System V AMD64, AAPCS64, or RISC-V LP64. The default
+compiler-versioned <code>extern &quot;ocore&quot;</code> convention uses the corresponding scalar
+register and stack placement. Explicit <code>extern &quot;sysv64&quot;</code> remains AMD64-only.</p>
+<p>The <code>.oc</code> backends share typed HIR/MIR. A separate verified native-module IR now
+accepts a bounded LLVM import profile, including actual C and Rust frontend
+output, and has O-core-owned assembly emitters for all three ISAs. It preserves
+the existing <code>.oc</code> semantics rather than assuming that foreign code shares them.
+This bridge does not yet compile a complete external runtime or compiler.</p>
+<h3>External runtime lowering and script bundles</h3>
+<p>The primary compiler objective is for <code>olangc</code> to fully and automatically
+compile existing external runtime and compiler implementations in terms of
+O-core, preserving their original language engines. Support for arbitrary
+implementations is the architectural objective, including interpreters,
+ahead-of-time compilers, and JIT runtimes. This is a required development
+direction, not an implemented external-runtime compilation feature.
+<code>olangc</code> must own source/build recipes, frontend invocation, import,
+verification, ABI adaptation, dependency resolution, linking, and artifact
+construction. The intended pipeline is:</p>
+<pre><code class="language-text">runtime/compiler implementation source -&gt; frontend/importer -&gt; verified O-core IR/MIR
+.O source -&gt; OIR/ExecutionPlan + foreign scripts
+O-core modules + orchestration + scripts + adapters + dependency closure
+        -&gt; complete OIR program artifact (or native O-core IR artifact)
+        -&gt; O-core target codegen + native linking -&gt; executable binary
+</code></pre>
+<p>In this objective, &quot;bundling runtimes with scripts&quot; means a complete compiled
+program in binary or IR form, including OIR. The binary form contains O-core-generated
+native runtime/compiler code and the required scripts, libraries, modules,
+adapters, and data. A complete OIR program artifact contains the orchestration
+plan and verified native O-core code modules, with their realization bindings,
+linkage, script data, ABI, resources, execution profile, and provenance. Native
+module references must resolve to included verified content; references to an
+unavailable engine or missing dependencies do not constitute a complete
+bundle. A native O-core IR artifact is also a valid output when it includes
+the program and complete dependency and execution information needed for
+later native lowering. Neither IR form may require an
+ambient original runtime/compiler executable to supply missing engine code.
+The native orchestrator must have an explicit OIR/ExecutionPlan-to-O-core
+lowering path; carrying the logical plan does not implement that path.
+These complete runtime-bearing IR artifacts are not implemented yet. The
+bounded implementation bridge below is the first part of automated lowering.
+The existing <code>olangc --target ir</code> prints orchestration
+inspection output; it does not produce a complete runtime-bearing OIR or
+native O-core IR artifact.</p>
+<p>The import path should reuse existing implementation-language frontends and
+build metadata, for example through LLVM IR or WebAssembly, rather than require
+each runtime to be manually rewritten in <code>.oc</code>. Generating O-core source in a
+polyglot staging block does not meet this automated lowering objective.
+Imported arithmetic, memory, ABI, and exception semantics must be preserved
+explicitly rather than assumed to match <code>.oc</code>.
+The importer must reject unsupported features with diagnostics. Native code
+produced by another compiler without O-core lowering does not qualify, nor
+does an unchanged imported module executed by an embedded IR interpreter.</p>
+<p>Acceptance requires an actual complete external runtime or compiler
+implementation to enter O-core IR, pass verification, and produce native code
+through each of the three O-core emitters. Required functions, globals,
+initializers, relocations, ABI features, libraries, compiler helpers, and
+modules must be accounted for. A partial import or a feature-census percentage
+does not establish this acceptance criterion. The build must identify its
+source, configuration, frontend, IR, native artifacts, and complete declared
+import/data/library closure.
+Runtime reference tests and <code>.O</code> execution must verify results and required
+effects on each ISA after the original runtime inputs are removed and ambient
+runtime executable lookup is unavailable. Full runtime acceptance runs on
+native OSTADIX services, potentially through its native ABI personality.
+Linux-hosted compilation, user-mode emulation, and source capture provide
+development evidence; a Linux guest or host OS does not supply the services
+for that acceptance gate. Compiling a runtime does not itself implement them.</p>
+<p>The foreign scripts may remain interpreted by the compiled runtime: compiling
+CPython&#39;s implementation and carrying Python scripts is a valid runtime
+compilation model. OIR still owns orchestration and OValue crossings; O-core
+MIR owns native computation. A complete OIR artifact can combine these layers
+while their internal representations retain their own invariants.
+Dynamic <code>O.eval</code> requires a resident O evaluator or an explicitly qualified
+compiled subset. Rewriting that evaluator in <code>.oc</code> and self-hosting the
+compiler are separate milestones and do not gate the first runtime importer.
+Compiling a compiler implementation does not redirect its output by itself;
+the programs it generates also need an explicit frontend/backend interface
+into O-core. Both capabilities belong to the overall compiler objective.
+For Rust, the acceptance target includes the original <code>rustc</code> implementation,
+LLVM backend, standard library, Cargo and their complete required dependency
+closure. It requires actual native compiler invocations and an O-core path for
+the programs they generate on all three ISAs. The scalar Rust fixtures are
+backend QA; they do not replace this unfinished compiler acceptance target.</p>
+<p>The current <a href="EMBEDDED_RUNTIME_BUNDLES.md">runtime bundle feature</a> embeds supplied
+runtime files. It does not implement this source-to-O-core compilation path.</p>
+<h3>Implemented native import boundary</h3>
+<p><code>ocore-native-module-v1</code> is a serializable, self-contained typed module with
+frontend target layout, functions, globals, direct aliases, initializers, symbol relocations,
+control-flow graphs, SSA values, and source/tool provenance. The LLVM importer
+uses the digest-pinned LLVM C API and a bitcode-record audit, then the independent
+Rust verifier checks the entire normalized inventory, including unused bodies.
+It checks types, dominance, exact phi predecessors, signatures, layouts and
+relocations before an ISA emitter receives the module. A structural verification
+receipt binds the exact module SHA-256; it does not establish emitter coverage,
+dependency closure, or native execution.</p>
+<pre><code class="language-sh">cargo build --locked --bin ocorec --bin olangc
+target/debug/ocorec implementation.ll --input-kind llvm-ir --emit mir -o implementation.json
+target/debug/ocorec implementation.json --input-kind native-ir --verify-native --receipt verification.json
+target/debug/ocorec implementation.json --input-kind native-ir --target riscv64-unknown-none -o implementation.o
+</code></pre>
+<p>Generate frontend IR separately for each ISA. Preserve the original frontend
+triple, DataLayout and ABI: x86-64 IR cannot be made RISC-V input by changing the
+output flag. The default parser is the pinned Rust 1.97.1 LLVM 22.1.6 library;
+an explicitly selected library requires <code>--llvm-library PATH --llvm-sha256 HASH</code>.
+Clang assembles O-core&#39;s emitted assembly; it does not generate imported
+implementation machine code. The importer worker is embedded in <code>ocorec</code> and
+requires Python 3 on the build machine, independently of any compiled engine.</p>
+<p>The current ISA profile implements every scalar integer width 1 through 64,
+ordinary pointers, fixed integer/pointer C and LLVM <code>fastcc</code> calls with scalar
+or aggregate values, including indirect and stack-passed calls,
+typed struct/array SSA values and storage, globals, byte-offset GEP, loads/stores, static entry-block
+allocations, branches, typed integer switches, parallel phi transfers, select,
+freeze, lifetime markers, and dynamic byte memory fill/copy/move operations.
+Zero-length memory operations perform no accesses; overlapping moves preserve
+the source byte snapshot. Switches retain every case and default edge, including shared
+destinations; verification compares exact numeric bit patterns for duplicate
+cases. Its
+<code>llvm_defined_behavior_v1</code> contract preserves defined frontend behavior and
+records deterministic refinements of poison/undef and erased optimizer
+restrictions. LLVM assumptions remain explicit IR operations and are verified;
+the unoptimized emitter does not use them to change computation. Intrinsic
+declarations remain in the source inventory and cannot escape as native addresses.
+This contract is distinct from <code>.oc</code> integer division and shift semantics.</p>
+<p>The imported scalar <code>llvm.smin.iN</code>, <code>llvm.smax.iN</code>, <code>llvm.umin.iN</code> and
+<code>llvm.umax.iN</code> families use one typed <code>integer_min_max</code> NativeIR operation.
+For the current realization, <code>N</code> is the original integer width from 1 through
+64, and both arguments and the result must have that exact type. Signed
+selection compares values at their declared width before narrowing the
+result; signed i1 therefore treats the bit <code>1</code> as minus one. Each operand is
+materialized once. This preserves defined source results and uses the same
+recorded poison/undef refinement policy as the other imported scalar
+operations. It does not change <code>.oc</code> arithmetic rules.</p>
+<p>Every intrinsic declaration, including an unused one, must have its canonical
+name and exact nonvariadic <code>T(T, T)</code> signature. Intrinsic bodies, address
+escapes, vector forms and widths outside the current scalar realization
+reject the whole module. These restrictions describe current coverage; the
+upstream LLVM operations also support wider integers and vector types.</p>
+<p>The native min/max conformance gate executes six O-core objects and six
+original Clang objects across unchanged LLVM text/bitcode and all three ISAs.
+Each positive checks 1,486,530 mathematical results and byte observations,
+with digest <code>fb9259d1bbcbfb30</code>; together they check 17,838,360 observations.
+The six complete own objects retain 1,974 function definitions and 1,974 actual
+CFI frame records. Tests include original-width signed/unsigned comparisons,
+16 consumed arguments, large volatile stack frames, odd-offset typed storage,
+unused functions and defined poison/undef refinements.
+All 24 deliberate runtime corruptions, 36 semantic guards, 24 independent
+source-oracle controls and 18 ELF/frame-record controls reject.
+This qualifies the tested scalar operations on Linux user-mode carriers.
+It does not qualify the complete Rust compiler, its dependency closure,
+native OSTADIX services or silicon execution.</p>
+<p>Imported LLVM atomic loads, stores, fences, read-modify-write operations and
+compare-exchanges have separate typed NativeIR operations. Import preserves
+the original ordering, alignment, volatility, weak-CAS flag and context-local
+synchronization-scope ID. The module includes the original scope table with
+raw name bytes. LLVM&#39;s built-in system scope has an empty name; a custom scope
+named <code>system</code> remains a custom contract. Structural verification checks every
+atomic instruction, including unused functions and cold blocks, independently
+of whether the ISA emitter supports its realization.</p>
+<p>Native atomic emission requires an explicit ordinary coherent-RAM profile:</p>
+<pre><code class="language-sh">target/debug/ocorec implementation.ll --input-kind llvm-ir \
+  --atomic-profile coherent-ram-v1 --emit mir -o implementation.json
+target/debug/ocorec implementation.json --input-kind native-ir \
+  --target riscv64-unknown-none -o implementation.o
+</code></pre>
+<p><code>olangc --native-runtime CAPTURE --atomic-profile coherent-ram-v1</code> forwards
+the same contract to every required imported unit and verifies the returned
+profile. This profile excludes device memory. RV64 subword RMW/CAS also
+requires the entire aligned containing word to be accessible coherent RAM
+and the execution environment to provide the LR/SC eventuality property for
+that region. The profile declaration does not establish starvation freedom
+or physical memory-order qualification.</p>
+<p>The current emitter supports naturally aligned i8/i16/i32/i64 and integral
+AS0 pointer atomics in the built-in system and single-thread scopes on all
+three ISAs. All fifteen integer RMW kinds are implemented. Compare-exchange
+retains its original <code>{T, i1}</code> old-value/success result; weak CAS is realized
+with a permitted strong retry. LLVM 22 accepts all fifteen combinations of
+the five success orders and three failure orders, including a failure order
+stronger than success. The hardware realization combines those requirements;
+it does not apply the separate <code>.oc</code> CAS ordering restriction.</p>
+<p>Value width is checked independently of padded allocation size. Underaligned,
+wider, floating-point or custom-scope atomics that lack a supported realization
+reject the whole module before assembly output. They are not replaced by byte
+stores, erased fences or invented provider symbols. The scalar reference
+interpreter rejects atomic execution explicitly. Compiler conformance tests
+and platform qualification remain separate from complete upstream runtime or
+compiler lowering and dependency admission.</p>
+<p><code>tests/test_ocore_native_atomics.py</code> executes whole LLVM text/bitcode modules
+and unchanged Clang frontend output on x86-64, AArch64 and RV64GC. Its mixed
+Clang/O-core pthread test checks neighboring byte/halfword updates, scalar
+and pointer CAS, and release/acquire handshakes in both call directions.
+The qualified twelve positive executions each produced
+<code>OCORE-ATOMIC digest=5051ce3723e65451 checks=185624 threads=8 steps=2051</code>.
+Separate corrupted-result, concurrency-only, wrong-object, source-contract
+and ELF controls must fail. This emulator evidence does not qualify silicon
+weak-memory behavior, exclusive-loop progress or the complete upstream
+compiler and platform-provider closure.</p>
+<p><code>llvm.experimental.noalias.scope.decl</code> retains its exact external
+<code>void(metadata)</code> declaration and a compiler-only scope marker. Metadata is
+unsized and cannot enter ordinary storage, SSA values, native parameter/result
+ABIs or address uses. The graph preserves module-local domain, scope and list
+identities, distinct/uniqued storage, self references or arbitrary string bytes,
+optional descriptions and original instruction sites with exact native ranges.
+Verification requires a declaration list containing one actual scope and checks
+full dominance between declarations of that scope, including different list
+wrappers and cold blocks, without a declaration-count cutoff.
+The nonoptimizing emitter emits no marker instruction and uses neither
+<code>alias.scope</code> nor <code>noalias</code> promises to change computation. The declaration
+remains in the whole-unit inventory but requires no runtime ABI or provider
+symbol; ELF address and relocation uses reject. This conservative annotation
+handling does not establish purity, a memory fence, ordinary metadata execution
+or complete compiler/runtime support. Source import, native execution and
+dependency closure remain separate qualification gates.</p>
+<p>The eighteen source/API tests in <code>tests/test_ocore_llvm_noalias_scope_decl.py</code>
+pass on the pinned LLVM boundary, preserving original graphs, instruction
+ranges and whole authored LLVM/C/Rust fixture inventories. The malformed
+metadata-global fixture produces <code>SIGILL</code> for all three target inputs in both
+the pinned reference parser and the importer path; its evidence remains retained.
+Those cases do not
+establish structured import rejection or general parser safety.</p>
+<p><code>tests/test_ocore_native_noalias_scope.py</code> executes six unchanged authored whole
+LLVM text/bitcode units on all three ISAs against original Clang 22.1.6 objects.
+Twelve own/reference positives each pass 24,833 independent checks with digest
+<code>a942d3ab3fb94d35</code>; twelve corrupted-oracle controls exit 31. Each unit retains
+its complete 88-node graph, 42 scope markers, 13 attachments and eight original
+function-owned call-frame entries. The gate also rejects 156 specific NativeIR
+controls, twelve independent graph/site-range controls and twelve corrupted
+ELF/call-frame objects. The immutable report SHA-256 is
+<code>9da63a4b2ea670bdf46b56de66f4f3eb6d452a30c474e55d5ffa4b0f99a7a34a</code>.
+This compiler regression uses freestanding Linux/QEMU carriers; it does not
+qualify an upstream compiler implementation, provider lowering, dependency
+closure, native OSTADIX execution or physical silicon.</p>
+<p>Integer operations normalize to their declared width. Every legal LLVM shift
+count is preserved, including non-power-of-two widths; poison-producing
+overshifts remain a separately recorded refinement. Ordinary memory accesses
+touch <code>ceil(width/8)</code> bytes even when LLVM allocation stride is larger, such as
+an <code>i21</code> value with three stored bytes and four-byte allocation stride. Loading
+an unusual integer width requires the frontend&#39;s defined prior-store contract;
+unused high padding bits are unspecified. Odd three/five/six/seven-byte
+volatile loads and stores reject the complete unit because byte splitting does
+not establish equivalent volatile access semantics.
+The six LLVM signed/unsigned add, subtract and multiply overflow intrinsics
+retain both their width-normalized result and independent representability
+flag for every width 1 through 64. Signed one-bit multiplication keeps its
+mathematical overflow behavior: multiplying two negative one values overflows.
+Their original typed intrinsic declarations remain in the complete inventory.
+Aggregate constants retain their recursive types, including zero, empty,
+undef/poison and nested pointer or symbol-offset leaves. Typed <code>extractvalue</code>
+and <code>insertvalue</code> preserve their complete index paths. Aggregate phi, select
+and freeze operate on the scalar leaves; parallel phi transfers snapshot every
+incoming leaf before replacing any destination, including cyclic swaps.
+Ordinary aggregate loads and stores use the original DataLayout field offsets,
+array allocation strides and access alignment, including packed pointer fields.
+Padding is not an SSA value and is not promised to retain a particular byte
+pattern after an aggregate store. Empty structs and zero-length arrays have no
+value leaves or ordinary memory accesses; their type alignment remains part of
+surrounding layouts. Volatile aggregate accesses remain explicit in imported
+IR but reject native emission. Fixed C and LLVM <code>fastcc</code> call plans retain the
+original frontend&#39;s recursive integer/pointer parameter and result types,
+extension attributes, register-block placement, stack arguments and implicit
+result storage. Source-language aggregate coercions remain those of the
+original frontend; they are not reconstructed from a struct&#39;s byte size.
+<code>byval</code>, floating-point call classification and variadic calls remain explicit
+unsupported whole-unit contracts.
+Typed LLVM <code>sret</code> keeps a void result and its original pointer parameter in the
+first or second position. The signature records the sized in-memory result type
+as <code>return_storage</code>; declarations, definitions, calls and alias bindings must
+agree. x86-64 and RV64 keep the pointer in its ordinary argument position;
+AArch64 passes it in <code>x8</code> while ordinary arguments use their own register/stack
+sequence. x86-64 restores the original result pointer in <code>rax</code> on every return,
+including after nested calls. Result-pointer metadata performs no initialization
+or memory access by itself, and sized empty result types remain valid.
+The scalar RV64 profile also preserves explicit <code>lp64d</code> frontend ABI metadata
+and the actual ELF double-float ABI flags; this admission does not qualify
+floating-point computation or aggregate register classification.</p>
+<p>PIC/PIE flags are admitted only under a recorded static, nonpreemptive image
+contract. Symbol visibility remains explicit: default, hidden and protected
+definitions and declarations retain their ELF visibility, and closure combines
+the strongest reference constraint. This does not qualify dynamic interposition
+or shared-library loading. Defined-function LLVM <code>UWTable</code> requirements are
+preserved by the instruction-precise call-frame metadata described below.
+Ordinary declaration Sync/Async requests retain their parsed level and source
+site in provenance, together with the original declarations, calls and
+dependencies. Consumer objects emit call-frame entries for their own defined
+functions; external provider unwind tables and exception services require
+separate qualification. The static Itanium/DWARF exception profile below
+preserves recognized personalities and EH operations. Other EH models and
+unsupported surviving callsite or intrinsic unwind requests reject the whole
+unit. The importer records the original input digest and the pinned parser&#39;s
+normalized attribute values.</p>
+<p>Local constant tables may retain 32-bit relative initializers with explicit
+target symbols and signed addends. Their base is the containing private or
+internal non-TLS global; targets may be ordinary globals, functions or direct
+aliases. Same-section differences retain exact resolved bytes, while other
+entries use x86-64 PC32, AArch64 PREL32 or paired RV64 ADD32/SUB32 relocations.
+The source <code>llvm.load.relative.i32</code> and <code>.i64</code> declarations remain in the whole
+inventory. Their calls lower to signed byte-offset addressing, a four-byte
+load, sign extension and addition to the original base. This is the static,
+nonpreemptive image profile; it does not qualify dynamic interposition or
+every image-range/code-model combination.</p>
+<p><code>tests/test_ocore_native_relative.py</code> executes six unchanged authored LLVM
+text/bitcode units on all three ISAs against original Clang 22.1.6 objects.
+Twelve owned/reference positives each pass 2,811 checks with digest
+<code>f584e5ddafffa6ab</code>, including shifted bases, negative in-bounds load offsets,
+packed table storage, signed target addends, external/alias targets, valid data
+reads and indirect callbacks. An independent ELF decoder checks 108 table
+entries across the six owned objects and rejects 30 corrupted byte/relocation
+objects; 24 of those also fail actual execution, as do 12 corrupted-oracle
+controls. The immutable owned report SHA-256 is
+<code>09845d585cbf595bd8c8be17eb97b193a7944dce6415c6a7ed3ac22756152499</code>.
+This compiler fixture evidence uses Linux/QEMU carriers and explicit test
+providers; it does not establish lowering or closure of an upstream engine.</p>
+<p>LLVM <code>weak</code> function and global definitions retain their bodies, initializers,
+relocations and actual ELF weak bindings. Symbol closure selects a compatible
+strong definition over weak definitions, or the first weak definition in the
+supplied module order. Every candidate must have the exact ABI/storage contract
+and sufficient selected-provider alignment, including overridden definitions.
+The original build&#39;s ordered link membership is separate evidence; a supplied
+module order alone does not qualify complete runtime linking. <code>linkonce</code>,
+<code>linkonce_odr</code> and <code>weak_odr</code> definitions and direct aliases retain their exact
+linkage names and ELF weak bindings. <code>extern_weak</code> declarations, common and
+<code>available_externally</code> definitions remain unsupported whole-unit contracts.</p>
+<p>ELF <code>any</code> and <code>nodeduplicate</code> COMDAT groups keep code, globals and their
+relocation sections together. Direct aliases inherit their included root&#39;s
+group. Selection occurs before ordinary symbol resolution: the first <code>any</code>
+group wins in supplied module order; every <code>nodeduplicate</code> group remains,
+including when an <code>any</code> group uses the same signature. Nongroup definitions
+from losing modules remain. Object admission checks actual group signatures,
+flags, member sections and relocation targets against the verified module.
+Unsupported ELF selection policies such as <code>exactmatch</code>, <code>largest</code> and
+<code>samesize</code> reject the whole unit rather than changing the selection rule.</p>
+<p>Direct aliases retain distinct names for existing code or storage in the same
+module. The alias value type must exactly match its defined function or global;
+alias calls inherit the function&#39;s complete ABI contract. Aliases keep their
+own linkage and visibility, address operands and relocations, without copying
+bodies or data. A strong replacement for a weak root name does not retarget an
+alias that still names the original object position; replacing a weak alias
+does not replace its strong root. Alias chains, surviving constant expressions,
+nonzero offsets, type casts, TLS, IFUNC and unresolved targets remain unsupported
+whole-unit contracts.</p>
+<p>Alignment import retains the full LLVM maximum of 2^32 bytes even when the
+uint32 C API accessor returns zero. Audited bitcode preserves symbol alignments;
+mandatory alloca/load/store alignments retain that maximum without substituting
+a default. Native emission rejects an alignment it cannot realize before
+writing an artifact. Ordinary AS0 pointer results and fixed parameters may
+carry validated <code>align</code>, <code>dereferenceable</code> and <code>dereferenceable_or_null</code>
+promises. Their full-width payloads remain in provenance; native code does
+not optimize, allocate memory, speculate or add guards using these promises.
+The pinned LLVM reader/writer may normalize attributes, including dropping
+the maximum parameter alignment from serialized bitcode. Imports bind the
+exact original bytes and parsed contract; they do not invent a promise absent
+from the input module.
+Function alignment is explicit independently of signatures. Native definitions
+realize at least the requested alignment and the target&#39;s instruction alignment;
+unmaterializable definitions reject before emission. RISC-V modules disable
+assembler relaxation throughout the module so later aligned functions remain
+aligned without pending <code>R_RISCV_ALIGN</code> or <code>R_RISCV_RELAX</code> fixups. The source
+frontend and the assembler used for O-core&#39;s own code are recorded separately
+in the conformance receipts.
+Validated pointer-parameter <code>readnone</code> and <code>dead_on_unwind</code> promises and
+function/callsite <code>allockind</code> descriptions are recorded and erased without
+removing bodies, calls, memory operations or dependency symbols. Their presence
+does not establish purity, substitute an allocator or implement unwinding.
+Unsupported placements, payloads and actual ABI or exception-handling features
+still reject the whole unit.
+Validated function and callsite <code>allocsize</code> promises retain their exact raw
+LLVM payload and zero-based element/count parameter indices. The reserved
+count sentinel means no count parameter. Each referenced parameter must have
+a supported integer type, and the result must retain the supported pointer
+contract. Normalization erases this optimization promise while retaining every
+original call, body, memory access and dependency. It does not imply a fresh
+allocation, non-null result, pointer uniqueness, purity or an allocator
+replacement. Unsupported companion contracts reject the complete unit,
+including unused definitions.</p>
+<p>Literal integer-to-pointer constants preserve exact 64-bit integral AS0
+address representations under <a href="https://llvm.org/docs/LangRef.html#inttoptr-to-instruction">LLVM&#39;s zero-extension rule</a>.
+Source integers of widths 1 through 64 are compile-time constants: <code>i8 -1</code>
+becomes 255 and <code>i64 -1</code> becomes all ones, without adding unsupported executable
+integer widths. Initializers contain these literal bytes without relocations;
+verified instruction operands use the typed <code>pointer_bits</code> representation.
+Symbol and GEP initializer addresses retain real relocations. Constant GEP
+operands in executable SSA preserve the tracked symbol or direct alias and
+their signed 64-bit byte offset. Layout uses the source&#39;s struct, packed and
+array types; integral AS0 pointer arithmetic wraps at 64 bits. The emitter
+resolves the base address before adding the offset, including negative and
+extreme offsets. These address bits do not grant access outside valid storage.
+Surviving unsupported wide
+integer-to-pointer operands, nonintegral or nonzero address spaces and unresolved
+symbolic pointer arithmetic reject the whole unit. The pinned LLVM reader may
+already normalize a wider expression into null, poison or undef; supported
+parsed pointer contracts remain bound to the exact original input SHA-256.
+Literal address bits do not establish mapping or dereference validity.</p>
+<p>Unsupported operations, ABI features or hidden bitcode fields reject the whole
+unit before code artifacts are written. Floating-point computation and call
+classification, <code>byval</code>, ordinary variadics, dynamic TLS/DSO loading, additional unwind models,
+general dynamic stack allocation,
+managed execution and runtime-generated code publication remain required work.
+Weak/common/ODR linkage is not silently converted into strong linkage, and
+unaligned wide volatile accesses are rejected where the emitter cannot preserve
+their required access width. Frames and outgoing arguments probe intervening
+stack pages; RISC-V long jumps do not assume a small control-flow graph.
+Imported functions emit DWARF call-frame information for their saved frame
+pointer and return address, including prologue, epilogue, and multiple-return
+states. Their fixed frame pointer anchors unwinding through stack probes and
+outgoing argument allocations. Call-frame information alone does not supply
+an exception personality or the native platform&#39;s unwinder.
+<code>scripts/check_ocore_native_cfi.py</code> independently decodes the actual object
+unwind rows at instruction boundaries for nine functions across the three
+ISAs, including stack probes, outgoing arguments and multiple returns. Nine
+deliberately corrupted metadata controls must be rejected. This gate checks
+call-frame metadata separately from exception handling and runtime execution.</p>
+<p>The imported native IR admits the explicit <code>itanium_dwarf_v1</code> exception model
+for static, nonpreemptive ELF images on all three ISAs. It retains direct and
+indirect <code>invoke</code> calls, their distinct normal/unwind edges, canonical
+<code>landingpad {ptr, i32}</code> values, ordered catches and exclusion filters,
+<code>llvm.eh.typeid.for</code> selector queries and <code>resume</code>. A null catch-all, cleanup
+selector zero and an empty exclusion filter remain distinct. Invoke results
+exist only on the normal edge; shared landing-pad PHIs retain their original
+predecessors. Each emitted invoke landing entry saves the exception pointer
+and selector before PHI scratch moves, then discards outgoing arguments using
+the fixed frame pointer. Fixed entry allocations support alignment through
+16 bytes; this profile does not admit dynamic allocas.</p>
+<p>Personality references and LSDA/typeinfo table pointers use full 64-bit
+absolute relocations. CIE/FDE ranges, call-site intervals, ordered action
+chains, reversed type tables and filter byte offsets remain source-bound.
+EH-derived sections and relocations stay attached to their source <code>any</code> or
+<code>nodeduplicate</code> COMDAT groups. Metadata-only source <code>i32 (...)</code> personality
+declarations retain their original signature and require the separate
+five-argument C unwinder callback ABI at closure. Ordinary address uses,
+including cold code, aggregate constants, aliases and initializer relocations,
+remove that exemption. Actual <code>resume</code> operations require the typed external
+<code>_Unwind_Resume</code> interface; no provider implementation is invented. Production
+object admission checks these tables, symbol identities and relocation
+contracts against the verified IR. Its CFI instructions remain structural
+evidence; production admission does not execute CFA rows or establish machine
+code equivalence. Other EH models, arbitrary personality signatures, dynamic
+interposition and JIT table publication remain required work.</p>
+<p>The independent <code>tests/test_ocore_native_eh_objects.py</code> gate decodes raw ELF,
+CIE/FDE, DWARF CFA instructions and LSDA bytes without the production decoder.
+Six unchanged authored whole LLVM text/bitcode inputs pass actual CLI import
+and owned object emission on all three ISAs, retaining 12 source functions,
+132 globals, two aliases and two COMDAT groups per unit. Their 48 function
+FDEs, 168 call-site entries and 672 selected CFA-row checks pass; 84 distinct
+corrupted metadata objects reject. Cases include large fixed locals,
+16-argument direct/indirect calls, shared landing pads, 130 named typeinfos,
+catch-all/cleanup/duplicate and empty filters, cold inventories and grouped
+tables. The immutable report SHA-256 is
+<code>e3c5238e36adabd24523a7eb4461d4e070f22d411718405c8d6bfa6bae319dd3</code>.
+This is source import and object metadata evidence; it does not execute an
+exception unwinder or qualify a runtime/compiler implementation.</p>
+<p>A separate genuine Clang C++ consumer runs with owned code on x86-64 and
+under AArch64/RV64 QEMU, linked to complete unchanged source-built Linux/musl
+reference providers: musl, libc++abi, libunwind, compiler-rt and startup objects.
+Its typed <code>long long</code> catch, selector lookup, catch finalization and unmatched
+<code>int</code> exception resume to the reference caller pass on all three ISAs. These
+reference providers have not been lowered through O-core. The execution report
+SHA-256 is
+<code>95458ea8007e6a1c9638fd8aa8ea2f0b19f811fddc44d63e63f96c8b2ce023b9</code>.
+This Linux execution witness does not qualify complete upstream rustc/Cargo,
+O-core provider closure, OSTADIX kernel services, hardware-silicon behavior,
+dynamic loading or JIT publication.</p>
+<p>The permanent <code>tests/test_ocore_native_eh_execution.py</code> gate extends genuine
+Clang C++ execution to RAII cleanup order, typed and shared landing-pad
+catches, rethrows, unmatched resume, exclusion filters, 16-argument calls and
+32,768-byte fixed frames. Six unchanged LLVM text/bitcode units run owned and
+original Clang objects on all three ISAs: 12 positives each pass 160 cases and
+1,048 checks with digest <code>a0b83e958b4b04dd</code>; all 12 corrupted-oracle controls
+fail. Original musl/libc++abi/libunwind/compiler-rt/startup providers remain
+hash-bound reference code, with complete ordered link traces. The report
+SHA-256 is
+<code>cd46dbd771b6a27e80a7d2083a911317a2b001e01bc6a23d2a6ce4b4eaf2b038</code>.
+This uses the earlier streamed EH compiler freeze, separately from the later
+relative-table proof. Provider lowering, entire rustc/Cargo execution, complete
+dependencies, OSTADIX services, silicon and JIT publication remain unqualified.
+CI reports an explicit skip when the immutable original provider set is absent.</p>
+<p>TLS lowering requires explicit <code>--tls-profile</code> admission with
+<code>linux-elf-static-nonpreemptive-v1</code>. The imported globals retain
+their original general-dynamic, local-dynamic, initial-exec or local-exec model;
+this static, nonpreemptive Linux ELF profile realizes current-thread addresses
+using native local-exec access. The verified <code>thread_local_address</code> operation
+is distinct from an ordinary symbol address. Initialized templates, zero-fill,
+source alignment and ordinary pointer relocations retain their source contracts,
+and owned ELF storage retains <code>STT_TLS</code> symbols and <code>SHF_TLS</code> sections. Missing
+or incompatible profiles, model/storage mismatches and static initializer
+references to a thread-specific address reject the whole unit. Dynamic
+interposition, DSO/dlopen TLS and native OSTADIX thread/loader services require
+their own supported profiles.</p>
+<p>The permanent <code>tests/test_ocore_native_tls_execution.py</code> gate preserves six
+unchanged genuine Clang C11 LLVM text/bitcode units across all three ISAs. Each
+retains four function definitions, 12 globals including ten TLS globals, all
+four source model kinds and 51 current-thread address operations, including
+cold definitions. Real musl pthreads exercise the main thread and two workers,
+32 mutations per worker, 16-argument calls, initialized/zero/packed-pointer
+templates and 64-byte alignment. All 12 owned/original positive executions
+produce 1,163 checks with digest <code>177b568fc709ffda</code>; all 12 corrupted-oracle
+controls fail, and all 78 malformed admission contracts reject with their
+intended diagnostics. The corrected test supplies the original pointer type to
+the raw TLS symbol cases, so those cases reach the semantic address guard.
+Final report SHA-256:
+<code>12760ce36bb0f00e47b894720cb9d0a7812bd1fe1682bc38344c6ae29eef3d44</code>.
+The earlier <code>d313c104</code> execution evidence remains archived separately; its six
+raw-symbol negatives reached a missing-field guard before the intended rule.
+The V2 compiler freeze preserves the earlier AArch64 assembly failure and its
+unchanged inputs, then qualifies the corrected instruction encoding. The
+original musl thread and loader providers remain hash-bound reference code;
+provider lowering, complete rustc/Cargo, dependencies, dynamic loading, OSTADIX
+services and silicon execution remain unqualified. CI records an explicit skip
+when the immutable original provider set is unavailable.</p>
+<p>The opt-in <code>olangc --native-runtime</code> driver consumes a complete source capture
+report and independently imports/verifies every required unit, emits optional
+O-core objects, and checks cross-module symbol and ABI closure. Its coverage
+receipt retains failures and distinguishes unit lowering from closure and native
+qualification. See <a href="../tools/ocore-runtime/README.md">capture recipes and driver usage</a>.
+Admission independently reconstructs the unit partition and observed final
+output/link/archive graph from the original build journal and hashed source,
+inventory, logs and tools. Editing a report&#39;s completeness flags or mutually
+consistent selection lists cannot replace those checks. Object admission
+checks actual definition inventories, executable/storage permissions, symbol
+bindings, visibility, alignment and the selected ISA&#39;s ABI flags.
+Source-defined globals additionally require exact ordinary initializer bytes
+and each supported ABS64 relocation&#39;s offset, target and addend, with qualified
+local-section folding and distinct exported/weak alias identities. A separate
+original-Clang data-reader comparison passes on all three ISAs for 15 globals
+and 33 absolute relocations. Code and CFI relocation admission remains
+structural; these data checks do not establish machine-code or runtime closure.
+Compiler wrappers execute a frozen, read-only capture-worker snapshot and bind
+each invocation to its digest, wrapper inventory and Python interpreter hash.
+Re-admission requires the worker digest trusted by the embedded verifier;
+rewriting a journal cannot choose another implementation or mix worker versions.
+Legacy unbound captures require a fresh capture for admission. They may still
+serve explicitly incomplete diagnostics.</p>
+<p>An explicit recipe setting, <code>toolchain.rust_capture_policy: &quot;rust-embedded-bc-v1&quot;</code>, captures the original Rust producer&#39;s embedded LLVM
+bitcode instead of invoking a second Rust frontend. It records incoming argv,
+response-file bytes, executed argv and the capture transformations separately.
+Every retained CGU binds the exact object or indexed archive member, its
+<code>.llvmbc</code> section range and the extracted bitcode bytes. Metadata-only members
+remain resources. Missing or unsupported original edges remain gaps; saved
+temporary filenames do not establish ownership. The policy is opt-in and does
+not change the default capture recipe.</p>
+<p>Readmission rederives all original output/member edges and rejects omitted,
+duplicated or changed CGUs. Rust response files retain their actual single-level
+LF/CRLF line semantics. Unsupported argument forms forward the original
+invocation and status while recording a capture gap. A queried sysroot compiler
+or Cargo binary remains a candidate unless its resolved path, digest and size
+match the executable actually selected for that invocation.</p>
+<p>The combined capture gate passes 165 tests with no skips on one frozen worker,
+including an original offline three-crate Cargo workspace, its build script,
+parallel compilation and a direct response-file invocation. This establishes
+the tested capture behavior. Embedded bitcode membership does not establish
+source-production ownership, ordered executable CGU membership, post-LTO
+equivalence, provider closure or complete Rust compiler lowering. These remain
+separate admission requirements.</p>
+<p>It does not yet link a complete runtime, attach <code>.O</code> scripts, or lower OIR.
+The C and Rust differential gates in <code>scripts/check_ocore_import_equivalence.py</code>
+and <code>scripts/check_ocore_foreign_frontends.py</code> exercise actual foreign frontend
+output on all three ISAs. Their Linux test carrier is compiler evidence,
+not the full native runtime acceptance gate. The Java fixture is a separately
+identified reference and method-inventory check, not managed-code lowering.
+The 15 tests in <code>tests/test_ocore_native_runtime.py</code> exercise a real pinned
+Clang 22.1.6 source capture, unused-body retention, own-object execution, and
+rejection of altered inventory, role, source, hash and output-graph evidence.
+The weak-definition gate in <code>tests/test_ocore_native_weak.py</code> compares 24 own
+object executions with 24 original Clang 22.1.6 executions across all three
+ISAs and both unchanged LLVM text and bitcode inputs. Each execution checks
+324 independent results; six corrupted oracle controls reject. It verifies
+strong-over-weak and first-weak selection in both object orders, actual ELF
+bindings and visibility, unused definitions, globals and pointer relocations.
+These compiler checks do not establish that the original Rust compiler or any
+complete runtime has been lowered.
+The direct-alias gate in <code>tests/test_ocore_native_alias.py</code> compares 40 own
+executions with 40 original Clang 22.1.6 executions across all three ISAs and
+unchanged LLVM text/bitcode; eight corrupted oracle controls reject. Each run
+checks 391 values, including indirect calls, writes through alias pointers,
+address identity and separate strong overrides of root and alias names. Actual
+ELF symbols retain alias position, type, extent, binding and visibility.
+The RISC-V gate checks both default and disabled linker relaxation, with 64-byte
+alignment on the first function and a later function after a call-containing
+body. Original Clang objects may defer alignment to linker fixups; both linked
+implementations must realize the source alignment. This remains compiler
+conformance on Linux carriers, with complete original compiler/runtime and
+native-platform acceptance unfinished.
+The COMDAT gate in <code>tests/test_ocore_native_comdat.py</code> compares 72 own object
+executions with 72 original Clang 22.1.6 executions across all three ISAs and
+unchanged text IR/bitcode. Whole-group tests check 395 or 786 results per run;
+mixed <code>any</code>/<code>nodeduplicate</code> tests check 788. Six corrupted oracle controls fail.
+Actual ELF checks retain internal helpers, aliases, grouped pointer relocations
+and exact ODR bindings. A real partial link retains both non-deduplicating
+groups with the same signature; 12 original/own link controls reject duplicate
+strong definitions. A separate fresh pinned C++ capture lowers all three
+required units in both build orders and checks group winners, alias attachment
+and source ownership in the driver&#39;s supplied module order. Its linked own
+objects execute on the Linux carrier; dependency closure, complete engine
+lowering and native-platform qualification remain false.
+The symbolic-offset gate in <code>tests/test_ocore_native_symbol_offsets.py</code> compares
+six own executions with six original Clang 22.1.6 executions across unchanged
+text IR/bitcode and all three ISAs. Each run checks 643 byte/address results
+with digest <code>8e7cb2e870717170</code>; six corrupted oracle controls fail. It covers
+packed and negative offsets, nested GEPs, narrow signed indices, alias identity,
+comparisons, select/phi/return, pointer stores and valid memory loads. Direct
+and indirect calls each pass 16 mixed pointer/integer arguments, including
+stack arguments and extreme opaque address bits. The reference records a
+static large code model; invalid opaque addresses are never dereferenced.
+This remains compiler conformance on Linux carriers.
+The trap gate in <code>tests/test_ocore_native_trap.py</code> compares six own safe
+executions with six original Clang 22.1.6 executions across all three ISAs and
+unchanged text IR/bitcode. Each checks 162 results with digest
+<code>c99b255a111e087d</code>; six corrupted oracle controls fail. Thirty own and thirty
+original executions test unconditional, conditional, nested and unused cold
+traps. Each own fatal status matches its original reference on the same target:
+x86-64 and RV64 report illegal instruction, while AArch64 reports a breakpoint
+trap. The complete imported module retains post-trap source continuations and
+dead blocks, and emits real unused definitions; those continuations never run.
+Numeric fault signals across ISAs, debugger behavior and native OSTADIX fault
+delivery require separate execution-profile qualification.
+The three tests in <code>tests/test_ocore_native_integer_widths.py</code> cover all integer
+widths 1 through 64 using 24 executions across all three ISAs and unchanged
+text IR/bitcode. All four own/original Clang caller-callee combinations match
+an independent Python oracle: 104,352 checks per run produce digest
+<code>9f27d5340f9ad630</code>, with six corrupted oracle controls. Every legal shift count,
+signed comparisons, safe divisions and width conversions are covered. Exact
+LLVM signatures exercise direct/indirect unusual-width returns and 16 mixed
+integer arguments without mismatched C declarations. Same-type memory round
+trips check masked value bits, sentinels and both protected-page edges.
+Ninety-six cold odd-byte volatile units reject without object artifacts.
+Separately, own and original RV64 LP64 executions check 960 physical ABI values
+for explicit <code>zeroext</code>/<code>signext</code> i32 direct/indirect returns, register arguments
+and ninth stack arguments; two corrupted oracle controls fail. These remain
+Linux carrier compiler checks, not complete Rust compiler lowering or native
+OSTADIX runtime acceptance.
+The eighteen source/API methods in
+<code>tests/test_ocore_llvm_integer_overflow.py</code> extend the rerun 298-method cohort
+to 316 distinct passing methods with zero skips on the same frozen importer.
+Authored whole C/C++ producer fixtures emit all six intrinsic families; Rust
+1.97.1 fixtures emit four, with unsigned add/sub represented by ordinary
+arithmetic and comparisons. Original inputs, types, unused inventories and
+genuine RV64 LP64D producer contracts remain intact. These contracts refer to
+the pinned LLVM 22 parsed module: its AutoUpgrade canonicalizes some named or
+packed intrinsic results and declaration attributes, while explicit
+extract/insert operations reconstruct the original caller result. Original
+input hashes remain bound, and surviving unsupported callsite ABI extensions
+reject. No original source or IR is manually rewritten. This source-only
+cohort has report SHA-256
+<code>d0f79e15ab9a508a08d8a863cd35ab8810237de82f8e2f5ac559a5ff89a629c9</code>;
+it does not qualify subsequent importer versions or complete implementations.
+The two native methods in <code>tests/test_ocore_native_integer_overflow.py</code>
+qualify all six signed/unsigned overflow families for every width 1 through 64
+on unchanged text IR and bitcode across all three ISAs. Six whole units retain
+384 intrinsic declarations and matching wrappers per unit, plus unused
+definitions, globals and aliases. Twelve own/original positive executions each
+match 67,566 cases and 2,229,684 independent checks with digest
+<code>c97fef32dd39d34b</code>, totaling 26,756,208 successful checks; 24 corrupted oracle
+or cold-global controls reject. The unbounded Python oracle exhausts input
+pairs for widths 1 through 5 and uses boundary and deterministic full-width
+inputs for the remaining widths. Typed scalar stores precede same-type loads;
+unused high bits are masked while allocation padding and outside canaries
+remain checked. Independent source tracing retains all 384 exact intrinsic
+kind, signedness, operand, result and declaration mappings per unit. This
+matrix uses RV64 LP64 and Linux test carriers; compile-only whole-source
+audits and full compiler/runtime, dependency and native OSTADIX acceptance
+remain separate.
+The three tests in <code>tests/test_ocore_native_sret.py</code> compare 24 own/original
+Clang caller-callee executions for unchanged LLVM units across all three ISAs
+and text IR/bitcode. Every run checks 24,329 result words, initialized bytes and
+canaries with digest <code>8c7fd0ed8d006ac4</code>; six corrupted data oracles fail. Exact
+signatures exercise first/second-position result pointers, nine ordinary
+arguments, aliases, indirect calls, nested clobbers, multiple returns and empty
+or no-access bodies. Eight x86 assembly observations per execution check the
+original hidden-pointer return; two corrupted pointer oracles fail.
+Another 24 mixed executions of genuine unchanged Clang 22.1.6 C++ units check
+6,241 values per run, with digest <code>5b1b22bd3579116b</code> and six corrupted controls.
+They preserve the frontend&#39;s actual result-pointer ordering and emit unused
+original definitions. Both suites retain genuine RV64 LP64D object and linked
+image flags. Ten malformed result-storage contracts reject stale receipts and
+object output, with assertions for each intended diagnostic. The non-void
+result case uses an unused declaration to isolate that signature guard.
+These are typed ABI compiler checks on Linux carriers; complete
+original compiler/runtime lowering and native OSTADIX acceptance remain open.
+The two tests in <code>tests/test_ocore_native_allocsize.py</code> qualify unchanged LLVM
+and genuine Clang 22.1.6 C units across text IR/bitcode and all three ISAs.
+Twenty-four whole modules retain unused bodies, globals, aliases, raw promises,
+direct/indirect calls and ordinary/volatile memory operations. All 48
+own/original caller-callee combinations match 130,372 independent checks per
+run with digest <code>4156eb592a5f5175</code>; 24 corrupted oracle or object controls fail.
+Requests include zero, bounded successful sizes, nullable failures and
+multiplication overflow. Successful calls retain repeated static pointer
+identity and observable effect logs. These qualify metadata normalization on
+Linux carriers, with complete runtime/compiler and native-platform gates false.
+The aggregate source suite in <code>tests/test_ocore_llvm_aggregates.py</code> adds 17
+passing methods to the prior 271-method source cohort. It preserves whole
+authored LLVM, C/C++ and Rust fixture inventories across all three ISAs and
+text IR/bitcode. The generic LLVM cases exercise aggregate SSA; genuine Rust
+positives qualify copy/storage and layout fixtures. The original typed-read
+fixture with <code>!noundef</code> metadata was retained as an explicit whole-unit rejection
+for unsupported metadata kind 29 at that historical aggregate-SSA freeze.
+No LLVM input filtering or complete Rust compiler
+lowering is claimed by these fixture checks.
+The two tests in <code>tests/test_ocore_native_aggregates.py</code> qualify aggregate SSA
+and ordinary memory operations with scalar C call signatures. Twelve unchanged
+whole units cover original LLVM and genuine Clang 22.1.6 C output, text
+IR/bitcode and all three ISAs. Twenty-four own/original positive executions
+each match 169,739 independent checks with digest <code>82029e218c82bf13</code>; 48
+corrupted oracle or cold-global object controls exit 31. Nested insert/extract,
+cyclic aggregate phi swaps, defined freeze results, packed and ordinary
+layouts, empty values, pointer aliases and indirect scalar calls are covered.
+The oracle checks defined fields, original input padding and external canaries;
+padding after aggregate stores is unobserved. Explicit byte-loop <code>memcpy</code> and
+<code>memset</code> helpers are Linux test-platform providers, not imported runtime closure
+evidence. Aggregate call ABI, exception handling, complete compiler/runtime
+lowering, dependency closure and native-platform qualification remain false
+for this scalar-signature gate.
+The separate <code>tests/test_ocore_native_aggregate_edges.py</code> supplement qualifies
+runtime aggregate select, simultaneous phi swaps and packed/natural nested
+<code>i1</code>/<code>i21</code>/<code>i33</code>/<code>i40</code>/<code>i63</code> fields. Six unchanged LLVM text/bitcode units execute
+through own and original Clang objects on all three ISAs: 12 positive runs each
+match 1,860,803 checks with digest <code>e22ba1d7f7322bb8</code>, and 24 corrupted oracle
+or cold-global controls exit 31. Original typed scalar stores initialize every
+field before aggregate loads, preserving the same-type store contract for
+non-byte integer widths. The oracle checks defined integer bits, pointer
+identity, original 45/48-byte array strides, input allocation padding and
+external canaries. Unused high integer bits and output aggregate padding remain
+unobserved. This corrected typed-input receipt is separate from the earlier
+byte-initialized attempt; it does not qualify aggregate call ABI or complete
+engine/native-platform execution.
+The separate <code>tests/test_ocore_llvm_aggregate_abi.py</code> adds ten source/API methods
+for fixed C and LLVM <code>fastcc</code> contracts. Its immutable source cohort contains
+298 distinct passing methods with zero skips: the rerun 271-method baseline,
+17 aggregate SSA methods and these ten ABI methods. Whole authored LLVM and
+genuine C/C++/Rust producer fixtures retain their original types, conventions,
+attributes and unused inventories; this source evidence does not qualify a
+complete runtime or compiler implementation.
+The three methods in <code>tests/test_ocore_native_aggregate_abi.py</code> qualify fixed
+C/LLVM <code>fastcc</code> integer/pointer aggregate boundaries against original Clang
+22.1.6 objects. Thirty-six unchanged whole LLVM, C and C++ text/bitcode units
+run all four own/original caller-callee combinations on all three ISAs:
+72 positive executions and 144 corrupted oracle or cold-global controls.
+Raw LLVM runs each match 780,485 checks with digest <code>0fdd52060e49c397</code>;
+C/C++ runs each match 120,243 checks with digest <code>2abfb0a55e38535c</code>.
+Direct, indirect and alias calls cover aggregate results, register overflow,
+stack arguments, nested clobbers, explicit result storage and large <code>fastcc</code>
+frames. Independent source inventories retain all calls and 310 exact owned
+memory-intrinsic mappings. Seven unsupported <code>byval</code> units reject object output
+with the intended diagnostics. This matrix uses RV64 LP64; the genuine LP64D
+scalar/result-storage evidence above remains separate. The matrix does not
+observe x86&#39;s implicit hidden-pointer return in <code>rax</code>, and aggregate padding
+remains unobserved. Floating-point, exception handling, full compiler/runtime
+lowering, dependency closure and native OSTADIX qualification remain false.
+The eight source/API methods in
+<code>tests/test_ocore_llvm_uwtable_declarations.py</code> qualify ordinary declaration
+Sync/Async/bare requests on the later declaration-UW compiler freeze. Their
+231 records preserve complete source inventories, exact parsed levels/sites,
+calls, narrow ABI attributes and globals; pinned LLVM intrinsic normalization
+and injected surviving-boundary rejections remain separately identified.
+The earlier 316-method cohort above is bound to its own importer freeze.
+A separate object bridge imports and verifies eighteen authored whole text
+IR/bitcode units across all three ISAs. Each own object contains three FDEs
+for its three source-defined functions, with no declaration body or unwind
+entry. All 54 decoded intervals match the corresponding ELF function value
+and size. This qualifies counts and ranges, without CFA-row or runtime
+unwinding claims. Its report SHA-256 is
+<code>ac11db1d75921cb123d288b45e25c42880d3cd3157043e8f9058ba149df2a088</code>.
+The same freeze imports, verifies and emits an own x86-64 object for one
+unchanged original <code>unicode-ident</code> unit, retaining 15 functions, ten function
+definitions and 17 globals. Four original panic providers remain undefined.
+This unit has an installed/other producer; its final Cargo payload role and
+source-built compiler membership are unproven. This compile-only evidence
+does not establish execution, provider/dependency closure, exception services
+or complete compiler/runtime support. Its report SHA-256 is
+<code>3ab01489cfb707fe00897224e78812e300bd9afb8ef84901927383e4a7ac5ebd</code>.
+The immutable <code>import-audit-fixed-whole-llvm-aggregate-abi-20261010</code> diagnostic
+attempts all 2,434 whole units in its fixed snapshot of finished original
+LLVM source-build units. All 236 imported units pass independent verification
+and produce own x86-64 objects, retaining 1,499 original function definitions,
+3,314 global definitions, 101 aliases and 533 referenced COMDAT groups. The
+normalized inventory also retains declarations: 3,332 functions and 3,542
+globals in total. Remaining units retain their explicit whole-unit import or
+input failures. All prior 182 admitted units remain, and 54 additional whole
+units now produce objects after aggregate ABI support; those additional units
+retain 715 function and 2,395 global definitions. In total, 416 units change
+their first diagnostic, which does not establish complete unit support.
+Updated artifacts differ for 149 prior object/module records, so earlier
+byte-identity evidence does not qualify those updated artifacts. Recorded
+failures include TLS, special initialization globals, metadata kind 29,
+vector/floating-point types, atomic memory operations, additional intrinsics
+and unsupported ABI attributes. The completed audit is source-unit object evidence; complete
+original Rust/LLVM compiler lowering, dependency closure, generated-program
+routing and native execution remain unqualified. Its report SHA-256 is
+<code>60db6badab3b59acf31e24a9bfc08423b2f8022ab5d949ef099a8585e774e7df</code>.
+A separate immutable <code>import-audit-fixed-whole-rust-aggregate-abi-20261010</code>
+diagnostic attempts all 1,614 captured original Rust LLVM units and produces
+208 independently verified own x86-64 objects. Of these, 179 contain no
+function or global definitions; only 29 contain definitions, totaling 39
+function and 69 global definitions. Producer identities remain distinct: 131 objects
+come from source-built producers (117 empty, 14 nonempty, retaining
+14 function and 40 global definitions), while 77 come from installed or other
+producers (62 empty, 15 nonempty, retaining 25 function and 29 global
+definitions). A producer identity does not establish final compiler payload
+membership, and these objects do not preserve an original <code>rustc</code> or Cargo
+compiler implementation. The four additional admitted units contain installed
+<code>core</code> helper instantiations for a build script; the source-built object count
+is unchanged. This audit uses the aggregate-ABI compiler/importer freeze,
+before the later overflow-intrinsic support. The diagnostic retains two malformed legacy journals, 1,316
+unbound attempts, three original failed build attempts and two missing extra
+LLVM outputs. Its completed audit and receipt reconciliation leave complete
+Rust compiler lowering, source-production inventory, dependency closure,
+generated-program routing and native execution unqualified. Report SHA-256:
+<code>69cdf93d0589e57205e9bae281116c2e2c0c1d0dd455a70bebc19551986fc320</code>.
+The later pre-EH overflow/declaration-UW audit attempts the same 1,614 original
+Rust units and produces 265 own objects: 179 empty and 86 with definitions,
+retaining 267 function and 267 global definitions. Source-built producers
+account for 154 objects (117 empty, 37 nonempty, 108 function and 139 global
+definitions); installed/other producers account for 111 (62 empty, 49
+nonempty, 159 function and 128 global definitions). The additional source
+bodies are genuine dependency/helper implementations, not an admitted rustc
+or Cargo compiler implementation. Installed origins and unproven final payload
+roles remain separate. No complete compiler, dependency closure, generated
+output routing or native-platform qualification follows from these objects.
+Report SHA-256:
+<code>cd28d9185a0201134a85cef716720564995242c5a4613e40ab1cae824c2c5c9f</code>.
+The later immutable noalias-scope audit attempts all 1,614 unchanged Rust
+units and emits 408 independently verified own x86-64 objects: 229 with
+definitions and 179 empty. Source-built producers account for 233 objects
+(116 nonempty, 117 empty); installed/other producers account for 175
+(113 nonempty, 62 empty). All 375 previously emitted objects remain
+byte-identical, and 33 additional whole units retain 280 original function
+definitions and 296 global definitions. Across all admitted units the
+inventory retains 1,823 function definitions, 3,048 global definitions and
+23 aliases. The remaining 1,206 units have explicit import failures.
+This source-unit audit precedes atomic support. It does not establish final
+compiler payload membership, complete source-production/dependency closure,
+generated-program routing, a linked compiler or native compiler execution.
+Report SHA-256:
+<code>094027d68fccc1ecfe8cb5730760601d4f777ce8112efe53339e86b4f38d622c</code>.</p>
+<p>The following immutable coherent-RAM atomic audit again attempts all 1,614
+unchanged Rust units. It emits 429 independently verified own x86-64 objects:
+250 with definitions and 179 empty. Source-built producers account for 247
+objects (130 nonempty, 117 empty); installed/other producers account for 182
+(120 nonempty, 62 empty). All 408 previous ELF objects remain byte-identical.
+The 21 additional whole units retain 112 original function definitions, 190
+global definitions and five aliases. The full admitted inventory contains
+1,935 function definitions, 3,238 global definitions and 28 aliases. Module
+JSON changes retain the newly explicit profile, scope and provenance fields;
+the unchanged ELF comparison is a separate check. This remains a partial
+source-unit audit, with 1,185 units still unsupported. It does not qualify
+final compiler payload membership, complete source production or dependency
+closure, generated-program routing, a linked compiler, cross-ISA compiler
+execution or an OSTADIX platform port. Report SHA-256:
+<code>91e3e286f255251ef72b144d257afe9e9017d97ede80d272667b432c9fd8a8b1</code>.</p>
+<p>The next immutable integer-min/max audit attempts the same 1,614 unchanged
+original Rust build units. It emits 458 independently verified own x86-64
+objects: 279 with definitions and 179 empty. All 429 earlier ELF objects
+remain byte-identical; 29 additional whole units retain 388 original function
+definitions, 758 global definitions and two aliases. The complete admitted
+inventory now contains 2,323 function definitions, 3,996 global definitions
+and 30 aliases. Source-built producers account for 266 objects (149 nonempty,
+117 empty); installed/other producers account for 192 (130 nonempty, 62
+empty). Only 18 nonempty units are compiler-source payloads, drawn from nine
+source files. These counts include dependencies and repeated symbols and
+must not be presented as 458 distinct Rust compiler components or a completed
+compiler.</p>
+<p>The original sources of the 29 additional units retain 68 integer-min/max
+calls, 80 atomic operations and 758 initializers. Independent source and ELF
+readback checks the initializer bytes, relocations, original metadata graph
+and structural unwind envelopes. It does not establish native body execution,
+calling-convention correctness, physical memory ordering or runtime TLS
+services. The remaining 1,156 units fail explicitly; vectors, floating-point
+operations and formats, wide integers, metadata and other constructs still
+require supported realizations. The diagnostic retains each original target
+and does not establish retargeting or three-ISA compiler equivalence.
+Audit SHA-256:
+<code>1db0e5c99f4ba2d46255a57d95cc554bc23712fd568e4df5ca53b1a14a71ac33</code>.
+Completed independent readback SHA-256:
+<code>515f424741200fa2d016414fbd88ce4ece6ea2f572353bc9281a65b98a93c9d4</code>.</p>
+<p>The Rust completion criterion remains the original, complete compiler
+implementation lowered through O-core, linked with its complete declared
+dependency and platform closure, and executed as a working compiler. Its
+generated programs require their own supported O-core lowering path.
+Compiler conformance fixtures and rewritten sample functions establish
+neither requirement. This benchmark remains unmet.</p>
+<p>Original provider preparation remains separate from implementation lowering.
+The pinned <a href="../tools/ocore-runtime/libc/README.md">musl source recipes</a> build
+the complete declared static Linux-compatible profile from unchanged musl
+1.2.5 sources on all three ISAs. In x86-64/AArch64/RV64GC order, the builds
+retain 1,350/1,350/1,351 source units, 1,345/1,345/1,346 ordered <code>libc.a</code>
+members plus five startup objects per ISA, and 1,318/1,334/1,339 whole C LLVM
+units. The required original assembly units number 32/16/12; each target
+also installs 218 original and generated headers. The immutable source-build
+observation has SHA-256
+<code>f6df8192764741427588393d7386c6160ec92ee87b37c62edf633c0d667d3210</code>.
+Original assembly, inline assembly, floating-point and long-double math,
+atomics, TLS and compiler-helper providers still require complete O-core
+lowering and dependency admission. Linux syscall, thread, futex, signal,
+memory, file and loader services need explicit verified OSTADIX interfaces.
+The static source builds do not qualify a dynamic loader or JIT publication;
+capture, provider, dependency-closure and native OSTADIX completion remain
+false. The separate <a href="../tools/ocore-runtime/unwind/README.md">original libunwind recipes</a>
+retain both source assembly files and the genuine threaded requirement. The
+earlier Newlib threaded profile fails on its authentic missing pthread type;
+the separate single-thread test archives do not replace that requirement.
+The later Linux/musl threaded source builds finish all nine objects and nine
+ordered archive members per ISA, retaining seven whole C/C++ LLVM units with
+86/89/90 definitions and both original assembly files. These original provider
+builds support the reference execution witness above; their implementation
+lowering, dependency admission and OSTADIX services remain unqualified.
+The three tests in <code>tests/test_ocore_native_switch.py</code> execute own objects on
+all three ISAs against independent C and Python results: 16,326 checks per ISA
+produce digest <code>1570cd559d8202fd</code>. They cover integer widths 1/8/16/32/64,
+default edges, shared destinations, parallel phi swaps, and every case in a
+1,922-case switch. Both suites use explicitly identified Linux development
+carriers and retain the distinction between compiler conformance and complete
+native runtime qualification.
+An immutable hosted CPython diagnostic, <code>import-audit-optimizer-promises-first</code>, attempted
+all 346 whole LLVM units from the recorded runtime build while retaining all
+834 captured units as provenance. It imported, independently verified and
+emitted own x86-64 objects for 39 units; 307 rejected during import. The original
+source checkout and a persistent clean clone have since been restored at the
+recorded revision. <code>source-restoration-20261010.json</code> confirms that all 881
+recorded source/dependency artifacts match their original SHA-256 values, with
+no capture-report changes. This restores the source evidence; the legacy
+capture remains incomplete and requires a fresh bound capture for admission.
+The diagnostic does not establish full-driver object admission, dependency
+closure or complete runtime support. Separately,
+<code>scripts/check_ocore_cpython_token.py</code> executes the entire original
+<code>Parser/token.c</code> unit against its captured Clang object on hosted x86-64:
+16,843,008 exhaustive one/two/three-byte inputs, 12,719 int32 boundary cases,
+all 67 token names, and an independently corrupted oracle. This source-unit
+execution proof does not establish all-three-ISA or native OSTADIX execution.
+The two tests in <code>tests/test_ocore_native_memory.py</code> execute own memory objects
+on all three ISAs against independent C and Python byte snapshots. Each run
+checks 2,688 cases with digest <code>9192493a61abaccd</code>, including i32/i64 lengths,
+narrow fills, volatile-marked and ordinary operations, equal pointers, overlap in both
+directions, zero-length invalid pointers, sentinels and protected-page boundaries.
+The unchanged Clang 22.1.6 source fixture also runs through text IR and bitcode
+on each ISA, with identical own-object bytes and 512 additional local-array
+lifetime assertions per run. Corrupted oracle controls fail independently.
+These Linux development carriers check byte results and access boundaries;
+they do not qualify a full runtime or exact volatile access counts, widths or ordering.
+The three tests in <code>tests/test_ocore_llvm_pointer_constants.py</code> compare exact
+literal and nested packed initializer bytes, including real symbol/GEP
+relocations, then execute O-core objects against independently compiled original
+Clang 22.1.6 LLVM references on all three ISAs. Both unchanged text IR and
+bitcode produce digest <code>773001a633ffff41</code> across 119 counted cases, with
+corrupted-expected controls. All source integer widths 1 through 64 are covered;
+unsupported address profiles and symbolic arithmetic reject entire units.
+Reports retain compiler/tool hashes and exclude pointer mapping validity and
+full runtime qualification.
+The ten optimizer-promise tests cover eight source/API checks and two native
+checks. Unchanged LLVM text and bitcode execute own objects against original
+Clang references on all three ISAs, producing digest <code>cde31be09eaca0d6</code> across
+1,792 counted cases per run. Six corrupted oracle controls fail; 54 cold-body
+ABI and then-unsupported exception-handling emission attempts reject without
+partial artifacts on that historical compiler freeze.
+This is scalar compiler conformance on Linux development carriers.
+The <a href="../ocore/runtime/riscv64/RUST_BRIDGE.md">native RV64 Rust bridge</a> separately
+executes imported Rust scalar functions on the OSTADIX supervisor bootstrap
+under OpenSBI, without Linux services. It is a native compiler proof with an
+independent oracle and corruption controls; it does not qualify Rust std,
+rustc, CPython, or OpenJDK as complete native runtimes.</p>
+<h3>Imported execution profiles and cross-ISA equivalence</h3>
+<p>The following requirements describe the intended import design; they are not
+implemented runtime admission, snapshot, or JIT features.</p>
+<p>Lowering, dependency closure, enforcement, and replayability are separate
+properties. Compiling a runtime through O-core does not establish that its
+clock, entropy, filesystem, scheduling, or CPU-dependent behavior is
+deterministic. Purity belongs to an operation and its admitted effects, not to
+a runtime name. Recording capability results would require a separately
+specified replay protocol; granting a capability alone does not record its
+results or make effects safely repeatable.</p>
+<p>The required cross-ISA contract compares observable values, faults, and
+required effects under the same inputs and declared execution profile.
+For a profile admitting pure deterministic execution, this includes
+bit-identical canonical results across x86-64, AArch64, and RV64GC. Such a
+profile must specify floating-point rounding, contraction, subnormals, NaN
+behavior, and the libm implementation and CPU dispatch policy. Carrying one
+library source is insufficient if its compiled variants produce different
+results. Resource limits and host import behavior are also part of the
+profile. Neither a pinned Wasm module nor a C frontend plus libc proves this
+contract by itself.</p>
+<p>Imported semantics remain explicit. Adopting Wasm rules for a Wasm importer
+does not change the existing <code>.oc</code> integer rules or establish C semantics.
+Record relevant source-build choices such as plain <code>char</code> signedness and
+signed-overflow flags. LLVM input carries target data layouts, calling
+conventions, variadic representations, and possibly target-specific
+intrinsics or assembly; x86 LLVM IR is not automatically portable input for
+the other two ISAs. A frontend/importer must obtain or normalize the required
+target contracts. The existence of O-core <code>asm!</code> does not establish support
+for foreign assembly constraints.</p>
+<p>Dependency derivation may compute a sound over-approximation, including
+declared modules and extensions, because runtime-computed import names need
+not be exactly predictable from a script. The artifact must distinguish this
+declared closure from measured execution coverage. A census of a runtime&#39;s
+core functions does not qualify its external libraries, extension modules,
+or complete execution profile.</p>
+<p>JIT runtime implementations remain within the compiler objective. A static
+executable-closure profile may forbid new executable code. A dynamic profile
+would instead require generated programs to pass through verified O-core
+lowering and controlled code publication, with provenance, relocations,
+imports, and code lifetime recorded. Compiling an existing native-code emitter
+does not automatically redirect the code it generates through O-core.</p>
+<p>Per-image function tables are a possible imported representation, not a
+replacement for the current native C ABI. Table indices alone are forgeable
+integers; bounds and signature checks do not confer entry-specific authority.
+They also do not make a runtime heap portable by themselves. Cross-ISA
+snapshots require a defined data-pointer representation, object and allocator
+layouts, initialization state, and handling of host resources in addition to
+code references. Snapshots are an optional startup optimization, not evidence
+of runtime-source lowering.</p>
 <h2>2. Source units and modules</h2>
 <p>Every source file begins with a module declaration:</p>
 <pre><code class="language-ocore">module kernel::serial;
@@ -55,6 +1059,13 @@ unsafe fn kernel_main() -&gt; never {
 <code>while</code>, <code>loop</code>, <code>break</code>, <code>continue</code>, <code>return</code>, and <code>unsafe</code> blocks. Functions
 have lexical scope and no implicit fallthrough return unless their return type
 is <code>void</code>.</p>
+<p>Expression operands are evaluated from left to right: a call evaluates its
+target before its arguments, and indexing evaluates its base before its index.
+Aggregate initializer expressions follow their written order, including named
+structure fields written in a different order from their storage layout.
+A <code>never</code> expression ends its execution path immediately; enclosing calls,
+initializers, and returns do not evaluate later operands. Logical <code>&amp;&amp;</code> and <code>||</code>
+evaluate their right operand only when required by their left operand.</p>
 <h2>4. Types</h2>
 <p>Primitive types are:</p>
 <pre><code class="language-text">bool
@@ -65,22 +1076,57 @@ void never
 </code></pre>
 <p>Compound types are arrays <code>[T; N]</code>, immutable and mutable raw pointers
 <code>*const T</code> and <code>*mut T</code>, structures, enumerations, and function pointers
-<code>fn(T, U) -&gt; R</code>.</p>
+<code>fn(T, U) -&gt; R</code> or ABI-qualified <code>extern &quot;C&quot; fn(T, U) -&gt; R</code>.</p>
+<p>An array repeat <code>[expr; N]</code> evaluates <code>expr</code> exactly once, including when <code>N</code>
+is zero. Each element receives that value. Aggregate repeats first capture a
+private snapshot and copy it to the elements, so writes during copying cannot
+change the repeated value.</p>
 <p>There are no implicit numeric conversions except that an unsuffixed integer
 literal may be inferred from its expected integer type. All other conversions
-use <code>as</code>. Pointer-to-integer, integer-to-pointer, pointer arithmetic, pointer
+use <code>as</code>. Data-pointer-to-integer, integer-to-pointer, pointer arithmetic, pointer
 dereference, mutable static access, inline assembly, and privileged intrinsics
 require an unsafe context.</p>
-<p>Floating-point types currently provide storage layout and bit-preserving
-transport only. Float literals, arithmetic, comparisons, casts, and <code>sysv64</code>
-float parameters and returns are compile-time errors until SSE lowering and the
-floating-point calling convention are implemented. This boundary is enforced
-in type checking and defended again in machine code generation.</p>
+<p>Extracting a function&#39;s integer address is safe. Converting an integer or data
+pointer into a function pointer requires an unsafe context, as does changing
+a function pointer&#39;s signature or ABI.</p>
+<p>Function pointers retain the target ABI and parameter/result types. They may
+be stored, assigned, and called indirectly; each indirect call requires an
+explicit unsafe context because its type does not carry the target&#39;s unsafe
+or effect contract:</p>
+<pre><code class="language-ocore">unsafe fn invoke(callback: extern &quot;C&quot; fn(u64) -&gt; u64, value: u64) -&gt; u64 {
+    return callback(value);
+}
+</code></pre>
+<p>Function references are relocatable constants, including in static dispatch
+tables and aggregate initializers:</p>
+<pre><code class="language-ocore">extern &quot;C&quot; fn foreign_step(value: u64) -&gt; u64;
+static DISPATCH: [extern &quot;C&quot; fn(u64) -&gt; u64; 1] = [foreign_step];
+</code></pre>
+<p>Floating-point types reserve storage layout; x86_64&#39;s internal O-core ABI also
+permits bit-preserving transport. AArch64/RISC-V float parameters and returns
+remain unsupported even with the O-core ABI. Float literals, arithmetic,
+comparisons, casts, indirect float calls, and <code>C</code>/<code>sysv64</code> float parameters and
+returns are compile-time errors.
+Target floating-point instructions and calling conventions remain future
+work. This boundary is enforced in type checking and defended again in machine
+code generation.</p>
+<p>Integer results are narrowed to their declared width after each operation.
+Shifts operate on the sign- or zero-extended 64-bit operand with the count
+modulo 64, then narrow the result; signed right shifts are arithmetic. Division
+and remainder trap on a zero divisor and on signed 64-bit minimum divided by
+<code>-1</code>. Narrow signed minimum divided by <code>-1</code> is computed in 64 bits and wraps
+when narrowed. These rules are shared by all three backends.</p>
+<p>Boolean values are normalized to <code>0</code> or <code>1</code>. Casting an integer to <code>bool</code>
+produces <code>false</code> for zero and <code>true</code> for every nonzero source value, including
+values whose low byte is zero. Boolean memory loads and assembly outputs also
+normalize nonzero values to <code>true</code>. A Boolean call result uses its declared
+low byte before normalization; undefined upper ABI register bits do not change
+the result.</p>
 <p>O-core v0.1 has no garbage collector and no implicit heap allocation. Values
 have deterministic destruction-free storage. A later ownership layer may add
 checked owning pointers, but it must lower to this explicit storage model.</p>
 <h2>5. Layout and ABI</h2>
-<p>Primitive sizes and alignments for <code>x86_64-unknown-none</code> are:</p>
+<p>Primitive sizes and alignments are identical on the three supported targets:</p>
 <table>
 <thead>
 <tr>
@@ -118,18 +1164,60 @@ checked owning pointers, but it must lower to this explicit storage model.</p>
 <p>Structures use declaration order. Each field begins at the next address
 aligned for that field; structure size is rounded up to maximum field
 alignment. <code>@packed</code> removes inter-field padding and gives alignment 1.
-<code>@align(N)</code> may increase alignment to a power of two.</p>
+<code>@align(N)</code> may increase alignment to a power of two up to 4096. Local frames
+honor that alignment while preserving incoming stack arguments and the
+target&#39;s callee-preserved registers. Packed scalar fields support unaligned
+ordinary loads/stores. Large local frames and arguments beyond the register
+set are supported; execution still requires enough actual stack storage.</p>
 <p>Enums are a tagged union. The tag is the smallest of <code>u8</code>, <code>u16</code>, or <code>u32</code>
 that can represent every variant. The payload begins at its required alignment
 after the tag; total size is rounded to maximum tag/payload alignment.</p>
-<p><code>extern &quot;sysv64&quot;</code> uses System V AMD64. Integer and pointer arguments use RDI,
-RSI, RDX, RCX, R8, R9, with further arguments on the stack. Scalar results use
-RAX. Aggregate ABI passing is currently forbidden across both direct and
-extern call boundaries; callers pass pointers instead. The stack is 16-byte
-aligned before <code>call</code>.</p>
+<p><code>extern &quot;C&quot;</code> supports non-variadic integer, Boolean, pointer, and
+function-pointer arguments and scalar results, for declarations and function
+definitions with bodies. Register overflow arguments
+travel on the stack in both direct and indirect calls, with 16-byte call
+alignment and correct incoming/outgoing narrow scalar extension:</p>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Integer argument registers</th>
+<th>Scalar result</th>
+<th>C ABI</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>x86_64</td>
+<td>RDI, RSI, RDX, RCX, R8, R9</td>
+<td>RAX</td>
+<td><a href="https://gitlab.com/x86-psABIs/x86-64-ABI/-/blob/master/x86-64-ABI/low-level-sys-info.tex">System V AMD64</a></td>
+</tr>
+<tr>
+<td>AArch64</td>
+<td>x0--x7</td>
+<td>x0</td>
+<td><a href="https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst">AAPCS64</a></td>
+</tr>
+<tr>
+<td>RISC-V RV64GC</td>
+<td>a0--a7</td>
+<td>a0</td>
+<td><a href="https://riscv-non-isa.github.io/riscv-elf-psabi-doc/#_integer_calling_convention">RISC-V LP64 psABI</a></td>
+</tr>
+</tbody></table>
+<p>RISC-V C call/return boundaries apply the psABI&#39;s 32-bit sign extension even
+for <code>u32</code>; unsigned SSA values remain zero-extended internally.
+<code>extern &quot;sysv64&quot;</code> explicitly selects the AMD64 convention and is rejected on
+other targets. Aggregate parameters and returns are forbidden across direct
+and indirect calls, including extern calls; pass pointers instead. Variadic
+calls and floating-point C ABI classification are not implemented.</p>
 <p><code>extern &quot;ocore&quot;</code> is versioned with the compiler and is not a stable foreign
-ABI. Interrupt entries use <code>@interrupt</code>; they have no ordinary arguments or
-return value and end with <code>iretq</code>.</p>
+ABI. Interrupt entries use the x86_64-only <code>@interrupt</code>; they have no ordinary
+arguments or return value and end with <code>iretq</code>. AArch64/RISC-V trap-frame glue
+must be explicit operand-free <code>@naked</code> assembly.</p>
+<p>Aggregate assignment has <code>memmove</code> semantics, including overlap and identical
+source/destination addresses. MIR phi values are assigned simultaneously on
+each incoming control-flow edge, including loop-carried cycles.</p>
 <h2>6. Unsafe and hardware operations</h2>
 <p>Unsafe operations are syntactically visible:</p>
 <pre><code class="language-ocore">unsafe {
@@ -150,16 +1238,27 @@ return value and end with <code>iretq</code>.</p>
 </ul>
 <p>Memory order values are <code>relaxed</code>, <code>acquire</code>, <code>release</code>, <code>acq_rel</code>, and
 <code>seq_cst</code>. Invalid load/release and store/acquire combinations are compile-time
-errors. Volatile operations prevent compiler elision and reordering relative
+errors. Compare-exchange failure order cannot be <code>release</code> or <code>acq_rel</code> and
+cannot be stronger than its success order. Volatile operations prevent compiler
+elision and reordering relative
 to other volatile operations; they do not provide inter-core synchronization.
 The current volatile lowering accepts scalar pointees. Atomic pointees must be
-1, 2, 4, or 8-byte integers, and the backend rechecks the pointer, value,
-result, and ordering types before emitting x86_64 instructions.</p>
-<p>Inline assembly templates use Intel syntax. Input/output registers are
-explicit, implicit clobbers are forbidden, and <code>options(nostack)</code> asserts that
-RSP is unchanged. Assembly operands must be non-floating scalar values because
+1, 2, 4, or 8-byte integers on all three targets. Volatile scalar access and
+atomics require natural width alignment and explicitly trap on a misaligned
+address on every target. Ordinary packed loads/stores remain valid, and
+aggregate copies transfer bytes. Each backend rechecks pointer, value, result,
+and ordering types. RISC-V subword read-modify-write uses masked word LR/SC loops and may
+provide stronger ordering than requested.</p>
+<p>Inline assembly templates use the selected target&#39;s assembler syntax (Intel
+syntax on x86_64). Input/output registers are explicit. Non-naked templates
+must restore the stack pointer and preserve the target&#39;s reserved frame and
+platform registers; this is the unsafe assembly author&#39;s contract.
+<code>options(nostack)</code> asserts that the target stack pointer is unchanged.
+Assembly operands must be non-floating scalar values because
 the current interface exposes general-purpose registers. Assembly is unsafe
-even when it contains no privileged instruction.</p>
+even when it contains no privileged instruction. Inputs are prepared together,
+and output registers are preserved before output-place address calculation,
+so scratch-register operands and indexed destinations retain their values.</p>
 <h2>7. Linkage attributes</h2>
 <p>Supported attributes are:</p>
 <ul>
@@ -389,27 +1488,47 @@ through OVMF/QEMU TCG. They are not physical-machine, KVM, SMP, Secure Boot,
 measured-boot, hardware-driver, or hardware-isolation evidence. Only the raw
 GPT/ESP disk image is accepted by the external-media writer; the ISO is not.</p>
 <h2>11. Implemented bounded O-core milestone boundary</h2>
-<p>The broad compiler/kernel target remains <code>x86_64-unknown-none</code>; G2 adds a
-separate conservative scalar <code>aarch64-unknown-none</code> stack-spill backend. Neither
-backend has optimization or a general register allocator. Direct calls
-are supported; function-pointer types are representable, but indirect calls
-are not yet lowered. Aggregates support layout, construction, fields,
-indexing, locals, statics, and copies, while aggregate parameters and returns
-must currently be passed through pointers. Enum construction is supported;
-pattern matching is not. Floating-point types reserve their storage layouts,
-while operations, conversions, and <code>sysv64</code> ABI crossings are rejected before
-MIR lowering. Code generation also validates the MIR type contracts for
-operations, calls, control flow, indexed places, atomics, volatile access, and
-assembly. This is a second boundary against malformed or future lowering paths
-silently selecting integer instructions.</p>
-<p>The bounded AArch64 backend emits statics, scalar locals and pointers,
-loads/stores/casts, integer operations, direct calls with at most eight scalar
-arguments, branches and current MIR phi shapes, volatile MIR memory, DAIF
-masks, <code>wfi</code>, and <code>syscall0</code> through <code>syscall6</code> using x8 and x0--x5. It traps
-explicitly on division by zero and signed 64-bit MIN/-1 instead of accepting
-AArch64&#39;s silent architectural result. It rejects AMD64 <code>sysv64</code>, port I/O,
-atomics, page invalidation, inline assembly, interrupt/naked functions,
-floating point, and wider call shapes.</p>
+<p>The compiler supports x86_64, AArch64, and RV64GC native assembly/object
+generation. All three are stack-spill backends without optimization or a
+general register allocator. They implement scalar locals and pointers,
+integer operations and casts, direct and unsafe indirect calls with stack
+arguments, branches and parallel phi moves, volatile memory, all supported
+atomic integer widths, aligned local frames, and overlap-safe aggregate
+copies. Aggregates support layout, construction, fields, indexing, locals,
+and statics; call boundaries still require pointers to aggregates. Enum
+construction is supported; pattern matching is not. MIR structure and codegen
+type contracts are checked before unsupported shapes can select machine
+instructions. Floating-point computation and full C ABI classification remain
+unsupported.</p>
+<p>Privileged operations remain architecture-specific. AArch64 implements DAIF
+masks, <code>wfi</code>, page invalidation, inline assembly, operand-free naked functions,
+and <code>syscall0</code> through <code>syscall6</code> using x8 and x0--x5. RISC-V implements
+supervisor interrupt masks, <code>wfi</code>, <code>sfence.vma</code>, inline assembly, operand-free
+naked functions, and <code>ecall</code> using a7 and a0--a5. Both reject AMD64 <code>sysv64</code>,
+x86 port I/O, and the x86 interrupt-entry ABI. The RISC-V compiler backend does
+not establish a RISC-V bootable kernel or runtime port.</p>
+<p>The same-source execution gate builds <code>.oc</code> with the real <code>ocorec</code> CLI for all
+three targets, links an independent freestanding C reference harness, and
+executes x86_64 natively plus AArch64/RISC-V under QEMU user emulation:</p>
+<pre><code class="language-bash">cargo build --locked --bin ocorec
+python3 scripts/check_ocore_native_equivalence.py \
+  --ocorec target/debug/ocorec --output-dir target/ocore-native-equivalence
+</code></pre>
+<p>Run it on an x86_64 Linux host with <code>clang</code>, <code>ld.lld</code>, <code>qemu-aarch64</code>, and
+<code>qemu-riscv64</code> (<code>qemu-user</code>); missing tools fail the gate. The corpus checks
+4096 vectors across three
+arithmetic functions (12,288 reference comparisons per ISA), C crossings in
+both directions, twelve-argument direct/indirect calls, packed and aligned
+memory, an 8193-byte local array, overlap-safe copies, volatile memory, and
+8/16/32/64-bit atomics. Successful output bytes must agree across targets.
+Six separate fault programs per ISA must trap: four division/remainder cases
+and two misaligned volatile/atomic accesses. Object bytes must reproduce across
+output directories. Two additional executions verify that a <code>never</code> call
+inside an array repeat or an outer call argument exits immediately with the
+expected status. Retained artifacts include
+assembly, ELF objects/executables, and <code>equivalence.json</code>. This is compiler
+conformance evidence for the checked corpus, separate from kernel boot and
+subsystem proof.</p>
 <p><code>ocore/kernel/smoke-aarch64-g2-qemu.sh</code> builds one deterministic <code>EM_AARCH64</code>
 image twice, proves semantic markers originate in compiled <code>.oc</code>, and boots it
 with one vCPU on QEMU/TCG <code>virt,virtualization=on,gic-version=3</code>. The image

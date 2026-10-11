@@ -337,6 +337,8 @@ pub struct HirConst {
 #[derive(Debug, Clone, PartialEq)]
 pub enum HirConstValue {
     Integer(u64),
+    /// A relocatable code address, not a host-sized numeric address.
+    Function(FunctionId),
     Bool(bool),
     Bytes(Vec<u8>),
     Array(Vec<HirConstValue>),
@@ -406,7 +408,8 @@ pub enum HirExprKind {
     },
     Struct {
         struct_id: StructId,
-        fields: Vec<HirExpr>,
+        /// Declaration index plus initializer, retained in source order.
+        fields: Vec<(usize, HirExpr)>,
     },
     Unary {
         op: UnaryOp,
@@ -424,6 +427,10 @@ pub enum HirExprKind {
     },
     Call {
         function: FunctionId,
+        args: Vec<HirExpr>,
+    },
+    CallIndirect {
+        callee: Box<HirExpr>,
         args: Vec<HirExpr>,
     },
     Intrinsic {

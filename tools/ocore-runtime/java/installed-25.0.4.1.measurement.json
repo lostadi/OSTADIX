@@ -1,0 +1,121 @@
+{
+  "declared_dependency_closure": {
+    "complete": true,
+    "missing_modules": []
+  },
+  "format": "ocore-java-inventory-measurement-v1",
+  "inventory_sha256": "ecdfc468704861ee687144c11aa88210764ca748bf7ec84dde28f035081abf4f",
+  "lowered_compiler_methods": 0,
+  "modules": [
+    {
+      "bytecode_bytes": 3772415,
+      "counts": {
+        "abstract": 3999,
+        "code": 61793,
+        "native": 699
+      },
+      "name": "java.base",
+      "requires": []
+    },
+    {
+      "bytecode_bytes": 11699,
+      "counts": {
+        "abstract": 279,
+        "code": 494,
+        "native": 0
+      },
+      "name": "java.compiler",
+      "requires": [
+        {
+          "flags": 32768,
+          "module": "java.base"
+        }
+      ]
+    },
+    {
+      "bytecode_bytes": 863773,
+      "counts": {
+        "abstract": 746,
+        "code": 13475,
+        "native": 0
+      },
+      "name": "jdk.compiler",
+      "requires": [
+        {
+          "flags": 32768,
+          "module": "java.base"
+        },
+        {
+          "flags": 32,
+          "module": "java.compiler"
+        },
+        {
+          "flags": 0,
+          "module": "jdk.internal.opt"
+        },
+        {
+          "flags": 0,
+          "module": "jdk.zipfs"
+        }
+      ]
+    },
+    {
+      "bytecode_bytes": 11760,
+      "counts": {
+        "abstract": 38,
+        "code": 393,
+        "native": 0
+      },
+      "name": "jdk.internal.opt",
+      "requires": [
+        {
+          "flags": 32768,
+          "module": "java.base"
+        }
+      ]
+    },
+    {
+      "bytecode_bytes": 29833,
+      "counts": {
+        "abstract": 6,
+        "code": 507,
+        "native": 0
+      },
+      "name": "jdk.zipfs",
+      "requires": [
+        {
+          "flags": 32768,
+          "module": "java.base"
+        }
+      ]
+    }
+  ],
+  "runtime_complete": false,
+  "runtime_image": {
+    "command": [
+      "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
+      "/home/ustad/ostadix-BM/tools/ocore-runtime/java/ExtractRuntimeImage.java",
+      "/tmp/ostadix-java25-inventory-cli",
+      "jdk.compiler"
+    ],
+    "extractor_sha256": "dfcfbc8623228b9f72748702b7171f047ca8b53dcea532408eb8afa11399f13f",
+    "host_tool_only": true,
+    "java.home": "/usr/lib/jvm/java-25-openjdk-amd64",
+    "java.runtime.version": "25.0.4.1+1-1-26.04.4-Ubuntu",
+    "java.vm.name": "OpenJDK 64-Bit Server VM",
+    "java_executable_sha256": "00261dabda30e0dbf1a799d052a615fe404afff7530e50444eb75a30c4f8d9d5",
+    "module_image_sha256": "d774e342cf437b015db1d777bfb84154b6ad6d361a0337edb42d54b792514f5e",
+    "roots": [
+      "jdk.compiler"
+    ]
+  },
+  "summary": {
+    "abstract": 5068,
+    "bytecode_bytes": 4689480,
+    "classes": 9260,
+    "code": 76662,
+    "methods": 82429,
+    "modules": 5,
+    "native": 699
+  }
+}

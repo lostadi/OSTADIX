@@ -1,0 +1,96 @@
+{
+  "candidate_only": true,
+  "dependency_closure_complete": false,
+  "examined_sources": [
+    {
+      "bytes": 9367,
+      "path": "include/pthread.h",
+      "sha256": "85ecd05b6e9845851bf5444b480326281fb1484d3e4646742a50aaea612c4ef3"
+    },
+    {
+      "bytes": 3498,
+      "path": "include/alltypes.h.in",
+      "sha256": "0258a616386b1c33c1a539317bdfd0de381dd43d7e5bebb205c4b4e1e71eef56"
+    },
+    {
+      "bytes": 451,
+      "path": "tools/mkalltypes.sed",
+      "sha256": "8ccea9ec27a8450a52973cab8cdea0af8b4bd93d246b1f206b37ccc6fa0b8b7b"
+    },
+    {
+      "bytes": 7515,
+      "path": "Makefile",
+      "sha256": "58c8b95c68d5326c747e26e7b4ff51560d72fc881fa5492d85f8dcf9af17ab9e"
+    },
+    {
+      "bytes": 187,
+      "path": "src/thread/pthread_rwlock_rdlock.c",
+      "sha256": "64b6258b486b305c22504fc78af8a4bde4ae8765bf0cfdbec32fa5f5b05db4e6"
+    },
+    {
+      "bytes": 187,
+      "path": "src/thread/pthread_rwlock_wrlock.c",
+      "sha256": "bb40b9e8501a878f29352d6a2f881a7a41abc9587fc690712e8ebde9d444e398"
+    },
+    {
+      "bytes": 467,
+      "path": "src/thread/pthread_rwlock_unlock.c",
+      "sha256": "9cf1b4b79278dccf4ccb0b1a33dca77797c67b397c723f8695b7fefaf2b816f2"
+    },
+    {
+      "bytes": 2096,
+      "path": "src/thread/__timedwait.c",
+      "sha256": "8171d93c889f41456cb50647c482bc0e6d8896fc71f759adf86525015fbe4d53"
+    },
+    {
+      "bytes": 11575,
+      "path": "src/thread/pthread_create.c",
+      "sha256": "48c232fbc6bb80e0c2cc27a95b22b208274aa424080620c078d130ece02f6dbf"
+    },
+    {
+      "bytes": 3790,
+      "path": "src/env/__init_tls.c",
+      "sha256": "6cb2c2f1ce53b87b9c7f2452010925ddf3356c4ae40d5e8a77f7bee3960febd6"
+    },
+    {
+      "bytes": 137,
+      "path": "arch/x86_64/pthread_arch.h",
+      "sha256": "aeed976249571c9150401ee20e3d307516872bdac13665d40f0e5bdb62ffb57a"
+    },
+    {
+      "bytes": 172,
+      "path": "arch/aarch64/pthread_arch.h",
+      "sha256": "e21f0af30f4d3f72d924c0e322a18ab0e2782eacf052d8b29ddb96536cebade5"
+    },
+    {
+      "bytes": 210,
+      "path": "arch/riscv64/pthread_arch.h",
+      "sha256": "fb734eed5e92d1c79624e8e9bdff04c86564d3084669a69a78bb7d1ac6b8ab6e"
+    }
+  ],
+  "full_provider_ocore_complete": false,
+  "full_rust_runtime_complete": false,
+  "native_ostadix_platform_qualified": false,
+  "observed_header_contract": {
+    "definitions_are_not_reimplemented": true,
+    "initializer": "original PTHREAD_RWLOCK_INITIALIZER {{{0}}}",
+    "pthread_rwlock_t": "original LP64 layout uses union of int[14], volatile int[14], void*[7]"
+  },
+  "platform_boundary": "Original musl is Linux-oriented; genuine POSIX type declarations do not qualify its syscall/TLS implementation on native OSTADIX.",
+  "requirements": [
+    "Generate bits/alltypes.h through original Makefile using each original arch/{x86_64,aarch64,riscv64}/bits/alltypes.h.in plus include/alltypes.h.in and tools/mkalltypes.sed.",
+    "Rebuild all original libunwind units against one coherent libc header/provider ABI; do not mix existing Newlib stdio/_impure_ptr/assertion objects with musl libraries.",
+    "Capture the complete original libc/thread/TLS source graph including arch assembly and syscall/atomic helpers; supplied native objects are not lowering evidence.",
+    "OSTADIX must realize the selected platform futex/clone/mmap/mprotect/signals/clock/thread-pointer/TLS/cancellation services, or declare and verify an explicit compatible provider/platform adaptation.",
+    "Existing hosted GNU gcc_s/glibc profile and authentic failed Newlib threaded source captures remain unchanged."
+  ],
+  "schema": "ocore-upstream-threaded-provider-candidate-v1",
+  "selected_for_existing_profiles": false,
+  "source": {
+    "clean": true,
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "tag": "v1.2.5",
+    "url": "https://git.musl-libc.org/git/musl"
+  },
+  "source_library_built": false
+}

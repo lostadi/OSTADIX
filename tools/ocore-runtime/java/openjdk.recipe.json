@@ -1,0 +1,80 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "openjdk-hotspot-and-javac",
+  "source": {
+    "url": "https://github.com/openjdk/jdk25u.git",
+    "revision": "7b65d74bcbd7c3a0b4c1f5c5bd85e64aa2e51b4a",
+    "submodules": true
+  },
+  "toolchain": {"llvm_version": "22.1.6"},
+  "capture_profile": "hosted-source-build",
+  "intended_execution_profile": "ostadix-kernel",
+  "intended_targets": ["x86_64-unknown-none", "aarch64-unknown-none", "riscv64-unknown-none"],
+  "commands": [
+    {
+      "name": "configure-full-server-jdk",
+      "argv": ["python3", "{recipe_dir}/configure_capture.py", "--source", "{source}", "--build", "{build}", "--cc", "{cc}", "--cxx", "{cxx}", "--jobs", "{jobs}"],
+      "cwd": "{build}"
+    },
+    {
+      "name": "enforce-retained-full-hotspot-profile",
+      "argv": ["python3", "{recipe_dir}/check_profile.py", "{build}", "--output", "{build}/ocore-hotspot-profile.json"],
+      "cwd": "{build}"
+    },
+    {
+      "name": "generate-full-native-build-graph",
+      "argv": ["make", "compile-commands", "JOBS={jobs}"],
+      "cwd": "{build}"
+    },
+    {
+      "name": "build-full-jdk-images",
+      "argv": ["make", "images", "JOBS={jobs}"],
+      "cwd": "{build}"
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": ["{build}"],
+    "required_outputs": ["images/jdk/bin/javac", "images/jdk/lib/modules", "images/jdk/lib/server/libjvm.so", "compile_commands.json"],
+    "required_units": [
+      {"id": "threads", "kind": "clang", "source": "src/hotspot/share/runtime/threads.cpp", "role": "runtime"},
+      {"id": "compiler-broker", "kind": "clang", "source": "src/hotspot/share/compiler/compileBroker.cpp", "role": "compiler"},
+      {"id": "c1", "kind": "clang", "source": "src/hotspot/share/c1/c1_Compilation.cpp", "role": "compiler"},
+      {"id": "c2", "kind": "clang", "source": "src/hotspot/share/opto/compile.cpp", "role": "compiler"},
+      {"id": "template-interpreter", "kind": "clang", "source": "src/hotspot/share/interpreter/templateInterpreterGenerator.cpp", "role": "runtime"},
+      {"id": "jni", "kind": "clang", "source": "src/hotspot/share/prims/jni.cpp", "role": "runtime"},
+      {"id": "deoptimization", "kind": "clang", "source": "src/hotspot/share/runtime/deoptimization.cpp", "role": "runtime"},
+      {"id": "garbage-collector", "kind": "clang", "source": "src/hotspot/share/gc/g1/g1CollectedHeap.cpp", "role": "runtime"},
+      {"id": "launcher", "kind": "clang", "source": "src/java.base/share/native/libjli/java.c", "role": "runtime"}
+    ]
+  },
+  "managed_compiler": {
+    "implementation": "upstream-javac",
+    "inventory_tool": "scripts/ocore_java_inventory.py",
+    "root_modules": ["jdk.compiler"],
+    "dependency_policy": "include-all-declared-requires-including-static",
+    "body_policy": "every-Code-bearing-method-before-execution",
+    "native_policy": "separate-bindings-to-included-verified-Ocore-definitions",
+    "abstract_policy": "dispatch-declarations-without-fabricated-bodies",
+    "frontend": "complete-bytecode-to-Ocore-through-HotSpot-semantic-export",
+    "classfiles_retained": true,
+    "interpreted-methods-count-as-lowered": false
+  },
+  "required_hotspot_features": ["cds", "compiler1", "compiler2", "epsilongc", "g1gc", "jfr", "jni-check", "jvmci", "jvmti", "management", "parallelgc", "serialgc", "services", "shenandoahgc", "vm-structs", "zgc"],
+  "dependencies": [
+    {"name": "libc-libm-compiler-helpers", "source_pin": null, "status": "required-unresolved"},
+    {"name": "complete-retained-native-JDK-libraries", "source_pin": null, "status": "required-unresolved"},
+    {"name": "fonts-desktop-printing-audio-library-closure", "source_pin": null, "status": "required-unresolved"},
+    {"name": "zlib-image-color-and-crypto-library-closure", "source_pin": null, "status": "required-unresolved"}
+  ],
+  "blockers": [
+    "This recipe captures the original hosted source build; it is not a native OSTADIX OS port or a lowered runtime image.",
+    "A full build-generated native translation-unit inventory and complete module/resource/dependency closure remain mandatory.",
+    "The boot JDK is a declared build-time tool; an installed JRE without javac is not a full source-build bootstrap JDK.",
+    "Clang import captures the native VM and libraries; every concrete javac/compiler-dependency method additionally requires actual verified bytecode-to-Ocore lowering.",
+    "C1/C2, template interpreter, runtime stubs, JNI/foreign adapters and generated intrinsics must publish verified Ocore realizations, never unaccounted raw ISA code.",
+    "The required HotSpot feature list must be checked after configuration; OSTADIX availability probes must not silently filter it.",
+    "Moving GC root maps, safepoints, deoptimization/OSR, monitors, class initialization and dynamic resolution require shared managed-code semantics and all-three-ISA execution gates.",
+    "Full JNI and dynamically loaded native modules require verified executable dependency bindings and native OSTADIX loader/thread/TLS/virtual-memory/platform services."
+  ]
+}

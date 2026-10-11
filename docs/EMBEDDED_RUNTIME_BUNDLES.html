@@ -1,4 +1,13 @@
 <h1>Embedded foreign runtime bundles</h1>
+<p>The central compiler objective is <a href="OCORE.md#external-runtime-lowering-and-script-bundles">automated runtime/compiler lowering through O-core</a>
+by <code>olangc</code>, yielding a complete program containing the compiled implementation,
+scripts, and dependencies in native binary form, a complete OIR program
+artifact containing verified O-core modules, or a verified native O-core IR
+artifact for later native lowering. That is the intended meaning of
+&quot;bundling runtimes with scripts&quot; in the compiler objective. The feature
+documented here embeds supplied runtime files; it does not compile their
+implementations into O-core IR or machine code. It is reusable packaging
+infrastructure for that future compilation path.</p>
 <p><code>olangc --runtime-bundle DIR</code> embeds the regular files of an explicitly supplied
 relocatable runtime tree in an ordinary native <code>.O</code> binary. The tree contains
 <code>bin/</code> and this manifest:</p>
@@ -70,9 +79,11 @@ sets, and <code>no_new_privs</code>, then installs the exact mount filter again.
 environment marker alone cannot enable execution. Namespace creation failure
 stops before program evaluation; the launcher does not fall back to the host
 profile or modify the host&#39;s namespace policy.</p>
-<p>This profile currently supports Linux x86-64 and AArch64 with the requisite
-namespace permissions and syscalls. The host kernel, the initial trusted
-Linux executable loader, and the three standard streams remain its execution
+<p>The launcher has Linux x86-64, AArch64, and RISC-V RV64 paths, requiring the
+requisite namespace permissions and syscalls. Each ISA/image combination needs
+compatible-kernel execution qualification; the single-host CI integration gate
+does not establish qualification on all three ISAs. The host kernel, the
+initial trusted Linux executable loader, and the three standard streams remain its execution
 substrate. This is filesystem/network isolation after entry, not a replacement
 kernel or protection against a malicious host. Runtime services and libraries
 loaded by computed names must be included explicitly. Mount-dependent runtimes

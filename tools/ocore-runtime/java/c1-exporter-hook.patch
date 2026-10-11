@@ -1,0 +1,120 @@
+--- a/src/hotspot/share/c1/c1_Compilation.cpp
++++ b/src/hotspot/share/c1/c1_Compilation.cpp
+@@ -28,6 +28,7 @@
+ #include "c1/c1_LinearScan.hpp"
+ #include "c1/c1_LIRAssembler.hpp"
+ #include "c1/c1_MacroAssembler.hpp"
++#include "c1/c1_OcoreExport.hpp"
+ #include "c1/c1_RangeCheckElimination.hpp"
+ #include "c1/c1_ValueMap.hpp"
+ #include "c1/c1_ValueStack.hpp"
+@@ -392,6 +393,17 @@
+     build_hir();
+   }
+   CHECK_BAILOUT_(no_frame_size);
++  if (_ocore_export_sink != nullptr) {
++    // Offline export stops before FrameMap, register allocation and ISA encoding.
++    if (_install_code) {
++      BAILOUT_("O-core HIR export requires install_code=false", no_frame_size);
++    }
++    const char* failure = _ocore_export_sink->export_method(this);
++    if (failure != nullptr) {
++      BAILOUT_(failure, no_frame_size);
++    }
++    return no_frame_size;
++  }
+   if (BailoutAfterHIR) {
+     BAILOUT_("Bailing out because of -XX:+BailoutAfterHIR", no_frame_size);
+   }
+@@ -557,7 +569,8 @@
+ }
+-
++
+ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* method,
+-                         int osr_bci, BufferBlob* buffer_blob, bool install_code, DirectiveSet* directive)
++                         int osr_bci, BufferBlob* buffer_blob, bool install_code, DirectiveSet* directive,
++                         OcoreC1ExportSink* ocore_export_sink)
+ : _next_id(0)
+ , _next_block_id(0)
+ , _compiler(compiler)
+@@ -579,6 +592,7 @@
+ , _has_monitors(method->is_synchronized() || method->has_monitor_bytecodes())
+ , _has_scoped_access(method->is_scoped())
+ , _install_code(install_code)
++, _ocore_export_sink(ocore_export_sink)
+ , _bailout_msg(nullptr)
+ , _first_failure_details(nullptr)
+ , _exception_info_list(nullptr)
+--- a/src/hotspot/share/c1/c1_Compilation.hpp
++++ b/src/hotspot/share/c1/c1_Compilation.hpp
+@@ -34,6 +34,7 @@
+ #include "runtime/deoptimization.hpp"
+-
++
+ class CompilationFailureInfo;
++class OcoreC1ExportSink;
+ class CompilationResourceObj;
+ class XHandlers;
+ class ExceptionInfo;
+@@ -84,6 +85,7 @@
+   bool               _has_monitors; // Fastpath monitors detection for Continuations
+   bool               _has_scoped_access; // For shared scope closure
+   bool               _install_code;
++  OcoreC1ExportSink* _ocore_export_sink;
+   const char*        _bailout_msg;
+   CompilationFailureInfo* _first_failure_details; // Details for the first failure happening during compilation
+   bool               _oom;
+@@ -125,10 +127,11 @@
+  public:
+   // creation
+   Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* method,
+-              int osr_bci, BufferBlob* buffer_blob, bool install_code, DirectiveSet* directive);
++              int osr_bci, BufferBlob* buffer_blob, bool install_code, DirectiveSet* directive,
++              OcoreC1ExportSink* ocore_export_sink = nullptr);
+   ~Compilation();
+-
++
+-
++
+   static Compilation* current() {
+     return (Compilation*) ciEnv::current()->compiler_data();
+   }
+--- /dev/null
++++ b/src/hotspot/share/c1/c1_OcoreExport.hpp
+@@ -0,0 +1,36 @@
++/*
++ * Copyright (c) 2026, OSTADIX contributors.
++ *
++ * This code is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 only, as
++ * published by the Free Software Foundation.
++ *
++ * This code is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
++ * version 2 for more details (a copy is included in the LICENSE file that
++ * accompanied the OpenJDK source).
++ */
++
++#ifndef SHARE_C1_C1_OCOREEXPORT_HPP
++#define SHARE_C1_C1_OCOREEXPORT_HPP
++
++class Compilation;
++
++// Offline compiler-method export boundary. The sink is non-owning and must
++// outlive the synchronous Compilation constructor. The implementation must
++// lower the original HIR, retain Java semantics and provenance, and produce a
++// verified NativeModule body. PrintIR output and bytecode wrappers do not count.
++//
++// This interface is deliberately abstract. No semantic exporter is implemented
++// by the hook, and no caller can claim successful lowering without supplying one.
++class OcoreC1ExportSink {
++ public:
++  virtual ~OcoreC1ExportSink() {}
++
++  // nullptr means successful module emission. A failure message must have
++  // compilation-lifetime storage and propagates through the existing bailout.
++  virtual const char* export_method(Compilation* compilation) = 0;
++};
++
++#endif // SHARE_C1_C1_OCOREEXPORT_HPP

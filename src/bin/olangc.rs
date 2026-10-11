@@ -111,6 +111,8 @@ use o_lang::world::{GroundingReport, WorldEpoch, WorldId, WorldIdentity};
 
 #[path = "olangc/browser_guix.rs"]
 mod browser_guix;
+#[path = "olangc/native_runtime.rs"]
+mod native_runtime;
 #[path = "olangc/runtime_bundle.rs"]
 mod runtime_bundle;
 #[path = "olangc/wasm_container.rs"]
@@ -287,6 +289,39 @@ struct Cli {
     /// A .O source/lifted bundle or project directory to compile, run, or plan
     input: PathBuf,
 
+    /// Lower every LLVM unit in a source-build capture through verified O-core.
+    /// Input is a capture report; output is a new directory with IR, objects,
+    /// and coverage evidence. This does not yet qualify a complete runtime.
+    #[arg(long, conflicts_with_all = ["target", "materialize_only", "browser_bundle", "runtime_bundle"])]
+    native_runtime: bool,
+
+    /// ISA of the captured frontend units; frontend IR is not blindly retargeted.
+    #[arg(long, requires = "native_runtime")]
+    native_isa: Option<String>,
+
+    /// Native runtime artifact kind: ir or obj (default: ir).
+    #[arg(long, requires = "native_runtime", value_parser = ["ir", "obj"])]
+    native_runtime_output: Option<String>,
+
+    /// Digest-pinned LLVM parser worker library for native runtime import.
+    #[arg(long, requires = "native_runtime")]
+    llvm_library: Option<PathBuf>,
+
+    /// SHA-256 of an explicitly selected LLVM parser library.
+    #[arg(long, requires = "llvm_library")]
+    llvm_sha256: Option<String>,
+
+    /// Explicit TLS realization for native runtime units in one static Linux
+    /// ELF image. This does not qualify its loader or thread/provider closure.
+    #[arg(long, requires = "native_runtime", value_parser = ["linux-elf-static-nonpreemptive-v1"])]
+    tls_profile: Option<String>,
+
+    /// Native atomic realization in ordinary coherent RAM; device memory is
+    /// excluded. RV masked subword operations require an accessible coherent
+    /// containing word and the execution environment's LR/SC eventuality property.
+    #[arg(long, value_parser = ["coherent-ram-v1"], requires = "native_runtime")]
+    atomic_profile: Option<String>,
+
     /// Compilation target
     #[arg(long, value_enum, default_value_t = CompileTarget::Binary)]
     target: CompileTarget,
@@ -440,6 +475,28 @@ fn main() -> Result<()> {
 
 fn run_cli() -> Result<()> {
     let cli = Cli::parse();
+    if cli.native_runtime {
+        let target = cli
+            .native_isa
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("--native-runtime requires --native-isa"))?;
+        let output = cli
+            .output
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("--native-runtime requires -o NEWDIR"))?;
+        return native_runtime::compile_capture(
+            &cli.input,
+            target,
+            cli.native_runtime_output.as_deref().unwrap_or("ir"),
+            output,
+            native_runtime::NativeImportOptions {
+                llvm_library: cli.llvm_library.as_deref(),
+                llvm_sha256: cli.llvm_sha256.as_deref(),
+                tls_profile: cli.tls_profile.as_deref(),
+                atomic_profile: cli.atomic_profile.as_deref(),
+            },
+        );
+    }
     if cli.runtime_bundle.is_some() && cli.target != CompileTarget::Binary {
         bail!("--runtime-bundle requires --target binary");
     }
