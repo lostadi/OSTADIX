@@ -5914,6 +5914,59 @@ mod tests {
     }
 
     #[test]
+    fn bash_arithmetic_contexts_read_bare_let_names() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let run = |block: &str| {
+            let source = format!(
+                "let secret_val = python^(__oval_result__ = 42)_python\nbash^({block})_bash\n"
+            );
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(&source, &backends).parse().unwrap();
+            evaluator.eval_document(nodes).unwrap()
+        };
+        let text = |value: &str| OValue::str_(value);
+        // e06, a03, a04 with a nonzero subscript, and `(( ))`.
+        assert_eq!(run("echo $((secret_val + 1))"), OValue::int(43));
+        assert_eq!(
+            run("[[ secret_val -gt 10 ]] && echo big || echo small"),
+            text("big")
+        );
+        assert_eq!(
+            run("a=(0 1 2 3 4); echo ${a[secret_val % 5]}"),
+            OValue::int(2)
+        );
+        assert_eq!(run("(( secret_val > 10 )) && echo big"), text("big"));
+        // r03, r04, r06, r07, r08.
+        assert_eq!(run("echo $[secret_val + 1]"), OValue::int(43));
+        assert_eq!(
+            run("s=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP; echo ${s:secret_val:2}"),
+            text("GH")
+        );
+        assert_eq!(
+            run("a=(); a[secret_val]=x; echo ${#a[@]} ${!a[@]}"),
+            text("1 42")
+        );
+        assert_eq!(
+            run("a=(0 1 2 3 4 5); echo ${a[secret_val % 4]}"),
+            OValue::int(2)
+        );
+        assert_eq!(run("echo $(( secret_val > 10 ? 1 : 0 ))"), OValue::int(1));
+        // a for (( )) header, with the loop variable read as `\$i`.
+        assert_eq!(
+            run(r#"for ((i=secret_val; i<secret_val+2; i++)); do printf "%s," \$i; done"#),
+            text("42,43,")
+        );
+        // a runtime-built name gets nothing, like `${!v}`.
+        assert_eq!(run("v=secret_val; echo $((v + 1))"), OValue::int(1));
+        assert_eq!(run("v=secret_val; echo \"v=${!v}.\""), text("v=."));
+    }
+
+    #[test]
     fn referenced_let_wins_over_numbered_bash_session_variable() {
         if which::which("bash").is_err() || which::which("python3").is_err() {
             return;
