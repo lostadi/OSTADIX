@@ -1,0 +1,8 @@
+{
+  "scopeName": "text.plain.ostadix-embedded",
+  "patterns": [
+    {
+      "include": "source.ostadix#structural"
+    }
+  ]
+}

@@ -1,0 +1,308 @@
+{
+  "name": "OCaml Interface",
+  "scopeName": "source.ocaml.interface.ostadix-embedded",
+  "fileTypes": [
+    "mli",
+    "eliomi"
+  ],
+  "patterns": [
+    {
+      "include": "source.ostadix#structural"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#directives"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#comments"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#attributes"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#extensions"
+    },
+    {
+      "include": "#bindings"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#operators"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#types"
+    },
+    {
+      "include": "source.ocaml.ostadix-embedded#identifiers"
+    }
+  ],
+  "repository": {
+    "bindings": {
+      "comment": "bindings that are shared between .ml and .mli syntaxes",
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "comment": "optional labeled argument",
+          "name": "variable.parameter.optional.ocaml",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\?([[:lower:]_][[:word:]']*)?)"
+        },
+        {
+          "comment": "labeled argument",
+          "name": "variable.parameter.labeled.ocaml",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|~([[:lower:]_][[:word:]']*)?)"
+        },
+        {
+          "comment": "type declaration",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(type)[[:space:]]+(nonrec[[:space:]]+)?(_[[:space:]]+|[+-]?'[[:alpha:]][[:word:]']*[[:space:]]+|\\(.*\\)[[:space:]]+)?([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "$base"
+                }
+              ]
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "and declaration for let bindings, type declarations, class bindings, class type definitions, or module constraints",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(and)[[:space:]]+(?!(?:module|type|lazy)\\b(?!'))(virtual[[:space:]]+)?(_[[:space:]]+|'[[:alpha:]][[:word:]']*[[:space:]]+|\\(.*\\)[[:space:]]+)?([[:lower:]_][[:word:]']*)(?![[:word:]'])[[:space:]]*(?!,|::|[[:space:]]))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "$base"
+                }
+              ]
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "external declaration",
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(external)[[:space:]]+([[:lower:]_][[:word:]']*)?)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?<=]|\")[[:space:]]*(?:$|(?=])))",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "comment": "string literal",
+              "name": "string.quoted.double.ocaml",
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\")",
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\")",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                }
+              ]
+            },
+            {
+              "include": "$base"
+            }
+          ]
+        },
+        {
+          "comment": "val declaration for class instance variables",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(val)[[:space:]]+(virtual)[[:space:]]+(mutable)[[:space:]]+([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "val declaration for let bindings or class instance variables",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(val|val!)[[:space:]]+(mutable[[:space:]]+)?(virtual[[:space:]]+)?([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "class method declaration",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(method)[[:space:]]+(virtual)[[:space:]]+(private)[[:space:]]+([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "class method declaration",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(method|method!)[[:space:]]+(private[[:space:]]+)?(virtual[[:space:]]+)?([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "class specification or class type definition with type parameters",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(class)[[:space:]]*([[:space:]]+type)?([[:space:]]+virtual)?[[:space:]]*(\\[.*\\])[[:space:]]*([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            },
+            "4": {
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "$base"
+                }
+              ]
+            },
+            "5": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "class specification or class type definition",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(class)[[:space:]]+(type[[:space:]]+)?(virtual[[:space:]]+)?([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            },
+            "4": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "named self in object",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(object)[[:space:]]*\\([[:space:]]*([[:lower:]_][[:word:]']*))",
+          "captures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "entity.name.function.binding.ocaml"
+            }
+          }
+        },
+        {
+          "comment": "module type of",
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(module)[[:space:]]+(type)[[:space:]]+(of)\\b)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.ocaml"
+            },
+            "2": {
+              "name": "keyword.ocaml"
+            },
+            "3": {
+              "name": "keyword.ocaml"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=val|external|type|exception|class|module|open|include|=))",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "source.ocaml.ostadix-embedded"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "comment": "reserved ocaml keyword (in interfaces)",
+          "name": "keyword.other.ocaml.interface",
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(and|as|class|constraint|end|exception|external|functor|in|include|inherit|let[[:space:]]+open|method|module|mutable|nonrec|object|of|open|private|rec|sig|type|val|virtual|with)\\b(?!'))"
+        }
+      ]
+    }
+  }
+}

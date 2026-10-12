@@ -9,6 +9,26 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- Default setup builds every root native command, including the notebook and
+  kernel World utility, plus the supported workspace tools. It selects free
+  hosted-runtime and O-core prerequisites for validated host platforms and
+  builds independent applications when their exact SDK, tool, and source
+  prerequisites are available. Missing platform or licensed prerequisites are
+  reported per component; explicit minimal and opt-out profiles remain available.
+
+- Source archives now include the workspace command, offline editor dependency
+  and license closures, Nano Android tool sources, and O-core runtime/compiler
+  build recipes. Extraction checks cover offline workspace resolution and setup;
+  only the pinned tokenizer WASM input bypasses generated-binary exclusions.
+
+- Setup now installs syntax support for detected Code variants, Nano, Vim,
+  Neovim, Emacs, Sublime Text, and bat, preserving user configuration. Shared
+  routing covers every hosted evaluator and alias. Code uses maintained foreign
+  grammars with O-aware body tokenization; native editor integrations preserve
+  language boundaries where their engines permit it. Nano retains its documented
+  nonrecursive regex limitation. Read-only inspection, dry-run, and
+  `--no-editor-support`/`--no-syntax` controls are available.
+
 - All 52 standalone programs in `examples/` now use explicit `O^(...)_O`
   boundaries, with their original foreign-language bodies preserved. The Python and C17
   editions support the bindings inside those sequencing blocks. VS Code

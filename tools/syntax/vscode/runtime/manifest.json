@@ -1,0 +1,50 @@
+[
+  {
+    "package": "vscode-textmate",
+    "version": "9.2.0",
+    "path": "runtime/vscode-textmate/main.js",
+    "sha256": "67136e26f9fbb5c4f60345935170239253cd4ace03ddd9171f3f6ff17fe5ea13",
+    "repository": "https://github.com/microsoft/vscode-textmate",
+    "license": "MIT"
+  },
+  {
+    "package": "vscode-textmate",
+    "version": "9.2.0",
+    "path": "runtime/vscode-textmate/LICENSE.md",
+    "sha256": "b5cb7ff7859e7d282d98fc43ab081b0dda5dc659dc3385cf65740c759a7e6a6c",
+    "repository": "https://github.com/microsoft/vscode-textmate",
+    "license": "MIT"
+  },
+  {
+    "package": "vscode-oniguruma",
+    "version": "2.0.1",
+    "path": "runtime/vscode-oniguruma/main.js",
+    "sha256": "d49f2bfcbffca8732aac82fb84db5aab2521bcf0acb612f27454dc75cab85b82",
+    "repository": "https://github.com/microsoft/vscode-oniguruma",
+    "license": "MIT"
+  },
+  {
+    "package": "vscode-oniguruma",
+    "version": "2.0.1",
+    "path": "runtime/vscode-oniguruma/onig.wasm",
+    "sha256": "76ebc1f0d87b2e7449a45ff3cd1a1546a9f05f54bdac44ee03e8a2b8348897be",
+    "repository": "https://github.com/microsoft/vscode-oniguruma",
+    "license": "MIT"
+  },
+  {
+    "package": "vscode-oniguruma",
+    "version": "2.0.1",
+    "path": "runtime/vscode-oniguruma/LICENSE.txt",
+    "sha256": "ddde8aba8fe72b4830e27901fc78733eb6db7b6c653161075de213a6adeda3fd",
+    "repository": "https://github.com/microsoft/vscode-oniguruma",
+    "license": "MIT"
+  },
+  {
+    "package": "vscode-oniguruma",
+    "version": "2.0.1",
+    "path": "runtime/vscode-oniguruma/NOTICES.txt",
+    "sha256": "615d94d89eacc046241518c247f6650a5df80d1adf4b284a756f500867620b35",
+    "repository": "https://github.com/microsoft/vscode-oniguruma",
+    "license": "MIT"
+  }
+]

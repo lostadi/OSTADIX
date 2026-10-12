@@ -1,0 +1,934 @@
+{
+  "displayName": "Batch File",
+  "injections": {
+    "L:meta.block.repeat.batchfile": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "include": "#repeatParameter"
+        }
+      ]
+    }
+  },
+  "name": "bat",
+  "patterns": [
+    {
+      "include": "source.ostadix#structural"
+    },
+    {
+      "include": "#commands"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#controls"
+    },
+    {
+      "include": "#escaped_characters"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#parens"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "command_set": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|[@\\s])(?i:SET)(?=$|\\s))",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.command.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "#command_set_inside"
+            }
+          ]
+        }
+      ]
+    },
+    "command_set_group": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\()",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.group.begin.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\\))",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.group.end.batchfile"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "#command_set_inside_arithmetic"
+            }
+          ]
+        }
+      ]
+    },
+    "command_set_inside": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "include": "#escaped_characters"
+        },
+        {
+          "include": "#variables"
+        },
+        {
+          "include": "#numbers"
+        },
+        {
+          "include": "#parens"
+        },
+        {
+          "include": "#command_set_strings"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|([^ ][^=]*)(=))",
+          "beginCaptures": {
+            "1": {
+              "name": "variable.other.readwrite.batchfile"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "#escaped_characters"
+            },
+            {
+              "include": "#variables"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "include": "#parens"
+            },
+            {
+              "include": "#strings"
+            }
+          ]
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\s+/[Aa]\\s+)",
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+          "name": "meta.expression.set.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\")",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.begin.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\")",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.string.end.batchfile"
+                }
+              },
+              "name": "string.quoted.double.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "#command_set_inside_arithmetic"
+                },
+                {
+                  "include": "#command_set_group"
+                },
+                {
+                  "include": "#variables"
+                }
+              ]
+            },
+            {
+              "include": "#command_set_inside_arithmetic"
+            },
+            {
+              "include": "#command_set_group"
+            }
+          ]
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\s+/[Pp]\\s+)",
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "#command_set_strings"
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|([^ ][^=]*)(=))",
+              "beginCaptures": {
+                "1": {
+                  "name": "variable.other.readwrite.batchfile"
+                },
+                "2": {
+                  "name": "keyword.operator.assignment.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+              "name": "meta.prompt.set.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "#strings"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "command_set_inside_arithmetic": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "include": "#command_set_operators"
+        },
+        {
+          "include": "#numbers"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|,)",
+          "name": "punctuation.separator.batchfile"
+        }
+      ]
+    },
+    "command_set_operators": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "variable.other.readwrite.batchfile"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.augmented.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|([^ ]*)((?:[-*+/]|%%|[\\&^|]|<<|>>)=))"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|[-*+/]|%%|[\\&^|]|<<|>>|~)",
+          "name": "keyword.operator.arithmetic.batchfile"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|!)",
+          "name": "keyword.operator.logical.batchfile"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "variable.other.readwrite.batchfile"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|([^ =]*)(=))"
+        }
+      ]
+    },
+    "command_set_strings": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(\")\\s*([^ ][^=]*)(=))",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.begin.batchfile"
+            },
+            "2": {
+              "name": "variable.other.readwrite.batchfile"
+            },
+            "3": {
+              "name": "keyword.operator.assignment.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\")",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.batchfile"
+            }
+          },
+          "name": "string.quoted.double.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "#variables"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "include": "#escaped_characters"
+            }
+          ]
+        }
+      ]
+    },
+    "commands": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|[@\\s])(?i:adprep|append|arp|assoc|at|atmadm|attrib|auditpol|autochk|autoconv|autofmt|bcdboot|bcdedit|bdehdcfg|bitsadmin|bootcfg|brea|cacls|cd|certreq|certutil|change|chcp|chdir|chglogon|chgport|chgusr|chkdsk|chkntfs|choice|cipher|clip|cls|clscluadmin|cluster|cmd|cmdkey|cmstp|color|comp|compact|convert|copy|cprofile|cscript|csvde|date|dcdiag|dcgpofix|dcpromo|defra|del|dfscmd|dfsdiag|dfsrmig|diantz|dir|dirquota|diskcomp|diskcopy|diskpart|diskperf|diskraid|diskshadow|dispdiag|doin|dnscmd|doskey|driverquery|dsacls|dsadd|dsamain|dsdbutil|dsget|dsmgmt|dsmod|dsmove|dsquery|dsrm|edit|endlocal|eraseesentutl|eventcreate|eventquery|eventtriggers|evntcmd|expand|extract|fc|filescrn|find|findstr|finger|flattemp|fonde|forfiles|format|freedisk|fsutil|ftp|ftype|fveupdate|getmac|gettype|gpfixup|gpresult|gpupdate|graftabl|hashgen|hep|helpctr|hostname|icacls|iisreset|inuse|ipconfig|ipxroute|irftp|ismserv|jetpack|klist|ksetup|ktmutil|ktpass|label|ldifd|ldp|lodctr|logman|logoff|lpq|lpr|macfile|makecab|manage-bde|mapadmin|md|mkdir|mklink|mmc|mode|more|mount|mountvol|move|mqbup|mqsvc|mqtgsvc|msdt|msg|msiexec|msinfo32|mstsc|nbtstat|net computer|net group|net localgroup|net print|net session|net share|net start|net stop|net user??|net view|net|netcfg|netdiag|netdom|netsh|netstat|nfsadmin|nfsshare|nfsstat|nlb|nlbmgr|nltest|nslookup|ntackup|ntcmdprompt|ntdsutil|ntfrsutl|openfiles|pagefileconfig|path|pathping|pause|pbadmin|pentnt|perfmon|ping|pnpunatten|pnputil|popd|powercfg|powershell|powershell_ise|print|prncnfg|prndrvr|prnjobs|prnmngr|prnport|prnqctl|prompt|pubprn|pushd|pushprinterconnections|pwlauncher|qappsrv|qprocess|query|quser|qwinsta|rasdial|rcp|rd|rdpsign|regentc|recover|redircmp|redirusr|reg|regini|regsvr32|relog|ren|rename|rendom|repadmin|repair-bde|replace|reset session|rxec|risetup|rmdir|robocopy|route|rpcinfo|rpcping|rsh|runas|rundll32|rwinsta|sc|schtasks|scp|scwcmd|secedit|serverceipoptin|servrmanagercmd|serverweroptin|setspn|setx|sfc|sftp|shadow|shift|showmount|shutdown|sort|ssh|ssh-add|ssh-agent|ssh-keygen|ssh-keyscan|start|storrept|subst|sxstrace|ysocmgr|systeminfo|takeown|tapicfg|taskkill|tasklist|tcmsetup|telnet|tftp|time|timeout|title|tlntadmn|tpmvscmgr|tacerpt|tracert|tree|tscon|tsdiscon|tsecimp|tskill|tsprof|type|typeperf|tzutil|uddiconfig|umount|unlodctr|ver|verifier|verif|vol|vssadmin|w32tm|waitfor|wbadmin|wdsutil|wecutil|wevtutil|where|whoami|winnt|winnt32|winpop|winrm|winrs|winsat|wlbs|wmic|wscript|wsl|xcopy)(?=$|\\s))",
+          "name": "keyword.command.batchfile"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?i)(?<=^|[@\\s])(echo)(?:(?=$|[.:])|\\s+(?:(o(?:n|ff))(?=\\s*$))?))",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.command.batchfile"
+            },
+            "2": {
+              "name": "keyword.other.special-method.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "include": "#escaped_characters"
+            },
+            {
+              "include": "#variables"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "include": "#strings"
+            }
+          ]
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "keyword.command.batchfile"
+            },
+            "2": {
+              "name": "keyword.other.special-method.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?i)(?<=^|[@\\s])(setlocal)(?:\\s*$|\\s+((?:En|Dis)able(?:Extensions|DelayedExpansion))(?=\\s*$)))"
+        },
+        {
+          "include": "#command_set"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?:^|(&))\\s*(?=(:[ +,:;=])))",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.operator.conditional.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\\n)",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(:[ +,:;=]))",
+              "beginCaptures": {
+                "1": {
+                  "name": "punctuation.definition.comment.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=\\n))",
+              "name": "comment.line.colon.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|[@\\s])(?i)(REM)(\\.))",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.command.rem.batchfile"
+            },
+            "2": {
+              "name": "punctuation.separator.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=$\\n|[\\&)<>|]))",
+          "name": "comment.line.rem.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            }
+          ]
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|[@\\s])(?i:rem)\\b)",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.command.rem.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\\n)",
+          "name": "comment.line.rem.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|[<>|])",
+              "name": "invalid.illegal.unexpected-character.batchfile"
+            }
+          ]
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\b(?i:NUL)\\b)",
+          "name": "constant.language.batchfile"
+        }
+      ]
+    },
+    "controls": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?i)(?<=^|\\s)(?:call|exit(?=$|\\s)|goto(?=$|[:\\s])))",
+          "name": "keyword.control.statement.batchfile"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "keyword.control.conditional.batchfile"
+            },
+            "2": {
+              "name": "keyword.operator.logical.batchfile"
+            },
+            "3": {
+              "name": "keyword.other.special-method.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|\\s)(?i)(if)\\s+(?:(not)\\s+)?(exist|defined|errorlevel|cmdextversion)(?=\\s))"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|\\s)(?i)(?:if|else)(?=$|\\s))",
+          "name": "keyword.control.conditional.batchfile"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|[\\&(^\\s])(?i)for(?=\\s))",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.control.repeat.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\\n)",
+          "name": "meta.block.repeat.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=[\\^\\s])(?i)in(?=\\s))",
+              "beginCaptures": {
+                "0": {
+                  "name": "keyword.control.repeat.in.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?<=[)^\\s])(?i)do(?=\\s)|\\n)",
+              "endCaptures": {
+                "0": {
+                  "name": "keyword.control.repeat.do.batchfile"
+                }
+              },
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "$self"
+                }
+              ]
+            },
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "escaped_characters": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|%%|\\^\\^!|\\^(?=.)|\\^\\n)",
+          "name": "constant.character.escape.batchfile"
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "punctuation.separator.batchfile"
+            },
+            "2": {
+              "name": "keyword.other.special-method.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?i)(?:^\\s*|(?<=call|goto)\\s*)(:)([^+,:;=\\s]\\S*))"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=^|[=\\s])(0[Xx]\\h*|[-+]?\\d+)(?=$|[<>\\s]))",
+          "name": "constant.numeric.batchfile"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|@(?=\\S))",
+          "name": "keyword.operator.at.batchfile"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=\\s)(?i:EQU|NEQ|LSS|LEQ|GTR|GEQ)(?=\\s)|==)",
+          "name": "keyword.operator.comparison.batchfile"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<=\\s)(?i)(NOT)(?=\\s))",
+          "name": "keyword.operator.logical.batchfile"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<!\\^)&&?|\\|\\|)",
+          "name": "keyword.operator.conditional.batchfile"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(?<!\\^)\\|)",
+          "name": "keyword.operator.pipe.batchfile"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|<&?|>[\\&>]?)",
+          "name": "keyword.operator.redirection.batchfile"
+        }
+      ]
+    },
+    "parens": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\()",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.group.begin.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:\\))",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.group.end.batchfile"
+            }
+          },
+          "name": "meta.group.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|[,;])",
+              "name": "punctuation.separator.batchfile"
+            },
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "repeatParameter": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(%%)(?i:~[adfnpstxz]*(?:\\$PATH:)?)?[A-Za-z])",
+          "name": "variable.parameter.repeat.batchfile"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\")",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(\")|(\\n))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.batchfile"
+            },
+            "2": {
+              "name": "invalid.illegal.newline.batchfile"
+            }
+          },
+          "name": "string.quoted.double.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|%%)",
+              "name": "constant.character.escape.batchfile"
+            },
+            {
+              "include": "#variables"
+            }
+          ]
+        }
+      ]
+    },
+    "variable": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|%(?=[^%]+%))",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.variable.begin.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(%)|\\n)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.variable.end.batchfile"
+            }
+          },
+          "name": "variable.other.readwrite.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|:~)",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.separator.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=[\\n%]))",
+              "name": "meta.variable.substring.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "#variable_substring"
+                }
+              ]
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|:)",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.separator.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=[\\n%]))",
+              "name": "meta.variable.substitution.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "#variable_replace"
+                },
+                {
+                  "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|=)",
+                  "beginCaptures": {
+                    "0": {
+                      "name": "punctuation.separator.batchfile"
+                    }
+                  },
+                  "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=[\\n%]))",
+                  "patterns": [
+                    {
+                      "include": "source.ostadix#structural"
+                    },
+                    {
+                      "include": "#variable_delayed_expansion"
+                    },
+                    {
+                      "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|[^%]+)",
+                      "name": "string.unquoted.batchfile"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "variable_delayed_expansion": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|!(?=[^!]+!))",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.variable.begin.batchfile"
+            }
+          },
+          "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(!)|\\n)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.variable.end.batchfile"
+            }
+          },
+          "name": "variable.other.readwrite.batchfile",
+          "patterns": [
+            {
+              "include": "source.ostadix#structural"
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|:~)",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.separator.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=[\\n!]))",
+              "name": "meta.variable.substring.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "#variable_substring"
+                }
+              ]
+            },
+            {
+              "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|:)",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.separator.batchfile"
+                }
+              },
+              "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=[\\n!]))",
+              "name": "meta.variable.substitution.batchfile",
+              "patterns": [
+                {
+                  "include": "source.ostadix#structural"
+                },
+                {
+                  "include": "#escaped_characters"
+                },
+                {
+                  "include": "#variable_replace"
+                },
+                {
+                  "include": "#variable"
+                },
+                {
+                  "begin": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|=)",
+                  "beginCaptures": {
+                    "0": {
+                      "name": "punctuation.separator.batchfile"
+                    }
+                  },
+                  "end": "(?=\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?![A-Za-z0-9_]))|(?:(?=[\\n!]))",
+                  "patterns": [
+                    {
+                      "include": "source.ostadix#structural"
+                    },
+                    {
+                      "include": "#variable"
+                    },
+                    {
+                      "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|[^!]+)",
+                      "name": "string.unquoted.batchfile"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "variable_replace": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|[^\\n!%=]+)",
+          "name": "string.unquoted.batchfile"
+        }
+      ]
+    },
+    "variable_substring": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "constant.numeric.batchfile"
+            },
+            "2": {
+              "name": "punctuation.separator.batchfile"
+            },
+            "3": {
+              "name": "constant.numeric.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|([-+]?\\d+)(?:(,)([-+]?\\d+))?)"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "include": "source.ostadix#structural"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.variable.batchfile"
+            }
+          },
+          "match": "(?~|\\\\(?:\\$|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|\\)_(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?)|\\$[A-Za-z_][A-Za-z0-9_]*|(?:common_lisp|webassembly|mathematica|javascript|nixos_test|ubuntu_vm|nix_store|nix_expr|markdown|haskell|python|ubuntu|csharp|racket|matlab|quote|shell|latex|plain|ocaml|bash|html|rust|java|ruby|lisp|text|sql|cpp|nix|tex|py|md|O|o|c)(?:\\[(?:[0-9]+|\\*)\\])?(?:\\{[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?(?:[ \\t]*,[ \\t]*[A-Za-z_][A-Za-z0-9_]*(?:=(?:(?![,={}])[!-~])+)?)*[ \\t]*\\})?\\^\\(|(%)(?:(?i:~[adfnpstxz]*(?:\\$PATH:)?)?\\d|\\*))",
+          "name": "variable.parameter.batchfile"
+        },
+        {
+          "include": "#variable"
+        },
+        {
+          "include": "#variable_delayed_expansion"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.batchfile.ostadix-embedded"
+}

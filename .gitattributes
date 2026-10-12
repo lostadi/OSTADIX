@@ -1,0 +1,10 @@
+# Pinned grammar, tokenizer and native editor inputs retain their exact bytes.
+# This also preserves generated asset checks on checkouts with core.autocrlf.
+tools/syntax/** -text
+
+# Preserve upstream whitespace in vendored sources and verbatim license notices.
+tools/syntax/emacs/vendor/** -whitespace
+tools/syntax/vscode/vendor/** -whitespace
+tools/syntax/vscode/runtime/** -whitespace
+tools/syntax/vim/vendor/** -whitespace
+tools/syntax/sublime/licenses/** -whitespace

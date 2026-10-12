@@ -100,7 +100,7 @@ G13 qualification gates is named **OSTADIX Alpha**.
 - [Compiler-emitted O-linked HGraph as DOT](docs/figures/o-linked-codebase-hgraph.dot)
 - [Rendered O-linked HGraph as SVG](docs/figures/o-linked-codebase-hgraph.svg)
 - [Hosted language specification](SPEC.md)
-- [Syntax highlighting for VS Code, bat, Nano, and cat](tools/syntax/README.md)
+- [Editor syntax highlighting and automatic setup](tools/syntax/README.md)
 - [O-core language and ABI specification](docs/OCORE.md)
 - [Architecture](ARCHITECTURE.md)
 - [Claim and evidence index](docs/CLAIMS.md)
@@ -285,17 +285,19 @@ O version --json
 `O version --json` reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.
 
-For syntax highlighting in VS Code, install the local grammar from this checkout:
+`setup.sh` installs syntax support for detected Code editors, Nano, Vim,
+Neovim, Emacs, Sublime Text, and bat. Update only editor support with:
 
 ```sh
-python3 tools/syntax/install.py --only vscode
+python3 tools/syntax/install.py
 ```
 
 Run **Developer: Reload Window** in an already-open VS Code window. Open this
 repository as a folder and check that an `.O` file's language mode is
 **Ostadix-lang**. The workspace associates `.O` and `.olang` files with that
-grammar; installing the extension supplies the highlighting rules. See
-[syntax highlighting](tools/syntax/README.md) for other editors and terminals.
+grammar. Foreign bodies select their declared language, and the Code extension
+bundles its language grammars. See [editor support](tools/syntax/README.md) for
+installation controls, language coverage, and Nano’s nested-highlighting limit.
 
 Every `.O` program in `examples/` encloses its source in `O^(...)_O`.
 Foreign code keeps its own matching language delimiters inside that block:
@@ -1378,9 +1380,10 @@ Each hosted backend uses the real local runtime named in the backend table.
 You only install the runtimes your `.O` program actually uses. Nix is needed
 for the Nix lattice and NixOS tests. Node.js is needed for `javascript^`.
 Racket is needed for `racket^`. Rust is needed for `rust^`. The same rule
-applies to the other language backends. The automatic installer keeps Nix and
-native/kernel tooling behind explicit profiles so a normal hosted setup does
-not install them unexpectedly.
+applies to the other language backends. Normal setup installs the supported
+host runtime and O-core tool profiles automatically; `--minimal` or the
+individual `--no-*` flags narrow that selection. Linux kernel development
+dependencies and foreign guest tooling use explicit profiles.
 
 The portable O-core build and QEMU gates additionally need:
 
@@ -1408,9 +1411,13 @@ mean that O-core boots, contains, or governs those foreign kernels.
 
 ### Option A: Automatic setup
 
-The included `setup.sh` script detects the host, installs the ordinary hosted
-runtime dependencies, builds the Rust and C17 editions, prepares the Python
-reference, builds the local MCP server, and installs native command binaries:
+The included `setup.sh` script detects the host and prepares every component
+with a supported build recipe and available prerequisites. Normal setup builds
+the Rust commands (including the notebook and workspace `ostadix` command),
+C17 edition, local MCP server, and host JNI library; prepares the Python
+reference; installs native commands and editor highlighting; and builds the
+eligible standalone apps and O-core/WASI artifacts. Each unavailable component
+is listed with its missing prerequisites. A selected build failure fails setup.
 
 ```bash
 git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
@@ -1421,8 +1428,8 @@ cd ostadix-BM
 The script supports composable setup profiles and non-installing checks:
 
 ```bash
-./setup.sh --minimal                         # hosted build without matplotlib
-./setup.sh --full --verify                   # full hosted profile + hosted checks
+./setup.sh --minimal                         # smaller hosted build and editor support
+./setup.sh --verify                          # automatic host-supported setup + hosted checks
 ./setup.sh --with-nix --deps-only            # Nix plus environment, no builds
 ./setup.sh --with-ocore --verify-ocore       # tools + bounded x86 QEMU smoke
 ./setup.sh --full --with-hosted-runtimes     # broad open-source backend pack
@@ -1436,21 +1443,36 @@ The script supports composable setup profiles and non-installing checks:
 ./setup.sh --help
 ```
 
-`--minimal` skips optional matplotlib while still allowing explicit
-`--with-*` profiles. `--full` adds the notebook, Racket, Nix, and the complete
-O-core build/QEMU tool set on the validated host package maps; use `--no-nix`
-to exclude Nix. It does **not**
-select guest tooling, install guest media, or select the Linux kernel tool
-profile.
+`--minimal` excludes optional matplotlib, the notebook, workspace tool, standalone apps, JNI library,
+additional runtime packages, and automatic O-core/Nix dependencies; explicit
+`--with-*` dependency profiles still compose with it. Editor support remains
+selected. Normal setup includes these components and selects dependencies where
+there is a supported host package map. `--full` explicitly requests the broad
+O-core/Nix profile; use `--no-nix`, `--no-ocore`, `--no-hosted-runtimes`,
+`--no-notebook`, `--no-apps`, or `--no-jni` to exclude individual components.
+Guest tooling and Linux kernel development dependencies remain explicit profiles.
 
-`--with-nix` installs or verifies Nix on supported macOS and Linux hosts.
+`--with-nix` installs or verifies Nix on supported macOS and Linux hosts; the
+official multi-user installation starts its daemon where applicable.
 `--with-ocore` adds Clang, LLD, ELF tools, CMake/CTest, and x86_64/AArch64 QEMU.
-`--with-hosted-runtimes` is the deliberately heavy, currently macOS/Homebrew
-and Debian-family profile for Node.js, Ruby, Racket, GHC, OCaml, Common Lisp,
-Mono, GNU Octave, WABT, and Wasmtime. It excludes Java by local policy and does
-not install licensed MATLAB or Wolfram products; Octave covers only
-MATLAB-compatible code. Use `--with-hosted-runtimes --check` to inventory those
-executables without installing packages.
+`--with-hosted-runtimes` selects the macOS/Homebrew or Debian-family package map
+for Node.js, Ruby, Racket, GHC, OCaml, Common Lisp, Mono, GNU Octave, WABT,
+Wasmtime, and a JDK. These profiles are selected automatically on their supported
+hosts. Setup detects existing MATLAB/Wolfram installations; it does not download
+licensed products. Octave supports MATLAB-compatible code rather than the full
+MATLAB product. `--with-hosted-runtimes --check` inventories the executables
+without installing packages.
+
+Independent builds include the Linux mobile-console CLI, browser-chat bookmarklet
+and extension bundle, the freestanding O-core kernel, and a WASI compile artifact.
+Android APK/DEX recipes run when their exact SDK/JDK, pinned sources and native
+closure, Bash features, and host requirements are available. They produce build
+artifacts; device installation, pairing, USB reconfiguration, browser activation,
+and guest/kernel boot are separate commands. See
+[scripts/setup_components.py](scripts/setup_components.py) for the component
+inventory and run `./setup.sh --check` to inspect this machine. Installing build
+tools does not establish complete foreign-runtime lowering or cross-ISA admission.
+
 `--with-linux-kernel-tools` is Linux-only and installs build prerequisites such
 as Bison, Flex, libelf/pahole, CPIO, rsync, and kmod; it does not fetch kernel
 sources. On the validated Debian/Ubuntu-family and macOS/Homebrew package maps,
@@ -5703,6 +5725,15 @@ Archive bytes always come from the resolved Git commit. `--allow-dirty` permits
 running with a dirty worktree but does not silently package uncommitted bytes;
 validate an uncommitted release candidate by creating a temporary commit in an
 isolated clone or worktree.
+
+The archive includes every Cargo workspace member, including `ostadix-core`,
+the complete `tools/syntax` offline editor inputs and licenses, Nano Android
+tool sources, and `tools/ocore-runtime` build/import recipes. Validation checks
+the pinned grammar, tokenizer, Emacs, and Vim dependency checksums and their
+license closure. The exact bundled `vscode-oniguruma/onig.wasm` tokenizer input
+is included; generated application binaries, build directories, and caches
+remain excluded. Extraction checks exercise offline Cargo workspace metadata
+and the normal setup dry run.
 
 In CI or another throwaway clone, run the quoted inner commands directly. All
 bare Cargo commands below likewise assume an isolated checkout; they are not

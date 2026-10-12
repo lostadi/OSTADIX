@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Generate editor metadata from the shared, catalog-checked language mapping."""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+LANGUAGES = json.loads((ROOT / "languages.json").read_text())["languages"]
+
+# Only used when the editor does not supply a language grammar. These are
+# deliberately small lexical aids, not replacements for a language parser.
+KEYWORDS = {
+    "host": "let now lazy autonomous instantiate realise activate dry_activate current_system native_call native_get native_set native_release",
+    "python": "and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield",
+    "javascript": "async await break case catch class const continue default delete do else export extends finally for from function if import in instanceof let new of return static super switch throw try typeof var void while yield",
+    "shell": "case do done elif else esac fi for function if in select then until while",
+    "html": "DOCTYPE html head body div span script style title meta",
+    "sql": "SELECT FROM WHERE INSERT INTO VALUES UPDATE DELETE CREATE DROP TABLE ALTER JOIN LEFT RIGHT INNER OUTER ON AS AND OR NOT ORDER BY GROUP HAVING LIMIT UNION DISTINCT WITH NULL IS",
+    "rust": "as async await break const continue crate else enum extern fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait type unsafe use where while",
+    "cpp": "alignas auto bool break case catch class concept const constexpr continue default delete do else enum explicit extern false for friend if inline namespace new nullptr operator private protected public return sizeof static struct switch template this throw true try typedef typename union using virtual void volatile while",
+    "csharp": "async await bool break case catch class const continue default delegate do else enum event false finally for foreach if in interface internal is namespace new null override private protected public readonly ref return static string struct switch this throw true try using var virtual void while",
+    "c": "auto break case char const continue default do double else enum extern float for if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while",
+    "java": "abstract assert boolean break case catch class const continue default do double else enum extends false final finally float for if implements import instanceof int interface long native new null package private protected public return short static strictfp super switch synchronized this throw throws transient true try void volatile while",
+    "ruby": "alias and begin break case class def do else elsif end ensure false for if in module next nil not or redo rescue retry return self super then true undef unless until when while yield",
+    "lisp": "defun defmacro defvar defparameter lambda let let* if cond progn loop when unless quote function setf",
+    "racket": "define define-syntax lambda let letrec if cond begin quote quasiquote require provide module struct match",
+    "nix": "assert else if in inherit let or rec then with",
+    "markdown": "",
+    "latex": "begin end documentclass usepackage section subsection textbf emph",
+    "text": "",
+    "haskell": "case class data default deriving do else foreign if import in infix infixl infixr instance let module newtype of then type where qualified as hiding",
+    "ocaml": "and as assert begin class constraint do done downto else end exception external false for fun function functor if in include inherit initializer lazy let match method module mutable new object of open or private rec sig struct then to true try type val virtual when while with",
+    "webassembly": "module func param result local global memory table import export start data elem block loop if then else end call return drop select local.get local.set global.get global.set i32.const i64.const f32.const f64.const",
+    "matlab": "break case catch classdef continue else elseif end for function global if otherwise parfor persistent return switch try while",
+    "mathematica": "Module Block With Function If Which Switch Do For While Table Map Apply Set SetDelayed Rule RuleDelayed True False Null",
+}
+COLORS = {
+    "host": "white", "python": "yellow", "javascript": "cyan", "shell": "green",
+    "html": "cyan", "sql": "magenta", "rust": "red", "cpp": "cyan",
+    "csharp": "magenta", "c": "cyan", "java": "yellow", "ruby": "red",
+    "lisp": "green", "racket": "green", "nix": "blue", "markdown": "white",
+    "latex": "yellow", "text": "white", "haskell": "magenta", "ocaml": "yellow",
+    "webassembly": "cyan", "matlab": "blue", "mathematica": "magenta",
+}
+
+
+def nano() -> str:
+    lines = [
+        "# Generated by ../editors/generate.py from ../languages.json.",
+        "# GNU nano uses POSIX ERE. These body colors distinguish language regions",
+        "# until the first matching family closer; they cannot balance nested blocks",
+        "# or compare the opener's environment/attributes with the closer.",
+        "# Token accents are global: nano cannot delegate a region to another syntax.",
+        'syntax "ostadix" "\\.(O|olang)$"',
+        'header "^#!.*(/|[[:space:]])(O|o)([[:space:]]|$)"',
+        'comment "#"', "",
+    ]
+    suffix = r"(\[([0-9]+|\*)\])?(\{[^{}]*\})?"
+    for language in LANGUAGES:
+        tags = "(" + "|".join(language["tags"]) + ")"
+        lines.extend([
+            f'# {language["key"]}: {", ".join(language["tags"])}',
+            f'color {COLORS[language["key"]]} start="{tags}{suffix}\\^\\(" end="\\)_{tags}{suffix}"',
+        ])
+    lines.extend([
+        "", "# Common lexical accents; these do not claim language-specific dispatch.",
+        'color magenta "\\<(let|if|else|elif|for|while|return|def|class|fn|pub|use|import|from|as|match|struct|enum|impl|const|function|var|do|then|fi|done)\\>"',
+        'color cyan "\\<(True|False|None|true|false|null|nil)\\>"',
+        'color yellow "\\<[0-9]+([.][0-9]+)?\\>"',
+        r'''color green "\"([^\"\\]|\\.)*\"" "'([^'\\]|\\.)*'"''',
+        'color brightblack "#.*$" "//.*$"',
+        "", "# Structural markers take priority even in foreign strings/comments.",
+    ])
+    tags = "(" + "|".join(tag for language in LANGUAGES for tag in language["tags"]) + ")"
+    lines.extend([
+        f'color brightmagenta "{tags}{suffix}\\^\\(" "\\)_{tags}{suffix}"',
+        r'color brightcyan "\$[A-Za-z_][A-Za-z0-9_]*"',
+        f'color yellow "\\\\\\$" "\\\\{tags}{suffix}\\^\\(" "\\\\\\)_{tags}{suffix}"',
+    ])
+    return "\n".join(lines) + "\n"
+
+
+def vim_metadata() -> str:
+    lines = ['" Generated by ../../editors/generate.py from ../../languages.json.',
+             "let s:languages = ["]
+    for language in LANGUAGES:
+        record = {"key": language["key"], "tags": language["tags"],
+                  "syntax": language["vimSyntax"], "keywords": KEYWORDS[language["key"]]}
+        lines.append("      \\" + json.dumps(record, ensure_ascii=True) + ",")
+    lines.append("      \\]")
+    return "\n".join(lines) + "\n"
+
+
+def emacs_metadata() -> str:
+    lines = [";; Generated by ../editors/generate.py from ../languages.json.",
+             "(defconst ostadix--languages", "  '("]
+    for language in LANGUAGES:
+        tags = " ".join(json.dumps(tag) for tag in language["tags"])
+        lines.append(f'    ({json.dumps(language["key"])} ({tags}) {language["emacsMode"]} '
+                     f'{json.dumps(KEYWORDS[language["key"]])})')
+    lines.extend(["    )", '  "Catalog-backed language families, tags, preferred modes, and fallback words.")'])
+    return "\n".join(lines) + "\n"
+
+
+def outputs() -> dict[Path, str]:
+    vim_template = (ROOT / "vim" / "syntax" / "ostadix.template.vim").read_text()
+    emacs_template = (ROOT / "emacs" / "ostadix-mode.template.el").read_text()
+    return {
+        ROOT / "nano" / "ostadix.nanorc": nano(),
+        ROOT / "vim" / "syntax" / "ostadix.vim": vim_template.replace("@LANGUAGE_METADATA@", vim_metadata()),
+        ROOT / "emacs" / "ostadix-mode.el": emacs_template.replace("@LANGUAGE_METADATA@", emacs_metadata()),
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=["write", "check"])
+    action = parser.parse_args().action
+    stale = []
+    for path, expected in outputs().items():
+        if action == "write":
+            path.write_text(expected)
+        elif not path.exists() or path.read_text() != expected:
+            stale.append(str(path.relative_to(ROOT)))
+    if stale:
+        raise SystemExit("stale editor assets: " + ", ".join(stale))
+    print(f"{action}: Nano, Vim/Neovim, and Emacs assets cover {len(LANGUAGES)} families")
+
+
+if __name__ == "__main__":
+    main()

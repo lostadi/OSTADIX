@@ -15,8 +15,8 @@ audio disabled, and a 32-token output limit. The response began ` 5.` and
 repeated the arithmetic statement before an incomplete ending. Generation
 enter/return spanned 5,109 ms; session/model/runtime cleanup and all 191
 descriptor closures succeeded. See the
-[current report](../../audits/gemini-nano-rebuild-20260917/STATUS.md)
-and [actual run](../../audits/gemini-nano-rebuild-20260917/canonical-nano-text.json).
+[current report](https://github.com/lostadi/ostadix-BM/blob/8fcdeeef6363e64a7c87d0d4816c34fceec10544/audits/gemini-nano-rebuild-20260917/STATUS.md)
+and [actual run](https://github.com/lostadi/ostadix-BM/blob/8fcdeeef6363e64a7c87d0d4816c34fceec10544/audits/gemini-nano-rebuild-20260917/canonical-nano-text.json).
 
 **Unverified:** an omitted matformer signature's default, a correct assistant
 chat template, exact public Nano identity, `.O` synthesis/tool use by this

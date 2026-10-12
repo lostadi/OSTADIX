@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>patterns</key>
+	<array>
+		<dict>
+			<key>include</key>
+			<string>source.ostadix#structural</string>
+		</dict>
+	</array>
+	<key>scopeName</key>
+	<string>text.plain.ostadix-embedded</string>
+	<key>uuid</key>
+	<string>C7D56405-41AF-5C1D-A7F0-1B10EC05FBE4</string>
+</dict>
+</plist>

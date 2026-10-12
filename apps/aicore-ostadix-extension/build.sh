@@ -130,7 +130,7 @@ apksigner sign --ks "$DEBUG_KEYSTORE" --ks-key-alias androiddebugkey \
     --out "$OUTPUT_APK" "$UNSIGNED"
 
 echo "[6/6] Verifying fail-closed package"
-"$APP_ROOT/verify-source-policy.sh"
+"$BASH" "$APP_ROOT/verify-source-policy.sh"
 apksigner verify --verbose --print-certs "$OUTPUT_APK"
 APK_ENTRIES="$INTERMEDIATES/apk-entries.txt"
 jar tf "$OUTPUT_APK" >"$APK_ENTRIES"

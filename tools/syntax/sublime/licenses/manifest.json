@@ -1,0 +1,2335 @@
+{
+  "schema": "ostadix.pinned-textmate/v1",
+  "collection": {
+    "repository": "https://github.com/shikijs/textmate-grammars-themes",
+    "revision": "8f1828ebccc57930cf0adde9b35ae929584fe191",
+    "license": "MIT",
+    "notice": "vendor/NOTICE"
+  },
+  "grammars": [
+    {
+      "byteSize": 15483,
+      "displayName": "ABAP",
+      "funding": [],
+      "hash": "pRc5lIY0C5D4se6NrjyyO2_x8nAxQBJxt-m-P252jrQ",
+      "lastUpdate": "2024-12-25T10:52:53Z",
+      "name": "abap",
+      "scopeName": "source.abap",
+      "sha": "92e17e62a9449d2a6f87bfb30b4f920986c24018",
+      "source": "https://github.com/pvl/abap.tmbundle/blob/92e17e62a9449d2a6f87bfb30b4f920986c24018/Syntaxes/ABAP.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/pvl/abap.tmbundle/contents/Syntaxes/ABAP.tmLanguage?ref=92e17e62a9449d2a6f87bfb30b4f920986c24018",
+      "path": "vendor/grammars/abap.json",
+      "sha256": "d665cc8a82dcf96eaf4b0543459786f0d9192a5e712b757e526dc60369bce96e",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/abap.json"
+    },
+    {
+      "byteSize": 39351,
+      "displayName": "Assembly",
+      "funding": [],
+      "hash": "GdzSW5YuURSasEA2f9c7QFbm1Aky0hJtS3UKEUdPGu8",
+      "lastUpdate": "2025-05-13T08:44:30Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/13xforever/x86_64-assembly-vscode/master/LICENSE.txt",
+      "name": "asm",
+      "scopeName": "source.asm.x86_64",
+      "sha": "5c1958f4283d260f5dc88fa4f5f31c620e061a5a",
+      "source": "https://github.com/13xforever/x86_64-assembly-vscode/blob/5c1958f4283d260f5dc88fa4f5f31c620e061a5a/syntaxes/language-x86_64-assembly.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/13xforever/x86_64-assembly-vscode/contents/syntaxes/language-x86_64-assembly.tmLanguage?ref=5c1958f4283d260f5dc88fa4f5f31c620e061a5a",
+      "path": "vendor/grammars/asm.json",
+      "sha256": "fb2985f84149f8d230ec89d4b09c305b92660b372e6e8295f2a92553f7ad7426",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/asm.json"
+    },
+    {
+      "aliases": [
+        "batch",
+        "cmd"
+      ],
+      "byteSize": 12586,
+      "categories": [
+        "scripting"
+      ],
+      "displayName": "Batch File",
+      "funding": [],
+      "hash": "fqavwCbCgg2lkLJ0a7RI4Z3-wA9YYJVdbcFaJWt5SpQ",
+      "lastUpdate": "2021-05-04T11:41:54Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "bat",
+      "scopeName": "source.batchfile",
+      "sha": "df15c8e832a341633acd2e9bb26e1b275d09cfe0",
+      "source": "https://github.com/microsoft/vscode/blob/df15c8e832a341633acd2e9bb26e1b275d09cfe0/extensions/bat/syntaxes/batchfile.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/bat/syntaxes/batchfile.tmLanguage.json?ref=df15c8e832a341633acd2e9bb26e1b275d09cfe0",
+      "path": "vendor/grammars/bat.json",
+      "sha256": "187895f26d25236be6501e8c8d94192ceace95a4f6ae1f47e47fed19103ae904",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/bat.json"
+    },
+    {
+      "byteSize": 4621,
+      "categories": [
+        "markup"
+      ],
+      "displayName": "BibTeX",
+      "funding": [],
+      "hash": "ercXfCfOI0O4LNB5C-Q4PU6993MvdmiX2in2wXzyRsQ",
+      "lastUpdate": "2025-04-02T13:41:58Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "bibtex",
+      "scopeName": "text.bibtex",
+      "sha": "9a2c94d213696a4453b6d9988b003d98e7646e75",
+      "source": "https://github.com/microsoft/vscode/blob/9a2c94d213696a4453b6d9988b003d98e7646e75/extensions/latex/syntaxes/Bibtex.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/latex/syntaxes/Bibtex.tmLanguage.json?ref=9a2c94d213696a4453b6d9988b003d98e7646e75",
+      "path": "vendor/grammars/bibtex.json",
+      "sha256": "2031f0fe56abab3490a9768ffa6ee94a7c8d05dc1fba8b130effea9d7587136c",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/bibtex.json"
+    },
+    {
+      "byteSize": 69561,
+      "categories": [
+        "general"
+      ],
+      "displayName": "C",
+      "funding": [],
+      "hash": "OPzGZcqTiD4eJlHJlZ7dcE4aoM06lYU4lqeZAi906w0",
+      "lastUpdate": "2022-06-10T13:55:11Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "c",
+      "scopeName": "source.c",
+      "sha": "bd1abe08c38bb5deccf65610f8f3c03d2338d20d",
+      "source": "https://github.com/microsoft/vscode/blob/bd1abe08c38bb5deccf65610f8f3c03d2338d20d/extensions/cpp/syntaxes/c.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/cpp/syntaxes/c.tmLanguage.json?ref=bd1abe08c38bb5deccf65610f8f3c03d2338d20d",
+      "path": "vendor/grammars/c.json",
+      "sha256": "6a783a491f44106a4c4710b87422bdcd8540ebe6ec2510dfcdcf7df7edd403f9",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/c.json"
+    },
+    {
+      "aliases": [
+        "clj"
+      ],
+      "byteSize": 6160,
+      "categories": [
+        "general",
+        "lisp"
+      ],
+      "displayName": "Clojure",
+      "funding": [],
+      "hash": "3lOZnNEp7Jzsjqes6BT17qIMoGKnLIB4XI3vT0M7zjY",
+      "lastUpdate": "2022-01-31T15:49:23Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "clojure",
+      "scopeName": "source.clojure",
+      "sha": "a1a4c0a63b1ad59e84f54b874744fe35dea9abe1",
+      "source": "https://github.com/microsoft/vscode/blob/a1a4c0a63b1ad59e84f54b874744fe35dea9abe1/extensions/clojure/syntaxes/clojure.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/clojure/syntaxes/clojure.tmLanguage.json?ref=a1a4c0a63b1ad59e84f54b874744fe35dea9abe1",
+      "path": "vendor/grammars/clojure.json",
+      "sha256": "de03d10ea8a39ba74fda529e0c25c977cfce6a59f3eef8c1224f536a27c984d4",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/clojure.json"
+    },
+    {
+      "byteSize": 9603,
+      "categories": [
+        "config"
+      ],
+      "displayName": "CMake",
+      "funding": [],
+      "hash": "fFhrWGgXTtJlEAwErDHxukPGbvnJmZ7kw5RCEdLtf18",
+      "lastUpdate": "2017-11-20T20:37:32Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/twxs/vs.language.cmake/master/LICENSE",
+      "name": "cmake",
+      "scopeName": "source.cmake",
+      "sha": "19b1b8fe2d68d72cf294d0c3c22f0a3fc54f8f6f",
+      "source": "https://github.com/twxs/vs.language.cmake/blob/19b1b8fe2d68d72cf294d0c3c22f0a3fc54f8f6f/syntaxes/CMake.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/twxs/vs.language.cmake/contents/syntaxes/CMake.tmLanguage?ref=19b1b8fe2d68d72cf294d0c3c22f0a3fc54f8f6f",
+      "path": "vendor/grammars/cmake.json",
+      "sha256": "c02ac569fe3d30b1e36ee5ff9f8548b9f10ce6d8ae7338ef867a1133c1c130b3",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/cmake.json"
+    },
+    {
+      "aliases": [
+        "coffeescript"
+      ],
+      "byteSize": 26497,
+      "categories": [
+        "web",
+        "scripting",
+        "general"
+      ],
+      "displayName": "CoffeeScript",
+      "embedded": [
+        "javascript"
+      ],
+      "funding": [],
+      "hash": "CNu5pwwMrAElRw_9PuH_Y8T1cAnxAkV0bxLBzHlvVGs",
+      "lastUpdate": "2019-01-25T23:34:58Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "coffee",
+      "scopeName": "source.coffee",
+      "sha": "ff58f5083f57b50e6a100ab60454dfb72fe21e80",
+      "source": "https://github.com/microsoft/vscode/blob/ff58f5083f57b50e6a100ab60454dfb72fe21e80/extensions/coffeescript/syntaxes/coffeescript.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/coffeescript/syntaxes/coffeescript.tmLanguage.json?ref=ff58f5083f57b50e6a100ab60454dfb72fe21e80",
+      "path": "vendor/grammars/coffee.json",
+      "sha256": "b22b4e8fbbe6a2683f65265aa071c4815646e5b955ee1dd1662d76efb1761104",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/coffee.json"
+    },
+    {
+      "aliases": [
+        "lisp"
+      ],
+      "byteSize": 22067,
+      "categories": [
+        "general",
+        "lisp"
+      ],
+      "displayName": "Common Lisp",
+      "funding": [],
+      "hash": "FiiqYQ7m09ijKw0Lk7MVyTY1GWpzJr6b1T1RGklNVmY",
+      "lastUpdate": "2024-05-10T18:29:42Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/qingpeng9802/vscode-common-lisp/master/LICENSE",
+      "name": "common-lisp",
+      "scopeName": "source.commonlisp",
+      "sha": "79d04dc9ca80d98e65c4f28b3d67a24a7829b18f",
+      "source": "https://github.com/qingpeng9802/vscode-common-lisp/blob/79d04dc9ca80d98e65c4f28b3d67a24a7829b18f/syntaxes/commonlisp.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/qingpeng9802/vscode-common-lisp/contents/syntaxes/commonlisp.tmLanguage.json?ref=79d04dc9ca80d98e65c4f28b3d67a24a7829b18f",
+      "path": "vendor/grammars/common-lisp.json",
+      "sha256": "2e0efc1439447982e8f534de23c9c4f2a393c070e602e503f74ba07ccb21b95a",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/common-lisp.json"
+    },
+    {
+      "aliases": [
+        "c++"
+      ],
+      "byteSize": 476081,
+      "categories": [
+        "general"
+      ],
+      "displayName": "C++",
+      "embedded": [
+        "cpp-macro",
+        "regexp",
+        "glsl"
+      ],
+      "funding": [],
+      "hash": "0FR_xqrjrFK4K9cVbUqVZKIO1mEZbbjIpAKPd4iVhgY",
+      "lastUpdate": "2026-07-10T12:59:32Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "cpp",
+      "scopeName": "source.cpp",
+      "sha": "8623a79836fba2e7e058e3493345ee068d28ce4f",
+      "source": "https://github.com/microsoft/vscode/blob/8623a79836fba2e7e058e3493345ee068d28ce4f/extensions/cpp/syntaxes/cpp.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/cpp/syntaxes/cpp.tmLanguage.json?ref=8623a79836fba2e7e058e3493345ee068d28ce4f",
+      "path": "vendor/grammars/cpp.json",
+      "sha256": "6a8899737f618f3ae6da693c782b32d5d1bb7c772ce9994a29b0d332cf8d0c83",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/cpp.json"
+    },
+    {
+      "byteSize": 270362,
+      "displayName": "C++",
+      "embedded": [
+        "regexp",
+        "glsl"
+      ],
+      "embeddedIn": [
+        "cpp"
+      ],
+      "funding": [],
+      "hash": "yk9HBE1Kd0-8M-f4UmGJjGPhiZZCHHFfAiAkloKC_6k",
+      "lastUpdate": "2026-07-10T12:59:32Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "cpp-macro",
+      "scopeName": "source.cpp.embedded.macro",
+      "sha": "8623a79836fba2e7e058e3493345ee068d28ce4f",
+      "source": "https://github.com/microsoft/vscode/blob/8623a79836fba2e7e058e3493345ee068d28ce4f/extensions/cpp/syntaxes/cpp.embedded.macro.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/cpp/syntaxes/cpp.embedded.macro.tmLanguage.json?ref=8623a79836fba2e7e058e3493345ee068d28ce4f",
+      "path": "vendor/grammars/cpp-macro.json",
+      "sha256": "02e157a7c1a96d98a3c8d3b3f3f33719886410de3a6fdbd6e05826ce2987a7e5",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/cpp-macro.json"
+    },
+    {
+      "aliases": [
+        "c#",
+        "cs"
+      ],
+      "byteSize": 88007,
+      "categories": [
+        "general"
+      ],
+      "displayName": "C#",
+      "funding": [],
+      "hash": "GNKxYDr4EvLkJhVKvqcW0MziL-iigdGrigBYHC8LOJY",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "csharp",
+      "scopeName": "source.cs",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/csharp/syntaxes/csharp.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/csharp/syntaxes/csharp.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/csharp.json",
+      "sha256": "31ffc2468705f77f9dc601c83e496e61b752d15ed7c3f6f6ac43758ca15c8518",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/csharp.json"
+    },
+    {
+      "byteSize": 52259,
+      "categories": [
+        "web"
+      ],
+      "displayName": "CSS",
+      "funding": [],
+      "hash": "oyP6RWz8o4uIR_OCeNzJgxrQ1zBEmlcEyobiqwtYuDg",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "css",
+      "scopeName": "source.css",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/css/syntaxes/css.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/css/syntaxes/css.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/css.json",
+      "sha256": "02060a327b550d015f0b9b0c1aff69e87951f9a6b18a1c75e4405d50ee83c95d",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/css.json"
+    },
+    {
+      "byteSize": 8203,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Dart",
+      "funding": [],
+      "hash": "ftg2sfX4sbHR3LqkfYbzBgGA0ftSgQXBLFOZuP4oFrs",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "dart",
+      "scopeName": "source.dart",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/dart/syntaxes/dart.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/dart/syntaxes/dart.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/dart.json",
+      "sha256": "6e4eec104a6881fcb6ae63a318b6b20d560ff44c2a069e541dedd81297c79eee",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/dart.json"
+    },
+    {
+      "byteSize": 2437,
+      "categories": [
+        "utility"
+      ],
+      "displayName": "Diff",
+      "funding": [],
+      "hash": "ik4Zxh07S4K9d2EaC3faq6jOYa_Cdx65dLnwf1DIQl0",
+      "lastUpdate": "2021-11-12T09:59:52Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "diff",
+      "scopeName": "source.diff",
+      "sha": "4549bd26c7b799284e0ebd8dc1e0310e6a8707a1",
+      "source": "https://github.com/microsoft/vscode/blob/4549bd26c7b799284e0ebd8dc1e0310e6a8707a1/extensions/diff/syntaxes/diff.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/diff/syntaxes/diff.tmLanguage.json?ref=4549bd26c7b799284e0ebd8dc1e0310e6a8707a1",
+      "path": "vendor/grammars/diff.json",
+      "sha256": "a711eda13cbf7abe386bf729dc088e127613641f2d0d1a28b62a9fece2877756",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/diff.json"
+    },
+    {
+      "aliases": [
+        "dockerfile"
+      ],
+      "byteSize": 1618,
+      "categories": [
+        "config"
+      ],
+      "displayName": "Dockerfile",
+      "funding": [],
+      "hash": "soI4MtWZhWB7exGgkfjWQWhTePeB-HRF606X_aVPOiU",
+      "lastUpdate": "2024-12-06T15:55:37Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "docker",
+      "scopeName": "source.dockerfile",
+      "sha": "8270a86019db7551da42b71d15c6080a414d8c81",
+      "source": "https://github.com/microsoft/vscode/blob/8270a86019db7551da42b71d15c6080a414d8c81/extensions/docker/syntaxes/docker.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/docker/syntaxes/docker.tmLanguage.json?ref=8270a86019db7551da42b71d15c6080a414d8c81",
+      "path": "vendor/grammars/docker.json",
+      "sha256": "4b407996ccef6df7feae745ed51e82a6a683339022d3a22cf5e5b2ea0a6db75e",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/docker.json"
+    },
+    {
+      "byteSize": 15558,
+      "displayName": "Elixir",
+      "embedded": [
+        "html"
+      ],
+      "funding": [],
+      "hash": "4uthCzdDmmvhZHrxEBFBncM1mcjkNvrfueFhWuQAtHM",
+      "lastUpdate": "2021-12-27T20:12:19Z",
+      "license": "NOASSERTION",
+      "licenseUrl": "https://raw.githubusercontent.com/elixir-editors/elixir-tmbundle/master/LICENSE",
+      "name": "elixir",
+      "scopeName": "source.elixir",
+      "sha": "43c8cd957d5ac6e1abbd8730fc7a08c81a6e76c9",
+      "source": "https://github.com/elixir-editors/elixir-tmbundle/blob/43c8cd957d5ac6e1abbd8730fc7a08c81a6e76c9/Syntaxes/Elixir.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/elixir-editors/elixir-tmbundle/contents/Syntaxes/Elixir.tmLanguage?ref=43c8cd957d5ac6e1abbd8730fc7a08c81a6e76c9",
+      "path": "vendor/grammars/elixir.json",
+      "sha256": "feb3a4de9674321042744c3c0934f97639379a885e42bfee5a9a191fd68db01d",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/elixir.json"
+    },
+    {
+      "aliases": [
+        "erl"
+      ],
+      "byteSize": 36492,
+      "displayName": "Erlang",
+      "embedded": [
+        "markdown"
+      ],
+      "funding": [],
+      "hash": "ltGYkJtWlthHPduAqAwfnXD6oq3NdY40VhdjEBA2INc",
+      "lastUpdate": "2025-05-23T11:08:08Z",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://raw.githubusercontent.com/erlang-ls/grammar/main/LICENSE",
+      "name": "erlang",
+      "scopeName": "source.erlang",
+      "sha": "fe898becd3004bcb4947ab50d6b6b830fbfb9228",
+      "source": "https://github.com/erlang-ls/grammar/blob/fe898becd3004bcb4947ab50d6b6b830fbfb9228/Erlang.plist",
+      "sourceApi": "https://api.github.com/repos/erlang-ls/grammar/contents/Erlang.plist?ref=fe898becd3004bcb4947ab50d6b6b830fbfb9228",
+      "path": "vendor/grammars/erlang.json",
+      "sha256": "42de67bb8d971786462e99f0c8d59bc9166163dd60655bd9220e1b11dc02f92e",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/erlang.json"
+    },
+    {
+      "aliases": [
+        "f#",
+        "fs"
+      ],
+      "byteSize": 24452,
+      "categories": [
+        "general"
+      ],
+      "displayName": "F#",
+      "embedded": [
+        "markdown"
+      ],
+      "funding": [],
+      "hash": "r6ndXUK608yh5bpLrUispCZ_YqESqB4HiPHlvNPsMwU",
+      "lastUpdate": "2025-10-06T16:03:06Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "fsharp",
+      "scopeName": "source.fsharp",
+      "sha": "e6cffb21362b6d7addb977ff7db14f0681228780",
+      "source": "https://github.com/microsoft/vscode/blob/e6cffb21362b6d7addb977ff7db14f0681228780/extensions/fsharp/syntaxes/fsharp.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/fsharp/syntaxes/fsharp.tmLanguage.json?ref=e6cffb21362b6d7addb977ff7db14f0681228780",
+      "path": "vendor/grammars/fsharp.json",
+      "sha256": "8e4c5c084814e2264771730fb40e2e9919d3c6512031c43cfe7a4f6b0239d955",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/fsharp.json"
+    },
+    {
+      "byteSize": 1088,
+      "categories": [
+        "utility"
+      ],
+      "displayName": "Git Commit Message",
+      "embedded": [
+        "diff"
+      ],
+      "funding": [],
+      "hash": "ZcrXd-PzuCcTwhg4S-WOs0gxUsw4wSxH6r1chHi0J5k",
+      "lastUpdate": "2023-02-07T12:40:16Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "git-commit",
+      "scopeName": "text.git-commit",
+      "sha": "f8c3f89468fea14103d8790d59ea8594d6e644eb",
+      "source": "https://github.com/microsoft/vscode/blob/f8c3f89468fea14103d8790d59ea8594d6e644eb/extensions/git-base/syntaxes/git-commit.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/git-base/syntaxes/git-commit.tmLanguage.json?ref=f8c3f89468fea14103d8790d59ea8594d6e644eb",
+      "path": "vendor/grammars/git-commit.json",
+      "sha256": "21be35dcd1572e2d08c3d788840475744765c9b9d148e82057a0b68af109cba9",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/git-commit.json"
+    },
+    {
+      "byteSize": 821,
+      "categories": [
+        "utility"
+      ],
+      "displayName": "Git Rebase Message",
+      "embedded": [
+        "shellscript"
+      ],
+      "funding": [],
+      "hash": "CvWgyCdOyGONazHztOhNEl79vNMa5wvhzwewgXO5wSU",
+      "lastUpdate": "2021-11-12T10:35:35Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "git-rebase",
+      "scopeName": "text.git-rebase",
+      "sha": "e95c74c4c7af876e79ec58df262464467c06df28",
+      "source": "https://github.com/microsoft/vscode/blob/e95c74c4c7af876e79ec58df262464467c06df28/extensions/git-base/syntaxes/git-rebase.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/git-base/syntaxes/git-rebase.tmLanguage.json?ref=e95c74c4c7af876e79ec58df262464467c06df28",
+      "path": "vendor/grammars/git-rebase.json",
+      "sha256": "d3abee61347a7bafa3623fddb1bbca3707b565e9e32cd7b886ba3ab06de6f504",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/git-rebase.json"
+    },
+    {
+      "byteSize": 3468,
+      "displayName": "GLSL",
+      "embedded": [
+        "c"
+      ],
+      "funding": [],
+      "hash": "tXXikCZ951EMKDZ_Ym3LfQU9fu1XitnpTY-1YVkm3pE",
+      "lastUpdate": "2014-07-27T13:53:58Z",
+      "name": "glsl",
+      "scopeName": "source.glsl",
+      "sha": "6998d3bbd204e26746a5ca580cda4c650b9057b1",
+      "source": "https://github.com/polym0rph/GLSL.tmbundle/blob/6998d3bbd204e26746a5ca580cda4c650b9057b1/Syntaxes/GLSL.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/polym0rph/GLSL.tmbundle/contents/Syntaxes/GLSL.tmLanguage?ref=6998d3bbd204e26746a5ca580cda4c650b9057b1",
+      "path": "vendor/grammars/glsl.json",
+      "sha256": "c4dd4bd5b1ff3a8c0fd729261a06e0d7cd2141177cf34f53684297d524e72bef",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/glsl.json"
+    },
+    {
+      "byteSize": 14063,
+      "displayName": "Gnuplot",
+      "funding": [],
+      "hash": "cPHMVVoTiyyspvPQ0fj4iuT7HEuDM650NaeJZnJOMBk",
+      "lastUpdate": "2018-07-01T23:29:26Z",
+      "license": "GPL-3.0",
+      "licenseUrl": "https://raw.githubusercontent.com/MarioSchwalbe/vscode-gnuplot/master/LICENSE",
+      "name": "gnuplot",
+      "scopeName": "source.gnuplot",
+      "sha": "c62c1a61c9b6b4658b43d76c397dc2ad43523b6a",
+      "source": "https://github.com/MarioSchwalbe/vscode-gnuplot/blob/c62c1a61c9b6b4658b43d76c397dc2ad43523b6a/syntaxes/gnuplot.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/MarioSchwalbe/vscode-gnuplot/contents/syntaxes/gnuplot.tmLanguage?ref=c62c1a61c9b6b4658b43d76c397dc2ad43523b6a",
+      "path": "vendor/grammars/gnuplot.json",
+      "sha256": "8a396e2c4d8aa121156d0069aabbdfc70451ac888583472eb5cf3476aa27d26f",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/gnuplot.json"
+    },
+    {
+      "byteSize": 44514,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Go",
+      "funding": [],
+      "hash": "AOD_cNWC35XxOyYtXnHYfeuC_jH72XaPRjMCbmVnWxw",
+      "lastUpdate": "2026-03-03T13:56:43Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "go",
+      "scopeName": "source.go",
+      "sha": "091ef378baaa141c8bc4bbe9775d4cb3bd655a80",
+      "source": "https://github.com/microsoft/vscode/blob/091ef378baaa141c8bc4bbe9775d4cb3bd655a80/extensions/go/syntaxes/go.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/go/syntaxes/go.tmLanguage.json?ref=091ef378baaa141c8bc4bbe9775d4cb3bd655a80",
+      "path": "vendor/grammars/go.json",
+      "sha256": "ce39c438983c2eb8680c6612fb949598fdf780f79c91711d1380a5cd988a7dd7",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/go.json"
+    },
+    {
+      "aliases": [
+        "gql"
+      ],
+      "byteSize": 17316,
+      "categories": [
+        "web"
+      ],
+      "displayName": "GraphQL",
+      "embedded": [
+        "javascript",
+        "typescript",
+        "jsx",
+        "tsx"
+      ],
+      "funding": [],
+      "hash": "b9qRFzMVMbOCX9H1IPZUeBMLCoq503vMCYoHQHe3DuU",
+      "lastUpdate": "2021-09-27T21:24:32Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/graphql/vscode-graphql/master/LICENSE",
+      "name": "graphql",
+      "scopeName": "source.graphql",
+      "sha": "4569aef2364b42b6acd8188e4a6ca9b0ba3c6a1d",
+      "source": "https://github.com/prisma-labs/vscode-graphql/blob/4569aef2364b42b6acd8188e4a6ca9b0ba3c6a1d/grammars/graphql.json",
+      "sourceApi": "https://api.github.com/repos/prisma-labs/vscode-graphql/contents/grammars/graphql.json?ref=4569aef2364b42b6acd8188e4a6ca9b0ba3c6a1d",
+      "path": "vendor/grammars/graphql.json",
+      "sha256": "f24255a06c7e9e80256fe65e3d8b68505e4a4f20f068007a739219ec386e73c8",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/graphql.json"
+    },
+    {
+      "byteSize": 18601,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Groovy",
+      "funding": [],
+      "hash": "U3BVAuoRkZsF04KWRHCWXN2SIvQ_bnGHVrFkKJSpxoA",
+      "lastUpdate": "2018-02-12T15:54:35Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "groovy",
+      "scopeName": "source.groovy",
+      "sha": "8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "source": "https://github.com/microsoft/vscode/blob/8fdf170a0850c1cc027382f31650aaf300d3ae2a/extensions/groovy/syntaxes/groovy.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/groovy/syntaxes/groovy.tmLanguage.json?ref=8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "path": "vendor/grammars/groovy.json",
+      "sha256": "1d3f39d1e474ae3bbd92480f9f985fe660d4af5e72b2ef7aee9e3937970bf8be",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/groovy.json"
+    },
+    {
+      "byteSize": 7719,
+      "categories": [
+        "markup",
+        "web"
+      ],
+      "displayName": "Ruby Haml",
+      "embedded": [
+        "ruby",
+        "javascript",
+        "sass",
+        "coffee",
+        "markdown",
+        "css"
+      ],
+      "funding": [],
+      "hash": "cuMt1-vymWDQu_x-fYi4KGN_RVDXHIFEAStk2b0nPm4",
+      "lastUpdate": "2022-06-22T00:28:44Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/karuna/haml-vscode/master/LICENSE.md",
+      "name": "haml",
+      "scopeName": "text.haml",
+      "sha": "aa45415aefd691af0a501ea4f98e434490623e0d",
+      "source": "https://github.com/karuna/haml-vscode/blob/aa45415aefd691af0a501ea4f98e434490623e0d/syntaxes/haml.json",
+      "sourceApi": "https://api.github.com/repos/karuna/haml-vscode/contents/syntaxes/haml.json?ref=aa45415aefd691af0a501ea4f98e434490623e0d",
+      "path": "vendor/grammars/haml.json",
+      "sha256": "2ae1dd6bf77a716f4d96a90097c59a3a1548d64d92045a8cc8c19c2a55af5de9",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/haml.json"
+    },
+    {
+      "aliases": [
+        "hbs"
+      ],
+      "byteSize": 11962,
+      "categories": [
+        "web"
+      ],
+      "displayName": "Handlebars",
+      "embedded": [
+        "html",
+        "css",
+        "javascript",
+        "yaml"
+      ],
+      "funding": [],
+      "hash": "ZJ884dT_m-Kcj-G8xBlN_qcWhvmOWMqh3vJb4Q2h9nk",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "handlebars",
+      "scopeName": "text.html.handlebars",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/handlebars/syntaxes/Handlebars.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/handlebars/syntaxes/Handlebars.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/handlebars.json",
+      "sha256": "63410dba62699aa84008274fec2f733461b97b23d948e23cd1831b62c68c76fa",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/handlebars.json"
+    },
+    {
+      "aliases": [
+        "hs"
+      ],
+      "byteSize": 39448,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Haskell",
+      "funding": [
+        {
+          "handle": "@octref",
+          "name": "GitHub Sponsors",
+          "url": "https://github.com/sponsors/octref"
+        }
+      ],
+      "hash": "VFdGTeq07oXEUKIYs3BND-TIwLTZNJfggsyX-L-l7m8",
+      "lastUpdate": "2020-08-20T04:20:28Z",
+      "license": "BSD-3-Clause",
+      "licenseUrl": "https://raw.githubusercontent.com/octref/language-haskell/master/LICENSE",
+      "name": "haskell",
+      "scopeName": "source.haskell",
+      "sha": "ae87982aac2bf5cf6334c067e49c5ec8fc08b871",
+      "source": "https://github.com/octref/language-haskell/blob/ae87982aac2bf5cf6334c067e49c5ec8fc08b871/syntaxes/haskell.json",
+      "sourceApi": "https://api.github.com/repos/octref/language-haskell/contents/syntaxes/haskell.json?ref=ae87982aac2bf5cf6334c067e49c5ec8fc08b871",
+      "path": "vendor/grammars/haskell.json",
+      "sha256": "030927a96a7d4ca5548e6d6631efb048617b6098fde26049d87dd7d17221af00",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/haskell.json"
+    },
+    {
+      "byteSize": 56371,
+      "categories": [
+        "web",
+        "markup"
+      ],
+      "displayName": "HTML",
+      "embedded": [
+        "javascript",
+        "css"
+      ],
+      "funding": [],
+      "hash": "U0W1Sp44h4zOVrAkoq8kGlwON2FKk4kKnybHQGgyXJA",
+      "lastUpdate": "2022-12-07T13:44:00Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "html",
+      "scopeName": "text.html.basic",
+      "sha": "45324363153075dab0482312ae24d8c068d81e4f",
+      "source": "https://github.com/microsoft/vscode/blob/45324363153075dab0482312ae24d8c068d81e4f/extensions/html/syntaxes/html.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/html/syntaxes/html.tmLanguage.json?ref=45324363153075dab0482312ae24d8c068d81e4f",
+      "path": "vendor/grammars/html.json",
+      "sha256": "7538c38e0d1703bae90fb097a0fbc8501bc112ae06f149934ea6464f2c5ddae4",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/html.json"
+    },
+    {
+      "byteSize": 707,
+      "categories": [
+        "web",
+        "markup"
+      ],
+      "displayName": "HTML (Derivative)",
+      "embedded": [
+        "html"
+      ],
+      "funding": [],
+      "hash": "NZPXWfQuvta0UKNCRaEoo5hvbyf3dfz79uFTSGOc0XM",
+      "lastUpdate": "2025-04-02T13:41:24Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "html-derivative",
+      "scopeName": "text.html.derivative",
+      "sha": "4064f172528461afc6944383d07521f6a30da89c",
+      "source": "https://github.com/microsoft/vscode/blob/4064f172528461afc6944383d07521f6a30da89c/extensions/html/syntaxes/html-derivative.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/html/syntaxes/html-derivative.tmLanguage.json?ref=4064f172528461afc6944383d07521f6a30da89c",
+      "path": "vendor/grammars/html-derivative.json",
+      "sha256": "9e90d5770e508d0c8a43004f782014fe0bfa97867e27c06fef46bcc82f0dfe4c",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/html-derivative.json"
+    },
+    {
+      "aliases": [
+        "properties"
+      ],
+      "byteSize": 1408,
+      "categories": [
+        "data"
+      ],
+      "displayName": "INI",
+      "funding": [],
+      "hash": "JHALzUuwDy3Tt5W5yp6JMMxqUd5cF-XTOd0O3bneo0E",
+      "lastUpdate": "2018-02-12T15:54:35Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "ini",
+      "scopeName": "source.ini",
+      "sha": "8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "source": "https://github.com/microsoft/vscode/blob/8fdf170a0850c1cc027382f31650aaf300d3ae2a/extensions/ini/syntaxes/ini.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/ini/syntaxes/ini.tmLanguage.json?ref=8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "path": "vendor/grammars/ini.json",
+      "sha256": "5b4a4ef9673429f7f13fec73eae543e3e00e1245762aacd89bb1849322338b61",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/ini.json"
+    },
+    {
+      "byteSize": 26339,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Java",
+      "funding": [],
+      "hash": "OGtN9YfDYh7eJ_TIi2bFicIvgM_U6DZNrlDCHzlK1V0",
+      "lastUpdate": "2023-12-13T12:08:01Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "java",
+      "scopeName": "source.java",
+      "sha": "3c86ede5f554f6e196c832394e126b291a1de606",
+      "source": "https://github.com/microsoft/vscode/blob/3c86ede5f554f6e196c832394e126b291a1de606/extensions/java/syntaxes/java.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/java/syntaxes/java.tmLanguage.json?ref=3c86ede5f554f6e196c832394e126b291a1de606",
+      "path": "vendor/grammars/java.json",
+      "sha256": "c2d622b901b19119f2b3469583ef50fe6998788c179c0d3bbd7a0eab019378cb",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/java.json"
+    },
+    {
+      "aliases": [
+        "js",
+        "cjs",
+        "mjs"
+      ],
+      "byteSize": 159323,
+      "categories": [
+        "web",
+        "scripting",
+        "general"
+      ],
+      "displayName": "JavaScript",
+      "funding": [],
+      "hash": "SHSs1nFDVLpgj0muQZurWFVofgS7mKzxFdkoKKCmfyc",
+      "lastUpdate": "2024-10-25T09:35:17Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "javascript",
+      "scopeName": "source.js",
+      "sha": "210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "source": "https://github.com/microsoft/vscode/blob/210541906e5a96ab39f9c753f921b1bd35f4138b/extensions/javascript/syntaxes/JavaScript.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/javascript/syntaxes/JavaScript.tmLanguage.json?ref=210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "path": "vendor/grammars/javascript.json",
+      "sha256": "a30cb0504491961b3d1bc99971daa5c2aedc7387f4782b567e1f0ac47aa83cba",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/javascript.json"
+    },
+    {
+      "byteSize": 2705,
+      "categories": [
+        "web",
+        "data"
+      ],
+      "displayName": "JSON",
+      "funding": [],
+      "hash": "XlQwavRPXYv3R198mgsjnEPYAfi0oM6JquTVrg4N7O8",
+      "lastUpdate": "2020-11-05T13:50:48Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "json",
+      "scopeName": "source.json",
+      "sha": "d6af4893ed9a3545163a4cb748fa5548bd1e51a5",
+      "source": "https://github.com/microsoft/vscode/blob/d6af4893ed9a3545163a4cb748fa5548bd1e51a5/extensions/json/syntaxes/JSON.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/json/syntaxes/JSON.tmLanguage.json?ref=d6af4893ed9a3545163a4cb748fa5548bd1e51a5",
+      "path": "vendor/grammars/json.json",
+      "sha256": "f726cfcd953e00567c714a93c15a6227ef7bdb92c939cb07217e036ef5716dc0",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/json.json"
+    },
+    {
+      "byteSize": 2990,
+      "categories": [
+        "web",
+        "data"
+      ],
+      "displayName": "JSON with Comments",
+      "funding": [],
+      "hash": "eg4m2wjJdSDvOTaJG6rTUJq_uIsKAMtDz-V18vY7_8s",
+      "lastUpdate": "2023-05-25T08:02:57Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "jsonc",
+      "scopeName": "source.json.comments",
+      "sha": "0adddd82816db666c52038e8277312dc55da2756",
+      "source": "https://github.com/microsoft/vscode/blob/0adddd82816db666c52038e8277312dc55da2756/extensions/json/syntaxes/JSONC.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/json/syntaxes/JSONC.tmLanguage.json?ref=0adddd82816db666c52038e8277312dc55da2756",
+      "path": "vendor/grammars/jsonc.json",
+      "sha256": "87374ba1bee9a9af779038accbcbe4ecc7c30ae891b2fefcbc411aa88db24cfc",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/jsonc.json"
+    },
+    {
+      "byteSize": 2892,
+      "categories": [
+        "web",
+        "data"
+      ],
+      "displayName": "JSON Lines",
+      "funding": [],
+      "hash": "xy0ogWMEJ4PUvS_KVMM1u7FZQ8qbIf1g7fO3fyOHenQ",
+      "lastUpdate": "2023-05-25T08:02:57Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "jsonl",
+      "scopeName": "source.json.lines",
+      "sha": "0adddd82816db666c52038e8277312dc55da2756",
+      "source": "https://github.com/microsoft/vscode/blob/0adddd82816db666c52038e8277312dc55da2756/extensions/json/syntaxes/JSONL.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/json/syntaxes/JSONL.tmLanguage.json?ref=0adddd82816db666c52038e8277312dc55da2756",
+      "path": "vendor/grammars/jsonl.json",
+      "sha256": "d9d9f117f348eec4d85e1ea2133b1e07316c566a8cafc151a42da87d1fb28ccc",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/jsonl.json"
+    },
+    {
+      "byteSize": 162317,
+      "categories": [
+        "web"
+      ],
+      "displayName": "JSX",
+      "funding": [],
+      "hash": "Wz2i7sb74EitHUjZ6JP7H8OpDCjRDlx0ox8WHhGKbB8",
+      "lastUpdate": "2024-10-25T09:35:17Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "jsx",
+      "scopeName": "source.js.jsx",
+      "sha": "210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "source": "https://github.com/microsoft/vscode/blob/210541906e5a96ab39f9c753f921b1bd35f4138b/extensions/javascript/syntaxes/JavaScriptReact.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/javascript/syntaxes/JavaScriptReact.tmLanguage.json?ref=210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "path": "vendor/grammars/jsx.json",
+      "sha256": "e1a2dadc98b5750946aca0a754a974216fb0d7d5d0c9bdb9d9ad19450a56322b",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/jsx.json"
+    },
+    {
+      "aliases": [
+        "jl"
+      ],
+      "byteSize": 29127,
+      "categories": [
+        "web",
+        "data"
+      ],
+      "displayName": "Julia",
+      "embedded": [
+        "cpp",
+        "python",
+        "javascript",
+        "r",
+        "sql"
+      ],
+      "funding": [],
+      "hash": "PQkpgAxQ2kc8v9xiM2xcmWvv5IIxTwJfKMreDF1sYwM",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "julia",
+      "scopeName": "source.julia",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/julia/syntaxes/julia.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/julia/syntaxes/julia.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/julia.json",
+      "sha256": "95d3eeb8f35d9ea5fe10edb3a6bdb9fb5e6b9363e71965614141993aeabc7893",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/julia.json"
+    },
+    {
+      "byteSize": 70226,
+      "categories": [
+        "markup"
+      ],
+      "displayName": "LaTeX",
+      "embedded": [
+        "tex",
+        "shellscript",
+        "css",
+        "gnuplot",
+        "haskell",
+        "html",
+        "java",
+        "julia",
+        "javascript",
+        "lua",
+        "python",
+        "ruby",
+        "rust",
+        "typescript",
+        "xml",
+        "yaml",
+        "scala"
+      ],
+      "funding": [],
+      "hash": "kYD_EW7o5zB3HPvRBRQjiRGDlbuoitlz6BQ_dMJRLGg",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "latex",
+      "scopeName": "text.tex.latex",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/latex/syntaxes/LaTeX.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/latex/syntaxes/LaTeX.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/latex.json",
+      "sha256": "aab4fa80c27b22be4dfbe68ed55411c13534929b5fa96ba4a8af1d18d749ad53",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/latex.json"
+    },
+    {
+      "byteSize": 94797,
+      "categories": [
+        "web"
+      ],
+      "displayName": "Less",
+      "funding": [],
+      "hash": "fDhYrU2qlFKVRm-dw25I325rbqsvOhRErfFJL1kwTFQ",
+      "lastUpdate": "2024-08-30T20:03:00Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "less",
+      "scopeName": "source.css.less",
+      "sha": "03dc55030b3b2b5c4779d4ac1e2e46cd1f5a6b7c",
+      "source": "https://github.com/microsoft/vscode/blob/03dc55030b3b2b5c4779d4ac1e2e46cd1f5a6b7c/extensions/less/syntaxes/less.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/less/syntaxes/less.tmLanguage.json?ref=03dc55030b3b2b5c4779d4ac1e2e46cd1f5a6b7c",
+      "path": "vendor/grammars/less.json",
+      "sha256": "2dcc623cd0f6457b77ce12765db469707d9da44c2033aa63bfb645bc670f44e9",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/less.json"
+    },
+    {
+      "byteSize": 2577,
+      "categories": [
+        "utility"
+      ],
+      "displayName": "Log file",
+      "funding": [],
+      "hash": "g_yhgZpw_1m6V68MlOZEXN1FyOEUekSjFH511ql6VQk",
+      "lastUpdate": "2025-04-25T18:28:10Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/emilast/vscode-logfile-highlighter/master/LICENSE",
+      "name": "log",
+      "scopeName": "text.log",
+      "sha": "396c8552ff99d0e07142fdd940d75dae212dd28c",
+      "source": "https://github.com/emilast/vscode-logfile-highlighter/blob/396c8552ff99d0e07142fdd940d75dae212dd28c/syntaxes/log.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/emilast/vscode-logfile-highlighter/contents/syntaxes/log.tmLanguage?ref=396c8552ff99d0e07142fdd940d75dae212dd28c",
+      "path": "vendor/grammars/log.json",
+      "sha256": "41f32399f600df1710db2e417b5160a3c015c71f97ce851bce3068dd6b157860",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/log.json"
+    },
+    {
+      "byteSize": 14819,
+      "categories": [
+        "scripting"
+      ],
+      "displayName": "Lua",
+      "embedded": [
+        "c"
+      ],
+      "funding": [],
+      "hash": "KpG3vzjjHgeDe6H7HxL1kbhFYrYlxF_uFJRwuF29jLI",
+      "lastUpdate": "2026-01-08T16:24:04Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "lua",
+      "scopeName": "source.lua",
+      "sha": "c8fdd1650c06321d687ddfd1eff06aae4b616256",
+      "source": "https://github.com/microsoft/vscode/blob/c8fdd1650c06321d687ddfd1eff06aae4b616256/extensions/lua/syntaxes/lua.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/lua/syntaxes/lua.tmLanguage.json?ref=c8fdd1650c06321d687ddfd1eff06aae4b616256",
+      "path": "vendor/grammars/lua.json",
+      "sha256": "cba0798e8a1155fa81b72d029332e097a6b7b1f2e45eff036adba602d2efea93",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/lua.json"
+    },
+    {
+      "aliases": [
+        "makefile"
+      ],
+      "byteSize": 8610,
+      "categories": [
+        "config"
+      ],
+      "displayName": "Makefile",
+      "funding": [],
+      "hash": "fjY_DK_r3g7e4bw-JpoAMxUjHQl4jCVd3wzimrhC-CU",
+      "lastUpdate": "2023-01-10T10:50:28Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "make",
+      "scopeName": "source.makefile",
+      "sha": "91db8ea85fee30ebb3c7a5e7939aa2a8d79811c5",
+      "source": "https://github.com/microsoft/vscode/blob/91db8ea85fee30ebb3c7a5e7939aa2a8d79811c5/extensions/make/syntaxes/make.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/make/syntaxes/make.tmLanguage.json?ref=91db8ea85fee30ebb3c7a5e7939aa2a8d79811c5",
+      "path": "vendor/grammars/make.json",
+      "sha256": "b39266e91f2b7619395e7c164674bb52ecf7c9ce815beb1065297766e1e2af03",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/make.json"
+    },
+    {
+      "aliases": [
+        "md"
+      ],
+      "byteSize": 56350,
+      "categories": [
+        "web",
+        "markup"
+      ],
+      "displayName": "Markdown",
+      "embedded": [
+        "css",
+        "html",
+        "ini",
+        "java",
+        "lua",
+        "make",
+        "perl",
+        "r",
+        "ruby",
+        "php",
+        "sql",
+        "vb",
+        "xml",
+        "xsl",
+        "yaml",
+        "bat",
+        "clojure",
+        "coffee",
+        "c",
+        "cpp",
+        "diff",
+        "docker",
+        "git-commit",
+        "git-rebase",
+        "go",
+        "groovy",
+        "pug",
+        "javascript",
+        "json",
+        "jsonc",
+        "jsonl",
+        "less",
+        "objective-c",
+        "swift",
+        "scss",
+        "raku",
+        "powershell",
+        "python",
+        "julia",
+        "regexp",
+        "rust",
+        "scala",
+        "shellscript",
+        "typescript",
+        "tsx",
+        "csharp",
+        "fsharp",
+        "dart",
+        "handlebars",
+        "log",
+        "erlang",
+        "elixir",
+        "latex",
+        "bibtex",
+        "abap",
+        "rst",
+        "html-derivative"
+      ],
+      "funding": [],
+      "hash": "bMLXuFJTIr_lfvf0XIfiZFdiEW5eQ5XDwPuICpy0rUs",
+      "lastUpdate": "2025-08-27T23:52:40Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "markdown",
+      "scopeName": "text.html.markdown",
+      "sha": "6d8ab9737d58fc5eaf07e2ae6553b38183a5de47",
+      "source": "https://github.com/microsoft/vscode/blob/6d8ab9737d58fc5eaf07e2ae6553b38183a5de47/extensions/markdown-basics/syntaxes/markdown.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/markdown-basics/syntaxes/markdown.tmLanguage.json?ref=6d8ab9737d58fc5eaf07e2ae6553b38183a5de47",
+      "path": "vendor/grammars/markdown.json",
+      "sha256": "02f472fd0df82f212be5dfde4d9ee90982885247a884323d8a6c80ecf87114b3",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/markdown.json"
+    },
+    {
+      "byteSize": 762,
+      "embeddedIn": [
+        "nix"
+      ],
+      "funding": [
+        {
+          "handle": "@nix-community",
+          "name": "GitHub Sponsors",
+          "url": "https://github.com/sponsors/nix-community"
+        },
+        {
+          "handle": "nix-community",
+          "name": "Open Collective",
+          "url": "https://opencollective.com/nix-community"
+        }
+      ],
+      "hash": "DMlADX6qy6bA28KDzggjqBPECFdf0NGLer3B-6YXu04",
+      "injectTo": [
+        "text.html.markdown"
+      ],
+      "lastUpdate": "2025-11-08T15:24:23Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/nix-community/vscode-nix-ide/main/LICENSE",
+      "name": "markdown-nix",
+      "scopeName": "markdown.nix.codeblock",
+      "sha": "e2aff510787a01beb97c6227adbb96e38a60fac4",
+      "source": "https://github.com/nix-community/vscode-nix-ide/blob/e2aff510787a01beb97c6227adbb96e38a60fac4/dist/injection.json",
+      "sourceApi": "https://api.github.com/repos/nix-community/vscode-nix-ide/contents/dist/injection.json?ref=e2aff510787a01beb97c6227adbb96e38a60fac4",
+      "path": "vendor/grammars/markdown-nix.json",
+      "sha256": "3112dca736910793b9fbe583de8d0159873d3b96fa78f766b43db2fbc2d62199",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/markdown-nix.json"
+    },
+    {
+      "byteSize": 15279,
+      "displayName": "MATLAB",
+      "funding": [],
+      "hash": "POEDzVszVkwcMTi0VV1sm1F8A0nheo0vB-tLsFzzxqk",
+      "lastUpdate": "2020-02-01T01:40:30Z",
+      "name": "matlab",
+      "scopeName": "source.matlab",
+      "sha": "69dbf20c1eb19efd629c0438a2a493e60617e8de",
+      "source": "https://github.com/mathworks/MATLAB-Language-grammar/blob/69dbf20c1eb19efd629c0438a2a493e60617e8de/Matlab.tmbundle/Syntaxes/MATLAB.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/mathworks/MATLAB-Language-grammar/contents/Matlab.tmbundle/Syntaxes/MATLAB.tmLanguage?ref=69dbf20c1eb19efd629c0438a2a493e60617e8de",
+      "path": "vendor/grammars/matlab.json",
+      "sha256": "ab688e8332e7a7bf7cffbf8f98a9d0d32cab1fe51bc1b589297e45de6a6c2f8f",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/matlab.json"
+    },
+    {
+      "byteSize": 14199,
+      "displayName": "Nix",
+      "embedded": [
+        "markdown-nix"
+      ],
+      "funding": [
+        {
+          "handle": "@nix-community",
+          "name": "GitHub Sponsors",
+          "url": "https://github.com/sponsors/nix-community"
+        },
+        {
+          "handle": "nix-community",
+          "name": "Open Collective",
+          "url": "https://opencollective.com/nix-community"
+        }
+      ],
+      "hash": "dJYvctjW7hHTZssPgFIB9tPkP8qqZ7I2mlrcDTLyRAg",
+      "lastUpdate": "2025-11-08T10:22:14Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/nix-community/vscode-nix-ide/main/LICENSE",
+      "name": "nix",
+      "scopeName": "source.nix",
+      "sha": "effbf3494a43250a537834805b305793994b9ca8",
+      "source": "https://github.com/nix-community/vscode-nix-ide/blob/effbf3494a43250a537834805b305793994b9ca8/dist/nix.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/nix-community/vscode-nix-ide/contents/dist/nix.tmLanguage.json?ref=effbf3494a43250a537834805b305793994b9ca8",
+      "path": "vendor/grammars/nix.json",
+      "sha256": "33555de7449551044cf017d1f3c12ee9df1c7f6a7eb2d9b7357eade16f2363af",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/nix.json"
+    },
+    {
+      "aliases": [
+        "objc"
+      ],
+      "byteSize": 103064,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Objective-C",
+      "funding": [],
+      "hash": "2_a-Pa63UVJJ-C_fmS6BjnrsdwidK2GRQXHFEEnJp7U",
+      "lastUpdate": "2022-06-10T13:55:11Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "objective-c",
+      "scopeName": "source.objc",
+      "sha": "bd1abe08c38bb5deccf65610f8f3c03d2338d20d",
+      "source": "https://github.com/microsoft/vscode/blob/bd1abe08c38bb5deccf65610f8f3c03d2338d20d/extensions/objective-c/syntaxes/objective-c.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/objective-c/syntaxes/objective-c.tmLanguage.json?ref=bd1abe08c38bb5deccf65610f8f3c03d2338d20d",
+      "path": "vendor/grammars/objective-c.json",
+      "sha256": "b4d74efae95f6320e43e77a7d2f944b6ad08a647ea9818aa846fea89601ece31",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/objective-c.json"
+    },
+    {
+      "name": "ocaml",
+      "scopeName": "source.ocaml",
+      "sha": "71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5",
+      "source": "https://github.com/ocamllabs/vscode-ocaml-platform/blob/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/syntaxes/ocaml.json",
+      "sourceApi": "https://raw.githubusercontent.com/ocamllabs/vscode-ocaml-platform/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/syntaxes/ocaml.json",
+      "path": "vendor/grammars/ocaml.json",
+      "sha256": "9feef32bae7a404b4d5a2b4ac79832d9d19eb4a0c0b5b3646afc0c5f61ecd6df",
+      "license": "ISC",
+      "licenseUrl": "https://raw.githubusercontent.com/ocamllabs/vscode-ocaml-platform/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/LICENSE",
+      "licenseFile": "vendor/OCAML-PLATFORM-LICENSE"
+    },
+    {
+      "name": "ocaml-interface",
+      "scopeName": "source.ocaml.interface",
+      "sha": "71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5",
+      "source": "https://github.com/ocamllabs/vscode-ocaml-platform/blob/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/syntaxes/ocaml.interface.json",
+      "sourceApi": "https://raw.githubusercontent.com/ocamllabs/vscode-ocaml-platform/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/syntaxes/ocaml.interface.json",
+      "path": "vendor/grammars/ocaml-interface.json",
+      "sha256": "82c9d397dc5eafcd8367da493917ed6d5fea3292478e428f04e66e3a74a32a73",
+      "license": "ISC",
+      "licenseUrl": "https://raw.githubusercontent.com/ocamllabs/vscode-ocaml-platform/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/LICENSE",
+      "licenseFile": "vendor/OCAML-PLATFORM-LICENSE"
+    },
+    {
+      "name": "ocamldoc",
+      "scopeName": "source.ocaml.ocamldoc",
+      "sha": "71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5",
+      "source": "https://github.com/ocamllabs/vscode-ocaml-platform/blob/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/syntaxes/ocamldoc.json",
+      "sourceApi": "https://raw.githubusercontent.com/ocamllabs/vscode-ocaml-platform/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/syntaxes/ocamldoc.json",
+      "path": "vendor/grammars/ocamldoc.json",
+      "sha256": "b0757a36a2091b7723da3b730fbf217d829dbb04cff46f2ad077e97646237f18",
+      "license": "ISC",
+      "licenseUrl": "https://raw.githubusercontent.com/ocamllabs/vscode-ocaml-platform/71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5/LICENSE",
+      "licenseFile": "vendor/OCAML-PLATFORM-LICENSE"
+    },
+    {
+      "byteSize": 41869,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Perl",
+      "embedded": [
+        "html",
+        "xml",
+        "css",
+        "javascript",
+        "sql"
+      ],
+      "funding": [],
+      "hash": "rxHwLwef3W3ydOe0Cui_0wexusq8QNAUn6joHAL50QE",
+      "lastUpdate": "2021-04-06T09:30:15Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "perl",
+      "scopeName": "source.perl",
+      "sha": "e637ff1bf7f481134849625e982ec80df9b35bc8",
+      "source": "https://github.com/microsoft/vscode/blob/e637ff1bf7f481134849625e982ec80df9b35bc8/extensions/perl/syntaxes/perl.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/perl/syntaxes/perl.tmLanguage.json?ref=e637ff1bf7f481134849625e982ec80df9b35bc8",
+      "path": "vendor/grammars/perl.json",
+      "sha256": "f13691f0d72752898f390d2dfbf014a43abe493995140986562e91ed99693688",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/perl.json"
+    },
+    {
+      "byteSize": 109385,
+      "categories": [
+        "general",
+        "web"
+      ],
+      "displayName": "PHP",
+      "embedded": [
+        "html",
+        "xml",
+        "sql",
+        "javascript",
+        "json",
+        "css"
+      ],
+      "funding": [],
+      "hash": "n861mFDTDuwEacmShc8kfum9wOjaJbqJ0QTY4Ryz__A",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "php",
+      "scopeName": "source.php",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/php/syntaxes/php.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/php/syntaxes/php.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/php.json",
+      "sha256": "f2981c0553e5c0b95f11cc5d2435d6022fcf3bf0a2179c4e52407e8b61d7089f",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/php.json"
+    },
+    {
+      "aliases": [
+        "ps",
+        "ps1",
+        "pwsh"
+      ],
+      "byteSize": 19620,
+      "displayName": "PowerShell",
+      "funding": [],
+      "hash": "N5bn3c9O1Ag04nQFs_wvsPneIqKqGfHnP_GQChhqMm0",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "powershell",
+      "scopeName": "source.powershell",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/powershell/syntaxes/powershell.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/powershell/syntaxes/powershell.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/powershell.json",
+      "sha256": "4e01664d850d278e259858fd436eb969aae620f70c4d925ffe3c8d0a188c1479",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/powershell.json"
+    },
+    {
+      "aliases": [
+        "jade"
+      ],
+      "byteSize": 13039,
+      "categories": [
+        "web",
+        "markup"
+      ],
+      "displayName": "Pug",
+      "embedded": [
+        "javascript",
+        "css",
+        "sass",
+        "scss",
+        "stylus",
+        "coffee",
+        "html"
+      ],
+      "funding": [],
+      "hash": "DtlOh-9gzldDDvpIVJ5nH2fKApsu1XLeCcEdXJ2SE7k",
+      "lastUpdate": "2023-03-29T09:38:06Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "pug",
+      "scopeName": "text.pug",
+      "sha": "6ac83c7c7dda9f27ca1fe9d98675253e010b75d1",
+      "source": "https://github.com/microsoft/vscode/blob/6ac83c7c7dda9f27ca1fe9d98675253e010b75d1/extensions/pug/syntaxes/pug.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/pug/syntaxes/pug.tmLanguage.json?ref=6ac83c7c7dda9f27ca1fe9d98675253e010b75d1",
+      "path": "vendor/grammars/pug.json",
+      "sha256": "98b0c9fe3464e55029a964658a6a701022957df0391006248ae857bc82b96174",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/pug.json"
+    },
+    {
+      "aliases": [
+        "py"
+      ],
+      "byteSize": 68139,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Python",
+      "funding": [],
+      "hash": "3QzSFtH7MOitfK3QFoKA6FykhVLrWwPSBlDvFLG9otI",
+      "lastUpdate": "2022-10-20T22:45:17Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "python",
+      "scopeName": "source.python",
+      "sha": "cf4c9e469d521fa5f33353737e8157eb0789ad02",
+      "source": "https://github.com/microsoft/vscode/blob/cf4c9e469d521fa5f33353737e8157eb0789ad02/extensions/python/syntaxes/MagicPython.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/python/syntaxes/MagicPython.tmLanguage.json?ref=cf4c9e469d521fa5f33353737e8157eb0789ad02",
+      "path": "vendor/grammars/python.json",
+      "sha256": "8b6b4cb21cce413b2f764ef6b71dfae059a77433530f9dd77ea9b5a53af1ee35",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/python.json"
+    },
+    {
+      "byteSize": 6400,
+      "categories": [
+        "data"
+      ],
+      "displayName": "R",
+      "funding": [],
+      "hash": "SLCRLqWFuZRySb2PVAXi0b-WN19Dn_qPSrIGexJMqPg",
+      "lastUpdate": "2026-04-03T14:07:44Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/posit-dev/positron/refs/heads/main/extensions/positron-r/syntaxes/LICENSE.md",
+      "name": "r",
+      "scopeName": "source.r",
+      "sha": "c4d6bab60dd914427a2d47a4b64e75e025d94059",
+      "source": "https://github.com/posit-dev/positron/blob/c4d6bab60dd914427a2d47a4b64e75e025d94059/extensions/positron-r/syntaxes/r.tmGrammar.gen.json",
+      "sourceApi": "https://api.github.com/repos/posit-dev/positron/contents/extensions/positron-r/syntaxes/r.tmGrammar.gen.json?ref=c4d6bab60dd914427a2d47a4b64e75e025d94059",
+      "path": "vendor/grammars/r.json",
+      "sha256": "87050d7d24035c6d7bc5c7b409e134f85d1dcaf2a5f08ef532fe1e25491c47de",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/r.json"
+    },
+    {
+      "byteSize": 89526,
+      "categories": [
+        "lisp"
+      ],
+      "displayName": "Racket",
+      "funding": [
+        {
+          "handle": "@eugleo",
+          "name": "GitHub Sponsors",
+          "url": "https://github.com/sponsors/eugleo"
+        }
+      ],
+      "hash": "p_5dFXjTI0y4d2TBVA-RH2dysDpT5OkhF2K9pelO2_A",
+      "lastUpdate": "2025-04-10T11:19:24Z",
+      "license": "GPL-3.0",
+      "licenseUrl": "https://raw.githubusercontent.com/Eugleo/magic-racket/master/LICENSE",
+      "name": "racket",
+      "scopeName": "source.racket",
+      "sha": "1b850db7f6e7c3ba8a1b47fe2781800a21f669a8",
+      "source": "https://github.com/Eugleo/magic-racket/blob/1b850db7f6e7c3ba8a1b47fe2781800a21f669a8/syntaxes/racket.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/Eugleo/magic-racket/contents/syntaxes/racket.tmLanguage.json?ref=1b850db7f6e7c3ba8a1b47fe2781800a21f669a8",
+      "path": "vendor/grammars/racket.json",
+      "sha256": "f1c7ab4fe54e0b57f22afe4978c1b2dbea5bba4f9c06b2256a35a15a87bd9d56",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/racket.json"
+    },
+    {
+      "aliases": [
+        "perl6"
+      ],
+      "byteSize": 10193,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Raku",
+      "funding": [],
+      "hash": "LoAP3GDbGymp6axP10ev3THDgeiY4Iy7lk80jfv_LDo",
+      "lastUpdate": "2018-02-12T15:54:35Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "raku",
+      "scopeName": "source.perl.6",
+      "sha": "8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "source": "https://github.com/microsoft/vscode/blob/8fdf170a0850c1cc027382f31650aaf300d3ae2a/extensions/perl/syntaxes/perl6.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/perl/syntaxes/perl6.tmLanguage.json?ref=8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "path": "vendor/grammars/raku.json",
+      "sha256": "30014c56087f97be1c4732dd86ac845d521de27b54264bc205d01d86ee6bfd50",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/raku.json"
+    },
+    {
+      "aliases": [
+        "regex"
+      ],
+      "byteSize": 7716,
+      "displayName": "RegExp",
+      "funding": [],
+      "hash": "XF5cnlMsNTxKxQnlquEwGS2vJdRushREWG10JFx3-_Q",
+      "lastUpdate": "2020-02-16T01:06:09Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/MagicStack/MagicPython/master/LICENSE",
+      "name": "regexp",
+      "scopeName": "source.regexp.python",
+      "sha": "c9b3409deb69acec31bbf7913830e93a046b30cc",
+      "source": "https://github.com/MagicStack/MagicPython/blob/c9b3409deb69acec31bbf7913830e93a046b30cc/grammars/MagicRegExp.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/MagicStack/MagicPython/contents/grammars/MagicRegExp.tmLanguage?ref=c9b3409deb69acec31bbf7913830e93a046b30cc",
+      "path": "vendor/grammars/regexp.json",
+      "sha256": "87b56f94dc703cea1cd330d4cd088e4944d8df4358b235f2ae867cfb14143f2d",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/regexp.json"
+    },
+    {
+      "byteSize": 9291,
+      "categories": [
+        "markup"
+      ],
+      "displayName": "reStructuredText",
+      "embedded": [
+        "html-derivative",
+        "cpp",
+        "python",
+        "javascript",
+        "shellscript",
+        "yaml",
+        "cmake",
+        "ruby"
+      ],
+      "funding": [],
+      "hash": "A9cQWHyJJd5LTidoyLqC2wC6QJn6qQq9Sf34ZKpGs6k",
+      "lastUpdate": "2023-10-02T14:56:43Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "rst",
+      "scopeName": "source.rst",
+      "sha": "48e93f756b764991ede33ad09781a863aca6907a",
+      "source": "https://github.com/microsoft/vscode/blob/48e93f756b764991ede33ad09781a863aca6907a/extensions/restructuredtext/syntaxes/rst.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/restructuredtext/syntaxes/rst.tmLanguage.json?ref=48e93f756b764991ede33ad09781a863aca6907a",
+      "path": "vendor/grammars/rst.json",
+      "sha256": "0de16f7839b2057fda5d59bf9c973185e5d596381d779e60131a350fc6d7620b",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/rst.json"
+    },
+    {
+      "aliases": [
+        "rb"
+      ],
+      "byteSize": 44446,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Ruby",
+      "embedded": [
+        "html",
+        "haml",
+        "xml",
+        "sql",
+        "graphql",
+        "css",
+        "cpp",
+        "c",
+        "javascript",
+        "shellscript",
+        "lua",
+        "yaml"
+      ],
+      "funding": [],
+      "hash": "DeKpkeH01a1d0fJoK9fOGncXN5d45EQoYXyQBKA8cXw",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "ruby",
+      "scopeName": "source.ruby",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/ruby/syntaxes/ruby.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/ruby/syntaxes/ruby.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/ruby.json",
+      "sha256": "ff3e48c0958a75e6bbc794978083320f761c9bc3cfe20a6435f479c7be4c78b0",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/ruby.json"
+    },
+    {
+      "aliases": [
+        "rs"
+      ],
+      "byteSize": 14784,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Rust",
+      "funding": [],
+      "hash": "p8Wj3iHRjNf-vLHQwFhBOAPbkahyS64GdGkYtnSl_6c",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "rust",
+      "scopeName": "source.rust",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/rust/syntaxes/rust.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/rust/syntaxes/rust.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/rust.json",
+      "sha256": "e6ecf805e26ea7db8f32dfca38afcf19192cc45c942f7cedfff33889183c548d",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/rust.json"
+    },
+    {
+      "byteSize": 8971,
+      "categories": [
+        "web"
+      ],
+      "displayName": "Sass",
+      "funding": [],
+      "hash": "nIaSVgwSUF9bxC4JlF_onMFmoMGkePl5o2jVXasjn7U",
+      "lastUpdate": "2025-01-19T21:07:24Z",
+      "license": "NOASSERTION",
+      "licenseUrl": "https://raw.githubusercontent.com/TheRealSyler/vscode-sass-indented/master/LICENSE",
+      "name": "sass",
+      "scopeName": "source.sass",
+      "sha": "f0e50cfaca4b64a1d49f8d938f188d6fd0bcfb6f",
+      "source": "https://github.com/TheRealSyler/vscode-sass-indented/blob/f0e50cfaca4b64a1d49f8d938f188d6fd0bcfb6f/syntaxes/sass.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/TheRealSyler/vscode-sass-indented/contents/syntaxes/sass.tmLanguage.json?ref=f0e50cfaca4b64a1d49f8d938f188d6fd0bcfb6f",
+      "path": "vendor/grammars/sass.json",
+      "sha256": "17504b4f319ae6ac8b1e137754bcde9ed6c0be6de46082999aa57467d3bd7fc8",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/sass.json"
+    },
+    {
+      "byteSize": 26958,
+      "displayName": "Scala",
+      "funding": [],
+      "hash": "EmOkeO3K0ZSB48cOTtKW2DH-hf8hW_fqw1UNhgsLybs",
+      "lastUpdate": "2026-06-10T14:57:43Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/scala/vscode-scala-syntax/main/LICENSE.md",
+      "name": "scala",
+      "scopeName": "source.scala",
+      "sha": "672fa16c64e12b2cc8b98da011411463968de727",
+      "source": "https://github.com/scala/vscode-scala-syntax/blob/672fa16c64e12b2cc8b98da011411463968de727/syntaxes/Scala.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/scala/vscode-scala-syntax/contents/syntaxes/Scala.tmLanguage.json?ref=672fa16c64e12b2cc8b98da011411463968de727",
+      "path": "vendor/grammars/scala.json",
+      "sha256": "ac7c4f2cc8b0f79e975048eefb40751ed6435727cac6dd4df07ce949436b1df5",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/scala.json"
+    },
+    {
+      "byteSize": 26425,
+      "categories": [
+        "web"
+      ],
+      "displayName": "SCSS",
+      "embedded": [
+        "css"
+      ],
+      "funding": [],
+      "hash": "ojpzVw7DV4kIFqnExv4x1FZW_vQDZbN8wQ_hXmDOelg",
+      "lastUpdate": "2019-11-12T14:37:21Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "scss",
+      "scopeName": "source.css.scss",
+      "sha": "cf8d61ebd2f022f4ce8280171f0360d1fe0a206d",
+      "source": "https://github.com/microsoft/vscode/blob/cf8d61ebd2f022f4ce8280171f0360d1fe0a206d/extensions/scss/syntaxes/scss.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/scss/syntaxes/scss.tmLanguage.json?ref=cf8d61ebd2f022f4ce8280171f0360d1fe0a206d",
+      "path": "vendor/grammars/scss.json",
+      "sha256": "35977f043318d4877b31e40064d90028bfeb085e240e72ae0defa167346112bf",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/scss.json"
+    },
+    {
+      "aliases": [
+        "bash",
+        "sh",
+        "shell",
+        "zsh"
+      ],
+      "byteSize": 39917,
+      "categories": [
+        "scripting"
+      ],
+      "displayName": "Shell",
+      "funding": [],
+      "hash": "l2mgA5XXHIrmKj-timscPGHz7KfiXx4aiwaMJPdNyws",
+      "lastUpdate": "2024-07-29T09:33:03Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "shellscript",
+      "scopeName": "source.shell",
+      "sha": "9473445f7d3dcb5c579f42ece8b6c18c43c63ed3",
+      "source": "https://github.com/microsoft/vscode/blob/9473445f7d3dcb5c579f42ece8b6c18c43c63ed3/extensions/shellscript/syntaxes/shell-unix-bash.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/shellscript/syntaxes/shell-unix-bash.tmLanguage.json?ref=9473445f7d3dcb5c579f42ece8b6c18c43c63ed3",
+      "path": "vendor/grammars/shellscript.json",
+      "sha256": "f9a7ca3def50407b4500311cc47275295f6a2d3f9f683f1f0accc3056f0e4cc8",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/shellscript.json"
+    },
+    {
+      "byteSize": 23128,
+      "categories": [
+        "dsl"
+      ],
+      "displayName": "SQL",
+      "funding": [],
+      "hash": "oTBi6GXIRVqSaUZmNwVjk7faMOYmSASAsFINC68IclY",
+      "lastUpdate": "2026-08-11T09:10:49Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "sql",
+      "scopeName": "source.sql",
+      "sha": "af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "source": "https://github.com/microsoft/vscode/blob/af600487b1e94374d9f48f57cbf2cad24656b07f/extensions/sql/syntaxes/sql.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/sql/syntaxes/sql.tmLanguage.json?ref=af600487b1e94374d9f48f57cbf2cad24656b07f",
+      "path": "vendor/grammars/sql.json",
+      "sha256": "a79bd625f928c0c2297ee4d96248b30c357e7c33aba8d6cb8d41d6ae801c8758",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/sql.json"
+    },
+    {
+      "aliases": [
+        "styl"
+      ],
+      "byteSize": 30406,
+      "categories": [
+        "web"
+      ],
+      "displayName": "Stylus",
+      "funding": [
+        {
+          "handle": "stylus",
+          "name": "Open Collective",
+          "url": "https://opencollective.com/stylus"
+        }
+      ],
+      "hash": "NGG3_wNKZA0InTo9QebZeIpg-8Vcx0J9REFazvyKhOE",
+      "lastUpdate": "2021-11-19T11:55:44Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/d4rkr00t/language-stylus/master/LICENSE",
+      "name": "stylus",
+      "scopeName": "source.stylus",
+      "sha": "198a851f385aee857332f3ce5dd981ff67720ead",
+      "source": "https://github.com/d4rkr00t/language-stylus/blob/198a851f385aee857332f3ce5dd981ff67720ead/syntaxes/stylus.json",
+      "sourceApi": "https://api.github.com/repos/d4rkr00t/language-stylus/contents/syntaxes/stylus.json?ref=198a851f385aee857332f3ce5dd981ff67720ead",
+      "path": "vendor/grammars/stylus.json",
+      "sha256": "39d238fe3c42cd48f150dc0f21bc92beee534585f7026e5b1ef4c445ba797045",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/stylus.json"
+    },
+    {
+      "byteSize": 84244,
+      "categories": [
+        "general"
+      ],
+      "displayName": "Swift",
+      "funding": [
+        {
+          "handle": "@jtbandes",
+          "name": "GitHub Sponsors",
+          "url": "https://github.com/sponsors/jtbandes"
+        },
+        {
+          "handle": "jtbandes",
+          "name": "Ko-fi",
+          "url": "https://ko-fi.com/jtbandes"
+        }
+      ],
+      "hash": "9Phphh1BUw63i4AYLidYhVmv3lQ_ttISicljk5_s3v8",
+      "lastUpdate": "2026-07-19T00:40:01Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/jtbandes/swift-tmlanguage/main/LICENSE.md",
+      "name": "swift",
+      "scopeName": "source.swift",
+      "sha": "2be007b6bc88e54a0edfd3c313ff31276edc923d",
+      "source": "https://github.com/jtbandes/swift-tmlanguage/blob/2be007b6bc88e54a0edfd3c313ff31276edc923d/Swift.tmLanguage.yaml",
+      "sourceApi": "https://api.github.com/repos/jtbandes/swift-tmlanguage/contents/Swift.tmLanguage.yaml?ref=2be007b6bc88e54a0edfd3c313ff31276edc923d",
+      "path": "vendor/grammars/swift.json",
+      "sha256": "1bb401139dda5ef99bc39dc1719ffeefcb3ba4c2ad6a72457e2b3ff8248e86f9",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/swift.json"
+    },
+    {
+      "byteSize": 9335,
+      "categories": [
+        "markup"
+      ],
+      "displayName": "TeX",
+      "embedded": [
+        "r"
+      ],
+      "funding": [],
+      "hash": "CABaml1FuXsF-3bzNVxDH66oKAN30D7MVsXHm8YzVSA",
+      "lastUpdate": "2026-01-30T15:33:10Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "tex",
+      "scopeName": "text.tex",
+      "sha": "609f17a76734f092792a33c891af40bbcaea0c64",
+      "source": "https://github.com/microsoft/vscode/blob/609f17a76734f092792a33c891af40bbcaea0c64/extensions/latex/syntaxes/TeX.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/latex/syntaxes/TeX.tmLanguage.json?ref=609f17a76734f092792a33c891af40bbcaea0c64",
+      "path": "vendor/grammars/tex.json",
+      "sha256": "5a6795ecb5dcc0bccc65ed86b9beebbd1410c80fc92e325041ba974fe6f19b77",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/tex.json"
+    },
+    {
+      "byteSize": 160061,
+      "categories": [
+        "web"
+      ],
+      "displayName": "TSX",
+      "funding": [],
+      "hash": "M9cElYonNsDV9nzerxuM3dtqePPCyEk-eK2_IzeiJfo",
+      "lastUpdate": "2024-10-25T09:35:17Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "tsx",
+      "scopeName": "source.tsx",
+      "sha": "210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "source": "https://github.com/microsoft/vscode/blob/210541906e5a96ab39f9c753f921b1bd35f4138b/extensions/typescript-basics/syntaxes/TypeScriptReact.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/typescript-basics/syntaxes/TypeScriptReact.tmLanguage.json?ref=210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "path": "vendor/grammars/tsx.json",
+      "sha256": "367120b5adb2fe51f4c4b3edcab86e569e5a1e2a6c3652e318ba52281033fddd",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/tsx.json"
+    },
+    {
+      "byteSize": 23963,
+      "displayName": "Twig",
+      "embedded": [
+        "javascript",
+        "css",
+        "scss",
+        "php",
+        "python",
+        "ruby"
+      ],
+      "funding": [
+        {
+          "handle": "@mblode",
+          "name": "GitHub Sponsors",
+          "url": "https://github.com/sponsors/mblode"
+        }
+      ],
+      "hash": "Aqgs4QkLBjiQWXjwblh057r9aoHMROoMV9ZJdw0y-ds",
+      "lastUpdate": "2026-09-07T22:27:57Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/mblode/vscode-twig-language-2/master/LICENSE.md",
+      "name": "twig",
+      "scopeName": "text.html.twig",
+      "sha": "73f4e2729ce5f490e294dd158c82c22a35cf96de",
+      "source": "https://github.com/mblode/vscode-twig-language-2/blob/73f4e2729ce5f490e294dd158c82c22a35cf96de/src/syntaxes/twig.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/mblode/vscode-twig-language-2/contents/src/syntaxes/twig.tmLanguage?ref=73f4e2729ce5f490e294dd158c82c22a35cf96de",
+      "path": "vendor/grammars/twig.json",
+      "sha256": "ef429919b88bb9da5fcc40188c40d51611a4fb21571b69e53593d48f0077e5da",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/twig.json"
+    },
+    {
+      "aliases": [
+        "ts",
+        "cts",
+        "mts"
+      ],
+      "byteSize": 163871,
+      "categories": [
+        "web",
+        "scripting",
+        "general"
+      ],
+      "displayName": "TypeScript",
+      "funding": [],
+      "hash": "dKMZLHa4i_fHhWvcXg-Y2d55GMmlJZkmLkaWN2efAV0",
+      "lastUpdate": "2024-10-25T09:35:17Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "typescript",
+      "scopeName": "source.ts",
+      "sha": "210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "source": "https://github.com/microsoft/vscode/blob/210541906e5a96ab39f9c753f921b1bd35f4138b/extensions/typescript-basics/syntaxes/TypeScript.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/typescript-basics/syntaxes/TypeScript.tmLanguage.json?ref=210541906e5a96ab39f9c753f921b1bd35f4138b",
+      "path": "vendor/grammars/typescript.json",
+      "sha256": "e86e45f551919f50ac5e5cf89990c3520877305b35708294de5ae83c9b6ca559",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/typescript.json"
+    },
+    {
+      "byteSize": 5835,
+      "categories": [
+        "general",
+        "scripting"
+      ],
+      "displayName": "Visual Basic",
+      "funding": [],
+      "hash": "-FNss8u9VKs49N2RHlk2LniU_o5b_J2PGExxwehRYGA",
+      "lastUpdate": "2024-01-26T12:06:22Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "vb",
+      "scopeName": "source.asp.vb.net",
+      "sha": "35d97bc7e439fce0f50f42074041ab2d8571b20a",
+      "source": "https://github.com/microsoft/vscode/blob/35d97bc7e439fce0f50f42074041ab2d8571b20a/extensions/vb/syntaxes/asp-vb-net.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/vb/syntaxes/asp-vb-net.tmLanguage.json?ref=35d97bc7e439fce0f50f42074041ab2d8571b20a",
+      "path": "vendor/grammars/vb.json",
+      "sha256": "f69b366bee20af30507108d1e4ebf1844114084ea8af19fa704dc011081ba0d5",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/vb.json"
+    },
+    {
+      "byteSize": 11450,
+      "categories": [
+        "web"
+      ],
+      "displayName": "WebAssembly",
+      "funding": [],
+      "hash": "kE6pGlRzFLpLCut0oj3kN3xAysZDhchfsVLhs7TCb5g",
+      "lastUpdate": "2023-10-31T03:53:56Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/wasmerio/vscode-wasm/master/LICENSE",
+      "name": "wasm",
+      "scopeName": "source.wat",
+      "sha": "9d0ace1ff113f4a3e95797675039cd94ec257078",
+      "source": "https://github.com/wasmerio/vscode-wasm/blob/9d0ace1ff113f4a3e95797675039cd94ec257078/syntaxes/wat.json",
+      "sourceApi": "https://api.github.com/repos/wasmerio/vscode-wasm/contents/syntaxes/wat.json?ref=9d0ace1ff113f4a3e95797675039cd94ec257078",
+      "path": "vendor/grammars/wasm.json",
+      "sha256": "6609162d75e0569dd829b754675695ecb5c02fd27fb290a42f4e8aed6c5197b4",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/wasm.json"
+    },
+    {
+      "aliases": [
+        "wl"
+      ],
+      "byteSize": 260649,
+      "displayName": "Wolfram",
+      "funding": [],
+      "hash": "4EsRwaeJNObVwipuppkHqiUNQ95VUMZsSJRYuCaBHKk",
+      "lastUpdate": "2022-10-11T17:11:31Z",
+      "license": "NOASSERTION",
+      "licenseUrl": "https://raw.githubusercontent.com/WolframResearch/vscode-wolfram/master/LICENSE",
+      "name": "wolfram",
+      "scopeName": "source.wolfram",
+      "sha": "8b55fb1724d971a303120b3f5b981d654c308c59",
+      "source": "https://github.com/WolframResearch/vscode-wolfram/blob/8b55fb1724d971a303120b3f5b981d654c308c59/syntaxes/wolfram.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/WolframResearch/vscode-wolfram/contents/syntaxes/wolfram.tmLanguage.json?ref=8b55fb1724d971a303120b3f5b981d654c308c59",
+      "path": "vendor/grammars/wolfram.json",
+      "sha256": "8601f9148462061df5cb1c22714314ca4244ae78a93fef44ae8a0d984f3db27a",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/wolfram.json"
+    },
+    {
+      "byteSize": 5210,
+      "categories": [
+        "markup",
+        "data"
+      ],
+      "displayName": "XML",
+      "embedded": [
+        "java"
+      ],
+      "funding": [],
+      "hash": "_nNqtZ45_CxqaXtcvPLxN7m5F1cVTUYJqyQkmKbmADs",
+      "lastUpdate": "2018-10-04T10:00:39Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "xml",
+      "scopeName": "text.xml",
+      "sha": "10a1d2a50a2882f5ae85bdb51eb04d3064fb9de9",
+      "source": "https://github.com/microsoft/vscode/blob/10a1d2a50a2882f5ae85bdb51eb04d3064fb9de9/extensions/xml/syntaxes/xml.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/xml/syntaxes/xml.tmLanguage.json?ref=10a1d2a50a2882f5ae85bdb51eb04d3064fb9de9",
+      "path": "vendor/grammars/xml.json",
+      "sha256": "4432e3aa5974256559326a692830cc5b375a21aac895de739e8b0a73a396edf6",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/xml.json"
+    },
+    {
+      "byteSize": 1228,
+      "categories": [
+        "markup"
+      ],
+      "displayName": "XSL",
+      "embedded": [
+        "xml"
+      ],
+      "funding": [],
+      "hash": "PlMS1u4Tq--zUcxG_1JcsLmMe_iykwHUfrQW6x-o6BI",
+      "lastUpdate": "2018-02-12T15:54:35Z",
+      "license": "MIT",
+      "licenseUrl": "https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt",
+      "name": "xsl",
+      "scopeName": "text.xml.xsl",
+      "sha": "8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "source": "https://github.com/microsoft/vscode/blob/8fdf170a0850c1cc027382f31650aaf300d3ae2a/extensions/xml/syntaxes/xsl.tmLanguage.json",
+      "sourceApi": "https://api.github.com/repos/microsoft/vscode/contents/extensions/xml/syntaxes/xsl.tmLanguage.json?ref=8fdf170a0850c1cc027382f31650aaf300d3ae2a",
+      "path": "vendor/grammars/xsl.json",
+      "sha256": "bda17f37f2f316482c6d85a9edd4c36819c101904f0de2bdcad0db44b949fdd4",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/xsl.json"
+    },
+    {
+      "aliases": [
+        "yml"
+      ],
+      "byteSize": 9979,
+      "categories": [
+        "data"
+      ],
+      "displayName": "YAML",
+      "funding": [],
+      "hash": "tXcqIxeekCus8i1OqercLVaC4ngtqvKMupM6OARKpCc",
+      "lastUpdate": "2017-08-24T17:48:19Z",
+      "name": "yaml",
+      "scopeName": "source.yaml",
+      "sha": "e54ceae3b719506dba7e481a77cea4a8b576ae46",
+      "source": "https://github.com/textmate/yaml.tmbundle/blob/e54ceae3b719506dba7e481a77cea4a8b576ae46/Syntaxes/YAML.tmLanguage",
+      "sourceApi": "https://api.github.com/repos/textmate/yaml.tmbundle/contents/Syntaxes/YAML.tmLanguage?ref=e54ceae3b719506dba7e481a77cea4a8b576ae46",
+      "path": "vendor/grammars/yaml.json",
+      "sha256": "960c376ae415e3258da44b8afe603828c919a2d6efbf8072b26b744246116542",
+      "collectionUrl": "https://raw.githubusercontent.com/shikijs/textmate-grammars-themes/8f1828ebccc57930cf0adde9b35ae929584fe191/packages/tm-grammars/grammars/yaml.json"
+    }
+  ],
+  "scopeAliases": {
+    "source.asm": "source.asm.x86_64",
+    "source.x86": "source.asm.x86_64",
+    "source.x86_64": "source.asm.x86_64",
+    "source.cpp.embedded.latex": "source.cpp",
+    "source.js.jquery": "source.js",
+    "source.twig": "text.html.twig",
+    "source.less": "source.css.less",
+    "source.scss": "source.css.scss",
+    "text.elixir": "source.elixir",
+    "text.html.php": "source.php"
+  },
+  "unresolvedOptionalIncludes": [
+    "source.arm",
+    "source.asy",
+    "source.asymptote",
+    "source.dot",
+    "source.dts",
+    "source.ignore",
+    "source.kconfig",
+    "source.postscript",
+    "source.sassdoc",
+    "source.yang",
+    "text.html.javadoc",
+    "text.slim",
+    "text.tex.markdown_latex_combined"
+  ],
+  "includes": {
+    "source.c": [
+      "source.arm",
+      "source.asm",
+      "source.x86",
+      "source.x86_64"
+    ],
+    "source.commonlisp": [],
+    "source.cpp": [
+      "source.arm",
+      "source.asm",
+      "source.cpp.embedded.macro",
+      "source.glsl",
+      "source.regexp.python",
+      "source.x86",
+      "source.x86_64"
+    ],
+    "source.cs": [],
+    "source.haskell": [],
+    "source.java": [],
+    "source.js": [],
+    "source.matlab": [],
+    "source.nix": [],
+    "source.ocaml": [
+      "source.ocaml.interface",
+      "source.ocaml.ocamldoc"
+    ],
+    "source.python": [],
+    "source.racket": [],
+    "source.ruby": [
+      "source.c",
+      "source.cpp",
+      "source.css",
+      "source.graphql",
+      "source.js",
+      "source.js.jquery",
+      "source.lua",
+      "source.ruby",
+      "source.shell",
+      "source.sql",
+      "source.yaml",
+      "text.haml",
+      "text.html.basic",
+      "text.slim",
+      "text.xml"
+    ],
+    "source.rust": [],
+    "source.shell": [],
+    "source.sql": [],
+    "source.wat": [],
+    "source.wolfram": [],
+    "text.html.basic": [
+      "source.css",
+      "source.js",
+      "text.html.basic"
+    ],
+    "text.html.markdown": [
+      "source.abap",
+      "source.asp.vb.net",
+      "source.batchfile",
+      "source.c",
+      "source.clojure",
+      "source.coffee",
+      "source.cpp",
+      "source.cs",
+      "source.css",
+      "source.css.less",
+      "source.css.scss",
+      "source.dart",
+      "source.diff",
+      "source.dockerfile",
+      "source.elixir",
+      "source.erlang",
+      "source.fsharp",
+      "source.go",
+      "source.groovy",
+      "source.ignore",
+      "source.ini",
+      "source.java",
+      "source.js",
+      "source.js.regexp",
+      "source.json",
+      "source.json.comments",
+      "source.json.lines",
+      "source.julia",
+      "source.lua",
+      "source.makefile",
+      "source.objc",
+      "source.perl",
+      "source.perl.6",
+      "source.php",
+      "source.powershell",
+      "source.python",
+      "source.r",
+      "source.regexp.python",
+      "source.rst",
+      "source.ruby",
+      "source.rust",
+      "source.scala",
+      "source.shell",
+      "source.sql",
+      "source.swift",
+      "source.ts",
+      "source.tsx",
+      "source.twig",
+      "source.yaml",
+      "source.yang",
+      "text.bibtex",
+      "text.git-commit",
+      "text.git-rebase",
+      "text.html.basic",
+      "text.html.derivative",
+      "text.html.handlebars",
+      "text.html.markdown",
+      "text.log",
+      "text.pug",
+      "text.tex.latex",
+      "text.xml",
+      "text.xml.xsl"
+    ],
+    "text.tex.latex": [
+      "source.asy",
+      "source.asymptote",
+      "source.cpp.embedded.latex",
+      "source.css",
+      "source.dot",
+      "source.gnuplot",
+      "source.haskell",
+      "source.java",
+      "source.js",
+      "source.julia",
+      "source.lua",
+      "source.python",
+      "source.ruby",
+      "source.rust",
+      "source.scala",
+      "source.shell",
+      "source.ts",
+      "source.yaml",
+      "text.html.basic",
+      "text.tex",
+      "text.tex.latex",
+      "text.tex.markdown_latex_combined",
+      "text.xml"
+    ],
+    "source.abap": [],
+    "source.asm.x86_64": [],
+    "source.asp.vb.net": [
+      "source.asp.vb.net"
+    ],
+    "source.batchfile": [],
+    "source.clojure": [],
+    "source.coffee": [
+      "source.js",
+      "source.js.regexp"
+    ],
+    "source.css": [],
+    "source.css.less": [],
+    "source.css.scss": [
+      "source.css",
+      "source.sassdoc"
+    ],
+    "source.dart": [],
+    "source.diff": [],
+    "source.dockerfile": [],
+    "source.elixir": [
+      "text.elixir",
+      "text.html.basic"
+    ],
+    "source.erlang": [
+      "text.html.markdown"
+    ],
+    "source.fsharp": [
+      "text.html.markdown"
+    ],
+    "source.glsl": [
+      "source.c"
+    ],
+    "source.gnuplot": [],
+    "source.go": [],
+    "source.graphql": [
+      "source.js",
+      "source.js.jsx",
+      "source.ts",
+      "source.tsx"
+    ],
+    "source.groovy": [
+      "text.html.javadoc"
+    ],
+    "source.ini": [],
+    "source.json": [],
+    "source.json.comments": [],
+    "source.json.lines": [],
+    "source.julia": [
+      "source.cpp",
+      "source.js",
+      "source.python",
+      "source.r",
+      "source.sql"
+    ],
+    "source.lua": [
+      "source.c",
+      "source.lua"
+    ],
+    "source.makefile": [],
+    "source.objc": [],
+    "source.perl": [
+      "source.css",
+      "source.js",
+      "source.postscript",
+      "source.sql",
+      "text.html.basic",
+      "text.xml"
+    ],
+    "source.perl.6": [],
+    "source.php": [
+      "source.css",
+      "source.js",
+      "source.json",
+      "source.sql",
+      "text.html.basic",
+      "text.xml"
+    ],
+    "source.powershell": [],
+    "source.r": [],
+    "source.regexp.python": [],
+    "source.rst": [
+      "source.cmake",
+      "source.cpp",
+      "source.dts",
+      "source.js",
+      "source.kconfig",
+      "source.python",
+      "source.ruby",
+      "source.shell",
+      "source.yaml",
+      "text.html.derivative"
+    ],
+    "source.scala": [],
+    "source.swift": [],
+    "source.ts": [],
+    "source.tsx": [],
+    "source.yaml": [],
+    "text.bibtex": [],
+    "text.git-commit": [
+      "source.diff"
+    ],
+    "text.git-rebase": [
+      "source.shell"
+    ],
+    "text.haml": [
+      "source.coffee",
+      "source.css",
+      "source.js",
+      "source.ruby",
+      "source.sass",
+      "source.scss",
+      "text.haml",
+      "text.html.markdown",
+      "text.html.php",
+      "text.plain"
+    ],
+    "text.html.derivative": [
+      "text.html.basic"
+    ],
+    "text.html.handlebars": [
+      "source.css",
+      "source.js",
+      "source.yaml",
+      "text.html.basic"
+    ],
+    "text.html.twig": [
+      "source.css",
+      "source.css.scss",
+      "source.js",
+      "source.php",
+      "source.python",
+      "source.ruby"
+    ],
+    "text.log": [],
+    "text.pug": [
+      "source.coffee",
+      "source.css",
+      "source.css.scss",
+      "source.js",
+      "source.less",
+      "source.sass",
+      "source.stylus",
+      "text.html.basic"
+    ],
+    "text.tex": [
+      "source.r"
+    ],
+    "text.xml": [
+      "source.java"
+    ],
+    "text.xml.xsl": [
+      "text.xml"
+    ],
+    "source.cmake": [],
+    "source.js.jsx": [],
+    "source.sass": [],
+    "source.stylus": [],
+    "source.ocaml.interface": [
+      "source.ocaml"
+    ],
+    "source.ocaml.ocamldoc": [
+      "source.ocaml",
+      "text.html.basic",
+      "text.tex.latex"
+    ],
+    "source.cpp.embedded.macro": [
+      "source.arm",
+      "source.asm",
+      "source.cpp",
+      "source.cpp.embedded.macro",
+      "source.glsl",
+      "source.regexp.python",
+      "source.x86",
+      "source.x86_64"
+    ],
+    "markdown.nix.codeblock": [
+      "source.nix"
+    ]
+  },
+  "scopeAdapters": {
+    "source.js.regexp": {
+      "source": "source.js",
+      "repository": "regexp",
+      "description": "Use the actual JavaScript grammar regexp repository, without Python regex rules."
+    }
+  },
+  "aliasNotes": {
+    "source.asm": "x86/x86-64 assembly; ARM is explicitly unresolved, never mapped to x86.",
+    "source.cpp.embedded.latex": "C++ code in LaTex listings uses the complete C++ grammar.",
+    "source.js.jquery": "JavaScript syntax; jQuery-specific API coloring is not provided.",
+    "source.twig": "Same Twig dialect with upstream scope name normalized.",
+    "source.less": "Same Less dialect with upstream scope name normalized.",
+    "source.scss": "Same SCSS dialect with upstream scope name normalized.",
+    "text.elixir": "Same Elixir dialect with upstream scope name normalized.",
+    "text.html.php": "PHP grammar includes PHP/HTML syntax; upstream scope name normalized."
+  },
+  "overrides": [
+    {
+      "name": "ocaml",
+      "reason": "Use actively maintained OCaml Platform syntax and proper language scopes in place of legacy ReasonML Markdown-styled grammar.",
+      "repository": "https://github.com/ocamllabs/vscode-ocaml-platform",
+      "revision": "71aa5bc671bd5685a3f7d0faeb9dafe9d3666de5",
+      "licenseFile": "vendor/OCAML-PLATFORM-LICENSE"
+    }
+  ]
+}

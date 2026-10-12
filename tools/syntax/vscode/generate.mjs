@@ -1,152 +1,149 @@
-// The parser, not a foreign language's lexer, owns every O delimiter and splice.
-// Source: crates/ostadix-api/src/{parser.rs,backend_catalog.inc.rs}.
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-const ident = '[A-Za-z_][A-Za-z0-9_]*';
-const env = '\\[(?:[0-9]+|\\*)\\]';
+// Generate offline TextMate assets and lexical token metadata from pinned inputs.
+import { mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
+const write = (path, value) => writeFileSync(new URL(path, import.meta.url), JSON.stringify(value, null, 2) + '\n');
+const languages = read('../languages.json'); write('./languages.json', languages);
+const manifest = read('./vendor/manifest.json');
+const ident = '[A-Za-z_][A-Za-z0-9_]*', env = '\\[(?:[0-9]+|\\*)\\]';
 const entry = `${ident}(?:=(?:(?![,={}])[!-~])+)?`;
-// Visible ASCII minus commas, equals, braces; spaces/tabs only around entries.
 const attrs = `\\{[ \\t]*${entry}(?:[ \\t]*,[ \\t]*${entry})*[ \\t]*\\}`;
-const groups = [
-  ['host', 'O|o|quote', 'host'],
-  ['python', 'python|py', 'python'],
-  ['javascript', 'javascript', 'javascript'],
-  ['shell', 'bash|shell', 'shell'],
-  ['html', 'html', 'html'],
-  ['sql', 'sql', 'sql'],
-  ['rust', 'rust', 'cstyle'],
-  ['cpp', 'cpp', 'cstyle'],
-  ['csharp', 'csharp', 'cstyle'],
-  ['c', 'c', 'cstyle'],
-  ['java', 'java', 'cstyle'],
-  ['ruby', 'ruby', 'ruby'],
-  ['lisp', 'racket|lisp|common_lisp', 'lisp'],
-  ['nix', 'nix|nix_expr|nix_store', 'nix'],
-  ['markdown', 'markdown|md', 'markdown'],
-  ['latex', 'latex|tex', 'latex'],
-  ['text', 'text|plain|nixos_test|ubuntu_vm|ubuntu|haskell|ocaml|webassembly|matlab|mathematica', 'plain']
-];
-const tags = groups.map(([, tags]) => tags).join('|');
-const rawTag = `(?:${tags})(?:${env})?(?:${attrs})?`;
-const closerAhead = `(?=\\)_(?:${tags})(?![A-Za-z0-9_]))`;
+const alternatives = languages.languages.flatMap(language => language.tags).sort((a,b) => b.length-a.length).join('|');
+const rawTag = `(?:${alternatives})(?:${env})?(?:${attrs})?`;
+const critical = `\\\\(?:\\$|${rawTag}\\^\\(|\\)_${rawTag})|\\$${ident}|${rawTag}\\^\\(`;
+const closerAhead = `(?=\\)_(?:${alternatives})(?![A-Za-z0-9_]))`;
+const embeddedScope = scope => `${scope}.ostadix-embedded`;
 const inc = name => ({ include: `#${name}` });
-const match = (regex, name) => ({ match: regex, name });
-const keyword = words => match(`\\b(?:${words})\\b`, 'keyword.control');
-
+const match = (pattern, name) => ({ match: pattern, name });
 const repository = {
-  host: { patterns: [
-    match('#.*$', 'comment.line.number-sign.ostadix'),
-    inc('structural'),
+  host: { patterns: [match('#.*$', 'comment.line.number-sign.ostadix'), inc('structural'),
     { match: `(let)([ \\t]+)(${ident})([ \\t]*)(=)`, captures: {
-      1: { name: 'keyword.declaration.ostadix' },
-      3: { name: 'variable.other.definition.ostadix' },
-      5: { name: 'keyword.operator.assignment.ostadix' }
-    } },
+      1: { name: 'keyword.declaration.ostadix' }, 3: { name: 'variable.other.definition.ostadix' },
+      5: { name: 'keyword.operator.assignment.ostadix' } } },
     match('(?:native_call|native_get|native_set|native_release|instantiate|realise|now|dry_activate|activate|current_system|scope|lazy|autonomous|batch|all|any|race)(?=\\()', 'support.function.builtin.ostadix'),
-    match(`(?:${ident})(?=\\()`, 'entity.name.function.ostadix'),
-    match('[(),]', 'punctuation.separator.ostadix')
-  ] },
-  structural: { patterns: [
-    match(`\\\\(?:\\$|${rawTag}\\^\\(|\\)_${rawTag})`, 'constant.character.escape.ostadix'),
-    match(`\\$${ident}`, 'variable.other.readwrite.splice.ostadix'),
-    inc('blocks')
-  ] },
-  blocks: { patterns: [] },
-  common: { patterns: [
-    inc('structural'),
-    match('\\b(?:0[xX][0-9A-Fa-f_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)\\b', 'constant.numeric'),
-    match('\\b(?:true|false|null|None|True|False|nil)\\b', 'constant.language'),
-    match('[+*/%=&|!<>?:~-]+', 'keyword.operator'),
-    match('[(){}\\[\\],;.]', 'punctuation.separator')
-  ] },
-  plain: { patterns: [inc('structural')] }
+    match(`${ident}(?=\\()`, 'entity.name.function.ostadix'), match('[(),]', 'punctuation.separator.ostadix')] },
+  structural: { patterns: [match(`\\\\(?:\\$|${rawTag}\\^\\(|\\)_${rawTag})`, 'constant.character.escape.ostadix'),
+    match(`\\$${ident}`, 'variable.other.readwrite.splice.ostadix'), inc('blocks')] },
+  blocks: { patterns: [] }
 };
-
-// Foreign strings/comments contain O syntax too. End their lexical context before
-// a closer so the outer O rule can check the *exact* opener spelling.
-const region = (begin, end, name, extra = []) => ({
-  begin, end: `${end}|${closerAhead}`, name,
-  patterns: [inc('structural'), ...extra]
-});
-const escape = match('\\\\[^\\n\\\\$]', 'constant.character.escape');
-const dq = region('"', '"', 'string.quoted.double', [escape]);
-const sq = region("'", "'", 'string.quoted.single', [escape]);
-const hash = region('#', '$', 'comment.line.number-sign');
-const slash = region('//', '$', 'comment.line.double-slash');
-const block = region('/\\*', '\\*/', 'comment.block');
-const basic = [dq, sq, inc('common')];
-repository.python = { patterns: [hash,
-  region('"""', '"""', 'string.quoted.multi.python', [escape]),
-  region("'''", "'''", 'string.quoted.multi.python', [escape]),
-  keyword('and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield'),
-  ...basic] };
-repository.javascript = { patterns: [slash, block,
-  region('`', '`', 'string.template.javascript', [escape]),
-  keyword('async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|from|function|if|import|in|instanceof|let|new|of|return|static|super|switch|throw|try|typeof|var|void|while|yield'),
-  ...basic] };
-repository.shell = { patterns: [hash,
-  keyword('case|do|done|elif|else|esac|fi|for|function|if|in|select|then|time|until|while'),
-  ...basic] };
-repository.cstyle = { patterns: [slash, block,
-  keyword('as|async|await|break|case|catch|class|const|continue|default|do|else|enum|extern|fn|for|if|impl|import|in|interface|let|loop|match|mod|move|mut|namespace|new|package|private|protected|pub|public|ref|return|static|struct|super|switch|template|this|throw|trait|try|type|typedef|unsafe|use|using|virtual|void|volatile|where|while'),
-  ...basic] };
-repository.ruby = { patterns: [hash,
-  keyword('alias|and|begin|break|case|class|def|defined|do|else|elsif|end|ensure|for|if|in|module|next|not|or|redo|rescue|retry|return|self|super|then|undef|unless|until|when|while|yield'), ...basic] };
-repository.sql = { patterns: [region('--', '$', 'comment.line.double-dash'), block,
-  match('(?i)\\b(?:select|from|where|insert|into|values|update|delete|create|drop|table|alter|join|left|right|inner|outer|on|as|and|or|not|order|by|group|having|limit|offset|union|all|distinct|set|with|null|is)\\b', 'keyword.control.sql'),
-  ...basic] };
-repository.lisp = { patterns: [region(';', '$', 'comment.line.semicolon'),
-  keyword('define|lambda|let|letrec|if|cond|begin|quote|quasiquote|defun|defvar|defparameter|progn|loop|when|unless'), dq, inc('common')] };
-repository.nix = { patterns: [hash, block,
-  keyword('assert|else|if|in|inherit|let|or|rec|then|with'), ...basic] };
-repository.html = { patterns: [region('<!--', '-->', 'comment.block.html'),
-  { ...region('(</?)([A-Za-z][A-Za-z0-9:-]*)', '/?>', 'meta.tag.html', [dq, sq, match('[A-Za-z_:][A-Za-z0-9_:-]*(?=\\s*=)', 'entity.other.attribute-name.html')]),
-    beginCaptures: { 1: { name: 'punctuation.definition.tag.begin.html' }, 2: { name: 'entity.name.tag.html' } },
-    endCaptures: { 0: { name: 'punctuation.definition.tag.end.html' } }
-  },
-  match('&(?:[A-Za-z][A-Za-z0-9]+|#[0-9]+|#x[0-9A-Fa-f]+);', 'constant.character.entity.html'),
-  inc('structural')] };
-repository.markdown = { patterns: [
-  // Heading markup is a token; the remainder remains available to O splices.
-  match('^#{1,6}(?=\\s)', 'markup.heading.markdown'),
-  match('(?:\\*\\*|__|\\*|_|`)', 'punctuation.definition.markup.markdown'), inc('structural')] };
-repository.latex = { patterns: [region('%', '$', 'comment.line.percentage.latex'),
-  match('\\\\[A-Za-z]+', 'support.function.latex'), inc('structural')] };
-
-for (const [name, alternatives, body] of groups) {
-  // Three variants preserve the parser's distinct closer suffix checks.
-  for (const form of ['attrs', 'env', 'bare']) {
+for (const language of languages.languages) {
+  for (const form of ['attrs','env','bare']) {
     const suffix = form === 'attrs' ? `(${env})?(${attrs})` : form === 'env' ? `(${env})` : '';
     const guard = form === 'attrs' ? '' : form === 'env' ? '(?!\\{)' : '(?![A-Za-z0-9_\\[{])';
-    const begin = `((${alternatives})${suffix})(\\^\\()`;
-    const delimiterGroup = form === 'attrs' ? 5 : form === 'env' ? 4 : 3;
-    const captures = {
-      2: { name: 'support.type.evaluator.ostadix' },
-      [delimiterGroup]: { name: 'punctuation.section.block.begin.ostadix' }
-    };
+    const delimiter = form === 'attrs' ? 5 : form === 'env' ? 4 : 3;
+    const captures = { 2: { name: 'support.type.evaluator.ostadix' },
+      [delimiter]: { name: 'punctuation.section.block.begin.ostadix' } };
     if (form !== 'bare') captures[3] = { name: 'constant.numeric.environment.ostadix' };
     if (form === 'attrs') captures[4] = { name: 'storage.modifier.attribute.ostadix' };
-    repository.blocks.patterns.push({
-      name: `meta.block.${name}.ostadix`,
-      contentName: name === 'host' ? 'meta.sequence.ostadix' : `meta.embedded.block.${name}.ostadix`,
-      begin, beginCaptures: captures,
-      end: `(\\)_)(\\1)${guard}`,
-      endCaptures: {
-        1: { name: 'punctuation.section.block.end.ostadix' },
-        2: { name: 'support.type.evaluator.ostadix' }
-      },
-      patterns: [inc('structural'), inc(body)]
-    });
+    repository.blocks.patterns.push({ name: `meta.block.${language.key}.ostadix`,
+      contentName: language.key === 'host' ? 'meta.sequence.ostadix' : `meta.embedded.block.${language.key}.ostadix`,
+      begin: `((${language.tags.join('|')})${suffix})(\\^\\()`, beginCaptures: captures,
+      end: `(\\)_)(\\1)${guard}`, endCaptures: {
+        1: { name: 'punctuation.section.block.end.ostadix' }, 2: { name: 'support.type.evaluator.ostadix' } },
+      patterns: language.key === 'host' ? [inc('host')] : [inc('structural'),
+        ...(language.key === 'text' ? [] : [{ include: embeddedScope(language.textmateScope) }])] });
   }
 }
-const grammar = {
-  $schema: 'https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json',
-  name: 'Ostadix-lang', scopeName: 'source.ostadix',
-  comment: 'Generated by ../generate.mjs. Exact O delimiters and lightweight embedded lexical rules; no language server or evaluation.',
-  patterns: [inc('host')], repository
+const main = { name: 'Ostadix-lang', scopeName: 'source.ostadix',
+  comment: 'Generated full foreign TextMate grammar overlay. VS Code lexical token provider preserves exact O ancestor context across foreign strings/comments.',
+  patterns: [inc('host')], repository };
+rmSync(new URL('./syntaxes/embedded/', import.meta.url), {recursive:true, force:true});
+mkdirSync(new URL('./syntaxes/embedded/', import.meta.url), { recursive: true });
+function adaptedInjectionSelector(selector) {
+  for (const language of languages.languages) if (language.key !== 'host') selector = selector.split(language.textmateScope).join(`meta.embedded.block.${language.key}.ostadix`);
+  return selector;
+}
+main.injections = {};
+for (const record of manifest.grammars.filter(record => record.injectTo?.length)) {
+  const raw = read(record.path);
+  if (raw.injectionSelector) main.injections[adaptedInjectionSelector(raw.injectionSelector)] = {patterns:[{include:embeddedScope(record.scopeName)}]};
+}
+write('./syntaxes/ostadix.tmLanguage.json', main);
+const scopeNames = new Set(['source.ostadix','text.plain','string','comment','constant.numeric','keyword','variable','markup']);
+function collect(value) {
+  if (!value || typeof value !== 'object') return;
+  for (const [key, child] of Object.entries(value)) {
+    if ((key === 'name' || key === 'contentName') && typeof child === 'string') {
+      for (let scope of child.split(' ')) {
+        if (scope.includes('$')) scope = scope.slice(0, scope.indexOf('$')).replace(/\.$/, '');
+        if (scope) scopeNames.add(scope);
+      }
+    } else if (child && typeof child === 'object') collect(child);
+  }
+}
+collect(main);
+const byScope = new Map(manifest.grammars.map(grammar => [grammar.scopeName, grammar]));
+function adapt(value) {
+  if (!value || typeof value !== 'object') return;
+  if (typeof value.include === 'string' && !/^[#$]/.test(value.include)) {
+    const [scope, fragment] = value.include.split('#');
+    value.include = embeddedScope(scope) + (fragment ? `#${fragment}` : '');
+  }
+  for (const property of ['match','begin']) if (typeof value[property] === 'string') value[property] = `(?~|${critical}|${value[property]})`;
+  if (typeof value.end === 'string') value.end = `${closerAhead}|(?:${value.end})`;
+  if (typeof value.while === 'string') {
+    // TextMate while contexts cannot exit midway through a line. The static
+    // overlay keeps their line condition and adds an O boundary; the exact
+    // provider tokenizes the untouched upstream while grammar.
+    value.end = `${closerAhead}|^(?!${value.while})`;
+    delete value.while; delete value.whileCaptures;
+  }
+  if (value.begin) {
+    value.patterns ||= [];
+    value.patterns.unshift({ include: 'source.ostadix#structural' });
+  } else if (Array.isArray(value.patterns)) value.patterns.unshift({ include: 'source.ostadix#structural' });
+  for (const child of Object.values(value)) {
+    if (Array.isArray(child)) { for (const rule of child) if (rule.include !== 'source.ostadix#structural') adapt(rule); }
+    else if (child && typeof child === 'object') adapt(child);
+  }
+}
+const grammarEntries = [{ language: 'ostadix', scopeName: main.scopeName, path: './syntaxes/ostadix.tmLanguage.json',
+  embeddedLanguages: Object.fromEntries(languages.languages.filter(language => language.key !== 'host')
+    .map(language => [`meta.embedded.block.${language.key}.ostadix`, language.vscodeLanguage])) }];
+for (const record of manifest.grammars) {
+  const bytes = readFileSync(new URL(record.path, import.meta.url));
+  if (createHash('sha256').update(bytes).digest('hex') !== record.sha256) throw new Error(`Pinned grammar changed: ${record.path}`);
+  const raw = JSON.parse(bytes); collect(raw); scopeNames.add(raw.scopeName);
+  adapt(raw); raw.scopeName = embeddedScope(record.scopeName);
+  if (raw.injectionSelector) raw.injectionSelector = adaptedInjectionSelector(raw.injectionSelector);
+  const path = `./syntaxes/embedded/${record.name}.tmLanguage.json`; write(path, raw);
+  grammarEntries.push({ scopeName: raw.scopeName, path, ...(record.injectTo?.length ? {injectTo:record.injectTo.map(embeddedScope)} : {}) });
+}
+for (const [alias, scope] of Object.entries(manifest.scopeAliases)) {
+  const record = byScope.get(scope);
+  if (!record) throw new Error(`Missing scope alias target ${scope}`);
+  const raw = read(`./syntaxes/embedded/${record.name}.tmLanguage.json`); raw.scopeName = embeddedScope(alias);
+  const path = `./syntaxes/embedded/alias-${alias}.tmLanguage.json`; write(path, raw);
+  grammarEntries.push({ scopeName: raw.scopeName, path });
+}
+for (const [scope, adapter] of Object.entries(manifest.scopeAdapters || {})) {
+  const record = byScope.get(adapter.source);
+  const raw = read(`./syntaxes/embedded/${record.name}.tmLanguage.json`);
+  raw.scopeName = embeddedScope(scope); raw.patterns = [{ include: 'source.ostadix#structural' }, { include: '#' + adapter.repository }];
+  const path = `./syntaxes/embedded/adapter-${scope}.tmLanguage.json`; write(path, raw);
+  grammarEntries.push({ scopeName: raw.scopeName, path });
+}
+write('./syntaxes/embedded/plain.tmLanguage.json', { scopeName: embeddedScope('text.plain'), patterns: [{include: 'source.ostadix#structural'}] });
+grammarEntries.push({ scopeName: embeddedScope('text.plain'), path: './syntaxes/embedded/plain.tmLanguage.json' });
+const fallback = scope => {
+  if (/comment/.test(scope)) return 'comment';
+  if (/string|regexp/.test(scope)) return 'string';
+  if (/constant.numeric/.test(scope)) return 'number';
+  if (/keyword/.test(scope)) return 'keyword';
+  if (/storage|support.type|entity.name.type|entity.name.class/.test(scope)) return 'type';
+  if (/entity.name.function|support.function/.test(scope)) return 'function';
+  if (/variable|entity.other.attribute/.test(scope)) return 'variable';
+  if (/constant/.test(scope)) return 'enumMember';
+  return undefined;
 };
-const output = new URL('./syntaxes/ostadix.tmLanguage.json', import.meta.url);
-mkdirSync(fileURLToPath(new URL('./syntaxes/', import.meta.url)), { recursive: true });
-writeFileSync(output, JSON.stringify(grammar, null, 2) + '\n');
-console.log(`Generated ${fileURLToPath(output)}`);
+const legend = [...scopeNames].sort().map(scope => ({ scope,
+  id: `o${createHash('sha256').update(scope).digest('hex').slice(0,16)}`, superType: fallback(scope) }));
+write('./token-scopes.json', legend);
+const pkg = read('./package.json'); pkg.version = '0.2.0'; pkg.main = './extension.cjs';
+pkg.activationEvents = ['onLanguage:ostadix']; pkg.contributes.grammars = grammarEntries;
+pkg.contributes.configurationDefaults = { '[ostadix]': { 'editor.semanticHighlighting.enabled': true } };
+pkg.contributes.semanticTokenTypes = legend.map(({ scope,id,superType }) => ({ id,
+  description: `Lexical TextMate scope: ${scope}`, ...(superType ? { superType } : {}) }));
+pkg.contributes.semanticTokenScopes = [{ language: 'ostadix', scopes: Object.fromEntries(legend.map(({scope,id}) => [id,[scope]])) }];
+write('./package.json', pkg);
+console.log(`Generated ${grammarEntries.length} full TextMate assets and ${legend.length} lexical token scopes.`);

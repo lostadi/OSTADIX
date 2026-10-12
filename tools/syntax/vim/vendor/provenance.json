@@ -1,0 +1,23 @@
+{
+  "schema": "ostadix.vim-vendor/v1",
+  "packages": [
+    {
+      "name": "vim-wasm",
+      "upstream": "https://github.com/rhysd/vim-wasm",
+      "commit": "8ee107a8c2034ef2b195fc82214ed2b4530a99b6",
+      "license": "MIT",
+      "files": [
+        {
+          "source": "syntax/wat.vim",
+          "file": "../syntax/wat.vim",
+          "sha256": "75a609d0d30379ab089ac603f6b49fbbaf4142a6b702b32601b36f49cad8a3d8"
+        },
+        {
+          "source": "LICENSE",
+          "file": "LICENSE-wat",
+          "sha256": "209854ec79677e118190e10ad7aeb9fe71a9e71fb6876ef6d2a368562b166c02"
+        }
+      ]
+    }
+  ]
+}

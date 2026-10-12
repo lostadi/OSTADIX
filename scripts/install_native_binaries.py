@@ -18,6 +18,7 @@ import tempfile
 RUST_TOOLS = (
     "O", "o-cli", "olangc", "ocorec", "o-link", "o-unlink", "ogit",
     "o-live-host", "o-node", "octl", "o-registry", "o-info", "ostadix-device",
+    "ocore-kernel-world-record",
 )
 NATIVE_MAGICS = {b"\x7fELF", b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe",
                  b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe",
@@ -54,23 +55,39 @@ def case_insensitive_directory(directory: Path) -> bool:
         probe.unlink()
 
 
+def executable(directory: Path, name: str) -> Path:
+    ordinary = directory / name
+    windows = directory / f"{name}.exe"
+    if ordinary.is_file():
+        return ordinary
+    if windows.is_file() or os.name == "nt" or (directory / "o-cli.exe").is_file():
+        return windows
+    return ordinary
+
+
 def install(repo: Path, build: Path, destination: Path, *, front_door_only: bool = False,
-            include_c: bool = False, include_notebook: bool = False, c_build_dir: Path | None = None,
+            include_c: bool = False, include_notebook: bool = False, include_workspace_tools: bool = False, c_build_dir: Path | None = None,
             dry_run: bool = False) -> list[str]:
     repo, build = repo.resolve(), build.resolve()
     destination = destination.absolute()
     names = ("O", "o-cli") if front_door_only else RUST_TOOLS
-    copies = [(build / name, destination / name) for name in names]
-    if not front_door_only and (include_notebook or (build / "o-notebook").is_file()):
-        copies.append((build / "o-notebook", destination / "o-notebook"))
+    def copy_pair(directory, name, alias=None):
+        source = executable(directory, name)
+        suffix = ".exe" if source.suffix.lower() == ".exe" else ""
+        return source, destination / f"{alias or name}{suffix}"
+    copies = [copy_pair(build, name) for name in names]
+    if not front_door_only and (include_notebook or executable(build, "o-notebook").is_file()):
+        copies.append(copy_pair(build, "o-notebook"))
+    if not front_door_only and include_workspace_tools:
+        copies.append(copy_pair(build, "ostadix"))
     if include_c:
         c_build = c_build_dir.resolve() if c_build_dir else repo / "c_cpp"
-        copies.extend((c_build / name, destination / alias)
+        copies.extend(copy_pair(c_build, name, alias)
                       for name, alias in (("O", "o-c"), ("olangc", "olangc-c")))
     # Copy the evaluator before installing o; on case-insensitive filesystems
     # the last replacement also becomes uppercase O, without losing raw O.
-    copies.extend(((build / "O", destination / "ostadix-evaluator"),
-                   (build / "o-cli", destination / "o")))
+    copies.extend((copy_pair(build, "O", "ostadix-evaluator"),
+                   copy_pair(build, "o-cli", "o")))
     plan = [f"replace {target} from {source}" for source, target in copies]
     metadata = destination / "ostadix-install.json"
     plan.append(f"write {metadata} for {repo}")
@@ -85,12 +102,12 @@ def install(repo: Path, build: Path, destination: Path, *, front_door_only: bool
     destination.mkdir(parents=True, exist_ok=True)
     shared_front_door = case_insensitive_directory(destination)
     if shared_front_door:
-        plan = [entry for entry in plan if entry != f"replace {destination / 'O'} from {build / 'O'}"]
+        plan = [entry for entry in plan if not any(target.stem == "O" and entry == f"replace {target} from {source}" for source, target in copies)]
         plan.append(f"O/o share the compiled front door in {destination}; raw evaluation uses ostadix-evaluator")
     for source, target in copies:
         # Keep the previous front door usable until its final replacement.
         # Installing raw O here would temporarily replace o on macOS.
-        if shared_front_door and target.name == "O":
+        if shared_front_door and target.stem == "O":
             continue
         atomic_copy(source, target)
     descriptor, temporary = tempfile.mkstemp(prefix=".ostadix-install.", dir=destination)
@@ -114,12 +131,14 @@ def main() -> int:
     parser.add_argument("--include-c", action="store_true")
     parser.add_argument("--c-build-dir", type=Path, help="C Make/CMake build directory (default: REPO/c_cpp)")
     parser.add_argument("--include-notebook", action="store_true")
+    parser.add_argument("--include-workspace-tools", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     try:
         for line in install(args.repo_root, args.build_dir or args.repo_root / "target/release",
                             args.bin_dir, front_door_only=args.front_door_only,
                             include_c=args.include_c, include_notebook=args.include_notebook,
+                            include_workspace_tools=args.include_workspace_tools,
                             c_build_dir=args.c_build_dir, dry_run=args.dry_run):
             print(("[DRY] " if args.dry_run else "") + line)
     except (OSError, ValueError) as error:

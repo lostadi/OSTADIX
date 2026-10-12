@@ -47,6 +47,42 @@ class NativeInstallTests(unittest.TestCase):
         self.assertEqual(current.read_bytes(), b"current executable")
         self.assertFalse((self.destination / "o-cli").exists())
 
+    def test_workspace_command_is_explicit_and_preflighted(self):
+        with self.assertRaisesRegex(ValueError, "compiled executable missing"):
+            installer.install(self.repo, self.build, self.destination, include_workspace_tools=True)
+        self.assertFalse(self.destination.exists())
+        source = self.build / "ostadix"
+        source.write_bytes(b"\x7fELFworkspace")
+        source.chmod(0o755)
+        installer.install(self.repo, self.build, self.destination, include_workspace_tools=True)
+        self.assertEqual((self.destination / "ostadix").read_bytes(), source.read_bytes())
+
+    def test_windows_pe_sources_keep_exe_suffix_for_tools_and_aliases(self):
+        for name in installer.RUST_TOOLS:
+            (self.build / name).unlink()
+            path = self.build / f"{name}.exe"
+            path.write_bytes(b"MZ" + name.encode())
+            path.chmod(0o755)
+        installer.install(self.repo, self.build, self.destination)
+        for name in installer.RUST_TOOLS:
+            self.assertEqual((self.destination / f"{name}.exe").read_bytes(), (self.build / f"{name}.exe").read_bytes())
+        self.assertEqual((self.destination / "o.exe").read_bytes(), (self.build / "o-cli.exe").read_bytes())
+        self.assertEqual((self.destination / "ostadix-evaluator.exe").read_bytes(), (self.build / "O.exe").read_bytes())
+        self.assertFalse((self.destination / "o-cli").exists())
+
+    def test_case_insensitive_pe_install_preserves_raw_evaluator_and_front_door(self):
+        from unittest.mock import patch
+        for name in installer.RUST_TOOLS:
+            (self.build / name).unlink()
+            path = self.build / f"{name}.exe"
+            path.write_bytes(b"MZ" + name.encode())
+            path.chmod(0o755)
+        with patch.object(installer, "case_insensitive_directory", return_value=True):
+            installer.install(self.repo, self.build, self.destination)
+        self.assertFalse((self.destination / "O.exe").exists())
+        self.assertEqual((self.destination / "o.exe").read_bytes(), (self.build / "o-cli.exe").read_bytes())
+        self.assertEqual((self.destination / "ostadix-evaluator.exe").read_bytes(), (self.build / "O.exe").read_bytes())
+
     def test_shell_script_is_rejected_before_installing_anything(self):
         (self.build / "o-cli").write_text("#!/bin/sh\nexit 0\n")
         with self.assertRaisesRegex(ValueError, "expected a compiled executable"):

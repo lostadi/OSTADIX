@@ -30,7 +30,7 @@ if [[ ! -f "$ANDROID_JAR" ]]; then
 fi
 
 echo "[1/6] Running dependency-free safety and unit tests"
-"$APP_ROOT/tests/self-test.sh"
+"$BASH" "$APP_ROOT/tests/self-test.sh"
 
 if [[ -d "$INTERMEDIATES" ]]; then
     find "$INTERMEDIATES" -mindepth 1 -delete

@@ -68,12 +68,68 @@ OSTADIX_API_ALLOWED_PREFIXES = (
     f"{OSTADIX_API_ROOT}/test-assets/",
     f"{OSTADIX_API_ROOT}/tests/",
 )
+# Setup consumes these reviewed tools directly. Keep the boundary scoped to
+# their complete source trees rather than admitting unrelated tools/research.
+SETUP_TOOL_ALLOWED_PREFIXES = (
+    "tools/syntax/",
+    "tools/nano-factory-reader/",
+    "tools/nano-local-loader/",
+    "tools/ocore-runtime/",
+)
+SETUP_COMPONENT_RELEASE_PATHS = frozenset(
+    {
+        "ostadix-core/Cargo.toml",
+        "ostadix-core/src/main.rs",
+        "ostadix-core/src/injector.sh",
+        "scripts/setup_components.py",
+        "tools/syntax/install.py",
+        "tools/syntax/languages.json",
+        "tools/syntax/textmate_export.py",
+        "tools/syntax/nano/ostadix.nanorc",
+        "tools/syntax/bat/Ostadix.sublime-syntax",
+        "tools/syntax/vim/ftdetect/ostadix.vim",
+        "tools/syntax/vim/syntax/ostadix.vim",
+        "tools/syntax/vim/vendor/provenance.json",
+        "tools/syntax/emacs/ostadix-mode.el",
+        "tools/syntax/emacs/vendor/provenance.json",
+        "tools/syntax/sublime/Ostadix.tmLanguage",
+        "tools/syntax/terminal/ocat",
+        "tools/syntax/terminal/ostadix-cat.zsh",
+        "tools/syntax/vscode/package.json",
+        "tools/syntax/vscode/extension.cjs",
+        "tools/syntax/vscode/scanner.cjs",
+        "tools/syntax/vscode/tokenizer.cjs",
+        "tools/syntax/vscode/token-scopes.json",
+        "tools/syntax/vscode/languages.json",
+        "tools/syntax/vscode/language-configuration.json",
+        "tools/syntax/vscode/vendor/manifest.json",
+        "tools/syntax/vscode/vendor/LICENSE",
+        "tools/syntax/vscode/vendor/NOTICE",
+        "tools/syntax/vscode/runtime/manifest.json",
+        "tools/syntax/vscode/runtime/vscode-textmate/main.js",
+        "tools/syntax/vscode/runtime/vscode-textmate/LICENSE.md",
+        "tools/syntax/vscode/runtime/vscode-oniguruma/main.js",
+        "tools/syntax/vscode/runtime/vscode-oniguruma/onig.wasm",
+        "tools/syntax/vscode/runtime/vscode-oniguruma/LICENSE.txt",
+        "tools/syntax/vscode/runtime/vscode-oniguruma/NOTICES.txt",
+        "tools/nano-factory-reader/build.sh",
+        "tools/nano-factory-reader/src/org/ostadix/nano/FactoryReader.java",
+        "tools/nano-local-loader/build.sh",
+        "tools/nano-local-loader/src/org/ostadix/nanoloader/LocalModelProbe.java",
+    }
+)
+# This immutable, checksum-inventoried tokenizer input is needed at runtime.
+# Generated application WASM remains excluded everywhere else.
+ALLOWED_BINARY_INPUT_PATHS = frozenset(
+    {"tools/syntax/vscode/runtime/vscode-oniguruma/onig.wasm"}
+)
 
 # Keep this list intentionally narrow.  Adding a new top-level project surface
 # requires an explicit release-engineering decision here.
 ALLOWED_TOP_LEVEL_FILES = frozenset(
     {
         ".dockerignore",
+        ".gitattributes",
         ".gitignore",
         ".mcp.json",
         "ARCHITECTURE.md",
@@ -330,6 +386,7 @@ ALLOWED_TOP_LEVEL_DIRECTORIES = frozenset(
         "mcp",
         "o_lang",
         "ocore",
+        "ostadix-core",
         "scripts",
         "setup",
         "src",
@@ -449,6 +506,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         ".github/pull_request_template.md",
         ".github/dependabot.yml",
         ".dockerignore",
+        ".gitattributes",
         ".gitignore",
         ".mcp.json",
         "CITATION.cff",
@@ -945,6 +1003,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
     | frozenset(OSTADIX_API_ROOT_MODULE_PATHS.values())
     | NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS
     | HUMAN_LLM_INTERFACE_RELEASE_PATHS
+    | SETUP_COMPONENT_RELEASE_PATHS
 )
 VALID_GIT_MODES = frozenset({"100644", "100755"})
 REQUIRED_EXECUTABLE_RELEASE_PATHS = frozenset(
@@ -1286,8 +1345,10 @@ def is_allowed_release_path(path: str) -> bool:
         or path.startswith("src/bin/")
     ):
         return False
-    api_scoped = any(path.startswith(prefix) for prefix in OSTADIX_API_ALLOWED_PREFIXES)
-    if path not in ALLOWED_EXACT_PATHS and not api_scoped:
+    scoped = any(path.startswith(prefix) for prefix in (
+        *OSTADIX_API_ALLOWED_PREFIXES, *SETUP_TOOL_ALLOWED_PREFIXES
+    ))
+    if path not in ALLOWED_EXACT_PATHS and not scoped:
         if len(parts) == 1:
             if top not in ALLOWED_TOP_LEVEL_FILES:
                 return False
@@ -1309,7 +1370,9 @@ def is_allowed_release_path(path: str) -> bool:
         return False
     if basename.endswith("~") or basename.startswith(".#"):
         return False
-    if basename.endswith(EXCLUDED_SUFFIXES) and path not in ALLOWED_HTML_PATHS:
+    if basename.endswith(EXCLUDED_SUFFIXES) and path not in (
+        ALLOWED_HTML_PATHS | ALLOWED_BINARY_INPUT_PATHS
+    ):
         return False
     return True
 
@@ -1396,6 +1459,153 @@ def validate_generated_runtime_source_closure(entries: Sequence[SourceEntry]) ->
         )
 
 
+def validate_setup_source_closure(entries: Sequence[SourceEntry]) -> None:
+    """Keep workspace setup and the offline editor dependency inputs complete."""
+
+    files = {entry.path: entry.data for entry in entries}
+    missing = sorted(SETUP_COMPONENT_RELEASE_PATHS - files.keys())
+    if missing:
+        raise ReleaseError("release omits setup source closure path(s): " + ", ".join(missing))
+
+    def require(path: str) -> bytes:
+        if path not in files:
+            raise ReleaseError(f"release omits setup source closure path: {path}")
+        return files[path]
+
+    def json_input(path: str):
+        return _strict_json(require(path), path)
+
+    def object_list(value, label: str) -> list[dict]:
+        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+            raise ReleaseError(f"{label} must be an array of objects")
+        return value
+
+    def editor_path(reference: str) -> str:
+        if not isinstance(reference, str):
+            raise ReleaseError("editor dependency inventory path must be a string")
+        path = _resolve_compile_time_include("tools/syntax/vscode/package.json", reference)
+        if not path.startswith("tools/syntax/vscode/"):
+            raise ReleaseError(f"editor dependency path escapes its package: {reference}")
+        return path
+
+    def checked_digest(path: str, digest) -> None:
+        if not isinstance(digest, str) or not HEX_DIGEST.fullmatch(digest):
+            raise ReleaseError(f"editor dependency lacks a SHA-256 digest: {path}")
+        if hashlib.sha256(require(path)).hexdigest() != digest:
+            raise ReleaseError(f"pinned editor dependency checksum mismatch: {path}")
+
+    def checked_record(record: dict) -> str:
+        path = editor_path(record.get("path"))
+        checked_digest(path, record.get("sha256"))
+        return path
+
+    try:
+        cargo = tomllib.loads(require("Cargo.toml").decode("utf-8", "strict"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise ReleaseError(f"invalid setup Cargo.toml: {error}") from error
+    for member in cargo.get("workspace", {}).get("members", []):
+        if not isinstance(member, str):
+            raise ReleaseError("workspace member must be a source-relative string")
+        manifest = _resolve_compile_time_include("Cargo.toml", f"{member}/Cargo.toml")
+        if any(marker in member for marker in "*?["):
+            if not any(PurePosixPath(path).match(manifest) for path in files):
+                raise ReleaseError(f"release omits workspace member manifest: {manifest}")
+        else:
+            require(manifest)
+
+    shared_languages = require("tools/syntax/languages.json")
+    if shared_languages != require("tools/syntax/vscode/languages.json"):
+        raise ReleaseError("VS Code language map differs from the shared setup language map")
+    languages = json_input("tools/syntax/languages.json")
+    package = json_input("tools/syntax/vscode/package.json")
+    vendor = json_input("tools/syntax/vscode/vendor/manifest.json")
+    runtime = json_input("tools/syntax/vscode/runtime/manifest.json")
+    if not all(isinstance(value, dict) for value in (languages, package, vendor)) or not isinstance(runtime, list):
+        raise ReleaseError("invalid editor package/dependency inventory structure")
+    require(editor_path(package.get("main")))
+    scopes = set()
+    for record in object_list(vendor.get("grammars"), "vendor grammar inventory"):
+        path = checked_record(record)
+        grammar = json_input(path)
+        if not isinstance(grammar, dict) or grammar.get("scopeName") != record.get("scopeName"):
+            raise ReleaseError(f"pinned editor grammar scope mismatch: {path}")
+        scopes.add(record["scopeName"])
+        if record.get("licenseFile"):
+            require(editor_path(record["licenseFile"]))
+    for language in object_list(languages.get("languages"), "editor language inventory"):
+        if language.get("key") not in {"host", "text"} and language.get("textmateScope") not in scopes:
+            raise ReleaseError(f"release omits required backend grammar: {language.get('textmateScope')}")
+    generated = {}
+    contributes = package.get("contributes")
+    if not isinstance(contributes, dict):
+        raise ReleaseError("editor package contributes must be an object")
+    for record in object_list(contributes.get("grammars"), "generated editor grammar inventory"):
+        path = editor_path(record.get("path"))
+        grammar = json_input(path)
+        if not isinstance(grammar, dict) or grammar.get("scopeName") != record.get("scopeName"):
+            raise ReleaseError(f"generated editor grammar scope mismatch: {path}")
+        if record["scopeName"] in generated:
+            raise ReleaseError(f"duplicate generated editor grammar scope: {record['scopeName']}")
+        generated[record["scopeName"]] = grammar
+
+    def includes(value):
+        if isinstance(value, dict):
+            reference = value.get("include")
+            if isinstance(reference, str) and not reference.startswith(("#", "$")):
+                yield reference.split("#", 1)[0]
+            for child in value.values():
+                yield from includes(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from includes(child)
+
+    optional_scopes = {
+        scope + ".ostadix-embedded"
+        for scope in vendor.get("unresolvedOptionalIncludes", [])
+    }
+    for scope, grammar in generated.items():
+        missing_scopes = sorted(set(includes(grammar)) - generated.keys() - optional_scopes)
+        if missing_scopes:
+            raise ReleaseError(f"release omits generated grammar dependency for {scope}: {', '.join(missing_scopes)}")
+    inventoried_runtime = {
+        checked_record(record)
+        for record in object_list(runtime, "editor tokenizer runtime inventory")
+    }
+    required_runtime = {
+        path for path in SETUP_COMPONENT_RELEASE_PATHS
+        if path.startswith("tools/syntax/vscode/runtime/")
+        and path != "tools/syntax/vscode/runtime/manifest.json"
+    }
+    if missing_runtime := sorted(required_runtime - inventoried_runtime):
+        raise ReleaseError("runtime editor inventory omits input(s): " + ", ".join(missing_runtime))
+
+    for editor in ("emacs", "vim"):
+        provenance_path = f"tools/syntax/{editor}/vendor/provenance.json"
+        provenance = json_input(provenance_path)
+        if not isinstance(provenance, dict):
+            raise ReleaseError(f"editor provenance must be an object: {provenance_path}")
+        for package in object_list(provenance.get("packages"), f"{editor} package inventory"):
+            name = package.get("name")
+            if not isinstance(name, str) or not re.fullmatch(r"[\w-]+", name):
+                raise ReleaseError(f"invalid editor vendor package name: {name!r}")
+            owner = (
+                f"tools/syntax/{editor}/vendor/{name}/provenance.json"
+                if editor == "emacs" else provenance_path
+            )
+            records = [
+                *object_list(package.get("files"), f"{editor} package file inventory"),
+                *object_list(package.get("additionalFiles", []), f"{editor} additional file inventory"),
+            ]
+            for record in records:
+                reference = record.get("file")
+                if not isinstance(reference, str):
+                    raise ReleaseError("native editor dependency path must be a string")
+                path = _resolve_compile_time_include(owner, reference)
+                if not path.startswith(f"tools/syntax/{editor}/"):
+                    raise ReleaseError(f"native editor dependency path escapes its package: {reference}")
+                checked_digest(path, record.get("sha256"))
+
+
 def collect_source_entries(repo: Path, commit: str) -> list[SourceEntry]:
     tree = _git(repo, "ls-tree", "-r", "-z", "--full-tree", commit)
     selected: list[tuple[str, str, str]] = []
@@ -1451,6 +1661,7 @@ def collect_source_entries(repo: Path, commit: str) -> list[SourceEntry]:
         for path, mode, oid in selected
     ]
     validate_generated_runtime_source_closure(entries)
+    validate_setup_source_closure(entries)
     validate_document_links(entries)
     validate_release_metadata(entries)
     return entries
@@ -2162,7 +2373,7 @@ def _validate_workspace_facade_release_surface(files: dict[str, bytes]) -> None:
     if not isinstance(workspace, dict):
         raise ReleaseError("Cargo.toml must contain a workspace table")
     expected_workspace = {
-        "members": [".", "crates/ostadix-api"],
+        "members": [".", "crates/ostadix-api", "ostadix-core"],
         "default-members": [".", "crates/ostadix-api"],
         "exclude": ["fuzz", "mcp/ostadix_lang_mcp_server"],
         "resolver": "2",
@@ -4331,6 +4542,7 @@ def verify_archive(path: Path | str) -> dict[str, object]:
                     + ", ".join(missing_required)
                 )
             validate_generated_runtime_source_closure(archive_entries)
+            validate_setup_source_closure(archive_entries)
             validate_document_links(archive_entries)
             validate_release_metadata(archive_entries)
 

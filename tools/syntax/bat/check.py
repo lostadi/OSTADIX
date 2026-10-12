@@ -2,6 +2,7 @@
 """Exercise the installed bat engine using a temporary Ostadix syntax cache."""
 
 import argparse
+import json
 import os
 from pathlib import Path
 import re
@@ -112,8 +113,37 @@ def main():
         sample = directory / "extension.olang"
         sample.write_text("python^(42)_python\n")
         render(sample)
+        families = json.loads((ROOT / "tools/syntax/languages.json").read_text())["languages"]
+        words = {"host": "let", "python": "def", "javascript": "function", "shell": "then",
+                 "html": "<div>", "sql": "SELECT", "rust": "fn", "cpp": "namespace",
+                 "csharp": "namespace", "c": "return", "java": "class", "ruby": "def",
+                 "lisp": "defun", "racket": "define", "nix": "inherit", "markdown": "#",
+                 "latex": r"\section", "text": "def", "haskell": "module", "ocaml": "functor",
+                 "webassembly": "module", "matlab": "function", "mathematica": "Module"}
+        tags_checked = 0
+        for family in families:
+            key, word = family["key"], words[family["key"]]
+            for tag in family["tags"]:
+                sample = directory / "family.O"
+                sample.write_text(f"{tag}^(\n{word} sentinel\n)_{tag}\n")
+                text = sample.read_text()
+                styles = render(sample)
+                keyword_at = text.index(word, len(tag) + 3)
+                if key == "html":
+                    keyword_at += 1  # The tag name has the language-specific color.
+                plain_at = text.index("sentinel")
+                if key == "text":
+                    assert styles[keyword_at] == styles[plain_at], f"Plaintext colored as code: {tag}"
+                else:
+                    assert styles[keyword_at] != styles[plain_at], f"Missing {key} body coloring: {tag}"
+                tags_checked += 1
+        sample.write_text("nix^(\ndef sentinel\n)_nix\n")
+        text = sample.read_text()
+        styles = render(sample)
+        assert styles[text.index("def")] == styles[text.index("sentinel")], "Python keyword leaked into Nix"
         print("PASS: isolated bat cache, 9 structural edge cases, 7 repository examples,")
-        print("      .O/.olang autodetection, ANSI colors, and source-byte preservation.")
+        print(f"      {tags_checked} language routes, plaintext isolation, .O/.olang detection,")
+        print("      ANSI colors and source-byte preservation.")
 
 
 if __name__ == "__main__":

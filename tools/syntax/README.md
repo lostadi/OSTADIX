@@ -1,116 +1,155 @@
-# Ostadix-lang syntax highlighting
+# Ostadix-lang editor support
 
-Local highlighting for `.O` and `.olang` files in VS Code, bat, GNU nano,
-and interactive zsh `cat`. These files cover hosted Ostadix orchestration;
+`setup.sh` and the platform launchers in `setup/` install `.O` and `.olang`
+highlighting for supported editors found on the machine. This also runs with
+`--minimal` and `--deps-only`. Editors themselves are not installed.
 O-core `.oc` is a separate language.
 
 ## Install
 
-From the repository root:
-
 ```sh
-# macOS dependencies (Apple's /usr/bin/nano may actually be Pico):
-brew install bat nano
+./setup.sh -y --minimal
+# Update editor support alone, without rebuilding O:
 python3 tools/syntax/install.py
 ```
 
-The VS Code `code` CLI must be on PATH. The installer builds a local VSIX using
-Python's standard library and installs `lostadi.ostadix-lang`. No Marketplace
-publication, account, runtime compilation, or npm dependencies are needed.
-Run **Developer: Reload Window** in an already-open VS Code window if `.O`
-files have not switched to **Ostadix-lang**.
-
-Choose components when needed:
+Supported automatic targets are VS Code, Code Insiders, Cursor, VSCodium,
+GNU Nano, Vim, Neovim, Emacs, Sublime Text, and bat. Missing editors produce
+`SKIP` messages. Failures are reported individually; setup continues with the
+compiler installation. Run the standalone installer to diagnose an editor
+installation failure.
 
 ```sh
-python3 tools/syntax/install.py --only bat nano cat
-python3 tools/syntax/install.py --only vscode
+python3 tools/syntax/install.py --check
+python3 tools/syntax/install.py --dry-run
+python3 tools/syntax/install.py --only vscode nano
+./setup.sh --no-editor-support
+# --no-syntax is an alias for --no-editor-support.
 ```
 
-Existing config files are preserved. The installer adds or replaces its own
-marked section and saves changed originals under
-`~/.local/share/ostadix/syntax/backups/` (or `$XDG_DATA_HOME/ostadix/syntax/backups/`).
-It respects XDG configuration paths, Nano's user-config precedence, and zsh's
-`ZDOTDIR`. Re-running installation updates the files without duplicating sections.
+`--check` is read-only. `--dry-run` prints the intended actions without writing
+configuration or launching extension installation. Setup passes its own check
+and dry-run modes through to editor installation. Installation preserves other
+settings, replaces only Ostadix's marked sections, and backs up changed files
+under `$XDG_DATA_HOME/ostadix/syntax/backups/` (normally
+`~/.local/share/ostadix/syntax/backups/`). It respects XDG paths and drops
+sudo/doas privileges before changing the identified login user's editor files.
+Running as root without an identified login user skips per-user installation.
 
-## Use
+The Code installer packages a local VSIX, installs it into each detected Code
+variant, and needs no Marketplace account. Reload already-open editor windows.
+An `.O` file's language mode should be **Ostadix-lang**. In Nano, reopen the
+file; Vim, Neovim, and Emacs load the installed association on the next launch.
+Explicit Vim/Neovim syntax disables and `VIMINIT` settings are preserved; these
+configurations may require enabling filetype detection and syntax manually.
+
+## Language selection
+
+The shared [language routing map](languages.json) covers every registered
+hosted backend and alias. Opening and closing O delimiters, environment indices,
+attributes, escapes, and value splices retain O highlighting. Bodies select
+their declared language, including Python, JavaScript, Bash, HTML, SQL, Rust,
+C, C++, C#, Java, Ruby, Common Lisp, Racket, Nix, Markdown, LaTeX, Haskell,
+OCaml, textual WebAssembly (WAT), MATLAB/Octave, and Wolfram Language.
+`O`, `o`, and `quote` contain O syntax; `text` and `plain` contain plain text.
+
+```O
+O^(
+python^(
+def double(x):
+    return x * 2
+)_python
+common_lisp^(
+(defun double (x) (* x 2))
+)_common_lisp
+)_O
+```
+
+`ubuntu_vm`/`ubuntu` bodies are Bash scripts. `nixos_test` contains a Nix
+attrset; a `testScript` string is handled as in a Nix file. Native O's `lisp`
+backend executes Common Lisp. The standalone legacy `lisp_shim.py` executes
+Scheme instead; code intended only for that adapter needs Scheme highlighting.
+Binary WebAssembly is not text source and has no textual syntax highlighting.
+
+## Editor behavior and limits
+
+| Editor | Body highlighting |
+| --- | --- |
+| Code family | Bundled maintained TextMate grammars plus an O-aware token provider; independent body projections preserve the parent language across nested O blocks and splices. |
+| Sublime Text / TextMate bundle | Exported O-aware TextMate grammars, including their foreign grammar dependencies. |
+| Vim / Neovim | Recursive O regions include native language syntax files; a pinned WAT grammar provides a fallback on runtimes without one. |
+| Emacs | An O scanner delegates each body to its language major mode; pinned modes and their Elisp dependencies fill the stock runtime gaps. |
+| GNU Nano | Delimiters, splices, lexical accents, and distinct language body colors; Nano's regex engine cannot select and balance recursive foreign language grammars. |
+| bat | Separate lexical rules for all registered language families, with recursive O markers; this is bounded lexical coloring. |
+
+Highlighting does not validate or execute a program. Setup installs the bundled
+Vim WAT grammar and Emacs mode dependencies offline, preserving existing user
+grammars and packages. All language families were exercised with Vim 9.1 and
+Emacs 30.2; older editor releases may not support every bundled mode and expose
+missing-mode diagnostics with a lexical fallback. See the [Vim](vim/README.md) and [Emacs](emacs/README.md) notes for version
+and provenance details. The Code extension
+bundles its foreign grammars and tokenizer dependencies for offline installation. Static TextMate highlighting and Nano have limits that the Code
+token provider can address; see the [Code extension documentation](vscode/README.md)
+for tested behavior and grammar provenance.
+
+Nano's line-oriented POSIX regular expressions cannot provide the same nested,
+language-specific highlighting as Code. In particular, Nano cannot restore a
+parent grammar after arbitrarily nested delimiters or restrict each keyword rule
+to only its language body. Its configuration is installed automatically, but
+these engine limits remain. See the [GNU Nano nanorc manual](https://www.nano-editor.org/dist/latest/nanorc.5.html).
+
+For another TextMate-compatible IDE, export an importable bundle:
 
 ```sh
-code examples/nested_splice.O
-bat examples/nested_splice.O
-nano examples/nested_splice.O
+python3 tools/syntax/install.py --only textmate
 ```
 
-New zsh terminals load the `cat` integration automatically. For an existing
-terminal, source the exact path printed by the installer (normally):
+The installer prints the bundle location. Import it through that editor's
+TextMate bundle settings; unsupported IDEs are not silently configured.
+[Sublime's syntax documentation](https://www.sublimetext.com/docs/syntax.html)
+and [VS Code's syntax guide](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide)
+describe their grammar interfaces.
+
+## Optional terminal integration
+
+The default install leaves shell `cat` behavior unchanged. To explicitly enable
+O-aware terminal adapters:
 
 ```sh
-source ~/.config/ostadix/syntax/ostadix-cat.zsh
-cat examples/nested_splice.O
-ocat examples/nested_splice.O
+python3 tools/syntax/install.py --only bat cat
 ```
 
-`cat` is a zsh function that uses bat only when stdout is a terminal and all
-arguments are `.O`/`.olang` regular files. Other files, options, stdin, pipes,
-redirections, `NO_COLOR`, and dumb terminals use system `cat`. The function
-replaces any pre-existing interactive `cat` alias/function after being sourced;
-remove the marked `.zshrc` section and start a fresh shell to restore it.
-`command cat` always bypasses this function.
+`ocat` is installed in `~/.local/bin`. In zsh, the marked startup section loads
+an interactive `cat` function for `.O`/`.olang` regular files when stdout is a
+terminal. Other files, options, stdin, pipes, redirections, `NO_COLOR`, and dumb
+terminals use system `cat`. The function replaces an existing interactive
+`cat` alias/function when sourced; `command cat` bypasses it. Remove the marked
+section and start a new shell to restore the previous behavior. These adapters
+preserve the complete source bytes. Direct `bat` keeps its usual configuration.
 
-`ocat` is also installed in `~/.local/bin` for use in other shells. It supports
-bat's automatic language detection for other file types, with plain layout and
-no pager; pipes and cat flags use system `cat`. These adapters ignore bat's
-config options while highlighting, so options such as `--line-range` cannot
-silently truncate a file. Direct `bat` keeps your usual configuration.
-
-## Coverage and limits
-
-The authoritative source is `crates/ostadix-api/src/parser.rs` and
-`backend_catalog.inc.rs`. VS Code and bat distinguish evaluator tags,
-`[number]`/`[*]` environments, attributes, exact corresponding closing tags,
-nested blocks, escaped markers, `$name` splices, native `let`, calls, and comments.
-
-Foreign-language coloring is a bounded lexical aid. O recognizes its own blocks
-and splices even inside another language's strings/comments, so simply delegating
-the entire body to a stock foreign grammar would conceal real O syntax. VS Code
-has more detailed lexical rules for common languages; bat provides common
-keyword/string/number accents. Neither is a full foreign-language parser,
-diagnostic engine, or language server. Both use theme-standard scopes, including
-dark themes already installed in your editor/terminal.
-
-bat's extension fallback is case-insensitive, so it may also choose this grammar
-for textual `.o` files. Use `bat --language='Plain Text' file.o` when needed.
-The interactive `cat` adapter checks `.O` case-sensitively.
-
-Nano uses line-oriented POSIX regular expressions. It highlights tokens but
-cannot balance recursive blocks, check exact paired headers, or determine the
-embedded language at every position. In particular, its comment/string colors
-and tag recognition are approximations; use the runtime for validation.
-
-Reference formats: [VS Code TextMate grammars](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide),
-[bat custom syntaxes](https://github.com/sharkdp/bat#adding-new-syntaxes--language-definitions),
-and [GNU nano nanorc](https://www.nano-editor.org/dist/latest/nanorc.5.html).
+bat's extension detection is case-insensitive and can also select Ostadix for
+textual `.o` files. Use `bat --language='Plain Text' file.o` when needed.
 
 ## Development checks
 
 ```sh
-python3 -m unittest discover -s tools/syntax -p test_install.py -v
+python3 -m unittest discover -s tools/syntax -p 'test_*.py' -v
+python3 tools/syntax/bat/generate.py --check
 python3 tools/syntax/bat/check.py
+python3 tools/syntax/sublime/generate.py --check
+python3 -m unittest discover -s tools/syntax/editors -p test_editors.py -v
 node tools/syntax/vscode/test.mjs
 zsh -n tools/syntax/terminal/ostadix-cat.zsh
 sh -n tools/syntax/terminal/ocat
 ```
 
-VS Code grammar generation and tokenization checks are documented in `vscode/`.
-After editing the bat grammar, run `bat cache --build` and actually render
-representative files with `bat --color=always --paging=never`; a successful cache
-build alone does not exercise runtime regex/backreference behavior.
+Editor-specific engine checks and asset generation are documented in their
+subdirectories. Check rendered tokens with the real engine: a successful syntax
+cache build alone does not exercise regex/backreference behavior.
 
 ## Remove
 
-Uninstall `lostadi.ostadix-lang` through VS Code or
-`code --uninstall-extension lostadi.ostadix-lang`. Remove the marked sections
-from your Nano config and `.zshrc`, the installed Ostadix syntax files under
-bat/Nano's config directories, `~/.local/bin/ocat`, and the sourced
-`ostadix-cat.zsh` file. Run `bat cache --build` and start a fresh shell.
-Backups preserve the original settings if you need them.
+Uninstall `lostadi.ostadix-lang` through the Code editor's extension UI. Remove
+Ostadix's marked configuration sections and installed syntax assets from each
+editor's user configuration directory. For bat, run `bat cache --build` after
+removing its syntax. Backups retain the original settings.

@@ -47,6 +47,8 @@ class SetupScriptTests(unittest.TestCase):
                                 "CARGO_BIN_DIR": str(cargo_bin),
                                 "DRY_RUN": str(dry_run).lower(),
                                 "FULL": str(full).lower(),
+                                "INSTALL_NOTEBOOK": str(full).lower(),
+                                "BUILD_WORKSPACE_TOOLS": str(full).lower(),
                                 "INSTALL_LOCAL_BINS": "true",
                                 "NATIVE_ARGV_CAPTURE": str(capture),
                             },
@@ -68,6 +70,7 @@ class SetupScriptTests(unittest.TestCase):
                             expected.append("--dry-run")
                         if full:
                             expected.append("--include-notebook")
+                            expected.append("--include-workspace-tools")
                         self.assertEqual(
                             capture.read_bytes(),
                             b"".join(argument.encode() + b"\0" for argument in expected),
@@ -75,6 +78,56 @@ class SetupScriptTests(unittest.TestCase):
                         self.assertFalse(root.exists())
                         self.assertFalse(cargo_bin.exists())
                         self.assertFalse((home / ".local").exists())
+
+    def test_editor_setup_dispatch_is_default_optional_and_forwards_read_only_modes(self) -> None:
+        source = SETUP.read_text(encoding="utf-8")
+        body = source.split("\ninstall_editor_support() {\n", 1)[1].split("\n}\n", 1)[0]
+        for enabled, check, dry_run, failure in ((True, False, False, False), (True, True, False, False), (True, False, True, False), (False, False, False, False), (True, False, False, True)):
+            with self.subTest(enabled=enabled, check=check, dry_run=dry_run, failure=failure), tempfile.TemporaryDirectory(prefix="editor setup test ") as directory:
+                home = Path(directory)
+                root = home / "source with spaces"
+                capture = home / "arguments"
+                script = (
+                    "set -euo pipefail\n"
+                    "has_cmd() { return 0; }\n"
+                    'python3() { printf "%s\\0" "$@" > "$EDITOR_ARGV_CAPTURE"; return "$EDITOR_FAKE_EXIT"; }\n'
+                    f"install_editor_support() {{\n{body}\n}}\ninstall_editor_support\n"
+                )
+                result = subprocess.run([str(BASH), "-c", script], cwd=home, env={
+                    "HOME": str(home), "PATH": SYSTEM_PATH, "PROJECT_ROOT": str(root),
+                    "INSTALL_EDITOR_SUPPORT": str(enabled).lower(), "CHECK_ONLY": str(check).lower(), "DRY_RUN": str(dry_run).lower(),
+                    "EDITOR_ARGV_CAPTURE": str(capture), "EDITOR_FAKE_EXIT": "7" if failure else "0",
+                }, text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, 0, self.combined_output(result))
+                if enabled:
+                    expected = [str(root / "tools/syntax/install.py"), "--auto"]
+                    if check:
+                        expected.append("--check")
+                    elif dry_run:
+                        expected.append("--dry-run")
+                    self.assertEqual(capture.read_bytes(), b"".join(value.encode() + b"\0" for value in expected))
+                else:
+                    self.assertFalse(capture.exists())
+                if failure:
+                    self.assertIn("Setup will continue", result.stderr)
+                self.assertFalse(root.exists())
+
+    def test_editor_support_opt_out_aliases_and_default_dry_run_do_not_change_home(self) -> None:
+        for option in (None, "--no-editor-support", "--no-syntax"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                arguments = ["--minimal", "--yes", "--dry-run", "--deps-only", "--no-env"]
+                if option:
+                    arguments.append(option)
+                result = self.run_setup(*arguments, home=home)
+                self.assertEqual(result.returncode, 0, self.combined_output(result))
+                self.assertIn(f"editor_support={'false' if option else 'true'}", result.stdout)
+                self.assertIn("Editor syntax support skipped" if option else "Setting up syntax support for available editors", result.stdout)
+                self.assertFalse((home / ".nanorc").exists())
+                self.assertFalse((home / ".zshrc").exists())
+                self.assertFalse((home / ".vim").exists())
+                self.assertFalse((home / ".config").exists())
+                self.assertFalse((home / "data").exists())
 
     def run_setup(
         self,
@@ -206,6 +259,7 @@ class SetupScriptTests(unittest.TestCase):
                 "binutils",
                 "qemu",
                 "cmake",
+                "node", "ruby", "ghc", "ocaml", "sbcl", "mono", "wabt", "wasmtime", "openjdk",
             ],
         )
         self.assertIn("nix=true", output)
@@ -254,6 +308,7 @@ class SetupScriptTests(unittest.TestCase):
                 "qemu-system-x86",
                 "qemu-system-arm",
                 "cmake",
+                "nodejs", "npm", "ruby", "racket", "ghc", "ocaml", "sbcl", "mono-devel", "octave", "wabt", "default-jdk-headless", "python3-matplotlib",
                 "qemu-efi-aarch64",
                 "qemu-utils",
                 "gzip",
@@ -496,6 +551,7 @@ class SetupScriptTests(unittest.TestCase):
                 "o-registry",
                 "o-info",
                 "ostadix-device",
+                "ocore-kernel-world-record",
             ):
                 with self.subTest(binary=binary):
                     self.assertIn(f"--bin {binary}", output)
@@ -523,6 +579,88 @@ class SetupScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, self.combined_output(result))
         self.assertIn("--features notebook --bin o-notebook", result.stdout)
         self.assertIn("/bin/o-notebook from", result.stdout)
+
+    def test_default_setup_selects_all_root_bins_workspace_and_native_apps(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_setup("--dry-run", "--no-env", home=Path(directory))
+        self.assertEqual(result.returncode, 0, self.combined_output(result))
+        import tomllib
+        manifest = tomllib.loads((PROJECT_ROOT / "Cargo.toml").read_text())
+        for target in manifest["bin"]:
+            self.assertIn(f"--bin {target['name']}", result.stdout)
+        self.assertIn("--package ostadix --bins", result.stdout)
+        self.assertIn("--features notebook", result.stdout)
+        self.assertIn("default-jdk-headless", result.stdout)
+        self.assertIn("[DRY]", result.stdout)
+        self.assertIn("mobile-console/Cargo.toml", result.stdout)
+        self.assertIn("android-terminal/runtime/Cargo.toml", result.stdout)
+        self.assertIn("Android platform jar", result.stdout)
+
+    def test_complete_profile_opt_outs_preserve_base_commands_and_report_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_setup("--dry-run", "--no-env", "--no-notebook", "--no-apps", "--no-jni", "--no-hosted-runtimes", "--no-ocore", "--no-nix", home=Path(directory))
+        self.assertEqual(result.returncode, 0, self.combined_output(result))
+        self.assertNotIn("--features notebook", result.stdout)
+        self.assertNotIn("--bin o-notebook", result.stdout)
+        self.assertNotIn("mobile-console/Cargo.toml", result.stdout)
+        self.assertIn("--bin ocore-kernel-world-record", result.stdout)
+        self.assertIn("standalone-apps: disabled", result.stdout)
+        self.assertIn("jni-runtime: disabled", result.stdout)
+        self.assertNotIn("default-jdk-headless", result.stdout)
+
+    def test_windows_mcp_native_copy_keeps_exe_suffix(self) -> None:
+        source = SETUP.read_text()
+        body = source.split("\nbuild_mcp_server() {\n", 1)[1].split("\n}\n", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            root = home / "source with spaces"
+            mcp = root / "mcp/ostadix_lang_mcp_server"
+            (mcp / "target/release").mkdir(parents=True)
+            (mcp / "Cargo.toml").write_text('[package]\nname="fixture"\n')
+            binary = mcp / "target/release/ostadix-mcp.exe"
+            binary.write_bytes(b"MZ test native MCP")
+            (root / "scripts").mkdir()
+            (root / "scripts/ostadix_mcp_client.py").write_text("#!/usr/bin/env python3\n")
+            script = 'set -euo pipefail\nrun_cmd() { :; }\nremove_managed_file() { rm -f "$1"; }\nhas_cmd() { return 0; }\n' + f"build_mcp_server() {{\n{body}\n}}\nbuild_mcp_server\n"
+            result = subprocess.run([str(BASH), "-c", script], env={"HOME": str(home), "PATH": SYSTEM_PATH, "PROJECT_ROOT": str(root), "PLATFORM": "windows", "INSTALL_MCP": "true", "INSTALL_LOCAL_BINS": "true", "DRY_RUN": "false"}, text=True, capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0, self.combined_output(result))
+            self.assertEqual((home / ".local/bin/ostadix-mcp.exe").read_bytes(), binary.read_bytes())
+            self.assertFalse((home / ".local/bin/ostadix-mcp").exists())
+
+    def test_managed_env_activates_later_created_python_and_preserves_custom_interpreters(self) -> None:
+        source = SETUP.read_text()
+        body = source.split("\nrender_environment_file() {\n", 1)[1].split("\nwrite_environment_file() {", 1)[0].rsplit("\n}", 1)[0]
+        with tempfile.TemporaryDirectory(prefix="python environment test ") as directory:
+            home = Path(directory)
+            python_env = home / "managed Python"
+            profile = home / "env.sh"
+            script = f"render_environment_file() {{\n{body}\n}}\nrender_environment_file\n"
+            env = {"HOME": str(home), "PATH": SYSTEM_PATH, "PROJECT_ROOT": str(home / "source"), "GUESTS_DIR": str(home / "guests"), "PYTHON_ENV": str(python_env)}
+            rendered = subprocess.run([str(BASH), "-c", script], env=env, text=True, capture_output=True, check=True)
+            profile.write_text(rendered.stdout)
+            # Setup writes the env first and builds the virtual environment later.
+            (python_env / "bin").mkdir(parents=True)
+            for name in ("python", "python3"):
+                path = python_env / "bin" / name
+                path.write_text("#!/bin/sh\nexit 0\n")
+                path.chmod(0o755)
+            custom = home / "custom Python/bin"
+            custom.mkdir(parents=True)
+            executable = custom / "python3"
+            executable.write_text("#!/bin/sh\nexit 0\n")
+            executable.chmod(0o755)
+            for mode in ("default", "home-custom", "virtualenv", "conda"):
+                with self.subTest(mode=mode):
+                    active_env = dict(env)
+                    if mode != "default":
+                        active_env["PATH"] = str(custom) + ":" + SYSTEM_PATH
+                    if mode == "virtualenv":
+                        active_env["VIRTUAL_ENV"] = str(custom.parent)
+                    if mode == "conda":
+                        active_env["CONDA_PREFIX"] = str(custom.parent)
+                    result = subprocess.run([str(BASH), "-c", f"source {shlex.quote(str(profile))}\ncommand -v python3"], env=active_env, text=True, capture_output=True, check=True)
+                    expected = python_env / "bin/python3" if mode == "default" else executable
+                    self.assertEqual(result.stdout.strip(), str(expected))
 
     def test_native_install_opt_out_and_legacy_alias_have_the_same_scope(self) -> None:
         for option in ("--no-local-bins", "--no-wrappers"):

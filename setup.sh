@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # O-lang cross-platform setup & bootstrap script
 # Sets up dependencies, builds Rust + C17 + Python editions for the *current machine*,
-# and leaves everything in a convenient runnable form. Native/kernel and guest-lab
-# dependencies are explicit profiles; setup never downloads or boots a foreign OS.
+# and builds the remaining host-supported components. Guest-lab execution stays
+# explicit; setup never downloads or boots a foreign operating system.
 #
 # Supports: macOS, Windows (Git Bash/WSL), Debian/Ubuntu, Arch/CachyOS, Fedora, Gentoo,
 #           NixOS, TinyCore, Alpine, openSUSE, Void, FreeBSD, and many others via fallbacks.
@@ -29,6 +29,13 @@ YES=false
 VERIFY=false
 INSTALL_LOCAL_BINS=true
 INSTALL_MCP=true
+INSTALL_EDITOR_SUPPORT=true
+INSTALL_APPS=true
+INSTALL_JNI=true
+INSTALL_NOTEBOOK=true
+BUILD_WORKSPACE_TOOLS=true
+SKIP_OCORE=false
+SKIP_HOSTED_RUNTIMES=false
 DRY_RUN=false
 WITH_NIX=false
 NIX_EXPLICIT=false
@@ -47,10 +54,11 @@ DEPS_ONLY=false
 WINDOWS_RERUN_REQUIRED=false
 ENV_FILE="${OSTADIX_ENV_FILE:-$HOME/.config/ostadix/env.sh}"
 GUESTS_DIR="${OSTADIX_GUESTS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/ostadix/guests}"
+PYTHON_ENV="${OSTADIX_PYTHON_ENV:-${XDG_DATA_HOME:-$HOME/.local/share}/ostadix/python}"
 
 EVALUATOR_ALIAS=ostadix-evaluator
-RUST_BIN_TARGETS=(O o-cli olangc ocorec o-link o-unlink ogit o-live-host o-node octl o-registry o-info ostadix-device)
-RUST_STALE_BINARIES=(O o o-cli olangc ocorec o-link olink o-unlink ogit o-live-host o-node octl o-registry o-info ostadix-device o-notebook "$EVALUATOR_ALIAS")
+RUST_BIN_TARGETS=(O o-cli olangc ocorec o-link o-unlink ogit o-live-host o-node octl o-registry o-info ostadix-device ocore-kernel-world-record)
+RUST_STALE_BINARIES=(O o o-cli olangc ocorec o-link olink o-unlink ogit o-live-host o-node octl o-registry o-info ostadix-device ocore-kernel-world-record o-notebook ostadix "$EVALUATOR_ALIAS")
 CARGO_BIN_DIR="${CARGO_HOME:-$HOME/.cargo}/bin"
 
 # --- Arg parsing ---
@@ -62,14 +70,14 @@ O-lang setup script
 Options:
   -h, --help                  Show this help
   -m, --minimal               Minimal hosted build; explicit --with-* flags still compose
-  -f, --full                  Notebook, Racket, Nix, WASI, and O-core build/QEMU tools
+  -f, --full                  Explicit complete profile (normal setup auto-selects host-supported components)
   -y, --yes                   Non-interactive for the profiles explicitly selected
   -v, --verify                Verify the hosted Rust, C17, AOT, and Python forms
   --with-nix                  Install/verify Nix using the official installer when absent
   --no-nix                    Exclude Nix even when --full is selected
   --with-ocore                Install Clang, LLD, ELF tools, and x86/AArch64 QEMU
   --with-ocore-media          Also install deterministic x86_64 UEFI-media tools
-  --with-hosted-runtimes      Open-source backend runtimes (macOS/Debian; excludes Java/licensed tools)
+  --with-hosted-runtimes      Open-source backend runtimes and JDK (macOS/Debian; excludes licensed downloads)
   --with-linux-kernel-tools   Linux-only kernel development dependencies (tools, not sources)
   --with-guest-tools          QEMU/UEFI/image tools for the explicit pinned guest lab
   --with-ubuntu-vm            Also install Multipass for the ubuntu_vm^ backend
@@ -82,6 +90,12 @@ Options:
   --no-local-bins             Do not install native commands in ~/.local/bin
   --no-wrappers               Compatibility alias for --no-local-bins
   --no-mcp                    Do not build the ostadix-mcp server
+  --no-editor-support         Skip syntax support for installed editors (alias: --no-syntax)
+  --no-apps                   Skip standalone mobile/browser/Android app and Java tool builds
+  --no-jni                    Skip the independent JNI runtime library
+  --no-notebook               Skip the notebook feature and binary
+  --no-ocore                  Skip automatic native O-core tool dependencies
+  --no-hosted-runtimes        Skip automatic additional backend runtime dependencies
   --dry-run                   Print exact planned commands; make no changes
 
 Examples:
@@ -131,6 +145,12 @@ while [[ $# -gt 0 ]]; do
     --persist-env) PERSIST_ENV=true; shift ;;
     --no-local-bins|--no-wrappers) INSTALL_LOCAL_BINS=false; shift ;;
     --no-mcp) INSTALL_MCP=false; shift ;;
+    --no-editor-support|--no-syntax) INSTALL_EDITOR_SUPPORT=false; shift ;;
+    --no-apps) INSTALL_APPS=false; shift ;;
+    --no-jni) INSTALL_JNI=false; shift ;;
+    --no-notebook) INSTALL_NOTEBOOK=false; shift ;;
+    --no-ocore) SKIP_OCORE=true; WITH_OCORE=false; shift ;;
+    --no-hosted-runtimes) SKIP_HOSTED_RUNTIMES=true; WITH_HOSTED_RUNTIMES=false; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     *) echo "Unknown option: $1" >&2; usage 2 ;;
   esac
@@ -162,20 +182,26 @@ if $PERSIST_ENV && ! $WRITE_ENV; then
 fi
 
 if $FULL; then
-  WITH_OCORE=true
+  if ! $SKIP_OCORE; then WITH_OCORE=true; fi
   if ! $SKIP_NIX; then
     WITH_NIX=true
   fi
 fi
 
-if $FULL; then
+if $MINIMAL; then
+  INSTALL_NOTEBOOK=false
+  INSTALL_APPS=false
+  INSTALL_JNI=false
+  BUILD_WORKSPACE_TOOLS=false
+fi
+
+if $INSTALL_NOTEBOOK; then
   RUST_BIN_TARGETS+=(o-notebook)
 fi
 
 echo "=== O-lang cross-platform setup ==="
 echo "Project root: $PROJECT_ROOT"
 echo "Host: $(uname -a)"
-echo "Options: minimal=$MINIMAL full=$FULL yes=$YES verify=$VERIFY nix=$WITH_NIX ocore=$WITH_OCORE ocore_media=$WITH_OCORE_MEDIA hosted_runtimes=$WITH_HOSTED_RUNTIMES linux_kernel_tools=$WITH_LINUX_KERNEL_TOOLS guest_tools=$WITH_GUEST_TOOLS ubuntu_vm=$WITH_UBUNTU_VM verify_ocore=$VERIFY_OCORE check=$CHECK_ONLY deps_only=$DEPS_ONLY env=$WRITE_ENV persist_env=$PERSIST_ENV local_bins=$INSTALL_LOCAL_BINS mcp=$INSTALL_MCP dry_run=$DRY_RUN"
 echo
 
 # --- OS / Distro Detection ---
@@ -237,6 +263,39 @@ if [[ -n "${OSTADIX_SETUP_PLATFORM:-}" || -n "${OSTADIX_SETUP_DISTRO:-}" ]]; the
   PLATFORM="${OSTADIX_SETUP_PLATFORM:-$PLATFORM}"
   DISTRO="${OSTADIX_SETUP_DISTRO:-$DISTRO}"
 fi
+
+# Normal setup builds the complete hosted codebase. Dependency profiles are
+# selected only where this script has a concrete host package map; explicit
+# --with-* requests retain their strict platform validation below.
+if ! $MINIMAL; then
+  if ! $SKIP_NIX && [[ "$PLATFORM" == "macos" || "$PLATFORM" == "linux" ]]; then
+    WITH_NIX=true
+    if [[ "$PLATFORM" == "linux" && "${EUID:-$(id -u)}" -eq 0 && ! -d /run/systemd/system ]] && \
+        ! command -v nix >/dev/null 2>&1 && [[ ! -x /nix/var/nix/profiles/default/bin/nix ]] && ! $NIX_EXPLICIT && ! $FULL; then
+      WITH_NIX=false
+      echo "  [skip] automatic Nix installation: root without systemd cannot use the supported official single-user installer"
+    fi
+  fi
+  if ! $SKIP_OCORE; then
+    case "$PLATFORM:$DISTRO" in
+      macos:*|linux:debian|linux:arch|linux:fedora|linux:gentoo|linux:nixos|linux:alpine|linux:void|bsd:*) WITH_OCORE=true ;;
+      *) echo "  [skip] automatic O-core tool installation: no validated package map for $PLATFORM/$DISTRO (compiler remains included)" ;;
+    esac
+  fi
+  if ! $SKIP_HOSTED_RUNTIMES; then
+    case "$PLATFORM:$DISTRO" in
+      macos:*|linux:debian) WITH_HOSTED_RUNTIMES=true ;;
+      *) echo "  [skip] additional runtime package installation: no validated package map for $PLATFORM/$DISTRO; installed runtimes are still available" ;;
+    esac
+  fi
+fi
+# ostadix-core uses Unix permissions and its injector requires a Unix shell.
+if [[ "$PLATFORM" == "windows" ]]; then
+  BUILD_WORKSPACE_TOOLS=false
+  echo "  [skip] workspace ostadix command: Unix-only source; use WSL for this component"
+fi
+
+echo "Options: minimal=$MINIMAL full=$FULL yes=$YES verify=$VERIFY nix=$WITH_NIX ocore=$WITH_OCORE ocore_media=$WITH_OCORE_MEDIA hosted_runtimes=$WITH_HOSTED_RUNTIMES linux_kernel_tools=$WITH_LINUX_KERNEL_TOOLS guest_tools=$WITH_GUEST_TOOLS ubuntu_vm=$WITH_UBUNTU_VM verify_ocore=$VERIFY_OCORE check=$CHECK_ONLY deps_only=$DEPS_ONLY env=$WRITE_ENV persist_env=$PERSIST_ENV local_bins=$INSTALL_LOCAL_BINS mcp=$INSTALL_MCP editor_support=$INSTALL_EDITOR_SUPPORT notebook=$INSTALL_NOTEBOOK apps=$INSTALL_APPS jni=$INSTALL_JNI dry_run=$DRY_RUN"
 
 if $WITH_NIX && [[ "$PLATFORM" != "macos" && "$PLATFORM" != "linux" ]]; then
   if $FULL && ! $NIX_EXPLICIT; then
@@ -345,6 +404,7 @@ clean_rust_release_binaries() {
   echo ">>> Removing stale Rust release binaries..."
   for bin in "${RUST_STALE_BINARIES[@]}"; do
     remove_managed_file "$PROJECT_ROOT/target/release/$bin"
+    remove_managed_file "$PROJECT_ROOT/target/release/$bin.exe"
     remove_managed_file "$PROJECT_ROOT/target/release/$bin.d"
   done
 }
@@ -354,22 +414,25 @@ refresh_cargo_bin_binaries() {
   # Bash 3.2 treats an empty array expansion as unset under `set -u`.
   local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$CARGO_BIN_DIR")
   if $DRY_RUN; then options+=(--dry-run); fi
-  if $FULL; then options+=(--include-notebook); fi
+  if $INSTALL_NOTEBOOK; then options+=(--include-notebook); fi
+  if $BUILD_WORKSPACE_TOOLS; then options+=(--include-workspace-tools); fi
   python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" "${options[@]}"
 }
 
 create_rust_alias_binaries() {
   echo ">>> Recreating Rust alias binaries..."
+  local suffix=""
+  if [[ "$PLATFORM" == "windows" || -f "$PROJECT_ROOT/target/release/o-cli.exe" ]]; then suffix=".exe"; fi
   if $DRY_RUN; then
-    echo "[DRY] replace $PROJECT_ROOT/target/release/o from $PROJECT_ROOT/target/release/o-cli if filesystem is case-sensitive"
+    echo "[DRY] replace $PROJECT_ROOT/target/release/o$suffix from $PROJECT_ROOT/target/release/o-cli$suffix if filesystem is case-sensitive"
     return
   fi
   if directory_is_case_insensitive "$PROJECT_ROOT/target/release"; then
     echo "  target/release is case-insensitive; use o-cli for commands and O for raw evaluation. Installed O/o use the native front door."
     return
   fi
-  cp "$PROJECT_ROOT/target/release/o-cli" "$PROJECT_ROOT/target/release/o"
-  chmod +x "$PROJECT_ROOT/target/release/o"
+  cp "$PROJECT_ROOT/target/release/o-cli$suffix" "$PROJECT_ROOT/target/release/o$suffix"
+  chmod +x "$PROJECT_ROOT/target/release/o$suffix"
 }
 
 # --- Install system dependencies (extended) ---
@@ -406,7 +469,7 @@ install_system_deps() {
         append_unique mac_packages x86_64-elf-grub mtools xorriso
       fi
       if $WITH_HOSTED_RUNTIMES; then
-        append_unique mac_packages node ruby racket ghc ocaml sbcl mono wabt wasmtime
+        append_unique mac_packages node ruby racket ghc ocaml sbcl mono wabt wasmtime openjdk
       fi
       if $WITH_GUEST_TOOLS; then
         append_unique mac_packages qemu coreutils xz zstd xorriso
@@ -416,10 +479,8 @@ install_system_deps() {
       run_cmd env HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 \
         brew install --quiet "${mac_packages[@]}"
       if $WITH_HOSTED_RUNTIMES; then
-        # Never permit Octave's source build to pull a Java toolchain onto this
-        # machine; use an available bottle or fail with an explicit boundary.
         run_cmd env HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 \
-          brew install --force-bottle octave
+          brew install octave
       fi
       if ! xcode-select -p >/dev/null 2>&1; then
         run_cmd xcode-select --install
@@ -444,7 +505,7 @@ install_system_deps() {
             append_unique debian_packages grub-efi-amd64-bin mtools ovmf xorriso
           fi
           if $WITH_HOSTED_RUNTIMES; then
-            append_unique debian_packages nodejs ruby racket ghc ocaml sbcl mono-devel octave wabt
+            append_unique debian_packages nodejs npm ruby racket ghc ocaml sbcl mono-devel octave wabt default-jdk-headless python3-matplotlib
           fi
           if $WITH_GUEST_TOOLS; then
             append_unique debian_packages qemu-system-x86 qemu-system-arm qemu-efi-aarch64 qemu-utils gzip xz-utils zstd xorriso cpio squashfs-tools
@@ -671,7 +732,7 @@ install_system_deps() {
 }
 
 install_rust() {
-  if has_cmd cargo && { ! $FULL || has_cmd rustup; }; then
+  if has_cmd cargo && { $MINIMAL || has_cmd rustup; }; then
     echo "Rust/Cargo already present."
   elif $DRY_RUN; then
     echo "[DRY] download the official rustup installer over TLS"
@@ -686,7 +747,7 @@ install_rust() {
   fi
 
   if has_cmd rustup || $DRY_RUN; then
-    if $FULL; then
+    if ! $MINIMAL; then
       run_cmd rustup component add rustfmt clippy
       run_cmd rustup target add wasm32-wasip1
     fi
@@ -832,14 +893,17 @@ install_ubuntu_vm_tools() {
 build_rust() {
   echo ">>> Building Rust edition (--release)..."
   clean_rust_release_binaries
-  local cargo_args=(build --release --locked --package o-lang)
-  if $FULL; then
+  local cargo_args=(build --release --locked --package o-lang --target-dir "$PROJECT_ROOT/target")
+  if $INSTALL_NOTEBOOK; then
     cargo_args+=(--features notebook --bin o-notebook)
   fi
   for bin in "${RUST_BIN_TARGETS[@]}"; do
     cargo_args+=(--bin "$bin")
   done
   run_cmd cargo "${cargo_args[@]}"
+  if $BUILD_WORKSPACE_TOOLS; then
+    run_cmd cargo build --release --locked --package ostadix --bins --target-dir "$PROJECT_ROOT/target"
+  fi
   create_rust_alias_binaries
   refresh_cargo_bin_binaries
   echo "Rust build done → target/release/"
@@ -871,30 +935,33 @@ build_mcp_server() {
     return
   fi
   echo ">>> Building ostadix-mcp server (--release, --locked)..."
+  local mcp_suffix=""
+  if [[ "$PLATFORM" == "windows" || -f "$mcp_dir/target/release/ostadix-mcp.exe" ]]; then mcp_suffix=".exe"; fi
+  local mcp_native_name="ostadix-mcp$mcp_suffix"
   # --locked: fail rather than silently re-resolve deps against crates.io, so
   # a build today and a build in a year off the same commit produce the same
   # binary modulo toolchain drift. This crate has its own Cargo.lock (rmcp is
   # pre-1.0 and moves fast) — deliberately not folded into the root
   # workspace so its dependency set can't bleed into the main O-lang build.
-  run_cmd cargo build --release --locked --manifest-path "$mcp_dir/Cargo.toml"
+  run_cmd cargo build --release --locked --manifest-path "$mcp_dir/Cargo.toml" --target-dir "$mcp_dir/target"
   if $INSTALL_LOCAL_BINS && ! $DRY_RUN; then
-    local mcp_bin="$mcp_dir/target/release/ostadix-mcp"
+    local mcp_bin="$mcp_dir/target/release/$mcp_native_name"
     if [[ -f "$mcp_bin" ]]; then
       mkdir -p "$HOME/.local/bin"
       local mcp_temporary="$HOME/.local/bin/.ostadix-mcp.$$"
       cp "$mcp_bin" "$mcp_temporary"
       chmod +x "$mcp_temporary"
-      mv -f "$mcp_temporary" "$HOME/.local/bin/ostadix-mcp"
-      echo "  native server → $HOME/.local/bin/ostadix-mcp"
+      mv -f "$mcp_temporary" "$HOME/.local/bin/$mcp_native_name"
+      echo "  native server → $HOME/.local/bin/$mcp_native_name"
       remove_managed_file "$HOME/.local/bin/ostadix-mcp-client"
       cp "$PROJECT_ROOT/scripts/ostadix_mcp_client.py" "$HOME/.local/bin/ostadix-mcp-client"
       chmod +x "$HOME/.local/bin/ostadix-mcp-client"
       echo "  client → $HOME/.local/bin/ostadix-mcp-client"
     fi
   fi
-  local gemini_mcp_bin="$mcp_dir/target/release/ostadix-mcp"
+  local gemini_mcp_bin="$mcp_dir/target/release/$mcp_native_name"
   if $INSTALL_LOCAL_BINS; then
-    gemini_mcp_bin="$HOME/.local/bin/ostadix-mcp"
+    gemini_mcp_bin="$HOME/.local/bin/$mcp_native_name"
   fi
   if $DRY_RUN; then
     echo "[DRY] if $HOME/.gemini exists, register ostadix in its settings.json using $gemini_mcp_bin"
@@ -909,7 +976,49 @@ build_mcp_server() {
   else
     echo "  Gemini MCP registration skipped (python3 or server binary unavailable)"
   fi
-  echo "MCP build done → $mcp_dir/target/release/ostadix-mcp"
+  echo "MCP build done → $mcp_dir/target/release/$mcp_native_name"
+}
+
+install_editor_support() {
+  if ! $INSTALL_EDITOR_SUPPORT; then
+    echo ">>> Editor syntax support skipped (--no-editor-support)."
+    return
+  fi
+  if ! has_cmd python3; then
+    echo ">>> Editor syntax support skipped (python3 unavailable)."
+    return
+  fi
+  echo ">>> Setting up syntax support for available editors..."
+  local options=(--auto)
+  if $CHECK_ONLY; then
+    options+=(--check)
+  elif $DRY_RUN; then
+    options+=(--dry-run)
+  fi
+  # This optional component never installs editors or changes shell cat. The
+  # installer drops sudo/doas privileges before updating login-user settings.
+  if ! python3 "$PROJECT_ROOT/tools/syntax/install.py" "${options[@]}"; then
+    echo "  Warning: some editor syntax support could not be installed; rerun tools/syntax/install.py for details. Setup will continue." >&2
+  fi
+}
+
+setup_host_components() {
+  echo ">>> Independent component capability plan..."
+  local options=(--repo-root "$PROJECT_ROOT")
+  if ! $INSTALL_APPS; then options+=(--no-apps); fi
+  if ! $INSTALL_JNI; then options+=(--no-jni); fi
+  if $MINIMAL; then
+    options+=(--no-native)
+  elif $SKIP_OCORE; then
+    options+=(--no-kernel)
+  fi
+  if ! $INSTALL_LOCAL_BINS; then options+=(--no-local-bins); fi
+  if $CHECK_ONLY || $DEPS_ONLY; then
+    options+=(--check)
+  elif $DRY_RUN; then
+    options+=(--dry-run --assume-wasi)
+  fi
+  python3 "$PROJECT_ROOT/scripts/setup_components.py" "${options[@]}"
 }
 
 setup_python() {
@@ -917,7 +1026,7 @@ setup_python() {
   if $DRY_RUN; then
     echo "[DRY] verify python3 can import the repository-local o_lang package"
     if ! $MINIMAL; then
-      echo "[DRY] optional matplotlib availability check (no automatic install)"
+      echo "[DRY] if matplotlib is absent, create the managed Ostadix Python virtual environment and install matplotlib"
     fi
     return
   fi
@@ -927,7 +1036,24 @@ setup_python() {
         python3 -c 'import o_lang; print("  Python reference edition", o_lang.__version__)'
     fi
     if ! $MINIMAL && ! python3 -c 'import matplotlib' >/dev/null 2>&1; then
-      echo "  matplotlib is optional for computed_plot.O; install it explicitly if needed"
+      local python_env="$PYTHON_ENV"
+      if [[ -e "$python_env" && ! -f "$python_env/pyvenv.cfg" ]]; then
+        echo "  [skip] Python plotting dependency: $python_env is an existing unmanaged path; set OSTADIX_PYTHON_ENV to a new path"
+      else
+        if [[ ! -x "$python_env/bin/python" ]]; then
+          run_cmd python3 -m venv "$python_env"
+        fi
+        run_cmd "$python_env/bin/python" -m pip install matplotlib
+        local python_command
+        python_command="$(command -v python3)"
+        if [[ -z "${VIRTUAL_ENV:-}${CONDA_PREFIX:-}" && "$python_command" != "$HOME/"* ]]; then
+          export PATH="$python_env/bin:$PATH"
+        fi
+        echo "  Python plotting support → $python_env (system Python unchanged)"
+        if ! $WRITE_ENV; then
+          printf '  Activate Python plotting support: source %q\n' "$python_env/bin/activate"
+        fi
+      fi
     fi
   fi
 }
@@ -937,7 +1063,8 @@ install_local_binaries() {
   echo ">>> Installing native commands in ~/.local/bin..."
   local options=(--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c)
   if $DRY_RUN; then options+=(--dry-run); fi
-  if $FULL; then options+=(--include-notebook); fi
+  if $INSTALL_NOTEBOOK; then options+=(--include-notebook); fi
+  if $BUILD_WORKSPACE_TOOLS; then options+=(--include-workspace-tools); fi
   python3 "$PROJECT_ROOT/scripts/install_native_binaries.py" "${options[@]}"
   echo 'Add to PATH if needed: export PATH="$HOME/.local/bin:$PATH"'
 }
@@ -953,6 +1080,8 @@ find_tool_path() {
   for candidate in \
     "/opt/homebrew/opt/llvm/bin/$tool" \
     "/usr/local/opt/llvm/bin/$tool" \
+    "/opt/homebrew/opt/openjdk/bin/$tool" \
+    "/usr/local/opt/openjdk/bin/$tool" \
     "/nix/var/nix/profiles/default/bin/$tool" \
     "$HOME/.nix-profile/bin/$tool" \
     "/opt/homebrew/bin/$tool" \
@@ -1085,7 +1214,7 @@ check_capabilities() {
   check_any_tool "curl" curl
   check_any_tool "SQLite CLI" sqlite3
 
-  if $FULL; then
+  if ! $MINIMAL; then
     check_any_tool "Racket backend" racket
     if has_cmd rustup && rustup target list --installed | grep -Fxq wasm32-wasip1; then
       echo "  [ok] Rust WASI target             wasm32-wasip1"
@@ -1225,8 +1354,9 @@ check_capabilities() {
     check_any_tool "GNU Octave" octave
     check_any_tool "WebAssembly assembler" wat2wasm wasm-tools
     check_any_tool "WebAssembly runtime" wasmtime wasmer
-    echo "  [excluded] Java backend (local no-JRE policy)"
-    echo "  [excluded] MATLAB/Wolfram licensed runtimes (Octave covers MATLAB-compatible code)"
+    check_any_tool "Java runtime" java
+    check_any_tool "Java compiler" javac
+    echo "  [info] GNU Octave supports its own MATLAB-compatible subset; licensed MATLAB/Wolfram availability is reported separately"
   fi
 
   if $WITH_UBUNTU_VM; then
@@ -1257,6 +1387,7 @@ check_capabilities() {
 render_environment_file() {
   printf '# Managed by Ostadix-lang setup.sh. Regenerated during setup.\n'
   printf 'export O_LANG_ROOT=%q\n' "$PROJECT_ROOT"
+  printf 'if [ -z "${OSTADIX_PYTHON_ENV:-}" ]; then export OSTADIX_PYTHON_ENV=%q; fi\n' "$PYTHON_ENV"
   cat <<'EOF'
 export O_BACKENDS_DIR="$O_LANG_ROOT/backends"
 
@@ -1276,11 +1407,23 @@ _ostadix_prepend_path() {
 _ostadix_prepend_path "$O_LANG_ROOT/target/release"
 _ostadix_prepend_path "${CARGO_HOME:-$HOME/.cargo}/bin"
 _ostadix_prepend_path "$HOME/.local/bin"
+_ostadix_python_command="$(command -v python3 2>/dev/null || true)"
+_ostadix_python_default=true
+case "$_ostadix_python_command" in
+  "$OSTADIX_PYTHON_ENV/bin/"*) ;;
+  "$HOME/"*) _ostadix_python_default=false ;;
+esac
+if [ -z "${VIRTUAL_ENV:-}${CONDA_PREFIX:-}" ] && $_ostadix_python_default && [ -x "$OSTADIX_PYTHON_ENV/bin/python" ]; then
+  _ostadix_prepend_path "$OSTADIX_PYTHON_ENV/bin"
+fi
+unset _ostadix_python_command _ostadix_python_default
 for _ostadix_llvm_bin in \
   /usr/local/opt/llvm/bin \
   /opt/homebrew/opt/llvm/bin \
   /usr/local/opt/lld/bin \
-  /opt/homebrew/opt/lld/bin; do
+  /opt/homebrew/opt/lld/bin \
+  /usr/local/opt/openjdk/bin \
+  /opt/homebrew/opt/openjdk/bin; do
   [ -d "$_ostadix_llvm_bin" ] && _ostadix_prepend_path "$_ostadix_llvm_bin"
 done
 export PATH
@@ -1537,9 +1680,15 @@ verify_runnable() {
 }
 
 # --- Main flow ---
+if [[ -n "${CARGO_BUILD_TARGET:-}" ]]; then
+  echo "Note: setup builds for the current host; ignoring ambient CARGO_BUILD_TARGET=$CARGO_BUILD_TARGET"
+  unset CARGO_BUILD_TARGET
+fi
 preflight_setup
 
 if $CHECK_ONLY; then
+  install_editor_support
+  setup_host_components
   check_capabilities
   exit $?
 fi
@@ -1555,6 +1704,8 @@ install_ubuntu_vm_tools
 
 export PATH="$CARGO_BIN_DIR:$PATH"
 hash -r 2>/dev/null || true
+
+install_editor_support
 
 install_nix
 prepare_guest_lab
@@ -1574,9 +1725,12 @@ if ! $DEPS_ONLY; then
   build_mcp_server
   setup_python
   install_local_binaries
+  setup_host_components
   verify_runnable
   verify_ocore
 fi
+
+if $DEPS_ONLY; then setup_host_components; fi
 
 echo
 if $DRY_RUN; then

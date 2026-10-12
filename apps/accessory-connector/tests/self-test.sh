@@ -2,7 +2,8 @@
 set -euo pipefail
 
 APP_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-TEST_TMP=$(mktemp -d "${TMPDIR:-/data/data/com.termux/files/usr/tmp}/accessory-connector-test.XXXXXX")
+TEST_TMP_PARENT=${TMPDIR:-${PREFIX:+$PREFIX/tmp}}
+TEST_TMP=$(mktemp -d "${TEST_TMP_PARENT:-/tmp}/accessory-connector-test.XXXXXX")
 trap 'find "$TEST_TMP" -depth -delete' EXIT HUP INT TERM
 
 command -v python3 >/dev/null 2>&1 || {

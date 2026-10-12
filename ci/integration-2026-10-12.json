@@ -1,0 +1,403 @@
+{
+  "schema": "ostadix.branch-integration-followup/v1",
+  "checked_at": "2026-10-12T04:50:25.651566+00:00",
+  "prior_inventory": "ci/integration-2026-10-11.json",
+  "base": "8fcdeeef6363e64a7c87d0d4816c34fceec10544",
+  "repositories": {
+    "origin": "https://github.com/lostadi/ostadix-BM.git",
+    "upstream": "https://github.com/lostadi/OSTADIX.git"
+  },
+  "scope": "All currently published branch tips fetched from both repositories after the editor-support request. Prior integration inventory remains the evidence for older equivalent and superseded commits.",
+  "branches": [
+    {
+      "branch": "origin/bug-fixes",
+      "source_commit": "2a76b6edda22dfed6a81488de8836be3fdfe113f",
+      "previous_source_commit": "2a76b6edda22dfed6a81488de8836be3fdfe113f",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "origin/dependabot/docker/examples/guix-wasm/library/python-3.14-slim-bookworm",
+      "source_commit": "b89ae62ab8b149729bd9d157540b37286421a84e",
+      "previous_source_commit": "b89ae62ab8b149729bd9d157540b37286421a84e",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "origin/dependabot/docker/src/bin/olangc/browser_guix/library/python-3.14-slim-bookworm",
+      "source_commit": "90fbaee93901e7843e0dfad059161eb966801fe2",
+      "previous_source_commit": "90fbaee93901e7843e0dfad059161eb966801fe2",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "origin/dependabot/docker/src/bin/olangc/wasm_exit/ubuntu-26.04",
+      "source_commit": "7b807b8e2eac7018b85c745546701caf6c1ef782",
+      "previous_source_commit": "7b807b8e2eac7018b85c745546701caf6c1ef782",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "origin/master",
+      "source_commit": "8fcdeeef6363e64a7c87d0d4816c34fceec10544",
+      "previous_source_commit": "488832b609ca387696f0259c47b53829bad670be",
+      "disposition": "current_integrated_master"
+    },
+    {
+      "branch": "upstream/bug-fixes",
+      "source_commit": "b3bb719203739505c15d3431845da4d83c8a7ce0",
+      "previous_source_commit": "b3bb719203739505c15d3431845da4d83c8a7ce0",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/cli-error-ux-10775695524624767334",
+      "source_commit": "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e",
+      "previous_source_commit": "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/android-terminal/runtime/base64-0.23.1",
+      "source_commit": "aa763307cc546328b5342f69ce4576b198df14b4",
+      "previous_source_commit": "aa763307cc546328b5342f69ce4576b198df14b4",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/android-terminal/runtime/jni-0.22.4",
+      "source_commit": "57ae77b0a83820c50058a5211f6a21fbb14f85e5",
+      "previous_source_commit": "57ae77b0a83820c50058a5211f6a21fbb14f85e5",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/android-terminal/runtime/toml-1.1.6spec-1.1.0",
+      "source_commit": "5dcf1d3da5f345c04bf082e8023b651f0b93832d",
+      "previous_source_commit": "5dcf1d3da5f345c04bf082e8023b651f0b93832d",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/mobile-console/libc-0.2.190",
+      "source_commit": "ca6baef085dc1726e102d4ad0bc54045ce9dcd40",
+      "previous_source_commit": "ca6baef085dc1726e102d4ad0bc54045ce9dcd40",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/axum-0.8.9",
+      "source_commit": "1ed515a73ffebba37a8d5e26011cbb819ccaecde",
+      "previous_source_commit": "1ed515a73ffebba37a8d5e26011cbb819ccaecde",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/hkdf-0.13.0",
+      "source_commit": "99e5b6209dff4ff0b31c44edc9f6291514f523d2",
+      "previous_source_commit": "99e5b6209dff4ff0b31c44edc9f6291514f523d2",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/mcp/ostadix_lang_mcp_server/base64-0.23.1",
+      "source_commit": "ba470cc0668d7295a9da9eae4e6d3e316c631cd7",
+      "previous_source_commit": "ba470cc0668d7295a9da9eae4e6d3e316c631cd7",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.5.0",
+      "source_commit": "a6c672a0ceadbb4345c8aa342239ecf4f66feb69",
+      "previous_source_commit": "a6c672a0ceadbb4345c8aa342239ecf4f66feb69",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/num-bigint-0.5.1",
+      "source_commit": "0509c3d08fd3fa3b444d843390c5f1679697f230",
+      "previous_source_commit": "0509c3d08fd3fa3b444d843390c5f1679697f230",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/rust-patch-updates-5bb66dfb8f",
+      "source_commit": "008990ea203b0c1e81b6f412835e88d3a0d91b7c",
+      "previous_source_commit": "008990ea203b0c1e81b6f412835e88d3a0d91b7c",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/cargo/rustyline-18.0.1",
+      "source_commit": "f10f61d311ea7a60913b46b66a4908b9ba1d992c",
+      "previous_source_commit": "f10f61d311ea7a60913b46b66a4908b9ba1d992c",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/docker/rust-1.99.0-slim-bookworm",
+      "source_commit": "5a7e5a3ca162c6c02ff9a61615560d5f03f19f30",
+      "previous_source_commit": "5a7e5a3ca162c6c02ff9a61615560d5f03f19f30",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/docker/src/bin/olangc/wasm_exit/rust-1.98.0-bullseye",
+      "source_commit": "3b6416b1d73eca1a6401a1acdbe690ca6f0c401f",
+      "previous_source_commit": "3b6416b1d73eca1a6401a1acdbe690ca6f0c401f",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/dependabot/docker/src/bin/olangc/wasm_exit/ubuntu-25.10",
+      "source_commit": "bc68d55b8e521e61d359c0cf7a773feff986fdca",
+      "previous_source_commit": "bc68d55b8e521e61d359c0cf7a773feff986fdca",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/feat/repl-clear-screen-2213356304128161974",
+      "source_commit": "11e2694b07bdc66e70b8be417375669a24c05eed",
+      "previous_source_commit": "11e2694b07bdc66e70b8be417375669a24c05eed",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/fix/hosted-tls-timeout-einval-retry",
+      "source_commit": "3f94456ea2ac181b3620e8d3cf299355329c2bd3",
+      "previous_source_commit": "3f94456ea2ac181b3620e8d3cf299355329c2bd3",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/iphone16pro/p0-recon",
+      "source_commit": "f26d55c78f0676869a903ec24bf01088b653648c",
+      "previous_source_commit": "f26d55c78f0676869a903ec24bf01088b653648c",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/jules-no-ux-changes-10815942145392224836",
+      "source_commit": "d214fef5d9ed79ec44995479a091231b44314deb",
+      "previous_source_commit": "d214fef5d9ed79ec44995479a091231b44314deb",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/jules-palette-ux-notebook-16726529523203072523",
+      "source_commit": "2e78a34f22897d25cdda97c1d46790fdd18b1ce5",
+      "previous_source_commit": "2e78a34f22897d25cdda97c1d46790fdd18b1ce5",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/jules-repl-ctrl-c-ux-4582478923382288125",
+      "source_commit": "ac424d942091c8acfd2d93f75dd067af677542be",
+      "previous_source_commit": "ac424d942091c8acfd2d93f75dd067af677542be",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/jules-ux-cli-file-errors-9567731891484906250",
+      "source_commit": "20560612c4bc9d3af5ff5c90cf2cd657df9620e8",
+      "previous_source_commit": "20560612c4bc9d3af5ff5c90cf2cd657df9620e8",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/main",
+      "source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+      "previous_source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/master",
+      "source_commit": "731f14aaa2cff9ea32a687c31f85c26eb5200082",
+      "previous_source_commit": "731f14aaa2cff9ea32a687c31f85c26eb5200082",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-add-aria-labels-14417253590846761119",
+      "source_commit": "7ce8220083facf64bd8219177cdfd4916745b4f8",
+      "previous_source_commit": "7ce8220083facf64bd8219177cdfd4916745b4f8",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-add-aria-labels-16419148431743606071",
+      "source_commit": "f47448ca44142c80d0b264a909be1ec4f318f078",
+      "previous_source_commit": "f47448ca44142c80d0b264a909be1ec4f318f078",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-cli-error-ux-9104623671049710645",
+      "source_commit": "a18400d093c97d6f4550ba591f37bdaf3253de6f",
+      "previous_source_commit": "a18400d093c97d6f4550ba591f37bdaf3253de6f",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-repl-clear-10920733176746515596",
+      "source_commit": "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e",
+      "previous_source_commit": "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-repl-clear-cmd-8745059712295164011",
+      "source_commit": "5a2d88cda7c974bb93ef986d526f869e11a250ca",
+      "previous_source_commit": "5a2d88cda7c974bb93ef986d526f869e11a250ca",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-ux-aria-labels-17543968112545744121",
+      "source_commit": "d213da3c0c6cc6f4710f364426a987a5e410e7d6",
+      "previous_source_commit": "d213da3c0c6cc6f4710f364426a987a5e410e7d6",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette-ux-improvement-repl-clear-12002940389259549745",
+      "source_commit": "ab35a13a6c10c325869c7b8be3e1ad5dfd050788",
+      "previous_source_commit": "ab35a13a6c10c325869c7b8be3e1ad5dfd050788",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette/a11y-notebook-buttons-2197054148375180996",
+      "source_commit": "9b1da302a2322bb83d248e386585f6d46262fccd",
+      "previous_source_commit": "9b1da302a2322bb83d248e386585f6d46262fccd",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/palette/cli-error-handling-4423928523852424637",
+      "source_commit": "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3",
+      "previous_source_commit": "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/ux-add-repl-clear-command-14385163191800482413",
+      "source_commit": "0efe66383c5b0f918632922d877f47f6df41be64",
+      "previous_source_commit": "0efe66383c5b0f918632922d877f47f6df41be64",
+      "disposition": "unchanged_previously_integrated"
+    },
+    {
+      "branch": "upstream/ux-aria-labels-17754742340276186369",
+      "source_commit": "6318810ff04a3b50dd8b926e509c6fe4199a310f",
+      "previous_source_commit": "6318810ff04a3b50dd8b926e509c6fe4199a310f",
+      "disposition": "unchanged_previously_integrated"
+    }
+  ],
+  "deleted_remote_branches": [
+    "origin/dependabot/cargo/apps/android-terminal/runtime/base64-0.23.1",
+    "origin/dependabot/cargo/apps/android-terminal/runtime/bitflags-2.13.2",
+    "origin/dependabot/cargo/apps/android-terminal/runtime/rustls-0.23.45",
+    "origin/dependabot/cargo/apps/mobile-console/libc-0.2.190",
+    "origin/dependabot/cargo/hkdf-0.13.0",
+    "origin/dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.190",
+    "origin/dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.5.1",
+    "origin/dependabot/cargo/mcp/ostadix_lang_mcp_server/which-8.0.6",
+    "origin/dependabot/cargo/rust-patch-updates-437fb87476",
+    "origin/dependabot/cargo/rustyline-18.0.1",
+    "origin/dependabot/cargo/toml-1.1.6spec-1.1.0",
+    "origin/dependabot/cargo/which-8.0.6",
+    "origin/dependabot/docker/rust-1.99.0-slim-bookworm",
+    "origin/dependabot/docker/src/bin/olangc/wasm_exit/rust-1.98.0-bullseye",
+    "origin/dependabot/github_actions/actions/upload-artifact-7.0.2"
+  ],
+  "result": {
+    "published_branches": 41,
+    "unchanged_previously_integrated": 40,
+    "new_changes_requiring_review": [],
+    "deleted_branches_count": 15
+  },
+  "validation": {
+    "vscode": {
+      "command": "node tools/syntax/vscode/test.mjs",
+      "assertions": 5210,
+      "result": "PASS",
+      "registered_tags": 36
+    },
+    "vscode_actual_host": {
+      "editor": "1.140.0",
+      "extension": "0.2.0",
+      "lexical_tokens": 48,
+      "tokens_after_edit": 9,
+      "result": "PASS",
+      "checks": [
+        "extension activation",
+        "actual editor token API",
+        "nested Common Lisp inside Python string",
+        "mismatched closer remains Python string",
+        "Bash heredoc",
+        "edited-document cache invalidation",
+        "rendered parent string color restoration and distinct Lisp keyword color"
+      ]
+    },
+    "installed_vsix": {
+      "static_grammars": 94,
+      "pinned_upstream_grammars": 81,
+      "pinned_tokenizer_assets": 6,
+      "result": "PASS",
+      "checks": [
+        "all contributed paths included",
+        "all upstream/runtime SHA-256 checks",
+        "no development tests included"
+      ]
+    },
+    "syntax_python": {
+      "command": "python3 -m unittest discover -s tools/syntax -p 'test_*.py' -v",
+      "tests": 27,
+      "result": "PASS"
+    },
+    "bat": {
+      "command": "python3 tools/syntax/bat/check.py",
+      "structural_edge_cases": 9,
+      "repository_examples": 7,
+      "language_routes": 36,
+      "result": "PASS"
+    },
+    "native_editors": {
+      "vim": "9.1",
+      "emacs": "30.2",
+      "nano": "8.7.1",
+      "emacs_ert_tests": 12,
+      "native_language_families": 23,
+      "active_examples": 54,
+      "result": "PASS"
+    },
+    "host_build_artifacts": {
+      "result": "PASS",
+      "checks": [
+        "workspace ostadix release",
+        "mobile-console release",
+        "host JNI ELF shared library",
+        "browser-chat mobile bundle and 17-file validator",
+        "freestanding x86-64 O-core kernel ELF",
+        "WASI compile artifact with pinned Rust 1.97.1"
+      ]
+    },
+    "language_inventory": {
+      "command": "python3 scripts/check_language_sources.py validate",
+      "classified_sources": 235,
+      "result": "PASS"
+    },
+    "limits": [
+      "Nano provides regex-based accents and body colors, not recursive foreign language grammars.",
+      "Static TextMate exports have documented context limitations; VS Code uses the enabled O-aware lexical token provider.",
+      "Windows cross-build, unavailable Android SDK/device closure and licensed runtime installation were not validated.",
+      "Independent component builds compile artifacts and do not establish complete external-runtime lowering or cross-ISA admission."
+    ],
+    "setup_current_host_inventory": {
+      "check_exit": 1,
+      "missing_hosted_requirement": "Java compiler (javac)",
+      "dry_run_exit": 0,
+      "note": "Normal dependency plan installs a JDK; no system package installation was performed during these checks. Unavailable Android SDK/platform and pinned native inputs are reported per component."
+    },
+    "setup_unit_tests": {
+      "tests": 43,
+      "result": "PASS"
+    },
+    "native_install_unit_tests": {
+      "tests": 13,
+      "skipped": 1,
+      "result": "PASS"
+    },
+    "hello_smoke": {
+      "command": "O examples/hello.O backends",
+      "output": "[number] 2",
+      "result": "PASS"
+    },
+    "source_release": {
+      "tests": 105,
+      "result": "PASS",
+      "checks": [
+        "byte-identical snapshot ZIPs",
+        "pinned grammar/runtime and native editor dependency/license closures",
+        "all relative Markdown links",
+        "extracted offline locked Cargo metadata",
+        "extracted normal setup dry run",
+        "core.autocrlf=true leaves every editor/source/license input byte-identical; attributes preserved in archive"
+      ],
+      "followup_checkout_tests": 13
+    },
+    "offline_kit": {
+      "tests": 21,
+      "result": "PASS"
+    },
+    "html_exports": {
+      "command": "python3 scripts/render_docs.py check",
+      "marked": "18.0.13",
+      "documents": 97,
+      "result": "PASS"
+    }
+  }
+}

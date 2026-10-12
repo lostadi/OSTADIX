@@ -96,7 +96,7 @@ authors = ["Lee Daghlar Ostadi"]
 license = "{release.ROOT_LICENSE_SPDX}"
 
 [workspace]
-members = [".", "crates/ostadix-api"]
+members = [".", "crates/ostadix-api", "ostadix-core"]
 default-members = [".", "crates/ostadix-api"]
 exclude = ["fuzz", "mcp/ostadix_lang_mcp_server"]
 resolver = "2"
@@ -223,6 +223,72 @@ FIXTURE_NOTICE = """\
 Ostadix-lang fixture notice
 Copyright fixture contributors
 """
+
+
+def fixture_setup_sources() -> dict[str, bytes]:
+    """Small, complete dependency inventory for release-boundary tests."""
+
+    files = {
+        path: b"fixture setup input\n"
+        for path in release.SETUP_COMPONENT_RELEASE_PATHS
+    }
+
+    def encode(value) -> bytes:
+        return (json.dumps(value, sort_keys=True) + "\n").encode()
+
+    files["ostadix-core/Cargo.toml"] = (
+        b'[package]\nname = "ostadix"\nversion = "0.1.0"\nedition = "2021"\n'
+    )
+    files["ostadix-core/src/main.rs"] = (
+        b'fn main() { let _ = include_str!("injector.sh"); }\n'
+    )
+    languages = {"languages": [
+        {"key": "host", "textmateScope": "source.ostadix"},
+        {"key": "python", "textmateScope": "source.python"},
+    ]}
+    files["tools/syntax/languages.json"] = encode(languages)
+    files["tools/syntax/vscode/languages.json"] = encode(languages)
+    files["tools/syntax/vscode/package.json"] = encode({
+        "main": "./extension.cjs",
+        "contributes": {"grammars": [
+            {"scopeName": "source.ostadix", "path": "./syntaxes/ostadix.json"},
+            {"scopeName": "source.python.ostadix-embedded", "path": "./syntaxes/python.json"},
+        ]},
+    })
+    files["tools/syntax/vscode/syntaxes/ostadix.json"] = encode({
+        "scopeName": "source.ostadix",
+        "patterns": [{"include": "source.python.ostadix-embedded"}],
+    })
+    files["tools/syntax/vscode/syntaxes/python.json"] = encode({
+        "scopeName": "source.python.ostadix-embedded", "patterns": [],
+    })
+    raw_path = "tools/syntax/vscode/vendor/grammars/python.json"
+    files[raw_path] = encode({"scopeName": "source.python", "patterns": []})
+    files["tools/syntax/vscode/vendor/PYTHON-LICENSE"] = b"Fixture grammar license\n"
+    files["tools/syntax/vscode/vendor/manifest.json"] = encode({
+        "grammars": [{
+            "path": "vendor/grammars/python.json",
+            "scopeName": "source.python",
+            "sha256": hashlib.sha256(files[raw_path]).hexdigest(),
+            "licenseFile": "vendor/PYTHON-LICENSE",
+        }],
+        "unresolvedOptionalIncludes": [],
+    })
+    runtime_paths = sorted(
+        path for path in release.SETUP_COMPONENT_RELEASE_PATHS
+        if path.startswith("tools/syntax/vscode/runtime/")
+        and not path.endswith("/manifest.json")
+    )
+    files["tools/syntax/vscode/runtime/manifest.json"] = encode([
+        {
+            "path": path.removeprefix("tools/syntax/vscode/"),
+            "sha256": hashlib.sha256(files[path]).hexdigest(),
+        }
+        for path in runtime_paths
+    ])
+    for editor in ("emacs", "vim"):
+        files[f"tools/syntax/{editor}/vendor/provenance.json"] = encode({"packages": []})
+    return files
 
 
 def fixture_readme(extra: str = "") -> str:
@@ -527,7 +593,7 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
             "members": (
                 "Cargo.toml",
                 FIXTURE_CARGO.replace(
-                    'members = [".", "crates/ostadix-api"]',
+                    'members = [".", "crates/ostadix-api", "ostadix-core"]',
                     'members = ["."]',
                     1,
                 ),
@@ -690,6 +756,139 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
         self.assertFalse(release.is_allowed_release_path("src/world/identity.rs"))
 
 
+class SetupSourceClosureTests(unittest.TestCase):
+    def fixture_files(self) -> dict[str, bytes]:
+        return {
+            **fixture_setup_sources(),
+            "Cargo.toml": FIXTURE_CARGO.encode(),
+            "crates/ostadix-api/Cargo.toml": FIXTURE_API_CARGO.encode(),
+        }
+
+    def validate(self, files: dict[str, bytes]) -> None:
+        release.validate_setup_source_closure([
+            release.SourceEntry(path, "100644", data)
+            for path, data in sorted(files.items())
+        ])
+
+    def test_complete_setup_dependency_closure(self) -> None:
+        self.validate(self.fixture_files())
+
+    def test_allowlist_preserves_sources_licenses_tests_and_exact_tokenizer_wasm(self) -> None:
+        included = [
+            ".gitattributes",
+            *release.SETUP_COMPONENT_RELEASE_PATHS,
+            "tools/syntax/vscode/tests/extension-host.cjs",
+            "tools/syntax/vscode/vendor/OCAML-PLATFORM-LICENSE",
+            "tools/syntax/emacs/vendor/rust-mode/LICENSE-APACHE",
+            "tools/syntax/vim/vendor/LICENSE-wat",
+            "tools/syntax/sublime/licenses/runtime/vscode-oniguruma/NOTICES.txt",
+            "tools/nano-local-loader/src/org/ostadix/nanoloader/Wire.java",
+            "tools/ocore-runtime/libc/README.md",
+            "tools/ocore-runtime/build.py",
+            "ci/integration-2026-10-12.json",
+        ]
+        excluded = [
+            "tools/unreviewed/source.py",
+            "tools/syntax/vscode/node_modules/vscode/main.js",
+            "tools/syntax/vscode/runtime/vscode-oniguruma/generated.wasm",
+            "tools/syntax/vscode/runtime/vscode-oniguruma/other/onig.wasm",
+            "tools/syntax/vscode/runtime/vscode-oniguruma/onig.wasm~",
+            "tools/syntax/emacs/vendor/test/__pycache__/cache.pyc",
+            "tools/syntax/vscode/README.html",
+            "tools/nano-factory-reader/build/classes.jar",
+            "tools/nano-local-loader/build/dex/classes.dex",
+            "tools/ocore-runtime/target/debug/fixture",
+            "ostadix-core/target/release/ostadix",
+            "apps/olang-browser-wasi/build/program.wasm",
+        ]
+        for path in included:
+            with self.subTest(path=path):
+                self.assertTrue(release.is_allowed_release_path(path))
+        for path in excluded:
+            with self.subTest(path=path):
+                self.assertFalse(release.is_allowed_release_path(path))
+
+    def test_workspace_member_manifest_is_required(self) -> None:
+        files = self.fixture_files()
+        files["Cargo.toml"] += b'\n# test\n'
+        files["Cargo.toml"] = files["Cargo.toml"].replace(
+            b'"ostadix-core"]', b'"ostadix-core", "crates/new-tool"]', 1
+        )
+        with self.assertRaisesRegex(release.ReleaseError, "crates/new-tool/Cargo.toml"):
+            self.validate(files)
+
+    def test_pinned_grammar_and_runtime_bytes_cannot_drift(self) -> None:
+        for path in (
+            "tools/syntax/vscode/vendor/grammars/python.json",
+            "tools/syntax/vscode/runtime/vscode-oniguruma/onig.wasm",
+            "tools/syntax/vscode/runtime/vscode-oniguruma/LICENSE.txt",
+        ):
+            with self.subTest(path=path):
+                files = self.fixture_files()
+                files[path] += b"changed\n"
+                with self.assertRaisesRegex(release.ReleaseError, "pinned editor dependency checksum mismatch"):
+                    self.validate(files)
+
+    def test_pinned_grammar_license_is_required(self) -> None:
+        files = self.fixture_files()
+        del files["tools/syntax/vscode/vendor/PYTHON-LICENSE"]
+        with self.assertRaisesRegex(release.ReleaseError, "vendor/PYTHON-LICENSE"):
+            self.validate(files)
+
+    def test_generated_grammar_dependency_must_be_packaged(self) -> None:
+        files = self.fixture_files()
+        package_path = "tools/syntax/vscode/package.json"
+        package = json.loads(files[package_path])
+        package["contributes"]["grammars"] = package["contributes"]["grammars"][:1]
+        files[package_path] = json.dumps(package).encode()
+        del files["tools/syntax/vscode/syntaxes/python.json"]
+        with self.assertRaisesRegex(release.ReleaseError, "release omits generated grammar dependency"):
+            self.validate(files)
+
+    def test_registered_backend_requires_full_pinned_grammar(self) -> None:
+        files = self.fixture_files()
+        vendor_path = "tools/syntax/vscode/vendor/manifest.json"
+        vendor = json.loads(files[vendor_path])
+        vendor["grammars"] = []
+        files[vendor_path] = json.dumps(vendor).encode()
+        with self.assertRaisesRegex(release.ReleaseError, "required backend grammar: source.python"):
+            self.validate(files)
+
+    def test_generated_language_map_matches_shared_routing(self) -> None:
+        files = self.fixture_files()
+        files["tools/syntax/vscode/languages.json"] = b'{"languages": []}\n'
+        with self.assertRaisesRegex(release.ReleaseError, "language map differs"):
+            self.validate(files)
+
+    def test_runtime_inventory_must_cover_required_wasm(self) -> None:
+        files = self.fixture_files()
+        runtime_path = "tools/syntax/vscode/runtime/manifest.json"
+        runtime = json.loads(files[runtime_path])
+        files[runtime_path] = json.dumps([
+            record for record in runtime if not record["path"].endswith("onig.wasm")
+        ]).encode()
+        with self.assertRaisesRegex(release.ReleaseError, "runtime editor inventory omits input.*onig.wasm"):
+            self.validate(files)
+
+    def test_native_editor_source_and_license_inventory_is_verified(self) -> None:
+        for editor in ("emacs", "vim"):
+            with self.subTest(editor=editor):
+                files = self.fixture_files()
+                provenance_path = f"tools/syntax/{editor}/vendor/provenance.json"
+                prefix = f"tools/syntax/{editor}/vendor/fixture/" if editor == "emacs" else f"tools/syntax/{editor}/vendor/"
+                files[prefix + "mode.el"] = b"fixture source\n"
+                files[prefix + "LICENSE"] = b"fixture license\n"
+                files[provenance_path] = json.dumps({"packages": [{
+                    "name": "fixture",
+                    "files": [{"file": "mode.el", "sha256": hashlib.sha256(files[prefix + "mode.el"]).hexdigest()}],
+                    "additionalFiles": [{"file": "LICENSE", "sha256": hashlib.sha256(files[prefix + "LICENSE"]).hexdigest()}],
+                }]}).encode()
+                self.validate(files)
+                del files[prefix + "LICENSE"]
+                with self.assertRaisesRegex(release.ReleaseError, "LICENSE"):
+                    self.validate(files)
+
+
 class SourceReleaseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -749,6 +948,7 @@ class SourceReleaseTests(unittest.TestCase):
     def _commit(self, files: dict[str, str | bytes] | None = None) -> str:
         contents = {
             ".dockerignore": "target\nOstadix-lang\n",
+            ".gitattributes": (PROJECT_ROOT / ".gitattributes").read_bytes(),
             ".github/dependabot.yml": "version: 2\nupdates: []\n",
             ".github/CODEOWNERS": "* @fixture\n",
             ".github/ISSUE_TEMPLATE/bug_report.yml": "name: Bug\ndescription: Fixture\nbody: []\n",
@@ -1440,6 +1640,7 @@ class SourceReleaseTests(unittest.TestCase):
             contents.setdefault(path, b"fixture native source closure\n")
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             contents.setdefault(path, b"fixture human and LLM interface source\n")
+        contents.update(fixture_setup_sources())
         if files:
             contents.update(files)
         for index in range(FIXTURE_EVIDENCE_GATE_COUNT):
@@ -1656,6 +1857,7 @@ class SourceReleaseTests(unittest.TestCase):
             names = set(archive.namelist())
             included = {
                 ".dockerignore",
+                ".gitattributes",
                 ".github/CODEOWNERS",
                 ".github/dependabot.yml",
                 ".github/ISSUE_TEMPLATE/bug_report.yml",
@@ -2180,6 +2382,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.OSTADIX_API_ROOT_MODULE_PATHS.values())
             included.update(release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS)
             included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
+            included.update(fixture_setup_sources())
             excluded = {
                 ".DS_Store",
                 ".ocore-repair-backups/run/typeck.rs",
@@ -4213,7 +4416,7 @@ class SourceReleaseTests(unittest.TestCase):
         paths = set(release.REQUIRED_RELEASE_PATHS)
         for repository in (PROJECT_ROOT, live_repo):
             tracked = subprocess.check_output(
-                ["git", "-C", os.fspath(repository), "ls-files", "-z"]
+                ["git", "-C", os.fspath(repository), "ls-files", "--cached", "--others", "--exclude-standard", "-z"]
             ).decode("utf-8").split("\0")
             paths.update(
                 path for path in tracked if path and release.is_allowed_release_path(path)
@@ -4243,6 +4446,10 @@ class SourceReleaseTests(unittest.TestCase):
                     "git",
                     "-C",
                     os.fspath(live_repo),
+                    "-c",
+                    "user.name=Source Release Test",
+                    "-c",
+                    "user.email=source-release@example.invalid",
                     "commit",
                     "--quiet",
                     "-m",
@@ -4258,6 +4465,31 @@ class SourceReleaseTests(unittest.TestCase):
             stdout=subprocess.PIPE,
             text=True,
         ).stdout.strip()
+        # Exercise Git's Windows-style line-ending conversion on the complete
+        # candidate editor tree. Ordinary README text must convert while every
+        # pinned grammar, runtime, native mode and license byte stays identical.
+        subprocess.run(
+            ["git", "-C", str(live_repo), "config", "core.autocrlf", "true"],
+            check=True,
+        )
+        shutil.rmtree(live_repo / "tools/syntax")
+        (live_repo / "README.md").unlink()
+        subprocess.run(
+            ["git", "-C", str(live_repo), "checkout", "--", "tools/syntax", "README.md"],
+            check=True,
+        )
+        self.assertIn(b"\r\n", (live_repo / "README.md").read_bytes())
+        for relative in sorted(paths):
+            if relative.startswith("tools/syntax/") and (PROJECT_ROOT / relative).is_file():
+                self.assertEqual(
+                    (live_repo / relative).read_bytes(),
+                    (PROJECT_ROOT / relative).read_bytes(),
+                    f"core.autocrlf changed pinned editor input {relative}",
+                )
+        self.assertEqual(
+            subprocess.check_output(["git", "-C", str(live_repo), "status", "--porcelain"]),
+            b"",
+        )
         untracked_source = live_repo / "crates/ostadix-api/src/private_generated.rs"
         untracked_source.write_text("// untracked private source\n", encoding="utf-8")
         untracked_output = live_repo / "target/generated-private.bin"
@@ -4301,6 +4533,10 @@ class SourceReleaseTests(unittest.TestCase):
         prefix = manifest["prefix"]
         self.assertEqual(prefix, archive_prefix)
         with zipfile.ZipFile(archives[0]) as archive:
+            self.assertEqual(
+                archive.read(f"{prefix}/.gitattributes"),
+                (PROJECT_ROOT / ".gitattributes").read_bytes(),
+            )
             relative_paths = {
                 name.removeprefix(f"{prefix}/") for name in archive.namelist()
             }
@@ -4359,6 +4595,49 @@ class SourceReleaseTests(unittest.TestCase):
                 "crates/ostadix-api/src/private_generated.rs", relative_paths
             )
             self.assertNotIn("target/generated-private.bin", relative_paths)
+
+        extracted = self.root / "extracted-actual-source"
+        with zipfile.ZipFile(archives[0]) as archive:
+            archive.extractall(extracted)
+        source_root = extracted / prefix
+        metadata = subprocess.run(
+            ["cargo", "metadata", "--offline", "--locked", "--no-deps", "--format-version", "1"],
+            cwd=source_root,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.assertEqual(metadata.returncode, 0, metadata.stderr)
+        packages = json.loads(metadata.stdout)["packages"]
+        self.assertEqual({package["name"] for package in packages}, {"o-lang", "ostadix-api", "ostadix"})
+        home = self.root / "dry-run-home"
+        home.mkdir()
+        environment = os.environ.copy()
+        environment.update({"HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")})
+        dry_run = subprocess.run(
+            ["bash", "setup.sh", "--dry-run"],
+            cwd=source_root,
+            env=environment,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        self.assertEqual(dry_run.returncode, 0, dry_run.stdout + dry_run.stderr)
+        self.assertNotIn("missing required", dry_run.stdout + dry_run.stderr)
+
+    def test_archive_verifier_enforces_pinned_editor_inputs_with_recomputed_manifest(self) -> None:
+        result = self._build("before-editor-tamper.zip", ref=self._commit())
+
+        def tamper_wasm(entry):
+            if entry.path == "tools/syntax/vscode/runtime/vscode-oniguruma/onig.wasm":
+                return release.SourceEntry(entry.path, entry.mode, entry.data + b"altered")
+            return entry
+
+        tampered = self._rewrite_self_consistent(result.output, "editor-tamper.zip", tamper_wasm)
+        with self.assertRaisesRegex(release.ReleaseError, "pinned editor dependency checksum mismatch.*onig.wasm"):
+            release.verify_archive(tampered)
 
     def test_dirty_tree_requires_override_and_override_uses_commit_bytes(self) -> None:
         self._commit({"src/lib.rs": FIXTURE_ROOT_LIB_SOURCE + "// clean\n"})

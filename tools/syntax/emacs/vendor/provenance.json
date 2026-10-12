@@ -1,0 +1,907 @@
+{
+  "schema": "ostadix.emacs-vendor/v1",
+  "purpose": "Offline native lexical grammars and required fontification Elisp dependencies; upstream source bytes are unchanged. Optional interactive integrations and runtime commands are not used by Ostadix fontification. Existing load-path entries and user-defined modes take precedence.",
+  "packages": [
+    {
+      "name": "rust-mode",
+      "upstream": "https://github.com/rust-lang/rust-mode",
+      "commit": "265e243732761b925e03ebb61930a3aeea034d0e",
+      "license": "MIT AND Apache-2.0",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "aefaf1413aaf1c5649a92357943d76528c4ec92c93be1096039bab49f8420f35"
+        },
+        {
+          "source": "LICENSE-APACHE",
+          "file": "LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "source": "LICENSE-MIT",
+          "file": "LICENSE-MIT",
+          "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+        },
+        {
+          "source": "rust-cargo.el",
+          "file": "rust-cargo.el",
+          "sha256": "1903620928d8991fe886dfbb85e25a218b91ed6daa86e509f6e378e3002974d8"
+        },
+        {
+          "source": "rust-common.el",
+          "file": "rust-common.el",
+          "sha256": "e6fff6abc5d69c65c20a7e346a50571fdad1af291f15455ee75387113f440119"
+        },
+        {
+          "source": "rust-compile.el",
+          "file": "rust-compile.el",
+          "sha256": "bea93bb95243ac34415431ff65bd2e3fd6470faa87ce6f031520d33dbdbab2c5"
+        },
+        {
+          "source": "rust-mode-treesitter.el",
+          "file": "rust-mode-treesitter.el",
+          "sha256": "c12cc4c9539d1c07441366396a13c1355163d5ee0be26d5afbb75142675bfbb4"
+        },
+        {
+          "source": "rust-mode.el",
+          "file": "rust-mode.el",
+          "sha256": "91db3df287ade44b0d338ed07df585e3d47b0dcfdea4ee7fafd78b7d9b9b86c4"
+        },
+        {
+          "source": "rust-playpen.el",
+          "file": "rust-playpen.el",
+          "sha256": "d1ff4cc22a21434554ba3d091b36c5f69c0c0eca61893b56f87b9e134fa99f69"
+        },
+        {
+          "source": "rust-prog-mode.el",
+          "file": "rust-prog-mode.el",
+          "sha256": "438023fddecfe5886adbe19301a56912f612113993a5da3d7e06c007fe619210"
+        },
+        {
+          "source": "rust-rustfmt.el",
+          "file": "rust-rustfmt.el",
+          "sha256": "17f40ecff825247ba25d58a71d438474df8a6e897f893fe41d1825f805ef43ef"
+        },
+        {
+          "source": "rust-utils.el",
+          "file": "rust-utils.el",
+          "sha256": "4fde9b8cb8d588cff935f1debc24574f58f2f857eec3dcc69ac311850eeff186"
+        }
+      ],
+      "additionalFiles": [],
+      "licenseNote": "Both upstream license files are retained; the source header says distributed under the terms of both licenses."
+    },
+    {
+      "name": "racket-mode",
+      "upstream": "https://github.com/greghendershott/racket-mode",
+      "commit": "112ede7765c19011f58d67b4dac9a5435846a07d",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "d24676f6cbfa226bb9dd3835137cf22bf9b77ef0886d4d977324ef41f69574b7"
+        },
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "racket-back-end.el",
+          "file": "racket-back-end.el",
+          "sha256": "c1fe78b9376a6eb9d641a1cbd0ed6b18ea9c204f253ff908544f3cc4aa100576"
+        },
+        {
+          "source": "racket-browse-url.el",
+          "file": "racket-browse-url.el",
+          "sha256": "32bdccdcabe93148b21a4a4c5f0bc178fe14fdba11748b3b676eba6b5da17386"
+        },
+        {
+          "source": "racket-bug-report.el",
+          "file": "racket-bug-report.el",
+          "sha256": "83aba756cea2ee06bc1d2d2fb13e00f1d08149a39a86fa8b2639698aaf3a1b12"
+        },
+        {
+          "source": "racket-cmd.el",
+          "file": "racket-cmd.el",
+          "sha256": "ecfa687898a69299fc7e948dd1bd8cf9a684b1ff39c92b5e6947782d3b31ab32"
+        },
+        {
+          "source": "racket-collection.el",
+          "file": "racket-collection.el",
+          "sha256": "424e7283d84962ab6cefc3e9a3a9aa5227d09b991ae3683710e7c50b315ac447"
+        },
+        {
+          "source": "racket-common.el",
+          "file": "racket-common.el",
+          "sha256": "177a2d0101a8e6e429e04114d509ec607d566ebcb599a12834890e15e34f5340"
+        },
+        {
+          "source": "racket-complete.el",
+          "file": "racket-complete.el",
+          "sha256": "31772e910f20b158b739e2ac3618e9c1f82d62a8c62fe98ac90aef2a2153fc80"
+        },
+        {
+          "source": "racket-custom.el",
+          "file": "racket-custom.el",
+          "sha256": "ee90d75a8e5994b699b5ffa09000d51fb18c6e0846759c48524fe3e7a08f1e68"
+        },
+        {
+          "source": "racket-debug.el",
+          "file": "racket-debug.el",
+          "sha256": "a6d3ca45a05333753a7645147c5ff48cd85343417a55ca8d12015c99d0da5e0a"
+        },
+        {
+          "source": "racket-describe.el",
+          "file": "racket-describe.el",
+          "sha256": "24988c68f0e3d141a2d6fbdb00804572c48af63499f336953e3e5395704764b9"
+        },
+        {
+          "source": "racket-doc.el",
+          "file": "racket-doc.el",
+          "sha256": "e651157e35c663cfc40899e740907ead55574a708176b6f86eb775dd32026ce0"
+        },
+        {
+          "source": "racket-edit.el",
+          "file": "racket-edit.el",
+          "sha256": "8a9507e5b5ea2d826e4f92a2750a7ffafcced607dc9ae8eb2967231156139f59"
+        },
+        {
+          "source": "racket-font-lock.el",
+          "file": "racket-font-lock.el",
+          "sha256": "7a93319f924cd27d16ba72a704ed8368213eb4890df845c3d6ed394d1cf12f9a"
+        },
+        {
+          "source": "racket-hash-lang.el",
+          "file": "racket-hash-lang.el",
+          "sha256": "4758ab95abc60008e1d2397c199ad21721f37175af2ac1037482e8ceb4d74565"
+        },
+        {
+          "source": "racket-imenu.el",
+          "file": "racket-imenu.el",
+          "sha256": "68a28b19fa41f6395c7c1379486c03f3467d42d785c38e5ff1c32ae57e737201"
+        },
+        {
+          "source": "racket-indent.el",
+          "file": "racket-indent.el",
+          "sha256": "38bb9dd2c8893e4a068bfa92057cccd3b7978e830aed8313a23fd18a020b3817"
+        },
+        {
+          "source": "racket-input.el",
+          "file": "racket-input.el",
+          "sha256": "aaa697afb5749dff6a98e27cd65e3496e53efca0bd258c1ee0054ab01fbcf1db"
+        },
+        {
+          "source": "racket-keywords-and-builtins.el",
+          "file": "racket-keywords-and-builtins.el",
+          "sha256": "502815f42f490a4a6d6dc52390a507caeabc0d4a0e6aeb5f39805e499b9f18fa"
+        },
+        {
+          "source": "racket-lisp-mode.el",
+          "file": "racket-lisp-mode.el",
+          "sha256": "4038fad419372f150f484a2bab52344db77fa6ab9bdb7a2cb069e01046beeb01"
+        },
+        {
+          "source": "racket-logger.el",
+          "file": "racket-logger.el",
+          "sha256": "28880a0a3a262759c9215504aebba8361cfc32f8aa178d88aecbdb426d804b0b"
+        },
+        {
+          "source": "racket-mode.el",
+          "file": "racket-mode.el",
+          "sha256": "6515430acc8e596c09211069dc0cb6fd652725b8a227e56371278559e756a480"
+        },
+        {
+          "source": "racket-package.el",
+          "file": "racket-package.el",
+          "sha256": "b277becd963c3189945a73c973d295218904b9a26002422c456bec1934ad8a7e"
+        },
+        {
+          "source": "racket-parens.el",
+          "file": "racket-parens.el",
+          "sha256": "0bcbbf05e55972c7ab00fd051dd0f88dfbb653dfb5e982195f2e830fe04d0dae"
+        },
+        {
+          "source": "racket-ppss.el",
+          "file": "racket-ppss.el",
+          "sha256": "ec1af7cf43b038ea7dfcb705c1e905455f03225d326faf30ba02581958461a61"
+        },
+        {
+          "source": "racket-profile.el",
+          "file": "racket-profile.el",
+          "sha256": "496d6f1d5ee38b96a2e316209f8379d8394e5335c50f55e701119ee6e20c567e"
+        },
+        {
+          "source": "racket-repl-buffer-name.el",
+          "file": "racket-repl-buffer-name.el",
+          "sha256": "120d8055b830d887e10842b7019051fc482c3c8427e80232d813e8d15348c58c"
+        },
+        {
+          "source": "racket-repl.el",
+          "file": "racket-repl.el",
+          "sha256": "a0e47b9f43ab6e329174df68e99d56fdc291093f3f1f83e65658104c6e52b3b3"
+        },
+        {
+          "source": "racket-scribble-anchor.el",
+          "file": "racket-scribble-anchor.el",
+          "sha256": "598c81bc810709b89b1aa14cb045f87e597355f77f686104460536c4bfe3f476"
+        },
+        {
+          "source": "racket-scribble.el",
+          "file": "racket-scribble.el",
+          "sha256": "b29f06c74a3562fc3821fda2f7791100256f39c1fde7167acbfd5551c78dacc6"
+        },
+        {
+          "source": "racket-shell.el",
+          "file": "racket-shell.el",
+          "sha256": "0ef50ce3bd6d09803d8532b94098e6eb1c696deaa7d91f579ba54c5de4f1d2bf"
+        },
+        {
+          "source": "racket-show.el",
+          "file": "racket-show.el",
+          "sha256": "9da38aa39556d971967034f0cbf51a4def64ea328cf37089a17b77dd381da5d6"
+        },
+        {
+          "source": "racket-smart-open.el",
+          "file": "racket-smart-open.el",
+          "sha256": "ca57446a8bd9c6aa6dc0ca956029af5c45017ee9d51a48b1ea7155b25fd1894a"
+        },
+        {
+          "source": "racket-stepper.el",
+          "file": "racket-stepper.el",
+          "sha256": "8af6f1ccef23b9636935851a944a8d65bf9ce2bdc2a9202ea20020c321a8c568"
+        },
+        {
+          "source": "racket-util.el",
+          "file": "racket-util.el",
+          "sha256": "d97fc0a2083dae1784d85f945571c8fe8518c19f3bd047fe910fc97ccbf3e74f"
+        },
+        {
+          "source": "racket-visit.el",
+          "file": "racket-visit.el",
+          "sha256": "cbfc67f1e9639550da1311159a5e5ad920ef2d366f8f03f3777675c70145e0f6"
+        },
+        {
+          "source": "racket-wsl.el",
+          "file": "racket-wsl.el",
+          "sha256": "0fa9fbd7134de5df5c1151b60d28948f3aae7d5c7ae1e5cd4d891736bc2756cf"
+        },
+        {
+          "source": "racket-xp-complete.el",
+          "file": "racket-xp-complete.el",
+          "sha256": "5af3d258d18d6ca6c895b3b93316dd686a35a95ccdec3fb85ff7d662afc11a27"
+        },
+        {
+          "source": "racket-xp.el",
+          "file": "racket-xp.el",
+          "sha256": "6d4afa2f1c69d00b9a396983a851ab9a92be9a9951be7c5ff93e048270a978c1"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "nix-mode",
+      "upstream": "https://github.com/NixOS/nix-mode",
+      "commit": "2c77e7e0b7540efbb20ccaee3557ef90a5dc77f0",
+      "license": "LGPL-2.1-only",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "3737fa82edf2c9c5437bb504b4727e68b539bd7995765e32b849a00bbab97d39"
+        },
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+        },
+        {
+          "source": "nix-build.el",
+          "file": "nix-build.el",
+          "sha256": "243f58e43ef47dfa34ebcef7e6d9a7b0ebdb5fc2e2a015eb040e6e61ac93b8eb"
+        },
+        {
+          "source": "nix-company.el",
+          "file": "nix-company.el",
+          "sha256": "0b4a276e05a5fa777435b0ae58e515bd681925c354556db776622effac461660"
+        },
+        {
+          "source": "nix-drv-mode.el",
+          "file": "nix-drv-mode.el",
+          "sha256": "37ef0dafee58d5c8b7dc23db494309ab58ac367d44ecd801c446eae941b1690b"
+        },
+        {
+          "source": "nix-edit.el",
+          "file": "nix-edit.el",
+          "sha256": "4cc7418dcc0b0ae3913f22775ac3ee10c5de6d1e0276ea9479dec1b346ae215c"
+        },
+        {
+          "source": "nix-flake.el",
+          "file": "nix-flake.el",
+          "sha256": "50d74bfef9bbb1d385ff5bae5b6abcd8233a19affd3c1a762a2732cea1c0d2f9"
+        },
+        {
+          "source": "nix-format.el",
+          "file": "nix-format.el",
+          "sha256": "7b338ae79f5fe73bc4430e7154436fddbcbaa9df20a192a467691389c9c53ca6"
+        },
+        {
+          "source": "nix-instantiate.el",
+          "file": "nix-instantiate.el",
+          "sha256": "9a3f313d4097324419090e11fadef83f1f3c95fcae962463b2330b4bdcf1329a"
+        },
+        {
+          "source": "nix-log.el",
+          "file": "nix-log.el",
+          "sha256": "9b3ab15992660be9b0e6e0da4a63307f6c4bc24d1faf6f1b3c16076acaed7db4"
+        },
+        {
+          "source": "nix-mode-mmm.el",
+          "file": "nix-mode-mmm.el",
+          "sha256": "4015db34b7cfa38eea9c3092da74c99057e8c4c199c390b90546b875dbce6cd7"
+        },
+        {
+          "source": "nix-mode.el",
+          "file": "nix-mode.el",
+          "sha256": "35e43b6f2e50913a2e1ce42fc2cb13498270cfe8aaac005b4bc315ae319e1490"
+        },
+        {
+          "source": "nix-prettify-mode.el",
+          "file": "nix-prettify-mode.el",
+          "sha256": "6832fe20d42d9fcf887767c86628a2156186279b6ef26277c77a8475b079d52f"
+        },
+        {
+          "source": "nix-repl.el",
+          "file": "nix-repl.el",
+          "sha256": "ae3aff2029a00c9102b092710a18e1880d03bd1cd6a68f2d97c08c23305a567b"
+        },
+        {
+          "source": "nix-search.el",
+          "file": "nix-search.el",
+          "sha256": "e69e76d10557183247ee3bdd197d11a2b21f699d106969fa04fc0539579abb77"
+        },
+        {
+          "source": "nix-shebang.el",
+          "file": "nix-shebang.el",
+          "sha256": "7acdd94a7994b1297f3f2b8369a2cbd3d5d8c66bb2ebd3d5a8182069c155e7fb"
+        },
+        {
+          "source": "nix-shell.el",
+          "file": "nix-shell.el",
+          "sha256": "7939b9b9b4ebc8b8301568f2c90cbcf771635c736558d4ced2befd6581b7890c"
+        },
+        {
+          "source": "nix-store.el",
+          "file": "nix-store.el",
+          "sha256": "c01e29df76ff021b84807bf76c10e0c408fa26b56d82e65dc1e39df32420d5f4"
+        },
+        {
+          "source": "nix.el",
+          "file": "nix.el",
+          "sha256": "589b78206299f5b488d51bfbbe20ea98269c6cd0c083351d28733106f98b89ec"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "markdown-mode",
+      "upstream": "https://github.com/jrblevin/markdown-mode",
+      "commit": "1d22840d588be29aa57eca36f28a32bede331550",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "61caccd6d35d1667d7728b9f2f223d451bf5638db9a8a5788106985da0f7a7a3"
+        },
+        {
+          "source": "LICENSE.md",
+          "file": "LICENSE.md",
+          "sha256": "6d427a39faab2d85898e69c3335069c39f481a857059b3f6cbf77da72c6414fc"
+        },
+        {
+          "source": "markdown-mode.el",
+          "file": "markdown-mode.el",
+          "sha256": "8b6e8837314e19f2b7356b9ae05371f1567301d01280589efb2ae98b0446eee4"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "haskell-mode",
+      "upstream": "https://github.com/haskell/haskell-mode",
+      "commit": "4bdd38c22d8a54d3284b517e889863a1d3971998",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "08bb7adbc7272ea7db28b056d771712e06e60b98522257ca8a3e12b496bbd538"
+        },
+        {
+          "source": "COPYING",
+          "file": "COPYING",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "source": "ghc-core.el",
+          "file": "ghc-core.el",
+          "sha256": "1b122ae3ac90dbe8da74ba9547c0eae10f0c983c34a39463145b1957cbcec144"
+        },
+        {
+          "source": "ghci-script-mode.el",
+          "file": "ghci-script-mode.el",
+          "sha256": "11c071282a765c3ad05d57d2891b6a0982e293d7779e3aa22200bc024a66f4fd"
+        },
+        {
+          "source": "haskell-align-imports.el",
+          "file": "haskell-align-imports.el",
+          "sha256": "a92febd369cbd6d549e6beedc4b0138dbbaa5075370dd4246a2304db5169689f"
+        },
+        {
+          "source": "haskell-c2hs.el",
+          "file": "haskell-c2hs.el",
+          "sha256": "6d285605f3f10e272d05340c7c79b850bcd3e632a6f1411996c092e780b261c7"
+        },
+        {
+          "source": "haskell-cabal.el",
+          "file": "haskell-cabal.el",
+          "sha256": "0854933c773576a8112a9efe1ca15d6c6263944edcf4c071a286bdd6a5158753"
+        },
+        {
+          "source": "haskell-collapse.el",
+          "file": "haskell-collapse.el",
+          "sha256": "cc86ff64365cd1a3739b0faebc83db4298276a5a82578c97bf2cd3b336a313ba"
+        },
+        {
+          "source": "haskell-commands.el",
+          "file": "haskell-commands.el",
+          "sha256": "1c5f730c7179386dac21bc36cc8e0b0eb4ff18b93fb40c411da16fbd2b657847"
+        },
+        {
+          "source": "haskell-compile.el",
+          "file": "haskell-compile.el",
+          "sha256": "31a30e181b4ff98263daa12347746d25b1c3ff4efbdc2da73bad10cc397d9a79"
+        },
+        {
+          "source": "haskell-complete-module.el",
+          "file": "haskell-complete-module.el",
+          "sha256": "d5d0af9de733734289982e54050828a93e48daacb502674a04b1bb6e4790fa3c"
+        },
+        {
+          "source": "haskell-completions.el",
+          "file": "haskell-completions.el",
+          "sha256": "3b68fb6dde9881b3545bd3f4eee75f9683e1a3d3087ade6be38e8399dad26182"
+        },
+        {
+          "source": "haskell-customize.el",
+          "file": "haskell-customize.el",
+          "sha256": "957f7ac44548bc86cbc26a09d294223c11a824635974daf7444e61439ec394f1"
+        },
+        {
+          "source": "haskell-debug.el",
+          "file": "haskell-debug.el",
+          "sha256": "aa3c6523740f12b755dced4ec9308e35189a8e5cd3fc54d016fd9a67d1a9598b"
+        },
+        {
+          "source": "haskell-decl-scan.el",
+          "file": "haskell-decl-scan.el",
+          "sha256": "216c11866f49e1a5cd224125c43c5d34c415eb81aea16b53b1cccefcad7d8378"
+        },
+        {
+          "source": "haskell-doc.el",
+          "file": "haskell-doc.el",
+          "sha256": "14b7a77a1f6ea6f8e5030bca0beca08fd0b6268e6f8948deebbf93857a597520"
+        },
+        {
+          "source": "haskell-font-lock.el",
+          "file": "haskell-font-lock.el",
+          "sha256": "4e32ef610f388566ad10d96218a64a38b8df2591637f1ce87fb8afb1cc8d2d99"
+        },
+        {
+          "source": "haskell-ghc-support.el",
+          "file": "haskell-ghc-support.el",
+          "sha256": "5c92672b1fc42c96c0ab47e28e9f95d3acce3803f03fce3f6b49d83918e3d1c6"
+        },
+        {
+          "source": "haskell-hoogle.el",
+          "file": "haskell-hoogle.el",
+          "sha256": "4eade6140004c44a92aa799e1edd17e24360de7406b79ac92868af06082de52e"
+        },
+        {
+          "source": "haskell-indent.el",
+          "file": "haskell-indent.el",
+          "sha256": "c90f2552fa7bfd1c8a2bd10ff33b59bb8b9ce6d1f8cc76a5429ab042d1b1ceab"
+        },
+        {
+          "source": "haskell-indentation.el",
+          "file": "haskell-indentation.el",
+          "sha256": "2fba5c83436e6da6f83e1791423c4bce7186d4f46dcc5af5256d567a261e68d3"
+        },
+        {
+          "source": "haskell-interactive-mode.el",
+          "file": "haskell-interactive-mode.el",
+          "sha256": "7dfc7a158083010cb738e6bbf1f522ae4e33d56fb7fc83be2041b5982eed9d54"
+        },
+        {
+          "source": "haskell-lexeme.el",
+          "file": "haskell-lexeme.el",
+          "sha256": "45196507d6f32aecc4cc4c8633bc301ca46e39e09f9187e13b41994657a1eed4"
+        },
+        {
+          "source": "haskell-load.el",
+          "file": "haskell-load.el",
+          "sha256": "c3ce7d55a41f8a1165e38ab8d599e945afef752949567e07dce5744cc6d8a023"
+        },
+        {
+          "source": "haskell-menu.el",
+          "file": "haskell-menu.el",
+          "sha256": "eb611908e15eff3db326eb06e5fd572fc9b371320e67d8ff4a444e55f352ade4"
+        },
+        {
+          "source": "haskell-mode.el",
+          "file": "haskell-mode.el",
+          "sha256": "7a0ae6a58fa03be313cdde773fd302e2c589fbe3dc929105985953f0a41f22d5"
+        },
+        {
+          "source": "haskell-modules.el",
+          "file": "haskell-modules.el",
+          "sha256": "0524284c6d977779adc8053c34879869f2168a1d744310d8245208ad23287410"
+        },
+        {
+          "source": "haskell-move-nested.el",
+          "file": "haskell-move-nested.el",
+          "sha256": "aaf7c0cc57528ebff27c22825b32cbe64748ea142af909f6beebaff24d486a7d"
+        },
+        {
+          "source": "haskell-navigate-imports.el",
+          "file": "haskell-navigate-imports.el",
+          "sha256": "9676d82396b1d793dfca4573ee56f728808a735aa5a2b63b189d503208b31578"
+        },
+        {
+          "source": "haskell-presentation-mode.el",
+          "file": "haskell-presentation-mode.el",
+          "sha256": "5266bd6cde879b96efac9746705feddd080b5c87759e3b284559a12ee2ab0456"
+        },
+        {
+          "source": "haskell-process.el",
+          "file": "haskell-process.el",
+          "sha256": "c08662db86daaa94a1012b1052b75700980473fa8c0a58c71f52024de0dd81c0"
+        },
+        {
+          "source": "haskell-repl.el",
+          "file": "haskell-repl.el",
+          "sha256": "6c3848ce4d9b25678351dae6eb4d6d1c33766dd37b4b160a42f85c104e125c57"
+        },
+        {
+          "source": "haskell-sandbox.el",
+          "file": "haskell-sandbox.el",
+          "sha256": "4e7803128bff84534d5fb6af1c5e684af4a2eb0e5164168dff575e12c45af228"
+        },
+        {
+          "source": "haskell-session.el",
+          "file": "haskell-session.el",
+          "sha256": "737ba17654c91e4d5d6fa1ce0ce95598cb2662fa9d2b8ff9faae97e3cb5b9ca4"
+        },
+        {
+          "source": "haskell-sort-imports.el",
+          "file": "haskell-sort-imports.el",
+          "sha256": "e78e904ba322c0d00b829c54c33f082f08395176152d5b72a4253c1550f5576e"
+        },
+        {
+          "source": "haskell-string.el",
+          "file": "haskell-string.el",
+          "sha256": "bffc2f7a3cd3bb0b785352f58dba8721438e3f098b57fee694074d83fe828797"
+        },
+        {
+          "source": "haskell-svg.el",
+          "file": "haskell-svg.el",
+          "sha256": "7eb4a3a27e9c4f7c76f184fed31a15aaa850884a248a7e291d7b34b3d36c0903"
+        },
+        {
+          "source": "haskell-unicode-input-method.el",
+          "file": "haskell-unicode-input-method.el",
+          "sha256": "90b22af9dfee5edfd0e021b026932523c80d4aee56b7c68626d39763d1294457"
+        },
+        {
+          "source": "haskell-utils.el",
+          "file": "haskell-utils.el",
+          "sha256": "f0cab0e3335279777f138b4d6c8f50a6b9140894b65a22b49ab1aaf62238e7ad"
+        },
+        {
+          "source": "haskell.el",
+          "file": "haskell.el",
+          "sha256": "41c36284b05041d65d8b5eec4c6ce8914a61d4996ba5b862cd791e93b2a69eed"
+        },
+        {
+          "source": "highlight-uses-mode.el",
+          "file": "highlight-uses-mode.el",
+          "sha256": "ef8e7ccb97a312c62c39b19f3dc9fa017829485f6f83103b87f40168392e4825"
+        },
+        {
+          "source": "inf-haskell.el",
+          "file": "inf-haskell.el",
+          "sha256": "d7fc076ea07633e4b79913dc4d5fd8271787aa6256f3519b74bc2cc9118d79fc"
+        },
+        {
+          "source": "w3m-haddock.el",
+          "file": "w3m-haddock.el",
+          "sha256": "fb4b22200608da2691c3c5100df8c827848b7b57c69298358c366962ae572430"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "tuareg",
+      "upstream": "https://github.com/ocaml/tuareg",
+      "commit": "696fdc59e3a35cc44cd1c2d0607d782e0f0c9e71",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "0e78bf8d58dff2196f2dd3e0f81abcb50d036608f22f3f278a9cd9a8f1e79fc6"
+        },
+        {
+          "source": "COPYING",
+          "file": "COPYING",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "dot-emacs.el",
+          "file": "dot-emacs.el",
+          "sha256": "eca97615a731930e3bad965a01c77092ee3e5fa1d00ac1986b5ee967e4deafd8"
+        },
+        {
+          "source": "ocamldebug.el",
+          "file": "ocamldebug.el",
+          "sha256": "a6058e93e3c205bb95950d91263513c3d51091274ee65d76d6bc58b115ea2331"
+        },
+        {
+          "source": "tuareg-compat.el",
+          "file": "tuareg-compat.el",
+          "sha256": "2f44915f34c818e12152826c31b1b0213ca20884cd3e5259bd39cdd9e5005e41"
+        },
+        {
+          "source": "tuareg-menhir.el",
+          "file": "tuareg-menhir.el",
+          "sha256": "257695c448612fa5c4145615894ebc1abe6d409d33d6f80252cd1cb7dff29c95"
+        },
+        {
+          "source": "tuareg-opam.el",
+          "file": "tuareg-opam.el",
+          "sha256": "d545c63402c45f28fba6a389c84aabc553e045bf6096cffc2280937335082392"
+        },
+        {
+          "source": "tuareg.el",
+          "file": "tuareg.el",
+          "sha256": "78e6b1991c258f33111f741ca1639f92d59a05686019257386ce1d06ea45ea44"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "wat-mode",
+      "upstream": "https://github.com/devonsparks/wat-mode",
+      "commit": "46b4df83e92c585295d659d049560dbf190fe501",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "wat-mode-font-lock.el",
+          "file": "wat-mode-font-lock.el",
+          "sha256": "2c03f0accab67d853a365f52b4bd8e70a8e4b95872befee999201ae0abce0331"
+        },
+        {
+          "source": "wat-mode-macro.el",
+          "file": "wat-mode-macro.el",
+          "sha256": "4e399c10958d99876eec5fafbe657a79bec96e972d26ad2f41fc338948805b6f"
+        },
+        {
+          "source": "wat-mode.el",
+          "file": "wat-mode.el",
+          "sha256": "743ca9cc1c7c8fa01ce1648b00bed93c6c30705efac11bc0dc665943bf545bd9"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "wolfram-mode",
+      "upstream": "https://github.com/kawabata/wolfram-mode",
+      "commit": "be680190cac6ccf579dbce107deaae495928d1b3",
+      "license": "GPL-2.0-or-later",
+      "files": [
+        {
+          "source": "wolfram-mode.el",
+          "file": "wolfram-mode.el",
+          "sha256": "59120e68c25df7ce354cd6245cc2a2b6edc65a9f8b94aaa9eed41da32eba60a8"
+        }
+      ],
+      "additionalFiles": [
+        {
+          "file": "COPYING",
+          "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+          "source": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+          "note": "License text supplied separately; the unchanged source header grants GPL 2 or later."
+        }
+      ]
+    },
+    {
+      "name": "compat",
+      "upstream": "https://github.com/emacs-compat/compat",
+      "commit": "90880f81419577e1d3f68424d2a3adf31e6d663e",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "a8d35b41b2ab4bb187c9221168ee395d478eff27900907a6fff9ea1277795052"
+        },
+        {
+          "source": "COPYING",
+          "file": "COPYING",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "compat-26.el",
+          "file": "compat-26.el",
+          "sha256": "bbdf2eb6b058b9e864aca6b6db83ca7debaf635090ecb9cc3ff576fa06e184e1"
+        },
+        {
+          "source": "compat-27.el",
+          "file": "compat-27.el",
+          "sha256": "b00a1ebb6cb05906e9bf7cf81399ee98040a32cf996820bddc513c4fc5ad27bb"
+        },
+        {
+          "source": "compat-28.el",
+          "file": "compat-28.el",
+          "sha256": "7699a65fff44efb5b66508b54803adc538a6a62a2c4aebc7e24e04ae569d0994"
+        },
+        {
+          "source": "compat-29.el",
+          "file": "compat-29.el",
+          "sha256": "b159a3b3452e272d7371c02d515fcab879552c8dc954fb64aee40bba1983bbf7"
+        },
+        {
+          "source": "compat-30.el",
+          "file": "compat-30.el",
+          "sha256": "4f1dd1e95da0f2337cb79d427de4eedbf254ebc9b9a982368cee1aa9656bd621"
+        },
+        {
+          "source": "compat-31.el",
+          "file": "compat-31.el",
+          "sha256": "a3d1cf22dc4e078ef7716c1ff21fd071afb03e64b43e93c3d228a2f48a3ccd3c"
+        },
+        {
+          "source": "compat-macs.el",
+          "file": "compat-macs.el",
+          "sha256": "6a6e2ce2bae34fbff494fdeba924618ed2df2e79546b8b3f816c5fdf04cbf1de"
+        },
+        {
+          "source": "compat.el",
+          "file": "compat.el",
+          "sha256": "3adc082505a4af00bfcc4c5458fce16502d3b708b41c89e965a61c04c8d1281c"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "reformatter",
+      "upstream": "https://github.com/purcell/emacs-reformatter",
+      "commit": "2bd8818f3f2119a3876e574a437495214c87bc81",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": "reformatter.el",
+          "file": "reformatter.el",
+          "sha256": "22b23243674b5d749bab0888c26905856f950aadfec0cca3c50ebef3f312ae01"
+        }
+      ],
+      "additionalFiles": [
+        {
+          "file": "COPYING",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "source": "https://www.gnu.org/licenses/gpl-3.0.txt",
+          "note": "License text supplied separately; the unchanged source header grants GPL 3 or later."
+        }
+      ]
+    },
+    {
+      "name": "magit-section",
+      "upstream": "https://github.com/magit/magit",
+      "commit": "58a469820bc3dc388f0193e3024147fb55a6c98f",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "docs/AUTHORS.md",
+          "file": "AUTHORS.md",
+          "sha256": "cb736e582d073efa313869ca5568cf68b27195e9be01f5fad4427c4ccf4cf597"
+        },
+        {
+          "source": "lisp/magit-section.el",
+          "file": "magit-section.el",
+          "sha256": "60b240947ae19a7d5334c4d0a1abf0b4bada317b6cdb608a41bb8f9cc37b9fe4"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "transient",
+      "upstream": "https://github.com/magit/transient",
+      "commit": "c886106bd506c4629ece352732f735657605cddb",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "lisp/transient.el",
+          "file": "transient.el",
+          "sha256": "f1a7998e325d8b6819e0c7e5c45d57057715a0f09eda97224476f63dbf310cca"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "cond-let",
+      "upstream": "https://github.com/tarsius/cond-let",
+      "commit": "09292a77001434f59ab55c775dec2b98cb18d028",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "eed36746a2b0b494379d96a894105cc1e20c1df225e8ac32e598c93fbe8df548"
+        },
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "cond-let.el",
+          "file": "cond-let.el",
+          "sha256": "2366a52d1917e31eaaffda5bf0974fac53ed488ad286f6725f07fb526a387d68"
+        }
+      ],
+      "additionalFiles": []
+    },
+    {
+      "name": "llama",
+      "upstream": "https://github.com/tarsius/llama",
+      "commit": "6850d0c91b629da14fdff2300c222289d1a0029a",
+      "license": "GPL-3.0-or-later",
+      "files": [
+        {
+          "source": ".dir-locals.el",
+          "file": ".dir-locals.el",
+          "sha256": "eed36746a2b0b494379d96a894105cc1e20c1df225e8ac32e598c93fbe8df548"
+        },
+        {
+          "source": "LICENSE",
+          "file": "LICENSE",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "source": "llama.el",
+          "file": "llama.el",
+          "sha256": "a4d2033824a39f635cb80236f3e1fbbde4f1b8b2d310a967d8f9fc1b91dc7bd5"
+        }
+      ],
+      "additionalFiles": []
+    }
+  ]
+}

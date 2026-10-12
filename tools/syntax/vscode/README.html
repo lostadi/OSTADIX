@@ -1,39 +1,103 @@
 <h1>Ostadix-lang for VS Code</h1>
-<p>Declarative extension <code>lostadi.ostadix-lang</code>, version 0.1.0. Associates <code>.O</code> and
-<code>.olang</code> sources and O shebangs with the <strong>Ostadix-lang</strong> language. No extension
-host JavaScript, language server, compiler invocation, or runtime dependency.</p>
-<p>Highlights evaluator tags, environments (<code>[7]</code>, <code>[*]</code>), block attributes,
-matching block closers, nested evaluators, <code>$name</code> splices, O escapes, bindings,
-and calls. Native O comments and statements apply only to the document and
-<code>O</code> / <code>o</code> / <code>quote</code> blocks. The grammar follows the tags and aliases in
-<code>crates/ostadix-api/src/backend_catalog.inc.rs</code> and delimiter rules in
-<code>crates/ostadix-api/src/parser.rs</code>.</p>
-<p>Python, JavaScript, shell, HTML, SQL, C-family languages, Ruby, Lisp, Nix,
-Markdown, and LaTeX receive lightweight lexical highlighting. O nesting and
-splices remain visible inside foreign strings and comments, because the O
-parser processes these before the foreign evaluator. These lexical rules are
-not complete grammars for those languages; heredocs, regex literals, and some
-language-specific string forms receive basic highlighting. Remaining evaluator
-bodies retain O structure and splice highlighting. This extension does not
-validate programs or provide semantic analysis.</p>
-<p>The opener&#39;s complete spelling (including alias, environment, and attribute
-spacing) must be repeated in the closer. The grammar handles the parser&#39;s
-different suffix rules for bare, environment, and attribute tags. Uppercase
-<code>.O</code> is the source-file convention. VS Code matches filename associations
-without case sensitivity, so it can also select this grammar for textual <code>.o</code>
-files. Select <strong>Plain Text</strong> when needed; a filename association does not turn
-an object file into O source. File associations can be overridden explicitly
-by the user&#39;s settings.</p>
-<p>Run the repository syntax installer to install locally. Reload VS Code after
-installation, then open an <code>.O</code> file. The active editor theme supplies colors
-through standard TextMate scopes; no theme changes are required.</p>
-<h2>Maintaining the grammar</h2>
-<p>Edit <code>generate.mjs</code>, then run <code>node generate.mjs</code> to refresh the checked-in
-<code>syntaxes/ostadix.tmLanguage.json</code>. <code>node test.mjs</code> verifies token scopes with
-the real VS Code tokenizer, using its installed macOS application packages.
-For other installations, set <code>VSCODE_APP_RESOURCES</code> to the application&#39;s
-resources/app directory, or install <code>vscode-textmate</code> and <code>vscode-oniguruma</code> in
-a temporary directory and set <code>OSTADIX_TEXTMATE_NODE_MODULES</code> to its
-<code>node_modules</code> directory. These packages are test dependencies only.</p>
-<p>The extension uses the declarative grammar and embedded-language contribution
-points described in the <a href="https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide">VS Code syntax highlighting guide</a>.</p>
+<p>Extension <code>lostadi.ostadix-lang</code>, version 0.2.0, associates <code>.O</code> / <code>.olang</code>
+files and O shebangs with <strong>Ostadix-lang</strong>. The repository syntax installer
+installs it locally as part of setup. Reload VS Code after installation. No
+separate language extensions, npm installation, compiler, or language server
+are needed for coloring.</p>
+<p>Every registered backend and alias uses its language&#39;s full maintained
+TextMate grammar: Python, JavaScript, Bash, HTML, SQL, Rust, C++, C#, C, Java,
+Ruby, Common Lisp, Racket, Nix, Markdown, LaTeX, Haskell, OCaml, WAT, MATLAB,
+and Wolfram Language. <code>text</code> / <code>plain</code> intentionally remain plain text. Native
+O statements apply to the document and <code>O</code> / <code>o</code> / <code>quote</code> bodies. <code>ubuntu_vm</code>
+/ <code>ubuntu</code> use Bash; <code>nixos_test</code> uses Nix. Both native <code>lisp</code> and <code>common_lisp</code>
+use Common Lisp. The legacy standalone <code>lisp_shim.py</code> runs Scheme; code meant
+solely for that adapter requires manual Scheme mode selection.</p>
+<p>The extension interprets O structure before the foreign grammar. Tags,
+environments, attributes, matching closers, nested blocks, <code>$name</code> splices,
+and O escapes therefore remain visible inside foreign strings and comments.
+A closer must repeat the complete literal opener header, including its alias,
+numeric spelling, and attribute spacing. Mismatched closers remain ordinary
+foreign text. Nested blocks receive independent language states; the parent
+string or comment resumes after the child, including children spanning lines.
+Host comments suppress O structure through the newline.</p>
+<p>VS Code&#39;s document token API supplies these <strong>lexical classifications</strong> and
+is enabled for <code>ostadix</code> by default through
+<code>editor.semanticHighlighting.enabled</code>. Its API name does not imply semantic
+analysis: this extension does not validate programs, resolve symbols, infer
+types, execute code, or predict syntax introduced by runtime splice values.
+The active theme supplies colors through the original language scopes and
+standard token classes; theme support determines the exact colors. Disabling
+semantic highlighting leaves the full static TextMate overlay. That overlay
+cannot preserve an ancestor&#39;s exact header context inside every foreign
+string, comment, or <code>begin</code> / <code>while</code> context, and line-anchored rules see
+the actual O document column on a same-line opener; the enabled token provider
+handles that O-specific context in VS Code. Editors using only the static
+assets retain this limitation.</p>
+<p>All 21 foreign code grammars and their available embedded grammar dependencies
+are bundled offline: 81 pinned upstream assets, exact source revisions,
+SHA-256 checksums, and licenses in <a href="vendor/manifest.json">vendor/manifest.json</a>,
+<a href="vendor/NOTICE">vendor/NOTICE</a>, and <a href="vendor/LICENSE">vendor/LICENSE</a>.
+The manifest explicitly lists optional upstream snippet includes for which no
+grammar is bundled, such as ARM assembly, Asymptote, Slim, and YANG. Those
+optional subregions have their enclosing grammar&#39;s coloring. They do not
+replace any registered backend grammar. The declared upstream injections, including Markdown Nix fences, are enabled
+and the actual C++ macro fragment grammar is included. Scope aliases and the extracted
+JavaScript regexp repository are documented in the same inventory. The
+bundled Microsoft TextMate / Oniguruma JS and WASM tokenizer has its own
+<a href="runtime/manifest.json">version and checksum inventory</a> and license files.
+There are no downloads or external runtime dependencies during editing.</p>
+<p>VS Code filename associations are case insensitive and may also select this
+language for textual <code>.o</code> files. Choose <strong>Plain Text</strong> for object files or
+adjust your own associations when needed.</p>
+<h2>Maintaining and testing</h2>
+<p>Edit <code>generate.mjs</code>, <code>scanner.cjs</code>, <code>tokenizer.cjs</code>, or <code>extension.cjs</code>, then run:</p>
+<pre><code class="language-sh">node tools/syntax/vscode/generate.mjs
+node tools/syntax/vscode/test.mjs
+</code></pre>
+<p>Generation reads the shared <code>tools/syntax/languages.json</code>, verifies every
+pinned grammar checksum, and writes the O-aware grammar assets, package
+contributions, language map copy, and lexical token scope inventory. The
+<code>contributes.grammars</code> paths form the complete static asset inventory for
+VSIX packaging and Sublime / TextMate export. Foreign scopes are renamed in
+the static overlay to avoid replacing other extensions&#39; standalone grammars;
+the runtime provider uses the untouched original grammar assets.</p>
+<p>The offline tests use the bundled real VS Code TextMate / Oniguruma engine.
+They exercise all 36 tags and exact header forms, mismatched closer strings,
+multiline nesting, comments, escapes, Unicode offsets, full language-specific
+constructs, optional dependency inventory, all bundled checksums, and the
+provider&#39;s nonoverlapping tokens, version cache, and cancellation behavior.
+An extension-host smoke test separately verifies registration and token
+commands inside VS Code; packaged VSIX tests verify the offline dependency
+closure is included.</p>
+<p>For an optional Linux desktop check in a disposable VS Code profile:</p>
+<pre><code class="language-sh">syntax_test_dir=$(mktemp -d)
+export OSTADIX_HOST_SOURCE=&quot;$syntax_test_dir/nested.O&quot;
+export OSTADIX_HOST_REPORT=&quot;$syntax_test_dir/provider.json&quot;
+export OSTADIX_HOST_COLOR_REPORT=&quot;$syntax_test_dir/colors.json&quot;
+export OSTADIX_HOST_HOLD=25000
+code --user-data-dir &quot;$syntax_test_dir/profile&quot; \
+  --extensions-dir &quot;$syntax_test_dir/extensions&quot; \
+  --extensionDevelopmentPath=&quot;$PWD/tools/syntax/vscode&quot; \
+  --extensionTestsPath=&quot;$PWD/tools/syntax/vscode/tests/extension-host.cjs&quot; \
+  --remote-debugging-port=9237 --disable-workspace-trust \
+  --skip-welcome --skip-release-notes &amp;
+node tools/syntax/vscode/tests/render-colors.mjs
+wait
+cat &quot;$OSTADIX_HOST_REPORT&quot; &quot;$OSTADIX_HOST_COLOR_REPORT&quot;
+</code></pre>
+<p>This needs a graphical session and a theme with distinct string and keyword
+colors. The local debugger is used only for this disposable test window;
+<code>OSTADIX_HOST_DEBUG_PORT</code> changes the probe&#39;s port if the launch flag is changed.
+The provider check verifies activation, actual editor token commands, nested
+language restoration, mismatched closers, heredocs, and edit invalidation. The
+renderer check waits for asynchronous coloring and compares the Python string
+before/after nested Common Lisp with the Lisp keyword and Bash heredoc colors.
+Both checks assert their results and write JSON evidence. They are excluded from
+the installed VSIX.</p>
+<p>The contribution points follow the official
+<a href="https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide">syntax highlighting guide</a>
+and <a href="https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide">document token guide</a>.
+OCaml uses the pinned <a href="https://github.com/ocamllabs/vscode-ocaml-platform">OCaml Platform</a>
+grammars and their bundled ISC license. Other pinned grammars come from the
+<a href="https://github.com/shikijs/textmate-grammars-themes">Shiki TextMate grammar collection</a>
+and the original projects identified in the manifest.</p>

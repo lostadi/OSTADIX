@@ -1,0 +1,255 @@
+{
+  "schema": "ostadix.syntax-languages/v1",
+  "catalog": "crates/ostadix-api/src/backend_catalog.inc.rs",
+  "languages": [
+    {
+      "key": "host",
+      "tags": [
+        "O",
+        "o",
+        "quote"
+      ],
+      "textmateScope": "source.ostadix",
+      "vscodeLanguage": "ostadix",
+      "vimSyntax": "ostadix",
+      "emacsMode": "ostadix-mode"
+    },
+    {
+      "key": "python",
+      "tags": [
+        "python",
+        "py"
+      ],
+      "textmateScope": "source.python",
+      "vscodeLanguage": "python",
+      "vimSyntax": "python",
+      "emacsMode": "python-mode"
+    },
+    {
+      "key": "javascript",
+      "tags": [
+        "javascript"
+      ],
+      "textmateScope": "source.js",
+      "vscodeLanguage": "javascript",
+      "vimSyntax": "javascript",
+      "emacsMode": "js-mode"
+    },
+    {
+      "key": "shell",
+      "tags": [
+        "bash",
+        "shell",
+        "ubuntu_vm",
+        "ubuntu"
+      ],
+      "textmateScope": "source.shell",
+      "vscodeLanguage": "shellscript",
+      "vimSyntax": "sh",
+      "emacsMode": "sh-mode"
+    },
+    {
+      "key": "html",
+      "tags": [
+        "html"
+      ],
+      "textmateScope": "text.html.basic",
+      "vscodeLanguage": "html",
+      "vimSyntax": "html",
+      "emacsMode": "html-mode"
+    },
+    {
+      "key": "sql",
+      "tags": [
+        "sql"
+      ],
+      "textmateScope": "source.sql",
+      "vscodeLanguage": "sql",
+      "vimSyntax": "sql",
+      "emacsMode": "sql-mode"
+    },
+    {
+      "key": "rust",
+      "tags": [
+        "rust"
+      ],
+      "textmateScope": "source.rust",
+      "vscodeLanguage": "rust",
+      "vimSyntax": "rust",
+      "emacsMode": "rust-mode"
+    },
+    {
+      "key": "cpp",
+      "tags": [
+        "cpp"
+      ],
+      "textmateScope": "source.cpp",
+      "vscodeLanguage": "cpp",
+      "vimSyntax": "cpp",
+      "emacsMode": "c++-mode"
+    },
+    {
+      "key": "csharp",
+      "tags": [
+        "csharp"
+      ],
+      "textmateScope": "source.cs",
+      "vscodeLanguage": "csharp",
+      "vimSyntax": "cs",
+      "emacsMode": "csharp-mode"
+    },
+    {
+      "key": "c",
+      "tags": [
+        "c"
+      ],
+      "textmateScope": "source.c",
+      "vscodeLanguage": "c",
+      "vimSyntax": "c",
+      "emacsMode": "c-mode"
+    },
+    {
+      "key": "java",
+      "tags": [
+        "java"
+      ],
+      "textmateScope": "source.java",
+      "vscodeLanguage": "java",
+      "vimSyntax": "java",
+      "emacsMode": "java-mode"
+    },
+    {
+      "key": "ruby",
+      "tags": [
+        "ruby"
+      ],
+      "textmateScope": "source.ruby",
+      "vscodeLanguage": "ruby",
+      "vimSyntax": "ruby",
+      "emacsMode": "ruby-mode"
+    },
+    {
+      "key": "lisp",
+      "tags": [
+        "lisp",
+        "common_lisp"
+      ],
+      "textmateScope": "source.commonlisp",
+      "vscodeLanguage": "lisp",
+      "vimSyntax": "lisp",
+      "emacsMode": "lisp-mode"
+    },
+    {
+      "key": "racket",
+      "tags": [
+        "racket"
+      ],
+      "textmateScope": "source.racket",
+      "vscodeLanguage": "racket",
+      "vimSyntax": "racket",
+      "emacsMode": "racket-mode"
+    },
+    {
+      "key": "nix",
+      "tags": [
+        "nix",
+        "nix_expr",
+        "nix_store",
+        "nixos_test"
+      ],
+      "textmateScope": "source.nix",
+      "vscodeLanguage": "nix",
+      "vimSyntax": "nix",
+      "emacsMode": "nix-mode"
+    },
+    {
+      "key": "markdown",
+      "tags": [
+        "markdown",
+        "md"
+      ],
+      "textmateScope": "text.html.markdown",
+      "vscodeLanguage": "markdown",
+      "vimSyntax": "markdown",
+      "emacsMode": "markdown-mode"
+    },
+    {
+      "key": "latex",
+      "tags": [
+        "latex",
+        "tex"
+      ],
+      "textmateScope": "text.tex.latex",
+      "vscodeLanguage": "latex",
+      "vimSyntax": "tex",
+      "emacsMode": "latex-mode"
+    },
+    {
+      "key": "text",
+      "tags": [
+        "text",
+        "plain"
+      ],
+      "textmateScope": "text.plain",
+      "vscodeLanguage": "plaintext",
+      "vimSyntax": "",
+      "emacsMode": "fundamental-mode"
+    },
+    {
+      "key": "haskell",
+      "tags": [
+        "haskell"
+      ],
+      "textmateScope": "source.haskell",
+      "vscodeLanguage": "haskell",
+      "vimSyntax": "haskell",
+      "emacsMode": "haskell-mode"
+    },
+    {
+      "key": "ocaml",
+      "tags": [
+        "ocaml"
+      ],
+      "textmateScope": "source.ocaml",
+      "vscodeLanguage": "ocaml",
+      "vimSyntax": "ocaml",
+      "emacsMode": "tuareg-mode"
+    },
+    {
+      "key": "webassembly",
+      "tags": [
+        "webassembly"
+      ],
+      "textmateScope": "source.wat",
+      "vscodeLanguage": "wat",
+      "vimSyntax": "wat",
+      "emacsMode": "wat-mode"
+    },
+    {
+      "key": "matlab",
+      "tags": [
+        "matlab"
+      ],
+      "textmateScope": "source.matlab",
+      "vscodeLanguage": "matlab",
+      "vimSyntax": "matlab",
+      "emacsMode": "octave-mode"
+    },
+    {
+      "key": "mathematica",
+      "tags": [
+        "mathematica"
+      ],
+      "textmateScope": "source.wolfram",
+      "vscodeLanguage": "wolfram",
+      "vimSyntax": "mma",
+      "emacsMode": "wolfram-mode"
+    }
+  ],
+  "notes": {
+    "lisp": "Native O uses Common Lisp for both lisp and common_lisp. The legacy standalone lisp_shim.py uses Scheme; select Scheme mode manually when editing code intended solely for that legacy adapter.",
+    "nixos_test": "The body is a Nix attrset; its testScript string may contain Python as in ordinary Nix files.",
+    "ubuntu_vm": "The body is a Bash script run inside Multipass.",
+    "webassembly": "Highlight textual WAT; binary WebAssembly has no text syntax."
+  }
+}

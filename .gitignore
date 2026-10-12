@@ -102,6 +102,7 @@ coverage.xml
 target/
 fuzz/corpus/
 *.wasm
+!tools/syntax/vscode/runtime/vscode-oniguruma/onig.wasm
 *.elf
 patcheck.tmp
 /ostadix_pty.plist
