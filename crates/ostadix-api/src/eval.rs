@@ -6071,6 +6071,18 @@ mod tests {
     }
 
     #[test]
+    fn persisted_set_e_ending_the_session_is_reported() {
+        let Some(result) = run_bash_document(
+            "bash[0]^(set -e; X=1)_bash[0]\n\
+             bash[0]^(false)_bash[0]\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("bash session ended"), "{error}");
+    }
+
+    #[test]
     fn readonly_bash_name_as_a_let_is_a_compile_error() {
         let Some(result) = run_bash_document(
             "let UID = python^(__oval_result__ = '5')_python\n\

@@ -257,6 +257,10 @@ Package SemVer is only one of the independent coordinates documented in
   run. Bash error messages say `bash: line N:` with the block's
   own line numbers instead of a session temp path.
 
+- A bash block that ends its `bash[N]` session with a failure, for example
+  under a persisted `set -e`, now says that the session ended and its state
+  was dropped.
+
 - Bash blocks again see `let` values that bash reads as bare names in
   arithmetic context: `$(( ))`, `(( ))`, `for (( ))`, `$[ ]`, `let`
   arguments, `declare -i x=EXPR`, `${s:off:len}`, `[[ -eq ]]`-style
