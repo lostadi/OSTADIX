@@ -1115,7 +1115,20 @@ Adding a new language: write a Backend subclass, add it to
   for example through `exit` or a failing command under a persisted
   `set -e`, the block fails with a message saying the session ended, and the
   next block of that environment starts a fresh session. Bash error messages
-  name the block as `bash: line N:` with the block's own line numbers. A failing member of `batch(...)` settles as its
+  name the block as `bash: line N:` with the block's own line numbers. In
+  bash blocks a bare `$name` is always an O splice, so a bash local or
+  session variable must be written `\$name`. Each plain bash block runs in a
+  fresh bash that its own backend helper process spawns before the block
+  arrives; that helper, never the O process, is the subreaper of everything
+  the block starts. The block ends at the end-of-script sentinel line, not
+  at stdout EOF, so a job holding stdout open cannot stall it: when the
+  block ends, every background job it left, including ones
+  detached with `setsid`, `nohup`, `disown`, or a double fork, is killed and
+  reaped within 2 s, and stderr says `bash block left N background job(s);
+  they were stopped`. A `bash[N]` session's jobs live until the session
+  ends and are stopped the same way then. A descendant that makes itself a
+  subreaper, or one started by an external service manager, is not caught;
+  only a cgroup could hold it. A failing member of `batch(...)` settles as its
   own error value; the other members still return their values, and the batch
   fails only when every member failed. When any member failed, `O` prints the
   document value, reports each member error on stderr, and exits with status

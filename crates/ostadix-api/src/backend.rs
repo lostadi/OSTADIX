@@ -85,7 +85,15 @@ pub fn run_backend(lang: &str) -> Result<()> {
         return proxy_legacy_backend(lang, &tools);
     }
 
+    if lang == "bash" {
+        become_bash_subreaper();
+    }
     let mut backend = RustBackend::new(tools);
+    if lang == "bash" {
+        // the shell is spawned before the first request, so each plain
+        // block runs in a fresh bash under its own subreaper helper.
+        backend.bash = Some(BashSession::start(&backend.tools)?);
+    }
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut reader = stdin.lock();
@@ -337,7 +345,118 @@ impl BashSession {
         self.stdin.take();
         let _ = self.child.kill();
         let _ = self.child.wait();
+        // jobs the blocks left behind, including setsid, nohup, and
+        // double-forked ones, were reparented to this backend, which is
+        // their subreaper; stop them so nothing outlives the block (plain
+        // bash) or the session (bash[N]).
+        let stopped = stop_backend_descendants(Duration::from_secs(2));
+        if stopped > 0 {
+            eprintln!("bash block left {stopped} background job(s); they were stopped");
+        }
     }
+}
+
+// ############################################################################
+// bash background jobs
+// ############################################################################
+
+/// Make this backend process the subreaper of everything bash starts, so a
+/// job that leaves its process group or session (`setsid`, `nohup`, a double
+/// fork) is reparented here instead of to init. Only the bash backend
+/// process does this, never the O process, so other backends' orphans are
+/// not mixed in. A descendant that makes itself a subreaper, or that a
+/// service manager starts, still escapes; only a cgroup could hold those.
+#[cfg(target_os = "linux")]
+fn become_bash_subreaper() {
+    // SAFETY: PR_SET_CHILD_SUBREAPER takes one integer flag and changes only
+    // this process's reparenting attribute.
+    let _ = unsafe { libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) };
+}
+
+#[cfg(not(target_os = "linux"))]
+fn become_bash_subreaper() {}
+
+/// Every live descendant of this process, read from `/proc`.
+#[cfg(target_os = "linux")]
+fn backend_descendants() -> Vec<i32> {
+    let mut parents = HashMap::new();
+    if let Ok(entries) = fs::read_dir("/proc") {
+        for entry in entries.flatten() {
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|n| n.parse::<i32>().ok())
+            else {
+                continue;
+            };
+            let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat")) else {
+                continue;
+            };
+            // the command name may hold spaces or parens, so fields are
+            // read after its closing paren: state, then ppid.
+            let Some(rest) = stat.rfind(')').map(|index| &stat[index + 1..]) else {
+                continue;
+            };
+            let mut fields = rest.split_whitespace();
+            let state = fields.next().unwrap_or("");
+            if state == "Z" || state == "X" {
+                continue;
+            }
+            if let Some(ppid) = fields.next().and_then(|field| field.parse::<i32>().ok()) {
+                parents.insert(pid, ppid);
+            }
+        }
+    }
+    let mut found = vec![std::process::id() as i32];
+    let mut index = 0;
+    while index < found.len() {
+        let parent = found[index];
+        found.extend(
+            parents
+                .iter()
+                .filter(|(_, ppid)| **ppid == parent)
+                .map(|(pid, _)| *pid),
+        );
+        index += 1;
+    }
+    found.remove(0);
+    found
+}
+
+#[cfg(not(target_os = "linux"))]
+fn backend_descendants() -> Vec<i32> {
+    Vec::new()
+}
+
+/// SIGKILL every descendant and reap them within `budget`; returns how
+/// many distinct processes were stopped.
+fn stop_backend_descendants(budget: Duration) -> usize {
+    let deadline = std::time::Instant::now() + budget;
+    let mut stopped = std::collections::HashSet::new();
+    loop {
+        let live = backend_descendants();
+        for pid in &live {
+            // SAFETY: kill only signals a pid found as our descendant.
+            unsafe {
+                libc::kill(*pid, libc::SIGKILL);
+            }
+            stopped.insert(*pid);
+        }
+        // reap every child that has exited, including reparented ones.
+        loop {
+            let mut status = 0;
+            // SAFETY: waitpid with WNOHANG on any child of this process.
+            let reaped = unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) };
+            if reaped <= 0 {
+                break;
+            }
+        }
+        if live.is_empty() || std::time::Instant::now() >= deadline {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    stopped.len()
 }
 
 /// Persistent `sqlite3` CLI session.
