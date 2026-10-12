@@ -1589,6 +1589,10 @@ impl Evaluator {
                         OValue::Request { fingerprint, .. } => fingerprint_preview(fingerprint),
                         _ => "?",
                     };
+                    // after an autonomous flush every planned node is cached,
+                    // so a miss here can only come from a scheduler bug; no
+                    // document can force one, which is why the batch test is
+                    // unit-level (strict_cache_miss_inside_batch_is_fatal).
                     Err(crate::eval_core::StrictCacheMiss {
                         fingerprint: fp.to_string(),
                     }
