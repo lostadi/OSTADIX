@@ -1,0 +1,2611 @@
+{
+  "schema": "ostadix.branch-integration/v1",
+  "integration_date": "2026-10-11",
+  "base": "488832b609ca387696f0259c47b53829bad670be",
+  "repositories": {
+    "origin": "https://github.com/lostadi/ostadix-BM.git",
+    "upstream": "https://github.com/lostadi/OSTADIX.git"
+  },
+  "scope": "All 56 fetched branch tips across both repositories, preserving unique changes and recording equivalent or superseded proposals.",
+  "method": "Content integration over the BM baseline; original branch hashes retained here rather than importing rewritten duplicate histories.",
+  "coverage": {
+    "branches": 56,
+    "origin": 20,
+    "upstream": 36,
+    "dependency_branches": 32
+  },
+  "branches": [
+    {
+      "branch": "origin/bug-fixes",
+      "source_commit": "2a76b6edda22dfed6a81488de8836be3fdfe113f",
+      "source_commit_date": "2026-10-10T19:17:30-04:00",
+      "subject": "Pass shim blocks only the let bindings they reference",
+      "disposition": "integrated_equivalent_fixes_once",
+      "selected_source_commits": [
+        "f07cfd99dbfd0f818a1f2bc201e1ed82c5f0d1c2",
+        "2a76b6edda22dfed6a81488de8836be3fdfe113f"
+      ],
+      "details": [
+        "Private AOT adapter directories with cleanup.",
+        "Shim blocks receive only referenced lexical bindings."
+      ],
+      "source_changes_since_equivalent_snapshot": [
+        "f07cfd99dbfd0f818a1f2bc201e1ed82c5f0d1c2",
+        "2a76b6edda22dfed6a81488de8836be3fdfe113f"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a3fd3f065a50a2b8a833a6deb309636b5cc3f1b8",
+          "tree": "1cac3b20fa54ee947cd7be541f9bec288cc57696",
+          "baseline_commits": [
+            "a3fd3f065a50a2b8a833a6deb309636b5cc3f1b8"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/apps/android-terminal/runtime/base64-0.23.1",
+      "source_commit": "2c4f99cd710ed041f6f6ebb51b17e78a748f423a",
+      "source_commit_date": "2026-10-10T06:55:10Z",
+      "subject": "Bump base64 from 0.22.1 to 0.23.1 in /apps/android-terminal/runtime",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "base64",
+          "source_version": "0.23.1",
+          "integrated_versions": [
+            "0.23.1"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "2c4f99cd710ed041f6f6ebb51b17e78a748f423a"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/apps/android-terminal/runtime/bitflags-2.13.2",
+      "source_commit": "03e02b8469e984760b816444121fec8d148e656f",
+      "source_commit_date": "2026-10-10T06:55:14Z",
+      "subject": "Bump bitflags from 2.13.1 to 2.13.2 in /apps/android-terminal/runtime",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "bitflags",
+          "source_version": "2.13.2",
+          "integrated_versions": [
+            "2.13.2"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "03e02b8469e984760b816444121fec8d148e656f"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/apps/android-terminal/runtime/rustls-0.23.45",
+      "source_commit": "dffa3aebae98a80a4bc1dd8a809859e2a769a974",
+      "source_commit_date": "2026-10-10T06:55:05Z",
+      "subject": "Bump rustls from 0.23.43 to 0.23.45 in /apps/android-terminal/runtime",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "rustls",
+          "source_version": "0.23.45",
+          "integrated_versions": [
+            "0.23.45"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "dffa3aebae98a80a4bc1dd8a809859e2a769a974"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/apps/mobile-console/libc-0.2.190",
+      "source_commit": "7e69fa89a08caba27f68d00a00239210e862ccac",
+      "source_commit_date": "2026-10-10T06:55:01Z",
+      "subject": "Bump libc from 0.2.189 to 0.2.190 in /apps/mobile-console",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/mobile-console/Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/mobile-console/Cargo.lock",
+          "package": "libc",
+          "source_version": "0.2.190",
+          "integrated_versions": [
+            "0.2.190"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "7e69fa89a08caba27f68d00a00239210e862ccac"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/hkdf-0.13.0",
+      "source_commit": "bfd592abf1ddfe481b3118202dac930f0638ecf4",
+      "source_commit_date": "2026-10-10T06:55:51Z",
+      "subject": "Bump hkdf from 0.12.4 to 0.13.0",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "block-buffer",
+          "source_version": "0.12.1",
+          "integrated_versions": [
+            "0.10.4",
+            "0.12.1"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "cmov",
+          "source_version": "0.5.4",
+          "integrated_versions": [
+            "0.5.4"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "crypto-common",
+          "source_version": "0.2.2",
+          "integrated_versions": [
+            "0.1.7",
+            "0.2.2"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "ctutils",
+          "source_version": "0.4.3",
+          "integrated_versions": [
+            "0.4.3"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "digest",
+          "source_version": "0.11.3",
+          "integrated_versions": [
+            "0.10.7",
+            "0.11.3"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "hkdf",
+          "source_version": "0.13.0",
+          "integrated_versions": [
+            "0.12.4",
+            "0.13.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "hmac",
+          "source_version": "0.13.0",
+          "integrated_versions": [
+            "0.12.1",
+            "0.13.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "hybrid-array",
+          "source_version": "0.4.15",
+          "integrated_versions": [
+            "0.4.15"
+          ]
+        }
+      ],
+      "adaptation": "HKDF 0.13 uses aliased sha2 0.11; HMAC and existing wire hashing retain sha2 0.10.",
+      "source_changes_since_equivalent_snapshot": [
+        "bfd592abf1ddfe481b3118202dac930f0638ecf4"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/mcp/ostadix_lang_mcp_server/libc-0.2.190",
+      "source_commit": "6c6b350bee8f07b0a10b5fef613a6e432b3b2b06",
+      "source_commit_date": "2026-10-10T06:55:03Z",
+      "subject": "Bump libc from 0.2.189 to 0.2.190 in /mcp/ostadix_lang_mcp_server",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "libc",
+          "source_version": "0.2.190",
+          "integrated_versions": [
+            "0.2.190"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "6c6b350bee8f07b0a10b5fef613a6e432b3b2b06"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.5.1",
+      "source_commit": "b064643812c9d2f28364afee5bfea19f31d847fd",
+      "source_commit_date": "2026-10-10T06:54:58Z",
+      "subject": "Bump rmcp from 0.6.4 to 3.5.1 in /mcp/ostadix_lang_mcp_server",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "base64",
+          "source_version": "0.23.1",
+          "integrated_versions": [
+            "0.23.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "darling",
+          "source_version": "0.24.1",
+          "integrated_versions": [
+            "0.24.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "darling_core",
+          "source_version": "0.24.1",
+          "integrated_versions": [
+            "0.24.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "darling_macro",
+          "source_version": "0.24.1",
+          "integrated_versions": [
+            "0.24.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "equivalent",
+          "source_version": "1.0.2",
+          "integrated_versions": [
+            "1.0.2"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "getrandom",
+          "source_version": "0.4.3",
+          "integrated_versions": [
+            "0.4.3"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "hashbrown",
+          "source_version": "0.17.1",
+          "integrated_versions": [
+            "0.17.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "indexmap",
+          "source_version": "2.14.2",
+          "integrated_versions": [
+            "2.14.2"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "pastey",
+          "source_version": "0.2.3",
+          "integrated_versions": [
+            "0.2.3"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "r-efi",
+          "source_version": "6.0.0",
+          "integrated_versions": [
+            "6.0.0"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "rmcp",
+          "source_version": "3.5.1",
+          "integrated_versions": [
+            "3.5.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "rmcp-macros",
+          "source_version": "3.5.1",
+          "integrated_versions": [
+            "3.5.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "uuid",
+          "source_version": "1.28.0",
+          "integrated_versions": [
+            "1.28.0"
+          ]
+        }
+      ],
+      "adaptation": "SDK 3.5.1 with schemars 1 and preserved normalized instance tool router; supersedes 3.5.0.",
+      "source_changes_since_equivalent_snapshot": [
+        "b064643812c9d2f28364afee5bfea19f31d847fd"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/mcp/ostadix_lang_mcp_server/which-8.0.6",
+      "source_commit": "04a338bcb00c223a88b1fce74869f85390ebfcfa",
+      "source_commit_date": "2026-10-10T06:55:06Z",
+      "subject": "Bump which from 7.0.3 to 8.0.6 in /mcp/ostadix_lang_mcp_server",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "which",
+          "source_version": "8.0.6",
+          "integrated_versions": [
+            "8.0.6"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "04a338bcb00c223a88b1fce74869f85390ebfcfa"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/rust-patch-updates-437fb87476",
+      "source_commit": "da2ef4be36c26b1742b8f9309a7662a7eff79cd9",
+      "source_commit_date": "2026-10-10T06:55:47Z",
+      "subject": "Bump the rust-patch-updates group with 10 updates",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "anyhow",
+          "source_version": "1.0.104",
+          "integrated_versions": [
+            "1.0.104"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "clap",
+          "source_version": "4.6.7",
+          "integrated_versions": [
+            "4.6.7"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "clap_builder",
+          "source_version": "4.6.7",
+          "integrated_versions": [
+            "4.6.7"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "clap_derive",
+          "source_version": "4.6.7",
+          "integrated_versions": [
+            "4.6.7"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "ignore",
+          "source_version": "0.4.33",
+          "integrated_versions": [
+            "0.4.33"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "libc",
+          "source_version": "0.2.190",
+          "integrated_versions": [
+            "0.2.190"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "rustls",
+          "source_version": "0.23.45",
+          "integrated_versions": [
+            "0.23.45"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde",
+          "source_version": "1.0.229",
+          "integrated_versions": [
+            "1.0.229"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_core",
+          "source_version": "1.0.229",
+          "integrated_versions": [
+            "1.0.229"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_derive",
+          "source_version": "1.0.229",
+          "integrated_versions": [
+            "1.0.229"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_json",
+          "source_version": "1.0.151",
+          "integrated_versions": [
+            "1.0.154"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "socket2",
+          "source_version": "0.6.5",
+          "integrated_versions": [
+            "0.6.5"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "syn",
+          "source_version": "3.0.7",
+          "integrated_versions": [
+            "2.0.119",
+            "3.0.8"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "thiserror",
+          "source_version": "2.0.21",
+          "integrated_versions": [
+            "2.0.21"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "thiserror-impl",
+          "source_version": "2.0.21",
+          "integrated_versions": [
+            "2.0.21"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "zeroize",
+          "source_version": "1.9.1",
+          "integrated_versions": [
+            "1.9.1"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "da2ef4be36c26b1742b8f9309a7662a7eff79cd9"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/rustyline-18.0.1",
+      "source_commit": "62da9d4955a78eab7d0ed685e909647f9d703783",
+      "source_commit_date": "2026-10-10T06:55:54Z",
+      "subject": "Bump rustyline from 14.0.0 to 18.0.1",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "cfg_aliases",
+          "source_version": "0.2.2",
+          "integrated_versions": [
+            "0.2.2"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "endian-type",
+          "source_version": "0.2.0",
+          "integrated_versions": [
+            "0.2.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "nix",
+          "source_version": "0.31.3",
+          "integrated_versions": [
+            "0.31.3"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "radix_trie",
+          "source_version": "0.3.0",
+          "integrated_versions": [
+            "0.3.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "rustyline",
+          "source_version": "18.0.1",
+          "integrated_versions": [
+            "18.0.1"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "unicode-width",
+          "source_version": "0.2.2",
+          "integrated_versions": [
+            "0.2.2"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "62da9d4955a78eab7d0ed685e909647f9d703783"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/toml-1.1.6spec-1.1.0",
+      "source_commit": "b0f40be4365b22f245896504fe78702d140c28b2",
+      "source_commit_date": "2026-10-10T06:55:57Z",
+      "subject": "Bump toml from 0.8.23 to 1.1.6+spec-1.1.0",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_spanned",
+          "source_version": "1.1.2",
+          "integrated_versions": [
+            "1.1.2"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "toml",
+          "source_version": "1.1.6+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.8+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "toml_datetime",
+          "source_version": "1.1.2+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.2+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "toml_parser",
+          "source_version": "1.1.5+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.5+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "toml_writer",
+          "source_version": "1.1.3+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.3+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "winnow",
+          "source_version": "1.0.4",
+          "integrated_versions": [
+            "1.0.4"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "b0f40be4365b22f245896504fe78702d140c28b2"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/cargo/which-8.0.6",
+      "source_commit": "21a46729a5254f5064625b55e8f56783c01b7e77",
+      "source_commit_date": "2026-10-10T06:56:01Z",
+      "subject": "Bump which from 6.0.3 to 8.0.6",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "which",
+          "source_version": "8.0.6",
+          "integrated_versions": [
+            "8.0.6"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "21a46729a5254f5064625b55e8f56783c01b7e77"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/docker/examples/guix-wasm/library/python-3.14-slim-bookworm",
+      "source_commit": "b89ae62ab8b149729bd9d157540b37286421a84e",
+      "source_commit_date": "2026-10-10T06:54:59Z",
+      "subject": "Bump library/python in /examples/guix-wasm",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "examples/guix-wasm/Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "b89ae62ab8b149729bd9d157540b37286421a84e"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/docker/rust-1.99.0-slim-bookworm",
+      "source_commit": "bdb83b9b395a5bda438daf8cff79ccc983b63f37",
+      "source_commit_date": "2026-10-10T06:55:03Z",
+      "subject": "Bump rust from 1.97.1-slim-bookworm to 1.99.0-slim-bookworm",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "bdb83b9b395a5bda438daf8cff79ccc983b63f37"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/docker/src/bin/olangc/browser_guix/library/python-3.14-slim-bookworm",
+      "source_commit": "90fbaee93901e7843e0dfad059161eb966801fe2",
+      "source_commit_date": "2026-10-10T06:55:06Z",
+      "subject": "Bump library/python in /src/bin/olangc/browser_guix",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "src/bin/olangc/browser_guix/Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "90fbaee93901e7843e0dfad059161eb966801fe2"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/docker/src/bin/olangc/wasm_exit/rust-1.98.0-bullseye",
+      "source_commit": "0f5473604f600cd56630819affc359efdbbc0cec",
+      "source_commit_date": "2026-10-10T06:55:16Z",
+      "subject": "Bump rust in /src/bin/olangc/wasm_exit",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "src/bin/olangc/wasm_exit/Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "0f5473604f600cd56630819affc359efdbbc0cec"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/docker/src/bin/olangc/wasm_exit/ubuntu-26.04",
+      "source_commit": "7b807b8e2eac7018b85c745546701caf6c1ef782",
+      "source_commit_date": "2026-10-10T06:55:18Z",
+      "subject": "Bump ubuntu from 22.04 to 26.04 in /src/bin/olangc/wasm_exit",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "src/bin/olangc/wasm_exit/Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Ubuntu 26.04 supersedes the older 25.10 proposal.",
+      "source_changes_since_equivalent_snapshot": [
+        "7b807b8e2eac7018b85c745546701caf6c1ef782"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "99b4bb4637a1db298ff581e87eb7b5396f809b50",
+          "tree": "bd532aaf1298ff806de65a734a9f4b547e5323bb",
+          "baseline_commits": [
+            "99b4bb4637a1db298ff581e87eb7b5396f809b50"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/dependabot/github_actions/actions/upload-artifact-7.0.2",
+      "source_commit": "276c4b4399d36b799208a8ace7fe893f895d58f6",
+      "source_commit_date": "2026-10-11T01:28:31Z",
+      "subject": "Bump actions/upload-artifact from 7.0.1 to 7.0.2",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/fuzz.yml"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "276c4b4399d36b799208a8ace7fe893f895d58f6"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "92d8c15f6bcf47d9709b20c3018f01a0be60b4ca",
+          "tree": "995be22d4a093df6aa3820b566fe0f08cb3e5e30",
+          "baseline_commits": [
+            "92d8c15f6bcf47d9709b20c3018f01a0be60b4ca"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "origin/master",
+      "source_commit": "488832b609ca387696f0259c47b53829bad670be",
+      "source_commit_date": "2026-10-10T21:56:02-04:00",
+      "subject": "Save private native compiler and linker candidates",
+      "disposition": "integration_base",
+      "source_changes_since_equivalent_snapshot": [],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "488832b609ca387696f0259c47b53829bad670be",
+          "tree": "b61457b08a2bacf5fa960bdd088e71529cfe1f53",
+          "baseline_commits": [
+            "488832b609ca387696f0259c47b53829bad670be"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/bug-fixes",
+      "source_commit": "b3bb719203739505c15d3431845da4d83c8a7ce0",
+      "source_commit_date": "2026-10-10T19:17:29-04:00",
+      "subject": "Pass shim blocks only the let bindings they reference",
+      "disposition": "integrated_equivalent_fixes_once",
+      "selected_source_commits": [
+        "f07cfd99dbfd0f818a1f2bc201e1ed82c5f0d1c2",
+        "2a76b6edda22dfed6a81488de8836be3fdfe113f"
+      ],
+      "details": [
+        "Private AOT adapter directories with cleanup.",
+        "Shim blocks receive only referenced lexical bindings."
+      ],
+      "source_changes_since_equivalent_snapshot": [
+        "731f14aaa2cff9ea32a687c31f85c26eb5200082",
+        "0a7c3791eabc58324b8131d861aadbe1af1bb42d",
+        "b3bb719203739505c15d3431845da4d83c8a7ce0"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/cli-error-ux-10775695524624767334",
+      "source_commit": "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e",
+      "source_commit_date": "2026-08-28T15:58:42Z",
+      "subject": "ux: Improve CLI error presentation for file read errors",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing missing-file, permission, directory, and OSError diagnostics retained."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "o_lang/cli.py"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "6f2fe324ed53b303d4b5ff8dc09195b162ae4b0e"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/android-terminal/runtime/base64-0.23.1",
+      "source_commit": "aa763307cc546328b5342f69ce4576b198df14b4",
+      "source_commit_date": "2026-09-17T08:06:43Z",
+      "subject": "Bump base64 from 0.22.1 to 0.23.1 in /apps/android-terminal/runtime",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "base64",
+          "source_version": "0.23.1",
+          "integrated_versions": [
+            "0.23.1"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "aa763307cc546328b5342f69ce4576b198df14b4"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/android-terminal/runtime/jni-0.22.4",
+      "source_commit": "57ae77b0a83820c50058a5211f6a21fbb14f85e5",
+      "source_commit_date": "2026-09-17T08:06:39Z",
+      "subject": "Bump jni from 0.21.1 to 0.22.4 in /apps/android-terminal/runtime",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "apps/android-terminal/runtime/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "jni",
+          "source_version": "0.22.4",
+          "integrated_versions": [
+            "0.22.4"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "jni-macros",
+          "source_version": "0.22.4",
+          "integrated_versions": [
+            "0.22.4"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "simd_cesu8",
+          "source_version": "1.2.0",
+          "integrated_versions": [
+            "1.2.0"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "simdutf8",
+          "source_version": "0.1.5",
+          "integrated_versions": [
+            "0.1.5"
+          ]
+        }
+      ],
+      "adaptation": "JNI 0.22 entry points borrow EnvUnowned and preserve Java ABI and cancellation.",
+      "source_changes_since_equivalent_snapshot": [
+        "57ae77b0a83820c50058a5211f6a21fbb14f85e5"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/android-terminal/runtime/toml-1.1.6spec-1.1.0",
+      "source_commit": "5dcf1d3da5f345c04bf082e8023b651f0b93832d",
+      "source_commit_date": "2026-09-17T08:06:47Z",
+      "subject": "Bump toml in /apps/android-terminal/runtime",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/android-terminal/runtime/Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "serde_spanned",
+          "source_version": "1.1.1",
+          "integrated_versions": [
+            "1.1.2"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml",
+          "source_version": "1.1.6+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.8+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml_datetime",
+          "source_version": "1.1.1+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.2+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml_parser",
+          "source_version": "1.1.3+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.5+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "toml_writer",
+          "source_version": "1.1.2+spec-1.1.0",
+          "integrated_versions": [
+            "1.1.3+spec-1.1.0"
+          ]
+        },
+        {
+          "lockfile": "apps/android-terminal/runtime/Cargo.lock",
+          "package": "winnow",
+          "source_version": "1.0.4",
+          "integrated_versions": [
+            "1.0.4"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "5dcf1d3da5f345c04bf082e8023b651f0b93832d"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/apps/mobile-console/libc-0.2.190",
+      "source_commit": "ca6baef085dc1726e102d4ad0bc54045ce9dcd40",
+      "source_commit_date": "2026-10-06T01:10:24Z",
+      "subject": "Bump libc from 0.2.189 to 0.2.190 in /apps/mobile-console",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "apps/mobile-console/Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "apps/mobile-console/Cargo.lock",
+          "package": "libc",
+          "source_version": "0.2.190",
+          "integrated_versions": [
+            "0.2.190"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "ca6baef085dc1726e102d4ad0bc54045ce9dcd40"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/axum-0.8.9",
+      "source_commit": "1ed515a73ffebba37a8d5e26011cbb819ccaecde",
+      "source_commit_date": "2026-09-17T08:07:40Z",
+      "subject": "Bump axum from 0.7.9 to 0.8.9",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "axum",
+          "source_version": "0.8.9",
+          "integrated_versions": [
+            "0.8.9"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "axum-core",
+          "source_version": "0.5.6",
+          "integrated_versions": [
+            "0.5.6"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "matchit",
+          "source_version": "0.8.4",
+          "integrated_versions": [
+            "0.8.4"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "1ed515a73ffebba37a8d5e26011cbb819ccaecde"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/hkdf-0.13.0",
+      "source_commit": "99e5b6209dff4ff0b31c44edc9f6291514f523d2",
+      "source_commit_date": "2026-09-17T08:07:35Z",
+      "subject": "Bump hkdf from 0.12.4 to 0.13.0",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "block-buffer",
+          "source_version": "0.12.1",
+          "integrated_versions": [
+            "0.10.4",
+            "0.12.1"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "cmov",
+          "source_version": "0.5.4",
+          "integrated_versions": [
+            "0.5.4"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "crypto-common",
+          "source_version": "0.2.2",
+          "integrated_versions": [
+            "0.1.7",
+            "0.2.2"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "ctutils",
+          "source_version": "0.4.2",
+          "integrated_versions": [
+            "0.4.3"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "digest",
+          "source_version": "0.11.3",
+          "integrated_versions": [
+            "0.10.7",
+            "0.11.3"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "hkdf",
+          "source_version": "0.13.0",
+          "integrated_versions": [
+            "0.12.4",
+            "0.13.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "hmac",
+          "source_version": "0.13.0",
+          "integrated_versions": [
+            "0.12.1",
+            "0.13.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "hybrid-array",
+          "source_version": "0.4.15",
+          "integrated_versions": [
+            "0.4.15"
+          ]
+        }
+      ],
+      "adaptation": "HKDF 0.13 uses aliased sha2 0.11; HMAC and existing wire hashing retain sha2 0.10.",
+      "source_changes_since_equivalent_snapshot": [
+        "99e5b6209dff4ff0b31c44edc9f6291514f523d2"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/mcp/ostadix_lang_mcp_server/base64-0.23.1",
+      "source_commit": "ba470cc0668d7295a9da9eae4e6d3e316c631cd7",
+      "source_commit_date": "2026-09-17T08:06:25Z",
+      "subject": "Bump base64 from 0.22.1 to 0.23.1 in /mcp/ostadix_lang_mcp_server",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "base64",
+          "source_version": "0.23.1",
+          "integrated_versions": [
+            "0.23.1"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "ba470cc0668d7295a9da9eae4e6d3e316c631cd7"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/mcp/ostadix_lang_mcp_server/rmcp-3.5.0",
+      "source_commit": "a6c672a0ceadbb4345c8aa342239ecf4f66feb69",
+      "source_commit_date": "2026-10-06T01:10:13Z",
+      "subject": "Bump rmcp from 0.6.4 to 3.5.0 in /mcp/ostadix_lang_mcp_server",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "mcp/ostadix_lang_mcp_server/Cargo.lock",
+        "mcp/ostadix_lang_mcp_server/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "base64",
+          "source_version": "0.23.1",
+          "integrated_versions": [
+            "0.23.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "darling",
+          "source_version": "0.24.1",
+          "integrated_versions": [
+            "0.24.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "darling_core",
+          "source_version": "0.24.1",
+          "integrated_versions": [
+            "0.24.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "darling_macro",
+          "source_version": "0.24.1",
+          "integrated_versions": [
+            "0.24.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "equivalent",
+          "source_version": "1.0.2",
+          "integrated_versions": [
+            "1.0.2"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "getrandom",
+          "source_version": "0.4.3",
+          "integrated_versions": [
+            "0.4.3"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "hashbrown",
+          "source_version": "0.17.1",
+          "integrated_versions": [
+            "0.17.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "indexmap",
+          "source_version": "2.14.2",
+          "integrated_versions": [
+            "2.14.2"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "pastey",
+          "source_version": "0.2.3",
+          "integrated_versions": [
+            "0.2.3"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "r-efi",
+          "source_version": "6.0.0",
+          "integrated_versions": [
+            "6.0.0"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "rmcp",
+          "source_version": "3.5.0",
+          "integrated_versions": [
+            "3.5.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "rmcp-macros",
+          "source_version": "3.5.1",
+          "integrated_versions": [
+            "3.5.1"
+          ]
+        },
+        {
+          "lockfile": "mcp/ostadix_lang_mcp_server/Cargo.lock",
+          "package": "uuid",
+          "source_version": "1.27.0",
+          "integrated_versions": [
+            "1.28.0"
+          ]
+        }
+      ],
+      "adaptation": "SDK 3.5.1 with schemars 1 and preserved normalized instance tool router; supersedes 3.5.0.",
+      "source_changes_since_equivalent_snapshot": [
+        "a6c672a0ceadbb4345c8aa342239ecf4f66feb69"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/num-bigint-0.5.1",
+      "source_commit": "0509c3d08fd3fa3b444d843390c5f1679697f230",
+      "source_commit_date": "2026-09-17T08:07:31Z",
+      "subject": "Bump num-bigint from 0.4.6 to 0.5.1",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/ostadix-api/Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "num-bigint",
+          "source_version": "0.5.1",
+          "integrated_versions": [
+            "0.5.1"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "0509c3d08fd3fa3b444d843390c5f1679697f230"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/rust-patch-updates-5bb66dfb8f",
+      "source_commit": "008990ea203b0c1e81b6f412835e88d3a0d91b7c",
+      "source_commit_date": "2026-10-06T01:11:15Z",
+      "subject": "Bump the rust-patch-updates group across 1 directory with 9 updates",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "anyhow",
+          "source_version": "1.0.104",
+          "integrated_versions": [
+            "1.0.104"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "clap",
+          "source_version": "4.6.7",
+          "integrated_versions": [
+            "4.6.7"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "clap_builder",
+          "source_version": "4.6.7",
+          "integrated_versions": [
+            "4.6.7"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "clap_derive",
+          "source_version": "4.6.7",
+          "integrated_versions": [
+            "4.6.7"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "ignore",
+          "source_version": "0.4.33",
+          "integrated_versions": [
+            "0.4.33"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "libc",
+          "source_version": "0.2.190",
+          "integrated_versions": [
+            "0.2.190"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "rustls",
+          "source_version": "0.23.45",
+          "integrated_versions": [
+            "0.23.45"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde",
+          "source_version": "1.0.229",
+          "integrated_versions": [
+            "1.0.229"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_core",
+          "source_version": "1.0.229",
+          "integrated_versions": [
+            "1.0.229"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_derive",
+          "source_version": "1.0.229",
+          "integrated_versions": [
+            "1.0.229"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "serde_json",
+          "source_version": "1.0.151",
+          "integrated_versions": [
+            "1.0.154"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "socket2",
+          "source_version": "0.6.5",
+          "integrated_versions": [
+            "0.6.5"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "syn",
+          "source_version": "3.0.6",
+          "integrated_versions": [
+            "2.0.119",
+            "3.0.8"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "thiserror",
+          "source_version": "2.0.21",
+          "integrated_versions": [
+            "2.0.21"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "thiserror-impl",
+          "source_version": "2.0.21",
+          "integrated_versions": [
+            "2.0.21"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "008990ea203b0c1e81b6f412835e88d3a0d91b7c"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/cargo/rustyline-18.0.1",
+      "source_commit": "f10f61d311ea7a60913b46b66a4908b9ba1d992c",
+      "source_commit_date": "2026-09-17T08:07:44Z",
+      "subject": "Bump rustyline from 14.0.0 to 18.0.1",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "dependency_targets": [
+        {
+          "lockfile": "Cargo.lock",
+          "package": "cfg_aliases",
+          "source_version": "0.2.2",
+          "integrated_versions": [
+            "0.2.2"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "endian-type",
+          "source_version": "0.2.0",
+          "integrated_versions": [
+            "0.2.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "nix",
+          "source_version": "0.31.3",
+          "integrated_versions": [
+            "0.31.3"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "radix_trie",
+          "source_version": "0.3.0",
+          "integrated_versions": [
+            "0.3.0"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "rustyline",
+          "source_version": "18.0.1",
+          "integrated_versions": [
+            "18.0.1"
+          ]
+        },
+        {
+          "lockfile": "Cargo.lock",
+          "package": "unicode-width",
+          "source_version": "0.2.2",
+          "integrated_versions": [
+            "0.2.2"
+          ]
+        }
+      ],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "f10f61d311ea7a60913b46b66a4908b9ba1d992c"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/docker/rust-1.99.0-slim-bookworm",
+      "source_commit": "5a7e5a3ca162c6c02ff9a61615560d5f03f19f30",
+      "source_commit_date": "2026-10-06T01:10:08Z",
+      "subject": "Bump rust from 1.97.1-slim-bookworm to 1.99.0-slim-bookworm",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "5a7e5a3ca162c6c02ff9a61615560d5f03f19f30"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/docker/src/bin/olangc/wasm_exit/rust-1.98.0-bullseye",
+      "source_commit": "3b6416b1d73eca1a6401a1acdbe690ca6f0c401f",
+      "source_commit_date": "2026-09-17T08:06:31Z",
+      "subject": "Bump rust in /src/bin/olangc/wasm_exit",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "src/bin/olangc/wasm_exit/Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Latest compatible resolved closure combines overlapping updates; older patch pins are superseded.",
+      "source_changes_since_equivalent_snapshot": [
+        "3b6416b1d73eca1a6401a1acdbe690ca6f0c401f"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "363e987dbdf046452af00cdda01a87fce4bb9189",
+          "tree": "0b7bab1689fbce7a90b7ce85dcf2a728d2b516ca",
+          "baseline_commits": [
+            "363e987dbdf046452af00cdda01a87fce4bb9189"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/dependabot/docker/src/bin/olangc/wasm_exit/ubuntu-25.10",
+      "source_commit": "bc68d55b8e521e61d359c0cf7a773feff986fdca",
+      "source_commit_date": "2026-10-06T01:10:17Z",
+      "subject": "Bump ubuntu from 22.04 to 25.10 in /src/bin/olangc/wasm_exit",
+      "disposition": "integrated_dependency_closure",
+      "source_changed_paths": [
+        "src/bin/olangc/wasm_exit/Dockerfile"
+      ],
+      "dependency_targets": [],
+      "adaptation": "Ubuntu 26.04 supersedes the older 25.10 proposal.",
+      "source_changes_since_equivalent_snapshot": [
+        "bc68d55b8e521e61d359c0cf7a773feff986fdca"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/feat/repl-clear-screen-2213356304128161974",
+      "source_commit": "11e2694b07bdc66e70b8be417375669a24c05eed",
+      "source_commit_date": "2026-08-25T15:49:21Z",
+      "subject": "feat(repl): add `:c` / `clear` screen command",
+      "disposition": "integrated remaining alias",
+      "details": [
+        "Existing :c/:clear commands and help retained.",
+        "Bare clear alias added alongside colon aliases; help lists the alias."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/main.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "11e2694b07bdc66e70b8be417375669a24c05eed"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/fix/hosted-tls-timeout-einval-retry",
+      "source_commit": "3f94456ea2ac181b3620e8d3cf299355329c2bd3",
+      "source_commit_date": "2026-09-23T04:49:38-04:00",
+      "subject": "Retry transient EINVAL when setting hosted transport socket timeouts",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing retry_socket_timeout preserves transient EINVAL retries and error handling with unit coverage."
+      ],
+      "source_changed_paths": [
+        "crates/ostadix-api/src/hosted_remote/tls.rs"
+      ],
+      "journal_preserved": false,
+      "source_changes_since_equivalent_snapshot": [
+        "3f94456ea2ac181b3620e8d3cf299355329c2bd3"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "8bc57884396421ea8613b13468e705af979576c8",
+          "tree": "7f13f6cc92f713d3e962c729ff05e66b7196de53",
+          "baseline_commits": [
+            "8bc57884396421ea8613b13468e705af979576c8"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/iphone16pro/p0-recon",
+      "source_commit": "f26d55c78f0676869a903ec24bf01088b653648c",
+      "source_commit_date": "2026-09-23T08:04:18-04:00",
+      "subject": "iPhone 16 Pro P0: fix property parse (Key: value), afcclient naming; capture live device",
+      "disposition": "imported original branch commits; adapted documentation and parse coverage",
+      "details": [
+        "281a26fa adds the directory; f26d55c7 corrects device property parsing and tool inventory.",
+        "README uses the BM root; recon.O has platform-demo classification; no live device probe executed."
+      ],
+      "source_changed_paths": [
+        "apps/iphone16-pro/recon.O"
+      ],
+      "journal_preserved": false,
+      "source_changes_since_equivalent_snapshot": [
+        "3f94456ea2ac181b3620e8d3cf299355329c2bd3",
+        "281a26fa68b0846b1b90c7f0c6b7df7f1fe11136",
+        "f26d55c78f0676869a903ec24bf01088b653648c"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "8bc57884396421ea8613b13468e705af979576c8",
+          "tree": "7f13f6cc92f713d3e962c729ff05e66b7196de53",
+          "baseline_commits": [
+            "8bc57884396421ea8613b13468e705af979576c8"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/jules-no-ux-changes-10815942145392224836",
+      "source_commit": "d214fef5d9ed79ec44995479a091231b44314deb",
+      "source_commit_date": "2026-08-20T16:03:03Z",
+      "subject": "No changes: No suitable UX enhancement found",
+      "disposition": "empty tip; no implementation changes",
+      "details": [],
+      "source_changed_paths": [],
+      "journal_preserved": false,
+      "source_changes_since_equivalent_snapshot": [],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "d214fef5d9ed79ec44995479a091231b44314deb",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/jules-palette-ux-notebook-16726529523203072523",
+      "source_commit": "2e78a34f22897d25cdda97c1d46790fdd18b1ce5",
+      "source_commit_date": "2026-10-09T15:36:15Z",
+      "subject": "Added `aria-label` attributes to the cell UI buttons in `o-notebook` to fix screen reader accessibility issues and created the `.Jules/palette.md` journal.",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing accessible names cover run, move up/down, clear output, delete, and cell input."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/bin/o-notebook.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "2e78a34f22897d25cdda97c1d46790fdd18b1ce5"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+          "tree": "6a6f051ff5175e6b21721738d8449d03fcb8c207",
+          "baseline_commits": [
+            "d6c87f3aebec516de9b5d3678c8882a11eb27e89"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/jules-repl-ctrl-c-ux-4582478923382288125",
+      "source_commit": "ac424d942091c8acfd2d93f75dd067af677542be",
+      "source_commit_date": "2026-08-24T15:57:09Z",
+      "subject": "\ud83c\udfa8 Palette: [UX improvement] Add visual feedback when aborting REPL input with Ctrl+C",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing ^C feedback and input/continuation cancellation retained."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/main.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "ac424d942091c8acfd2d93f75dd067af677542be"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/jules-ux-cli-file-errors-9567731891484906250",
+      "source_commit": "20560612c4bc9d3af5ff5c90cf2cd657df9620e8",
+      "source_commit_date": "2026-08-23T15:51:45Z",
+      "subject": "Add try-except to handle Missing file / Permission errors cleanly in CLI",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing missing-file, permission, directory, and OSError diagnostics retained."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "o_lang/cli.py"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "20560612c4bc9d3af5ff5c90cf2cd657df9620e8"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/main",
+      "source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+      "source_commit_date": "2026-09-11T02:45:19-04:00",
+      "subject": "Preserve current Ostadix working-tree snapshot",
+      "disposition": "identical_snapshot_already_in_base",
+      "equivalent_commit": "d6c87f3a",
+      "tree": "6a6f051ff5175e6b21721738d8449d03fcb8c207",
+      "source_changes_since_equivalent_snapshot": [],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+          "tree": "6a6f051ff5175e6b21721738d8449d03fcb8c207",
+          "baseline_commits": [
+            "d6c87f3aebec516de9b5d3678c8882a11eb27e89"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/master",
+      "source_commit": "731f14aaa2cff9ea32a687c31f85c26eb5200082",
+      "source_commit_date": "2026-10-10T11:05:40-04:00",
+      "subject": "Render inline lists on one line in Markdown splices",
+      "disposition": "equivalent_patch_already_in_base",
+      "equivalent_commit": "a3fd3f06",
+      "source_changes_since_equivalent_snapshot": [
+        "731f14aaa2cff9ea32a687c31f85c26eb5200082"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "a83684acdf07253891720e843052a238afddb916",
+          "tree": "3367c9e8a27ae9626092b9d4d94bc289f7c8e42f",
+          "baseline_commits": [
+            "a83684acdf07253891720e843052a238afddb916"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-add-aria-labels-14417253590846761119",
+      "source_commit": "7ce8220083facf64bd8219177cdfd4916745b4f8",
+      "source_commit_date": "2026-10-10T15:26:56Z",
+      "subject": "\ud83c\udfa8 Palette: Add ARIA labels to icon-only buttons in notebook cells",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing accessible names cover run, move up/down, clear output, delete, and cell input."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/bin/o-notebook.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "7ce8220083facf64bd8219177cdfd4916745b4f8"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+          "tree": "6a6f051ff5175e6b21721738d8449d03fcb8c207",
+          "baseline_commits": [
+            "d6c87f3aebec516de9b5d3678c8882a11eb27e89"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-add-aria-labels-16419148431743606071",
+      "source_commit": "f47448ca44142c80d0b264a909be1ec4f318f078",
+      "source_commit_date": "2026-09-02T15:32:52Z",
+      "subject": "Add ARIA labels to icon-only notebook buttons",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing accessible names cover run, move up/down, clear output, delete, and cell input."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/bin/o-notebook.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "f47448ca44142c80d0b264a909be1ec4f318f078"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-cli-error-ux-9104623671049710645",
+      "source_commit": "a18400d093c97d6f4550ba591f37bdaf3253de6f",
+      "source_commit_date": "2026-08-22T15:26:17Z",
+      "subject": "\ud83c\udfa8 Palette: Graceful CLI Error Handling for missing/unreadable files",
+      "disposition": "integrated remaining Unicode read-error coverage",
+      "details": [
+        "Existing missing-file, permission, directory, and OSError diagnostics retained.",
+        "UnicodeError handled alongside OSError; invalid UTF-8 and no parsing/evaluation checked."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "o_lang/cli.py"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "a18400d093c97d6f4550ba591f37bdaf3253de6f"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-repl-clear-10920733176746515596",
+      "source_commit": "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e",
+      "source_commit_date": "2026-08-30T15:29:13Z",
+      "subject": "Add :clear command to REPL",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing :c/:clear commands and help retained."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/main.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "90841ac0d036e6c6c8aa28eb32ac6ea2a320e30e"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-repl-clear-cmd-8745059712295164011",
+      "source_commit": "5a2d88cda7c974bb93ef986d526f869e11a250ca",
+      "source_commit_date": "2026-08-27T16:20:18Z",
+      "subject": "Add `:clear` command to REPL to clear screen",
+      "disposition": "integrated remaining alias",
+      "details": [
+        "Existing :c/:clear commands and help retained.",
+        "Bare clear alias added alongside colon aliases; help lists the alias."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/main.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "5a2d88cda7c974bb93ef986d526f869e11a250ca"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-ux-aria-labels-17543968112545744121",
+      "source_commit": "d213da3c0c6cc6f4710f364426a987a5e410e7d6",
+      "source_commit_date": "2026-09-01T16:00:32Z",
+      "subject": "\ud83c\udfa8 Palette: Add ARIA labels to icon-only buttons",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing accessible names cover run, move up/down, clear output, delete, and cell input."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/bin/o-notebook.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "d213da3c0c6cc6f4710f364426a987a5e410e7d6"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette-ux-improvement-repl-clear-12002940389259549745",
+      "source_commit": "ab35a13a6c10c325869c7b8be3e1ad5dfd050788",
+      "source_commit_date": "2026-08-31T16:15:59Z",
+      "subject": "\ud83c\udfa8 Palette: Add REPL clear screen shortcut",
+      "disposition": "integrated remaining alias",
+      "details": [
+        "Existing :c/:clear commands and help retained.",
+        "Bare clear alias added alongside colon aliases; help lists the alias."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/main.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "ab35a13a6c10c325869c7b8be3e1ad5dfd050788"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette/a11y-notebook-buttons-2197054148375180996",
+      "source_commit": "9b1da302a2322bb83d248e386585f6d46262fccd",
+      "source_commit_date": "2026-09-03T15:37:15Z",
+      "subject": "\ud83c\udfa8 Palette: Add ARIA labels to notebook control buttons",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing accessible names cover run, move up/down, clear output, delete, and cell input."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/bin/o-notebook.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "9b1da302a2322bb83d248e386585f6d46262fccd"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/palette/cli-error-handling-4423928523852424637",
+      "source_commit": "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3",
+      "source_commit_date": "2026-08-21T15:38:12Z",
+      "subject": "\ud83c\udfa8 Palette: Improve CLI file loading error UX",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing missing-file, permission, directory, and OSError diagnostics retained."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "o_lang/cli.py"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "eeb0222a1aa27e61a46636f6ceef3fd06c9d52d3"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/ux-add-repl-clear-command-14385163191800482413",
+      "source_commit": "0efe66383c5b0f918632922d877f47f6df41be64",
+      "source_commit_date": "2026-08-29T15:56:49Z",
+      "subject": "Add `:clear` and `:c` commands to Rust REPL",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing :c/:clear commands and help retained."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/main.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "0efe66383c5b0f918632922d877f47f6df41be64"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "775798cd1ec4aeb79b9b6380d91016faea681f4d",
+          "tree": "8b06612128dd8c0a96434d0b7086f69f1d4a5999",
+          "baseline_commits": [
+            "8c9af45dede4fbeda3b04b0584d8654e4e6c74f2",
+            "5c2bbaba553bc14a5bd7642de8fd91b3758a39f2",
+            "4306ab4e7227d765372c22767201a8b5a8caa1d7"
+          ]
+        }
+      ]
+    },
+    {
+      "branch": "upstream/ux-aria-labels-17754742340276186369",
+      "source_commit": "6318810ff04a3b50dd8b926e509c6fe4199a310f",
+      "source_commit_date": "2026-10-11T15:21:55Z",
+      "subject": "feat(notebook): add aria-labels to icon-only buttons",
+      "disposition": "equivalent behavior already present",
+      "details": [
+        "Existing accessible names cover run, move up/down, clear output, delete, and cell input."
+      ],
+      "source_changed_paths": [
+        ".Jules/palette.md",
+        "src/bin/o-notebook.rs"
+      ],
+      "journal_preserved": true,
+      "source_changes_since_equivalent_snapshot": [
+        "6318810ff04a3b50dd8b926e509c6fe4199a310f"
+      ],
+      "baseline_equivalent_snapshots": [
+        {
+          "source_commit": "806399e7b626e9f4edcee2a2b51dedee995c0894",
+          "tree": "6a6f051ff5175e6b21721738d8449d03fcb8c207",
+          "baseline_commits": [
+            "d6c87f3aebec516de9b5d3678c8882a11eb27e89"
+          ]
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "status": "complete",
+    "scope": "Available local checks passed. Docker image execution and Android cross-target/device builds remain untested as listed in validation_limits.",
+    "checks": [
+      {
+        "name": "Current remote branch snapshot",
+        "command": "git fetch --all --prune; compare all non-HEAD remote refs to this inventory",
+        "status": "pass",
+        "result": "56 of 56 source tips unchanged; no missing or newly fetched branches."
+      },
+      {
+        "name": "Root workspace build",
+        "command": "cargo build --locked --workspace --all-features --bins",
+        "status": "pass",
+        "result": "All workspace native binaries built."
+      },
+      {
+        "name": "Root workspace check",
+        "command": "cargo check --locked --workspace --all-targets --all-features",
+        "status": "pass",
+        "result": "All workspace targets and features checked."
+      },
+      {
+        "name": "Engine tests",
+        "command": "NIX_CONFIG='experimental-features = nix-command' CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=1 cargo test --locked -p ostadix-api --lib",
+        "status": "pass",
+        "result": "1371 passed; 0 failed; 3 ignored.",
+        "passed": 1371,
+        "failed": 0,
+        "ignored": 3
+      },
+      {
+        "name": "Compiler tests",
+        "command": "cargo test --locked --bin olangc (unit suite and generated fixture run separately)",
+        "status": "pass",
+        "result": "165 passed; 0 failed; 1 ignored. Includes the real generated-project fixture, with --offline --locked enforced.",
+        "passed": 165,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "name": "Executor integration tests",
+        "command": "cargo test --locked --test executor_reentrancy --test autonomous_hosted_parallel -- --test-threads=2",
+        "status": "pass",
+        "result": "13 passed; 0 failed.",
+        "passed": 13,
+        "failed": 0
+      },
+      {
+        "name": "MCP unit tests",
+        "command": "cargo test --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml",
+        "status": "pass",
+        "result": "86 passed; 0 failed.",
+        "passed": 86,
+        "failed": 0
+      },
+      {
+        "name": "MCP release build",
+        "command": "cargo build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml",
+        "status": "pass",
+        "result": "Native release server built."
+      },
+      {
+        "name": "MCP transport and runtime smoke",
+        "command": "python3 scripts/smoke_ostadix_mcp.py (release server, fresh native runtime binaries, private installed fixture)",
+        "status": "pass",
+        "result": "ostadix-mcp stdio release smoke: PASS. Includes catalog, source execution, admission, one-use intents, jobs, PTY cancellation, byte output and operations. Tool enumeration returned 21 tools and 12 resources; legacy client protocol negotiation passed."
+      },
+      {
+        "name": "Minimum supported Rust version",
+        "command": "cargo +1.93.1 check --locked --workspace --all-targets --all-features; cargo +1.93.1 check --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml",
+        "status": "pass",
+        "result": "Workspace and independent MCP server passed on Rust 1.93.1."
+      },
+      {
+        "name": "Android runtime host build",
+        "command": "cargo build --locked --manifest-path apps/android-terminal/runtime/Cargo.toml",
+        "status": "pass",
+        "result": "Host native JNI library built; eight existing JNI exports retained."
+      },
+      {
+        "name": "JNI runtime smoke",
+        "command": "RuntimeJniSmoke and focused JNI round-trip harness under java -Xcheck:jni",
+        "status": "pass",
+        "result": "Execution, binder requests, cancellation and both AI result array paths passed; 64 Unicode/NUL round trips and null/closed-handle cases passed. Host JVM evidence only."
+      },
+      {
+        "name": "Mobile console",
+        "command": "cargo check --locked --manifest-path apps/mobile-console/Cargo.toml",
+        "status": "pass",
+        "result": "Independent mobile-console dependency closure checked."
+      },
+      {
+        "name": "Architecture boundaries",
+        "command": "python3 scripts/check_architecture_boundaries.py",
+        "status": "pass",
+        "result": "PASS: 205 production files, 48 roots, 246 cross-root edges."
+      },
+      {
+        "name": "Python regression tests",
+        "command": "python3 -m unittest -q tests.test_python_diagnostics tests.test_render_docs tests.test_language_sources tests.test_architecture_boundaries",
+        "status": "pass",
+        "result": "167 tests; 0 failures; 1 skipped (runner-dependent permission case).",
+        "tests": 167,
+        "failed": 0,
+        "skipped": 1
+      },
+      {
+        "name": "Language sources",
+        "command": "python3 scripts/check_language_sources.py validate; python3 scripts/check_language_sources.py check --o-bin target/debug/O --ocorec target/debug/ocorec",
+        "status": "pass",
+        "result": "235 classified (86 .O, 149 .oc); 235 parsed as expected; 0 failed; 0 programs executed."
+      },
+      {
+        "name": "HTML exports",
+        "command": "python3 scripts/render_docs.py check --marked <pinned-marked-18.0.13>",
+        "status": "pass",
+        "result": "97 complete documents; 2140200 bytes; 0 drifted."
+      },
+      {
+        "name": "Contracts and attribution",
+        "command": "python3 scripts/contract_surfaces.py validate; python3 scripts/check_attribution.py",
+        "status": "pass",
+        "result": "contract-surfaces: ok; attribution policy: pass."
+      },
+      {
+        "name": "Formatting and Clippy",
+        "command": "cargo fmt --all --check; cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+        "status": "pass",
+        "result": "Formatting passed; Clippy passed with warnings denied."
+      },
+      {
+        "name": "REPL clear aliases",
+        "command": "Native REPL PTY smoke for clear, :c and :clear",
+        "status": "pass",
+        "result": "All three aliases cleared the terminal; help lists the commands."
+      },
+      {
+        "name": "Hello smoke",
+        "command": "target/debug/O examples/hello.O backends",
+        "status": "pass",
+        "result": "[number] 2"
+      },
+      {
+        "name": "Docker declared source closure",
+        "command": "Stage declared COPY inputs with .dockerignore filtering; cargo metadata --offline --locked --no-deps; inspect production include/asset paths",
+        "status": "pass",
+        "result": "436 input files; 229 production include/asset paths and 15 asset macro invocations resolved; all four declared binary target sources present. Docker image build not exercised."
+      }
+    ]
+  },
+  "validation_limits": [
+    "Docker image builds unavailable: docker is not installed.",
+    "Android device/cross-target linking unavailable: Android target and NDK are not installed. Host JNI ABI and runtime smoke are tested."
+  ],
+  "ancestry_audit": {
+    "baseline_ancestor_commits": 696,
+    "baseline_distinct_trees": 462,
+    "all_parent_traversal": true,
+    "unexpected_history_changes": 0
+  },
+  "source_refs_verified_at": "2026-10-12T02:09:33.815952+00:00",
+  "integration_repairs": [
+    {
+      "area": "AOT dependency projection",
+      "files": [
+        "src/bin/olangc.rs"
+      ],
+      "details": "Match generated direct requirements against locked versions, including aliases and target tables; fail on missing or ambiguous matches. Prune unused feature edges inherited from workspace/test feature unification, preserving the actual generated-runtime closure and offline locked builds."
+    },
+    {
+      "area": "Native compiler architecture boundaries",
+      "files": [
+        "ci/architecture-roots.toml",
+        "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+        "crates/ostadix-api/src/ocore/native_codegen.rs",
+        "crates/ostadix-api/src/ocore/native_atomic_verify_tests.rs",
+        "crates/ostadix-api/src/ocore/native_minmax_verify_tests.rs",
+        "tests/test_architecture_boundaries.py"
+      ],
+      "details": "Declare the existing private atomic include fragment and use explicit imports under the existing dependency policy; preserve native instruction and verifier behavior."
+    },
+    {
+      "area": "Docker source closure",
+      "files": [
+        "Dockerfile"
+      ],
+      "details": "Include the existing ostadix-core workspace member and embedded native runtime capture scripts in the builder context."
+    },
+    {
+      "area": "Clippy compatibility",
+      "files": [
+        "src/bin/olangc/native_runtime/object_inventory_tests.rs"
+      ],
+      "details": "Copy the existing record prefix with extend_from_within, preserving fixture bytes."
+    }
+  ]
+}

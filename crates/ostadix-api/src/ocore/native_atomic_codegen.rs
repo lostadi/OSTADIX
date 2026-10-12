@@ -1,12 +1,21 @@
-//! Assembly realization of imported LLVM atomic operations.
-//!
-//! The explicit coherent-RAM profile excludes device memory and, for RV64GC
-//! subword RMW/CAS, promises accessibility of the containing aligned word and
-//! the execution environment's LR/SC eventuality property for that region.
-//! Source ordering/scope/weakness/volatility remain in NativeIR. Weak CAS is
-//! refined to a strong retry loop. No helper library or wider-atomic support
-//! is implied by this inline implementation.
-use super::*;
+// Assembly realization of imported LLVM atomic operations.
+//
+// The explicit coherent-RAM profile excludes device memory and, for RV64GC
+// subword RMW/CAS, promises accessibility of the containing aligned word and
+// the execution environment's LR/SC eventuality property for that region.
+// Source ordering/scope/weakness/volatility remain in NativeIR. Weak CAS is
+// refined to a strong retry loop. No helper library or wider-atomic support
+// is implied by this inline implementation.
+use std::collections::BTreeMap;
+use std::fmt::Write;
+
+use crate::ocore::driver::Target;
+use crate::ocore::native_codegen::{constant_type, scalar_bits, Emitter};
+use crate::ocore::native_ir::{
+    error_diagnostic, AtomicOrdering, AtomicProfile, AtomicRmwOp, Instruction, NativeModule, Operand,
+    Operation, Type, TypeId, ValueId,
+};
+use crate::ocore::Diagnostic;
 
 pub(super) fn audit_instruction(
     module: &NativeModule,
@@ -710,7 +719,15 @@ impl Emitter<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::BTreeMap;
+    use std::fmt::Write;
+
+    use super::merged_cas_order;
+    use crate::ocore::driver::Target;
+    use crate::ocore::native_codegen::emit;
+    use crate::ocore::native_ir::{
+        AtomicOrdering, AtomicProfile, AtomicSyncScope, NativeModule, Operation, FORMAT,
+    };
     use serde_json::{json, Value as Json};
 
     const INTEGER_RMW_NAMES: [&str; 15] = [

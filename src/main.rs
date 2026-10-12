@@ -617,7 +617,7 @@ fn run_repl(
                             continue;
                         }
 
-                        ":c" | ":clear" => {
+                        ":c" | ":clear" | "clear" => {
                             let _ = rl.clear_screen();
                             continue;
                         }
@@ -783,7 +783,7 @@ fn print_repl_help(color: bool) {
     eprintln!();
     eprintln!("  {h}:q{r} / {h}:quit{r}   {d}exit the REPL{r}");
     eprintln!("  {h}:r{r} / {h}:reset{r}  {d}clear all let-bindings from scope{r}");
-    eprintln!("  {h}:c{r} / {h}:clear{r}  {d}clear the screen{r}");
+    eprintln!("  {h}:c{r} / {h}:clear{r} / {h}clear{r}  {d}clear the screen{r}");
     eprintln!("  {h}:?{r} / {h}:help{r}   {d}show this message{r}");
     eprintln!();
     eprintln!("  {d}Multi-line expressions are accepted — keep typing until{r}");

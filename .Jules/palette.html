@@ -1,0 +1,66 @@
+<h1>Palette journal</h1>
+<p>Entries retain the dates and wording recorded on their source branches.</p>
+<h2>2024-11-09 - CLI Error Handling</h2>
+<p><strong>Learning:</strong> Bare stack traces on missing files (e.g. <code>FileNotFoundError</code>) provide poor UX in CLI tools, exposing internal implementation details instead of actionable feedback. This makes the tool feel unpolished and can confuse non-technical users.
+<strong>Action:</strong> Always wrap file loading operations in try-except blocks to catch standard <code>OSError</code> exceptions and provide clean, human-readable error messages to stderr before exiting.</p>
+<p>Source: <code>upstream/palette/cli-error-handling-4423928523852424637</code> (<code>eeb0222a</code>).</p>
+<h2>2026-08-22 - Graceful CLI Error Handling</h2>
+<p><strong>Learning:</strong> Raw stack traces from unhandled exceptions (like <code>FileNotFoundError</code> or <code>PermissionError</code>) in CLI tools degrade user experience by presenting overly technical details and obscuring the actual problem and solution. Users benefit significantly from friendly, actionable error messages.
+<strong>Action:</strong> When creating or modifying CLI tools, ensure that common expected failures (like file I/O operations) are wrapped in <code>try-except</code> blocks. Output clear, context-specific error messages to <code>sys.stderr</code> and exit with a non-zero code instead of propagating raw stack traces to the user.</p>
+<p>Source: <code>upstream/palette-cli-error-ux-9104623671049710645</code> (<code>a18400d0</code>).</p>
+<h2>2026-08-23 - Missing file handling in CLI</h2>
+<p><strong>Learning:</strong> The CLI throws raw unhandled exceptions (<code>FileNotFoundError</code>) instead of a user-friendly error message when attempting to execute a non-existent file, degrading user experience.
+<strong>Action:</strong> Always wrap file I/O operations with try-except blocks to provide clean, actionable error messages.</p>
+<p>Source: <code>upstream/jules-ux-cli-file-errors-9567731891484906250</code> (<code>20560612</code>).</p>
+<h2>2026-08-24 - REPL Ctrl+C Abort Feedback</h2>
+<p><strong>Learning:</strong> When users abort a multiline input in a REPL using Ctrl+C, failing to provide visual feedback (like a <code>^C</code> printout) leaves them uncertain whether their input was actually canceled or if the REPL merely swallowed the newline. Standard shells provide this feedback, setting a baseline expectation for terminal UX.
+<strong>Action:</strong> Always echo <code>^C</code> before clearing the buffer and issuing a new prompt when trapping SIGINT/Ctrl+C in custom REPLs.</p>
+<p>Source: <code>upstream/jules-repl-ctrl-c-ux-4582478923382288125</code> (<code>ac424d94</code>).</p>
+<h2>2024-05-18 - Added <code>clear</code> command to REPL</h2>
+<p><strong>Learning:</strong> For long-running CLI sessions like an interactive REPL, screen clutter significantly degrades UX and accessibility, especially when using complex multiline inputs or large output data. Having explicit screen-clearing commands (<code>:c</code>, <code>:clear</code>, <code>clear</code>) helps users maintain focus and manage cognitive load by providing a fresh visual slate.
+<strong>Action:</strong> Always consider implementing terminal management commands (like clear screen, history navigation, and prompt resetting) in interactive REPL environments as baseline UX features, rather than treating them as optional enhancements.</p>
+<p>Source: <code>upstream/feat/repl-clear-screen-2213356304128161974</code> (<code>11e2694b</code>).</p>
+<h2>2024-05-18 - Clear Screen Command in REPL</h2>
+<p><strong>Learning:</strong> Terminal-based REPL users often need to quickly clear the screen to focus on a fresh prompt after complex or verbose operations (like syntax errors, large outputs, or evaluating many files). The existing flow required quitting the REPL or depending on terminal emulator shortcuts. Implementing a native <code>:clear</code> command makes the interactive experience smoother and more inclusive, addressing cognitive overload and improving accessibility for users who depend on clear visual distinction.
+<strong>Action:</strong> Adding <code>:c</code> | <code>:clear</code> shortcuts to all future REPL environments as a foundational UX requirement.</p>
+<p>Source: <code>upstream/palette-repl-clear-cmd-8745059712295164011</code> (<code>5a2d88cd</code>).</p>
+<h2>2024-05-24 - Graceful CLI Error Handling</h2>
+<p><strong>Learning:</strong> Raw stack traces on expected file errors (like missing files or permission denied) create a poor CLI user experience, appearing as unhandled crashes rather than actionable user errors.
+<strong>Action:</strong> Always intercept expected OS errors at the CLI entry point (like <code>FileNotFoundError</code>, <code>PermissionError</code>) and present them as clean, actionable error messages instead of raw stack traces.</p>
+<p>Source: <code>upstream/cli-error-ux-10775695524624767334</code> (<code>6f2fe324</code>).</p>
+<h2>2024-08-29 - Clear Command in CLI REPL</h2>
+<p><strong>Learning:</strong> Keyboard-centric users working in REPLs frequently need to clear their screens to reduce cognitive load and focus on current context. While <code>Ctrl+L</code> works for some, having explicit <code>:clear</code> and <code>:c</code> commands in line with other REPL commands (like <code>:reset</code> or <code>:quit</code>) makes this feature discoverable and consistent with the interface&#39;s mental model.
+<strong>Action:</strong> When working on CLI REPLs, ensure screen clearing is available both as a standard keyboard shortcut (e.g. <code>Ctrl+L</code> via terminal bindings) and as an explicit, documented command that aligns with the application&#39;s command structure (e.g., <code>:clear</code> or <code>:c</code>).</p>
+<p>Source: <code>upstream/ux-add-repl-clear-command-14385163191800482413</code> (<code>0efe6638</code>).</p>
+<h2>2024-05-24 - Clearing the terminal in REPL</h2>
+<p><strong>Learning:</strong> A standard user expectation in interactive REPLs (like Python or Node.js) is a mechanism to clear the screen, such as a <code>:clear</code> command or a keyboard shortcut like Ctrl+L. Currently, the Rust REPL lacks this feature, leading to a cluttered terminal.
+<strong>Action:</strong> Implement <code>:c</code> and <code>:clear</code> commands in the <code>main.rs</code> REPL loop utilizing rustyline&#39;s built-in <code>clear_screen</code> method (which handles ANSI clearing properly).</p>
+<p>Source: <code>upstream/palette-repl-clear-10920733176746515596</code> (<code>90841ac0</code>).</p>
+<h2>2024-05-24 - REPL clear screen shortcut</h2>
+<p><strong>Learning:</strong> Terminal REPL users often need to quickly clear the screen to focus on new output, and relying entirely on shell shortcuts (like Ctrl-L) which might not be obvious to all users or behave consistently across terminal emulators, can hinder usability.
+<strong>Action:</strong> Implemented a direct text command (<code>:c</code> / <code>:clear</code>) within the REPL itself to trigger clearing the screen, providing a built-in, discoverable alternative.</p>
+<p>Source: <code>upstream/palette-ux-improvement-repl-clear-12002940389259549745</code> (<code>ab35a13a</code>).</p>
+<h2>2024-05-18 - Missing ARIA Labels in O-Notebook</h2>
+<p><strong>Learning:</strong> The interactive O-Notebook application (<code>src/bin/o-notebook.rs</code>) contains icon-only buttons for cell manipulation (move up, move down, clear output, delete) that rely entirely on the <code>title</code> attribute for context. <code>title</code> attributes are not a reliable way to provide accessible names. The buttons lack <code>aria-label</code>s, rendering them functionally opaque to screen readers.
+<strong>Action:</strong> Always add explicit <code>aria-label</code> attributes to icon-only buttons, even when a <code>title</code> attribute is present, to ensure consistent and reliable accessibility for assistive technologies.</p>
+<p>Source: <code>upstream/palette-ux-aria-labels-17543968112545744121</code> (<code>d213da3c</code>).</p>
+<h2>2024-05-18 - Missing ARIA Labels in Interactive Notebook UI</h2>
+<p><strong>Learning:</strong> Found several icon-only buttons (Run, Move up, Move down, Clear output, Delete) in the embedded HTML interface of <code>src/bin/o-notebook.rs</code> that were missing <code>aria-label</code> attributes. Without these labels, screen readers would simply read out the unicode character (e.g. &quot;black right-pointing triangle&quot;), which provides a poor user experience. I also discovered a textarea missing an <code>aria-label</code> where the <code>placeholder</code> attribute was being relied upon (which is not consistently read by screen readers).
+<strong>Action:</strong> When working on UI templates (even those embedded directly in server-side Rust files), I should always ensure that interactive elements relying on visual icons or placeholders have explicit <code>aria-label</code> attributes to maintain accessibility.</p>
+<p>Source: <code>upstream/palette-add-aria-labels-16419148431743606071</code> (<code>f47448ca</code>).</p>
+<h2>2024-03-24 - Screen Reader Literalism with Unicode Symbols</h2>
+<p><strong>Learning:</strong> The notebook UI uses raw Unicode symbols (▶, ↑, ↓, ⬜, ✕) as pseudo-icons for cell control buttons. Without explicit <code>aria-label</code>s, screen readers read these literally (e.g., &quot;black right-pointing triangle&quot; or &quot;multiplication x&quot;), confusing visually impaired users relying on audio cues for functional understanding.
+<strong>Action:</strong> Always add semantic <code>aria-label</code>s to any icon-only button, especially those using Unicode glyphs, so screen readers announce the button&#39;s action (e.g., &quot;Run cell&quot;) rather than its visual representation.</p>
+<p>Source: <code>upstream/palette/a11y-notebook-buttons-2197054148375180996</code> (<code>9b1da302</code>).</p>
+<h2>2026-10-09 - Accessible Interactive Cells in Minimalist Web UIs</h2>
+<p><strong>Learning:</strong> When building minimal, interactive HTML templates with embedded JS (like this project&#39;s o-notebook), standard <code>title</code> attributes on icon-only buttons are often insufficient for screen reader accessibility, particularly when building custom cell management interfaces. Screen readers may ignore titles on non-standard styled buttons.
+<strong>Action:</strong> Always enforce explicit <code>aria-label</code> attributes on icon-only interactive elements and primary text areas within raw HTML string templates, bypassing the assumption that the <code>title</code> attribute alone ensures compliance.</p>
+<p>Source: <code>upstream/jules-palette-ux-notebook-16726529523203072523</code> (<code>2e78a34f</code>).</p>
+<h2>2024-10-24 - Accessibility gaps in Vanilla JS Template Strings</h2>
+<p><strong>Learning:</strong> Vanilla JS template strings (used for dynamically generating HTML, like <code>createCell</code> in the notebook) often bypass automated accessibility linters that check JSX or static HTML. This can lead to omitted ARIA labels on dynamic elements like icon-only buttons.
+<strong>Action:</strong> Always manually audit dynamically generated UI elements within template literals for accessibility attributes, especially <code>aria-label</code> for icon-only buttons, as automated tools may miss them.</p>
+<p>Source: <code>upstream/palette-add-aria-labels-14417253590846761119</code> (<code>7ce82200</code>).</p>
+<h2>2025-02-25 - Accessibility in Dynamic HTML Templates</h2>
+<p><strong>Learning:</strong> Vanilla JS template strings for dynamic HTML generation bypass standard automated linters, making manual audits crucial for ensuring accessibility attributes like <code>aria-label</code> are present on icon-only buttons.
+<strong>Action:</strong> Always manually audit dynamic HTML template strings for accessibility attributes when working on UI components that are generated client-side, especially when standard linters are not available.</p>
+<p>Source: <code>upstream/ux-aria-labels-17754742340276186369</code> (<code>6318810f</code>).</p>

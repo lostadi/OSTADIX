@@ -152,7 +152,7 @@ def main(argv: Optional[list] = None) -> int:
     except IsADirectoryError:
         sys.stderr.write(f"Error: Expected a file but got a directory: '{args.file}'.\n")
         return 1
-    except OSError as error:
+    except (OSError, UnicodeError) as error:
         sys.stderr.write(f"Error: Could not read file '{args.file}': {error}\n")
         return 1
 

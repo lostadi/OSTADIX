@@ -15,9 +15,9 @@ mod unified;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{
-        AnnotateAble, CallToolResult, Content, ListResourcesResult, PaginatedRequestParam,
-        RawResource, ReadResourceRequestParam, ReadResourceResult, ResourceContents,
-        ServerCapabilities, ServerInfo,
+        CallToolResult, ContentBlock, ListResourcesResult, PaginatedRequestParams,
+        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+        ResourceContents, ServerCapabilities, ServerConfig,
     },
     schemars,
     service::RequestContext,
@@ -1192,11 +1192,11 @@ fn discover_runtimes(search: &RuntimeSearchPath, root: &Path) -> RuntimeDiscover
 }
 
 fn text_ok(s: impl Into<String>) -> Result<CallToolResult, McpError> {
-    Ok(CallToolResult::success(vec![Content::text(s.into())]))
+    Ok(CallToolResult::success(vec![ContentBlock::text(s.into())]))
 }
 
 fn text_err(s: impl Into<String>) -> Result<CallToolResult, McpError> {
-    Ok(CallToolResult::error(vec![Content::text(s.into())]))
+    Ok(CallToolResult::error(vec![ContentBlock::text(s.into())]))
 }
 
 fn structured_command_result(
@@ -3326,18 +3326,17 @@ impl OstadixMcp {
     }
 }
 
-#[tool_handler]
+#[tool_handler(router = self.tool_router)]
 impl ServerHandler for OstadixMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            server_info: rmcp::model::Implementation {
-                name: "ostadix-mcp".into(),
-                title: Some("Ostadix runtime and toolchain".into()),
-                version: concat!(env!("CARGO_PKG_VERSION"), "+source-surface.3").into(),
-                website_url: Some("https://github.com/lostadi/ostadix-BM".into()),
-                icons: None,
-            },
-            instructions: Some(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
+            .with_server_info(rmcp::model::Implementation::new(
+                "ostadix-mcp",
+                concat!(env!("CARGO_PKG_VERSION"), "+source-surface.3"),
+            )
+                .with_title("Ostadix runtime and toolchain")
+                .with_website_url("https://github.com/lostadi/ostadix-BM"))
+            .with_instructions(
                 "Ostadix-lang / O-lang MCP. Prefer o_execute with one complete polyglot O source or existing program/project path. Its action defaults to execute; check is parse-only, plan is static inspection, compile explicitly requests an artifact. \
 Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. \
 Use route for project execute/plan/IR/DOT selection. node sends one complete ordinary document through native octl; it does not partition the graph. Node cwd/env configure the local client; cancellation cannot stop remote effects, and unknown completion is never retried automatically. \
@@ -3352,43 +3351,32 @@ Set o_run.placement=node for whole-document selected-node submission or project_
 Use o_analyze_intent then o_execute_intent for explicit inspect-then-execute with a one-use same-intent gate. \
 Use o_information_inspect only for bounded descriptive reads of an existing local Information V1 head; it grants no authority. \
 Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (O splices $IDENT)."
-                    .into(),
-            ),
-            capabilities: ServerCapabilities::builder().enable_tools().enable_resources().build(),
-            ..Default::default()
-        }
+            )
     }
 
     async fn list_resources(
         &self,
-        _request: Option<PaginatedRequestParam>,
+        _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        let mut resources = vec![RawResource::new(
+        let mut resources = vec![Resource::new(
             "ostadix://capabilities",
             "Ostadix command capability catalog",
-        )
-        .no_annotation()];
+        )];
         for topic in capabilities::GUIDE_TOPICS {
-            resources.push(
-                RawResource::new(
-                    format!("ostadix://guide/{topic}"),
-                    format!("Ostadix {topic} guide"),
-                )
-                .no_annotation(),
-            );
+            resources.push(Resource::new(
+                format!("ostadix://guide/{topic}"),
+                format!("Ostadix {topic} guide"),
+            ));
         }
-        Ok(ListResourcesResult {
-            resources,
-            next_cursor: None,
-        })
+        Ok(ListResourcesResult::with_all_items(resources))
     }
 
     async fn read_resource(
         &self,
-        request: ReadResourceRequestParam,
+        request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
+    ) -> Result<ReadResourceResponse, McpError> {
         let text = if request.uri == "ostadix://capabilities" {
             capabilities::catalog(&resolve_lang_root(), None).to_string()
         } else if let Some(topic) = request.uri.strip_prefix("ostadix://guide/") {
@@ -3398,9 +3386,7 @@ Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (
         } else {
             return Err(McpError::invalid_params("unknown Ostadix resource", None));
         };
-        Ok(ReadResourceResult {
-            contents: vec![ResourceContents::text(text, request.uri)],
-        })
+        Ok(ReadResourceResult::new(vec![ResourceContents::text(text, request.uri)]).into())
     }
 }
 

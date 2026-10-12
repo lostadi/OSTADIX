@@ -5,7 +5,14 @@
 //! LLVM's poison/undef behavior is retained under the existing permitted
 //! LlvmDefinedBehaviorV1 concretization, not claimed as literal preservation.
 
-use super::*;
+use num_bigint::BigUint;
+
+use crate::ocore::native_interpret;
+use crate::ocore::native_ir::{
+    Alias, Block, Instruction, IntegerMinMaxKind, NativeModule, Operand, Operation, PhiIncoming,
+    ReturnStorage, Terminator, Type, TypeId, Value, ValueId, Visibility, FORMAT,
+};
+use crate::ocore::native_verify::{integer_minmax_intrinsic, is_builtin_intrinsic, verify};
 use serde_json::{json, Value as JsonValue};
 
 const VOID: TypeId = 0;
@@ -121,7 +128,7 @@ fn expected(kind: IntegerMinMaxKind, bits: u16, lhs: u64, rhs: u64) -> u64 {
 }
 
 fn calculate(module: &NativeModule, lhs: u64, rhs: u64) -> BigUint {
-    super::super::native_interpret::evaluate(
+    native_interpret::evaluate(
         module,
         "calculate",
         &[BigUint::from(lhs), BigUint::from(rhs)],

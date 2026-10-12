@@ -8,7 +8,7 @@ schema_version = 1
 package_manifest = "crates/ostadix-api/Cargo.toml"
 source_root = "crates/ostadix-api/src"
 crate_root = "crates/ostadix-api/src/lib.rs"
-excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
+excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
 excluded_directories = []
 
 # Token fragments compiled with include!() are scanned under their owning root
@@ -22,6 +22,13 @@ included_from = "crates/ostadix-api/src/backend_catalog.rs"
 path = "crates/ostadix-api/src/project/input_kind.inc.rs"
 owner = "project"
 included_from = "crates/ostadix-api/src/project/lower.rs"
+
+# Atomic emission stays inside the private native-codegen child module while
+# its physical source is scanned under the owning O-core dependency root.
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_atomic_codegen.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
 
 # These physical paths are compiled under roots that differ from their
 # conventional on-disk module path. They are part of the dependency identity,

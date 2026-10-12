@@ -79,6 +79,9 @@ mod tests {
         let original = crate::OstadixMcp::tool_router();
         assert_eq!(server.tool_router.map.len(), original.map.len());
         for tool in server.tool_router.list_all() {
+            let advertised = rmcp::ServerHandler::get_tool(&server, &tool.name)
+                .expect("handler must expose the normalized route");
+            assert_eq!(advertised.input_schema, tool.input_schema);
             assert!(original.has_route(&tool.name));
             assert_eq!(tool.input_schema.get("type"), Some(&json!("object")));
             assert!(!tool.input_schema.contains_key("$schema"));

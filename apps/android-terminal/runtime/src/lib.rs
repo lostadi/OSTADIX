@@ -4,9 +4,10 @@
 //! executing a binary copied into writable app storage. Android 10 and newer
 //! intentionally disallow that writable-code pattern.
 
+use jni::errors::LogErrorAndDefault;
 use jni::objects::{JClass, JIntArray, JString};
 use jni::sys::{jboolean, jint, jlong, jstring};
-use jni::JNIEnv;
+use jni::{Env, EnvUnowned};
 use ostadix_api::executor::CancellationToken;
 use ostadix_api::{OValue, Runtime, RuntimeRequest, RuntimeRequestLimits};
 use serde_json::{json, Value};
@@ -28,8 +29,20 @@ const AICORE_SMART_REPLY_POSTPROCESS: &str =
     include_str!("../../../../tests/fixtures/aicore_smart_reply_postprocess_bash.O");
 const MAX_BINDINGS_JSON_BYTES: usize = 1024 * 1024;
 
-fn java_string(env: JNIEnv<'_>, value: String) -> jstring {
-    match env.new_string(value) {
+// JNI 0.22 separates the FFI-safe environment argument from its borrowed API.
+// Keep Java's native call frame alive while its strings and arrays are used;
+// return the established zero/null fallback if environment access fails.
+fn with_jni_env<'local, T: Default>(
+    unowned_env: &mut EnvUnowned<'local>,
+    operation: impl FnOnce(&mut Env<'local>) -> T,
+) -> T {
+    unowned_env
+        .with_env(|env| Ok::<T, jni::errors::Error>(operation(env)))
+        .resolve::<LogErrorAndDefault>()
+}
+
+fn java_string(env: &mut Env<'_>, value: String) -> jstring {
+    match JString::from_str(env, value) {
         Ok(text) => text.into_raw(),
         Err(_) => ptr::null_mut(),
     }
@@ -100,37 +113,39 @@ fn parse_bindings_json(value: &str) -> Result<HashMap<String, OValue>, String> {
 /// other than as an opaque token and is serialized by the Java wrapper.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeCreate(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     shim_dir: JString<'_>,
     runtime_executable: JString<'_>,
     bash_executable: JString<'_>,
 ) -> jlong {
-    let shim_dir: String = match env.get_string(&shim_dir) {
-        Ok(value) => value.into(),
-        Err(_) => return 0,
-    };
-    let runtime_executable: String = match env.get_string(&runtime_executable) {
-        Ok(value) => value.into(),
-        Err(_) => return 0,
-    };
-    let bash_executable: String = match env.get_string(&bash_executable) {
-        Ok(value) => value.into(),
-        Err(_) => return 0,
-    };
-    let runtime = AndroidRuntime {
-        // This private executor thread never changes Landlock/seccomp
-        // authority between evaluations. Reuse is therefore safe here; the
-        // core still rebuilds workers whenever Android affinity changes.
-        inner: Mutex::new(
-            Runtime::new(shim_dir)
-                .with_runtime_executable(runtime_executable)
-                .with_backend_executable("bash", bash_executable)
-                .with_reusable_local_workers(),
-        ),
-        active_cancellations: Mutex::new(HashMap::new()),
-    };
-    Box::into_raw(Box::new(runtime)) as jlong
+    with_jni_env(&mut unowned_env, |env| {
+        let shim_dir: String = match shim_dir.try_to_string(env) {
+            Ok(value) => value,
+            Err(_) => return 0,
+        };
+        let runtime_executable: String = match runtime_executable.try_to_string(env) {
+            Ok(value) => value,
+            Err(_) => return 0,
+        };
+        let bash_executable: String = match bash_executable.try_to_string(env) {
+            Ok(value) => value,
+            Err(_) => return 0,
+        };
+        let runtime = AndroidRuntime {
+            // This private executor thread never changes Landlock/seccomp
+            // authority between evaluations. Reuse is therefore safe here; the
+            // core still rebuilds workers whenever Android affinity changes.
+            inner: Mutex::new(
+                Runtime::new(shim_dir)
+                    .with_runtime_executable(runtime_executable)
+                    .with_backend_executable("bash", bash_executable)
+                    .with_reusable_local_workers(),
+            ),
+            active_cancellations: Mutex::new(HashMap::new()),
+        };
+        Box::into_raw(Box::new(runtime)) as jlong
+    })
 }
 
 fn execute_bounded(
@@ -240,7 +255,7 @@ fn execute_bounded(
 /// The original no-binding JNI entry point remains stable for existing hosts.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluateBoundedWithBindings(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
     source: JString<'_>,
@@ -249,96 +264,100 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluateBo
     request_id: JString<'_>,
     timeout_ms: jlong,
 ) -> jstring {
-    if handle == 0 {
-        return java_string(env, error_json("runtime", "runtime is closed"));
-    }
-    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
-        env.get_string(value)
-            .map(String::from)
-            .map_err(|error| format!("invalid {name}: {error}"))
-    };
-    let source = match read(&mut env, &source, "source") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let bindings_json = match read(&mut env, &bindings_json, "bindings JSON") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let caller_id = match read(&mut env, &caller_id, "caller id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let request_id = match read(&mut env, &request_id, "request id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let bindings = match parse_bindings_json(&bindings_json) {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("bindings", error)),
-    };
-    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
-    // released exactly once by nativeDestroy.
-    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
-    java_string(
-        env,
-        execute_bounded(runtime, source, caller_id, request_id, bindings, timeout_ms),
-    )
+    with_jni_env(&mut unowned_env, |env| {
+        if handle == 0 {
+            return java_string(env, error_json("runtime", "runtime is closed"));
+        }
+        let read = |env: &mut Env<'_>, value: &JString<'_>, name: &str| {
+            value
+                .try_to_string(env)
+                .map_err(|error| format!("invalid {name}: {error}"))
+        };
+        let source = match read(env, &source, "source") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let bindings_json = match read(env, &bindings_json, "bindings JSON") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let caller_id = match read(env, &caller_id, "caller id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let request_id = match read(env, &request_id, "request id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let bindings = match parse_bindings_json(&bindings_json) {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("bindings", error)),
+        };
+        // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+        // released exactly once by nativeDestroy.
+        let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+        java_string(
+            env,
+            execute_bounded(runtime, source, caller_id, request_id, bindings, timeout_ms),
+        )
+    })
 }
 
 /// Evaluate a complete O document and return a small JSON envelope. JNI is
 /// deliberately coarse-grained: terminal rendering never crosses this edge.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluate(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
     source: JString<'_>,
 ) -> jstring {
-    if handle == 0 {
-        return java_string(env, error_json("runtime", "runtime is closed"));
-    }
-
-    let source: String = match env.get_string(&source) {
-        Ok(value) => value.into(),
-        Err(error) => {
-            return java_string(env, error_json("jni", format!("invalid source: {error}")))
+    with_jni_env(&mut unowned_env, |env| {
+        if handle == 0 {
+            return java_string(env, error_json("runtime", "runtime is closed"));
         }
-    };
 
-    // SAFETY: `handle` is created by `nativeCreate`, access is serialized by
-    // the Java wrapper and the allocation is released exactly once by
-    // `nativeDestroy`.
-    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
-    let mut runtime = match runtime.inner.lock() {
-        Ok(runtime) => runtime,
-        Err(_) => return java_string(env, error_json("runtime", "runtime lock is poisoned")),
-    };
+        let source: String = match source.try_to_string(env) {
+            Ok(value) => value,
+            Err(error) => {
+                return java_string(env, error_json("jni", format!("invalid source: {error}")))
+            }
+        };
 
-    let response = match runtime.evaluate(&source) {
-        Ok(value) => {
-            let output = match &value {
-                OValue::Text { v } => v.utf8.clone(),
-                OValue::Html { v } => v.to_string(),
-                other => other.to_string(),
-            };
-            json!({
-                "ok": true,
-                "type": value.type_name(),
-                "output": output,
-            })
-            .to_string()
-        }
-        Err(error) => error_json(&error.stage().to_string(), error.message()),
-    };
-    java_string(env, response)
+        // SAFETY: `handle` is created by `nativeCreate`, access is serialized by
+        // the Java wrapper and the allocation is released exactly once by
+        // `nativeDestroy`.
+        let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+        let mut runtime = match runtime.inner.lock() {
+            Ok(runtime) => runtime,
+            Err(_) => return java_string(env, error_json("runtime", "runtime lock is poisoned")),
+        };
+
+        let response = match runtime.evaluate(&source) {
+            Ok(value) => {
+                let output = match &value {
+                    OValue::Text { v } => v.utf8.clone(),
+                    OValue::Html { v } => v.to_string(),
+                    other => other.to_string(),
+                };
+                json!({
+                    "ok": true,
+                    "type": value.type_name(),
+                    "output": output,
+                })
+                .to_string()
+            }
+            Err(error) => error_json(&error.stage().to_string(), error.message()),
+        };
+        java_string(env, response)
+    })
 }
 
 /// Execute one explicitly identified, bounded Android request through the
 /// canonical request preflight and graph evaluator.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluateBounded(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
     source: JString<'_>,
@@ -346,45 +365,47 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeEvaluateBo
     request_id: JString<'_>,
     timeout_ms: jlong,
 ) -> jstring {
-    if handle == 0 {
-        return java_string(env, error_json("runtime", "runtime is closed"));
-    }
-    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
-        env.get_string(value)
-            .map(String::from)
-            .map_err(|error| format!("invalid {name}: {error}"))
-    };
-    let source = match read(&mut env, &source, "source") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let caller_id = match read(&mut env, &caller_id, "caller id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let request_id = match read(&mut env, &request_id, "request id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
-    // released exactly once by nativeDestroy.
-    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
-    let response = execute_bounded(
-        runtime,
-        source,
-        caller_id,
-        request_id,
-        HashMap::new(),
-        timeout_ms,
-    );
-    java_string(env, response)
+    with_jni_env(&mut unowned_env, |env| {
+        if handle == 0 {
+            return java_string(env, error_json("runtime", "runtime is closed"));
+        }
+        let read = |env: &mut Env<'_>, value: &JString<'_>, name: &str| {
+            value
+                .try_to_string(env)
+                .map_err(|error| format!("invalid {name}: {error}"))
+        };
+        let source = match read(env, &source, "source") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let caller_id = match read(env, &caller_id, "caller id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let request_id = match read(env, &request_id, "request id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+        // released exactly once by nativeDestroy.
+        let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+        let response = execute_bounded(
+            runtime,
+            source,
+            caller_id,
+            request_id,
+            HashMap::new(),
+            timeout_ms,
+        );
+        java_string(env, response)
+    })
 }
 
 /// Select one policy-safe completed AICore reply from bounded scalar metadata.
 /// Model-owned text, sessions, FDs, and buffers deliberately stay outside O.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostprocessAicoreReplies(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
     scores: JIntArray<'_>,
@@ -395,92 +416,90 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostproces
     request_id: JString<'_>,
     timeout_ms: jlong,
 ) -> jstring {
-    if handle == 0 {
-        return java_string(env, error_json("runtime", "runtime is closed"));
-    }
-    let lengths = [
-        env.get_array_length(&scores),
-        env.get_array_length(&stop_reasons),
-        env.get_array_length(&max_policy_scores),
-    ];
-    let lengths = match lengths {
-        [Ok(a), Ok(b), Ok(c)] if a == b && b == c && (1..=3).contains(&a) => a as usize,
-        [Ok(_), Ok(_), Ok(_)] => {
-            return java_string(
-                env,
-                error_json(
-                    "request",
-                    "reply arrays must have equal length from 1 through 3",
-                ),
-            )
+    with_jni_env(&mut unowned_env, |env| {
+        if handle == 0 {
+            return java_string(env, error_json("runtime", "runtime is closed"));
         }
-        _ => return java_string(env, error_json("jni", "could not read reply arrays")),
-    };
-    let mut score_values = vec![0; lengths];
-    let mut stop_values = vec![0; lengths];
-    let mut policy_values = vec![0; lengths];
-    if env
-        .get_int_array_region(&scores, 0, &mut score_values)
-        .is_err()
-        || env
-            .get_int_array_region(&stop_reasons, 0, &mut stop_values)
-            .is_err()
-        || env
-            .get_int_array_region(&max_policy_scores, 0, &mut policy_values)
-            .is_err()
-    {
-        return java_string(env, error_json("jni", "could not copy reply arrays"));
-    }
-    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
-        env.get_string(value)
-            .map(String::from)
-            .map_err(|error| format!("invalid {name}: {error}"))
-    };
-    let caller_id = match read(&mut env, &caller_id, "caller id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let request_id = match read(&mut env, &request_id, "request id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let mut bindings =
-        HashMap::from([("policy_limit".into(), OValue::int(i64::from(policy_limit)))]);
-    for index in 0..3 {
-        let present = usize::from(index < lengths);
-        bindings.insert(format!("present_{index}"), OValue::int(present as i64));
-        bindings.insert(
-            format!("score_{index}"),
-            OValue::int(score_values.get(index).copied().unwrap_or(0).into()),
+        let lengths = [
+            scores.len(env),
+            stop_reasons.len(env),
+            max_policy_scores.len(env),
+        ];
+        let lengths = match lengths {
+            [Ok(a), Ok(b), Ok(c)] if a == b && b == c && (1..=3).contains(&a) => a,
+            [Ok(_), Ok(_), Ok(_)] => {
+                return java_string(
+                    env,
+                    error_json(
+                        "request",
+                        "reply arrays must have equal length from 1 through 3",
+                    ),
+                )
+            }
+            _ => return java_string(env, error_json("jni", "could not read reply arrays")),
+        };
+        let mut score_values = vec![0; lengths];
+        let mut stop_values = vec![0; lengths];
+        let mut policy_values = vec![0; lengths];
+        if scores.get_region(env, 0, &mut score_values).is_err()
+            || stop_reasons.get_region(env, 0, &mut stop_values).is_err()
+            || max_policy_scores
+                .get_region(env, 0, &mut policy_values)
+                .is_err()
+        {
+            return java_string(env, error_json("jni", "could not copy reply arrays"));
+        }
+        let read = |env: &mut Env<'_>, value: &JString<'_>, name: &str| {
+            value
+                .try_to_string(env)
+                .map_err(|error| format!("invalid {name}: {error}"))
+        };
+        let caller_id = match read(env, &caller_id, "caller id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let request_id = match read(env, &request_id, "request id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let mut bindings =
+            HashMap::from([("policy_limit".into(), OValue::int(i64::from(policy_limit)))]);
+        for index in 0..3 {
+            let present = usize::from(index < lengths);
+            bindings.insert(format!("present_{index}"), OValue::int(present as i64));
+            bindings.insert(
+                format!("score_{index}"),
+                OValue::int(score_values.get(index).copied().unwrap_or(0).into()),
+            );
+            bindings.insert(
+                format!("stop_reason_{index}"),
+                OValue::int(stop_values.get(index).copied().unwrap_or(0).into()),
+            );
+            bindings.insert(
+                format!("max_policy_score_{index}"),
+                OValue::int(policy_values.get(index).copied().unwrap_or(0).into()),
+            );
+        }
+        // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+        // released exactly once by nativeDestroy.
+        let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+        let response = execute_bounded(
+            runtime,
+            AICORE_REPLY_POSTPROCESS.into(),
+            caller_id,
+            request_id,
+            bindings,
+            timeout_ms,
         );
-        bindings.insert(
-            format!("stop_reason_{index}"),
-            OValue::int(stop_values.get(index).copied().unwrap_or(0).into()),
-        );
-        bindings.insert(
-            format!("max_policy_score_{index}"),
-            OValue::int(policy_values.get(index).copied().unwrap_or(0).into()),
-        );
-    }
-    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
-    // released exactly once by nativeDestroy.
-    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
-    let response = execute_bounded(
-        runtime,
-        AICORE_REPLY_POSTPROCESS.into(),
-        caller_id,
-        request_id,
-        bindings,
-        timeout_ms,
-    );
-    java_string(env, response)
+        java_string(env, response)
+    })
 }
 
 /// Select one nonempty, safety-classified Smart Reply from bounded scalar metadata.
 /// The generated reply text remains in AICore's Java object and never crosses JNI.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostprocessAicoreSmartReplies(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
     scores: JIntArray<'_>,
@@ -490,138 +509,140 @@ pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativePostproces
     request_id: JString<'_>,
     timeout_ms: jlong,
 ) -> jstring {
-    if handle == 0 {
-        return java_string(env, error_json("runtime", "runtime is closed"));
-    }
-    let lengths = [
-        env.get_array_length(&scores),
-        env.get_array_length(&has_text),
-        env.get_array_length(&safety_classifications),
-    ];
-    let lengths = match lengths {
-        [Ok(a), Ok(b), Ok(c)] if a == b && b == c && (1..=3).contains(&a) => a as usize,
-        [Ok(_), Ok(_), Ok(_)] => {
+    with_jni_env(&mut unowned_env, |env| {
+        if handle == 0 {
+            return java_string(env, error_json("runtime", "runtime is closed"));
+        }
+        let lengths = [
+            scores.len(env),
+            has_text.len(env),
+            safety_classifications.len(env),
+        ];
+        let lengths = match lengths {
+            [Ok(a), Ok(b), Ok(c)] if a == b && b == c && (1..=3).contains(&a) => a,
+            [Ok(_), Ok(_), Ok(_)] => {
+                return java_string(
+                    env,
+                    error_json(
+                        "request",
+                        "Smart Reply arrays must have equal length from 1 through 3",
+                    ),
+                )
+            }
+            _ => return java_string(env, error_json("jni", "could not read Smart Reply arrays")),
+        };
+        let mut score_values = vec![0; lengths];
+        let mut has_text_values = vec![0; lengths];
+        let mut safety_values = vec![0; lengths];
+        if scores.get_region(env, 0, &mut score_values).is_err()
+            || has_text.get_region(env, 0, &mut has_text_values).is_err()
+            || safety_classifications
+                .get_region(env, 0, &mut safety_values)
+                .is_err()
+        {
+            return java_string(env, error_json("jni", "could not copy Smart Reply arrays"));
+        }
+        if has_text_values.iter().any(|value| !matches!(*value, 0 | 1)) {
             return java_string(
                 env,
-                error_json(
-                    "request",
-                    "Smart Reply arrays must have equal length from 1 through 3",
-                ),
-            )
+                error_json("request", "Smart Reply has_text values must be 0 or 1"),
+            );
         }
-        _ => return java_string(env, error_json("jni", "could not read Smart Reply arrays")),
-    };
-    let mut score_values = vec![0; lengths];
-    let mut has_text_values = vec![0; lengths];
-    let mut safety_values = vec![0; lengths];
-    if env
-        .get_int_array_region(&scores, 0, &mut score_values)
-        .is_err()
-        || env
-            .get_int_array_region(&has_text, 0, &mut has_text_values)
-            .is_err()
-        || env
-            .get_int_array_region(&safety_classifications, 0, &mut safety_values)
-            .is_err()
-    {
-        return java_string(env, error_json("jni", "could not copy Smart Reply arrays"));
-    }
-    if has_text_values.iter().any(|value| !matches!(*value, 0 | 1)) {
-        return java_string(
-            env,
-            error_json("request", "Smart Reply has_text values must be 0 or 1"),
+        let read = |env: &mut Env<'_>, value: &JString<'_>, name: &str| {
+            value
+                .try_to_string(env)
+                .map_err(|error| format!("invalid {name}: {error}"))
+        };
+        let caller_id = match read(env, &caller_id, "caller id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let request_id = match read(env, &request_id, "request id") {
+            Ok(value) => value,
+            Err(error) => return java_string(env, error_json("jni", error)),
+        };
+        let mut bindings = HashMap::new();
+        for index in 0..3 {
+            let present = usize::from(index < lengths);
+            bindings.insert(format!("present_{index}"), OValue::int(present as i64));
+            bindings.insert(
+                format!("score_{index}"),
+                OValue::int(score_values.get(index).copied().unwrap_or(0).into()),
+            );
+            bindings.insert(
+                format!("has_text_{index}"),
+                OValue::int(has_text_values.get(index).copied().unwrap_or(0).into()),
+            );
+            bindings.insert(
+                format!("safety_classification_{index}"),
+                OValue::int(safety_values.get(index).copied().unwrap_or(0).into()),
+            );
+        }
+        // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
+        // released exactly once by nativeDestroy.
+        let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+        let response = execute_bounded(
+            runtime,
+            AICORE_SMART_REPLY_POSTPROCESS.into(),
+            caller_id,
+            request_id,
+            bindings,
+            timeout_ms,
         );
-    }
-    let read = |env: &mut JNIEnv<'_>, value: &JString<'_>, name: &str| {
-        env.get_string(value)
-            .map(String::from)
-            .map_err(|error| format!("invalid {name}: {error}"))
-    };
-    let caller_id = match read(&mut env, &caller_id, "caller id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let request_id = match read(&mut env, &request_id, "request id") {
-        Ok(value) => value,
-        Err(error) => return java_string(env, error_json("jni", error)),
-    };
-    let mut bindings = HashMap::new();
-    for index in 0..3 {
-        let present = usize::from(index < lengths);
-        bindings.insert(format!("present_{index}"), OValue::int(present as i64));
-        bindings.insert(
-            format!("score_{index}"),
-            OValue::int(score_values.get(index).copied().unwrap_or(0).into()),
-        );
-        bindings.insert(
-            format!("has_text_{index}"),
-            OValue::int(has_text_values.get(index).copied().unwrap_or(0).into()),
-        );
-        bindings.insert(
-            format!("safety_classification_{index}"),
-            OValue::int(safety_values.get(index).copied().unwrap_or(0).into()),
-        );
-    }
-    // SAFETY: created by nativeCreate, serialized by the Java wrapper, and
-    // released exactly once by nativeDestroy.
-    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
-    let response = execute_bounded(
-        runtime,
-        AICORE_SMART_REPLY_POSTPROCESS.into(),
-        caller_id,
-        request_id,
-        bindings,
-        timeout_ms,
-    );
-    java_string(env, response)
+        java_string(env, response)
+    })
 }
 
 /// Propagate an owning request's cancellation signal to one active evaluation.
 /// Returns false if the request has not started or has already completed.
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeCancelRequest(
-    mut env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
     caller_id: JString<'_>,
     request_id: JString<'_>,
 ) -> jboolean {
-    if handle == 0 {
-        return 0;
-    }
-    let caller_id = match env.get_string(&caller_id) {
-        Ok(value) => String::from(value),
-        Err(_) => return 0,
-    };
-    let request_id = match env.get_string(&request_id) {
-        Ok(value) => String::from(value),
-        Err(_) => return 0,
-    };
-    // SAFETY: the Java lifecycle read lock permits cancellation concurrently
-    // with evaluation while its write lock excludes nativeDestroy.
-    let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
-    let active = match runtime.active_cancellations.lock() {
-        Ok(active) => active,
-        Err(_) => return 0,
-    };
-    let Some(cancellation) = active.get(&(caller_id, request_id)) else {
-        return 0;
-    };
-    cancellation.cancel();
-    1
+    with_jni_env(&mut unowned_env, |env| {
+        if handle == 0 {
+            return false;
+        }
+        let caller_id = match caller_id.try_to_string(env) {
+            Ok(value) => value,
+            Err(_) => return false,
+        };
+        let request_id = match request_id.try_to_string(env) {
+            Ok(value) => value,
+            Err(_) => return false,
+        };
+        // SAFETY: the Java lifecycle read lock permits cancellation concurrently
+        // with evaluation while its write lock excludes nativeDestroy.
+        let runtime = unsafe { &*(handle as *mut AndroidRuntime) };
+        let active = match runtime.active_cancellations.lock() {
+            Ok(active) => active,
+            Err(_) => return false,
+        };
+        let Some(cancellation) = active.get(&(caller_id, request_id)) else {
+            return false;
+        };
+        cancellation.cancel();
+        true
+    })
 }
 
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeVersion(
-    env: JNIEnv<'_>,
+    mut unowned_env: EnvUnowned<'_>,
     _class: JClass<'_>,
 ) -> jstring {
-    java_string(env, env!("CARGO_PKG_VERSION").to_string())
+    with_jni_env(&mut unowned_env, |env| {
+        java_string(env, env!("CARGO_PKG_VERSION").to_string())
+    })
 }
 
 #[no_mangle]
 pub extern "system" fn Java_org_ostadix_terminal_OstadixRuntime_nativeDestroy(
-    _env: JNIEnv<'_>,
+    _env: EnvUnowned<'_>,
     _class: JClass<'_>,
     handle: jlong,
 ) {

@@ -104,6 +104,10 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/registry/bundle/mod.rs": "pub use crate::backend_catalog::*;\n",
         "crates/ostadix-api/src/project.rs": "pub mod lower;\n",
         "crates/ostadix-api/src/project/lower.rs": 'include!("input_kind.inc.rs");\n',
+        "crates/ostadix-api/src/ocore.rs": "mod native_codegen;\n",
+        "crates/ostadix-api/src/ocore/native_codegen.rs": (
+            'mod atomic { include!("native_atomic_codegen.rs"); }\n'
+        ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
     for relative, source in facade_sources.items():
@@ -114,6 +118,7 @@ def write_minimal_tree(root: Path) -> None:
     for relative in (
         "crates/ostadix-api/src/backend_catalog.inc.rs",
         "crates/ostadix-api/src/project/input_kind.inc.rs",
+        "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
         "crates/ostadix-api/src/lib.rs",
         "crates/ostadix-api/src/world/identity.rs",
     ):
@@ -215,6 +220,11 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "path": "crates/ostadix-api/src/project/input_kind.inc.rs",
                     "owner": "project",
                     "included_from": "crates/ostadix-api/src/project/lower.rs",
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_atomic_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                 },
             ],
         )
@@ -842,6 +852,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         for relative, owner in (
             ("crates/ostadix-api/src/backend_catalog.inc.rs", "backend_catalog"),
             ("crates/ostadix-api/src/project/input_kind.inc.rs", "project"),
+            ("crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "ocore"),
         ):
             with self.subTest(fragment=relative):
                 with tempfile.TemporaryDirectory() as directory:

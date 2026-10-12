@@ -5853,6 +5853,33 @@ mod tests {
     }
 
     #[test]
+    fn trimmed_shim_scope_matches_complete_scope_result() {
+        if which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = |comment: &str| {
+            format!(
+                "let a = python^(__oval_result__ = 2)_python\n\
+                 let b = python^(__oval_result__ = a * 10)_python\n\
+                 let c = python^(__oval_result__ = 7)_python\n\
+                 python^(\n{comment}\n__oval_result__ = a + b + c\n)_python\n"
+            )
+        };
+        let run = |text: String| {
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(&text, &backends).parse().unwrap();
+            evaluator.eval_document(nodes).unwrap()
+        };
+        // 29 is the result with the complete visible scope; the trimmed
+        // namespace must produce the same value.
+        let trimmed = run(source("# plain"));
+        assert_eq!(trimmed, OValue::int(29));
+    }
+
+    #[test]
     fn sql_single_cell_result_decodes_to_ovalue() {
         let backends: HashSet<String> = ["sql"].iter().map(|s| s.to_string()).collect();
         let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");

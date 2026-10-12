@@ -1,0 +1,82 @@
+<h1>OSTADIX × iPhone 16 Pro</h1>
+<p>Mission: use the OSTADIX polyglot execution stack (O / OIR / shims / o-link /
+olangc) as the operating layer for probing, mapping, and exploiting an
+iPhone 16 Pro (A18 Pro, iOS 18.x, USB-C).</p>
+<h2>Principles</h2>
+<ol>
+<li><strong>OSTADIX-first</strong>: every capability ships as a <code>.O</code> program first —
+typed parens over <code>bash</code>, <code>python</code>, <code>nix</code>, <code>sql</code>, host tools. A C/Python
+helper only exists when a shim cannot express it.</li>
+<li><strong>Read-only until a phase says otherwise.</strong> Each phase declares its
+threat model and write surface in this file before it is exercised.</li>
+<li><strong>Structured facts, not vibes.</strong> Probes return O values (dicts) with a
+versioned schema; reports are rendered from facts.</li>
+</ol>
+<h2>Attack-surface map (iPhone 16 Pro)</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Surface</th>
+<th>OSTADIX angle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>USB-C</td>
+<td>usbmuxd/lockdown (Pair Record), AFC, house_arrest, installation_proxy, syslog, diagnostics, DTX when Developer Mode is on</td>
+<td><code>bash</code>/<code>python</code> shims over libimobiledevice; <code>sql</code> shim for structured evidence capture</td>
+</tr>
+<tr>
+<td>Wi-Fi</td>
+<td>Remote Service Discovery (RSD, UDP 49152+) off the Pair Record; CoreDevice/lockdown over RSD tunnel</td>
+<td><code>python</code> shim (pure-Python RSD client)</td>
+</tr>
+<tr>
+<td>MDM/Provisioning</td>
+<td>unsigned MDM channel (iOS 18 legacy), OTA manifests</td>
+<td><code>python</code> + <code>bash</code></td>
+</tr>
+<tr>
+<td>Developer Mode</td>
+<td>DTX/instruments, debugserver, LLDB over <code>iproxy</code></td>
+<td><code>bash</code> shim; PTY for interactive debuggers via o-cli/PTY</td>
+</tr>
+<tr>
+<td>Boot/secure world</td>
+<td>A18 secure boot chain, kernelcache, jailbreak posture for iOS 18.x</td>
+<td><code>nix</code> for toolchains; <code>c_cpp</code>/<code>rust</code> shims for payloads</td>
+</tr>
+<tr>
+<td>Bluetooth</td>
+<td>CoreBluetooth / personal hotspots</td>
+<td>later</td>
+</tr>
+</tbody></table>
+<h2>Phases</h2>
+<ul>
+<li><strong>P0 — Recon (this directory&#39;s <code>recon.O</code>)</strong>: host toolchain inventory,
+USB device enumeration, pair-record inventory, device property capture.
+<em>Read-only.</em></li>
+<li><strong>P1 — Trust &amp; services</strong>: pairing state, TLS session properties,
+lockdownd service map (which StartService names are offered), RSD
+reachability from the Mac. <em>Read-only.</em></li>
+<li><strong>P2 — Forensics</strong>: live syslog capture, crash-report export, AFC browse
+of <code>MobileDocument</code>, app-container listing via house_arrest. <em>Read-only
+on device state.</em></li>
+<li><strong>P3 — Developer-mode surface</strong>: DTX service inventory, <code>debugserver</code>
+attach, LLDB over port-forward. <em>Mutates process state, not storage.</em></li>
+<li><strong>P4 — Wi-Fi RSD</strong>: pair-record → RSD probe → CoreDevice over Wi-Fi.</li>
+<li><strong>P5 — Exploit surface</strong>: current iOS 18.x-on-A18 exploit-chain posture,
+provisioning/MDM abuse, OTA surface.</li>
+</ul>
+<h2>Layout</h2>
+<ul>
+<li><code>recon.O</code> — P0 polyglot recon (bash + python, structured + report).</li>
+<li><code>evidence/</code> — append-only outputs (gitignored).</li>
+<li><code>REPORT.md</code> — running log of findings per phase (created in P0).</li>
+</ul>
+<h2>Run</h2>
+<pre><code class="language-bash">export O_LANG_ROOT=&quot;$HOME/ostadix-BM&quot;
+cd $O_LANG_ROOT
+O apps/iphone16-pro/recon.O backends
+</code></pre>

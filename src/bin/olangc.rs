@@ -228,11 +228,15 @@ const GENERATED_RUNTIME_DEPENDENCY_NAMES: &[&str] = &[
 ];
 
 // Cargo.lock records the workspace-wide union of optional dependency edges.
-// The emitted AOT runtime excludes hosted_remote and therefore does not enable
-// the PAKE-only features that add these edges. Strip them before reachability
-// pruning so Cargo sees the exact smaller feature graph under --locked.
-const GENERATED_RUNTIME_UNUSED_FEATURE_EDGES: &[(&str, &str)] =
-    &[("curve25519-dalek", "rand_core"), ("digest", "subtle")];
+// The emitted AOT runtime excludes hosted_remote, test RNGs, and TOML editing.
+// It therefore omits their optional PAKE, RNG, and parser acceleration features.
+// Strip these edges before pruning so --locked receives the smaller feature graph.
+const GENERATED_RUNTIME_UNUSED_FEATURE_EDGES: &[(&str, &str)] = &[
+    ("curve25519-dalek", "rand_core"),
+    ("digest", "subtle"),
+    ("getrandom", "rand_core"),
+    ("winnow", "memchr"),
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI
@@ -3295,6 +3299,34 @@ const EMBEDDED_SHIMS: &[(&str, &[u8])] = &[
 #[cfg(not(target_family = "wasm"))]
 struct ShimGuard(std::path::PathBuf);
 
+// ### private shim dir ###
+// shims used to land in $CWD, which fails in read-only dirs (e.g. `/`) and
+// leaves files where the user works. temp_dir honors $TMPDIR and falls back
+// to /tmp; a random name plus create (not create_dir_all) refuses to reuse a
+// planted path, and 0700 keeps other users from reading or swapping adapters.
+#[cfg(not(target_family = "wasm"))]
+fn create_private_shim_dir() -> std::io::Result<std::path::PathBuf> {{
+    let base = std::env::temp_dir();
+    let mut builder = std::fs::DirBuilder::new();
+    #[cfg(unix)]
+    {{
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }}
+    for _ in 0..16 {{
+        let mut random = [0u8; 8];
+        getrandom::fill(&mut random).map_err(std::io::Error::other)?;
+        let dir = base.join(format!(".o_shims_{{}}_{{}}", std::process::id(), hex::encode(random)));
+        match builder.create(&dir) {{
+            Ok(()) => return Ok(dir),
+            // a collision is only possible on reuse or a planted name; try another
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }}
+    }}
+    Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "no free private shim directory name"))
+}}
+
 #[cfg(not(target_family = "wasm"))]
 impl Drop for ShimGuard {{
     fn drop(&mut self) {{
@@ -3340,31 +3372,27 @@ fn source_error(error: anyhow::Error, phase: &str, evaluator: Option<&Evaluator>
 fn run_program(cancellation: {lib_name}::cancellation::CancellationToken) -> anyhow::Result<()> {{
     use anyhow::Context as _;
 
+    // runtime_bundle::embed splices its bootstrap before this exact
+    // `let shim_dir =` line, so keep the binding shape when editing here.
     #[cfg(not(target_family = "wasm"))]
-    let shim_dir = {{
-        // Extract embedded shims to a private temp directory for this invocation.
-        let dir = std::env::current_dir()
-            .unwrap_or_else(|_| std::path::PathBuf::from("."))
-            .join(format!(".o_shims_{{}}", std::process::id()));
-        std::fs::create_dir_all(&dir)?;
-
-        for (name, content) in EMBEDDED_SHIMS {{
-            let dest = dir.join(name);
-            std::fs::write(&dest, content)
-                .with_context(|| format!("failed to extract shim {{name}}"))?;
-            #[cfg(unix)]
-            {{
-                use std::os::unix::fs::PermissionsExt as _;
-                std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755))?;
-            }}
-        }}
-        dir
-    }};
-    #[cfg(target_family = "wasm")]
-    let shim_dir = std::path::PathBuf::from(".");
-
+    let shim_dir = create_private_shim_dir().context("failed to create private shim directory")?;
+    // guard before extraction so a failed write still removes the dir
     #[cfg(not(target_family = "wasm"))]
     let _guard = ShimGuard(shim_dir.clone());
+    #[cfg(not(target_family = "wasm"))]
+    for (name, content) in EMBEDDED_SHIMS {{
+        // Extract embedded shims to the private temp directory for this invocation.
+        let dest = shim_dir.join(name);
+        std::fs::write(&dest, content)
+            .with_context(|| format!("failed to extract shim {{name}}"))?;
+        #[cfg(unix)]
+        {{
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755))?;
+        }}
+    }}
+    #[cfg(target_family = "wasm")]
+    let shim_dir = std::path::PathBuf::from(".");
 
     let registered_backends: HashSet<String> =
         {lib_name}::ir::BackendRegistry::global().registered_backend_tags();
@@ -3453,9 +3481,62 @@ fn generate_cargo_lock(include_project: bool) -> Result<String> {
     generate_cargo_lock_from(workspace_lock, include_project)
 }
 
+fn generated_dependency_requirement(
+    manifest: &toml::Value,
+    dependency_name: &str,
+) -> Result<(String, semver::VersionReq)> {
+    let mut declarations = Vec::new();
+    if let Some(dependency) = manifest
+        .get("dependencies")
+        .and_then(toml::Value::as_table)
+        .and_then(|dependencies| dependencies.get(dependency_name))
+    {
+        declarations.push(dependency);
+    }
+    if let Some(targets) = manifest.get("target").and_then(toml::Value::as_table) {
+        for target in targets.values() {
+            if let Some(dependency) = target
+                .get("dependencies")
+                .and_then(toml::Value::as_table)
+                .and_then(|dependencies| dependencies.get(dependency_name))
+            {
+                declarations.push(dependency);
+            }
+        }
+    }
+    let [declaration] = declarations.as_slice() else {
+        bail!("generated Cargo.toml must declare exactly one `{dependency_name}` requirement");
+    };
+    let (package_name, version_requirement) = if let Some(version) = declaration.as_str() {
+        (dependency_name, version)
+    } else {
+        let table = declaration
+            .as_table()
+            .with_context(|| format!("generated `{dependency_name}` dependency is not a table"))?;
+        let package_name = table
+            .get("package")
+            .and_then(toml::Value::as_str)
+            .unwrap_or(dependency_name);
+        let version = table
+            .get("version")
+            .and_then(toml::Value::as_str)
+            .with_context(|| {
+                format!("generated `{dependency_name}` dependency has no version requirement")
+            })?;
+        (package_name, version)
+    };
+    let requirement = semver::VersionReq::parse(version_requirement).with_context(|| {
+        format!("generated `{dependency_name}` dependency has an invalid version requirement")
+    })?;
+    Ok((package_name.to_owned(), requirement))
+}
+
 fn generate_cargo_lock_from(workspace_lock: &str, include_project: bool) -> Result<String> {
     let mut lock: toml::Value =
         toml::from_str(workspace_lock).context("workspace Cargo.lock is not valid TOML")?;
+    let generated_manifest: toml::Value =
+        toml::from_str(&generate_cargo_toml("generated-runtime", include_project))
+            .context("generated Cargo.toml is not valid TOML")?;
 
     let (package_index, workspace_dependencies) = {
         let packages = lock
@@ -3521,9 +3602,6 @@ fn generate_cargo_lock_from(workspace_lock: &str, include_project: bool) -> Resu
             .get_mut("package")
             .and_then(toml::Value::as_array_mut)
             .context("workspace Cargo.lock has no mutable package array")?;
-        let package = packages[package_index]
-            .as_table_mut()
-            .context("workspace Cargo.lock local package entry is not a table")?;
         let mut dependency_names = GENERATED_RUNTIME_DEPENDENCY_NAMES.to_vec();
         if include_project {
             dependency_names.push("ignore");
@@ -3533,19 +3611,58 @@ fn generate_cargo_lock_from(workspace_lock: &str, include_project: bool) -> Resu
 
         let mut generated_dependencies = Vec::with_capacity(dependency_names.len());
         for name in dependency_names {
-            let matches = workspace_dependencies
-                .iter()
-                .filter(|coordinate| coordinate.split(' ').next() == Some(name))
-                .collect::<Vec<_>>();
+            let (package_name, requirement) =
+                generated_dependency_requirement(&generated_manifest, name)?;
+            let mut matches = Vec::new();
+            for coordinate in &workspace_dependencies {
+                let mut parts = coordinate.split_whitespace();
+                if parts.next() != Some(package_name.as_str()) {
+                    continue;
+                }
+                let coordinate_version = parts.next();
+                if parts.next().is_some() {
+                    bail!(
+                        "workspace Cargo.lock dependency coordinate `{coordinate}` has an unsupported source qualifier"
+                    );
+                }
+                for candidate in packages.iter().filter_map(toml::Value::as_table) {
+                    if candidate.get("name").and_then(toml::Value::as_str)
+                        != Some(package_name.as_str())
+                    {
+                        continue;
+                    }
+                    let version_text = candidate
+                        .get("version")
+                        .and_then(toml::Value::as_str)
+                        .with_context(|| {
+                            format!("workspace Cargo.lock `{package_name}` package has no version")
+                        })?;
+                    if coordinate_version.is_some_and(|version| version != version_text) {
+                        continue;
+                    }
+                    let version = semver::Version::parse(version_text).with_context(|| {
+                        format!(
+                            "workspace Cargo.lock `{package_name}` package has an invalid version"
+                        )
+                    })?;
+                    if requirement.matches(&version) {
+                        matches.push(coordinate.clone());
+                    }
+                }
+            }
             match matches.as_slice() {
-                [coordinate] => generated_dependencies.push((*coordinate).clone()),
+                [coordinate] => generated_dependencies.push(coordinate.clone()),
                 _ => bail!(
-                    "workspace Cargo.lock must contain exactly one direct `{name}` coordinate for generated runtimes"
+                    "workspace Cargo.lock must contain exactly one direct `{name}` coordinate/package matching `{requirement}` for generated runtimes; found {}",
+                    matches.len()
                 ),
             }
         }
         generated_dependencies.sort();
 
+        let package = packages[package_index]
+            .as_table_mut()
+            .context("workspace Cargo.lock local package entry is not a table")?;
         package.insert(
             "name".to_owned(),
             toml::Value::String(GENERATED_PACKAGE_NAME.to_owned()),
@@ -3719,14 +3836,14 @@ path = "src/main.rs"
 [dependencies]
 serde      = {{ version = "1", features = ["derive"] }}
 serde_json = {{ version = "1", features = ["preserve_order"] }}
-base64     = "0.22"
-toml       = "0.8"
-which      = "6"
+base64     = "0.23"
+toml       = "1.1"
+which      = "8"
 semver     = {{ version = "1", features = ["serde"] }}
 sha2       = "0.10"
 hex        = "0.4"
 ed25519-dalek = "2"
-num-bigint = {{ version = "0.4", features = ["serde"] }}
+num-bigint = {{ version = "0.5", features = ["serde"] }}
 num-traits = "0.2"
 bitflags   = "2"
 getrandom  = "0.4.3"
@@ -5546,6 +5663,103 @@ mod tests {
     }
 
     #[test]
+    fn generated_runtime_lock_selects_versions_for_its_manifest_without_hkdf_alias() {
+        let workspace_lock =
+            toml::from_str::<toml::Value>(std::str::from_utf8(WORKSPACE_CARGO_LOCK).unwrap())
+                .unwrap();
+        assert_eq!(
+            workspace_lock["package"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|package| package["name"].as_str() == Some("sha2"))
+                .count(),
+            2,
+            "the workspace fixture must exercise separate SHA-256 digest APIs"
+        );
+        for include_project in [false, true] {
+            let manifest =
+                toml::from_str::<toml::Value>(&generate_cargo_toml("demo", include_project))
+                    .unwrap();
+            let projected =
+                toml::from_str::<toml::Value>(&generate_cargo_lock(include_project).unwrap())
+                    .unwrap();
+            let packages = projected["package"].as_array().unwrap();
+            for name in ["base64", "toml", "which", "num-bigint", "sha2"] {
+                let (package_name, requirement) =
+                    generated_dependency_requirement(&manifest, name).unwrap();
+                let selected = packages
+                    .iter()
+                    .filter(|package| package["name"].as_str() == Some(package_name.as_str()))
+                    .collect::<Vec<_>>();
+                assert_eq!(selected.len(), 1, "ambiguous generated {name} dependency");
+                let version =
+                    semver::Version::parse(selected[0]["version"].as_str().unwrap()).unwrap();
+                assert!(
+                    requirement.matches(&version),
+                    "incompatible generated {name}"
+                );
+            }
+            assert!(packages.iter().all(|package| {
+                let name = package["name"].as_str().unwrap();
+                !matches!(name, "hkdf" | "hmac" | "spake2")
+                    && (name != "sha2" || package["version"].as_str().unwrap().starts_with("0.10."))
+                    && (name != "rand_core"
+                        || package["version"].as_str().unwrap().starts_with("0.6."))
+            }));
+        }
+    }
+
+    #[test]
+    fn generated_runtime_lock_rejects_missing_or_ambiguous_compatible_versions() {
+        let original =
+            toml::from_str::<toml::Value>(std::str::from_utf8(WORKSPACE_CARGO_LOCK).unwrap())
+                .unwrap();
+        let mut missing = original.clone();
+        for package in missing["package"].as_array_mut().unwrap() {
+            if matches!(package["name"].as_str(), Some("o-lang" | "ostadix-api")) {
+                let dependencies = package["dependencies"].as_array_mut().unwrap();
+                dependencies.retain(|dependency| {
+                    dependency.as_str().unwrap().split_whitespace().next() != Some("sha2")
+                });
+                dependencies.push(toml::Value::String("sha2 0.11.0".into()));
+            }
+        }
+        let error =
+            generate_cargo_lock_from(&toml::to_string(&missing).unwrap(), false).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("direct `sha2` coordinate/package"));
+        assert!(error.to_string().contains("found 0"));
+
+        let mut ambiguous = original;
+        let packages = ambiguous["package"].as_array_mut().unwrap();
+        let mut duplicate = packages
+            .iter()
+            .find(|package| {
+                package["name"].as_str() == Some("sha2")
+                    && package["version"].as_str().unwrap().starts_with("0.10.")
+            })
+            .unwrap()
+            .clone();
+        duplicate["version"] = toml::Value::String("0.10.8".into());
+        packages.push(duplicate);
+        packages
+            .iter_mut()
+            .find(|package| package["name"].as_str() == Some("o-lang"))
+            .unwrap()["dependencies"]
+            .as_array_mut()
+            .unwrap()
+            .push(toml::Value::String("sha2 0.10.8".into()));
+        let error =
+            generate_cargo_lock_from(&toml::to_string(&ambiguous).unwrap(), false).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("direct `sha2` coordinate/package"));
+        assert!(error.to_string().contains("found 2"));
+    }
+
+    #[test]
     fn generated_runtime_lock_accepts_a_registry_sourced_engine_package() {
         let workspace_lock = std::str::from_utf8(WORKSPACE_CARGO_LOCK).unwrap();
         let mut lock = toml::from_str::<toml::Value>(workspace_lock).unwrap();
@@ -5713,6 +5927,40 @@ child.wait()
             )
             .unwrap();
         }
+        // ### private shim dir probe ###
+        // the python block reports its own adapter dir and mode while it is
+        // alive, so the probe sees where the generated main put the shims.
+        let shim_include_lines: Vec<String> = bundled_shims
+            .iter()
+            .map(|(name, _)| {
+                format!(
+                    "    ({name:?}, include_bytes!({:?})),",
+                    format!("shims/{name}")
+                )
+            })
+            .collect();
+        fs::write(
+            bin_dir.join("shim_private.O"),
+            "python^(\nimport os, sys\nshim_dir = os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__))\n__oval_result__ = oct(os.stat(shim_dir).st_mode & 0o777) + ' ' + shim_dir\n)_python\n",
+        )
+        .unwrap();
+        fs::write(
+            bin_dir.join("shim_private.rs"),
+            generate_main_rs("serde", "shim_private.O", &shim_include_lines, &[]),
+        )
+        .unwrap();
+        // a long python wait lets the probe deliver SIGTERM while the shim dir
+        // exists; python, not bash, because `$name` in a block is an O splice.
+        fs::write(
+            bin_dir.join("shim_sigterm.O"),
+            "python^(\nimport os, time\nopen(os.environ['OSTADIX_SHIM_TEST_MARKER'], 'w').write('ready')\ntime.sleep(60)\n)_python\n",
+        )
+        .unwrap();
+        fs::write(
+            bin_dir.join("shim_sigterm.rs"),
+            generate_main_rs("serde", "shim_sigterm.O", &shim_include_lines, &[]),
+        )
+        .unwrap();
         let cancellation_fixture = tempfile::tempdir().unwrap();
         fs::write(
             cancellation_fixture.path().join("olang.project.toml"),
@@ -5825,6 +6073,113 @@ fn generated_binaries_report_exact_embedded_source_and_genuine_failure_graphs() 
     let text = String::from_utf8(output.stderr).unwrap();
     assert!(text.contains("error: serde failed"), "{text}");
     assert!(text.contains("unknown argument"), "{text}");
+}
+
+#[cfg(unix)]
+#[test]
+fn generated_binaries_extract_shims_to_a_private_temp_dir() {
+    use std::os::unix::fs::PermissionsExt as _;
+    // shims used to be written to $CWD, so `/` or a read-only cwd failed with
+    // permission denied and successful runs dropped .o_shims_* where the user works.
+    // restore write access even when an assertion fails, so the outer
+    // tempdir can always be removed.
+    struct WritableOnDrop(std::path::PathBuf);
+    impl Drop for WritableOnDrop {
+        fn drop(&mut self) {
+            let _ = std::fs::set_permissions(&self.0, std::fs::Permissions::from_mode(0o755));
+        }
+    }
+    // the outer test owns this tempdir and removes it after the probe run
+    let scratch = std::path::PathBuf::from(std::env::var_os("OSTADIX_SHIM_PROBE_SCRATCH").unwrap())
+        .join("private");
+    let tmp = scratch.join("tmp");
+    let read_only = scratch.join("read-only");
+    std::fs::create_dir_all(&tmp).unwrap();
+    std::fs::create_dir_all(&read_only).unwrap();
+    std::fs::set_permissions(&read_only, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let _writable = WritableOnDrop(read_only.clone());
+    // root ignores directory modes, so a 0555 cwd would not exercise anything
+    let mut cwds = vec![std::path::Path::new("/")];
+    if unsafe { libc::geteuid() } == 0 {
+        println!("note: running as root, skipping the read-only cwd check");
+    } else {
+        cwds.push(read_only.as_path());
+    }
+    let shim_entries = |dir: &std::path::Path| std::fs::read_dir(dir).unwrap()
+        .filter(|entry| entry.as_ref().unwrap().file_name().to_string_lossy().starts_with(".o_shims_"))
+        .count();
+    for working in cwds {
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_shim_private"))
+            .current_dir(working)
+            .env("TMPDIR", &tmp)
+            .env_remove("O_EXECUTOR")
+            .env_remove("O_BACKENDS_DIR")
+            .env_remove("BACKENDS_DIR")
+            .output().unwrap();
+        assert!(output.status.success(), "{working:?}: {output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("0o700"), "shim dir must be private: {text}");
+        assert!(text.contains(&format!("{}/.o_shims_", tmp.display())), "shim dir must honor TMPDIR: {text}");
+        assert_eq!(shim_entries(working), 0, "no shim dir may be left in the cwd");
+        assert_eq!(shim_entries(&tmp), 0, "the shim guard must remove the private dir on exit");
+    }
+    // the failure boundary must also clean up the private dir
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_diagnostic_runtime"))
+        .current_dir(&read_only)
+        .env("TMPDIR", &tmp)
+        .env_remove("O_EXECUTOR")
+        .env_remove("O_BACKENDS_DIR")
+        .env_remove("BACKENDS_DIR")
+        .output().unwrap();
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert!(text.contains("phase: execute embedded program"), "{text}");
+    assert!(!text.contains("Permission denied"), "{text}");
+    assert_eq!(shim_entries(&read_only), 0);
+    assert_eq!(shim_entries(&tmp), 0, "a failed run must remove the private dir");
+}
+
+#[cfg(unix)]
+#[test]
+fn generated_binaries_remove_the_private_shim_dir_on_sigterm() {
+    use std::os::unix::process::ExitStatusExt as _;
+    use std::time::{Duration, Instant};
+    // a handled termination signal must still run the shim guard, or every
+    // cancelled run would leak a private dir into TMPDIR.
+    let scratch = std::path::PathBuf::from(std::env::var_os("OSTADIX_SHIM_PROBE_SCRATCH").unwrap())
+        .join("sigterm");
+    let tmp = scratch.join("tmp");
+    std::fs::create_dir_all(&tmp).unwrap();
+    let marker = scratch.join("ready");
+    let shim_entries = || std::fs::read_dir(&tmp).unwrap()
+        .filter(|entry| entry.as_ref().unwrap().file_name().to_string_lossy().starts_with(".o_shims_"))
+        .count();
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_shim_sigterm"))
+        .current_dir("/")
+        .env("TMPDIR", &tmp)
+        .env("OSTADIX_SHIM_TEST_MARKER", &marker)
+        .env_remove("O_EXECUTOR")
+        .env_remove("O_BACKENDS_DIR")
+        .env_remove("BACKENDS_DIR")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn().unwrap();
+    let ready_by = Instant::now() + Duration::from_secs(30);
+    while !marker.exists() {
+        assert!(child.try_wait().unwrap().is_none(), "probe exited before readiness");
+        assert!(Instant::now() < ready_by, "python block did not start");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(shim_entries(), 1, "the private shim dir must exist while the program runs");
+    assert_eq!(unsafe { libc::kill(child.id() as i32, libc::SIGTERM) }, 0);
+    let settled_by = Instant::now() + Duration::from_secs(10);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() { break status; }
+        if Instant::now() >= settled_by { let _ = child.kill(); panic!("SIGTERM did not settle"); }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_eq!(status.signal(), Some(libc::SIGTERM), "{status:?}");
+    assert_eq!(shim_entries(), 0, "SIGTERM must remove the private shim dir");
 }
 
 #[cfg(unix)]
@@ -6113,6 +6468,7 @@ fn current_v6_and_archival_v5_authorities_are_distinct_in_generated_runtime() {
             String::from_utf8_lossy(&output.stderr)
         );
 
+        let shim_probe_scratch = tempfile::tempdir().unwrap();
         let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
         let output = Command::new(cargo)
             .args([
@@ -6124,6 +6480,9 @@ fn current_v6_and_archival_v5_authorities_are_distinct_in_generated_runtime() {
                 "--test",
                 "generated_runtime_closure",
             ])
+            // the shim probes put read-only and TMPDIR scratch dirs here, so
+            // they are removed with this tempdir whatever the probe outcome
+            .env("OSTADIX_SHIM_PROBE_SCRATCH", shim_probe_scratch.path())
             .env("CARGO_TARGET_DIR", build_dir.path().join("target"))
             .env("CARGO_INCREMENTAL", "0")
             .env("CARGO_PROFILE_DEV_DEBUG", "0")

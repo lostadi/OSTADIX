@@ -158,7 +158,7 @@ fn tls_address_fixups_cannot_change_tp_symbol_addend_opcode_or_inventory() {
                 4 => {
                     let size = mutant.section_value(fixture.rela, 32) as usize;
                     let mut records = mutant.bytes[relocation..relocation + size].to_vec();
-                    records.extend_from_slice(&records[..24].to_vec());
+                    records.extend_from_within(..24);
                     mutant.replace_section_payload(fixture.rela, &records, 8);
                 }
                 5 => {

@@ -3,6 +3,7 @@
   "renderer": "marked",
   "version": "18.0.13",
   "sources": [
+    ".Jules/palette.md",
     ".github/pull_request_template.md",
     "AGENTS.md",
     "ARCHITECTURE.md",
@@ -16,6 +17,7 @@
     "SECURITY.md",
     "SPEC.md",
     "apps/android-terminal/README.md",
+    "apps/iphone16-pro/README.md",
     "benchmarks/cpu_runtime/README.md",
     "benchmarks/fidelity/README.md",
     "benchmarks/fidelity/RESULTS.md",

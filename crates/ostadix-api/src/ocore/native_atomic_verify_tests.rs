@@ -4,7 +4,12 @@
 //! They do not establish frontend import, atomic machine execution, inter-thread
 //! memory ordering, supported providers, or completion of a compiler/runtime.
 
-use super::*;
+use crate::ocore::native_interpret;
+use crate::ocore::native_ir::{
+    AtomicOrdering, AtomicRmwOp, AtomicSyncScope, Block, Instruction, NativeModule, Operand,
+    Operation, Terminator, Type, TypeId, Value, ValueId, FORMAT,
+};
+use crate::ocore::native_verify::{type_size, verify};
 use serde_json::{json, Value as JsonValue};
 
 const VOID: TypeId = 0;
@@ -1134,13 +1139,9 @@ fn scalar_reference_execution_explicitly_rejects_all_five_families_including_col
             accepted(&module);
             // A zero budget also proves that the unsupported-profile audit
             // precedes scalar execution. This does not simulate atomic memory.
-            let diagnostic = super::super::native_interpret::evaluate_with_step_limit(
-                &module,
-                "atomic_fixture",
-                &[],
-                0,
-            )
-            .unwrap_err();
+            let diagnostic =
+                native_interpret::evaluate_with_step_limit(&module, "atomic_fixture", &[], 0)
+                    .unwrap_err();
             assert!(
                 diagnostic.message.contains(
                     "atomic memory and synchronization execution is not implemented by the scalar reference interpreter"

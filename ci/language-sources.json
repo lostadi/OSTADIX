@@ -168,6 +168,21 @@
       ]
     },
     {
+      "id": "iphone16-pro-recon",
+      "category": "platform-demo",
+      "reason": "Read-only iPhone host-toolchain and device reconnaissance via the bash and Python backends.",
+      "coverage": [
+        {
+          "path": "apps/iphone16-pro/README.md",
+          "kind": "manual",
+          "conditions": "Device probing requires the declared macOS host tools and an attached trusted iPhone; parsing is host-independent and does not probe devices."
+        }
+      ],
+      "sources": [
+        "apps/iphone16-pro/recon.O"
+      ]
+    },
+    {
       "id": "linker-schedule-fixtures",
       "category": "fixture",
       "reason": "Ordered pipeline fixtures exercise schedule width and dependency explanations.",

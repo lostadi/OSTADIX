@@ -9,6 +9,19 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- Integrated the unique branch changes from `ostadix-BM` and `OSTADIX`,
+  retaining BM's native compiler work. The complete source-branch inventory,
+  duplicate and superseded changes, and validation evidence are recorded in
+  `ci/integration-2026-10-11.json`.
+- Restored the iPhone 16 Pro reconnaissance program and preserved the distinct
+  UX journal entries. The REPL also accepts `clear`, and the Python CLI reports
+  unreadable Unicode input without a traceback.
+- Combined the dependency upgrades with MCP 3.5 and JNI 0.22 API migrations.
+  Generated AOT manifests use the upgraded dependency ranges, and lockfile
+  projection selects the compatible version when dependency aliases introduce
+  multiple versions of the same package. Pairing key derivation retains its
+  existing wire bytes across the HKDF upgrade.
+
 - `o plan INPUT --grounding` now shares the compiler's typed, deterministic,
   nonexecuting grounding reports. For ordinary O, it renders the same
   `GroundingReport` as `olangc FILE.O --target ir --grounding`, including an
@@ -170,6 +183,15 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Changed
 
+- Shim blocks now receive only the visible `let` bindings they reference, by
+  `$name` splice or whole identifier token anywhere in the block's OIR
+  subtree, for every backend including bash and sh and for each parallel
+  branch separately. `O.scope` is O syntax and references every visible
+  binding. Reflective or runtime-built access to an unreferenced name, such as
+  Python `globals()` or a shell `${!name}`, gets nothing. Plans for long `let`
+  chains are now linear in chain length instead of quadratic, and effect
+  ordering is unchanged.
+
 - Fresh automatic `o node start` PKI can explicitly use ECDSA P-256 while
   retaining RSA-3072 as the default. The hosted-live cross-architecture gate
   uses P-256 so it still proves fresh CA, node, client, and pairing identity
@@ -229,6 +251,13 @@ Package SemVer is only one of the independent coordinates documented in
   output.
 
 ### Fixed
+
+- Generated AOT binaries now extract their backend adapters to a private
+  `0700` directory under `$TMPDIR` (falling back to `/tmp`) instead of a
+  `.o_shims_<pid>` directory in the current working directory. Programs run
+  from `/` or a read-only directory no longer fail with `Permission denied`,
+  and no adapter files appear where the user works. The directory is removed
+  on normal exit, evaluation failure, and handled termination signals.
 
 - Gemini's local Ostadix integration now requires an explicit `Use Ostadix`
   typed request, preserving normal assistant responses and device actions.

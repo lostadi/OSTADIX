@@ -50,6 +50,7 @@ class PythonCliFileDiagnosticTests(unittest.TestCase):
         for error, message in [
             (PermissionError("private"), "Permission denied"),
             (OSError("device unavailable"), "device unavailable"),
+            (UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte"), "invalid start byte"),
         ]:
             with self.subTest(error=error), \
                     patch.object(cli.Path, "read_text", side_effect=error), \
@@ -61,6 +62,20 @@ class PythonCliFileDiagnosticTests(unittest.TestCase):
                 self.assertIn(message, stderr.getvalue())
                 parse.assert_not_called()
                 evaluate.assert_not_called()
+
+    def test_module_entry_point_reports_invalid_utf8_without_traceback(self):
+        with tempfile.TemporaryDirectory(prefix="ostadix-python-cli-") as directory:
+            source = Path(directory) / "invalid utf8.O"
+            source.write_bytes(b"\xff")
+            result = subprocess.run(
+                [sys.executable, "-B", "-m", "o_lang", str(source)],
+                cwd=ROOT, capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn(str(source), result.stderr)
+            self.assertIn("invalid start byte", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
 
     def test_successful_file_still_renders_through_module_entry_point(self):
         with tempfile.TemporaryDirectory(prefix="ostadix-python-cli-") as directory:

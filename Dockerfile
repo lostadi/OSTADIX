@@ -28,7 +28,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: build ───────────────────────────────────────────────────────────
-FROM rust:1.97.1-slim-bookworm AS builder
+FROM rust:1.99.0-slim-bookworm AS builder
 
 WORKDIR /src
 
@@ -39,7 +39,9 @@ RUN apt-get update \
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates/ostadix-api ./crates/ostadix-api
+COPY ostadix-core ./ostadix-core
 COPY src ./src
+COPY scripts ./scripts
 COPY backends ./backends
 COPY apps/olang-browser-wasi ./apps/olang-browser-wasi
 

@@ -1303,10 +1303,29 @@ call-expression grammar, including <code>autonomous(batch(...))</code>, is not i
 <hr>
 <h2>7. Known limitations / current status</h2>
 <ul>
-<li><strong><code>$var</code> splice</strong> is supported for top-level <code>let</code> bindings in both runtimes.
-Variable references inside nested typed-expression bodies in the Rust runtime
-work through lexical scope passed into OIR <code>Exec</code>. The Python ref impl
-similarly threads scope through <code>_eval_expression</code>.</li>
+<li><strong><code>$var</code> splice</strong> is supported for top-level <code>let</code> bindings in both
+runtimes. Variable references inside nested typed-expression bodies in the
+Rust runtime work through lexical scope passed into OIR <code>Exec</code>. <code>let</code>
+bindings are the only global persistent O scope. While lowering OIR to the
+execution plan and HGraph, each shim block is given only the visible <code>let</code>
+bindings whose names its body references, either as a <code>$name</code> splice or as a
+whole identifier token anywhere in its OIR subtree, including nested typed
+blocks. This applies to every backend, including bash and sh, and to each
+branch of <code>autonomous(...)</code> and coordination groups separately. Access that
+does not name a binding gets nothing: Python <code>globals()</code>, <code>vars()</code>, or frame
+access, JavaScript <code>globalThis</code> or a read of the script source, a shell
+<code>${!name}</code> indirection, and a child process reading environment variables by
+a computed name see only the referenced bindings. <code>O.scope</code> inside a block
+and an O-level <code>scope()</code> call are O syntax and reference every visible <code>let</code>
+binding, and <code>O.eval</code> of a quoted expression references the names that
+expression uses. Variables created inside a block belong to that block&#39;s
+environment: a plain block such as <code>bash^(...)_bash</code> or
+<code>python^(...)_python</code> is ephemeral, and its state disappears when the block
+finishes. A numbered environment such as <code>python[0]^(...)_python[0]</code> keeps
+its interpreter state across blocks with the same number and never shares it
+with another number. Effect ordering is unaffected: source sequence edges
+and resource-state chains are independent of these data edges. The Python
+ref impl threads the complete scope through <code>_eval_expression</code>.</li>
 <li><strong>Async coordination.</strong> <code>{lazy}</code> and <code>{defer}</code> attributes create
 deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
 deferred requests require explicit <code>now()</code>. <code>lazy(…)</code> and <code>autonomous(…)</code>

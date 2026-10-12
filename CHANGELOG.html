@@ -6,6 +6,21 @@ Package SemVer is only one of the independent coordinates documented in
 <h2><a href="https://github.com/lostadi/ostadix-BM/compare/2083d83f9eaaf4a88a277d348779b00967d50bc8...HEAD">Unreleased</a></h2>
 <h3>Added</h3>
 <ul>
+<li><p>Integrated the unique branch changes from <code>ostadix-BM</code> and <code>OSTADIX</code>,
+retaining BM&#39;s native compiler work. The complete source-branch inventory,
+duplicate and superseded changes, and validation evidence are recorded in
+<code>ci/integration-2026-10-11.json</code>.</p>
+</li>
+<li><p>Restored the iPhone 16 Pro reconnaissance program and preserved the distinct
+UX journal entries. The REPL also accepts <code>clear</code>, and the Python CLI reports
+unreadable Unicode input without a traceback.</p>
+</li>
+<li><p>Combined the dependency upgrades with MCP 3.5 and JNI 0.22 API migrations.
+Generated AOT manifests use the upgraded dependency ranges, and lockfile
+projection selects the compatible version when dependency aliases introduce
+multiple versions of the same package. Pairing key derivation retains its
+existing wire bytes across the HKDF upgrade.</p>
+</li>
 <li><p><code>o plan INPUT --grounding</code> now shares the compiler&#39;s typed, deterministic,
 nonexecuting grounding reports. For ordinary O, it renders the same
 <code>GroundingReport</code> as <code>olangc FILE.O --target ir --grounding</code>, including an
@@ -172,7 +187,16 @@ physical-multinode, distinct-kernel, or heterogeneous-architecture claim.</p>
 </ul>
 <h3>Changed</h3>
 <ul>
-<li>Fresh automatic <code>o node start</code> PKI can explicitly use ECDSA P-256 while
+<li><p>Shim blocks now receive only the visible <code>let</code> bindings they reference, by
+<code>$name</code> splice or whole identifier token anywhere in the block&#39;s OIR
+subtree, for every backend including bash and sh and for each parallel
+branch separately. <code>O.scope</code> is O syntax and references every visible
+binding. Reflective or runtime-built access to an unreferenced name, such as
+Python <code>globals()</code> or a shell <code>${!name}</code>, gets nothing. Plans for long <code>let</code>
+chains are now linear in chain length instead of quadratic, and effect
+ordering is unchanged.</p>
+</li>
+<li><p>Fresh automatic <code>o node start</code> PKI can explicitly use ECDSA P-256 while
 retaining RSA-3072 as the default. The hosted-live cross-architecture gate
 uses P-256 so it still proves fresh CA, node, client, and pairing identity
 creation without conflating TCG prime-generation cost with node readiness.
@@ -181,11 +205,13 @@ listener-readiness deadlines are separate bounded stages. The public Hosted
 re-smoke now composes serial, graphical/input, and direct O-core results over
 one private ISO snapshot, and graphical monitor operations share one absolute
 deadline. Aggregate re-smoke v2 does not select or execute the remaining five
-menu entries.</li>
-<li>Project authorship metadata and new commit attribution now reject Claude and
+menu entries.</p>
+</li>
+<li><p>Project authorship metadata and new commit attribution now reject Claude and
 Codex identities; contribution credit remains assigned to the responsible
-human contributors.</li>
-<li>Information Provenance V2 adds an authority-free, content-addressed sidecar
+human contributors.</p>
+</li>
+<li><p>Information Provenance V2 adds an authority-free, content-addressed sidecar
 over frozen Information Atom V1 identities plus a higher-layer execution
 analyzer that admits only its recomputed image. Acquisition origin is
 projected from typed witnesses, enforcement is an orthogonal assurance, and
@@ -194,27 +220,32 @@ is contextual and reports intrinsic loss, typed discharges, and unresolved
 obligations; the first execution adapter deliberately reports
 <code>Unestablished</code> until producer authentication, procedure resolution, signer
 authorization, receipt currentness, exact plan-node attribution,
-execution/effect fidelity, and morphism fidelity are established.</li>
-<li>The architecture now names predicate, full-image, and projected-image
+execution/effect fidelity, and morphism fidelity are established.</p>
+</li>
+<li><p>The architecture now names predicate, full-image, and projected-image
 admission and states the Codomain Slack Theorem. Current Evidence V5/V6 is
 precisely hard-projection image admission: analyzer-derived legality fields
-are pinned, while historical cost estimates remain explicitly soft.</li>
-<li><code>ostadix-api</code> is now the independent runtime engine rather than a wrapper
+are pinned, while historical cost estimates remain explicitly soft.</p>
+</li>
+<li><p><code>ostadix-api</code> is now the independent runtime engine rather than a wrapper
 around <code>o-lang</code>. It owns the parser, IR, evaluator, HGraph,
 evidence/admission, scheduler, hosted/project/World implementations, runtime
 dependencies, bundled shims, package-local test assets, and AOT source
 bundle. The root <code>o-lang</code> crate is a compatibility and CLI shell with a
-one-way exact-version dependency on the engine.</li>
-<li>Historical <code>o_lang::&lt;module&gt;</code> imports are explicit reexports of the engine&#39;s
+one-way exact-version dependency on the engine.</p>
+</li>
+<li><p>Historical <code>o_lang::&lt;module&gt;</code> imports are explicit reexports of the engine&#39;s
 exact nominal types, so callers do not get duplicate evaluator or value
 implementations. Reflected defining paths such as <code>type_name</code> may now name
 <code>ostadix_api</code>, and direct engine users may use the full advanced module
-surface as well as the concise owned <code>Runtime</code> entry point.</li>
-<li>Generated-runtime dependency and source closure now originate from the
+surface as well as the concise owned <code>Runtime</code> entry point.</p>
+</li>
+<li><p>Generated-runtime dependency and source closure now originate from the
 packaged engine rather than workspace-relative root sources. Registry
 publication order is reversed: publish and verify <code>ostadix-api</code> first, then
-publish its exact-version <code>o-lang</code> shell dependent.</li>
-<li><code>FidelityAssessmentV2</code> now exposes interval validation and allocation-free
+publish its exact-version <code>o-lang</code> shell dependent.</p>
+</li>
+<li><p><code>FidelityAssessmentV2</code> now exposes interval validation and allocation-free
 concrete-membership checks. Generated laws bind its exact <code>Fidelity</code> point
 embedding, sequential composition, conservative upper projection, and the
 lossless/structural path hull. Invalid directly assembled bounds can no
@@ -228,10 +259,18 @@ representative of all 30 <code>OValue</code> variants. Targeted cases cover
 payload-sensitive Python Decimal/F64 and Nix integer/text rendering,
 collection subtype collapse, recursive child propagation, map-key rendering,
 and media-less bytes, rather than only checking that each renderer emits
-output.</li>
+output.</p>
+</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
+<li><p>Generated AOT binaries now extract their backend adapters to a private
+<code>0700</code> directory under <code>$TMPDIR</code> (falling back to <code>/tmp</code>) instead of a
+<code>.o_shims_&lt;pid&gt;</code> directory in the current working directory. Programs run
+from <code>/</code> or a read-only directory no longer fail with <code>Permission denied</code>,
+and no adapter files appear where the user works. The directory is removed
+on normal exit, evaluation failure, and handled termination signals.</p>
+</li>
 <li><p>Gemini&#39;s local Ostadix integration now requires an explicit <code>Use Ostadix</code>
 typed request, preserving normal assistant responses and device actions.
 Voice, attachments, selected suggestions and device context retain Google&#39;s

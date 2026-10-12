@@ -17,8 +17,9 @@ use super::Diagnostic;
 // Keep the exclusive-loop implementation beside the emitter. As a child
 // module it can use the private spill/operand helpers without exposing them
 // as a second public backend API.
-#[path = "native_atomic_codegen.rs"]
-mod atomic;
+mod atomic {
+    include!("native_atomic_codegen.rs");
+}
 
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
     super::native_verify::verify(module)?;

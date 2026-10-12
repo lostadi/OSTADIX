@@ -1031,10 +1031,29 @@ Adding a new language: write a Backend subclass, add it to
 
 ## 7. Known limitations / current status
 
-* **`$var` splice** is supported for top-level `let` bindings in both runtimes.
-  Variable references inside nested typed-expression bodies in the Rust runtime
-  work through lexical scope passed into OIR `Exec`. The Python ref impl
-  similarly threads scope through `_eval_expression`.
+* **`$var` splice** is supported for top-level `let` bindings in both
+  runtimes. Variable references inside nested typed-expression bodies in the
+  Rust runtime work through lexical scope passed into OIR `Exec`. `let`
+  bindings are the only global persistent O scope. While lowering OIR to the
+  execution plan and HGraph, each shim block is given only the visible `let`
+  bindings whose names its body references, either as a `$name` splice or as a
+  whole identifier token anywhere in its OIR subtree, including nested typed
+  blocks. This applies to every backend, including bash and sh, and to each
+  branch of `autonomous(...)` and coordination groups separately. Access that
+  does not name a binding gets nothing: Python `globals()`, `vars()`, or frame
+  access, JavaScript `globalThis` or a read of the script source, a shell
+  `${!name}` indirection, and a child process reading environment variables by
+  a computed name see only the referenced bindings. `O.scope` inside a block
+  and an O-level `scope()` call are O syntax and reference every visible `let`
+  binding, and `O.eval` of a quoted expression references the names that
+  expression uses. Variables created inside a block belong to that block's
+  environment: a plain block such as `bash^(...)_bash` or
+  `python^(...)_python` is ephemeral, and its state disappears when the block
+  finishes. A numbered environment such as `python[0]^(...)_python[0]` keeps
+  its interpreter state across blocks with the same number and never shares it
+  with another number. Effect ordering is unaffected: source sequence edges
+  and resource-state chains are independent of these data edges. The Python
+  ref impl threads the complete scope through `_eval_expression`.
 * **Async coordination.** `{lazy}` and `{defer}` attributes create
   deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
   deferred requests require explicit `now()`. `lazy(…)` and `autonomous(…)`

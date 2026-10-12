@@ -822,6 +822,16 @@ struct PlanBuilder {
     nodes: Vec<PlanNode>,
     edges: Vec<PlanEdge>,
     edge_membership: HashSet<(PlanNodeId, PlanNodeId, PlanEdgeKind)>,
+    /// Names referenced by the body of each `let` bound to a `quote^` block,
+    /// keyed by the binding's plan node. A block that references such a
+    /// binding may `O.eval` it, so it also receives these names.
+    quote_references: std::collections::HashMap<PlanNodeId, QuoteReferences>,
+}
+
+#[derive(Default)]
+struct QuoteReferences {
+    tokens: std::collections::HashSet<String>,
+    o_scope: bool,
 }
 
 impl PlanBuilder {
@@ -830,6 +840,7 @@ impl PlanBuilder {
             nodes: Vec::new(),
             edges: Vec::new(),
             edge_membership: HashSet::new(),
+            quote_references: std::collections::HashMap::new(),
         }
     }
 
@@ -873,6 +884,14 @@ impl PlanBuilder {
                 }
             }
             OIr::Store { name, expr } => {
+                if let OIr::Exec { backend, body, .. } = expr.as_ref() {
+                    if backend.execution == ExecutionMode::InlineAst && backend.canonical == "quote"
+                    {
+                        let mut refs = QuoteReferences::default();
+                        collect_exec_references(body, &mut refs.tokens, &mut refs.o_scope);
+                        self.quote_references.insert(id, refs);
+                    }
+                }
                 scope_stack.push(std::collections::HashMap::new());
                 self.add_node(expr, scope_stack, Some(id), None);
                 scope_stack.pop();
@@ -915,12 +934,20 @@ impl PlanBuilder {
                 body,
                 ..
             } => {
-                // Every shim receives the complete visible O scope as native
-                // bindings. Keep those dependencies even for an ephemeral
-                // process: fresh interpreter state does not erase lexical
-                // dataflow.
+                // A shim receives exactly the visible `let` bindings that its
+                // body references by whole identifier token or `$name`
+                // splice, anywhere in its OIR subtree, for every backend
+                // including bash and sh. Reflective or runtime-built access to
+                // an unreferenced name gets nothing (see
+                // REFLECTION_FULL_SCOPE_FALLBACK). Persistent state lives only
+                // in numbered environments such as python[0];
+                // plain blocks are ephemeral. Effect ordering does not depend
+                // on these Data edges: Sequence edges and resource-state
+                // chains preserve it independently.
                 if backend.execution == ExecutionMode::Shim {
-                    for source in visible_scope_sources(scope_stack) {
+                    for source in
+                        shim_scope_sources(scope_stack, backend, body, &self.quote_references)
+                    {
                         self.add_edge(source, id, PlanEdgeKind::Data);
                     }
                 }
@@ -1019,6 +1046,203 @@ impl PlanBuilder {
             },
         }
     }
+}
+
+/// Shell backends. Their shims export received `let` values as environment
+/// variables for that block only.
+const SHELL_BACKENDS: &[&str] = &["bash", "shell", "sh"];
+
+/// Whether shell blocks receive the `let` bindings they reference. Set to
+/// `false` to pass no `let` values to shell blocks at all.
+const SHELL_RECEIVES_REFERENCED_LETS: bool = true;
+
+/// Restores the conservative marker fallback: when `true`, a non-shell block
+/// whose text contains a reflective token (Python namespace or frame access,
+/// JavaScript global-object or dynamic-code access) or an `O.scope`/`O.eval`
+/// accessor receives the complete visible scope. When `false`, every block
+/// receives exactly the `let` bindings it references.
+const REFLECTION_FULL_SCOPE_FALLBACK: bool = false;
+
+/// Whole identifier tokens that trigger [`REFLECTION_FULL_SCOPE_FALLBACK`].
+const REFLECTIVE_TOKENS: &[&str] = &[
+    "globals",
+    "locals",
+    "vars",
+    "eval",
+    "exec",
+    "compile",
+    "__dict__",
+    "__builtins__",
+    "__import__",
+    "importlib",
+    "inspect",
+    "currentframe",
+    "_getframe",
+    "f_locals",
+    "f_globals",
+    "f_back",
+    "tb_frame",
+    "gi_frame",
+    "getattr",
+    "__getattribute__",
+    "modules",
+    "environ",
+    "globalThis",
+    "Function",
+    "process",
+    "require",
+    "__filename",
+    "__dirname",
+    "readFileSync",
+];
+
+/// Tokens that trigger [`REFLECTION_FULL_SCOPE_FALLBACK`] only when followed,
+/// optionally after whitespace, by one of the given characters.
+const REFLECTIVE_ACCESSORS: &[(&str, &[char])] =
+    &[("O", &['.', '[']), ("this", &['[']), ("import", &['('])];
+
+fn is_identifier_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
+/// Add every whole identifier token of `text` to `tokens`, and report whether
+/// the text contains a reflective token.
+fn scan_exec_text(
+    text: &str,
+    tokens: &mut std::collections::HashSet<String>,
+    o_scope: &mut bool,
+) -> bool {
+    let mut dynamic = false;
+    let mut previous: Option<&str> = None;
+    let mut rest = text;
+    while let Some(start) = rest.find(is_identifier_char) {
+        let after_start = &rest[start..];
+        let len = after_start
+            .find(|c: char| !is_identifier_char(c))
+            .unwrap_or(after_start.len());
+        let token = &after_start[..len];
+        let next = after_start[len..].trim_start().chars().next();
+        if REFLECTIVE_TOKENS.contains(&token)
+            || REFLECTIVE_ACCESSORS
+                .iter()
+                .any(|(name, follow)| *name == token && next.is_some_and(|c| follow.contains(&c)))
+        {
+            dynamic = true;
+        }
+        // `O.scope` is O syntax: it reads every visible `let` binding, so it
+        // references all of them.
+        if token == "scope" && previous == Some("O") && rest[..start].trim_end().ends_with('.') {
+            *o_scope = true;
+        }
+        let next_rest = &after_start[len..];
+        previous = if next_rest.trim_start().starts_with('.') {
+            Some(token)
+        } else {
+            None
+        };
+        tokens.insert(token.to_string());
+        rest = next_rest;
+    }
+    dynamic
+}
+
+/// Collect the identifier tokens of an Exec body subtree, including nested
+/// typed blocks and calls. The returned flag reports a reflective token in
+/// the text, or an O `scope()`, `eval()`, or `quote` node in the OIR.
+fn collect_exec_references(
+    nodes: &[OIr],
+    tokens: &mut std::collections::HashSet<String>,
+    o_scope: &mut bool,
+) -> bool {
+    let mut dynamic = false;
+    for node in nodes {
+        match node {
+            OIr::Text(text) => dynamic |= scan_exec_text(text, tokens, o_scope),
+            OIr::Load(name) => {
+                tokens.insert(name.clone());
+            }
+            OIr::Store { name, expr } => {
+                tokens.insert(name.clone());
+                dynamic |= collect_exec_references(std::slice::from_ref(expr), tokens, o_scope);
+            }
+            OIr::Invoke { fn_name, args, .. } => {
+                if fn_name == "scope" {
+                    *o_scope = true;
+                }
+                if matches!(fn_name.as_str(), "eval" | "quote") {
+                    dynamic = true;
+                }
+                dynamic |= collect_exec_references(args, tokens, o_scope);
+            }
+            OIr::Exec { backend, body, .. } => {
+                if backend.canonical == "quote" {
+                    dynamic = true;
+                }
+                dynamic |= collect_exec_references(body, tokens, o_scope);
+            }
+        }
+    }
+    dynamic
+}
+
+/// Plan sources of the visible `let` bindings a shim block receives: exactly
+/// the bindings whose names its body references by whole identifier token
+/// or `$name` splice, for every backend and every parallel branch. With
+/// [`REFLECTION_FULL_SCOPE_FALLBACK`] enabled, a non-shell block with a
+/// reflective token or O scope node receives the complete visible scope.
+fn shim_scope_sources(
+    scope_stack: &[std::collections::HashMap<String, PlanNodeId>],
+    backend: &BackendInterface,
+    body: &[OIr],
+    quote_references: &std::collections::HashMap<PlanNodeId, QuoteReferences>,
+) -> Vec<PlanNodeId> {
+    let shell = SHELL_BACKENDS.contains(&backend.canonical.as_str());
+    if shell && !SHELL_RECEIVES_REFERENCED_LETS {
+        return Vec::new();
+    }
+    let mut tokens = std::collections::HashSet::new();
+    let mut o_scope = false;
+    let reflective = collect_exec_references(body, &mut tokens, &mut o_scope);
+    // A referenced quote binding can be evaluated with `O.eval`, so the names
+    // its quoted body uses are references too, transitively.
+    let mut visible = std::collections::HashMap::new();
+    for lexical_scope in scope_stack.iter().rev() {
+        for (name, source) in lexical_scope {
+            visible.entry(name.as_str()).or_insert(*source);
+        }
+    }
+    let mut expanded = std::collections::HashSet::new();
+    loop {
+        let pending: Vec<PlanNodeId> = visible
+            .iter()
+            .filter(|(name, source)| tokens.contains(**name) && !expanded.contains(*source))
+            .map(|(_, source)| *source)
+            .collect();
+        if pending.is_empty() {
+            break;
+        }
+        for source in pending {
+            expanded.insert(source);
+            if let Some(refs) = quote_references.get(&source) {
+                tokens.extend(refs.tokens.iter().cloned());
+                o_scope |= refs.o_scope;
+            }
+        }
+    }
+    if o_scope || (REFLECTION_FULL_SCOPE_FALLBACK && reflective && !shell) {
+        return visible_scope_sources(scope_stack);
+    }
+    let mut seen = std::collections::HashSet::new();
+    let mut sources = Vec::new();
+    for lexical_scope in scope_stack.iter().rev() {
+        for (name, source) in lexical_scope {
+            if seen.insert(name.clone()) && tokens.contains(name) {
+                sources.push(*source);
+            }
+        }
+    }
+    sources.sort_by_key(|source| source.0);
+    sources
 }
 
 fn visible_scope_sources(
@@ -1654,5 +1878,191 @@ mod tests {
         );
         let dump = program.to_text();
         assert!(dump.contains("exec python [env *]"), "{dump}");
+    }
+
+    fn exec_data_sources(source: &str) -> Vec<Vec<String>> {
+        let backends = BackendRegistry::global().registered_backend_tags();
+        let parsed = Parser::new(source, &backends).parse().unwrap();
+        let plan = OIrProgram::lower(&parsed).plan();
+        plan.nodes
+            .iter()
+            .filter(|node| matches!(node.kind, PlanNodeKind::Exec { .. }))
+            .map(|exec| {
+                let mut names = plan
+                    .edges
+                    .iter()
+                    .filter(|edge| edge.to == exec.id && edge.kind == PlanEdgeKind::Data)
+                    .filter_map(|edge| match &plan.nodes[edge.from.0].kind {
+                        PlanNodeKind::Store { name } => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                names.sort();
+                names
+            })
+            .collect()
+    }
+
+    fn three_bindings(last_block: &str) -> String {
+        format!(
+            "let a = python^(__oval_result__ = 1)_python\n\
+             let b = python^(__oval_result__ = 2)_python\n\
+             let c = python^(__oval_result__ = 3)_python\n\
+             {last_block}\n"
+        )
+    }
+
+    fn chain_source(depth: usize) -> String {
+        let mut source = String::from("let v0 = python^(__oval_result__ = 0)_python\n");
+        for step in 1..depth {
+            source.push_str(&format!(
+                "let v{step} = python^(__oval_result__ = v{} + 1)_python\n",
+                step - 1
+            ));
+        }
+        source
+    }
+
+    #[test]
+    fn trimmed_chain_step_receives_only_referenced_bindings() {
+        let execs = exec_data_sources(&chain_source(5));
+        assert_eq!(execs.len(), 5);
+        assert!(execs[0].is_empty(), "{execs:?}");
+        for (step, names) in execs.iter().enumerate().skip(1) {
+            assert_eq!(names, &vec![format!("v{}", step - 1)], "{execs:?}");
+        }
+    }
+
+    #[test]
+    fn trimming_matches_whole_identifier_tokens_only() {
+        let execs = exec_data_sources(&three_bindings(
+            "python^(\nenvironment = 1\nevaluate = 2\n__oval_result__ = ab + c\n)_python",
+        ));
+        assert_eq!(execs.last().unwrap(), &vec!["c".to_string()], "{execs:?}");
+    }
+
+    #[test]
+    fn python_import_statement_is_not_a_dynamic_marker() {
+        let execs = exec_data_sources(&three_bindings(
+            "python^(\nimport math\n__oval_result__ = math.floor(c)\n)_python",
+        ));
+        assert_eq!(execs.last().unwrap(), &vec!["c".to_string()], "{execs:?}");
+    }
+
+    #[test]
+    fn nested_block_references_propagate_to_the_enclosing_shim() {
+        let execs = exec_data_sources(&three_bindings(
+            "python^(__oval_result__ = javascript^(console.log(b))_javascript)_python",
+        ));
+        let outer = &execs[3];
+        assert!(outer.contains(&"b".to_string()), "{execs:?}");
+        assert!(!outer.contains(&"a".to_string()), "{execs:?}");
+    }
+
+    #[test]
+    fn foreign_reflection_does_not_widen_the_namespace() {
+        for body in [
+            "python^(__oval_result__ = globals()[chr(97)] + c)_python",
+            "python^(__oval_result__ = vars ()[chr(97)] + c)_python",
+            "python^(\nimport sys\n__oval_result__ = sys._getframe().f_back.f_globals[chr(97)] + c\n)_python",
+            "python^(\nimport os\n__oval_result__ = os.environ.get(chr(97), c)\n)_python",
+            "javascript^(console.log(globalThis[String.fromCharCode(97)] + c))_javascript",
+            "javascript^(console.log(require('fs').readFileSync(__filename, 'utf8') + c))_javascript",
+            "javascript^(console.log(Function('return ' + String.fromCharCode(97))() + c))_javascript",
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            assert_eq!(execs.last().unwrap(), &vec!["c".to_string()], "{body}");
+        }
+    }
+
+    #[test]
+    fn o_scope_references_every_visible_binding() {
+        let full = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        for body in [
+            "python^(__oval_result__ = O.scope())_python",
+            "python^(__oval_result__ = O . scope().bindings)_python",
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            assert_eq!(execs.last().unwrap(), &full, "{body}");
+        }
+        // O.eval of a named quote references only that name.
+        let execs = exec_data_sources(&three_bindings(
+            "python^(\nq = quote^(python[1]^($b * 6)_python[1])_quote\n__oval_result__ = O.eval(q)\n)_python",
+        ));
+        assert_eq!(execs[3], vec!["b".to_string()], "{execs:?}");
+    }
+
+    #[test]
+    fn shell_blocks_receive_only_referenced_bindings() {
+        for (body, expected) in [
+            ("bash^(echo \\$c)_bash", vec!["c".to_string()]),
+            (
+                "bash^(awk 'BEGIN{print ENVIRON[toupper(\"q\")]}')_bash",
+                vec![],
+            ),
+            ("bash[0]^(echo \\$b)_bash[0]", vec!["b".to_string()]),
+            ("shell^(echo hello)_shell", vec![]),
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            assert_eq!(execs.last().unwrap(), &expected, "{body}");
+        }
+    }
+
+    #[test]
+    fn autonomous_batch_branches_each_receive_only_their_references() {
+        let execs = exec_data_sources(&three_bindings(
+            "let r = autonomous(batch(\n\
+             python^(__oval_result__ = a)_python,\n\
+             python^(__oval_result__ = b + c)_python,\n\
+             python^(__oval_result__ = globals()[chr(97)])_python,\n\
+             bash^(echo \\$c)_bash\n\
+             ))",
+        ));
+        assert_eq!(execs.len(), 7, "{execs:?}");
+        let full = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        assert_eq!(execs[3], vec!["a".to_string()], "{execs:?}");
+        assert_eq!(
+            execs[4],
+            vec!["b".to_string(), "c".to_string()],
+            "{execs:?}"
+        );
+        let reflective = if REFLECTION_FULL_SCOPE_FALLBACK {
+            full
+        } else {
+            Vec::new()
+        };
+        assert_eq!(execs[5], reflective, "{execs:?}");
+        assert_eq!(execs[6], vec!["c".to_string()], "{execs:?}");
+    }
+
+    #[test]
+    fn nested_lexical_scope_trims_inner_and_outer_bindings() {
+        let execs = exec_data_sources(&three_bindings(
+            "python^(\n\
+             let inner = python^(__oval_result__ = b)_python\n\
+             __oval_result__ = $inner + 1\n\
+             )_python",
+        ));
+        let inner = &execs[4];
+        assert_eq!(inner, &vec!["b".to_string()], "{execs:?}");
+        let outer = &execs[3];
+        assert!(!outer.contains(&"a".to_string()), "{execs:?}");
+        assert!(!outer.contains(&"c".to_string()), "{execs:?}");
+    }
+
+    #[test]
+    fn plan_size_is_linear_in_chain_depth() {
+        let edges = |depth: usize| {
+            let backends = BackendRegistry::global().registered_backend_tags();
+            let parsed = Parser::new(&chain_source(depth), &backends)
+                .parse()
+                .unwrap();
+            OIrProgram::lower(&parsed).plan().edges.len()
+        };
+        let (small, large) = (edges(100), edges(400));
+        assert!(
+            large <= small * 4 + 16,
+            "plan edges grew superlinearly: depth 100 -> {small}, depth 400 -> {large}"
+        );
     }
 }

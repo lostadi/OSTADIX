@@ -740,7 +740,7 @@ fn derive_confirmation_keys(
     salt_hasher.update(offer_nonce.as_bytes());
     let salt = salt_hasher.finalize();
     let transcript_sha256 = Sha256::digest(transcript);
-    let hkdf = Hkdf::<Sha256>::new(Some(&salt), shared);
+    let hkdf = Hkdf::<sha2_11::Sha256>::new(Some(&salt), shared);
 
     let mut offer_to_join = Zeroizing::new([0_u8; 32]);
     let mut offer_info = Vec::new();
@@ -1023,6 +1023,26 @@ mod tests {
             "-----BEGIN CERTIFICATE-----\nissued-for-{}\n-----END CERTIFICATE-----\n",
             peer.node_id
         ))
+    }
+
+    #[test]
+    fn confirmation_key_derivation_preserves_v1_wire_bytes() {
+        // Independent RFC 5869 SHA-256 extract/expand vectors preserve peer
+        // compatibility when the HKDF dependency changes its digest API.
+        let keys = derive_confirmation_keys(
+            &[0x0b; 22],
+            "0123456789abcdef0123456789abcdef",
+            b"pairing-v1 compatibility vector",
+        )
+        .unwrap();
+        assert_eq!(
+            hex::encode(keys.offer_to_join.as_slice()),
+            "fd95bed5f7f573685a5dc29732d5c360bfe56df0e637161153dc65e927640642"
+        );
+        assert_eq!(
+            hex::encode(keys.join_to_offer.as_slice()),
+            "e811929f0d3b396b2db4739e43e92de612616b28d1a1072b05589eaec169bfb7"
+        );
     }
 
     #[test]
