@@ -1055,8 +1055,11 @@ Adding a new language: write a Backend subclass, add it to
   finishes. A numbered environment such as `bash[0]^(...)_bash[0]` or
   `python[0]^(...)_python[0]` keeps its interpreter state across blocks with
   the same number and never shares it with another number. In a numbered bash
-  environment, injected `let` values are unset after each block, so they never
-  persist as session state. Shell blocks (`bash`, `sh`, `shell`) receive no
+  environment, an injected `let` value with an ordinary name is unset after
+  each block that references it, so it does not persist as session state. A
+  `let` named like a writable bash special (`PATH`, `HOME`, `IFS`, `LC_*`) is
+  the exception: it is neither restored nor unset, and stays as the last block
+  left it (see below). Shell blocks (`bash`, `sh`, `shell`) receive no
   `let` bindings as environment variables. A shell block reads a `let` value
   through a `$name` splice, which O substitutes into the block text. A bash
   block also references a `let` through braced parameter expansion: `${name}`,

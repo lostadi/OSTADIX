@@ -1282,6 +1282,148 @@ pub(crate) fn bash_braced_references(body: &[OIr]) -> std::collections::HashSet<
 }
 
 // ############################################################################
+// bash special names
+// ############################################################################
+
+/// How bash treats a variable name that it defines itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BashSpecial {
+    /// readonly or dynamic: an assignment fails or is ignored, so a `let`
+    /// of that name can never reach the block.
+    Readonly,
+    /// session state such as `PATH` or `IFS`: a received `let` value is
+    /// assigned for one block and the session's own value is restored.
+    Writable,
+}
+
+const BASH_READONLY_NAMES: &[&str] = &[
+    "BASHOPTS",
+    "BASHPID",
+    "BASH_ARGC",
+    "BASH_ARGV",
+    "BASH_COMMAND",
+    "BASH_LINENO",
+    "BASH_MONOSECONDS",
+    "BASH_SOURCE",
+    "BASH_SUBSHELL",
+    "BASH_VERSINFO",
+    "EPOCHREALTIME",
+    "EPOCHSECONDS",
+    "EUID",
+    "FUNCNAME",
+    "GROUPS",
+    "HISTCMD",
+    "LINENO",
+    "PPID",
+    "RANDOM",
+    "SECONDS",
+    "SHELLOPTS",
+    "SRANDOM",
+    "UID",
+];
+
+const BASH_WRITABLE_SPECIAL_NAMES: &[&str] = &[
+    "BASH",
+    "BASH_COMPAT",
+    "BASH_ENV",
+    "BASH_VERSION",
+    "BASH_XTRACEFD",
+    "CDPATH",
+    "COLUMNS",
+    "ENV",
+    "FIGNORE",
+    "GLOBIGNORE",
+    "HISTCONTROL",
+    "HISTFILE",
+    "HISTFILESIZE",
+    "HISTIGNORE",
+    "HISTSIZE",
+    "HOME",
+    "HOSTNAME",
+    "HOSTTYPE",
+    "IFS",
+    "INPUTRC",
+    "LANG",
+    "LINES",
+    "LOGNAME",
+    "MACHTYPE",
+    "MAIL",
+    "MAILCHECK",
+    "MAILPATH",
+    "OLDPWD",
+    "OPTARG",
+    "OPTERR",
+    "OPTIND",
+    "OSTYPE",
+    "PATH",
+    "POSIXLY_CORRECT",
+    "PROMPT_COMMAND",
+    "PS1",
+    "PS2",
+    "PS3",
+    "PS4",
+    "PWD",
+    "SHELL",
+    "SHLVL",
+    "TERM",
+    "TIMEFORMAT",
+    "TMOUT",
+    "TMPDIR",
+    "TZ",
+    "USER",
+    // the rest of the bash manual's shell variables (5.2, "Bash Variables").
+    "AUTO_RESUME",
+    "BASH_ALIASES",
+    "BASH_ARGV0",
+    "BASH_CMDS",
+    "BASH_LOADABLES_PATH",
+    "BASH_REMATCH",
+    "CHILD_MAX",
+    "COMPREPLY",
+    "COMP_CWORD",
+    "COMP_KEY",
+    "COMP_LINE",
+    "COMP_POINT",
+    "COMP_TYPE",
+    "COMP_WORDBREAKS",
+    "COMP_WORDS",
+    "COPROC",
+    "DIRSTACK",
+    "EMACS",
+    "EXECIGNORE",
+    "FCEDIT",
+    "FUNCNEST",
+    "HISTCHARS",
+    "HISTTIMEFORMAT",
+    "HOSTFILE",
+    "IGNOREEOF",
+    "INSIDE_EMACS",
+    "MAPFILE",
+    "PIPESTATUS",
+    "PROMPT_DIRTRIM",
+    "PS0",
+    "READLINE_ARGUMENT",
+    "READLINE_LINE",
+    "READLINE_MARK",
+    "READLINE_POINT",
+    "REPLY",
+    "TEXTDOMAIN",
+    "TEXTDOMAINDIR",
+];
+
+/// Whether bash defines `name` itself, and how; `LC_*` locale names count
+/// as writable session state.
+pub(crate) fn bash_special_name(name: &str) -> Option<BashSpecial> {
+    if BASH_READONLY_NAMES.contains(&name) {
+        Some(BashSpecial::Readonly)
+    } else if BASH_WRITABLE_SPECIAL_NAMES.contains(&name) || name.starts_with("LC_") {
+        Some(BashSpecial::Writable)
+    } else {
+        None
+    }
+}
+
+// ############################################################################
 // bash arithmetic references
 // ############################################################################
 
@@ -1450,8 +1592,8 @@ fn bash_scan_text(body: &[OIr]) -> String {
     for (index, node) in body.iter().enumerate() {
         match node {
             OIr::Text(text) => {
-                let escaped = text.ends_with('$')
-                    && matches!(body.get(index + 1), Some(OIr::Text(_)));
+                let escaped =
+                    text.ends_with('$') && matches!(body.get(index + 1), Some(OIr::Text(_)));
                 if escaped {
                     joined.push_str(&text[..text.len() - 1]);
                     joined.push_str("\\$");
@@ -1647,6 +1789,22 @@ fn scan_bash_test_operands(text: &str, start: usize, names: &mut HashSet<String>
     }
 }
 
+/// Writable bash specials that a bash body splices as `$name`. The splice
+/// already puts the text into the block, but the session's own copy of the
+/// special must take the `let` value too, as it does for `${PATH}`.
+fn bash_special_splices(body: &[OIr]) -> HashSet<String> {
+    body.iter()
+        .filter_map(|node| match node {
+            // only the session state matters here; a readonly name stays a
+            // plain splice, since nothing is assigned for it.
+            OIr::Load(name) if bash_special_name(name) == Some(BashSpecial::Writable) => {
+                Some(name.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// Plan sources of the visible `let` bindings a shim block receives: exactly
 /// the bindings whose names its body references by whole identifier token
 /// or `$name` splice, for every backend and every parallel branch. With
@@ -1665,6 +1823,7 @@ fn shim_scope_sources(
         }
         let mut names = bash_braced_references(body);
         names.extend(bash_arithmetic_references(body));
+        names.extend(bash_special_splices(body));
         let mut seen = std::collections::HashSet::new();
         let mut sources = Vec::new();
         for lexical_scope in scope_stack.iter().rev() {
@@ -2535,6 +2694,27 @@ mod tests {
     }
 
     #[test]
+    fn bash_shim_writable_specials_match_the_native_list() {
+        // the python shim decides how to inject on its own copy of the list,
+        // so the two must never drift.
+        let shim = include_str!("../backends/bash_shim.py");
+        let start = shim.find("WRITABLE_SPECIALS = {").expect("shim list");
+        let end = start + shim[start..].find('}').expect("shim list end");
+        let mut shim_names = shim[start..end]
+            .split('"')
+            .skip(1)
+            .step_by(2)
+            .collect::<Vec<_>>();
+        shim_names.sort_unstable();
+        let mut native = BASH_WRITABLE_SPECIAL_NAMES.to_vec();
+        native.sort_unstable();
+        assert_eq!(shim_names, native);
+        for name in BASH_READONLY_NAMES {
+            assert!(!native.contains(name), "{name} is in both lists");
+        }
+    }
+
+    #[test]
     fn bash_arithmetic_contexts_reference_bare_let_names() {
         for (body, expected) in [
             ("bash^(echo $((c + 1)))_bash", vec!["c"]),
@@ -2577,7 +2757,10 @@ mod tests {
             // a `$name` splice does not end an arithmetic region.
             ("bash^(echo $(( $c + a )))_bash", vec!["a"]),
             ("bash^([[ $c -gt a ]] && echo y)_bash", vec!["a"]),
-            ("bash^(s=abc; echo ${s:$c:a}; x[$c+b]=1)_bash", vec!["a", "b"]),
+            (
+                "bash^(s=abc; echo ${s:$c:a}; x[$c+b]=1)_bash",
+                vec!["a", "b"],
+            ),
             // escaped arithmetic opts out like `\${x}`.
             (r#"bash^(echo \$((a + 1)) \$[b])_bash"#, vec![]),
         ] {

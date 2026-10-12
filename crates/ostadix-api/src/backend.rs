@@ -192,30 +192,38 @@ fn shell_single_quote(value: &str) -> String {
 // ############################################################################
 
 /// Shell text that assigns the received `let` values before a block, and
-/// shell text that undoes it after the block. Each name is assigned with
-/// `declare +x`, so it is never exported even when the session or the O
-/// process already exported that name, and it is unset afterwards. Every
-/// assignment is checked: one that fails, for example on a name an earlier
-/// `bash[N]` block made readonly, clears `__o_inject_ok` and the block does
-/// not run.
+/// shell text that undoes it after the block.
+///
+/// An ordinary name is assigned with `declare +x`, so it is never exported
+/// even when the session or the O process already exported that name, and it
+/// is unset afterwards. A writable bash special such as `PATH`, `HOME`, or
+/// `IFS` is assigned with `declare --`, which keeps its export flag,
+/// and is left as it is afterwards: in a `bash[N]` session the let value
+/// persists for later blocks exactly as the block left it, and a plain block
+/// starts a fresh session anyway. Readonly specials never get here; the plan
+/// rejects them. Every assignment is checked: one that fails, for example
+/// on a name an earlier `bash[N]` block made readonly, clears
+/// `__o_inject_ok` and the block does not run.
 fn bash_injection(env: &[(String, String)]) -> (String, String) {
     let mut inject = String::new();
+    let mut unset = Vec::new();
     for (name, value) in env {
-        inject.push_str(&format!(
-            "declare +x {name}={} || __o_inject_ok=0; ",
-            shell_single_quote(value)
-        ));
+        let quoted = shell_single_quote(value);
+        if crate::ir::bash_special_name(name) == Some(crate::ir::BashSpecial::Writable) {
+            // session state such as PATH stays assigned, so later blocks of
+            // the session see the let value from the first block naming it.
+            inject.push_str(&format!("declare -- {name}={quoted} || __o_inject_ok=0; "));
+        } else {
+            inject.push_str(&format!("declare +x {name}={quoted} || __o_inject_ok=0; "));
+            unset.push(name.as_str());
+        }
     }
-    let restore = if env.is_empty() {
+    let restore = if unset.is_empty() {
         String::new()
     } else {
-        let names = env
-            .iter()
-            .map(|(name, _)| name.as_str())
-            .collect::<Vec<_>>();
         // a readonly name refuses the unset; `|| :` keeps a persisted
         // `set -e` from ending the session on that.
-        format!("unset -v {} 2>/dev/null || :; ", names.join(" "))
+        format!("unset -v {} 2>/dev/null || :; ", unset.join(" "))
     };
     (inject, restore)
 }

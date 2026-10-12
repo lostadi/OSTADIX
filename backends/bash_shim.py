@@ -9,6 +9,8 @@ when the block finishes. Numbered environments such as bash[0]^(...)_bash[0]
 reuse one shim, and its session keeps shell variables, functions, options,
 and the working directory across the blocks of that environment only.
 Received let values are non-exported variables of one block, unset afterwards.
+A writable bash special such as PATH keeps its export flag, is not unset,
+and persists in a numbered session from the first block that names it.
 """
 import sys
 import os
@@ -24,16 +26,72 @@ from o_shim_common import stdout_result
 SENTINEL = "__O_BASH_BLOCK_DONE__"
 _session = None
 
+# keep in step with BASH_WRITABLE_SPECIAL_NAMES in crates/ostadix-api/src/ir.rs
+WRITABLE_SPECIALS = {
+    "BASH", "BASH_COMPAT", "BASH_ENV", "BASH_VERSION", "BASH_XTRACEFD", "CDPATH",
+    "COLUMNS", "ENV", "FIGNORE", "GLOBIGNORE", "HISTCONTROL", "HISTFILE",
+    "HISTFILESIZE", "HISTIGNORE", "HISTSIZE", "HOME", "HOSTNAME", "HOSTTYPE", "IFS",
+    "INPUTRC", "LANG", "LINES", "LOGNAME", "MACHTYPE", "MAIL", "MAILCHECK",
+    "MAILPATH", "OLDPWD", "OPTARG", "OPTERR", "OPTIND", "OSTYPE", "PATH",
+    "POSIXLY_CORRECT", "PROMPT_COMMAND", "PS1", "PS2", "PS3", "PS4", "PWD", "SHELL",
+    "SHLVL", "TERM", "TIMEFORMAT", "TMOUT", "TMPDIR", "TZ", "USER",
+    "AUTO_RESUME",
+    "BASH_ALIASES",
+    "BASH_ARGV0",
+    "BASH_CMDS",
+    "BASH_LOADABLES_PATH",
+    "BASH_REMATCH",
+    "CHILD_MAX",
+    "COMPREPLY",
+    "COMP_CWORD",
+    "COMP_KEY",
+    "COMP_LINE",
+    "COMP_POINT",
+    "COMP_TYPE",
+    "COMP_WORDBREAKS",
+    "COMP_WORDS",
+    "COPROC",
+    "DIRSTACK",
+    "EMACS",
+    "EXECIGNORE",
+    "FCEDIT",
+    "FUNCNEST",
+    "HISTCHARS",
+    "HISTTIMEFORMAT",
+    "HOSTFILE",
+    "IGNOREEOF",
+    "INSIDE_EMACS",
+    "MAPFILE",
+    "PIPESTATUS",
+    "PROMPT_DIRTRIM",
+    "PS0",
+    "READLINE_ARGUMENT",
+    "READLINE_LINE",
+    "READLINE_MARK",
+    "READLINE_POINT",
+    "REPLY",
+    "TEXTDOMAIN",
+    "TEXTDOMAINDIR",
+}
+
+
+def _is_writable_special(name):
+    return name in WRITABLE_SPECIALS or name.startswith("LC_")
+
 
 def _injection(env):
     """Shell text that assigns the let values, and text that undoes it."""
     inject, restore, unset = [], [], []
-    for index, name in enumerate(sorted(env)):
+    for name in sorted(env):
         quoted = shlex.quote(env[name])
-        # declare +x so a name the session already exported stays
-        # invisible to child processes.
-        inject.append(f"declare +x {name}={quoted} || __o_inject_ok=0; ")
-        unset.append(name)
+        if _is_writable_special(name):
+            # session state such as PATH stays assigned for later blocks.
+            inject.append(f"declare -- {name}={quoted} || __o_inject_ok=0; ")
+        else:
+            # declare +x so a name the session already exported stays
+            # invisible to child processes.
+            inject.append(f"declare +x {name}={quoted} || __o_inject_ok=0; ")
+            unset.append(name)
     if unset:
         restore.append(f"unset -v {' '.join(unset)} 2>/dev/null || :; ")
     return "".join(inject), "".join(restore)

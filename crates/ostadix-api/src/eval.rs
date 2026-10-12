@@ -6071,6 +6071,75 @@ mod tests {
     }
 
     #[test]
+    fn readonly_bash_name_as_a_let_is_a_compile_error() {
+        let Some(result) = run_bash_document(
+            "let UID = python^(__oval_result__ = '5')_python\n\
+             bash^(echo ${UID})_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("readonly bash variable"), "{error}");
+    }
+
+    #[test]
+    fn let_named_path_persists_in_a_session_from_the_first_block_naming_it() {
+        let Some(result) = run_bash_document(
+            "let PATH = python^(__oval_result__ = '/opt/let-only/bin:/usr/bin:/bin')_python\n\
+             let before = bash[1]^(echo \"\\$PATH $(export -p | grep -c ' PATH=')\")_bash[1]\n\
+             let inside = bash[1]^(echo \"in:${PATH}\"; ls / >/dev/null && echo ls-ok; bash -c 'env | grep -c ^PATH=')_bash[1]\n\
+             let after = bash[1]^(echo \"\\$PATH $(export -p | grep -c ' PATH=')\")_bash[1]\n\
+             let plain = bash^(echo \"in:${PATH}\")_bash\n\
+             let fresh = bash^(echo \"\\$PATH\")_bash\n\
+             python^(__oval_result__ = '|'.join([$before, $inside, $after, $plain, $fresh]))_python\n",
+        ) else {
+            return;
+        };
+        let text = match result.unwrap() {
+            OValue::Text { v } => v.utf8,
+            other => panic!("expected text, got {other:?}"),
+        };
+        let parts = text.split('|').collect::<Vec<_>>();
+        assert_eq!(parts.len(), 5, "{text}");
+        let value = "/opt/let-only/bin:/usr/bin:/bin";
+        // the session's own PATH until a block names the let.
+        assert!(
+            parts[0].ends_with(" 1") && !parts[0].contains("let-only"),
+            "{text}"
+        );
+        assert_eq!(
+            parts[1].lines().collect::<Vec<_>>(),
+            vec![format!("in:{value}").as_str(), "ls-ok", "1"],
+            "{text}"
+        );
+        // then the let value, still exported, for later session blocks.
+        assert_eq!(parts[2], format!("{value} 1"), "{text}");
+        // plain blocks start fresh: only the naming block sees the let.
+        assert_eq!(parts[3], format!("in:{value}"), "{text}");
+        assert!(
+            !parts[4].contains("let-only") && !parts[4].is_empty(),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn dollar_splice_of_a_writable_special_sets_it_for_the_session() {
+        let Some(result) = run_bash_document(
+            "let PATH = python^(__oval_result__ = '/opt/let-only/bin:/usr/bin:/bin')_python\n\
+             let first = bash[1]^(echo \"b1:$PATH\")_bash[1]\n\
+             let second = bash[1]^(echo \"b2:$(/usr/bin/printenv PATH)\")_bash[1]\n\
+             python^(__oval_result__ = '|'.join([$first, $second]))_python\n",
+        ) else {
+            return;
+        };
+        let value = "/opt/let-only/bin:/usr/bin:/bin";
+        assert_eq!(
+            result.unwrap(),
+            OValue::str_(format!("b1:{value}|b2:{value}").as_str())
+        );
+    }
+
+    #[test]
     fn escaped_dollar_opts_out_of_let_references_in_bash() {
         if which::which("bash").is_err() || which::which("python3").is_err() {
             return;
