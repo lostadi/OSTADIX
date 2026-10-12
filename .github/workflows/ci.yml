@@ -114,6 +114,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OSTADIX_TEST_RUNTIME_POLICY: required
+      # Keep every target while limiting simultaneous links and artifact size.
+      CARGO_BUILD_JOBS: "1"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install release toolchain
@@ -134,7 +138,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-tests-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-tests-compact-${{ hashFiles('Cargo.lock') }}
+      - name: Record runner build resources
+        run: |
+          df -h .
+          free -h
       - name: Run broad Rust test suite
         run: cargo +1.97.1 test --locked --workspace --all-targets --all-features --no-fail-fast
       - name: Run deterministic parser properties
@@ -173,6 +181,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OSTADIX_TEST_RUNTIME_POLICY: required
+      CARGO_BUILD_JOBS: "1"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install release toolchain
@@ -192,7 +203,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-hosted-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-hosted-compact-${{ hashFiles('Cargo.lock') }}
+      - name: Record runner build resources
+        run: |
+          df -h .
+          free -h
       - name: Build hosted targets
         run: |
           cargo +1.97.1 build --locked --workspace --all-targets --all-features

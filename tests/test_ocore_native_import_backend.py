@@ -13,6 +13,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -26,6 +27,7 @@ TARGETS = {
 }
 VOID, I64, PTR, I1, I8, I32 = range(6)
 LAYOUT = "e-p:64:64-i64:64-n8:16:32:64-S128"
+WEAK_LINKAGES = ("linkonce", "weak", "linkonce_odr", "weak_odr")
 
 
 def value(identifier):
@@ -250,6 +252,11 @@ def scalar_abi_functions():
     word = function("unsigned_word", result=integer(I32, (1 << 32) - 1))
     word["signature"] = signature(result=I32, result_attributes=["zeroext"])
     functions.append(word)
+    # RISC-V C frontends use signext even for an unsigned C int. An original
+    # LLVM zeroext contract above is different and must remain zero-extended.
+    word = function("c_unsigned_word", result=integer(I32, (1 << 32) - 1))
+    word["signature"] = signature(result=I32, result_attributes=["signext"])
+    functions.append(word)
     functions.append(function("stack_test", [
         instruction(1, PTR, {"op": "alloca", "size": 16384, "alignment": 16}),
         instruction(2, PTR, {"op": "gep", "base": value(1),
@@ -276,6 +283,53 @@ def scalar_abi_functions():
         "args": [value(0)] + [integer(I64, i) for i in range(2, 601)],
     })], value(1), (I64,)))
     return functions
+
+
+def fastcc_fixtures(isa):
+    """C entry wrappers around a fourteen-argument original LLVM fastcc call."""
+
+    count = 14  # RV fastcc's t3-t6 arguments plus an actual stack spill.
+    params = [I64] * count
+    operations, total, next_id = [], value(0), count
+    body, llvm_total = [], "%p0"
+    for index in range(1, count):
+        operations.extend([
+            instruction(next_id, I64, {"op": "binary", "kind": "mul",
+                "lhs": value(index), "rhs": integer(I64, index + 1), "flags": []}),
+            instruction(next_id + 1, I64, {"op": "binary", "kind": "add",
+                "lhs": total, "rhs": value(next_id), "flags": []}),
+        ])
+        body.extend([f"%m{index} = mul i64 %p{index}, {index + 1}",
+                     f"%s{index} = add i64 {llvm_total}, %m{index}"])
+        total, next_id, llvm_total = value(next_id + 1), next_id + 2, f"%s{index}"
+    fast_signature = signature(params, abi="fastcc")
+    callee = function("fast_many", operations, total, params)
+    callee["signature"] = fast_signature
+    functions = [callee]
+    llvm_params = ",".join(f"i64 %p{index}" for index in range(count))
+    header = [f'target triple = "{isa}-unknown-linux-gnu"',
+              f'target datalayout = "{LAYOUT}"']
+    provider = [*header, f"define fastcc i64 @fast_many({llvm_params}) {{",
+                *body, f"ret i64 {llvm_total}", "}"]
+    caller = [*header, f"declare fastcc i64 @fast_many({','.join(['i64'] * count)})"]
+    for name, indirect in (("fast_direct", False), ("fast_indirect", True)):
+        functions.append(function(name, [instruction(2, I64, {
+            "op": "call", "callee": value(0) if indirect else
+            {"kind": "symbol", "ty": PTR, "name": "fast_many"},
+            "signature": fast_signature,
+            "args": [value(1 if indirect else 0)] +
+                    [integer(I64, i) for i in range(2, count + 1)],
+        })], value(2), (PTR, I64) if indirect else (I64,)))
+        arguments = ",".join(["i64 %x", *[f"i64 {i}" for i in range(2, count + 1)]])
+        caller.extend([
+            f"define i64 @{name}({'ptr %fn, ' if indirect else ''}i64 %x) {{",
+            f"%r = call fastcc i64 {'%fn' if indirect else '@fast_many'}({arguments})",
+            "ret i64 %r", "}",
+        ])
+    return module(isa, functions), {
+        "provider": "\n".join(provider) + "\n",
+        "caller": "\n".join(caller) + "\n",
+    }
 
 
 class NativeImportBackendTests(unittest.TestCase):
@@ -341,6 +395,13 @@ class NativeImportBackendTests(unittest.TestCase):
                         "--emit", "asm", "--target", TARGETS[isa], "-o", str(output)])
         return output.read_text(encoding="utf-8")
 
+    def object(self, native_module, isa):
+        source = self.verified_input(native_module)
+        output = source.with_suffix(".o")
+        self.succeeded([self.compiler, str(source), "--input-kind", "native-ir",
+                        "--target", TARGETS[isa], "-o", str(output)])
+        return output
+
     def test_repeated_fixed_alloca_cannot_alias_across_loop_executions(self):
         # Originally this valid loop returned 1; a Clang object returned 0.
         # Until per-execution allocation exists, the entire module must reject.
@@ -349,23 +410,105 @@ class NativeImportBackendTests(unittest.TestCase):
                 self.reject_backend(repeated_alloca_module(isa), isa, "non-entry allocation")
 
     def test_function_linkage_requires_real_backend_support(self):
+        from tests.test_ocore_native_weak import elf_symbols
+
         for isa in TARGETS:
-            for linkage in ("extern_weak", "available_externally", "linkonce",
-                            "weak", "linkonce_odr", "weak_odr"):
+            for linkage in ("extern_weak", "available_externally"):
                 with self.subTest(isa=isa, linkage=linkage):
                     fn = function("hook", linkage=linkage)
                     if linkage == "extern_weak":
                         fn.update(entry=None, blocks=[])
                     self.reject_backend(module(isa, [fn]), isa, f"linkage `{linkage}`")
+            for linkage in WEAK_LINKAGES:
+                with self.subTest(isa=isa, linkage=linkage):
+                    obj = self.object(module(isa, [function("hook", linkage=linkage)]), isa)
+                    symbol = elf_symbols(obj)["hook"]
+                    self.assertEqual(symbol["binding"], 2, "definition must be STB_WEAK")
+                    self.assertEqual(symbol["type"], 2, "definition must be STT_FUNC")
+                    self.assertNotEqual(symbol["section"], 0, "definition cannot be unresolved")
+                    self.assertGreater(symbol["size"], 0)
 
     def test_global_linkage_requires_real_backend_support(self):
+        from tests.test_ocore_native_weak import elf_symbols
+
         for isa in TARGETS:
-            for linkage in ("extern_weak", "common", "available_externally", "linkonce",
-                            "weak", "linkonce_odr", "weak_odr"):
+            for linkage in ("extern_weak", "common", "available_externally"):
                 with self.subTest(isa=isa, linkage=linkage):
                     glob = global_(linkage=linkage, initializer=linkage != "extern_weak")
                     self.reject_backend(module(isa, globals_=[glob]), isa,
                                         f"linkage `{linkage}`")
+            for linkage in WEAK_LINKAGES:
+                with self.subTest(isa=isa, linkage=linkage):
+                    obj = self.object(module(isa, globals_=[global_(linkage=linkage)]), isa)
+                    symbol = elf_symbols(obj)["slot"]
+                    self.assertEqual(symbol["binding"], 2, "definition must be STB_WEAK")
+                    self.assertEqual(symbol["type"], 1, "definition must be STT_OBJECT")
+                    self.assertNotEqual(symbol["section"], 0, "definition cannot be unresolved")
+                    self.assertEqual(symbol["size"], 8)
+
+    def test_weak_definition_selection_matches_original_llvm_and_strong_symbols(self):
+        from tests.test_ocore_native_weak import elf_symbols
+
+        clang = shutil.which("clang")
+        if platform.machine() not in {"x86_64", "AMD64"} or clang is None:
+            self.skipTest("x86-64 and Clang required for actual weak selection execution")
+        for linkage in WEAK_LINKAGES:
+            with self.subTest(linkage=linkage):
+                glob = global_(linkage=linkage)
+                glob["initializer"]["bytes"][0] = 13
+                hook = function("hook", result=integer(I64, 17), linkage=linkage)
+                probe = function("probe", [
+                    instruction(0, I64, {"op": "call", "callee": {
+                        "kind": "symbol", "ty": PTR, "name": "hook"},
+                        "signature": signature(), "args": []}),
+                    instruction(1, I64, {"op": "load", "pointer": {
+                        "kind": "symbol", "ty": PTR, "name": "slot"},
+                        "alignment": 8, "volatile": False}),
+                    instruction(2, I64, {"op": "binary", "kind": "add",
+                        "lhs": value(0), "rhs": value(1), "flags": []}),
+                ], value(2))
+                own = self.object(module(functions=[hook, probe], globals_=[glob]), "x86_64")
+                reference = self.directory / f"{linkage}.ll"
+                reference.write_text(
+                    f'target triple = "x86_64-unknown-linux-gnu"\n'
+                    f'@slot = {linkage} global i64 13, align 8\n'
+                    f'define {linkage} i64 @hook() {{ ret i64 17 }}\n'
+                    'define i64 @probe() {\n%h = call i64 @hook()\n'
+                    '%s = load i64, ptr @slot, align 8\n'
+                    '%r = add i64 %h, %s\nret i64 %r\n}\n', encoding="utf-8")
+                original = reference.read_bytes()
+                ref_object = reference.with_suffix(".o")
+                self.succeeded([clang, "-O0", "-c", str(reference), "-o", str(ref_object)])
+                self.assertEqual(reference.read_bytes(), original)
+                for name in ("hook", "slot"):
+                    self.assertEqual(elf_symbols(own)[name]["binding"],
+                                     elf_symbols(ref_object)[name]["binding"])
+                # ODR definitions must stay equivalent. Ordinary weak/linkonce
+                # definitions may instead be interposed by a different value.
+                hook_value, slot_value = (17, 13) if linkage.endswith("_odr") else (211, 213)
+                strong = self.directory / f"{linkage}-strong.c"
+                strong.write_text(
+                    f"unsigned long long slot={slot_value};\n"
+                    f"unsigned long long hook(void){{return {hook_value};}}\n", encoding="utf-8")
+                strong_object = strong.with_suffix(".o")
+                self.succeeded([clang, "-c", str(strong), "-o", str(strong_object)])
+                main = self.directory / f"{linkage}-main.c"
+                main.write_text(
+                    "extern unsigned long long probe(void);\n"
+                    "int main(void){return probe()!=EXPECTED;}\n", encoding="utf-8")
+                for backend, obj in (("own", own), ("llvm", ref_object)):
+                    for order in ("weak_only", "weak_first", "strong_first"):
+                        with self.subTest(backend=backend, order=order):
+                            objects = [obj] if order == "weak_only" else (
+                                [obj, strong_object] if order == "weak_first" else [strong_object, obj])
+                            expected = 30 if order == "weak_only" else hook_value + slot_value
+                            output = self.directory / f"{linkage}-{backend}-{order}"
+                            self.succeeded([clang, f"-DEXPECTED={expected}", str(main),
+                                            *map(str, objects), "-o", str(output)])
+                            self.succeeded([str(output)])
+                            for name in ("hook", "slot"):
+                                self.assertEqual(elf_symbols(output)[name]["binding"],
+                                                 2 if order == "weak_only" else 1)
 
     def test_unrealizable_global_storage_alignment_rejects_before_any_artifact(self):
         for isa in TARGETS:
@@ -405,8 +548,8 @@ class NativeImportBackendTests(unittest.TestCase):
                     native["target"]["triple"] = f"{isa}-{suffix}"
                     self.reject_backend(native, isa, "Linux/ELF frontend profiles")
 
-    def test_bare_rv64_target_requires_explicit_lp64_and_rejects_other_abis(self):
-        for abi in (None, "missing", "lp64d", "lp64f", "lp64e", "", "lp64 "):
+    def test_bare_rv64_target_requires_explicit_supported_abi(self):
+        for abi in (None, "missing", "lp64f", "lp64e", "", "lp64 ", "LP64D", "lp64d "):
             with self.subTest(abi=abi):
                 native = module("riscv64")
                 native["target"]["triple"] = "riscv64"
@@ -415,13 +558,20 @@ class NativeImportBackendTests(unittest.TestCase):
                 reason = "Linux/ELF frontend profiles" if abi in (None, "missing") \
                     else "unsupported explicit frontend ABI"
                 self.reject_backend(native, "riscv64", reason)
-        native = module("riscv64")
-        native["target"].update(triple="riscv64", abi="lp64")
-        self.assertIn("entry:", self.assembly(native, "riscv64"))
+        # Integer-only LP64D imports share integer placement with LP64, but
+        # their ELF floating ABI flag must follow the original frontend.
+        for triple in ("riscv64", "riscv64-unknown-linux-gnu"):
+            for abi, flag in (("lp64", 0), ("lp64d", 4)):
+                with self.subTest(triple=triple, abi=abi):
+                    native = module("riscv64")
+                    native["target"].update(triple=triple, abi=abi)
+                    obj = self.object(native, "riscv64")
+                    self.assertEqual(struct.unpack_from("<H", obj.read_bytes(), 18)[0], 243)
+                    self.assertEqual(struct.unpack_from("<I", obj.read_bytes(), 48)[0] & 6, flag)
         for isa in TARGETS:
             with self.subTest(qualified_isa=isa):
                 native = module(isa)
-                native["target"]["abi"] = "lp64d" if isa == "riscv64" else "lp64"
+                native["target"]["abi"] = "lp64f" if isa == "riscv64" else "lp64"
                 self.reject_backend(native, isa, "unsupported explicit frontend ABI")
 
     def test_frontend_isa_must_match_selected_emitter(self):
@@ -447,15 +597,67 @@ class NativeImportBackendTests(unittest.TestCase):
                                                 data_layout="E-p:64:64-i64:64")
                     self.reject_backend(native, isa, "little-endian LP64")
 
-    def test_non_c_and_variadic_signatures_do_not_use_fixed_scalar_abi(self):
+    def test_unsupported_and_variadic_signatures_do_not_use_fixed_llvm_abi(self):
         for isa in TARGETS:
-            for mode in ("fast", "variadic"):
+            for mode in ("fast", "coldcc", "variadic", "variadic_fastcc"):
                 with self.subTest(isa=isa, mode=mode):
                     fn = function("foreign")
                     fn.update(entry=None, blocks=[])
-                    fn["signature"].update({"abi": "fast"} if mode == "fast"
-                                           else {"variadic": True})
-                    self.reject_backend(module(isa, [fn]), isa, "fixed scalar C ABI")
+                    fn["signature"].update(
+                        {"abi": mode} if mode in {"fast", "coldcc"}
+                        else {"variadic": True, "abi": "fastcc" if mode == "variadic_fastcc" else "c"}
+                    )
+                    self.reject_backend(module(isa, [fn]), isa, "only fixed LLVM C and fastcc signatures")
+
+    def test_fastcc_direct_and_indirect_calls_match_original_llvm(self):
+        clang = shutil.which("clang")
+        if clang is None:
+            self.skipTest("Clang required for original LLVM ABI comparison")
+        for isa in TARGETS:
+            with self.subTest(isa=isa):
+                native, llvm = fastcc_fixtures(isa)
+                provider = native["functions"][0]
+                declaration = {**provider, "entry": None, "blocks": []}
+                own = {
+                    "provider": self.object(module(isa, [provider]), isa),
+                    "caller": self.object(module(isa, [declaration, *native["functions"][1:]]), isa),
+                }
+                target = ["--target=" + native["target"]["triple"]]
+                if isa == "riscv64":
+                    target += ["-march=rv64gc", "-mabi=lp64"]
+                reference = {}
+                for role, text in llvm.items():
+                    source = self.directory / f"fast-{isa}-{role}.ll"
+                    source.write_text(text, encoding="utf-8")
+                    original = source.read_bytes()
+                    reference[role] = source.with_suffix(".o")
+                    self.succeeded([clang, *target, "-O0", "-c", str(source), "-o", str(reference[role])])
+                    self.assertEqual(source.read_bytes(), original)
+                if isa != "x86_64" or platform.machine() not in {"x86_64", "AMD64"}:
+                    continue
+                harness = self.directory / "fast-main.c"
+                harness.write_text('''#include <stdio.h>
+typedef unsigned long long u64;
+extern void fast_many(void);
+extern u64 fast_direct(u64),fast_indirect(void (*)(void),u64);
+int main(void){
+    u64 state=0x9e3779b97f4a7c15ULL;
+    for(unsigned i=0;i<256;i++){
+        state^=state<<13;state^=state>>7;state^=state<<17;
+        if(fast_direct(state)!=state+1014) return 1;
+        if(fast_indirect(fast_many,state)!=state+1014) return 2;
+    }
+    puts("512 LLVM fastcc direct/indirect ABI checks PASS");return 0;
+}
+''', encoding="utf-8")
+                for caller_backend, caller_objects in (("own", own), ("llvm", reference)):
+                    for provider_backend, provider_objects in (("own", own), ("llvm", reference)):
+                        with self.subTest(caller=caller_backend, provider=provider_backend):
+                            output = self.directory / f"fast-{caller_backend}-{provider_backend}"
+                            self.succeeded([clang, str(harness), str(caller_objects["caller"]),
+                                            str(provider_objects["provider"]), "-o", str(output)])
+                            self.assertEqual(self.succeeded([str(output)]).stdout,
+                                             "512 LLVM fastcc direct/indirect ABI checks PASS\n")
 
     def test_wide_weakly_aligned_volatile_accesses_never_split_to_bytes(self):
         for isa in ("aarch64", "riscv64"):
@@ -534,8 +736,13 @@ class NativeImportBackendTests(unittest.TestCase):
                 if isa == "riscv64":
                     word_body = assembly.split("unsigned_word:\n", 1)[1]
                     word_body = word_body.split(".size unsigned_word,", 1)[0]
+                    self.assertIn("srli t0, t0, 32", word_body,
+                                  "original LLVM zeroext i32 returns require zero extension")
+                    self.assertNotIn("srai t0, t0, 32", word_body)
+                    word_body = assembly.split("c_unsigned_word:\n", 1)[1]
+                    word_body = word_body.split(".size c_unsigned_word,", 1)[0]
                     self.assertIn("srai t0, t0, 32", word_body,
-                                  "RV64 C ABI sign-extends even unsigned 32-bit returns")
+                                  "RISC-V C unsigned int uses an original LLVM signext contract")
 
     def test_x86_c_abi_stack_arguments_extensions_and_probes_execute(self):
         clang = shutil.which("clang")

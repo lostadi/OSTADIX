@@ -590,7 +590,7 @@ pub enum Operation {
         flags: Vec<String>,
     },
     /// Exact modular arithmetic and representability flag, as returned by
-    /// LLVM's scalar [su]{add,sub,mul}.with.overflow intrinsics. Overflow is
+    /// LLVM's scalar `[su]{add,sub,mul}.with.overflow` intrinsics. Overflow is
     /// defined for every input and does not produce LLVM poison.
     IntegerOverflow {
         kind: BinaryOp,

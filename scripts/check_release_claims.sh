@@ -643,9 +643,39 @@ require_fixed setup.sh \
 require_fixed setup.sh \
     '--repo-root "$PROJECT_ROOT" --bin-dir "$HOME/.local/bin" --include-c' \
     'the local-bin native installation no longer uses the repository installer'
-require_fixed scripts/install_native_binaries.py \
-    '(build / "o-cli", destination / "o")' \
-    'the native installer no longer installs compiled o-cli as lowercase o'
+# Verify native front-door installation plans through the public installer.
+# Source spellings differ across platform-aware implementations; the contract
+# is that o resolves to compiled o-cli and the raw evaluator remains available.
+if ! python3 - "$ROOT" <<'PY'
+from pathlib import Path
+import runpy
+import sys
+import tempfile
+
+root = Path(sys.argv[1])
+install = runpy.run_path(str(root / "scripts/install_native_binaries.py"))["install"]
+with tempfile.TemporaryDirectory(prefix="ostadix-native-plan-") as directory:
+    fixture = Path(directory)
+    for suffix in ("", ".exe"):
+        build = fixture / ("windows" if suffix else "posix")
+        build.mkdir()
+        for name in ("O", "o-cli"):
+            (build / f"{name}{suffix}").write_bytes(b"MZfixture" if suffix else b"\x7fELFfixture")
+        destination = build / "installed"
+        plan = install(root, build, destination, front_door_only=True, dry_run=True)
+        front_door = f"replace {destination / ('o' + suffix)} from {build / ('o-cli' + suffix)}"
+        evaluator = f"replace {destination / ('ostadix-evaluator' + suffix)} from {build / ('O' + suffix)}"
+        if plan.count(front_door) != 1 or plan.count(evaluator) != 1:
+            raise SystemExit(f"WORLD CONTRACT DRIFT: native installer lost compiled front doors ({suffix or 'POSIX'}): {plan!r}")
+        if plan.index(evaluator) > plan.index(front_door):
+            raise SystemExit("WORLD CONTRACT DRIFT: raw evaluator must be preserved before replacing lowercase o")
+        if destination.exists():
+            raise SystemExit("WORLD CONTRACT DRIFT: native installer dry-run changed its destination")
+print("Native installer front doors: PASS (POSIX and .exe)")
+PY
+then
+    fail=1
+fi
 require_fixed AGENTS.md \
     'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH"' \
     'the canonical PATH order lets the case-insensitive raw O binary shadow lowercase o'

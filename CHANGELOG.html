@@ -290,6 +290,12 @@ output.</p>
 </ul>
 <h3>Fixed</h3>
 <ul>
+<li><p>The MCP bridge removes its socket while holding the startup lock before
+waiting for child shutdown, preserving a replacement daemon&#39;s socket.
+Setup and release guards exercise declared host capabilities and executable
+installation plans. CI retains every Rust target while bounding concurrent
+links and debug artifact size.</p>
+</li>
 <li><p>Generated AOT binaries now extract their backend adapters to a private
 <code>0700</code> directory under <code>$TMPDIR</code> (falling back to <code>/tmp</code>) instead of a
 <code>.o_shims_&lt;pid&gt;</code> directory in the current working directory. Programs run

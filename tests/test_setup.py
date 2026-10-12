@@ -582,7 +582,18 @@ class SetupScriptTests(unittest.TestCase):
 
     def test_default_setup_selects_all_root_bins_workspace_and_native_apps(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            result = self.run_setup("--dry-run", "--no-env", home=Path(directory))
+            home = Path(directory)
+            tools = home / "fake-tools"
+            tools.mkdir()
+            cargo = tools / "cargo"
+            unexpected_dispatch = home / "cargo-dispatched"
+            # A real rustup installation normally lives outside SYSTEM_PATH.
+            # Declare this capability explicitly without building any artifacts.
+            cargo.write_text(f"#!/bin/sh\ntouch {shlex.quote(str(unexpected_dispatch))}\nexit 99\n")
+            cargo.chmod(0o755)
+            result = self.run_setup("--dry-run", "--no-env", home=home,
+                                    extra_env={"PATH": f"{tools}:{SYSTEM_PATH}"})
+            self.assertFalse(unexpected_dispatch.exists(), self.combined_output(result))
         self.assertEqual(result.returncode, 0, self.combined_output(result))
         import tomllib
         manifest = tomllib.loads((PROJECT_ROOT / "Cargo.toml").read_text())
@@ -595,6 +606,35 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("mobile-console/Cargo.toml", result.stdout)
         self.assertIn("android-terminal/runtime/Cargo.toml", result.stdout)
         self.assertIn("Android platform jar", result.stdout)
+
+    def test_release_guard_checks_native_front_door_plans_on_both_platforms(self) -> None:
+        guard = (PROJECT_ROOT / "scripts/check_release_claims.sh").read_text()
+        block = guard.split("# Verify native front-door installation plans through the public installer.\n", 1)[1]
+        block = block.split("require_fixed AGENTS.md", 1)[0]
+        source = (PROJECT_ROOT / "scripts/install_native_binaries.py").read_text()
+        mutations = {
+            "valid": source,
+            "wrong-front-door": source.replace('copy_pair(build, "o-cli", "o")',
+                                                 'copy_pair(build, "o-cli", "O")'),
+            "lost-exe-suffix": source.replace('suffix = ".exe" if source.suffix.lower() == ".exe" else ""',
+                                                'suffix = ""'),
+        }
+        for name, implementation in mutations.items():
+            with self.subTest(implementation=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "scripts").mkdir()
+                (root / "scripts/install_native_binaries.py").write_text(implementation)
+                result = subprocess.run([str(BASH), "-c", "fail=0\n" + block + '\nexit "$fail"\n'],
+                                        env={"PATH": SYSTEM_PATH, "ROOT": str(root)},
+                                        text=True, capture_output=True, timeout=10)
+                output = self.combined_output(result)
+                if name == "valid":
+                    self.assertEqual(result.returncode, 0, output)
+                    self.assertIn("PASS (POSIX and .exe)", output)
+                else:
+                    self.assertNotEqual(implementation, source)
+                    self.assertNotEqual(result.returncode, 0, output)
+                    self.assertIn("WORLD CONTRACT DRIFT", output)
 
     def test_complete_profile_opt_outs_preserve_base_commands_and_report_scope(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

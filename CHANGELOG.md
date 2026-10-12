@@ -278,6 +278,12 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Fixed
 
+- The MCP bridge removes its socket while holding the startup lock before
+  waiting for child shutdown, preserving a replacement daemon's socket.
+  Setup and release guards exercise declared host capabilities and executable
+  installation plans. CI retains every Rust target while bounding concurrent
+  links and debug artifact size.
+
 - Generated AOT binaries now extract their backend adapters to a private
   `0700` directory under `$TMPDIR` (falling back to `/tmp`) instead of a
   `.o_shims_<pid>` directory in the current working directory. Programs run

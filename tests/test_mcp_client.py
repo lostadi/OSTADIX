@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import fcntl
 import importlib.util
 import json
 import os
@@ -12,8 +13,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/ostadix_mcp_client.py"
@@ -44,6 +46,9 @@ def handle(message):
     if request_id is None:
         return
     if method == "initialize":
+        if (root / "fail-initialize").exists():
+            send({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32000, "message": "fixture initialize failure"}})
+            return
         result = {"protocolVersion": message["params"]["protocolVersion"], "capabilities": {"tools": {}}, "serverInfo": {"name": "fixture", "version": "1"}}
     elif method == "tools/list":
         result = {"tools": [{"name": "echo", "inputSchema": {"type": "object", "properties": {}}}]}
@@ -311,6 +316,110 @@ class PersistentBridgeTests(unittest.TestCase):
         time.sleep(0.15)
         self.assertEqual(self.call("echo")["structuredContent"]["pid"], new)
         self.assertEqual((self.root / "launches").read_text().count("\n"), 2)
+
+    def test_replacement_during_child_reap_survives_recycled_socket_identity(self) -> None:
+        """Force the inode collision instead of depending on filesystem reuse."""
+        bridge = client.StdioBridge(self.config)
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        replacement = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.addCleanup(listener.close)
+        self.addCleanup(replacement.close)
+        socket_identity = None
+        replaced = False
+        close_lock_held = []
+        real_lstat = Path.lstat
+        real_popen = subprocess.Popen
+        lock_path = self.config.directory / f"{self.config.key}.lock"
+
+        def bind(path):
+            nonlocal socket_identity
+            listener.bind(path)
+            metadata = real_lstat(self.config.socket_path)
+            socket_identity = (metadata.st_dev, metadata.st_ino)
+
+        def close():
+            with client._private_file(lock_path) as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    close_lock_held.append(True)
+                else:
+                    close_lock_held.append(False)
+            listener.close()
+
+        def accept():
+            bridge.stopping.set()
+            raise socket.timeout()
+
+        def popen(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            wait = process.wait
+
+            def reap(*wait_args, **wait_kwargs):
+                nonlocal replaced
+                if not replaced:
+                    # Model a new startup as soon as the old listener closes,
+                    # while its child is still waiting to finish shutdown.
+                    with client._private_file(lock_path) as lock:
+                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        client._remove_stale_socket(self.config)
+                        replacement.bind(str(self.config.socket_path))
+                        replacement.listen(1)
+                        replaced = True
+                return wait(*wait_args, **wait_kwargs)
+
+            process.wait = reap
+            return process
+
+        def lstat(path, *args, **kwargs):
+            metadata = real_lstat(path, *args, **kwargs)
+            if replaced and path == self.config.socket_path:
+                # A replacement Unix pathname inode may equal the removed
+                # inode.  Make that collision deterministic for this lifecycle.
+                return SimpleNamespace(st_dev=socket_identity[0], st_ino=socket_identity[1])
+            return metadata
+
+        wrapped_listener = Mock(wraps=listener)
+        wrapped_listener.bind.side_effect = bind
+        wrapped_listener.close.side_effect = close
+        wrapped_listener.accept.side_effect = accept
+        with patch.object(client.socket, "socket", return_value=wrapped_listener), \
+                patch.object(client.subprocess, "Popen", side_effect=popen), \
+                patch.object(Path, "lstat", lstat):
+            bridge.run()
+        self.assertTrue(replaced)
+        self.assertTrue(self.config.socket_path.exists(), "old cleanup removed the replacement")
+        self.assertEqual(close_lock_held, [True], "listener close must share startup ownership")
+        # The replacement remains reachable after all old-child cleanup ended.
+        with client._connect(self.config) as connection:
+            self.assertIsNotNone(connection)
+        self.config.socket_path.unlink()
+
+    def test_initialize_failure_exits_without_waiting_for_startup_lock(self) -> None:
+        (self.root / "fail-initialize").touch()
+        started = time.monotonic()
+        with self.assertRaisesRegex(client.BridgeError, "MCP bridge exited"):
+            client._ensure_connection(self.config)
+        self.assertLess(time.monotonic() - started, 3)
+        self.assertFalse(self.config.socket_path.exists())
+        (self.root / "fail-initialize").unlink()
+        self.assertEqual(self.call("echo")["structuredContent"]["name"], "echo")
+
+    def test_startup_timeout_releases_lock_before_waiting_for_daemon(self) -> None:
+        def reap(**_kwargs):
+            with client._private_file(self.config.directory / f"{self.config.key}.lock") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return 0
+
+        daemon = Mock()
+        daemon.poll.return_value = None
+        daemon.wait.side_effect = reap
+        with patch.object(client, "STARTUP_TIMEOUT", 0.05), \
+                patch.object(client.subprocess, "Popen", return_value=daemon):
+            with self.assertRaisesRegex(client.BridgeError, "timed out starting"):
+                client._ensure_connection(self.config)
+        daemon.terminate.assert_called_once()
+        daemon.wait.assert_called_once_with(timeout=2)
 
 
 class BridgeFormattingTests(unittest.TestCase):

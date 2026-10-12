@@ -228,13 +228,15 @@ def _ensure_connection(config: Configuration) -> socket.socket:
             if daemon.poll() is not None:
                 raise BridgeError(f"MCP bridge exited {daemon.returncode}; inspect {config.directory / (config.key + '.bridge.log')}")
             time.sleep(0.025)
-        daemon.terminate()
-        try:
-            daemon.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            daemon.kill()
-            daemon.wait()
-        raise BridgeError("timed out starting local MCP bridge")
+    # A bound daemon may need this same lock to remove its listener.  Release
+    # startup ownership before waiting for its shutdown, including on timeout.
+    daemon.terminate()
+    try:
+        daemon.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        daemon.wait()
+    raise BridgeError("timed out starting local MCP bridge")
 
 
 def request(method: str, params: dict[str, Any] | None = None, timeout: float = 600.0, *, config: Configuration | None = None, start: bool = True) -> dict[str, Any]:
@@ -474,7 +476,23 @@ class StdioBridge:
                     threading.Thread(target=self.serve_client, args=(connection,), daemon=True).start()
             finally:
                 self.stopping.set()
-                listener.close()
+                if bound_identity is None:
+                    # An initialize/startup failure has no socket to remove.
+                    # Its launcher still holds the startup lock until we exit.
+                    listener.close()
+                else:
+                    with _private_file(self.config.directory / f"{self.config.key}.lock") as lock:
+                        fcntl.flock(lock, fcntl.LOCK_EX)
+                        listener.close()
+                        try:
+                            metadata = self.config.socket_path.lstat()
+                            if (metadata.st_dev, metadata.st_ino) == bound_identity:
+                                self.config.socket_path.unlink()
+                        except FileNotFoundError:
+                            pass
+                    # Once startup can replace the socket, never inspect or
+                    # unlink this path again.  The old child's slow reap can
+                    # outlive a new listener with the same recycled inode.
                 self.fail_pending("MCP bridge stopped")
                 if writer is not None:
                     writer.join(timeout=1)
@@ -492,13 +510,6 @@ class StdioBridge:
                             self.child.wait()
                     if self.child.stdout is not None:
                         self.child.stdout.close()
-                if bound_identity is not None:
-                    try:
-                        metadata = self.config.socket_path.lstat()
-                        if (metadata.st_dev, metadata.st_ino) == bound_identity:
-                            self.config.socket_path.unlink()
-                    except FileNotFoundError:
-                        pass
                 for signum, handler in previous_handlers.items():
                     signal.signal(signum, handler)
 
