@@ -43,7 +43,10 @@ use crate::eval_core::{
     data_predecessors, derive_policy_contexts, render_with, trace_fingerprint, GraphEvalFrame,
     GraphEvaluationHost,
 };
-pub use crate::eval_core::{render_fidelity, ExecutionTrace, RenderFidelity, TraceEvent};
+pub use crate::eval_core::{
+    render_fidelity, BatchMemberFailure, BatchMemberFailures, ExecutionTrace, RenderFidelity,
+    TraceEvent,
+};
 pub use crate::execution_contract::Policy;
 use crate::execution_contract::{
     is_o_identifier, validate_execution_metadata, BlockEvalPolicy, BlockOptions,
@@ -1586,11 +1589,10 @@ impl Evaluator {
                         OValue::Request { fingerprint, .. } => fingerprint_preview(fingerprint),
                         _ => "?",
                     };
-                    bail!(
-                        "autonomous: scheduler failed to materialize \
-                             request fp={}; cache miss after flush",
-                        fp
-                    )
+                    Err(crate::eval_core::StrictCacheMiss {
+                        fingerprint: fp.to_string(),
+                    }
+                    .into())
                 }
             },
             _ => Ok(value),
@@ -1659,11 +1661,10 @@ impl Evaluator {
             OValue::Request { fingerprint, .. } => match mode {
                 CacheMode::Fresh => self.force_request(m),
                 CacheMode::Strict => self.resolve_from_cache(m).ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "autonomous: scheduler failed to materialize \
-                             request fp={}; cache miss after flush",
-                        fingerprint_preview(fingerprint)
-                    )
+                    crate::eval_core::StrictCacheMiss {
+                        fingerprint: fingerprint_preview(fingerprint).to_string(),
+                    }
+                    .into()
                 }),
             },
             OValue::Group {
@@ -2735,7 +2736,30 @@ impl Evaluator {
     /// executor, `Some(false)` forces the graph coordinator, and `None` follows
     /// the `O_EXECUTOR` environment variable (graph by default, with `serial`
     /// retaining the reference semantics used by the differential suite).
+    /// Every `eval_document*` and `eval_ir_program*` entry point lands here,
+    /// so a partially failed `batch(...)` reaches every embedder as an
+    /// error, with the produced value kept inside [`BatchMemberFailures`].
     fn eval_ir_program_with_mode(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        forced: Option<bool>,
+        required_execution_intent: Option<(&str, &str, &str)>,
+    ) -> Result<OValue> {
+        let value =
+            self.eval_ir_program_with_mode_unchecked(program, scope, forced, required_execution_intent)?;
+        let failures = self
+            .last_execution_trace
+            .as_ref()
+            .map(|trace| trace.failed_batch_members.clone())
+            .unwrap_or_default();
+        if failures.is_empty() {
+            return Ok(value);
+        }
+        Err(crate::eval_core::BatchMemberFailures { value, failures }.into())
+    }
+
+    fn eval_ir_program_with_mode_unchecked(
         &mut self,
         program: &OIrProgram,
         scope: &mut HashMap<String, OValue>,
@@ -2940,6 +2964,7 @@ impl Evaluator {
             base_scope: scope.clone(),
             node_policy,
             trace: ExecutionTrace::new(),
+            failed_batch_members: HashSet::new(),
         };
 
         let execution_order = frame.plan_index.topological_order().to_vec();
@@ -2987,24 +3012,19 @@ impl Evaluator {
                     });
                     frame.set_value(id, value)?;
                 }
-                Err(err)
-                    if crate::eval_core::batch_member_absorbs_failure(
-                        plan,
-                        &frame.plan_index,
-                        id,
-                    ) =>
-                {
-                    let message = format!("{err:#}");
-                    frame.trace.failed_batch_members.push((id, message.clone()));
-                    let value = OValue::error(message);
-                    frame.trace.events.push(TraceEvent::NodeFinished {
-                        id,
-                        value_type: value.type_name().to_string(),
-                        fingerprint: trace_fingerprint(&value),
-                    });
-                    frame.set_value(id, value)?;
-                }
                 Err(err) => {
+                    if let Some((failure, value)) =
+                        crate::eval_core::settle_batch_member_failure(plan, &mut frame, id, &err)
+                    {
+                        frame.trace.failed_batch_members.push(failure);
+                        frame.trace.events.push(TraceEvent::NodeFinished {
+                            id,
+                            value_type: value.type_name().to_string(),
+                            fingerprint: trace_fingerprint(&value),
+                        });
+                        frame.set_value(id, value)?;
+                        continue;
+                    }
                     frame.trace.events.push(TraceEvent::NodeFailed {
                         id,
                         message: err.to_string(),
@@ -3157,21 +3177,27 @@ impl Evaluator {
             if arg_vals.is_empty() {
                 bail!("{}(...) takes at least 1 argument, got 0", fn_name);
             }
+            // the all-failed check reads the failure flags, not the value
+            // shape: a member that returns an error value did not fail.
             if mode == crate::value::GroupMode::Batch
-                && arg_vals
+                && planned_args
                     .iter()
-                    .all(|value| matches!(value, OValue::Error { .. }))
+                    .all(|(id, _)| frame.failed_batch_members.contains(id))
             {
-                let messages = arg_vals
+                let members = planned_args
                     .iter()
+                    .zip(&arg_vals)
                     .enumerate()
-                    .map(|(member, value)| match value {
-                        OValue::Error { msg } => format!("member {member}: {msg}"),
-                        _ => unreachable!("every batch member is an error"),
+                    .map(|(member, (_, value))| match value {
+                        OValue::Error { msg } => (member, msg.clone()),
+                        other => (member, other.type_name().to_string()),
                     })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                bail!("every {}(...) member failed\n{messages}", fn_name);
+                    .collect();
+                return Err(crate::eval_core::BatchAllMembersFailed {
+                    fn_name: fn_name.to_string(),
+                    members,
+                }
+                .into());
             }
             Ok(OValue::group(mode, arg_vals))
         } else {
@@ -6226,11 +6252,20 @@ mod tests {
             let nodes = Parser::new(source, &backends).parse().unwrap();
             evaluator.eval_document(nodes)
         };
-        let partial = run("autonomous(batch(\n\
+        // a partial failure is an error at the api boundary, so embedders
+        // that only look at the result cannot mistake it for success.
+        let partial_error = run("autonomous(batch(\n\
              python^(__oval_result__ = 42)_python,\n\
              python^(raise KeyError('missing'))_python\n\
              ))")
-        .unwrap();
+        .unwrap_err();
+        let partial_failure = partial_error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("expected a batch failure, got {partial_error:#}"));
+        assert_eq!(partial_failure.failures.len(), 1, "{partial_error:#}");
+        assert_eq!(partial_failure.failures[0].member, 1);
+        assert!(partial_failure.failures[0].message.contains("missing"));
+        let partial = partial_failure.value.clone();
         let members = match &partial {
             OValue::List { v } => v,
             OValue::Group { members, .. } => members,
@@ -6252,6 +6287,105 @@ mod tests {
         assert!(
             message.contains("every batch(...) member failed"),
             "{message}"
+        );
+    }
+
+    #[test]
+    fn batch_of_a_returned_error_value_did_not_fail() {
+        // a member that returns an error value succeeded; only failure flags
+        // make the whole batch fail.
+        let backends: HashSet<String> = HashSet::new();
+        let mut evaluator = Evaluator::new(PathBuf::from("/tmp"));
+        let nodes = Parser::new("batch($e)", &backends).parse().unwrap();
+        let mut scope = HashMap::from([("e".to_string(), OValue::error("returned"))]);
+        let value = evaluator
+            .eval_document_with_scope(nodes, &mut scope)
+            .unwrap();
+        let members = match &value {
+            OValue::List { v } => v.clone(),
+            OValue::Group { members, .. } => members.clone(),
+            other => panic!("expected the batch members, got {other:?}"),
+        };
+        assert_eq!(members, vec![OValue::error("returned")]);
+    }
+
+    #[test]
+    fn nested_batch_failures_are_reported_once_with_member_index() {
+        if which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(
+            "autonomous(batch(\n\
+             python^(__oval_result__ = 1)_python,\n\
+             batch(\n\
+             python^(raise KeyError('alpha'))_python,\n\
+             python^(raise KeyError('beta'))_python\n\
+             )\n\
+             ))",
+            &backends,
+        )
+        .parse()
+        .unwrap();
+        let error = evaluator.eval_document(nodes).unwrap_err();
+        let failure = error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("expected a batch failure, got {error:#}"));
+        let rendered = format!("{error}");
+        for name in ["alpha", "beta"] {
+            assert_eq!(rendered.matches(name).count(), 1, "{rendered}");
+        }
+        let members = failure
+            .failures
+            .iter()
+            .map(|failure| failure.member)
+            .collect::<Vec<_>>();
+        assert_eq!(members, vec![0, 1, 1], "{rendered}");
+        assert!(rendered.contains("batch member 1 failed: every batch(...) member failed"));
+    }
+
+    #[test]
+    fn strict_cache_miss_inside_batch_is_fatal() {
+        // inject a buffered request with no cached result, as if the
+        // autonomous flush had lost it, and resolve it the strict way.
+        let mut evaluator = Evaluator::new(PathBuf::from("/tmp"));
+        let missing = OValue::request(RequestKind::Instantiate, OValue::str_("never-cached"));
+        let error = evaluator
+            .resolve_group(GroupMode::Batch, &[missing], CacheMode::Strict)
+            .unwrap_err();
+        assert!(
+            error
+                .chain()
+                .any(|cause| cause.is::<crate::eval_core::StrictCacheMiss>()),
+            "{error:#}"
+        );
+        // as a failure of a direct batch member it must stay fatal, while an
+        // ordinary member error settles as the member's value.
+        let backends: HashSet<String> = HashSet::new();
+        let nodes = Parser::new("batch($a, $b)", &backends).parse().unwrap();
+        let program = OIrProgram::lower(&nodes);
+        let plan = program.plan();
+        let plan_index = ExecutionPlanIndex::new(&plan).unwrap();
+        let member = crate::eval_core::structural_children_for_test(&plan_index, plan.roots[0])[0];
+        let mut frame = GraphEvalFrame {
+            plan_index,
+            values: vec![None; plan.nodes.len()],
+            base_scope: HashMap::new(),
+            node_policy: vec![Policy::Eager; plan.nodes.len()],
+            trace: ExecutionTrace::new(),
+            failed_batch_members: HashSet::new(),
+        };
+        assert!(
+            crate::eval_core::settle_batch_member_failure(&plan, &mut frame, member, &error)
+                .is_none(),
+            "a strict cache miss was absorbed as a member error"
+        );
+        let ordinary = anyhow::anyhow!("member broke");
+        assert!(
+            crate::eval_core::settle_batch_member_failure(&plan, &mut frame, member, &ordinary)
+                .is_some()
         );
     }
 
