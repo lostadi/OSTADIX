@@ -5,7 +5,7 @@
 //! evaluator state and authority remain behind `GraphEvaluationHost`, so the
 //! executor depends on this narrow seam rather than on `eval`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -30,7 +30,78 @@ pub struct ExecutionTrace {
     pub publications: Vec<serde_json::Value>,
     /// `batch(...)` members that failed and settled as their own error value.
     /// The document still produces a value, but its run is reported failed.
-    pub failed_batch_members: Vec<(PlanNodeId, String)>,
+    pub failed_batch_members: Vec<BatchMemberFailure>,
+}
+
+/// One `batch(...)` member that failed and settled as its own error value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchMemberFailure {
+    /// Plan node of the failed member.
+    pub node: PlanNodeId,
+    /// Zero-based position of the member in its `batch(...)` call.
+    pub member: usize,
+    /// The member's error, rendered once; a nested batch whose members all
+    /// failed reports only its summary here, since its members are listed
+    /// on their own.
+    pub message: String,
+}
+
+/// A document finished and produced `value`, but `failures` members of a
+/// `batch(...)` failed. Every `eval_document*` and `eval_ir_program*` entry
+/// point returns this as its error, so embedders cannot mistake a partial
+/// batch failure for success.
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("{}", render_batch_failures(.failures))]
+pub struct BatchMemberFailures {
+    pub value: OValue,
+    pub failures: Vec<BatchMemberFailure>,
+}
+
+fn render_batch_failures(failures: &[BatchMemberFailure]) -> String {
+    failures
+        .iter()
+        .map(|failure| {
+            format!(
+                "batch member {} failed: {}",
+                failure.member, failure.message
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Every direct member of a `batch(...)` failed, so the batch itself fails.
+/// Its own text lists each member once; as a member of an outer batch it is
+/// reported by [`BatchAllMembersFailed::summary`] only, because its members
+/// were already recorded on their own.
+#[derive(Debug, thiserror::Error)]
+#[error("every {fn_name}(...) member failed{}", render_member_lines(.members))]
+pub(crate) struct BatchAllMembersFailed {
+    pub(crate) fn_name: String,
+    pub(crate) members: Vec<(usize, String)>,
+}
+
+impl BatchAllMembersFailed {
+    pub(crate) fn summary(&self) -> String {
+        format!("every {}(...) member failed", self.fn_name)
+    }
+}
+
+fn render_member_lines(members: &[(usize, String)]) -> String {
+    members
+        .iter()
+        .map(|(member, message)| format!("\nmember {member}: {message}"))
+        .collect()
+}
+
+/// A buffered request had no cached result after an `autonomous(...)`
+/// flush. This is a scheduler invariant failure, never a member failure.
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "autonomous: scheduler failed to materialize request fp={fingerprint}; cache miss after flush"
+)]
+pub(crate) struct StrictCacheMiss {
+    pub(crate) fingerprint: String,
 }
 
 impl ExecutionTrace {
@@ -79,6 +150,10 @@ pub(crate) struct GraphEvalFrame {
     pub(crate) base_scope: HashMap<String, OValue>,
     pub(crate) node_policy: Vec<Policy>,
     pub(crate) trace: ExecutionTrace,
+    /// Batch members whose failure settled as their own error value. The
+    /// all-failed check reads these flags, never the value shape, because a
+    /// member may legitimately return an error value.
+    pub(crate) failed_batch_members: HashSet<PlanNodeId>,
 }
 
 impl GraphEvalFrame {
@@ -299,16 +374,51 @@ pub(crate) fn data_predecessors(
     sources
 }
 
-/// Whether a failure of `node_id` is settled as that member's own
-/// `OValue::Error` instead of failing the document: true for a direct member
-/// of a `batch(...)` group. The other members still return their values, and
-/// the batch itself fails only when every member failed.
-pub(crate) fn batch_member_absorbs_failure(
+/// Whether `error` is a member execution error that a `batch(...)` may
+/// settle as an error value.
+pub(crate) fn batch_member_error_is_absorbable(error: &anyhow::Error) -> bool {
+    !(crate::process::is_infrastructure_error(error)
+        || crate::cancellation::is_request_cancellation(error)
+        || crate::project::runtime::is_cancellation_error(error)
+        || error.chain().any(|cause| cause.is::<StrictCacheMiss>()))
+}
+
+/// Settle a failed node as a `batch(...)` member error, if it is one: the
+/// record for the trace, and the error value the member slot holds. `None`
+/// means the failure stays fatal.
+pub(crate) fn settle_batch_member_failure(
+    plan: &ExecutionPlan,
+    frame: &mut GraphEvalFrame,
+    node_id: PlanNodeId,
+    error: &anyhow::Error,
+) -> Option<(BatchMemberFailure, OValue)> {
+    if !batch_member_error_is_absorbable(error) {
+        return None;
+    }
+    let member = batch_member_index(plan, &frame.plan_index, node_id)?;
+    frame.failed_batch_members.insert(node_id);
+    // a nested batch whose members all failed already listed them, so only
+    // its summary is reported here; the slot value keeps the full text.
+    let message = match error.downcast_ref::<BatchAllMembersFailed>() {
+        Some(nested) => nested.summary(),
+        None => format!("{error:#}"),
+    };
+    let failure = BatchMemberFailure {
+        node: node_id,
+        member,
+        message,
+    };
+    Some((failure, OValue::error(format!("{error:#}"))))
+}
+
+/// Position of `node_id` among the members of the `batch(...)` group it
+/// directly belongs to, if any.
+pub(crate) fn batch_member_index(
     plan: &ExecutionPlan,
     index: &ExecutionPlanIndex,
     node_id: PlanNodeId,
-) -> bool {
-    index.outgoing(node_id).iter().any(|edge| {
+) -> Option<usize> {
+    let group = index.outgoing(node_id).iter().find(|edge| {
         edge.kind == PlanEdgeKind::Structural
             && matches!(
                 plan.nodes[edge.to.0].kind,
@@ -317,7 +427,18 @@ pub(crate) fn batch_member_absorbs_failure(
                     ..
                 }
             )
-    })
+    })?;
+    structural_children(index, group.to)
+        .iter()
+        .position(|member| *member == node_id)
+}
+
+#[cfg(test)]
+pub(crate) fn structural_children_for_test(
+    index: &ExecutionPlanIndex,
+    parent: PlanNodeId,
+) -> Vec<PlanNodeId> {
+    structural_children(index, parent)
 }
 
 fn structural_children(index: &ExecutionPlanIndex, parent: PlanNodeId) -> Vec<PlanNodeId> {

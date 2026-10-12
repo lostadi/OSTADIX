@@ -879,6 +879,7 @@ mod tests {
             base_scope: HashMap::from([("bound".to_string(), OValue::str_("value"))]),
             node_policy: vec![Policy::Eager; plan.nodes.len()],
             trace: ExecutionTrace::new(),
+            failed_batch_members: std::collections::HashSet::new(),
         };
 
         let error = prepare(
