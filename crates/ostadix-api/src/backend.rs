@@ -187,6 +187,53 @@ fn shell_single_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+// ############################################################################
+// bash let injection
+// ############################################################################
+
+/// Shell text that assigns the received `let` values before a block, and
+/// shell text that undoes it after the block. Each name is assigned with
+/// `declare +x`, so it is never exported even when the session or the O
+/// process already exported that name, and it is unset afterwards. Every
+/// assignment is checked: one that fails, for example on a name an earlier
+/// `bash[N]` block made readonly, clears `__o_inject_ok` and the block does
+/// not run.
+fn bash_injection(env: &[(String, String)]) -> (String, String) {
+    let mut inject = String::new();
+    for (name, value) in env {
+        inject.push_str(&format!(
+            "declare +x {name}={} || __o_inject_ok=0; ",
+            shell_single_quote(value)
+        ));
+    }
+    let restore = if env.is_empty() {
+        String::new()
+    } else {
+        let names = env
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>();
+        // a readonly name refuses the unset; `|| :` keeps a persisted
+        // `set -e` from ending the session on that.
+        format!("unset -v {} 2>/dev/null || :; ", names.join(" "))
+    };
+    (inject, restore)
+}
+
+/// Shell text for each `let` value a bash block receives, sorted by name.
+/// The evaluator already rendered structured values and rejected NUL bytes
+/// (`bash_let_value`); this repeats the checks for direct callers.
+fn bash_values(bindings: HashMap<String, OValue>) -> Result<Vec<(String, String)>> {
+    let mut values = Vec::with_capacity(bindings.len());
+    for (name, value) in bindings {
+        let value = crate::eval_core::bash_let_value(&name, &value)?;
+        let text = scalar_string(&value).unwrap_or_else(|| value.splice_repr());
+        values.push((name, text));
+    }
+    values.sort();
+    Ok(values)
+}
+
 impl BashSession {
     fn start(tools: &BackendToolchain) -> Result<Self> {
         let dir = TempDir::new("o-bash-session")?;
@@ -211,32 +258,28 @@ impl BashSession {
 
     /// Run one block and return its captured output and exit status, plus
     /// whether the session shell is still alive afterwards.
-    fn run(&mut self, code: &str, env: &HashMap<String, String>) -> Result<(Output, bool)> {
+    fn run(&mut self, code: &str, env: &[(String, String)]) -> Result<(Output, bool)> {
         use std::os::unix::process::ExitStatusExt;
         self.serial += 1;
         let base = self.dir.path().join(format!("block-{}", self.serial));
         let code_path = base.with_extension("sh");
         let out_path = base.with_extension("out");
         let err_path = base.with_extension("err");
-        let mut script = String::new();
-        for (name, value) in env {
-            script.push_str(&format!("{name}={}\n", shell_single_quote(value)));
-        }
+        // the block file holds only the user's code, so bash's line numbers
+        // in error messages match the block; injection happens on the
+        // request line instead.
+        let mut script = String::with_capacity(code.len() + 1);
         script.push_str(code);
         script.push('\n');
         fs::write(&code_path, script)?;
-        // Received `let` values are plain, non-exported shell variables
-        // visible to this block only, so child processes never see them;
-        // they are unset afterwards so they never persist as session state.
-        let mut names = env.keys().cloned().collect::<Vec<_>>();
-        names.sort();
-        let unset = if names.is_empty() {
-            String::new()
-        } else {
-            format!("unset -v {} 2>/dev/null; ", names.join(" "))
-        };
+        let (inject, restore) = bash_injection(env);
         let request = format!(
-            "source {} </dev/null >{} 2>{}; __o_status=$?; {unset}printf '\\n{BASH_SESSION_SENTINEL}%d\\n' \"$__o_status\"; unset -v __o_status\n",
+            // the injection runs inside the block's capture, so a failed
+            // assignment's message reaches the user, and `||` keeps a
+            // persisted `set -e` from killing the session on it.
+            // the refusal sets the status instead of failing a command, so a
+            // persisted `set -e` cannot end the session on it.
+            "__o_status=125; {{ __o_inject_ok=1; {inject}if (( __o_inject_ok )); then source {}; __o_status=$?; else printf 'o: a let value could not be assigned, so the block did not run\\n' >&2; fi; }} </dev/null >{} 2>{}; unset -v __o_inject_ok; {restore}printf '\\n{BASH_SESSION_SENTINEL}%d\\n' \"$__o_status\"; unset -v __o_status\n",
             shell_single_quote(&code_path.to_string_lossy()),
             shell_single_quote(&out_path.to_string_lossy()),
             shell_single_quote(&err_path.to_string_lossy()),
@@ -264,10 +307,17 @@ impl BashSession {
                 self.child.wait()?
             }
         };
+        // bash names the sourced file in its messages; the session's temp
+        // path is an implementation detail, so it reads as `bash` instead.
+        let stderr = fs::read(&err_path).unwrap_or_default();
+        let stderr = String::from_utf8_lossy(&stderr)
+            .replace(&*code_path.to_string_lossy(), "bash")
+            .replace(&*self.dir.path().to_string_lossy(), "<bash session>")
+            .into_bytes();
         let output = Output {
             status,
             stdout: fs::read(&out_path).unwrap_or_default(),
-            stderr: fs::read(&err_path).unwrap_or_default(),
+            stderr,
         };
         for path in [&code_path, &out_path, &err_path] {
             let _ = fs::remove_file(path);
@@ -316,7 +366,7 @@ impl RustBackend {
     ) -> Result<OValue> {
         match lang {
             "bash" => {
-                let env = scalar_env(bindings);
+                let env = bash_values(bindings)?;
                 if self.bash.is_none() {
                     self.bash = Some(BashSession::start(&self.tools)?);
                 }
