@@ -261,6 +261,9 @@ Package SemVer is only one of the independent coordinates documented in
   under a persisted `set -e`, now says that the session ended and its state
   was dropped.
 
+- The Python bash shim passes float `let` values (formatted as the native
+  backend does) and keeps rendering booleans as `True`/`False`.
+
 - Bash blocks again see `let` values that bash reads as bare names in
   arithmetic context: `$(( ))`, `(( ))`, `for (( ))`, `$[ ]`, `let`
   arguments, `declare -i x=EXPR`, `${s:off:len}`, `[[ -eq ]]`-style
