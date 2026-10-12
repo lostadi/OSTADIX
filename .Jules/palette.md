@@ -1,0 +1,3 @@
+## 2024-10-12 - Vanilla JS Templates By-pass Automations
+**Learning:** Standard linting tools (like a11y linters in standard frontend tooling) bypass the embedded Vanilla JS HTML template strings in `src/bin/o-notebook.rs`, hiding obvious accessibility issues like icon-only buttons missing `aria-label`s.
+**Action:** When updating or maintaining the web components within Rust files, a manual UX and accessibility audit of the template strings is required because automated tooling provides a false sense of security here.
