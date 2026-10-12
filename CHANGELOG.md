@@ -9,6 +9,12 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Added
 
+- All 52 standalone programs in `examples/` now use explicit `O^(...)_O`
+  boundaries, with their original foreign-language bodies preserved. The Python and C17
+  editions support the bindings inside those sequencing blocks. VS Code
+  workspace associations and quickstart installation instructions expose the
+  existing Ostadix syntax grammar.
+
 - Integrated the unique branch changes from `ostadix-BM` and `OSTADIX`,
   retaining BM's native compiler work. The complete source-branch inventory,
   duplicate and superseded changes, and validation evidence are recorded in

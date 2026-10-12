@@ -1,3 +1,4 @@
+O^(
 let branches = autonomous(batch(
 python^(
 import time
@@ -50,3 +51,4 @@ __oval_result__ = {
     "branches": branches,
 }
 )_python
+)_O

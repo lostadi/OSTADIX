@@ -1,3 +1,4 @@
+O^(
 python^(
 import os
 import subprocess
@@ -75,3 +76,4 @@ if result.stdout.strip() != expected:
     raise RuntimeError("Guix returned an unexpected package-language result")
 __oval_result__ = result.stdout.strip()
 )_python
+)_O

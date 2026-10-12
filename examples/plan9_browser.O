@@ -4,6 +4,7 @@
 # inside the `ubuntu_vm` execution backend, and exposes it over noVNC.
 # The host browser connects to the VM's bridged websocket.
 
+O^(
 let setup_result = ubuntu_vm^(
   echo ">>> Updating packages and installing QEMU, noVNC, and websockify..."
   sudo apt-get update -qq
@@ -68,3 +69,4 @@ html^(
   </body>
 </html>
 )_html
+)_O

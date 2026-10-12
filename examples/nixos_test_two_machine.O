@@ -6,6 +6,7 @@
 # The client VM fetches a page from the server VM over the virtual network.
 # Results are rendered as HTML.
 
+O^(
 let lab = nixos_test^({
   name = "o-nixos-two-machine";
   nodes.server = { pkgs, ... }: {
@@ -45,3 +46,4 @@ html^(
   </body>
 </html>
 )_html
+)_O

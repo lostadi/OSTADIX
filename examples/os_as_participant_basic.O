@@ -27,6 +27,7 @@
 #let guarded = activate($authority, $path) # real activation with host guard
 #let here = current_system()
 
+O^(
 markdown^(
 # Step-4 OS-as-participant
 
@@ -36,3 +37,4 @@ markdown^(
 - activated profile (System): `(activate performs the real switch; dry_activate previews it)`
 - current system reference:  (current_system() builtin)
 )_markdown
+)_O

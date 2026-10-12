@@ -350,6 +350,109 @@ def test_o_root_preserves_nonwhitespace_text():
     assert isinstance(v.items[1], OInt) and v.items[1].value == 5
 
 
+def test_o_root_bindings_reach_child_backends_without_emitting_bound_values():
+    source = "let answer = python^(41)_python\npython^($answer + 1)_python"
+    assert run(source) == OInt(42)
+    assert run(f"O^({source})_O") == OInt(42)
+    assert run(f"o^({source})_o") == OInt(42)
+    assert isinstance(run("O^(let answer = python^(42)_python)_O"), ONull)
+
+
+def test_o_root_inherits_document_bindings():
+    assert run(
+        "let answer = python^(41)_python\nO^(python^($answer + 1)_python)_O"
+    ) == OInt(42)
+
+
+def test_nested_o_scope_shadows_and_restores_its_parent():
+    value = run(
+        "O^("
+        "let answer = python^(41)_python "
+        "o[*]^(let answer = python^($answer + 1)_python $answer)_o[*] "
+        "python^(O.scope().as_dict()['answer'])_python "
+        "$answer"
+        ")_O"
+    )
+    assert value == OList((OInt(42), OInt(41), OInt(41)))
+
+
+def test_o_splices_keep_rich_values_and_collection_boundaries():
+    value = run("O^(let values = python^([1, 2])_python $values $values)_O")
+    values = OList((OInt(1), OInt(2)))
+    assert value == OList((values, values))
+
+
+def test_o_bindings_follow_source_side_effect_order():
+    value = run(
+        "O^("
+        "python[27]^(events = []; events.append('first'))_python[27] "
+        "let count = python[27]^(events.append('bound'); len(events))_python[27] "
+        "python[27]^(events.append('last'); [$count, events])_python[27]"
+        ")_O"
+    )
+    assert value == OList((
+        OInt(2), OList((OStr("first"), OStr("bound"), OStr("last"))),
+    ))
+
+
+def test_foreign_let_text_and_unbound_foreign_text_are_preserved():
+    assert run("O^(text^(let answer = python^(42)_python)_text)_O") == OStr(
+        "let answer = 42"
+    )
+    assert run("O^(text^(literal $not_an_O_binding)_text)_O") == OStr(
+        "literal $not_an_O_binding"
+    )
+
+
+def test_undefined_o_refs_fail_and_nested_bindings_do_not_escape():
+    for source, name in (
+        ("O^($missing)_O", "missing"),
+        ("O^($later let later = python^(1)_python)_O", "later"),
+        ("O^(O^(let hidden = python^(1)_python)_O $hidden)_O", "hidden"),
+    ):
+        try:
+            run(source)
+        except NameError as exc:
+            assert f"${name}" in str(exc)
+            continue
+        raise AssertionError(f"undefined O binding ${name} unexpectedly resolved")
+
+
+def test_o_lexical_scope_is_restored_after_success_and_failure():
+    ctx = EvalContext()
+    caller_scope = {"caller": OInt(99)}
+    ctx._scope = caller_scope
+    assert run("O[23]^(let local = python^(42)_python $local)_O[23]", ctx) == OInt(42)
+    assert ctx._scope is caller_scope
+    for source in (
+        "O[23]^($local)_O[23]",
+        "O^(let local = python^(42)_python O^($missing)_O)_O",
+    ):
+        try:
+            run(source, ctx)
+        except NameError:
+            pass
+        else:
+            raise AssertionError("lexical bindings leaked across evaluations")
+        assert ctx._scope is caller_scope
+        assert caller_scope == {"caller": OInt(99)}
+
+
+def test_quoted_o_bindings_evaluate_against_selected_scope_and_restore_it():
+    value = run(
+        "O^("
+        "let answer = python^(41)_python "
+        "let expression = quote^("
+        "O^(let answer = python^($answer + 1)_python $answer)_O"
+        ")_quote "
+        "python^(O.eval($expression))_python "
+        "python^(O.eval($expression, O.scope({'answer': 9})))_python "
+        "python^($answer)_python"
+        ")_O"
+    )
+    assert value == OList((OInt(42), OInt(10), OInt(41)))
+
+
 # ---------------------------------------------------------------------------
 # quote^ and O.eval
 # ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@
 #   ballistic bounce, Verlet ragdoll, blood traction), and ringside commentary.
 # ==============================================================================
 
+O^(
 let arena_host = shell^(
 hostname -s 2>/dev/null || echo "ostadix-ring"
 )_shell
@@ -1587,3 +1588,4 @@ def run_championship_match():
 # Run directly inside Ostadix Python backend
 run_championship_match()
 )_python
+)_O

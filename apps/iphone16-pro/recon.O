@@ -4,6 +4,7 @@
 # Read-only. Host facts (bash) + structural evidence (python) + report.
 # ===========================================================================
 
+O^(
 let hostfacts = bash^(
 echo "macos_product_version=$(sw_vers -productVersion 2>/dev/null || echo unknown)"
 echo "macos_build=$(sw_vers -buildVersion 2>/dev/null || echo unknown)"
@@ -119,3 +120,4 @@ lines.append("")
 lines.append("Next: P1 trust & service map (lockdownd StartService probe, RSD reachability).")
 __oval_result__ = "\n".join(lines)
 )_python
+)_O

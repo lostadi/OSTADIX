@@ -366,21 +366,26 @@ struct OEvaluator {
     OAutonomousScheduler *scheduler;
     OValue **autonomous_buffer;
     size_t ab_len, ab_cap;
-    /* simple top-level scope list for lets */
+    /* Innermost bindings precede their enclosing lexical scope. */
     ScopeEntry *scope_head;
     bool had_error;
     size_t evaluation_depth;
 };
 
-static void eval_release_scope(OEvaluator *ev) {
-    ScopeEntry *e = ev->scope_head; ev->scope_head = NULL;
-    while (e) {
+static void scope_restore(OEvaluator *ev, ScopeEntry *enclosing) {
+    ScopeEntry *e = ev->scope_head;
+    ev->scope_head = enclosing;
+    while (e != enclosing) {
         ScopeEntry *n = e->next;
         free(e->name);
         oval_release(e->val);
         free(e);
         e = n;
     }
+}
+
+static void eval_release_scope(OEvaluator *ev) {
+    scope_restore(ev, NULL);
 }
 
 OEvaluator *olang_evaluator_new(const char *shim_dir) {
@@ -456,7 +461,7 @@ char *olang_find_shim(OEvaluator *ev, const char *lang) {
     return res;
 }
 
-/* scope helpers for top level lets + $var (very small N) */
+/* scope helpers for lexical lets + $var (very small N) */
 static OValue *scope_lookup(OEvaluator *ev, const char *name) {
     for (ScopeEntry *e = ev->scope_head; e; e = e->next) {
         if (strcmp(e->name, name) == 0) return oval_retain(e->val);
@@ -597,31 +602,22 @@ static OValue *eval_typed_expr(OEvaluator *ev, const char *lang, uint32_t env_id
     }
 
     if (strcmp(lang, "O") == 0) {
+        ScopeEntry *enclosing = ev->scope_head;
         OValue *last = oval_null();
         for (size_t i = 0; i < body_len; ++i) {
             ONode *ch = body[i];
-            if (ch->tag == ONODE_RAW_TEXT && whitespace_only(ch->data.text)) continue;
-            OValue *v = NULL;
-            switch (ch->tag) {
-                case ONODE_RAW_TEXT: v = oval_str(ch->data.text ? ch->data.text : ""); break;
-                case ONODE_VAR_REF: v = scope_lookup(ev, ch->data.var_name ? ch->data.var_name : ""); break;
-                case ONODE_TYPED_EXPR:
-                    v = eval_typed_expr(ev, ch->data.typed_expr.lang, ch->data.typed_expr.env_id,
-                                        ch->data.typed_expr.attr, ch->data.typed_expr.body,
-                                        ch->data.typed_expr.body_len, err);
-                    break;
-                case ONODE_CALL:
-                    v = eval_call(ev, ch->data.call.fn_name, ch->data.call.args, ch->data.call.args_len, err);
-                    break;
-                default: break;
-            }
-            if (v && !oval_is_null(v)) {
+            if (!ch || (ch->tag == ONODE_RAW_TEXT && whitespace_only(ch->data.text))) continue;
+            /* Bindings and expressions execute once, in their authored order. */
+            OValue *v = eval_node(ev, ch, err);
+            if (ch->tag != ONODE_LET_BINDING && v && !oval_is_null(v)) {
                 oval_release(last);
                 last = oval_retain(v);
             }
             oval_release(v);
             if (*err) break;
         }
+        /* Keep the retained result alive after local bindings are released. */
+        scope_restore(ev, enclosing);
         return last;
     }
 

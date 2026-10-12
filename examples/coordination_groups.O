@@ -30,6 +30,7 @@
 # ── Group over plain values (runs without Nix) ───────────────────────────────
 # nix_expr^ produces a NixExpr value WITHOUT invoking Nix, so this section is
 # self-contained: it shows the topology over already-constructed values.
+O^(
 let e1 = nix_expr^( pkgs.hello )_nix_expr
 let e2 = nix_expr^( pkgs.cowsay )_nix_expr
 let e3 = nix_expr^( pkgs.figlet )_nix_expr
@@ -98,3 +99,4 @@ forced with `now(...)` it resolves per its topology mode.
 - `any`: returns the first SUCCESS; tries members in order; fails only if all fail
 - `race`: returns the first SETTLEMENT (Ok or Err); does not cancel losing work
 )_markdown
+)_O

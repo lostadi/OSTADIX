@@ -1,3 +1,4 @@
+O^(
 let hello_file = nix_store^(
 builtins.toFile "hello-from-o-lang.txt" "Hello from O-lang + Nix\n"
 )_nix_store
@@ -16,3 +17,4 @@ with open(path, "r") as f:
   </body>
 </html>
 )_html
+)_O

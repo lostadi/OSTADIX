@@ -25,6 +25,7 @@
 #   now($py_defer)
 # to actually fire the shim.
 
+O^(
 let txt_lazy = text{lazy}^( 1 + 2 + 3 )_text{lazy}
 # txt_lazy : Request[Eval{lang=text, cacheable=true}]
 # Nothing has executed; txt_lazy is the unforced thunk. text is an inline
@@ -47,3 +48,4 @@ let py_defer = python{defer}^( import time; time.time() )_python{defer}
 # The document's last expression is the {defer} request itself, which the
 # runtime prints via Debug. Three Request values constructed, none forced.
 $py_defer
+)_O

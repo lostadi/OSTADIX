@@ -9,6 +9,7 @@
 # ogit: steps load -> normalize -> emit
 # ogit: intent normalize during construction rather than on demand
 
+O^(
 let load_data = python{defer,fs_read}^(
 with open("examples/group_pipeline/input.txt", "r", encoding="utf-8") as f:
     __oval_result__ = [float(x) for x in f.read().split()]
@@ -38,3 +39,4 @@ markdown^(
 - steps: load -> normalize -> emit
 - group value: `$normalize_pipeline`
 )_markdown
+)_O

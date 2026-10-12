@@ -40,6 +40,7 @@ EnvRegistry = Dict[Tuple[str, int], object]
 class EvalContext:
     backends: Dict[str, Backend] = field(default_factory=default_registry)
     envs: EnvRegistry = field(default_factory=dict)
+    _scope: Dict[str, OValue] = field(default_factory=dict, init=False, repr=False)
 
     def backend_for(self, canonical_language: str) -> Backend:
         if canonical_language not in self.backends:
@@ -71,30 +72,17 @@ def evaluate_document(doc: Document, ctx: EvalContext = None) -> OValue:
 
     top_body = doc.body
 
-    # Ignore whitespace-only TextParts at the top level so a trailing
-    # newline (ubiquitous in source files) doesn't prevent us from
-    # treating a single expression as the root.
-    meaningful = [
-        c for c in top_body
-        if not (isinstance(c, TextPart) and not c.text.strip())
-    ]
-
     # Evaluate let bindings first (they may appear before the main expr).
     # Collect non-let nodes for the synthesized root.
     non_let = []
     for node in top_body:
         if isinstance(node, LetBinding):
-            # Temporarily stash scope in ctx so backends (like eval_ast) can
-            # access it during recursive evaluation.
-            ctx._scope = scope
             val = _eval_expression(node.expr, ctx, scope)
             scope[node.name] = val
         else:
             non_let.append(node)
 
-    # Ensure scope is available on ctx throughout the rest of evaluation.
-    ctx._scope = scope
-
+    # Ignore formatting whitespace when selecting a single expression root.
     meaningful_non_let = [
         c for c in non_let
         if not (isinstance(c, TextPart) and not c.text.strip())
@@ -134,8 +122,23 @@ def _eval_expression(
       3. Call the backend's evaluate() with the spliced body.
     """
     if scope is None:
-        scope = {}
+        scope = ctx._scope
 
+    # Structural backends and O.eval access the active lexical scope through
+    # ctx. Every recursive evaluation restores its caller, including failures.
+    previous_scope = ctx._scope
+    ctx._scope = scope
+    try:
+        return _eval_expression_scoped(node, ctx, scope)
+    finally:
+        ctx._scope = previous_scope
+
+
+def _eval_expression_scoped(
+    node: ExpressionNode,
+    ctx: EvalContext,
+    scope: Dict[str, OValue],
+) -> OValue:
     backend = ctx.backend_for(node.canonical_language)
 
     eval_ast = getattr(backend, "eval_ast", None)

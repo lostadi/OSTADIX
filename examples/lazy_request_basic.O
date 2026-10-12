@@ -1,4 +1,5 @@
 #!/usr/bin/env O
+O^(
 let expr = nix_expr^( (import <nixpkgs> {}).hello )_nix_expr
 
 # Under the default Eager policy, `let drv = instantiate($expr)` would
@@ -20,3 +21,4 @@ markdown^(
 - expression: `$expr`
 - pending:    `$pending`   (unresolved Request — no Nix call made)
 )_markdown
+)_O

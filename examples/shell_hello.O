@@ -1,5 +1,7 @@
 #!/usr/bin/env O
 
+O^(
 shell^(
 echo "hello from sh"
 )_shell
+)_O

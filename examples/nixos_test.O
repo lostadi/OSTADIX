@@ -7,6 +7,7 @@
 # The nixos_test^(...)_nixos_test block builds a real NixOS VM, boots it,
 # runs the testScript assertions, and returns structured results.
 
+O^(
 let lab = nixos_test^({
   name = "o-nixos-basic";
   nodes.machine = { pkgs, ... }: {
@@ -40,3 +41,4 @@ html^(
   </body>
 </html>
 )_html
+)_O

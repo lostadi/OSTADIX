@@ -1,5 +1,6 @@
 #!/usr/bin/env O
 
+O^(
 let greeting = python^(
 __oval_result__ = "world"
 )_python
@@ -7,3 +8,4 @@ __oval_result__ = "world"
 bash^(
 echo "hello \$greeting"
 )_bash
+)_O

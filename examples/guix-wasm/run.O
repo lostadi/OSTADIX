@@ -1,3 +1,4 @@
+O^(
 python^(
 import time
 operation_started = time.monotonic()
@@ -128,3 +129,4 @@ with tempfile.TemporaryDirectory(prefix='o-guix-wasm-') as directory:
         for number, previous in previous_signals.items():
             signal.signal(number, previous)
 )_python
+)_O

@@ -1,5 +1,6 @@
 # sql_shim.py executes raw SQL text against sqlite3. It does not bind O values
 # as SQL parameters, so this example uses the literal value instead of `$val`.
+O^(
 let val = python^(
 __oval_result__ = 100
 )_python
@@ -7,3 +8,4 @@ __oval_result__ = 100
 sql^(
 SELECT 100 * 2 AS doubled
 )_sql
+)_O

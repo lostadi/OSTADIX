@@ -1,7 +1,9 @@
 #!/usr/bin/env O
 
+O^(
 bash^(
 x=10
 y=20
 echo "\$x + \$y = \$((x + y))"
 )_bash
+)_O

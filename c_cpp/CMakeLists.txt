@@ -54,6 +54,12 @@ add_executable(fresh_env_test
 )
 olang_configure_target(fresh_env_test)
 
+add_executable(o_sequencing_test
+    ${OLANG_CORE_SRCS}
+    tests/test_o_sequencing.c
+)
+olang_configure_target(o_sequencing_test)
+
 add_executable(parser_test src/parser.c tests/test_parser.c)
 olang_configure_target(parser_test)
 
@@ -100,6 +106,10 @@ add_test(NAME aot_path_safety
 
 add_test(NAME fresh_environment_semantics
     COMMAND $<TARGET_FILE:fresh_env_test> ${OLANG_BACKENDS_DIR}
+)
+
+add_test(NAME o_bindings_and_lexical_scopes
+    COMMAND $<TARGET_FILE:o_sequencing_test> ${OLANG_BACKENDS_DIR}
 )
 
 add_test(NAME installed_native_paths

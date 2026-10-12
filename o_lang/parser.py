@@ -68,7 +68,7 @@ MAX_PERSISTENT_ENV_ID = EPHEMERAL_ENV_ID - 2
 # IDENT[N]?^( or IDENT[*]^( -- the opening delimiter
 OPEN_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(?:\[(\d+|\*)\])?\^\(")
 
-# let NAME = LANG[N]?^(  -- top-level let binding
+# let NAME = LANG[N]?^(  -- document or sequencing-body binding
 LET_RE = re.compile(r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*")
 
 # $NAME -- variable reference (ASCII ident)
@@ -93,10 +93,10 @@ class VarRef:
 
 @dataclass
 class LetBinding:
-    """A top-level ``let NAME = LANG^(...)_LANG`` binding.
+    """A document or sequencing-body ``let NAME = LANG^(...)_LANG`` binding.
 
-    After evaluation, ``name`` is bound in the document scope and available
-    via ``$name`` VarRef nodes in subsequent expression bodies.
+    After evaluation, ``name`` is bound in the current lexical scope and
+    available via ``$name`` VarRef nodes in subsequent expression bodies.
     """
     name: str
     expr: "ExpressionNode"
@@ -108,7 +108,7 @@ class ExpressionNode:
     language: str
     env_id: int                # reserved sentinel for bare and [*] blocks
     env_explicit: bool         # was [N] or [*] written in the source?
-    body: List[Union["TextPart", "ExpressionNode", "VarRef"]] = field(default_factory=list)
+    body: List[Union["TextPart", "ExpressionNode", "LetBinding", "VarRef"]] = field(default_factory=list)
 
     @property
     def environment_marker(self) -> str:
@@ -144,7 +144,7 @@ class ExpressionNode:
 @dataclass
 class Document:
     """Top-level parsed .O file."""
-    body: List[Union[TextPart, ExpressionNode, LetBinding]]
+    body: List[Union[TextPart, ExpressionNode, LetBinding, VarRef]]
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +199,7 @@ class ParseError(Exception):
 def parse(src: str) -> Document:
     """Parse a complete .O source string into a Document AST."""
     p = _ParserState(src)
-    body = p.parse_body(end_tag=None, top_level=True)
+    body = p.parse_body(end_tag=None, sequencing=True)
     if p.pos < len(src):
         raise ParseError(p.pos, "trailing content after document body", src)
     return Document(body=body)
@@ -213,12 +213,13 @@ class _ParserState:
     def parse_body(
         self,
         end_tag: Optional[str],
-        top_level: bool = False,
+        sequencing: bool = False,
     ) -> List[Union[TextPart, ExpressionNode, LetBinding, VarRef]]:
         """Parse text+expressions until end_tag is consumed (or EOF if None).
 
-        When ``top_level`` is True, ``let NAME = LANG^(...)`` patterns are
-        parsed as :class:`LetBinding` nodes.  At all levels, ``$NAME`` tokens
+        Document, O/o, and quote bodies parse ``let NAME = LANG^(...)``
+        patterns as :class:`LetBinding` nodes. Foreign language bodies retain
+        their own ``let`` syntax as text. At all levels, ``$NAME`` tokens
         that match a known word boundary are emitted as :class:`VarRef` nodes
         so the evaluator can substitute them with scoped values.
         """
@@ -259,8 +260,13 @@ class _ParserState:
                 self.pos += 1
                 continue
 
-            # 2b. Top-level let binding: `let NAME = LANG^(...)`
-            if top_level and self.src.startswith("let ", self.pos):
+            # 2b. Only sequencing bodies own O binding syntax. A foreign
+            # language still owns its text around nested typed expressions.
+            prev_is_word = (
+                self.pos > 0
+                and (self.src[self.pos - 1].isalnum() or self.src[self.pos - 1] == "_")
+            )
+            if sequencing and not prev_is_word and c == "l":
                 let_m = LET_RE.match(self.src, self.pos)
                 if let_m:
                     # Peek ahead for a typed-expression opener.
@@ -287,7 +293,10 @@ class _ParserState:
                             env_explicit=env_explicit,
                             body=[],
                         )
-                        expr_node.body = self.parse_body(end_tag=expr_node.closing_tag)
+                        expr_node.body = self.parse_body(
+                            end_tag=expr_node.closing_tag,
+                            sequencing=expr_node.canonical_language in ("O", "quote"),
+                        )
                         out.append(LetBinding(name=binding_name, expr=expr_node))
                         continue
 
@@ -303,10 +312,6 @@ class _ParserState:
             # 3. Look for a typed expression opener. But ONLY at a word
             #    boundary -- otherwise `foo^(` would match `o^(` starting
             #    at position 2, because `o` is a registered language alias.
-            prev_is_word = (
-                self.pos > 0
-                and (self.src[self.pos - 1].isalnum() or self.src[self.pos - 1] == "_")
-            )
             m = None if prev_is_word else OPEN_RE.match(self.src, self.pos)
             if m and m.group(1) in REGISTERED_LANGUAGES:
                 flush_text()
@@ -323,7 +328,10 @@ class _ParserState:
                     env_explicit=env_explicit,
                     body=[],
                 )
-                node.body = self.parse_body(end_tag=node.closing_tag)
+                node.body = self.parse_body(
+                    end_tag=node.closing_tag,
+                    sequencing=node.canonical_language in ("O", "quote"),
+                )
                 out.append(node)
                 continue
 

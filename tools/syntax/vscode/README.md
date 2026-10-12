@@ -23,8 +23,11 @@ validate programs or provide semantic analysis.
 The opener's complete spelling (including alias, environment, and attribute
 spacing) must be repeated in the closer. The grammar handles the parser's
 different suffix rules for bare, environment, and attribute tags. Uppercase
-`.O` is intentional; this extension does not declare `.o` object files. VS Code
-file associations can be overridden explicitly by the user's settings.
+`.O` is the source-file convention. VS Code matches filename associations
+without case sensitivity, so it can also select this grammar for textual `.o`
+files. Select **Plain Text** when needed; a filename association does not turn
+an object file into O source. File associations can be overridden explicitly
+by the user's settings.
 
 Run the repository syntax installer to install locally. Reload VS Code after
 installation, then open an `.O` file. The active editor theme supplies colors

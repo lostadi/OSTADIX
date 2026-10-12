@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from o_lang.parser import (
     EPHEMERAL_ENV_ID, LINKER_ISOLATED_ENV_ID, MAX_PERSISTENT_ENV_ID,
-    Document, ExpressionNode, TextPart,
+    Document, ExpressionNode, LetBinding, TextPart, VarRef,
     parse, ParseError, REGISTERED_LANGUAGES, reconstruct_source,
 )
 
@@ -151,6 +151,56 @@ def test_same_language_nesting_with_distinct_envs():
     assert isinstance(inner, ExpressionNode)
     assert inner.language == "python"
     assert inner.env_id == 1
+
+
+def test_o_bodies_parse_bindings_and_splices():
+    for tag in ("O", "o"):
+        source = (
+            f"{tag}^(let answer = python^(41)_python "
+            f"$answer python^($answer + 1)_python)_{tag}"
+        )
+        root = parse(source).body[0]
+        children = [
+            child for child in root.body
+            if not (isinstance(child, TextPart) and not child.text.strip())
+        ]
+        assert isinstance(children[0], LetBinding)
+        assert children[0].name == "answer"
+        assert isinstance(children[1], VarRef) and children[1].name == "answer"
+        assert isinstance(children[2].body[0], VarRef)
+        assert reconstruct_source(root) == source
+
+
+def test_binding_rhs_can_contain_nested_o_bindings():
+    root = parse(
+        "O^(let answer = O^(let inner = python^(42)_python $inner)_O $answer)_O"
+    ).body[0]
+    binding = root.body[0]
+    assert isinstance(binding, LetBinding)
+    assert isinstance(binding.expr.body[0], LetBinding)
+    assert binding.expr.body[0].name == "inner"
+
+
+def test_foreign_bodies_keep_let_syntax_opaque():
+    for tag in ("python", "text", "nix"):
+        root = parse(
+            f"O^({tag}^(let answer = python^(41)_python)_{tag})_O"
+        ).body[0]
+        foreign = root.body[0]
+        assert len(foreign.body) == 2
+        assert foreign.body[0] == TextPart("let answer = ")
+        assert isinstance(foreign.body[1], ExpressionNode)
+        assert not any(isinstance(child, LetBinding) for child in foreign.body)
+
+
+def test_let_requires_a_word_boundary_and_accepts_whitespace():
+    root = parse(
+        "O^(palette answer = python^(1)_python let\tanswer = python^(2)_python)_O"
+    ).body[0]
+    assert root.body[0] == TextPart("palette answer = ")
+    bindings = [child for child in root.body if isinstance(child, LetBinding)]
+    assert len(bindings) == 1
+    assert bindings[0].name == "answer"
 
 
 def test_non_registered_ident_is_literal():

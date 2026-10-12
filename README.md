@@ -285,6 +285,32 @@ O version --json
 `O version --json` reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.
 
+For syntax highlighting in VS Code, install the local grammar from this checkout:
+
+```sh
+python3 tools/syntax/install.py --only vscode
+```
+
+Run **Developer: Reload Window** in an already-open VS Code window. Open this
+repository as a folder and check that an `.O` file's language mode is
+**Ostadix-lang**. The workspace associates `.O` and `.olang` files with that
+grammar; installing the extension supplies the highlighting rules. See
+[syntax highlighting](tools/syntax/README.md) for other editors and terminals.
+
+Every `.O` program in `examples/` encloses its source in `O^(...)_O`.
+Foreign code keeps its own matching language delimiters inside that block:
+
+```O
+O^(
+python^(
+__oval_result__ = 1 + 1
+)_python
+)_O
+```
+
+The outer block makes the complete program visible. The grammar also accepts
+unwrapped expression forests, so existing source fragments remain valid.
+
 The installed `o` command is a compiled native front door. Start with:
 
 ```bash

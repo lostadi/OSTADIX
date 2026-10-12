@@ -1,3 +1,4 @@
+O^(
 python^(
 x = 40
 )_python
@@ -8,3 +9,4 @@ try:
 except NameError:
     __oval_result__ = "EPHEMERAL: x from first bare block is NOT visible here (each bare is a fresh env)"
 )_python
+)_O

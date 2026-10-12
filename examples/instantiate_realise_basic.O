@@ -1,4 +1,5 @@
 #!/usr/bin/env O
+O^(
 let expr = nix_expr^( (import <nixpkgs> {}).hello )_nix_expr
 let drv  = instantiate($expr)
 let path = realise($drv)
@@ -9,3 +10,4 @@ markdown^(
 - derivation: `$drv`
 - realised:   `$path`
 )_markdown
+)_O

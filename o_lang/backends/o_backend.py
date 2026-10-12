@@ -6,6 +6,9 @@ Semantics:
   * Side effects in child expressions (e.g., Python assignments to an env)
     happen in source order -- so state flows naturally along the reading
     order of the document.
+  * let bindings enter a local lexical scope inherited by subsequent
+    children. Nested O bodies can shadow names without changing their caller.
+    Bindings do not add values to the returned collection; $name does.
   * The returned OValue is:
       - ONull   if no children evaluate to a meaningful value
       - the single child's OValue if exactly one
@@ -36,8 +39,8 @@ class OBackend:
     name = "O"
 
     def make_env(self) -> Dict[str, Any]:
-        # The O env carries named bindings. Not wired up to $var splicing
-        # yet (future work), but the slot exists so we can grow into it.
+        # Preserve the numeric environment registry slot. O lexical bindings
+        # belong to each evaluation, rather than persisting in this backend env.
         return {"bindings": {}}
 
     def render_child(self, v: OValue) -> str:
@@ -58,13 +61,14 @@ class OBackend:
         """Take full control of children: evaluate each in source order."""
         # Deferred import avoids circular imports at module load time.
         from ..evaluator import _eval_expression
-        from ..parser import ExpressionNode, TextPart
+        from ..parser import ExpressionNode, LetBinding, TextPart, VarRef
 
         # Materialize the env (even if unused) so the registry has a slot
         # for this (O, env_id) pair; useful when the user wants to ask
         # which bindings exist.
         _ = ctx.env_for("O", node.env_id)
 
+        scope = dict(ctx._scope)
         results: List[OValue] = []
         for child in node.body:
             if isinstance(child, TextPart):
@@ -72,8 +76,16 @@ class OBackend:
                 if s.strip():
                     results.append(OStr(s))
                 # whitespace-only text is formatting -- drop it
+            elif isinstance(child, LetBinding):
+                scope[child.name] = _eval_expression(child.expr, ctx, scope)
+            elif isinstance(child, VarRef):
+                if child.name not in scope:
+                    raise NameError(f"Undefined O binding ${child.name}")
+                v = scope[child.name]
+                if not isinstance(v, ONull):
+                    results.append(v)
             elif isinstance(child, ExpressionNode):
-                v = _eval_expression(child, ctx)
+                v = _eval_expression(child, ctx, scope)
                 if not isinstance(v, ONull):
                     results.append(v)
             else:

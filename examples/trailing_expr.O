@@ -2,6 +2,8 @@
 # instead of silently producing the empty string.  No __oval_result__ — and
 # the result should still be 42, not "".
 
+O^(
 python^(
 6 * 7
 )_python
+)_O

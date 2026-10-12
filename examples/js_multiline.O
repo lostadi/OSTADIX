@@ -1,3 +1,4 @@
+O^(
 javascript^(
 function double(x) {
   return x * 2;
@@ -6,3 +7,4 @@ function double(x) {
 const value = double(21);
 console.log(value)
 )_javascript
+)_O

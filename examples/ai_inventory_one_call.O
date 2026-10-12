@@ -1,5 +1,6 @@
 # Generated for the 2026-09-17 source-first acceptance test.
 # Three runtimes supply independent inputs to one dependent inventory decision.
+O^(
 let parts = autonomous(batch(
 python^(
 import csv
@@ -38,3 +39,4 @@ __oval_result__ = {
     "allowed_names_from_bash": allowed_names,
 }
 )_python
+)_O
