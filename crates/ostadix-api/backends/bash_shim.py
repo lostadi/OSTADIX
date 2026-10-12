@@ -14,7 +14,10 @@ and persists in a numbered session from the first block that names it.
 """
 import sys
 import os
+import decimal
+import math
 import shlex
+import struct
 import subprocess
 import tempfile
 import traceback
@@ -177,15 +180,41 @@ def _scalar(oval):
     """Shell text for a scalar OValue, or None for structured values."""
     tag = oval.get("t")
     value = oval.get("v")
-    if tag in ("str", "int", "float"):
+    if tag in ("str", "int"):
         return str(value)
+    if tag == "float":
+        return _float_text(float(value))
+    # bools keep the base shim's python rendering.
     if tag == "bool":
-        return "true" if value else "false"
+        return str(bool(value))
     if tag == "text" and isinstance(value, dict):
         return value.get("utf8")
-    if tag == "number" and isinstance(value, dict) and value.get("kind") == "int":
-        return str(value.get("v"))
+    if tag == "number" and isinstance(value, dict):
+        return _number(value)
     return None
+
+
+def _number(number):
+    """Shell text for a number OValue: ints and binary floats, as Rust does."""
+    kind = number.get("kind")
+    if kind == "int":
+        return str(number.get("v"))
+    if kind == "binary_float":
+        bits = bytes(number.get("bits") or [])
+        if len(bits) == 8:
+            return _float_text(struct.unpack(">d", bits)[0])
+        if len(bits) == 4:
+            return _float_text(struct.unpack(">f", bits)[0])
+    return None
+
+
+def _float_text(value):
+    """Rust's f64 Display: shortest digits, never an exponent, `2` for 2.0."""
+    if not math.isfinite(value):
+        return None
+    if value == int(value):
+        return str(int(value))
+    return format(decimal.Decimal(repr(value)), "f")
 
 
 def handle_exec(cmd):

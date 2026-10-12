@@ -6049,6 +6049,22 @@ mod tests {
     }
 
     #[test]
+    fn bash_shim_passes_floats_and_python_bools() {
+        let Some(result) = run_bash_document(
+            "let f = python^(__oval_result__ = 1.5)_python\n\
+             let g = python^(__oval_result__ = 1e20)_python\n\
+             let b = python^(__oval_result__ = True)_python\n\
+             bash^(echo \"${f}|${g}|${b}\")_bash\n",
+        ) else {
+            return;
+        };
+        assert_eq!(
+            result.unwrap(),
+            OValue::str_("1.5|100000000000000000000|True")
+        );
+    }
+
+    #[test]
     fn nul_in_a_bash_let_is_an_explicit_error() {
         let Some(result) = run_bash_document(
             "let x = python^(__oval_result__ = 'a\\x00b')_python\n\
