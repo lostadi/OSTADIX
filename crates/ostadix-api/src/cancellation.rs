@@ -65,6 +65,20 @@ impl CancellationToken {
     }
 }
 
+/// A request's execution deadline passed. Typed so a `batch(...)` member that
+/// hits it fails the document instead of being absorbed as that member's own
+/// error: the deadline belongs to the whole request, not to one member.
+#[derive(Debug)]
+pub(crate) struct RequestDeadlineExpired(pub(crate) &'static str);
+
+impl std::fmt::Display for RequestDeadlineExpired {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "request execution deadline expired {}", self.0)
+    }
+}
+
+impl std::error::Error for RequestDeadlineExpired {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

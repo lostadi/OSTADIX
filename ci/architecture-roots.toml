@@ -97,7 +97,7 @@ allowed_dependencies = ["backend_morphism", "cancellation", "eval", "evidence", 
 [[root]]
 name = "backend"
 layer = 9
-allowed_dependencies = ["backend_catalog", "backend_state", "process", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_catalog", "backend_state", "ir", "process", "runtime_exec", "value", "wire"]
 
 [[root]]
 name = "backend_catalog"
@@ -235,14 +235,19 @@ layer = 8
 allowed_dependencies = ["live_system", "world"]
 
 [[root]]
+name = "progress"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
 name = "live_system"
 layer = 2
 allowed_dependencies = ["capability", "value", "wire"]
 
 [[root]]
 name = "lifecycle_trace"
-layer = 0
-allowed_dependencies = []
+layer = 1
+allowed_dependencies = ["progress"]
 
 [[root]]
 name = "native_leaf_identity"
@@ -288,7 +293,7 @@ allowed_dependencies = ["resource_identity"]
 [[root]]
 name = "process"
 layer = 8
-allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "progress", "runtime_exec", "value", "wire"]
 
 [[root]]
 name = "project"

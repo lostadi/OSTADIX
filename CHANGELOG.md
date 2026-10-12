@@ -209,6 +209,62 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Changed
 
+- Backend steps have no default time limit: a step may run for days. A
+  silent step is killed only when the user opts in with
+  `O_BACKEND_STEP_TIMEOUT_MS` (milliseconds, 1 to 604800000); it then fails
+  with ``backend `<lang>` step exceeded <N> s (opt-in per-step limit
+  O_BACKEND_STEP_TIMEOUT_MS)``. An unparsable, zero or oversized value is an
+  error on the first step, not a silent fallback. Shims answer once per step,
+  so the limit bounds one step; an `O.eval` callback round trip restarts it.
+- The 60 s cap that the base applied to every `bash` block was already
+  removed by the numbered bash environments change above; bash blocks, like
+  every other step, run without a limit unless the knob is set. The other
+  language shims (C, C++, Java, JavaScript, Ruby, Rust, OCaml, Haskell, C#,
+  Racket, Lisp, sh, WebAssembly) no longer apply their own 60 s limit either;
+  they read the same knob, with no default, and a malformed value is an
+  error.
+- The 60 s default operation limit is gone too. Ephemeral backend runs, state
+  checkpoint and restore, native operations and local-worker `O.eval`
+  callbacks are bounded only when `O_BACKEND_OPERATION_TIMEOUT_MS` is set
+  (validated the same way as the step knob).
+- A backend killed mid-step by the opt-in limit, by a request deadline or by
+  cancellation is killed and removed at that point, for pooled and direct
+  callers alike, so a late answer can never be read as the reply to a later
+  request. A numbered session that ends this way (`python[N]`, `bash[N]`, ...)
+  or whose backend dies mid-step is recorded as lost: every later block on
+  that session id fails with `session <lang>[<N>] was terminated after
+  <cause>; its state is gone` instead of silently starting an empty session.
+- A request deadline that expires inside a `batch(...)` member now fails the
+  request rather than being absorbed as that member's own error value: the
+  deadline belongs to the whole request (typed `RequestDeadlineExpired`).
+- Hang visibility without killing. Shims started by this runtime send a
+  `hello_v1` frame listing the `heartbeat_v1` capability and then a
+  `heartbeat_v1` frame every 5 s while a step runs (python and every other
+  shim on the shared shim loop from a side thread; bash and sql from the Rust
+  backend, reporting the session shell's or sqlite3's pid, kernel state and
+  utime+stime from `/proc`). If no heartbeat arrives for 30 s, one stderr line
+  is printed: `no heartbeat from <lang>[<N>] for 30 s; it may be hanging
+  (still running)`, and a single `resumed` line if heartbeats return. For bash
+  and sql a child stuck in state D for 30 s, or gone while the backend is
+  alive, is also reported once. Nothing is ever killed by these warnings.
+  Known gap: JavaScript bridge steps and native operations send no heartbeat,
+  so a long one can print the 30 s warning while it is still working.
+  Shims that predate the hello frame never get a warning, and a shim only
+  sends these frames when the host sets `O_BACKEND_HEARTBEAT_INTERVAL_MS`.
+  Known limits: the python heartbeat thread needs the GIL, so a C extension
+  that holds the GIL for over 30 s (a long numpy or regex call) produces a
+  warning for healthy work; `time.sleep` releases the GIL and keeps
+  heartbeats going. A bash child that is merely sleeping cannot be told apart
+  from one that is stuck waiting. Test hooks: `O_BACKEND_HEARTBEAT_INTERVAL_MS`
+  and `O_BACKEND_HEARTBEAT_WARN_MS`.
+- A progress spinner showing the running block (`python[1] running 12s`) is
+  drawn on stderr, redrawn every 200 ms, only when stderr is a terminal; it is
+  off with `O --quiet`, under the MCP server (`O_QUIET`), and when `CI` or
+  `NO_COLOR` is set. One writer serializes the spinner, heartbeat warnings,
+  forwarded backend stderr and a lifecycle trace aimed at stderr; it clears
+  the spinner line before any other output and never draws while a backend
+  line is half written. stdout is never touched.
+
 - Shim blocks now receive only the visible `let` bindings they reference, by
   `$name` splice or whole identifier token anywhere in the block's OIR
   subtree, and for each parallel branch separately. Shell blocks (`bash`,
@@ -366,6 +422,35 @@ Package SemVer is only one of the independent coordinates documented in
   Setup and release guards exercise declared host capabilities and executable
   installation plans. CI retains every Rust target while bounding concurrent
   links and debug artifact size.
+- A backend that dies mid-step fails the step at once: reader EOF is an
+  immediate error, and every step wait also polls the backend leader every
+  100 ms with a non-reaping `waitid`, so a background grandchild that keeps
+  the response pipe open can no longer hide the exit. Previously a dead
+  backend could leave the evaluator waiting forever.
+- Every backend response wait is watched the same way (exit poll, heartbeat
+  warning, spinner, and the opt-in limit when set): the plain step read, the
+  cancellation-polled read, ephemeral runs, state operations and native
+  operations. Cancellation ends the cancellation-polled read and kills the
+  backend. Commands larger than 64 KiB are written with a polled write when
+  the opt-in limit or a cancellation token can end it
+  (``backend `<lang>` read no input for <N> s``, or the cancellation error);
+  smaller commands keep the blocking write, which an empty pipe always
+  accepts. The sqlite3 session read is bounded by the opt-in limit and
+  otherwise covered by the backend's heartbeat, which reports sqlite3's state.
+- Killing backends during evaluator teardown sends SIGKILL to every remaining
+  backend before reaping any of them, against one shared 2 s budget, so N
+  stuck backends cost one budget instead of N. The post-SIGKILL reap budget
+  is 2 s (raised from 250 ms) so slow kernel teardown of a large process under
+  memory pressure is no longer reported as "forced termination also failed".
+- Still unbounded, with no exit detection or heartbeat of their own: the
+  local worker pool's event receive and worker joins (`executor/pool.rs`;
+  each worker's backend waits are watched, so a hung backend is still
+  reported), the JavaScript native bridge's output join in the Rust backend,
+  the toolchain `Command::output` probes and compiles in the Rust backend
+  adapters, the blocking write of commands up to 64 KiB, a command write over
+  64 KiB when neither the opt-in limit nor a cancellation token is present,
+  and the project route-settlement receives in the project executor. Explicit
+  `shutdown_all` still shuts backends down one at a time.
 
 - Generated AOT binaries now extract their backend adapters to a private
   `0700` directory under `$TMPDIR` (falling back to `/tmp`) instead of a

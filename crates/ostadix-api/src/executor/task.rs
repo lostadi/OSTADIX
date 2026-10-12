@@ -107,7 +107,7 @@ impl TaskContext {
         src: String,
         scope: HashMap<String, OValue>,
     ) -> Result<OValue> {
-        self.eval_o_source_with_timeout(src, scope, crate::process::backend_operation_timeout())
+        self.eval_o_source_with_timeout(src, scope, crate::process::backend_operation_timeout()?)
     }
 
     /// Request a coordinator-owned recursive evaluation while retaining the
@@ -116,13 +116,16 @@ impl TaskContext {
         &self,
         src: String,
         scope: HashMap<String, OValue>,
-        timeout: Duration,
+        timeout: Option<Duration>,
     ) -> Result<OValue> {
-        let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
-            crate::process::infrastructure_error(anyhow!(
-                "local worker callback deadline overflowed"
-            ))
-        })?;
+        let deadline = match timeout {
+            Some(timeout) => Some(Instant::now().checked_add(timeout).ok_or_else(|| {
+                crate::process::infrastructure_error(anyhow!(
+                    "local worker callback deadline overflowed"
+                ))
+            })?),
+            None => None,
+        };
         let (reply, result) = mpsc::sync_channel(1);
         self.events
             .send(WorkerEvent::EvalRequest(TaskEvalRequest {
@@ -141,10 +144,19 @@ impl TaskContext {
             "worker.callback_requested",
             format!("token={}", self.token.0),
         );
-        let result = result.recv_timeout(timeout).map_err(|error| match error {
+        // without an opt-in limit the wait lasts as long as the coordinator
+        // evaluates the callback; it ends when the coordinator replies or
+        // drops the reply sender.
+        let received = match timeout {
+            Some(timeout) => result.recv_timeout(timeout),
+            None => result
+                .recv()
+                .map_err(|_| mpsc::RecvTimeoutError::Disconnected),
+        };
+        let result = received.map_err(|error| match error {
             mpsc::RecvTimeoutError::Timeout => crate::process::infrastructure_error(anyhow!(
                 "local worker O.eval callback did not settle within {} ms",
-                timeout.as_millis()
+                timeout.map_or(0, |timeout| timeout.as_millis())
             )),
             mpsc::RecvTimeoutError::Disconnected => crate::process::infrastructure_error(anyhow!(
                 "local worker callback reply channel disconnected"
@@ -283,7 +295,7 @@ pub(crate) struct TaskEvalRequest {
     pub(crate) token: TaskToken,
     pub(crate) src: String,
     pub(crate) scope: HashMap<String, OValue>,
-    pub(crate) deadline: Instant,
+    pub(crate) deadline: Option<Instant>,
     reply: SyncSender<std::result::Result<OValue, TaskCallbackFailure>>,
 }
 
@@ -368,7 +380,7 @@ mod tests {
                 context.eval_o_source_with_timeout(
                     "text^(nested)_text".to_string(),
                     HashMap::new(),
-                    Duration::from_secs(30),
+                    Some(Duration::from_secs(30)),
                 )
             });
             let WorkerEvent::EvalRequest(request) =

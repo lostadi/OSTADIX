@@ -12,6 +12,6 @@ pub use ostadix_api::{
     computation_core, effects, environment, eval, evidence, execution_contract, execution_fabric,
     execution_fabric_authority, executor, hgraph, hosted_remote, information, information_bridge,
     information_provenance, intent, ir, kernel_world, live_system, nix_ops, nixos_ops, ocore,
-    parser, placement, process, project, registry, resource_identity, runtime_exec, scheduler,
-    shims, syntax_dialect, value, version, wire, world,
+    parser, placement, process, progress, project, registry, resource_identity, runtime_exec,
+    scheduler, shims, syntax_dialect, value, version, wire, world,
 };

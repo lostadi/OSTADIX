@@ -11,6 +11,7 @@ import os
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import o_shim_common
 from o_shim_common import command_loop, write_wire_message
 from o_shim_common import stdout_result
 
@@ -36,7 +37,7 @@ def handle_exec(cmd):
         try:
             result = subprocess.run(
                 ["racket", tmp],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
             )
         finally:
             os.unlink(tmp)
@@ -47,7 +48,7 @@ def handle_exec(cmd):
         else:
             send_ok(stdout_result(result.stdout))
     except subprocess.TimeoutExpired:
-        send_err("racket execution timed out (60s)")
+        send_err("racket execution exceeded the opt-in limit O_BACKEND_STEP_TIMEOUT_MS")
     except FileNotFoundError:
         send_err("racket is not installed or not in PATH")
     except Exception:

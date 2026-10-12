@@ -49,6 +49,7 @@ fn run_cli() -> Result<()> {
                 | "--executor"
                 | "--workers"
                 | "--json"
+                | "--quiet"
                 | "--check"
                 | "--crossing-evidence"
                 | "--morphism-contract"
@@ -64,6 +65,7 @@ fn run_cli() -> Result<()> {
                     .context("--backend-grant requires NAME=LANG[:RIGHT,...]")?,
             ),
             "--json" => json_output = true,
+            "--quiet" => o_lang::progress::set_quiet(true),
             "--check" => check_only = true,
             "--crossing-evidence" => {
                 crossing_evidence = true;
@@ -559,6 +561,10 @@ fn print_usage(out: &mut impl Write) -> io::Result<()> {
     writeln!(
         out,
         "  O --check <input.O>                  # parse-only validation (combine with --json)"
+    )?;
+    writeln!(
+        out,
+        "  O --quiet <input.O>                  # no progress spinner on stderr"
     )?;
     writeln!(
         out,

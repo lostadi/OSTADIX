@@ -11,6 +11,7 @@ import os
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import o_shim_common
 from o_shim_common import command_loop, write_wire_message
 from o_shim_common import stdout_result
 
@@ -47,7 +48,7 @@ def handle_exec(cmd):
             # Run
             result = subprocess.run(
                 [binary],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
             )
             if result.returncode != 0:
                 stderr = result.stderr.strip()

@@ -201,6 +201,8 @@ impl JobManager {
             .args(&request.args)
             .current_dir(&request.cwd)
             .envs(&request.env)
+            // status spinners are for people at a terminal, not tool output.
+            .env("O_QUIET", "1")
             .kill_on_drop(true);
         if request.pty && !request.env.contains_key("TERM") && std::env::var_os("TERM").is_none() {
             command.env("TERM", "xterm-256color");

@@ -92,18 +92,34 @@ pub fn run_backend(lang: &str) -> Result<()> {
     if lang == "bash" {
         // the shell is spawned before the first request, so each plain
         // block runs in a fresh bash under its own subreaper helper.
-        backend.bash = Some(BashSession::start(&backend.tools)?);
+        let session = BashSession::start(&backend.tools)?;
+        // the heartbeat watches this shell from the first block on.
+        backend
+            .child_pid
+            .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
+        backend.bash = Some(session);
     }
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut reader = stdin.lock();
-    let mut writer = stdout.lock();
+    if crate::process::shim_heartbeat_interval().is_some() {
+        let heartbeat = crate::process::HEARTBEAT_CAPABILITY.to_string();
+        wire::write_frame(
+            &mut stdout.lock(),
+            &BackendWireResponseV2::HelloV1 {
+                capabilities: vec![heartbeat],
+            },
+        )?;
+    }
 
     while let Some(command) = wire::read_frame::<_, BackendWireCommandV2>(&mut reader)? {
         if matches!(&command, BackendWireCommandV2::Shutdown) {
             match backend.shutdown() {
                 Ok(()) => {
-                    wire::write_frame(&mut writer, &BackendWireResponseV2::ok(OValue::Null))?;
+                    wire::write_frame(
+                        &mut stdout.lock(),
+                        &BackendWireResponseV2::ok(OValue::Null),
+                    )?;
                     crate::process::lifecycle_trace(
                         "backend.shutdown_acknowledged",
                         format!("language={lang}"),
@@ -112,7 +128,7 @@ pub fn run_backend(lang: &str) -> Result<()> {
                 }
                 Err(error) => {
                     wire::write_frame(
-                        &mut writer,
+                        &mut stdout.lock(),
                         &BackendWireResponseV2::err(format!("backend shutdown failed: {error:#}")),
                     )?;
                     return Err(error).context("backend shutdown failed");
@@ -126,8 +142,11 @@ pub fn run_backend(lang: &str) -> Result<()> {
             BackendWireCommandV2::Exec { code, bindings } => {
                 let result = if lang == "javascript" && (code.contains("O.native_")
                     || bindings.values().any(|value| matches!(value, OValue::Native { .. }))) {
-                    run_javascript_native_bridge(&backend.tools, &code, &bindings, &mut reader, &mut writer)
-                } else { backend.exec(lang, &code, bindings) };
+                    run_javascript_native_bridge(&backend.tools, &code, &bindings, &mut reader, &mut stdout.lock())
+                } else {
+                    let _pulse = Heartbeat::start(backend.child_pid.clone());
+                    backend.exec(lang, &code, bindings)
+                };
                 match result {
                     Ok(value) => BackendWireResponseV2::ok(value),
                     Err(error) => BackendWireResponseV2::err(format!("{error:#}")),
@@ -157,15 +176,93 @@ pub fn run_backend(lang: &str) -> Result<()> {
                 backend.restore_response(lang, checkpoint)
             }
         };
-        wire::write_frame(&mut writer, &response)?;
+        wire::write_frame(&mut stdout.lock(), &response)?;
     }
 
     Ok(())
 }
 
+/// Sends `heartbeat_v1` frames on stdout while a native step runs, so the
+/// host can tell a long step from a hung one. For bash it reports the session
+/// shell's kernel state. Stopped (and joined) on drop, before the step's
+/// answer is written, so a heartbeat never follows the answer.
+struct Heartbeat {
+    stop: Option<mpsc::Sender<()>>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl Heartbeat {
+    fn start(child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>) -> Self {
+        let Some(interval) = crate::process::shim_heartbeat_interval() else {
+            return Self {
+                stop: None,
+                thread: None,
+            };
+        };
+        let (stop, stopped) = mpsc::channel::<()>();
+        let thread = thread::Builder::new()
+            .name("ostadix-backend-heartbeat".into())
+            .spawn(move || {
+                while let Err(mpsc::RecvTimeoutError::Timeout) = stopped.recv_timeout(interval) {
+                    let pid = child_pid.load(std::sync::atomic::Ordering::Relaxed);
+                    let child = (pid != 0).then(|| heartbeat_child(pid));
+                    let frame = BackendWireResponseV2::HeartbeatV1 { child };
+                    if wire::write_frame(&mut io::stdout().lock(), &frame).is_err() {
+                        return;
+                    }
+                }
+            })
+            .ok();
+        Self {
+            stop: Some(stop),
+            thread,
+        }
+    }
+}
+
+impl Drop for Heartbeat {
+    fn drop(&mut self) {
+        self.stop.take();
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+/// `/proc/<pid>/stat` state letter and utime+stime ticks, or `"gone"`.
+fn heartbeat_child(pid: u32) -> crate::backend_state::BackendHeartbeatChildV1 {
+    let sampled = fs::read_to_string(format!("/proc/{pid}/stat"))
+        .ok()
+        .and_then(|stat| {
+            let fields = stat
+                .rsplit_once(')')?
+                .1
+                .split_whitespace()
+                .collect::<Vec<_>>();
+            let state = fields.first()?.to_string();
+            let utime = fields.get(11)?.parse::<u64>().ok()?;
+            let stime = fields.get(12)?.parse::<u64>().ok()?;
+            Some((state, utime + stime))
+        });
+    let (state, cpu_ticks) = match sampled {
+        Some((state, ticks)) if state != "Z" && state != "X" => (state, ticks),
+        _ => ("gone".to_string(), 0),
+    };
+    crate::backend_state::BackendHeartbeatChildV1 {
+        pid,
+        state,
+        cpu_ticks,
+    }
+}
+
 struct RustBackend {
     sql: Option<SqlState>,
     bash: Option<BashSession>,
+    // pid of the process a step drives (the bash session shell or sqlite3;
+    // 0 when none), reported in heartbeats.
+    // signal that killed the bash session shell mid-block; later blocks fail.
+    bash_killed: Option<i32>,
+    child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
     tools: BackendToolchain,
 }
 
@@ -217,7 +314,8 @@ fn bash_injection(env: &[(String, String)]) -> (String, String) {
     let mut unset = Vec::new();
     for (name, value) in env {
         let quoted = shell_single_quote(value);
-        if crate::ir::bash_special_name(name) == Some(crate::ir::BashSpecial::Writable) {
+        let special = crate::ir::bash_special_name(name);
+        if special == Some(crate::ir::BashSpecial::Writable) {
             // session state such as PATH stays assigned, so later blocks of
             // the session see the let value from the first block naming it.
             inject.push_str(&format!("declare -- {name}={quoted} || __o_inject_ok=0; "));
@@ -238,12 +336,23 @@ fn bash_injection(env: &[(String, String)]) -> (String, String) {
 
 /// Shell text for each `let` value a bash block receives, sorted by name.
 /// The evaluator already rendered structured values and rejected NUL bytes
-/// (`bash_let_value`); this repeats the checks for direct callers.
+/// (`eval_core::bash_let_value`); this repeats the checks for direct callers.
+/// It cannot call that helper: eval_core sits on backend's own layer.
 fn bash_values(bindings: HashMap<String, OValue>) -> Result<Vec<(String, String)>> {
     let mut values = Vec::with_capacity(bindings.len());
     for (name, value) in bindings {
-        let value = crate::eval_core::bash_let_value(&name, &value)?;
+        let special = crate::ir::bash_special_name(&name).is_some();
+        if special && !matches!(value, OValue::Text { .. }) {
+            let type_name = value.type_name();
+            bail!(
+                "let `{name}` names a bash special variable, so a bash block can only receive \
+                 it as text, got {type_name}"
+            );
+        }
         let text = scalar_string(&value).unwrap_or_else(|| value.splice_repr());
+        if text.contains('\0') {
+            bail!("let `{name}` contains a NUL byte, which a bash variable cannot hold");
+        }
         values.push((name, text));
     }
     values.sort();
@@ -471,9 +580,14 @@ struct SqlState {
     db_path: PathBuf,
     child: Child,
     stdin: Option<BufWriter<ChildStdin>>,
-    stdout: BufReader<ChildStdout>,
+    // why a reader thread: an untimed read_line on the session stdout hung
+    // the backend forever on a locked or runaway query. lines arrive over a
+    // channel so the wait can be bounded by the per-step limit.
+    stdout_rx: Receiver<io::Result<String>>,
     stderr_rx: Receiver<String>,
     checkpoint_safe: bool,
+    // set once a per-step limit killed the session; its state is gone.
+    lost: bool,
 }
 
 impl RustBackend {
@@ -481,6 +595,8 @@ impl RustBackend {
         Self {
             sql: None,
             bash: None,
+            child_pid: Default::default(),
+            bash_killed: None,
             tools,
         }
     }
@@ -493,15 +609,35 @@ impl RustBackend {
     ) -> Result<OValue> {
         match lang {
             "bash" => {
+                if let Some(signal) = self.bash_killed {
+                    bail!(
+                        "bash session was killed by signal {signal} during an earlier block; its state is gone"
+                    );
+                }
                 let env = bash_values(bindings)?;
                 if self.bash.is_none() {
-                    self.bash = Some(BashSession::start(&self.tools)?);
+                    let session = BashSession::start(&self.tools)?;
+                    self.child_pid
+                        .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
+                    self.bash = Some(session);
                 }
                 let session = self.bash.as_mut().expect("bash session started");
                 let (output, alive) = session.run(code, &env)?;
                 if !alive {
+                    self.child_pid
+                        .store(0, std::sync::atomic::Ordering::Relaxed);
                     if let Some(mut ended) = self.bash.take() {
                         ended.shutdown();
+                    }
+                    // a shell killed by a signal lost its state without any
+                    // block asking for that: fail this block and every later
+                    // one (fail closed) instead of starting a fresh shell.
+                    use std::os::unix::process::ExitStatusExt;
+                    if let Some(signal) = output.status.signal() {
+                        self.bash_killed = Some(signal);
+                        bail!(
+                            "bash session was killed by signal {signal} during this block; its state is gone"
+                        );
                     }
                     // a failing block that ends the session, for example
                     // under a persisted `set -e`, also drops every variable,
@@ -558,7 +694,10 @@ impl RustBackend {
             return Ok(OValue::Null);
         }
 
+        let child_pid = std::sync::Arc::clone(&self.child_pid);
         let state = self.sql_state()?;
+        // heartbeats report the sqlite3 process, as they report the bash shell.
+        child_pid.store(state.child.id(), std::sync::atomic::Ordering::Relaxed);
         state.exec(code)
     }
 
@@ -801,14 +940,16 @@ impl SqlState {
             }
         });
 
+        let stdout_rx = spawn_line_reader(stdout);
         let mut state = Self {
             _dir: dir,
             db_path,
             child,
             stdin: Some(stdin),
-            stdout,
+            stdout_rx,
             stderr_rx,
             checkpoint_safe: true,
+            lost: false,
         };
         // JSON row output for SELECT/WITH/PRAGMA, matching the old -json flag.
         state.write_raw(".mode json\n")?;
@@ -818,6 +959,14 @@ impl SqlState {
     }
 
     fn write_raw(&mut self, text: &str) -> Result<()> {
+        if self.lost {
+            bail!("sqlite3 session was terminated after a timeout; its state is gone");
+        }
+        if text.len() > crate::process::BOUNDED_WRITE_THRESHOLD {
+            if let Some(limit) = crate::process::backend_step_timeout()? {
+                return self.write_large(text, limit);
+            }
+        }
         let stdin = self
             .stdin
             .as_mut()
@@ -827,6 +976,43 @@ impl SqlState {
             .context("failed to write to sqlite3 session")?;
         stdin.flush().context("failed to flush sqlite3 session")?;
         Ok(())
+    }
+
+    // why: a payload larger than the pipe buffer blocks until sqlite3 reads,
+    // which it never does while a previous statement is stuck.
+    #[cold]
+    fn write_large(&mut self, text: &str, limit: Duration) -> Result<()> {
+        let stdin = self
+            .stdin
+            .as_mut()
+            .ok_or_else(|| anyhow!("sqlite3 session command pipe is closed"))?;
+        stdin.flush().context("failed to flush sqlite3 session")?;
+        use std::os::fd::AsRawFd;
+        let fd = stdin.get_ref().as_raw_fd();
+        match crate::process::write_all_bounded(fd, text.as_bytes(), limit) {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(self.kill_after_step_limit(limit, "read no input for")),
+            Err(error) => {
+                Err(anyhow::Error::new(error).context("failed to write to sqlite3 session"))
+            }
+        }
+    }
+
+    #[cold]
+    fn kill_after_step_limit(&mut self, limit: Duration, what: &str) -> anyhow::Error {
+        self.lost = true;
+        self.stdin.take();
+        let _ = self.child.kill();
+        let reaped = reap_legacy_child(&mut self.child, Duration::from_secs(2));
+        let limit_text = crate::process::step_limit_text(limit);
+        let limit_env = crate::process::BACKEND_STEP_TIMEOUT_ENV;
+        let mut message = format!(
+            "backend `sql` {what} {limit_text} (opt-in per-step limit {limit_env}); sqlite3 session was killed",
+        );
+        if let Err(error) = reaped {
+            message.push_str(&format!("; sqlite3 reap also failed: {error:#}"));
+        }
+        anyhow!(message)
     }
 
     fn shutdown(&mut self, timeout: Duration) -> Result<()> {
@@ -873,14 +1059,31 @@ impl SqlState {
         payload.push_str(".print __O_SQL_DONE__\n");
         self.write_raw(&payload)?;
 
+        // without the opt-in limit the read waits as long as sqlite3 runs;
+        // cancellation still ends it, because the host kills this backend's
+        // whole process group, sqlite3 included.
+        let limit = crate::process::backend_step_timeout()?;
+        let deadline = limit.map(|limit| std::time::Instant::now() + limit);
         let mut out = String::new();
         loop {
-            let mut line = String::new();
-            let n = self
-                .stdout
-                .read_line(&mut line)
-                .context("failed to read sqlite3 session stdout")?;
-            if n == 0 {
+            let received = match deadline {
+                Some(deadline) => self
+                    .stdout_rx
+                    .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now())),
+                None => self
+                    .stdout_rx
+                    .recv()
+                    .map_err(|_| mpsc::RecvTimeoutError::Disconnected),
+            };
+            let line = match received {
+                Ok(line) => line.context("failed to read sqlite3 session stdout")?,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    let limit = limit.expect("a timeout implies a limit");
+                    return Err(self.kill_after_step_limit(limit, "step exceeded"));
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => String::new(),
+            };
+            if line.is_empty() {
                 let err = self.drain_stderr();
                 bail!(
                     "sqlite3 session closed unexpectedly{}",
@@ -949,6 +1152,30 @@ fn sql_checkpoint_profile_accepts(code: &str) -> bool {
     !PINNING_TOKENS.iter().any(|token| lower.contains(token))
         && !lower.trim_start().starts_with('.')
         && !lower.contains("\n.")
+}
+
+/// Forward lines from `reader` over a channel; EOF ends the channel.
+fn spawn_line_reader<R: io::Read + Send + 'static>(reader: R) -> Receiver<io::Result<String>> {
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let mut reader = BufReader::new(reader);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => return,
+                Ok(_) => {
+                    if sender.send(Ok(line)).is_err() {
+                        return;
+                    }
+                }
+                Err(error) => {
+                    let _ = sender.send(Err(error));
+                    return;
+                }
+            }
+        }
+    });
+    receiver
 }
 
 impl Drop for SqlState {
@@ -1025,7 +1252,23 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
         }
     };
     let mut child_stdin = Some(BufWriter::new(child_stdin));
-    let mut child_stdout = BufReader::new(child_stdout);
+    // why a reader thread: a grandchild of the shim can hold the shim's
+    // stdout open after the shim died, so a blocking read would never see
+    // eof. frames arrive over a channel and the wait polls the shim's exit.
+    let (frames_tx, frames) = mpsc::channel();
+    thread::Builder::new()
+        .name("ostadix-proxy-reader".into())
+        .spawn(move || {
+            let mut child_stdout = BufReader::new(child_stdout);
+            loop {
+                let frame = wire::read_frame::<_, BackendWireResponseV2>(&mut child_stdout);
+                let last = !matches!(frame, Ok(Some(_)));
+                if frames_tx.send(frame).is_err() || last {
+                    return;
+                }
+            }
+        })
+        .context("failed to create legacy backend reader")?;
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut reader = stdin.lock();
@@ -1069,9 +1312,44 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
                 .context("legacy backend command pipe is closed")?,
             &command,
         )?;
-        let response = wire::read_frame::<_, BackendWireResponseV2>(&mut child_stdout)?
-            .ok_or_else(|| anyhow!("legacy backend shim closed stdout unexpectedly"))?;
-        wire::write_frame(&mut writer, &response)?;
+        // hello and heartbeat frames are forwarded as they arrive; the
+        // command's answer is the first frame that is neither.
+        loop {
+            let response = match frames.recv_timeout(Duration::from_millis(100)) {
+                Ok(frame) => frame?
+                    .ok_or_else(|| anyhow!("legacy backend shim closed stdout unexpectedly"))?,
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    bail!("legacy backend shim closed stdout unexpectedly")
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if let Some(status) = child.try_wait()? {
+                        // a last answer may have been read just before the exit.
+                        if let Ok(Ok(Some(response))) =
+                            frames.recv_timeout(Duration::from_millis(50))
+                        {
+                            if !matches!(
+                                response,
+                                BackendWireResponseV2::HeartbeatV1 { .. }
+                                    | BackendWireResponseV2::HelloV1 { .. }
+                            ) {
+                                wire::write_frame(&mut writer, &response)?;
+                                break;
+                            }
+                        }
+                        bail!("legacy backend shim exited with status {status} during the step");
+                    }
+                    continue;
+                }
+            };
+            let heartbeat = matches!(
+                response,
+                BackendWireResponseV2::HeartbeatV1 { .. } | BackendWireResponseV2::HelloV1 { .. }
+            );
+            wire::write_frame(&mut writer, &response)?;
+            if !heartbeat {
+                break;
+            }
+        }
     }
 
     child_stdin.take();
@@ -2123,6 +2401,67 @@ impl Drop for TempDir {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn sqlite_session_read_is_bounded_by_the_step_limit() -> anyhow::Result<()> {
+        // y-d-08: the session read_line had no bound; a stuck statement hung
+        // the backend forever. a stand-in child that never answers plays a
+        // locked sqlite3.
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            crate::process::set_step_timeout_override(Some(std::time::Duration::from_millis(300)));
+            let outcome = (|| -> anyhow::Result<()> {
+                let dir = super::TempDir::new("o-backend-sql-test")?;
+                let mut child = std::process::Command::new("sh")
+                    .args(["-c", "exec sleep 5"])
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?;
+                let stdin = std::io::BufWriter::new(child.stdin.take().unwrap());
+                let stdout_rx = super::spawn_line_reader(child.stdout.take().unwrap());
+                let (_stderr_tx, stderr_rx) = std::sync::mpsc::channel();
+                let mut state = super::SqlState {
+                    db_path: dir.path().join("state.sqlite3"),
+                    _dir: dir,
+                    child,
+                    stdin: Some(stdin),
+                    stdout_rx,
+                    stderr_rx,
+                    checkpoint_safe: true,
+                    lost: false,
+                };
+                let error = state
+                    .exec("SELECT 1;")
+                    .expect_err("a silent sqlite3 must not hang");
+                assert!(
+                    format!("{error:#}").contains(
+                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    ),
+                    "{error:#}"
+                );
+                let error = state
+                    .exec("SELECT 1;")
+                    .expect_err("a killed session must stay dead");
+                assert!(
+                    format!("{error:#}").contains("its state is gone"),
+                    "{error:#}"
+                );
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(std::time::Duration::from_secs(20)) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                panic!("sqlite session read hung past the per-step limit")
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
     use std::path::Path;
     use std::process::Command;
 
