@@ -212,6 +212,44 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
             _ => {}
         }
     }
+    validate_bash_special_lets(flat)
+}
+
+/// A bash block that references a `let` named like a readonly bash variable
+/// (`UID`, `EUID`, `PPID`, `BASHPID`, ...) can never receive it: bash
+/// refuses or ignores the assignment and the block would run with bash's own
+/// value. That is a compile error, not a silent fallback.
+fn validate_bash_special_lets(flat: &[&OIr]) -> Result<()> {
+    let lets = flat
+        .iter()
+        .filter_map(|node| match node {
+            OIr::Store { name, .. } => Some(name.as_str()),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    for node in flat {
+        let OIr::Exec { backend, body, .. } = node else {
+            continue;
+        };
+        if backend.canonical != "bash" {
+            continue;
+        }
+        let mut names = crate::ir::bash_braced_references(body)
+            .into_iter()
+            .chain(crate::ir::bash_arithmetic_references(body))
+            .filter(|name| lets.contains(name.as_str()))
+            .collect::<Vec<_>>();
+        names.sort();
+        names.dedup();
+        for name in names {
+            if crate::ir::bash_special_name(&name) == Some(crate::ir::BashSpecial::Readonly) {
+                bail!(
+                    "let `{name}` is referenced by a bash block, but `{name}` is a readonly \
+                     bash variable, so the block could never see the let value; rename the let"
+                );
+            }
+        }
+    }
     Ok(())
 }
 
