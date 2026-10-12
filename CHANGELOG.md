@@ -241,7 +241,8 @@ Package SemVer is only one of the independent coordinates documented in
   from the start, and since the previous entry it was unset after the first
   block that named it. The naming block assigns the `let` text with the
   export flag unchanged and nothing restores or unsets it, so later blocks of
-  that `bash[N]` session see the `let` value; a plain block starts fresh, so
+  that `bash[N]` session see the `let` value (a `$PATH` splice names it
+  too); a plain block starts fresh, so
   a later plain block that does not name it sees the host value. A `let`
   named like a readonly bash variable (`UID`, `EUID`, `PPID`, `BASHPID`, ...)
   that a bash block references is now a compile error, and a writable special
@@ -264,12 +265,12 @@ Package SemVer is only one of the independent coordinates documented in
 - The Python bash shim passes float `let` values (formatted as the native
   backend does) and keeps rendering booleans as `True`/`False`.
 
-- Bash blocks again see `let` values that bash reads as bare names in
+- Bash blocks see `let` values that bash reads as bare names in
   arithmetic context: `$(( ))`, `(( ))`, `for (( ))`, `$[ ]`, `let`
   arguments, `declare -i x=EXPR`, `${s:off:len}`, `[[ -eq ]]`-style
   operators (also after `if`, `elif`, `while`, `until`, and `time`), and
-  array subscripts. Since the previous entry they evaluated to
-  0. Runtime-built names (`v=name; $((v))`) still see nothing.
+  array subscripts. With the environment pass-through removed in the entry
+  above, these had evaluated to 0. Runtime-built names (`v=name; $((v))`) still see nothing.
 
 - A failing member of `batch(...)` now settles as its own error value while
   the other members still return their values. The batch fails only when every
@@ -383,6 +384,12 @@ Package SemVer is only one of the independent coordinates documented in
   Scheduler cache keys preserve canonical lowercase SHA-256 filenames while
   mapping every noncanonical input to a bounded domain-separated hash inside
   the cache directory.
+
+### Known issues
+
+- The bash shim's 60 s limit is gone, but the rust, java, cpp, csharp,
+  haskell, ocaml, racket, common_lisp, and webassembly shims still hardcode
+  60 s limits. Moving them under the backend step deadline is a follow-up.
 
 ### Release boundary
 

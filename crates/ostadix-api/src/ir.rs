@@ -985,9 +985,10 @@ impl PlanBuilder {
                 ..
             } => {
                 // A shim receives exactly the visible `let` bindings that its
-                // body references by whole identifier token or `$name`
-                // splice, anywhere in its OIR subtree, for every backend
-                // including bash and sh. Reflective or runtime-built access to
+                // body references, anywhere in its OIR subtree: by whole
+                // identifier token or `$name` splice for most backends, by
+                // braced expansion or a bare name in arithmetic context for
+                // bash, and never for sh or shell. Reflective or runtime-built access to
                 // an unreferenced name gets nothing (see
                 // REFLECTION_FULL_SCOPE_FALLBACK). Persistent state lives only
                 // in numbered environments such as python[0] or bash[0];
@@ -1248,6 +1249,11 @@ fn collect_exec_references(
 /// a non-exported shell variable for the block, so bash evaluates every
 /// operator itself and child processes see nothing. Bare `$name` is an O
 /// splice and is handled by the `Load` node instead.
+///
+/// The escape `\${name}` carries through from the parser: an escaped `$`
+/// always ends its `Text` node and the source after it starts a new one,
+/// so each node is scanned on its own and never sees `${` across that
+/// boundary. Both bash scanners rely on that and never join nodes.
 pub(crate) fn bash_braced_references(body: &[OIr]) -> std::collections::HashSet<String> {
     let mut names = std::collections::HashSet::new();
     for node in body {
@@ -1806,8 +1812,9 @@ fn bash_special_splices(body: &[OIr]) -> HashSet<String> {
 }
 
 /// Plan sources of the visible `let` bindings a shim block receives: exactly
-/// the bindings whose names its body references by whole identifier token
-/// or `$name` splice, for every backend and every parallel branch. With
+/// the bindings whose names its body references, for every parallel branch.
+/// Bash references are braced expansions and bare names in arithmetic
+/// context; sh and shell receive none. With
 /// [`REFLECTION_FULL_SCOPE_FALLBACK`] enabled, a non-shell block with a
 /// reflective token or O scope node receives the complete visible scope.
 fn shim_scope_sources(
@@ -2763,6 +2770,8 @@ mod tests {
             ),
             // escaped arithmetic opts out like `\${x}`.
             (r#"bash^(echo \$((a + 1)) \$[b])_bash"#, vec![]),
+            // the escape carries from the parser: `\${x}` names nothing.
+            (r#"bash^(echo \${c} "x\${a:-d}" \${#b})_bash"#, vec![]),
         ] {
             let execs = exec_data_sources(&three_bindings(body));
             let expected: Vec<String> = expected.into_iter().map(String::from).collect();

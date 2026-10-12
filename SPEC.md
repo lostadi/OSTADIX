@@ -1064,11 +1064,30 @@ Adding a new language: write a Backend subclass, add it to
   through a `$name` splice, which O substitutes into the block text. A bash
   block also references a `let` through braced parameter expansion: `${name}`,
   `${#name}`, or `${name` followed by an operator such as `:-`, `%`, `/`, or
-  `^`. Each such reference is a data edge from the binding to the block, and
-  the value is assigned as a non-exported shell variable at the top of that
-  block only, so bash evaluates the operator itself, child processes do not
-  see it, and in a numbered environment it takes precedence over a session
-  variable of the same name. Bash also reads a bare name as a variable in
+  `^`. Each such reference is a data edge from the binding to the block. A
+  reference is a textual occurrence, not a shell parse: `'${x}'` in single
+  quotes, a `# ${x}` comment, and a quoted heredoc body also count, which only
+  over-includes. `\${x}`, like `\$x`, is the opt-out escape: no edge and no
+  value. The value is assigned with `declare +x` just before that block only,
+  so bash evaluates the operator itself, child processes never see it even
+  when the name was already exported, and in a numbered environment it takes
+  precedence over a session variable of the same name. Text, numbers, and
+  booleans arrive as their scalar text; a list, map, null, or other value
+  arrives as the text the `$name` splice renders. A value with a NUL byte is
+  an error. A `let` named like a readonly bash variable (`UID`, `EUID`,
+  `PPID`, `BASHPID`, `SHELLOPTS`, ...) that a bash block references is a
+  compile error. A writable bash special such as `PATH`, `HOME`, `IFS`, or
+  `LC_*` must hold text. A block that references it, including through a
+  `$name` splice, assigns the `let` value with the export flag unchanged, and nothing restores or unsets it
+  afterwards: in a `bash[N]` session the `let` takes effect from the first
+  block that names it and stays for later blocks exactly as left, whereas
+  plain blocks are fresh processes, so a later plain block that does not
+  name it sees the host value. A block that names such a `let` and then
+  runs `export PATH=...`, or `cd` for `PWD`, keeps its own change for later
+  blocks, since nothing restores the special. The readonly check covers the
+  document's own `let` bindings; a readonly name that reaches a block another
+  way, such as an embedder's base scope, fails at runtime instead, because
+  every injected assignment is checked. Bash also reads a bare name as a variable in
   arithmetic context, so a bare `let` name is a reference there too, with the
   same edge and injection: inside `$(( ))`, `(( ))`, `for (( ; ; ))`, and
   `$[ ]`; in the arguments of the `let` builtin; on the right of a
@@ -1078,15 +1097,25 @@ Adding a new language: write a Backend subclass, add it to
   array subscript, `name[...]=` or `${name[...]}`. A `let` name in a
   subscript counts as a reference whatever the array kind. `[[ == ]]`, `!=`,
   and `=~` compare strings and are not references, and `[ ]` or `test` is
-  not arithmetic. A bare word such as `v=name` is not a reference, and
+  not arithmetic. These rules are textual as well: `((`, `name[`, `let`, or
+  `[[` inside quotes, comments, or heredocs also count, which only
+  over-includes, and `\$((x))` or `\$[x]` opts out like `\${x}`. A bare word such as `v=name` is not a reference, and
   indirection `${!v}` names no binding. Names built at runtime get nothing:
   with `v=name`, both `${!v}` and `$((v + 1))` read an unset `name`, and the
   same holds for a later plain assignment to a `-i` variable, a nameref
   (`declare -n`), and `eval`. Session variables of a `bash[N]` environment
-  must be read as `\$z`, because O splices every `$IDENT`. If a `bash[N]`
-  block assigns to the name of a `let` binding, the next block that references that binding gets the `let`
-  value: the session assignment is overridden for that block and unset after
-  it. A failing member of `batch(...)` settles as its
+  must be read as `\$z`, because O splices every `$IDENT`; `$z` is an O
+  splice and fails as an undefined variable. Any session variable with a
+  `let`'s name, other than a writable bash special, is unset after every block
+  that references that `let`, including the block that assigned it, so a later
+  block that does not reference the `let` sees it unset. Sibling `bash[N]`
+  branches of one `batch(...)` or other parallel group share the one session
+  of environment N: they run in no fixed order and never concurrently, and
+  each sees the session state the other left. If a block ends the session,
+  for example through `exit` or a failing command under a persisted
+  `set -e`, the block fails with a message saying the session ended, and the
+  next block of that environment starts a fresh session. Bash error messages
+  name the block as `bash: line N:` with the block's own line numbers. A failing member of `batch(...)` settles as its
   own error value; the other members still return their values, and the batch
   fails only when every member failed. When any member failed, `O` prints the
   document value, reports each member error on stderr, and exits with status
