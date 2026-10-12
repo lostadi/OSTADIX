@@ -140,8 +140,16 @@ impl GraphEvalFrame {
 /// the backend renders them as scalars. A list, map, null, or any other value
 /// becomes the text the `$name` splice renders, so `$x` and `${x}` agree. A
 /// NUL byte cannot live in a bash variable, so it is an error instead of a
-/// silent truncation.
+/// silent truncation. A writable bash special such as `PATH` replaces
+/// session state, so it must receive text.
 pub(crate) fn bash_let_value(name: &str, value: &OValue) -> Result<OValue> {
+    if crate::ir::bash_special_name(name).is_some() && !matches!(value, OValue::Text { .. }) {
+        bail!(
+            "let `{name}` names a bash special variable, so a bash block can only receive \
+             it as text, got {}",
+            value.type_name()
+        );
+    }
     let value = match value {
         OValue::Text { .. } | OValue::Number { .. } | OValue::Bool { .. } => value.clone(),
         other => OValue::str_(render_with(SpliceRenderer::Default, other)),
