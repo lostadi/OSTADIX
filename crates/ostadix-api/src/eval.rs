@@ -2195,14 +2195,13 @@ impl Evaluator {
         &mut self,
         src: &str,
         caller_scope: &HashMap<String, OValue>,
-        deadline: Instant,
+        deadline: Option<Instant>,
     ) -> Result<OValue> {
         let outer_deadline = self.callback_operation_deadline;
-        self.callback_operation_deadline = Some(
-            outer_deadline
-                .map(|outer| outer.min(deadline))
-                .unwrap_or(deadline),
-        );
+        self.callback_operation_deadline = match (outer_deadline, deadline) {
+            (Some(outer), Some(deadline)) => Some(outer.min(deadline)),
+            (outer, deadline) => outer.or(deadline),
+        };
         let outcome = self.eval_source_with_scope(src, caller_scope);
         self.callback_operation_deadline = outer_deadline;
         outcome
@@ -2616,7 +2615,9 @@ impl Evaluator {
             .checked_duration_since(Instant::now())
             .is_none_or(|remaining| remaining.is_zero())
         {
-            bail!("request execution deadline expired before dispatch");
+            return Err(anyhow::Error::new(
+                crate::cancellation::RequestDeadlineExpired("before dispatch"),
+            ));
         }
         self.callback_operation_deadline = Some(effective_deadline);
         let execution = self.eval_ir_program_with_mode(program, scope, Some(false), None);
@@ -2695,8 +2696,8 @@ impl Evaluator {
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
             self.last_execution_trace = Some(ExecutionTrace::new());
-            Err(anyhow::anyhow!(
-                "request execution deadline expired before dispatch"
+            Err(anyhow::Error::new(
+                crate::cancellation::RequestDeadlineExpired("before dispatch"),
             ))
         } else {
             self.eval_ir_program_with_mode(program, scope, forced, required_execution_intent)
@@ -2750,8 +2751,12 @@ impl Evaluator {
         forced: Option<bool>,
         required_execution_intent: Option<(&str, &str, &str)>,
     ) -> Result<OValue> {
-        let value =
-            self.eval_ir_program_with_mode_unchecked(program, scope, forced, required_execution_intent)?;
+        let value = self.eval_ir_program_with_mode_unchecked(
+            program,
+            scope,
+            forced,
+            required_execution_intent,
+        )?;
         let failures = self
             .last_execution_trace
             .as_ref()
@@ -3017,9 +3022,13 @@ impl Evaluator {
                     frame.set_value(id, value)?;
                 }
                 Err(err) => {
-                    if let Some((failure, value)) =
-                        crate::eval_core::settle_batch_member_failure(plan, &mut frame, id, &err)
-                    {
+                    if let Some((failure, value)) = crate::eval_core::settle_batch_member_failure(
+                        plan,
+                        &mut frame,
+                        id,
+                        &err,
+                        crate::executor::coordinator::batch_member_error_is_absorbable(&err),
+                    ) {
                         frame.trace.failed_batch_members.push(failure);
                         frame.trace.events.push(TraceEvent::NodeFinished {
                             id,
@@ -3376,6 +3385,8 @@ impl Evaluator {
             &launch_generation,
         )?;
         let execution: Result<OValue> = (|| {
+            self.registry
+                .set_request_cancellation(self.active_request_cancellation.clone());
             self.registry
                 .send_exec(
                     runtime_lang,
@@ -3848,21 +3859,32 @@ impl Evaluator {
         operation: &str,
         arguments: Vec<OValue>,
     ) -> Result<OValue> {
-        let deadline = Instant::now()
-            .checked_add(crate::process::backend_operation_timeout())
-            .context("native operation deadline overflow")?;
-        let deadline = self
-            .callback_operation_deadline
-            .map_or(deadline, |outer| outer.min(deadline));
+        let deadline = match crate::process::backend_operation_timeout()? {
+            Some(timeout) => Some(
+                Instant::now()
+                    .checked_add(timeout)
+                    .context("native operation deadline overflow")?,
+            ),
+            None => None,
+        };
+        let deadline = match (self.callback_operation_deadline, deadline) {
+            (Some(outer), Some(deadline)) => Some(outer.min(deadline)),
+            (outer, deadline) => outer.or(deadline),
+        };
         let mut ticket = self
             .registry
             .begin_native_operation(handle, operation, arguments)?;
         let outcome =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<OValue> {
                 loop {
-                    let remaining = deadline
-                        .checked_duration_since(Instant::now())
-                        .context("native.operation-timeout: owner operation deadline expired")?;
+                    let remaining = match deadline {
+                        Some(deadline) => {
+                            Some(deadline.checked_duration_since(Instant::now()).context(
+                                "native.operation-timeout: owner operation deadline expired",
+                            )?)
+                        }
+                        None => None,
+                    };
                     match self
                         .registry
                         .recv_native_operation(&mut ticket, remaining)?
@@ -4168,7 +4190,9 @@ impl GraphEvaluationHost for Evaluator {
             .callback_operation_deadline
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
-            bail!("request execution deadline expired during execution");
+            return Err(anyhow::Error::new(
+                crate::cancellation::RequestDeadlineExpired("during execution"),
+            ));
         }
         Ok(())
     }
@@ -4201,7 +4225,7 @@ impl GraphEvaluationHost for Evaluator {
         &mut self,
         src: &str,
         caller_scope: &HashMap<String, OValue>,
-        deadline: Instant,
+        deadline: Option<Instant>,
     ) -> Result<OValue> {
         Evaluator::eval_source_with_scope_until(self, src, caller_scope, deadline)
     }
@@ -5911,6 +5935,124 @@ mod tests {
     }
 
     #[test]
+    fn bash_child_killed_mid_block_fails_fast_and_loses_its_session() -> Result<()> {
+        // no default limit: a bash[n] whose session shell is killed mid-block
+        // must still end with an error within seconds, and the next block on
+        // bash[n] must fail instead of starting an empty session.
+        if which::which("bash").is_err() {
+            return Ok(());
+        }
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let outcome = (|| -> Result<()> {
+                let backends: HashSet<String> = ["bash"].iter().map(|s| s.to_string()).collect();
+                let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+                let mut evaluator =
+                    Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+                assert_eq!(
+                    eval_test_source(
+                        &mut evaluator,
+                        &backends,
+                        "bash[2]^(kept=1; printf 7)_bash[2]"
+                    )?,
+                    OValue::int(7)
+                );
+                let started = std::time::Instant::now();
+                let outcome = eval_test_source(
+                    &mut evaluator,
+                    &backends,
+                    "bash[2]^((sleep 0.3; kill -9 $$) & sleep 20; printf survived)_bash[2]",
+                );
+                assert!(
+                    started.elapsed() < std::time::Duration::from_secs(10),
+                    "{:?}",
+                    started.elapsed()
+                );
+                let error = outcome.expect_err("a killed bash[2] shell must fail the block");
+                let error = format!("{error:#}");
+                assert!(!error.contains("survived"), "{error}");
+                let error = eval_test_source(
+                    &mut evaluator,
+                    &backends,
+                    "bash[2]^(printf ${kept:-FRESH})_bash[2]",
+                )
+                .expect_err("the lost bash[2] session must not restart silently");
+                assert!(
+                    format!("{error:#}")
+                        .contains("killed by signal 9 during an earlier block; its state is gone"),
+                    "{error:#}"
+                );
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(std::time::Duration::from_secs(60)) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => panic!("killed bash block hung"),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    #[test]
+    fn hanging_numbered_bash_block_hits_the_step_limit_and_loses_its_session() -> Result<()> {
+        // bash has no default limit; the opt-in per-step limit must still
+        // cover bash[n], and the killed session must be reported lost rather
+        // than silently restarted.
+        if which::which("bash").is_err() {
+            return Ok(());
+        }
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            crate::process::set_step_timeout_override(Some(std::time::Duration::from_millis(500)));
+            let outcome = (|| -> Result<()> {
+                let backends: HashSet<String> = ["bash"].iter().map(|s| s.to_string()).collect();
+                let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+                let mut evaluator =
+                    Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+                assert_eq!(
+                    eval_test_source(
+                        &mut evaluator,
+                        &backends,
+                        "bash[1]^(kept=1; printf 7)_bash[1]"
+                    )?,
+                    OValue::int(7)
+                );
+                let error =
+                    eval_test_source(&mut evaluator, &backends, "bash[1]^(sleep 5)_bash[1]")
+                        .expect_err("a hanging bash[1] block must fail");
+                assert!(
+                    format!("{error:#}").contains(
+                        "step exceeded 500 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    ),
+                    "{error:#}"
+                );
+                let error =
+                    eval_test_source(&mut evaluator, &backends, "bash[1]^(printf 9)_bash[1]")
+                        .expect_err("a lost bash[1] session must not restart silently");
+                assert!(
+                    format!("{error:#}").contains(
+                        "session bash[1] was terminated after a timeout; its state is gone"
+                    ),
+                    "{error:#}"
+                );
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(std::time::Duration::from_secs(30)) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                panic!("hanging bash[1] block was not bounded by the per-step limit")
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    #[test]
     fn bash_stdout_scalar_decodes_to_ovalue() {
         if which::which("bash").is_err() {
             return;
@@ -6382,15 +6524,25 @@ mod tests {
             failed_batch_members: HashSet::new(),
         };
         assert!(
-            crate::eval_core::settle_batch_member_failure(&plan, &mut frame, member, &error)
-                .is_none(),
+            crate::eval_core::settle_batch_member_failure(
+                &plan,
+                &mut frame,
+                member,
+                &error,
+                crate::executor::coordinator::batch_member_error_is_absorbable(&error)
+            )
+            .is_none(),
             "a strict cache miss was absorbed as a member error"
         );
         let ordinary = anyhow::anyhow!("member broke");
-        assert!(
-            crate::eval_core::settle_batch_member_failure(&plan, &mut frame, member, &ordinary)
-                .is_some()
-        );
+        assert!(crate::eval_core::settle_batch_member_failure(
+            &plan,
+            &mut frame,
+            member,
+            &ordinary,
+            crate::executor::coordinator::batch_member_error_is_absorbable(&ordinary)
+        )
+        .is_some());
     }
 
     #[test]
