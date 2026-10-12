@@ -211,7 +211,15 @@ def handle_exec(cmd):
         if not alive:
             _session.close()
             _session = None
-        if returncode != 0:
+        if returncode != 0 and not alive:
+            # a failing block that ended the session, e.g. under a persisted
+            # `set -e`, also dropped its variables, functions, and options.
+            send_err(
+                "bash session ended during this block, dropping its variables, "
+                "functions, and options; the next block starts a fresh session. "
+                f"bash exited with code {returncode}\n{stderr.strip()}"
+            )
+        elif returncode != 0:
             send_err(f"bash exited with code {returncode}\n{stderr.strip()}")
         else:
             send_ok(stdout_result(stdout))
