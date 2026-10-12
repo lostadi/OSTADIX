@@ -1,0 +1,49 @@
+{
+  "schema": "ostadix.dependabot-integration/v1",
+  "checked_at": "2026-10-12T06:21:24.744264+00:00",
+  "base": "0b6af099396f948ef006e441249d9a9f4238e3ed",
+  "dependency_integration_commit": "f3da685e2ff33e89cf59c5cc2e8833dca99de439",
+  "prior_inventories": [
+    "ci/integration-2026-10-11.json",
+    "ci/integration-2026-10-12.json"
+  ],
+  "repositories": [
+    "lostadi/ostadix-BM",
+    "lostadi/OSTADIX"
+  ],
+  "open_dependabot_pull_requests": [
+    {
+      "repository": "lostadi/ostadix-BM",
+      "number": 2,
+      "url": "https://github.com/lostadi/ostadix-BM/pull/2",
+      "source_commit": "b89ae62ab8b149729bd9d157540b37286421a84e",
+      "path": "examples/guix-wasm/Dockerfile",
+      "disposition": "already_integrated",
+      "evidence": "Complete Dockerfile bytes match the bot proposal."
+    },
+    {
+      "repository": "lostadi/ostadix-BM",
+      "number": 8,
+      "url": "https://github.com/lostadi/ostadix-BM/pull/8",
+      "source_commit": "90fbaee93901e7843e0dfad059161eb966801fe2",
+      "path": "src/bin/olangc/browser_guix/Dockerfile",
+      "disposition": "already_integrated",
+      "evidence": "Complete Dockerfile bytes match the bot proposal."
+    },
+    {
+      "repository": "lostadi/ostadix-BM",
+      "number": 13,
+      "url": "https://github.com/lostadi/ostadix-BM/pull/13",
+      "source_commit": "7b807b8e2eac7018b85c745546701caf6c1ef782",
+      "path": "src/bin/olangc/wasm_exit/Dockerfile",
+      "disposition": "already_integrated",
+      "evidence": "All 12 Ubuntu 26.04 stage declarations match; the independently integrated Rust 1.98 image is preserved."
+    }
+  ],
+  "ostadix_open_dependabot_pull_requests": [],
+  "publication_identity": {
+    "name": "Lee Daghlar Ostadi",
+    "email": "ostadi.lee@gmail.com"
+  },
+  "history_policy": "Record the already integrated dependency updates in a human-authored commit and close redundant bot PRs. Do not add original bot ancestry, rewrite bot branches, or weaken the all-parent attribution gate."
+}
