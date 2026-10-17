@@ -33,6 +33,12 @@ impl TraceSink {
             .find(|observation| observation.plan_node == id.0)
     }
 
+    pub(crate) fn published(&mut self, id: PlanNodeId, outputs: Vec<serde_json::Value>) {
+        self.trace
+            .publications
+            .push(serde_json::json!({"plan_node":id.0,"outputs":outputs}));
+    }
+
     pub fn new() -> Self {
         Self {
             trace: ExecutionTrace::new(),

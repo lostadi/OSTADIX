@@ -2853,6 +2853,14 @@ impl Evaluator {
             }
         };
         let use_serial = select_serial_executor(forced, configured.as_deref())?;
+        if use_serial
+            && plan
+                .nodes
+                .iter()
+                .any(|node| matches!(node.kind, PlanNodeKind::NativeI64 { .. }))
+        {
+            bail!("native scalar leaves require the admitted graph coordinator; serial fallback is not supported");
+        }
         if use_serial && self.physical_attempt_adapter.is_some() {
             bail!(
                 "explicit remote pure execution requires the graph coordinator; serial execution would be an unauthorized local fallback"
@@ -3891,6 +3899,9 @@ fn validate_placement_fragment_shape(
             }
             PlanNodeKind::Store { .. } => {
                 bail!("placement fragment cannot contain Store P{}", node.id.0)
+            }
+            PlanNodeKind::NativeI64 { .. } => {
+                bail!("native scalar leaf is Linux-local and cannot enter a hosted placement fragment")
             }
             PlanNodeKind::Call { .. } => {
                 bail!("placement fragment cannot contain Call P{}", node.id.0)

@@ -25,7 +25,7 @@ from tests import test_ocore_llvm_memory_import as memory
 ROOT = Path(__file__).resolve().parents[1]
 SDK_DEFAULT = (Path.home() / ".local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin")
 TRIPLES = baseline.TRIPLES
-LAYOUT = "e-p:64:64-i64:64-f128:128-n8:16:32:64-S128"
+LAYOUT = "e-p:64:64-i64:64-i128:128-f128:128-n8:16:32:64-S128"
 ZERO = "0xL00000000000000000000000000000000"
 ONE = "0xL00000000000000003FFF000000000000"
 NEGATIVE_ZERO = "0xL00000000000000008000000000000000"
@@ -419,7 +419,7 @@ pathlib.Path('unit-inventory.json').write_text(json.dumps({
                 self.case = self.case / name
                 self.case.mkdir()
                 native_ir = self.case / "whole.native-ir.json"
-                command([self.ocorec, unit["ir"]["path"], "--emit", "mir",
+                command([self.ocorec, unit["ir"]["path"], "--input-kind", "llvm-ir", "--emit", "mir",
                          "--target", "riscv64-unknown-none", "--llvm-library", self.library,
                          "--llvm-sha256", self.library_sha256, "-o", native_ir])
                 module = json.loads(native_ir.read_text())

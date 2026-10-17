@@ -1749,6 +1749,17 @@ fn inspect_browser_compatibility(source: &str) -> Result<(BrowserCompatibilityAs
     let mut blockers = Vec::new();
     for node in &plan.nodes {
         match &node.kind {
+            PlanNodeKind::NativeI64 { .. } => blockers.push(BrowserCompatibilityBlocker {
+                plan_node: node.id.0,
+                code: "linux-native-leaf".to_string(),
+                operation: "native-i64".to_string(),
+                backend: Some("ocore".to_string()),
+                required_authorities: Vec::new(),
+                diagnostic: format!(
+                    "P{} requires the local Linux ELF native scalar profile",
+                    node.id.0
+                ),
+            }),
             PlanNodeKind::Exec { lang, backend, .. }
                 if backend.execution == ExecutionMode::Shim =>
             {

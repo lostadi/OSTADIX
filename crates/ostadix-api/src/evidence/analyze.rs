@@ -548,6 +548,7 @@ pub fn analyze_execution_v5(
         if leases.manifest() != &runtime.executable_manifest {
             anyhow::bail!("execution evidence executable leases do not match their manifest");
         }
+        leases.verify_native_plan(plan)?;
         leases
             .verify_all()
             .context("execution evidence rejected stale direct executable identity")?;
@@ -648,11 +649,16 @@ pub fn analyze_execution_v5(
             resource_demand: ResourceDemandContractV1 {
                 cpu_units: Some(1),
                 hard_memory_bytes: None,
-                file_descriptors: (dispatch_adapter
-                    == DispatchAdapterV1::AutonomousEphemeralShimV1)
-                    .then_some(3),
-                process_slots: (dispatch_adapter == DispatchAdapterV1::AutonomousEphemeralShimV1)
-                    .then_some(1),
+                file_descriptors: matches!(
+                    dispatch_adapter,
+                    DispatchAdapterV1::AutonomousEphemeralShimV1 | DispatchAdapterV1::NativeI64V1
+                )
+                .then_some(3),
+                process_slots: matches!(
+                    dispatch_adapter,
+                    DispatchAdapterV1::AutonomousEphemeralShimV1 | DispatchAdapterV1::NativeI64V1
+                )
+                .then_some(1),
                 provenance: EvidenceProvenance::Unknown,
             },
             cost_estimate: CostEstimateV1::unknown(),
@@ -705,6 +711,7 @@ pub fn analyze_execution_v6(
         if leases.manifest() != &runtime.executable_manifest {
             anyhow::bail!("execution evidence executable leases do not match their manifest");
         }
+        leases.verify_native_plan(plan)?;
         leases
             .verify_all()
             .context("execution evidence rejected stale direct executable identity")?;
@@ -796,11 +803,16 @@ pub fn analyze_execution_v6(
             resource_demand: ResourceDemandContractV1 {
                 cpu_units: Some(1),
                 hard_memory_bytes: None,
-                file_descriptors: (dispatch_adapter
-                    == DispatchAdapterV1::AutonomousEphemeralShimV1)
-                    .then_some(3),
-                process_slots: (dispatch_adapter == DispatchAdapterV1::AutonomousEphemeralShimV1)
-                    .then_some(1),
+                file_descriptors: matches!(
+                    dispatch_adapter,
+                    DispatchAdapterV1::AutonomousEphemeralShimV1 | DispatchAdapterV1::NativeI64V1
+                )
+                .then_some(3),
+                process_slots: matches!(
+                    dispatch_adapter,
+                    DispatchAdapterV1::AutonomousEphemeralShimV1 | DispatchAdapterV1::NativeI64V1
+                )
+                .then_some(1),
                 provenance: EvidenceProvenance::Unknown,
             },
             cost_estimate: CostEstimateV1::unknown(),
@@ -1416,6 +1428,10 @@ fn encode_port(hash: &mut CanonicalHasher, role: PortRole, node: u64) {
 fn encode_executable_op(hash: &mut CanonicalHasher, op: &crate::hgraph::ExecutableOp) {
     use crate::hgraph::ExecutableOp;
     match op {
+        ExecutableOp::NativeI64 { descriptor_sha256 } => {
+            hash.tag("native-i64");
+            hash.field(descriptor_sha256.as_bytes());
+        }
         ExecutableOp::Store => hash.tag("store"),
         ExecutableOp::LoadBinding => hash.tag("load-binding"),
         ExecutableOp::Invoke { fn_name, mode } => {

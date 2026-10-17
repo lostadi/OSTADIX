@@ -491,6 +491,9 @@ fn build_task(
     shim_runtime: Option<EphemeralShimRuntime>,
 ) -> Result<ParallelTask> {
     let body = match kind {
+        TaskKind::NativeI64 => {
+            bail!("native scalar preparation requires admitted sealed executable authority")
+        }
         TaskKind::Load { name } => {
             // Preparation freezes the operation's admitted scope. The lookup
             // itself remains worker work, so two reads of one version execute
@@ -635,7 +638,8 @@ pub(crate) fn prepare(
                 renderer: backend.renderer,
             }
         }
-        DispatchAdapterV1::TrustedInlineRendererV1
+        DispatchAdapterV1::NativeI64V1
+        | DispatchAdapterV1::TrustedInlineRendererV1
         | DispatchAdapterV1::AutonomousEphemeralShimV1
         | DispatchAdapterV1::CoordinatorV1 => bail!(
             "operation {} no longer matches admitted adapter {}",
@@ -644,6 +648,56 @@ pub(crate) fn prepare(
         ),
     };
     Ok(Box::new(build_task(frame, plan, id, kind, shim_runtime)?))
+}
+
+struct NativeI64Task {
+    leaf: Arc<crate::native_leaf::PreparedLeaf>,
+    arguments: Vec<OValue>,
+}
+impl PreparedTask for NativeI64Task {
+    fn execute(self: Box<Self>, _context: &TaskContext) -> Result<OValue> {
+        let arguments = self
+            .arguments
+            .iter()
+            .map(crate::native_leaf::argument)
+            .collect::<Result<Vec<_>>>()?;
+        self.leaf.execute(&arguments)
+    }
+}
+pub(crate) fn prepare_native(
+    leaf: Arc<crate::native_leaf::PreparedLeaf>,
+    frame: &GraphEvalFrame,
+    plan: &ExecutionPlan,
+    id: PlanNodeId,
+    oir: &OIr,
+) -> Result<Box<dyn PreparedTask>> {
+    let expected = crate::native_leaf::source_descriptor(oir)
+        .ok_or_else(|| anyhow::anyhow!("native scalar source descriptor is not static"))?;
+    let children = frame
+        .plan_index
+        .child_schedule(id)
+        .map_err(anyhow::Error::msg)?;
+    let (descriptor, arguments) = children
+        .split_first()
+        .ok_or_else(|| anyhow::anyhow!("native scalar descriptor input is absent"))?;
+    match frame.value(*descriptor)? {
+        OValue::Text { v } if v.utf8 == expected => {}
+        _ => bail!("materialized native descriptor differs from its admitted source"),
+    }
+    if !adapter_matches(DispatchAdapterV1::NativeI64V1, plan, id, oir)
+        || leaf.manifest.descriptor_sha256 != crate::native_leaf::digest(expected.as_bytes())
+    {
+        bail!("native leaf lease does not match its admitted plan");
+    }
+    leaf.verify()?;
+    let arguments = arguments
+        .iter()
+        .map(|child| frame.value(*child).cloned())
+        .collect::<Result<Vec<_>>>()?;
+    if arguments.len() != leaf.manifest.parameter_count {
+        bail!("native leaf argument count differs from admitted ABI");
+    }
+    Ok(Box::new(NativeI64Task { leaf, arguments }))
 }
 
 /// Execute one owned prepared task on a worker thread. Strict adapters are

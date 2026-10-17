@@ -138,6 +138,10 @@ pub enum HEdgeKind {
 /// The executable operations an operation hyperedge can carry.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExecutableOp {
+    /// Execute a statically audited embedded module through its admitted sealed ELF.
+    NativeI64 {
+        descriptor_sha256: String,
+    },
     /// Bind an expression's value to a name (`let name = expr`). Produces a
     /// scope-delta value node the coordinator commits.
     Store,

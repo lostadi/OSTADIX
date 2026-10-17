@@ -513,6 +513,11 @@ pub(super) fn executable_op(kind: &PlanNodeKind) -> Option<ExecutableOp> {
         PlanNodeKind::Text => None,
         PlanNodeKind::Load { .. } => Some(ExecutableOp::LoadBinding),
         PlanNodeKind::Store { .. } => Some(ExecutableOp::Store),
+        PlanNodeKind::NativeI64 { descriptor, .. } => Some(ExecutableOp::NativeI64 {
+            descriptor_sha256: crate::native_leaf::digest(
+                descriptor.as_deref().unwrap_or("").as_bytes(),
+            ),
+        }),
         PlanNodeKind::Call { fn_name, mode, .. } => Some(ExecutableOp::Invoke {
             fn_name: fn_name.clone(),
             mode: *mode,
@@ -553,6 +558,12 @@ fn hnode_for_oir(node: &OIr) -> HNode {
                 node.domain = DomainFlags::STRING;
                 node.rep = RepFlags::STR;
             }
+            node
+        }
+        node if crate::native_leaf::is_call(node) => {
+            let mut node = HNode::fresh();
+            node.domain = DomainFlags::INTEGER;
+            node.rep = RepFlags::I64;
             node
         }
         _ => HNode::fresh(),
@@ -658,7 +669,8 @@ fn add_plan_semantics(
             PlanNodeKind::Text
             | PlanNodeKind::Load { .. }
             | PlanNodeKind::Store { .. }
-            | PlanNodeKind::Call { .. } => {}
+            | PlanNodeKind::Call { .. }
+            | PlanNodeKind::NativeI64 { .. } => {}
         }
     }
 }

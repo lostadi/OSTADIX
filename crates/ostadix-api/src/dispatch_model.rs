@@ -23,11 +23,13 @@ pub enum DispatchAdapterV1 {
     OScopeLoadV1,
     TrustedInlineRendererV1,
     AutonomousEphemeralShimV1,
+    NativeI64V1,
 }
 
 impl DispatchAdapterV1 {
     pub const fn name(self) -> &'static str {
         match self {
+            Self::NativeI64V1 => "ocore-native-i64/v1",
             Self::CoordinatorV1 => "coordinator/v1",
             Self::OScopeLoadV1 => "o-scope-load/v1",
             Self::TrustedInlineRendererV1 => "trusted-inline-renderer/v1",
@@ -43,6 +45,7 @@ impl DispatchAdapterV1 {
 /// A statically determined Send-only task classification for one plan node.
 #[derive(Clone, Debug)]
 pub enum TaskKind {
+    NativeI64,
     Renderer {
         renderer: SpliceRenderer,
         canonical: String,
@@ -59,6 +62,7 @@ pub enum TaskKind {
 impl TaskKind {
     pub(crate) const fn adapter(&self) -> DispatchAdapterV1 {
         match self {
+            Self::NativeI64 => DispatchAdapterV1::NativeI64V1,
             Self::Renderer { .. } => DispatchAdapterV1::TrustedInlineRendererV1,
             Self::Load { .. } => DispatchAdapterV1::OScopeLoadV1,
             Self::EphemeralShim { .. } => DispatchAdapterV1::AutonomousEphemeralShimV1,
@@ -69,6 +73,7 @@ impl TaskKind {
 /// Classify a plan node when a local Send-only task adapter is available.
 pub(crate) fn classify(plan: &ExecutionPlan, oir: &OIr, id: PlanNodeId) -> Option<TaskKind> {
     match oir {
+        native if native_adapter_matches(plan, id, native) => Some(TaskKind::NativeI64),
         OIr::Load(name) => Some(TaskKind::Load { name: name.clone() }),
         OIr::Exec { attr, backend, .. }
             if attr.is_none()
@@ -102,12 +107,29 @@ pub(crate) fn adapter_matches(
     oir: &OIr,
 ) -> bool {
     match adapter {
+        DispatchAdapterV1::NativeI64V1 => native_adapter_matches(plan, id, oir),
         DispatchAdapterV1::OScopeLoadV1 => matches!(oir, OIr::Load(_)),
         DispatchAdapterV1::TrustedInlineRendererV1 => renderer_inputs_statically_preparable(oir),
         DispatchAdapterV1::AutonomousEphemeralShimV1 => {
             autonomous_ephemeral_group(plan, id, oir).is_some()
         }
         DispatchAdapterV1::CoordinatorV1 => false,
+    }
+}
+
+fn native_adapter_matches(plan: &ExecutionPlan, id: PlanNodeId, oir: &OIr) -> bool {
+    match (
+        plan.nodes.get(id.0).map(|node| &node.kind),
+        crate::native_leaf::source_descriptor(oir),
+    ) {
+        (
+            Some(PlanNodeKind::NativeI64 {
+                descriptor: Some(expected),
+                ..
+            }),
+            Some(actual),
+        ) => expected == actual,
+        _ => false,
     }
 }
 
@@ -312,6 +334,18 @@ fn renderer_input_statically_preparable(input: &OIr) -> bool {
 /// Hard effect/failure predicate shared by evidence and runtime verification.
 pub(crate) fn effect_contract_worker_safe(summary: &EffectSummary, oir: &OIr) -> bool {
     match oir {
+        native if crate::native_leaf::is_call(native) => {
+            summary.confidence == EffectConfidence::Verified
+                && summary.deterministic
+                && summary.fallibility == Fallibility::MayFail
+                && !summary.unknown
+                && summary.actor_state.is_none()
+                && summary.reads.is_empty()
+                && summary.writes.is_empty()
+                && !summary.network
+                && !summary.spawn
+                && !summary.clock
+        }
         OIr::Exec {
             env_id, backend, ..
         } if EnvironmentRefV2::from_encoded(*env_id).is_fresh()

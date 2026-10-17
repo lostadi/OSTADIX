@@ -810,6 +810,19 @@ pub fn effect_summary_for_plan_node(
                 .insert(ResourceKey::ScopeBinding(name.clone()));
             Ok(summary)
         }
+        PlanNodeKind::NativeI64 {
+            descriptor,
+            argument_count,
+        } => {
+            let descriptor = descriptor
+                .as_deref()
+                .ok_or("ocore_i64 requires a static literal text descriptor")?;
+            crate::native_leaf::validate_descriptor(descriptor, *argument_count)
+                .map_err(|error| format!("{error:#}"))?;
+            let mut summary = EffectSummary::pure();
+            summary.fallibility = Fallibility::MayFail;
+            Ok(summary)
+        }
         PlanNodeKind::Group { .. } => Ok(EffectSummary::pure()),
         PlanNodeKind::Call { .. }
         | PlanNodeKind::Request { .. }

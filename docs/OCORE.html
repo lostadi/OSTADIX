@@ -14,13 +14,15 @@ never available in freestanding O-core code.</p>
              -&gt; assembler -&gt; target object
 </code></pre>
 <p>The existing orchestration pipeline remains:</p>
-<pre><code class="language-text">.O source -&gt; ONode -&gt; OIR execution plan -&gt; hosted evaluator/backends
+<pre><code class="language-text">.O source -&gt; ONode -&gt; validated OIR -&gt; ExecutionPlan -&gt; admitted HGraph
+          -&gt; hosted coordinator -&gt; backend operations or owned native leaves
 </code></pre>
 <p>OIR and O-core MIR are different representations with different invariants.
 OIR models dependency and backend execution. MIR models typed machine-level
-computation. Neither is implicitly converted to the other. This internal
-separation does not prevent a future complete OIR artifact from containing
-verified native O-core modules and explicit realization bindings.</p>
+computation. Neither is implicitly converted to the other. The scalar leaf
+interface below embeds a verified native module in ordinary OIR and connects
+its realization to HGraph admission and execution. General graph-to-native
+lowering and complete runtime-bearing OIR artifacts remain separate work.</p>
 <p>Supported native targets are <code>x86_64-unknown-none</code>, <code>aarch64-unknown-none</code>, and
 <code>riscv64-unknown-none</code> (RV64GC). All emit target assembly and little-endian ELF64
 objects with an LP64 data model. <code>extern &quot;C&quot;</code> selects the target&#39;s integer C
@@ -68,11 +70,118 @@ identities, debug information, runtime observations or execution authority.
 The outer object digest checks declared byte identity in an unsigned sidecar;
 it does not independently prove assembly-to-object correspondence or assembler
 correctness. Replacing an object and changing its declared digest is outside
-this descriptive check. <code>.oc</code> source mapping and general native/HGraph execution remain
-separate work. Verification without a positional module uses the exact embedded
+this descriptive check. The connected scalar HGraph leaf below uses separate
+admission and execution evidence; <code>.oc</code> source mapping and general native graph
+lowering remain separate work. Verification without a positional module uses the exact embedded
 snapshot. Supplying an external module additionally checks its exact bytes and
 requires <code>--input-kind native-ir</code>. Original LLVM-input provenance remains in
 the inner map; map verification does not require another LLVM import.</p>
+<h3>Admitted scalar native leaves in ordinary O</h3>
+<p>The eager builtin <code>ocore_i64(DESCRIPTOR, ARGUMENTS...)</code> connects a bounded native
+computation to the existing ordinary <code>.O</code> graph executor. Its first argument
+must be an attribute-free, literal <code>text</code> block containing this JSON shape:</p>
+<pre><code class="language-json">{&quot;schema&quot;:&quot;ocore-native-i64-leaf-v1&quot;,&quot;entry&quot;:&quot;native_add&quot;,&quot;module&quot;:{}}
+</code></pre>
+<p>The empty object above is a placeholder for a <strong>complete</strong>, independently
+verified <code>ocore-native-module-v1</code> object. It is not a filename or an executable
+reference. Unknown descriptor fields reject. A variable, interpolated text or
+computed descriptor rejects; ordinary argument values may depend on earlier
+graph operations. The entry must return <code>i64</code> and take fixed <code>i64</code> C-ABI
+parameters. Zero parameters and register or stack arguments are supported;
+there is no fixed parameter-count gate.</p>
+<p>For an existing qualifying <code>implementation.json</code>, this writes an ordinary
+program with a real Store, native computation and successor Store. The entry
+in this example must add one to its single argument:</p>
+<pre><code class="language-sh">python3 - &lt;&lt;&#39;PY&#39;
+import json
+from pathlib import Path
+descriptor = json.dumps({
+    &quot;schema&quot;: &quot;ocore-native-i64-leaf-v1&quot;,
+    &quot;entry&quot;: &quot;native_add&quot;,
+    &quot;module&quot;: json.loads(Path(&quot;implementation.json&quot;).read_text()),
+}, separators=(&quot;,&quot;, &quot;:&quot;), ensure_ascii=True)
+# Keep the JSON inside a literal O text block, even if provenance contains
+# characters that have meaning to the O parser. JSON restores these characters.
+for character in &quot;$()^&quot;:
+    descriptor = descriptor.replace(character, &quot;\\u%04x&quot; % ord(character))
+Path(&quot;native-chain.O&quot;).write_text(
+    &quot;let x = text^(41)_text;\n&quot;
+    &quot;let x = ocore_i64(text^(&quot; + descriptor + &quot;)_text, $x);\n&quot;
+    &quot;text^($x)_text\n&quot;
+)
+PY
+target/debug/olangc native-chain.O --target ir
+target/debug/O --json --executor graph --workers 2 native-chain.O \
+  /home/orangepi/ostadix-BM/backends
+</code></pre>
+<p>Parsing and static IR/plan inspection do not assemble, link or execute the
+module. Graph execution first validates the descriptor against the source
+plan and audits the complete module, including unused functions and unreachable
+blocks. Structural native-IR validity alone does not establish purity. This
+additional profile admits acyclic scalar <code>i64</code>/<code>i1</code> SSA arithmetic, comparisons,
+integer casts, select, phi, freeze, branches, switches, returns and explicit
+traps. Every ordinary function has a defined body and fixed <code>i64</code> C boundary.
+Globals, aliases, COMDAT selection, memory accesses, pointers, calls, inline
+assembly, atomics, TLS, exception handling and unresolved external functions
+reject. The exact <code>llvm.trap</code> declaration may remain as original intrinsic
+inventory; it supplies no callable external provider. The audit retains and
+checks all blocks rather than selecting a pure-looking entry from an impure
+module. There is no graph, module or instruction-count scope gate.</p>
+<p>The execution profile is <code>linux-elf-i64-acyclic-v1</code>, on a matching Linux host
+ISA: x86-64, AArch64 or RV64. The owned emitter generates the module assembly,
+and the trusted adapter adds a libc-free C-ABI wrapper using an exact binary
+stdin/stdout protocol. RV64 assembly explicitly uses the module&#39;s LP64 or
+LP64D ABI. Arguments must be signed integers within <code>i64</code>, or text in canonical
+signed decimal form; <code>+41</code>, <code>041</code>, out-of-range values and other value types
+reject. The native result crosses back as an O integer. Traps and malformed
+protocol responses fail the operation. There is no hosted evaluation fallback.
+The wrapper disables core dumping before entering module code.</p>
+<p>Before fresh graph admission, the adapter resolves <code>clang</code> and <code>ld</code> from a
+single captured search path, reads their exact ELF bytes, and runs sealed
+copies to assemble and statically link the owned assembly. It preserves their
+original invocation paths as <code>argv[0]</code>. Both tools use one captured working
+directory and an otherwise cleared environment containing <code>LC_ALL=C</code> and the
+same optional <code>LD_LIBRARY_PATH</code> snapshot. The manifest binds the working
+directory and an unambiguous environment digest without exposing its raw
+values. These selected tools, their loaded libraries, the owned emitter and
+adapter, and the Linux kernel are explicit trusted components; pinning tool
+bytes does not prove the assembler or linker correct.</p>
+<p>The resulting executable is sealed before admission. Its manifest binds the
+literal descriptor, canonical verified module, entry, arity, target/profile,
+current adapter executable, generated assembly, selected tool bytes and flags,
+tool environment/working directory, and exact linked executable bytes. This
+inventory contributes to the executable-manifest digest in source-plan
+admission. Dispatch reuses the admitted process-local sealed lease and verifies
+its manifest binding; execution uses the retained file descriptor rather than
+rehashing a mutable pathname. A supplied ELF or unsigned instruction map cannot
+stand in for this construction or for the module purity audit.</p>
+<p>The operation is admitted as <code>MayFailNoExternalEffects</code>. Its value and
+completion follow real HGraph dependencies. In the example, the first Store
+publishes <code>scope:x@1</code>, the native leaf consumes that value, and the second Store
+may publish <code>scope:x@2</code> only after successful native settlement. A native trap
+or invalid argument prevents the successor Store and its resource version from
+being published. Explicit serial, browser and remote execution routes reject
+this local Linux adapter.</p>
+<p><code>O --json</code> exposes <code>execution_evidence</code> on execution success and failure:</p>
+<ul>
+<li><code>admission</code> binds the OIR, plan, analyzed/admitted graphs, evidence and
+executable-manifest digests. It is absent when admission did not complete.</li>
+<li><code>native_leaves</code> lists admitted manifest identities with their <code>plan_node</code>.
+This is admitted inventory; a listed leaf may never have started.</li>
+<li><code>trace.events</code> records actual <code>ready</code>, <code>started</code>, <code>finished</code>, <code>failed</code> and
+<code>discarded</code> observations for plan nodes. <code>trace.publications</code> records outputs
+only at actual successful semantic settlement, including resource names,
+versions and producing plan nodes. Static inspection does not create these
+observations. A failure before execution may have no trace.</li>
+</ul>
+<p>The implementation and its focused tests are in <code>native_leaf.rs</code>,
+<code>native_leaf_tests.rs</code>, <code>executor/native_leaf_graph_tests.rs</code> and
+<code>tests/test_ocore_native_hgraph_cli.py</code>. Test presence alone is not a passed
+execution gate. This interface keeps the coordinator hosted and qualifies a
+scalar native leaf boundary; it does not implement a native HGraph scheduler,
+general graph-to-native lowering, arbitrary external runtimes, signed portable
+admission, instruction-level causal debugging or all-three-ISA execution
+equivalence.</p>
 <h3>External runtime lowering and script bundles</h3>
 <p>The primary compiler objective is for <code>olangc</code> to fully and automatically
 compile existing external runtime and compiler implementations in terms of

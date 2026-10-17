@@ -26,6 +26,8 @@ use crate::value::{fingerprint_preview, DecimalSpecial, FloatFormat, ONumber, OV
 pub struct ExecutionTrace {
     pub events: Vec<TraceEvent>,
     pub backend_crossings: Vec<crate::backend_morphism::BackendCrossingObservationV1>,
+    /// Actual successful settlement outputs; no static or predicted state.
+    pub publications: Vec<serde_json::Value>,
 }
 
 impl ExecutionTrace {
@@ -33,6 +35,7 @@ impl ExecutionTrace {
         Self {
             events: Vec::new(),
             backend_crossings: Vec::new(),
+            publications: Vec::new(),
         }
     }
 }

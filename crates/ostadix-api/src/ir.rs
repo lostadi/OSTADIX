@@ -470,6 +470,11 @@ pub enum PlanNodeKind {
     Store {
         name: String,
     },
+    /// Static embedded owned-code leaf. None is an invalid descriptor shape.
+    NativeI64 {
+        descriptor: Option<String>,
+        argument_count: usize,
+    },
     Call {
         fn_name: String,
         mode: InvokeMode,
@@ -720,9 +725,11 @@ impl ExecutionPlan {
 impl PlanNodeKind {
     pub fn class(&self) -> PlanNodeClass {
         match self {
-            Self::Text | Self::Load { .. } | Self::Store { .. } | Self::Call { .. } => {
-                PlanNodeClass::Pure
-            }
+            Self::Text
+            | Self::Load { .. }
+            | Self::Store { .. }
+            | Self::Call { .. }
+            | Self::NativeI64 { .. } => PlanNodeClass::Pure,
             Self::Exec { .. } if self.eval_cache_policy().is_some() => PlanNodeClass::Control,
             Self::Exec { .. } => PlanNodeClass::Effect,
             Self::Request { .. } | Self::Group { .. } | Self::Schedule { .. } => {
@@ -744,6 +751,16 @@ impl PlanNodeKind {
             PlanNodeKind::Text => "text".to_string(),
             PlanNodeKind::Load { name } => format!("load ${name}"),
             PlanNodeKind::Store { name } => format!("store ${name}"),
+            PlanNodeKind::NativeI64 {
+                descriptor,
+                argument_count,
+            } => format!(
+                "native-i64/{argument_count} descriptor={}",
+                descriptor
+                    .as_deref()
+                    .map(|text| crate::native_leaf::digest(text.as_bytes()))
+                    .unwrap_or_else(|| "invalid-static-descriptor".into())
+            ),
             PlanNodeKind::Call {
                 fn_name,
                 mode,
@@ -1000,6 +1017,10 @@ impl PlanBuilder {
                     arg_count: args.len(),
                 },
                 InvokeMode::Eager => match fn_name.as_str() {
+                    crate::native_leaf::BUILTIN => PlanNodeKind::NativeI64 {
+                        descriptor: crate::native_leaf::source_descriptor(node).map(str::to_owned),
+                        argument_count: args.len().saturating_sub(1),
+                    },
                     "instantiate" => PlanNodeKind::Request {
                         fn_name: fn_name.clone(),
                         kind: PlanRequestKind::Instantiate,

@@ -40,6 +40,10 @@ use super::task::{
 };
 use super::trace::TraceSink;
 
+#[cfg(all(test, target_os = "linux", feature = "graph_executor"))]
+#[path = "native_leaf_graph_tests.rs"]
+mod native_leaf_graph_tests;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum OpRunState {
     Pending,
@@ -534,7 +538,9 @@ impl<'a> Coordinator<'a> {
                     selected_renderers += 1;
                 }
                 DispatchAdapterV1::OScopeLoadV1 => {}
-                DispatchAdapterV1::AutonomousEphemeralShimV1 | DispatchAdapterV1::CoordinatorV1 => {
+                DispatchAdapterV1::NativeI64V1
+                | DispatchAdapterV1::AutonomousEphemeralShimV1
+                | DispatchAdapterV1::CoordinatorV1 => {
                     bail!(
                         "operation {} uses adapter {} outside the explicit Fabric V1 profile",
                         self.ops[index].plan_node.0,
@@ -786,7 +792,24 @@ impl<'a> Coordinator<'a> {
                 .transpose()?;
             let submission = (|| -> Result<TaskSubmission> {
                 Ok(
-                    if self.ops[index].dispatch_adapter
+                    if self.ops[index].dispatch_adapter == DispatchAdapterV1::NativeI64V1 {
+                        let descriptor = crate::native_leaf::source_descriptor(self.flat[id.0])
+                            .ok_or_else(|| anyhow::anyhow!("native leaf lost source descriptor"))?;
+                        let leaf = self
+                            .admitted
+                            .executable_leases()?
+                            .native_leaf(&crate::native_leaf::digest(descriptor.as_bytes()))?;
+                        TaskSubmission::new(
+                            TaskToken(index),
+                            parallel::prepare_native(
+                                leaf,
+                                &self.frame,
+                                self.plan,
+                                id,
+                                self.flat[id.0],
+                            )?,
+                        )
+                    } else if self.ops[index].dispatch_adapter
                         == DispatchAdapterV1::TrustedInlineRendererV1
                     {
                         if let Some(adapter) = physical_attempt_adapter {
@@ -1111,6 +1134,7 @@ impl<'a> Coordinator<'a> {
                 for output in &self.ops[index].outputs {
                     self.provisional_groups.remove(output);
                 }
+                self.record_publication(index);
                 self.ops[index].state = OpRunState::Settled;
                 crate::process::lifecycle_trace(
                     "coordinator.result_settled",
@@ -1441,7 +1465,48 @@ impl<'a> Coordinator<'a> {
     /// commit order is not used as a substitute for their graph ordering.
     fn materialize_success(&mut self, index: usize) {
         self.publish_outputs(index);
+        self.record_publication(index);
         self.ops[index].state = OpRunState::Settled;
+    }
+
+    fn record_publication(&mut self, index: usize) {
+        use crate::hgraph::HNodeKind;
+        let outputs = self.ops[index]
+            .outputs
+            .iter()
+            .filter(|node| self.materialized.contains(node))
+            .map(|id| {
+                let mut record = serde_json::json!({"node":id.0});
+                match &self
+                    .admitted
+                    .graph()
+                    .node(*id)
+                    .expect("admitted output node")
+                    .kind
+                {
+                    HNodeKind::Value => record["kind"] = serde_json::json!("value"),
+                    HNodeKind::ResourceState { resource, version } => {
+                        record["kind"] = serde_json::json!("resource_state");
+                        record["resource"] = serde_json::json!(resource.to_string());
+                        record["version"] = serde_json::json!(version);
+                    }
+                    HNodeKind::Completion { plan_node } => {
+                        record["kind"] = serde_json::json!("completion");
+                        record["producer"] = serde_json::json!(plan_node.0);
+                    }
+                    HNodeKind::BranchControl { label, version } => {
+                        record["kind"] = serde_json::json!("branch_control");
+                        record["label"] = serde_json::json!(label);
+                        record["version"] = serde_json::json!(version);
+                    }
+                    HNodeKind::AdmissionEvidence { .. } => {
+                        record["kind"] = serde_json::json!("admission_evidence")
+                    }
+                }
+                record
+            })
+            .collect();
+        self.trace.published(self.ops[index].plan_node, outputs);
     }
 
     fn publish_outputs(&mut self, index: usize) {

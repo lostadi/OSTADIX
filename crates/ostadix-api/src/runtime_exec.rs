@@ -280,6 +280,8 @@ pub struct ExecutableManifestV1 {
     /// runtime closure.
     pub scope: String,
     pub artifacts: Vec<ExecutableArtifactV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub native_leaves: Vec<crate::native_leaf::NativeLeafManifest>,
     pub sha256: String,
 }
 
@@ -323,11 +325,12 @@ impl ExecutableManifestV1 {
                     &right.logical_command,
                 ))
         });
-        let sha256 = manifest_sha256(&artifacts);
+        let sha256 = manifest_sha256(&artifacts, &[]);
         Self {
             schema: EXECUTABLE_MANIFEST_SCHEMA_V1.to_string(),
             scope: "direct-launcher-only".to_string(),
             artifacts,
+            native_leaves: Vec::new(),
             sha256,
         }
     }
@@ -351,6 +354,7 @@ struct RetainedExecutable {
 pub struct ExecutableLeaseSet {
     manifest: ExecutableManifestV1,
     retained: BTreeMap<PathBuf, RetainedExecutable>,
+    native_leases: BTreeMap<String, Arc<crate::native_leaf::PreparedLeaf>>,
     backend_artifacts: HashMap<String, Vec<usize>>,
     backend_digests: BTreeMap<String, String>,
 }
@@ -369,8 +373,64 @@ impl ExecutableLeaseSet {
     }
 
     pub fn verify_all(&self) -> Result<()> {
+        for leaf in self.native_leases.values() {
+            leaf.verify()?;
+        }
         for artifact in &self.manifest.artifacts {
             self.verify_artifact(artifact)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn native_leaf(
+        &self,
+        descriptor_sha256: &str,
+    ) -> Result<Arc<crate::native_leaf::PreparedLeaf>> {
+        let leaf = self
+            .native_leases
+            .get(descriptor_sha256)
+            .context("native leaf has no admitted sealed executable lease")?;
+        if !self
+            .manifest
+            .native_leaves
+            .iter()
+            .any(|manifest| manifest == &leaf.manifest)
+        {
+            bail!("native leaf lease differs from its admitted executable manifest");
+        }
+        leaf.verify()?;
+        Ok(Arc::clone(leaf))
+    }
+    pub(crate) fn verify_native_plan(&self, plan: &ExecutionPlan) -> Result<()> {
+        let mut expected = BTreeSet::new();
+        for node in &plan.nodes {
+            if let PlanNodeKind::NativeI64 {
+                descriptor,
+                argument_count,
+            } = &node.kind
+            {
+                let descriptor = descriptor
+                    .as_deref()
+                    .context("native leaf plan lacks a static descriptor")?;
+                crate::native_leaf::validate_descriptor(descriptor, *argument_count)?;
+                let key = crate::native_leaf::digest(descriptor.as_bytes());
+                let leaf = self.native_leaf(&key)?;
+                if leaf.manifest.parameter_count != *argument_count {
+                    bail!("native leaf manifest signature differs from source plan");
+                }
+                expected.insert(key);
+            }
+        }
+        if expected != self.native_leases.keys().cloned().collect()
+            || expected
+                != self
+                    .manifest
+                    .native_leaves
+                    .iter()
+                    .map(|leaf| leaf.descriptor_sha256.clone())
+                    .collect()
+        {
+            bail!("native leaf executable inventory differs from source plan");
         }
         Ok(())
     }
@@ -922,6 +982,7 @@ where
         Some(resolve_current_executable()?)
     };
     capture_execution_manifest_for_shim_backends(
+        plan,
         shim_backends,
         current_executable.as_deref(),
         &HashMap::new(),
@@ -939,6 +1000,7 @@ pub fn capture_execution_manifest_with_current_executable(
     current_executable: &Path,
 ) -> Result<(ExecutableManifestV1, Arc<ExecutableLeaseSet>)> {
     capture_execution_manifest_for_shim_backends(
+        plan,
         shim_backends(plan),
         Some(current_executable),
         &HashMap::new(),
@@ -956,6 +1018,7 @@ pub fn capture_execution_manifest_with_executable_overrides(
     executable_overrides: &HashMap<String, PathBuf>,
 ) -> Result<(ExecutableManifestV1, Arc<ExecutableLeaseSet>)> {
     capture_execution_manifest_for_shim_backends(
+        plan,
         shim_backends(plan),
         Some(current_executable),
         executable_overrides,
@@ -963,6 +1026,7 @@ pub fn capture_execution_manifest_with_executable_overrides(
 }
 
 fn capture_execution_manifest_for_shim_backends(
+    plan: &ExecutionPlan,
     shim_backends: BTreeSet<String>,
     current_executable: Option<&Path>,
     executable_overrides: &HashMap<String, PathBuf>,
@@ -1025,13 +1089,36 @@ fn capture_execution_manifest_for_shim_backends(
         }
     }
 
-    let manifest = ExecutableManifestV1::finish(artifacts);
+    let mut native_leases = BTreeMap::new();
+    for node in &plan.nodes {
+        if let PlanNodeKind::NativeI64 {
+            descriptor,
+            argument_count,
+        } = &node.kind
+        {
+            let descriptor = descriptor
+                .as_deref()
+                .context("native leaf plan requires a static literal descriptor")?;
+            crate::native_leaf::validate_descriptor(descriptor, *argument_count)?;
+            let key = crate::native_leaf::digest(descriptor.as_bytes());
+            if !native_leases.contains_key(&key) {
+                native_leases.insert(key, crate::native_leaf::prepare(descriptor)?);
+            }
+        }
+    }
+    let mut manifest = ExecutableManifestV1::finish(artifacts);
+    manifest.native_leaves = native_leases
+        .values()
+        .map(|leaf| leaf.manifest.clone())
+        .collect();
+    manifest.sha256 = manifest_sha256(&manifest.artifacts, &manifest.native_leaves);
     validate_decoded_manifest(&manifest, None)
         .context("captured direct executable manifest is internally invalid")?;
     let backend_digests = backend_digests(&manifest);
     let leases = Arc::new(ExecutableLeaseSet {
         manifest: manifest.clone(),
         retained,
+        native_leases,
         backend_artifacts: backend_artifact_indices(&manifest),
         backend_digests,
     });
@@ -1526,7 +1613,8 @@ fn validate_manifest_envelope(
     {
         bail!("unsupported admitted direct executable manifest schema or scope");
     }
-    if manifest.sha256 != manifest_sha256(&manifest.artifacts) {
+    crate::native_leaf::validate_manifests(&manifest.native_leaves)?;
+    if manifest.sha256 != manifest_sha256(&manifest.artifacts, &manifest.native_leaves) {
         bail!("admitted direct executable manifest digest mismatch");
     }
     if let Some(backend) = backend {
@@ -1830,7 +1918,10 @@ fn file_is_elf(file: &File, path: &Path) -> Result<bool> {
     }
 }
 
-fn manifest_sha256(artifacts: &[ExecutableArtifactV1]) -> String {
+fn manifest_sha256(
+    artifacts: &[ExecutableArtifactV1],
+    native: &[crate::native_leaf::NativeLeafManifest],
+) -> String {
     let bytes = serde_json::to_vec(artifacts)
         .expect("serializing executable manifest artifacts into memory cannot fail");
     let mut hash = Sha256::new();
@@ -1838,6 +1929,12 @@ fn manifest_sha256(artifacts: &[ExecutableArtifactV1]) -> String {
     hash.update(b"direct-launcher-only");
     hash.update((bytes.len() as u64).to_be_bytes());
     hash.update(bytes);
+    if !native.is_empty() {
+        let bytes = serde_json::to_vec(native).expect("serialize native leaf manifest");
+        hash.update(b"native-leaves/v1");
+        hash.update((bytes.len() as u64).to_be_bytes());
+        hash.update(bytes);
+    }
     hex::encode(hash.finalize())
 }
 
@@ -2342,6 +2439,7 @@ mod tests {
             backend_artifacts: backend_artifact_indices(&manifest),
             manifest,
             retained,
+            native_leases: BTreeMap::new(),
         };
         fs::rename(&replacement, &admitted).unwrap();
         let error = format!("{:#}", leases.verify_backend("shell").unwrap_err());
@@ -2377,6 +2475,7 @@ mod tests {
             backend_artifacts: backend_artifact_indices(&manifest),
             manifest,
             retained,
+            native_leases: BTreeMap::new(),
         };
         let mut writer = fs::OpenOptions::new().write(true).open(&admitted).unwrap();
         let before = file_identity(&writer.metadata().unwrap()).unwrap();
@@ -2437,6 +2536,7 @@ mod tests {
             backend_artifacts: backend_artifact_indices(&manifest),
             manifest,
             retained,
+            native_leases: BTreeMap::new(),
         };
         let absent_procfs = tempfile::tempdir().unwrap();
         let command = leases

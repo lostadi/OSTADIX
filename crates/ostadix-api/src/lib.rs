@@ -36,6 +36,7 @@ pub mod intent;
 pub mod ir;
 pub mod kernel_world;
 pub mod live_system;
+pub mod native_leaf;
 pub mod nix_ops;
 pub mod nixos_ops;
 pub mod ocore;

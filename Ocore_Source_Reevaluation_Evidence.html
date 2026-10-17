@@ -121,6 +121,57 @@ automatically extend to arbitrary native instructions or all external effects.</
 has its own source-plan reconstruction and terminal runtime-graph evidence.
 The <a href="docs/HGRAPH_EXECUTOR_PLAN.md">executor specification</a> describes the limits
 between these execution and admission paths.</p>
+<h2>Bounded native execution beneath the admitted graph</h2>
+<p>The ordinary <code>.O</code> builtin <code>ocore_i64</code> now connects a static, embedded
+<code>NativeModule</code> to an executable graph edge. Its
+<a href="crates/ostadix-api/src/native_leaf.rs">adapter</a> independently verifies the whole
+module and audits every function and block, including unused definitions. The
+admitted profile consists of defined C-ABI <code>i64</code> functions, integer SSA and
+acyclic control flow. Memory, globals, external calls, aliases and runtime hooks
+reject. An imported <code>llvm.trap</code> declaration is retained as metadata for the
+explicit trap operation. Register and stack arguments use the target ABI.</p>
+<p>Before fresh execution admission, the adapter emits owned assembly, adds its
+fixed Linux framing wrapper, and invokes the selected assembler and static
+linker. Its manifest binds the descriptor, normalized module, assembly, adapter
+executable, exact tools, flags, captured working directory and tool environment,
+and generated ELF. The tool executables and resulting ELF are retained as
+sealed Linux file descriptors. Tool dynamic dependencies remain part of the
+trusted host toolchain; these hashes do not establish a complete independently
+lowered toolchain closure.</p>
+<p>The <a href="crates/ostadix-api/src/runtime_exec.rs">executable lease set</a> checks that
+the leaf inventory and arities match the source plan. Admission and dispatch
+reuse those prepared leases. Dispatch receives graph-ready values, requires
+signed <code>i64</code> integers or canonical decimal text, and returns through normal
+semantic settlement. Invalid arguments and native traps are failures; they
+cannot publish a native result or unblock a dependent Store. The source
+descriptor, plan node and executable edge participate in the existing hashes
+and admission checks.</p>
+<p>The CLI&#39;s <code>--json</code> execution evidence exposes the admitted native inventory,
+actual node events and successful value, completion and resource publications,
+including on failed runs. An admitted leaf record alone does not establish
+that it ran; the trace establishes observed execution. This is a native leaf
+under the existing Rust coordinator. General native graph orchestration,
+effectful native resource handles and instruction-level debugging remain
+separate requirements. The <a href="docs/OCORE.md">interface documentation</a> gives the
+descriptor format and a complete ordinary <code>.O</code> example.</p>
+<h2>Imported binary128 storage and narrow return compatibility</h2>
+<p>The LLVM importer and independent native emitter now admit IEEE binary128 as
+storage with exact 16-byte allocation and alignment. This permits original
+aggregate layouts, alloca/GEP, raw copies and exact positive-zero initializers,
+including packed fields. It does not admit binary128 arithmetic, scalar
+loads/stores, SSA transport or floating-point call classification. Other
+128-bit floating formats remain distinct, and changing a declared layout does
+not bypass the emitter&#39;s independent checks.</p>
+<p>An ordinary direct C <code>i32</code> call also has one explicit target-specific refinement:
+a callee&#39;s <code>signext</code> return guarantee can satisfy a bare caller on the admitted
+64-bit ELF ABIs. Both original attribute vectors remain in the IR. The owned
+caller consumes the low 32 bits, while the callee retains its original return
+plan. Reverse guarantees, <code>zeroext</code> conflicts, parameter changes, aliases,
+Invoke and provider-signature equality remain strict. The importer rejects
+<code>musttail</code> before constructing this ordinary call. This is a deliberately narrow
+native rule: <a href="https://releases.llvm.org/22.1.0/docs/LangRef.html#parameter-attributes">LLVM 22&#39;s ABI documentation</a>
+generally requires ABI attribute agreement and does not license arbitrary
+signature mismatches.</p>
 <h2>Native assembly provenance added in this work</h2>
 <p><a href="crates/ostadix-api/src/ocore/native_map.rs"><code>native_map</code></a> records the exact
 half-open UTF-8 assembly byte ranges for imported native instructions,
@@ -200,10 +251,12 @@ required function, global, initializer, relocation, ABI feature, helper, library
 and module accounted for. Its build must bind the exact source, configuration,
 frontend, IR and artifacts. Scripts and declared resource closure must be
 included, with native references resolving to verified content.</p>
-<p>An explicit OIR/ExecutionPlan-to-O-core runtime interface must then preserve the
-admitted value, control and resource relationships at native dispatch and result
-publication. Carrying a graph, bundling an unchanged runtime executable or
-calling a hosted evaluator does not establish that lowering.</p>
+<p>The bounded native leaf above provides one explicit interface between the
+ExecutionPlan, owned native computation and semantic publication. A general
+OIR/ExecutionPlan-to-O-core runtime interface must extend that preservation to
+the required effects, resource handles and orchestration. Carrying a graph,
+bundling an unchanged runtime executable or calling a hosted evaluator does
+not establish that general lowering.</p>
 <p>Reference tests and real <code>.O</code> execution must compare required values, faults
 and effects on x86-64, AArch64 and RV64GC under explicit execution profiles,
 after removing dependence on the original runtime executable. Linux hosts and

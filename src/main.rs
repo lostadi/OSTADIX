@@ -324,6 +324,7 @@ fn run_cli() -> Result<()> {
                     "{}",
                     serde_json::json!({
                         "ok": false, "stage": "eval", "error": format!("{e:#}"),
+                        "execution_evidence": observed_graph_execution(Some(&evaluator)),
                         "backend_crossings": crossing_records,
                         "crossing_coverage": "direct-admitted-graph-bindings-and-lifted-results",
                     })
@@ -379,6 +380,10 @@ fn run_cli() -> Result<()> {
                     })
                 }),
             });
+            let observed = observed_graph_execution(Some(&evaluator));
+            envelope["execution_evidence"]["trace"] = observed["trace"].clone();
+            envelope["execution_evidence"]["native_leaves"] = observed["native_leaves"].clone();
+            envelope["execution_evidence"]["admission"] = observed["admission"].clone();
             if let Some(records) = crossing_records {
                 envelope["backend_crossings"] = serde_json::json!(records);
                 envelope["crossing_coverage"] =
@@ -432,7 +437,8 @@ fn fail_stage(
     if json_output {
         println!(
             "{}",
-            serde_json::json!({ "ok": false, "stage": stage, "error": format!("{err:#}") })
+            serde_json::json!({ "ok": false, "stage": stage, "error": format!("{err:#}"),
+                "execution_evidence": observed_graph_execution(evaluator) })
         );
     }
     let error = err.context(match stage {
@@ -448,6 +454,59 @@ fn fail_stage(
     Err(o_lang::cli_diagnostics::with_human_diagnostic(
         error, report,
     ))
+}
+
+/// Project retained execution observations. Static plans never manufacture
+/// execution events or resource publications, including on a failed run.
+fn observed_graph_execution(evaluator: Option<&Evaluator>) -> serde_json::Value {
+    use o_lang::eval::TraceEvent;
+    use o_lang::ir::PlanNodeKind;
+    let trace = evaluator.and_then(Evaluator::last_execution_trace).map(|trace| {
+        let events = trace.events.iter().map(|event| match event {
+            TraceEvent::NodeReady(id) => serde_json::json!({"event":"ready","plan_node":id.0}),
+            TraceEvent::NodeStarted(id) => serde_json::json!({"event":"started","plan_node":id.0}),
+            TraceEvent::NodeFinished {id,value_type,fingerprint} => serde_json::json!({"event":"finished","plan_node":id.0,"value_type":value_type,"fingerprint":fingerprint}),
+            TraceEvent::NodeFailed {id,message} => serde_json::json!({"event":"failed","plan_node":id.0,"message":message}),
+            TraceEvent::NodeDiscarded {id,reason} => serde_json::json!({"event":"discarded","plan_node":id.0,"reason":reason}),
+        }).collect::<Vec<_>>();
+        serde_json::json!({"schema":"ostadix.graph-execution-trace/v1","events":events,
+            "publications":trace.publications,
+            "publication_scope":"actual-successful-semantic-settlement-outputs"})
+    });
+    let admitted = evaluator.and_then(Evaluator::last_execution_admission);
+    let admission = admitted.map(|admission| {
+        let bindings = admission.bindings();
+        serde_json::json!({"schema":admission.schema(),"oir_sha256":bindings.oir_sha256,
+            "plan_sha256":bindings.plan_sha256,"analyzed_graph_sha256":bindings.analyzed_graph_sha256,
+            "evidence_sha256":admission.evidence_sha256(),"admitted_graph_sha256":admission.admitted_graph_sha256(),
+            "admission_sha256":admission.admission_sha256(),"executable_manifest_sha256":bindings.executable_manifest_sha256})
+    });
+    let mut leaves = Vec::new();
+    if let (Some(admission), Some(plan)) =
+        (admitted, evaluator.and_then(Evaluator::last_execution_plan))
+    {
+        for node in &plan.nodes {
+            if let PlanNodeKind::NativeI64 {
+                descriptor: Some(descriptor),
+                ..
+            } = &node.kind
+            {
+                let key = o_lang::evidence::source_sha256(descriptor.as_bytes());
+                if let Some(manifest) = admission
+                    .executable_manifest()
+                    .native_leaves
+                    .iter()
+                    .find(|leaf| leaf.descriptor_sha256 == key)
+                {
+                    let mut record =
+                        serde_json::to_value(manifest).expect("serialize native manifest identity");
+                    record["plan_node"] = serde_json::json!(node.id.0);
+                    leaves.push(record);
+                }
+            }
+        }
+    }
+    serde_json::json!({"schema":"ostadix.native-execution-evidence/v1","trace":trace,"admission":admission,"native_leaves":leaves})
 }
 
 fn print_usage(out: &mut impl Write) -> io::Result<()> {

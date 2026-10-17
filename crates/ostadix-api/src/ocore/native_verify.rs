@@ -1425,6 +1425,59 @@ fn signatures_equal(lhs: &Signature, rhs: &Signature) -> bool {
         && lhs.return_storage == rhs.return_storage
 }
 
+/// Narrow target-specific return refinement, never general ABI equality.
+/// LLVM22 LangRef says ABI attributes generally must agree at both ends.
+/// For these ELF C ABIs, an i32 SignExt callee and a bare i32 caller use the
+/// same return register. Native codegen plans each original signature and
+/// masks the caller's spilled result to 32 bits; the callee's extra high-bit
+/// guarantee is not observed. Parameters and every other contract stay exact.
+/// Invoke and imported musttail calls do not enter this ordinary-call rule.
+fn direct_i32_return_refinement(
+    module: &NativeModule,
+    callee: &Signature,
+    call: &Signature,
+) -> bool {
+    if call.abi != "c"
+        || callee.abi != "c"
+        || call.variadic
+        || callee.variadic
+        || !call.result_attributes.is_empty()
+        || callee.result_attributes.as_slice() != ["signext"]
+        || !matches!(module.types.get(call.result), Some(Type::Int { bits: 32 }))
+        || !module.target.little_endian
+        || module.target.pointer_bits != 64
+    {
+        return false;
+    }
+    let parts: Vec<_> = module.target.triple.split('-').collect();
+    let Some(arch @ ("x86_64" | "aarch64" | "riscv64")) = parts.first().copied() else {
+        return false;
+    };
+    if module
+        .target
+        .abi
+        .as_deref()
+        .is_some_and(|abi| arch != "riscv64" || !matches!(abi, "lp64" | "lp64d"))
+    {
+        return false;
+    }
+    let elf = matches!(parts.as_slice(), [_, vendor, "linux", "gnu" | "musl"] if !vendor.is_empty())
+        || matches!(parts.as_slice(), [_, vendor, "none"] if !vendor.is_empty())
+        || matches!(parts.as_slice(), [_, vendor, "none", "elf" | "eabi"] if !vendor.is_empty())
+        || (parts.as_slice() == ["riscv64"]
+            && matches!(module.target.abi.as_deref(), Some("lp64" | "lp64d")));
+    if !elf {
+        return false;
+    }
+    // A comparison-only view reuses all strict signature checks. The original
+    // call and declaration vectors remain unchanged in IR and native planning.
+    let comparison = Signature {
+        result_attributes: Vec::new(),
+        ..callee.clone()
+    };
+    signatures_equal(&comparison, call)
+}
+
 #[derive(Clone, Copy)]
 struct Definition {
     ty: TypeId,
@@ -2255,7 +2308,7 @@ impl<'a> Verifier<'a> {
                     result,
                     ..
                 } => {
-                    self.call(callee, signature, args, *result, &definitions, &here)?;
+                    self.call(callee, signature, args, *result, &definitions, &here, false)?;
                     for operand in std::iter::once(callee).chain(args) {
                         self.check_use(operand, &definitions, index, position, &dominance, &here)?;
                     }
@@ -2877,6 +2930,7 @@ impl<'a> Verifier<'a> {
                     instruction.result,
                     definitions,
                     context,
+                    true,
                 )?;
             }
             Operation::LandingPad { cleanup, clauses } => {
@@ -2942,6 +2996,7 @@ impl<'a> Verifier<'a> {
         result: Option<Value>,
         definitions: &HashMap<ValueId, Definition>,
         context: &str,
+        ordinary: bool,
     ) -> Result<()> {
         self.signature(signature, context)?;
         let ty = self.ty(self.operand(callee, definitions, context)?, context)?;
@@ -2964,7 +3019,15 @@ impl<'a> Verifier<'a> {
         {
             match self.symbols.get(name.as_str()) {
                 Some(Symbol::Function(function))
-                    if signatures_equal(&function.signature, signature) => {}
+                    if signatures_equal(&function.signature, signature)
+                        || (ordinary
+                            && matches!(callee, Operand::Symbol { name, .. } if name == &function.name)
+                            && matches!(ty, Type::Pointer { address_space: 0 })
+                            && direct_i32_return_refinement(
+                                self.module,
+                                &function.signature,
+                                signature,
+                            )) => {}
                 _ => return Err(fail(context, "direct callee symbol/signature mismatch")),
             }
         }
@@ -6668,6 +6731,131 @@ mod tests {
         };
         signature.param_attributes = vec![vec!["byval".into()]];
         rejects(&m, "unsupported imported ABI");
+    }
+
+    fn bare_i32_call_to_signext_provider() -> NativeModule {
+        let mut m = module();
+        m.types.push(Type::Int { bits: 32 }); // 5
+        let provider_signature = Signature {
+            params: vec![2],
+            result: 5,
+            abi: "c".into(),
+            variadic: false,
+            param_attributes: vec![],
+            result_attributes: vec!["signext".into()],
+            return_storage: None,
+        };
+        let mut call_signature = provider_signature.clone();
+        call_signature.result_attributes.clear();
+        m.functions[0].blocks = vec![Block {
+            id: 10,
+            instructions: vec![
+                Instruction {
+                    result: Some(Value { id: 8, ty: 5 }),
+                    operation: Operation::Call {
+                        callee: Operand::Symbol {
+                            ty: 3,
+                            name: "provider".into(),
+                        },
+                        signature: call_signature,
+                        args: vec![value(7)],
+                    },
+                },
+                Instruction {
+                    result: Some(Value { id: 9, ty: 2 }),
+                    operation: Operation::Cast {
+                        kind: CastOp::SExt,
+                        value: value(8),
+                    },
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(value(9)),
+            },
+        }];
+        let mut provider = m.functions[0].clone();
+        provider.name = "provider".into();
+        provider.signature = provider_signature;
+        provider.entry = None;
+        provider.blocks.clear();
+        m.functions.push(provider);
+        m.provenance.source_function_count = 2;
+        m
+    }
+
+    fn ordinary_i32_call_signature(m: &mut NativeModule) -> &mut Signature {
+        let Operation::Call { signature, .. } =
+            &mut m.functions[0].blocks[0].instructions[0].operation
+        else {
+            unreachable!()
+        };
+        signature
+    }
+
+    #[test]
+    fn direct_i32_return_refinement_preserves_both_source_contracts_on_each_isa() {
+        for target in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            let mut m = bare_i32_call_to_signext_provider();
+            m.target.triple = target.into();
+            verify(&m).unwrap();
+            let mut restored = NativeModule::from_json(&m.to_json().unwrap()).unwrap();
+            verify(&restored).unwrap();
+            let provider_signature = restored.functions[1].signature.clone();
+            let call_signature = ordinary_i32_call_signature(&mut restored);
+            assert!(call_signature.result_attributes.is_empty());
+            assert_eq!(provider_signature.result_attributes, ["signext"]);
+            assert!(!signatures_equal(&provider_signature, call_signature));
+        }
+    }
+
+    #[test]
+    fn direct_i32_return_refinement_excludes_other_contracts_and_symbol_forms() {
+        for (provider, call) in [
+            (Vec::<String>::new(), vec!["signext".into()]),
+            (vec!["zeroext".into()], vec![]),
+            (vec!["signext".into()], vec!["zeroext".into()]),
+        ] {
+            let mut m = bare_i32_call_to_signext_provider();
+            m.functions[1].signature.result_attributes = provider;
+            ordinary_i32_call_signature(&mut m).result_attributes = call;
+            rejects(&m, "callee symbol/signature mismatch");
+        }
+        let mut m = bare_i32_call_to_signext_provider();
+        m.functions[1].signature.param_attributes = vec![vec!["signext".into()]];
+        rejects(&m, "callee symbol/signature mismatch");
+        for bits in [8, 16] {
+            let mut m = bare_i32_call_to_signext_provider();
+            m.types[5] = Type::Int { bits };
+            rejects(&m, "callee symbol/signature mismatch");
+        }
+        let mut m = bare_i32_call_to_signext_provider();
+        m.target.triple = "x86_64-pc-windows-msvc".into();
+        rejects(&m, "callee symbol/signature mismatch");
+        let mut m = bare_i32_call_to_signext_provider();
+        let Operation::Call { callee, .. } =
+            &mut m.functions[0].blocks[0].instructions[0].operation
+        else {
+            unreachable!()
+        };
+        *callee = Operand::SymbolOffset {
+            ty: 3,
+            name: "provider".into(),
+            addend: 0,
+        };
+        rejects(&m, "callee symbol/signature mismatch");
+    }
+
+    #[test]
+    fn invoke_i32_return_attributes_still_require_exact_agreement() {
+        let mut m = eh_module();
+        m.types[2] = Type::Int { bits: 32 };
+        verify(&m).unwrap();
+        m.functions[1].signature.result_attributes = vec!["signext".into()];
+        rejects(&m, "callee symbol/signature mismatch");
     }
 
     #[test]
