@@ -129,6 +129,7 @@ class LLVM:
             "LLVMGetInstructionParent": (P, [P]),
             "LLVMGetNumOperands": (B, [P]), "LLVMGetOperand": (P, [P, U]),
             "LLVMConstIntGetZExtValue": (Q, [P]), "LLVMGetConstOpcode": (B, [P]),
+            "LLVMIsNull": (B, [P]),
             "LLVMGetAggregateElement": (P, [P, U]),
             "LLVMGetICmpPredicate": (B, [P]), "LLVMGetICmpSameSign": (B, [P]),
             "LLVMGetNUW": (B, [P]), "LLVMGetNSW": (B, [P]), "LLVMGetExact": (B, [P]),
@@ -306,6 +307,15 @@ class Importer:
         self.types.append(None)
         if kind == 0:
             result = {"kind": "void"}
+        elif kind == 5:
+            # LLVM FP128 is IEEE binary128, distinct from PPC_FP128 and i128.
+            # Only its storage layout is admitted; value_type and native ABI/
+            # executable-value audits reject every first-class use.
+            if (a.ABISizeOfType(self.layout, llvm_type) != 16
+                    or a.ABIAlignmentOfType(self.layout, llvm_type) != 16):
+                self.reject("binary128 storage layout requires exactly 16-byte ABI size and alignment")
+            result = {"kind": "float", "bits": 128}
+            self.refinements.add("retained IEEE binary128 solely as original 16-byte size/alignment storage layout; alloca/GEP, positive-zero static storage and raw memory copies do not imply floating arithmetic, first-class SSA or ABI support")
         elif kind == 8:
             bits = a.GetIntTypeWidth(llvm_type)
             if not 1 <= bits <= 64:
@@ -331,6 +341,23 @@ class Importer:
         self.types[ident] = result
         return ident
 
+    def contains_binary128(self, ty):
+        pending, seen = [ty], set()
+        while pending:
+            current = pending.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            record = self.types[current]
+            if record["kind"] == "float" and record["bits"] == 128:
+                return True
+            if record["kind"] == "struct":
+                pending.extend(record["fields"])
+            elif record["kind"] == "array":
+                # Even zero-length first-class array types retain this contract.
+                pending.append(record["element"])
+        return False
+
     def scalar(self, llvm_type):
         ty = self.ty(llvm_type)
         if self.types[ty]["kind"] not in {"int", "pointer"}:
@@ -343,6 +370,8 @@ class Importer:
         if kind in {10, 11} and not self.a.TypeIsSized(llvm_type):
             self.reject("aggregate SSA requires a supported sized struct or array")
         ty = self.ty(llvm_type)
+        if self.contains_binary128(ty):
+            self.reject("binary128 is supported only for storage layout, not first-class SSA or ABI values")
         if self.types[ty]["kind"] not in {"int", "pointer", "struct", "array"}:
             self.reject("unsupported SSA value type")
         if kind in {10, 11}:
@@ -1393,11 +1422,19 @@ class Importer:
 
     def initializer(self, value, llvm_type, data, relocations, offset=0):
         a, kind = self.a, self.a.GetTypeKind(llvm_type)
-        self.ty(llvm_type)
+        ty = self.ty(llvm_type)
+        if (a.IsAPoisonValue(value) or a.IsAUndefValue(value)) and self.contains_binary128(ty):
+            self.reject("binary128 storage initializer cannot contain poison or undef")
         if a.IsAConstantAggregateZero(value) or a.IsAConstantPointerNull(value):
             return
         if a.IsAPoisonValue(value) or a.IsAUndefValue(value):
             self.refinements.add("global undef/poison initializer refined to zero bytes")
+            return
+        if kind == 5:
+            # Constant::isNullValue tests exact positive zero, not a conversion
+            # through host double (which could erase -0, NaNs or tiny values).
+            if not a.IsNull(value):
+                self.reject("binary128 storage initializer requires exact positive zero")
             return
         if kind == 8 and a.IsAConstantInt(value):
             size = a.StoreSizeOfType(self.layout, llvm_type)
@@ -1942,7 +1979,7 @@ class Importer:
                         self.reject(f"unsupported target ABI {abi}")
                     self.target_abi = abi
                     self.refinements.add(f"verified RISC-V {abi} target ABI")
-                    self.refinements.add("exact RISC-V scalar ABI identity retained independently of target tuning; floating-point types and operations remain unsupported")
+                    self.refinements.add("exact RISC-V scalar ABI identity retained independently of target tuning; floating-point first-class values and operations remain unsupported; binary128 storage layout is separately audited")
                     if abi == "lp64d":
                         self.refinements.add("lp64d requires the own RV64GC D/F/Zicsr-enabled, E-disabled execution profile and matching native ELF ABI identity; absent target tuning is qualified by that profile, not inferred from the producer CPU")
                 elif key == "riscv-isa" and riscv64:

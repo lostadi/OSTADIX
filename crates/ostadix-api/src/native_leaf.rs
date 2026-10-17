@@ -1,0 +1,405 @@
+//! A bounded-semantics, owned-code leaf beneath the admitted graph executor.
+//!
+//! The ordinary O call embeds its complete module. The adapter audits every
+//! function (including unreachable blocks), emits owned assembly, and constructs
+//! a static Linux executable before admission. Sealed ELF handles, rather than
+//! caller-supplied executables or descriptive maps, carry launch authority.
+
+use std::collections::{BTreeMap, VecDeque};
+use std::fs::{self, File};
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::Arc;
+
+use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::ir::{InvokeMode, OIr};
+use crate::ocore::native_ir::{NativeModule, Operand, Operation, Terminator, Type};
+use crate::ocore::Target;
+use crate::value::{ONumber, OValue};
+
+pub const BUILTIN: &str = "ocore_i64";
+pub const SCHEMA: &str = "ocore-native-i64-leaf-v1";
+pub const PROFILE: &str = "linux-elf-i64-acyclic-v1";
+const MAGIC: u64 = u64::from_le_bytes(*b"OCI64v1\0");
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Descriptor {
+    schema: String,
+    entry: String,
+    module: NativeModule,
+}
+
+/// Canonical evidence for a generated leaf; no paths here confer authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeLeafManifest {
+    pub profile: String,
+    pub descriptor_sha256: String,
+    pub module_sha256: String,
+    pub entry: String,
+    pub target: String,
+    pub parameter_count: usize,
+    pub adapter_executable_sha256: String,
+    pub assembly_sha256: String,
+    pub assembler: ToolIdentity,
+    pub linker: ToolIdentity,
+    pub executable_sha256: String,
+    pub executable_bytes: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToolIdentity {
+    pub invocation: PathBuf,
+    pub executable_sha256: String,
+}
+
+pub(crate) fn digest(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// Only an eager call and a literal, attribute-free text descriptor qualify.
+/// A missing/static-shape error remains a NativeI64 plan node and fails closed.
+pub(crate) fn source_descriptor(oir: &OIr) -> Option<&str> {
+    let OIr::Invoke { fn_name, mode: InvokeMode::Eager, args } = oir else {
+        return None;
+    };
+    if fn_name != BUILTIN { return None; }
+    match args.first()? {
+        OIr::Exec { backend, attr: None, body, .. }
+            if backend.canonical == "text" && backend.pure => match body.as_slice() {
+                [OIr::Text(text)] => Some(text),
+                _ => None,
+            },
+        _ => None,
+    }
+}
+
+pub(crate) fn is_call(oir: &OIr) -> bool {
+    matches!(oir, OIr::Invoke {fn_name, mode: InvokeMode::Eager, ..} if fn_name == BUILTIN)
+}
+
+struct Audited {
+    descriptor: Descriptor,
+    parameter_count: usize,
+    module_sha256: String,
+    target: Target,
+}
+
+fn symbol(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    bytes.next().is_some_and(|b| b.is_ascii_alphabetic() || b == b'_')
+        && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
+        && name != "_start"
+        && !name.starts_with("__ostadix_leaf_")
+}
+
+fn audit(text: &str) -> Result<Audited> {
+    let descriptor: Descriptor = serde_json::from_str(text).context("decode static native leaf descriptor")?;
+    if descriptor.schema != SCHEMA { bail!("native leaf descriptor requires {SCHEMA}"); }
+    let module_bytes = descriptor.module.to_json().map_err(|e| anyhow::anyhow!("{}", e.message))?;
+    // Verify first; the additional whitelist establishes the adapter's closed
+    // effect footprint, rather than mistaking structural IR validity for purity.
+    let module = NativeModule::from_json(&module_bytes).map_err(|e| anyhow::anyhow!("{}", e.message))?;
+    if !module.globals.is_empty() || !module.aliases.is_empty() || !module.comdats.is_empty() {
+        bail!("native scalar leaf does not admit globals, aliases or COMDAT selection");
+    }
+    if !module.target.little_endian || module.target.pointer_bits != 64
+        || !module.target.triple.split('-').any(|part| part == "linux")
+        || module.target.tls_profile.is_some() || module.target.atomic_profile.is_some() {
+        bail!("native scalar leaf requires the little-endian 64-bit Linux ELF profile");
+    }
+    let target = match module.target.triple.split('-').next() {
+        Some("x86_64") => Target::X86_64UnknownNone,
+        Some("aarch64") => Target::Aarch64UnknownNone,
+        Some("riscv64") => Target::Riscv64UnknownNone,
+        _ => bail!("unsupported native scalar leaf ISA"),
+    };
+    let scalar = |ty: usize| matches!(module.types.get(ty), Some(Type::Int {bits: 1 | 64}));
+    let i64_type = |ty: usize| matches!(module.types.get(ty), Some(Type::Int {bits: 64}));
+    let operand = |operand: &Operand| -> Result<()> {
+        match operand {
+            Operand::Value {..} => Ok(()),
+            Operand::Int {ty, ..} if scalar(*ty) => Ok(()),
+            _ => bail!("native scalar leaf operand is outside the integer SSA profile"),
+        }
+    };
+    let mut parameter_count = None;
+    for function in &module.functions {
+        if !symbol(&function.name) || function.entry.is_none() || function.intrinsic.is_some()
+            || function.exception_handling.is_some() || function.managed_method.is_some()
+            || function.comdat.is_some() || function.linkage != "external"
+            || function.signature.abi != "c" || function.signature.variadic
+            || function.signature.return_storage.is_some()
+            || !i64_type(function.signature.result)
+            || !function.signature.params.iter().all(|ty| i64_type(*ty)) {
+            bail!("native scalar leaf requires defined external C-ABI i64 functions without runtime hooks");
+        }
+        if function.name == descriptor.entry { parameter_count = Some(function.params.len()); }
+        let mut positions = BTreeMap::new();
+        for (index, block) in function.blocks.iter().enumerate() { positions.insert(block.id, index); }
+        let mut successors = vec![Vec::new(); function.blocks.len()];
+        let mut incoming = vec![0usize; function.blocks.len()];
+        for (index, block) in function.blocks.iter().enumerate() {
+            for instruction in &block.instructions {
+                if instruction.result.is_some_and(|result| !scalar(result.ty)) {
+                    bail!("native scalar leaf SSA values must be i1 or i64");
+                }
+                match &instruction.operation {
+                    Operation::Trap {} => {},
+                    Operation::Binary {lhs, rhs, ..} | Operation::ICmp {lhs, rhs, ..}
+                    | Operation::IntegerMinMax {lhs, rhs, ..} => { operand(lhs)?; operand(rhs)?; },
+                    Operation::Cast {value, ..} | Operation::Freeze {value} => operand(value)?,
+                    Operation::Select {condition, on_true, on_false} => {
+                        operand(condition)?; operand(on_true)?; operand(on_false)?;
+                    },
+                    Operation::Phi {incoming} => { for item in incoming { operand(&item.value)?; } },
+                    _ => bail!("native scalar leaf forbids memory, calls and external-effect instructions"),
+                }
+            }
+            let mut edge = |target| -> Result<()> {
+                let next = *positions.get(&target).context("native leaf successor is absent")?;
+                successors[index].push(next);
+                incoming[next] = incoming[next].checked_add(1).context("native leaf CFG indegree overflow")?;
+                Ok(())
+            };
+            match &block.terminator {
+                Terminator::Return {value: Some(value)} => operand(value)?,
+                Terminator::Jump {target} => edge(*target)?,
+                Terminator::Branch {condition, on_true, on_false} => { operand(condition)?; edge(*on_true)?; edge(*on_false)?; },
+                Terminator::Switch {condition, default, cases} => {
+                    operand(condition)?; edge(*default)?;
+                    for case in cases { operand(&case.value)?; edge(case.target)?; }
+                },
+                Terminator::Unreachable => {},
+                _ => bail!("native scalar leaf forbids exception and non-scalar return terminators"),
+            }
+        }
+        // Iterative Kahn traversal includes unreachable source blocks: no
+        // accepted function or branch is silently omitted to obtain purity.
+        let mut ready: VecDeque<_> = incoming.iter().enumerate().filter_map(|(i,n)| (*n == 0).then_some(i)).collect();
+        let mut visited = 0usize;
+        while let Some(index) = ready.pop_front() {
+            visited += 1;
+            for &next in &successors[index] {
+                incoming[next] -= 1;
+                if incoming[next] == 0 { ready.push_back(next); }
+            }
+        }
+        if visited != function.blocks.len() { bail!("native scalar leaf requires acyclic control flow"); }
+    }
+    let parameter_count = parameter_count.context("native scalar leaf entry is not a defined function")?;
+    Ok(Audited {descriptor, parameter_count, module_sha256: digest(&module_bytes), target})
+}
+
+pub(crate) fn validate_descriptor(text: &str, arity: usize) -> Result<()> {
+    let audited = audit(text)?;
+    if audited.parameter_count != arity { bail!("native scalar leaf argument count differs from its C signature"); }
+    Ok(())
+}
+
+/// The trusted protocol wrapper has no libc, dynamic loader or foreign runtime.
+/// It reads one exact frame to EOF, calls the audited C-ABI entry, writes one
+/// exact response and exits. All integer argument counts use the platform ABI,
+/// including stack arguments; checked arithmetic detects measured size failure.
+fn wrapper(target: Target, entry: &str, arity: usize) -> Result<String> {
+    let registers = if target == Target::X86_64UnknownNone {6} else {8};
+    let stack = arity.saturating_sub(registers).checked_mul(8).context("native leaf stack size overflow")?;
+    let stack = stack.checked_add(15).context("native leaf stack alignment overflow")? & !15;
+    let input = arity.checked_mul(8).and_then(|n| n.checked_add(8)).context("native leaf input size overflow")?;
+    let input_offset = stack.checked_add(16).context("native leaf frame overflow")?;
+    let total = input_offset.checked_add(input).and_then(|n| n.checked_add(15)).context("native leaf frame overflow")? & !15;
+    let mut out = String::from("\n.text\n.globl _start\n_start:\n");
+    match target {
+        Target::X86_64UnknownNone => {
+            out.push_str(&format!(".intel_syntax noprefix\nmovabs rax, {total}\nsub rsp, rax\nmov r12, rsp\nmovabs rax, {input_offset}\nadd r12, rax\nmov r13, r12\nmovabs r14, {input}\n.Lostadix_leaf_read:\nxor eax,eax\nxor edi,edi\nmov rsi,r13\nmov rdx,r14\nsyscall\ncmp rax,-4\nje .Lostadix_leaf_read\ntest rax,rax\njle .Lostadix_leaf_fail\nadd r13,rax\nsub r14,rax\njne .Lostadix_leaf_read\n.Lostadix_leaf_eof:\nxor eax,eax\nxor edi,edi\nmov rsi,rsp\nmov edx,1\nsyscall\ncmp rax,-4\nje .Lostadix_leaf_eof\ntest rax,rax\njne .Lostadix_leaf_fail\nmovabs rax,{MAGIC}\ncmp [r12],rax\njne .Lostadix_leaf_fail\n"));
+            for index in registers..arity {
+                out.push_str(&format!("movabs rax,{}\nmov r10,[r12+rax]\nmovabs rax,{}\nmov [rsp+rax],r10\n",8+index*8,(index-registers)*8));
+            }
+            for (index, reg) in ["rdi","rsi","rdx","rcx","r8","r9"].iter().take(arity).enumerate() {
+                out.push_str(&format!("movabs rax,{}\nmov {reg},[r12+rax]\n",8+index*8));
+            }
+            out.push_str(&format!("call {entry}\nmov r13,rsp\nmovabs rdx,{stack}\nadd r13,rdx\nmov [r13+8],rax\nmovabs rax,{MAGIC}\nmov [r13],rax\nmov r14d,16\n.Lostadix_leaf_write:\nmov eax,1\nmov edi,1\nmov rsi,r13\nmov rdx,r14\nsyscall\ncmp rax,-4\nje .Lostadix_leaf_write\ntest rax,rax\njle .Lostadix_leaf_fail\nadd r13,rax\nsub r14,rax\njne .Lostadix_leaf_write\nxor edi,edi\njmp .Lostadix_leaf_exit\n.Lostadix_leaf_fail:\nmov edi,74\n.Lostadix_leaf_exit:\nmov eax,60\nsyscall\nud2\n.section .note.GNU-stack,\"\",@progbits\n"));
+        },
+        Target::Aarch64UnknownNone => {
+            fn imm(out: &mut String, reg: &str, value: u64) { out.push_str(&format!("movz {reg},#{}\n",value & 65535)); for shift in [16,32,48] { if (value>>shift)&65535 != 0 {out.push_str(&format!("movk {reg},#{},lsl #{shift}\n",(value>>shift)&65535));} } }
+            imm(&mut out,"x9",total as u64); out.push_str("sub sp,sp,x9\nmov x19,sp\n");
+            imm(&mut out,"x9",input_offset as u64); out.push_str("add x19,x19,x9\nmov x20,x19\n"); imm(&mut out,"x21",input as u64);
+            out.push_str(".Lostadix_leaf_read:\nmov x0,#0\nmov x1,x20\nmov x2,x21\nmov x8,#63\nsvc #0\ncmn x0,#4\nb.eq .Lostadix_leaf_read\ncmp x0,#0\nb.le .Lostadix_leaf_fail\nadd x20,x20,x0\nsubs x21,x21,x0\nb.ne .Lostadix_leaf_read\n.Lostadix_leaf_eof:\nmov x0,#0\nmov x1,sp\nmov x2,#1\nmov x8,#63\nsvc #0\ncmn x0,#4\nb.eq .Lostadix_leaf_eof\ncbnz x0,.Lostadix_leaf_fail\nldr x10,[x19]\n");
+            imm(&mut out,"x9",MAGIC); out.push_str("cmp x10,x9\nb.ne .Lostadix_leaf_fail\n");
+            for index in registers..arity { imm(&mut out,"x9",(8+index*8) as u64); out.push_str("ldr x10,[x19,x9]\n"); imm(&mut out,"x9",((index-registers)*8) as u64); out.push_str("str x10,[sp,x9]\n"); }
+            for index in 0..arity.min(registers) { imm(&mut out,"x9",(8+index*8) as u64); out.push_str(&format!("ldr x{index},[x19,x9]\n")); }
+            out.push_str(&format!("bl {entry}\nmov x20,sp\n")); imm(&mut out,"x9",stack as u64); out.push_str("add x20,x20,x9\nstr x0,[x20,#8]\n"); imm(&mut out,"x9",MAGIC);
+            out.push_str("str x9,[x20]\nmov x21,#16\n.Lostadix_leaf_write:\nmov x0,#1\nmov x1,x20\nmov x2,x21\nmov x8,#64\nsvc #0\ncmn x0,#4\nb.eq .Lostadix_leaf_write\ncmp x0,#0\nb.le .Lostadix_leaf_fail\nadd x20,x20,x0\nsubs x21,x21,x0\nb.ne .Lostadix_leaf_write\nmov x0,#0\nb .Lostadix_leaf_exit\n.Lostadix_leaf_fail:\nmov x0,#74\n.Lostadix_leaf_exit:\nmov x8,#93\nsvc #0\nbrk #0\n.section .note.GNU-stack,\"\",@progbits\n");
+        },
+        Target::Riscv64UnknownNone => {
+            out.push_str(&format!(".option norelax\nli t0,{total}\nsub sp,sp,t0\nli t0,{input_offset}\nadd s0,sp,t0\nmv s1,s0\nli s2,{input}\n.Lostadix_leaf_read:\nli a0,0\nmv a1,s1\nmv a2,s2\nli a7,63\necall\nli t0,-4\nbeq a0,t0,.Lostadix_leaf_read\nblez a0,.Lostadix_leaf_fail\nadd s1,s1,a0\nsub s2,s2,a0\nbnez s2,.Lostadix_leaf_read\n.Lostadix_leaf_eof:\nli a0,0\nmv a1,sp\nli a2,1\nli a7,63\necall\nli t0,-4\nbeq a0,t0,.Lostadix_leaf_eof\nbnez a0,.Lostadix_leaf_fail\nld t1,0(s0)\nli t0,{MAGIC}\nbne t0,t1,.Lostadix_leaf_fail\n"));
+            for index in registers..arity { out.push_str(&format!("li t0,{}\nadd t0,s0,t0\nld t1,0(t0)\nli t0,{}\nadd t0,sp,t0\nsd t1,0(t0)\n",8+index*8,(index-registers)*8)); }
+            for index in 0..arity.min(registers) { out.push_str(&format!("li t0,{}\nadd t0,s0,t0\nld a{index},0(t0)\n",8+index*8)); }
+            out.push_str(&format!("call {entry}\nli t0,{stack}\nadd s1,sp,t0\nsd a0,8(s1)\nli t0,{MAGIC}\nsd t0,0(s1)\nli s2,16\n.Lostadix_leaf_write:\nli a0,1\nmv a1,s1\nmv a2,s2\nli a7,64\necall\nli t0,-4\nbeq a0,t0,.Lostadix_leaf_write\nblez a0,.Lostadix_leaf_fail\nadd s1,s1,a0\nsub s2,s2,a0\nbnez s2,.Lostadix_leaf_write\nli a0,0\nj .Lostadix_leaf_exit\n.Lostadix_leaf_fail:\nli a0,74\n.Lostadix_leaf_exit:\nli a7,93\necall\nunimp\n.section .note.GNU-stack,\"\",@progbits\n"));
+        },
+    }
+    Ok(out)
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+struct SealedImage { file: File, sha256: String, bytes: usize }
+
+#[cfg(target_os = "linux")]
+impl SealedImage {
+    fn new(bytes: &[u8]) -> Result<Self> {
+        use std::os::fd::{FromRawFd, AsRawFd};
+        let fd = unsafe { libc::memfd_create(c"ostadix-native-i64".as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING) };
+        if fd < 0 { return Err(std::io::Error::last_os_error()).context("create sealed native image"); }
+        let mut file = unsafe { File::from_raw_fd(fd) };
+        file.write_all(bytes)?;
+        if unsafe {libc::fchmod(fd, 0o500)} != 0 || unsafe {libc::fcntl(file.as_raw_fd(),libc::F_ADD_SEALS,libc::F_SEAL_WRITE|libc::F_SEAL_GROW|libc::F_SEAL_SHRINK|libc::F_SEAL_SEAL)} < 0 {
+            return Err(std::io::Error::last_os_error()).context("seal native image");
+        }
+        Ok(Self {file, sha256:digest(bytes), bytes:bytes.len()})
+    }
+    fn verify(&self) -> Result<()> {
+        use std::os::fd::AsRawFd;
+        let seals = unsafe {libc::fcntl(self.file.as_raw_fd(),libc::F_GET_SEALS)};
+        let expected = libc::F_SEAL_WRITE|libc::F_SEAL_GROW|libc::F_SEAL_SHRINK|libc::F_SEAL_SEAL;
+        if seals < 0 || seals & expected != expected || self.file.metadata()?.len() != self.bytes as u64 {bail!("native image lost its immutable lease");}
+        Ok(())
+    }
+    fn command(&self) -> Result<Command> {
+        use std::os::fd::AsRawFd;
+        self.verify()?;
+        // The parent's sealed descriptor survives Command's pre-exec fd
+        // cleanup. The kernel opens this exact immutable inode, never a mutable
+        // artifact pathname; no fallback path execution is permitted.
+        Ok(Command::new(format!("/proc/{}/fd/{}",std::process::id(),self.file.as_raw_fd())))
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct PreparedLeaf {
+    pub manifest: NativeLeafManifest,
+    #[cfg(target_os = "linux")]
+    image: SealedImage,
+}
+
+impl PreparedLeaf {
+    pub(crate) fn verify(&self) -> Result<()> {
+        #[cfg(target_os = "linux")] { self.image.verify()?; if self.image.sha256 != self.manifest.executable_sha256 {bail!("native leaf executable binding differs from its lease");} Ok(()) }
+        #[cfg(not(target_os = "linux"))] {bail!("native scalar leaf execution requires Linux sealed ELF leases")}
+    }
+    pub(crate) fn execute(&self, arguments: &[i64]) -> Result<OValue> {
+        if arguments.len() != self.manifest.parameter_count {bail!("native leaf argument count mismatch");}
+        #[cfg(target_os = "linux")]
+        {
+            self.verify()?;
+            let mut child = self.image.command()?.env_clear().stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().context("launch admitted owned native scalar leaf")?;
+            let write = (|| -> Result<()> {
+                let mut input = child.stdin.take().context("native leaf stdin unavailable")?;
+                input.write_all(&MAGIC.to_le_bytes())?;
+                for argument in arguments {input.write_all(&argument.to_le_bytes())?;}
+                Ok(())
+            })();
+            if let Err(error) = write {let _ = child.kill(); let _ = child.wait(); return Err(error).context("send native scalar frame");}
+            let result = child.wait_with_output()?;
+            if !result.status.success() {bail!("owned native scalar leaf failed: {}",result.status);}
+            if result.stdout.len() != 16 || result.stdout[..8] != MAGIC.to_le_bytes() {bail!("owned native scalar leaf returned an invalid exact frame");}
+            let value = i64::from_le_bytes(result.stdout[8..].try_into().expect("checked response length"));
+            crate::process::lifecycle_trace("native_leaf.executed",format!("descriptor={} executable={} profile={} result={value}",self.manifest.descriptor_sha256,self.manifest.executable_sha256,PROFILE));
+            Ok(OValue::big_int(value))
+        }
+        #[cfg(not(target_os = "linux"))] {bail!("native scalar leaf execution requires Linux")}
+    }
+}
+
+pub(crate) fn argument(value: &OValue) -> Result<i64> {
+    use num_traits::ToPrimitive;
+    match value {
+        OValue::Number {v:ONumber::Int {v}} => v.to_i64().context("native scalar argument exceeds signed i64"),
+        OValue::Text {v} => {
+            let parsed: i64 = v.utf8.parse().context("native scalar text argument must be a signed i64 decimal")?;
+            if parsed.to_string() != v.utf8 {bail!("native scalar text argument must be canonical signed decimal");}
+            Ok(parsed)
+        },
+        _ => bail!("native scalar argument must be an integer or canonical signed decimal text"),
+    }
+}
+
+#[cfg(target_os = "linux")]
+struct BuildDirectory(PathBuf);
+#[cfg(target_os = "linux")]
+impl BuildDirectory {
+    fn new() -> Result<Self> {
+        use std::os::unix::fs::DirBuilderExt;
+        loop {
+            let mut random=[0u8;16]; getrandom::fill(&mut random).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let path=std::env::temp_dir().join(format!("ostadix-native-i64-{}",hex::encode(random)));
+            match fs::DirBuilder::new().mode(0o700).create(&path) {Ok(())=>return Ok(Self(path)),Err(e) if e.kind()==std::io::ErrorKind::AlreadyExists=>{},Err(e)=>return Err(e.into())}
+        }
+    }
+}
+#[cfg(target_os = "linux")]
+impl Drop for BuildDirectory { fn drop(&mut self) {let _=fs::remove_dir_all(&self.0);} }
+
+pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
+    let audited=audit(text)?;
+    #[cfg(target_os = "linux")]
+    {
+        let host=match std::env::consts::ARCH {"x86_64"=>Target::X86_64UnknownNone,"aarch64"=>Target::Aarch64UnknownNone,"riscv64"=>Target::Riscv64UnknownNone,_=>bail!("native scalar host ISA is unsupported")};
+        if host != audited.target {bail!("native scalar leaf target must match the Linux host ISA");}
+        fn tool(name: &str) -> Result<(ToolIdentity,SealedImage)> {
+            let invocation=which::which(name).with_context(||format!("locate trusted native leaf {name}"))?;
+            let bytes=fs::read(&invocation)?;
+            if !bytes.starts_with(b"\x7fELF") {bail!("native leaf {name} must be an ELF executable, not a script launcher");}
+            let image=SealedImage::new(&bytes)?;
+            Ok((ToolIdentity {invocation,executable_sha256:image.sha256.clone()},image))
+        }
+        fn run(mut command: Command) -> Result<()> {
+            let output=command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).output().context("launch pinned native assembly tool")?;
+            if !output.status.success() {bail!("trusted native assembly/link failed ({}): {}",output.status,String::from_utf8_lossy(&output.stderr));}
+            Ok(())
+        }
+        let (assembler,assembler_image)=tool("clang")?;
+        let (linker,linker_image)=tool("ld")?;
+        let mut assembly=crate::ocore::native_codegen::emit(&audited.descriptor.module,audited.target).map_err(|e|anyhow::anyhow!("{}",e.message))?;
+        assembly.push_str(&wrapper(audited.target,&audited.descriptor.entry,audited.parameter_count)?);
+        let directory=BuildDirectory::new()?;
+        let source=directory.0.join("leaf.s");let object=directory.0.join("leaf.o");let executable=directory.0.join("leaf.elf");
+        fs::write(&source,&assembly)?;
+        use std::os::unix::process::CommandExt;
+        let mut assemble=assembler_image.command()?;
+        assemble.arg0(&assembler.invocation).args(["-c","-x","assembler","-target"]).arg(&audited.descriptor.module.target.triple).arg(&source).arg("-o").arg(&object);
+        run(assemble)?;
+        let mut link=linker_image.command()?;
+        link.arg0(&linker.invocation).args(["-static","--build-id=none","-e","_start"]).arg(&object).arg("-o").arg(&executable);
+        run(link)?;
+        let bytes=fs::read(&executable)?;
+        if !bytes.starts_with(b"\x7fELF") {bail!("native linker did not produce ELF");}
+        let image=SealedImage::new(&bytes)?;
+        let manifest=NativeLeafManifest {profile:PROFILE.into(),descriptor_sha256:digest(text.as_bytes()),module_sha256:audited.module_sha256,entry:audited.descriptor.entry,target:audited.descriptor.module.target.triple,parameter_count:audited.parameter_count,adapter_executable_sha256:digest(&fs::read(std::env::current_exe()?)?),assembly_sha256:digest(assembly.as_bytes()),assembler,linker,executable_sha256:image.sha256.clone(),executable_bytes:image.bytes};
+        Ok(Arc::new(PreparedLeaf {manifest,image}))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {let _=audited;bail!("native scalar leaf execution requires Linux sealed ELF leases")}
+}
+
+pub(crate) fn validate_manifests(manifests: &[NativeLeafManifest]) -> Result<()> {
+    let mut previous=None;
+    for manifest in manifests {
+        if manifest.profile != PROFILE || manifest.executable_bytes == 0 || !symbol(&manifest.entry)
+            || !manifest.assembler.invocation.is_absolute() || !manifest.linker.invocation.is_absolute()
+            || previous.is_some_and(|key: &str| key >= manifest.descriptor_sha256.as_str()) {
+            bail!("invalid native leaf manifest profile, identity or ordering");
+        }
+        for sha in [&manifest.descriptor_sha256,&manifest.module_sha256,&manifest.adapter_executable_sha256,&manifest.assembly_sha256,&manifest.assembler.executable_sha256,&manifest.linker.executable_sha256,&manifest.executable_sha256] {
+            if sha.len()!=64 || !sha.bytes().all(|byte|byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {bail!("invalid native leaf SHA-256 binding");}
+        }
+        previous=Some(manifest.descriptor_sha256.as_str());
+    }
+    Ok(())
+}

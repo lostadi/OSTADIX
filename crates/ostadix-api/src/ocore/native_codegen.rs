@@ -22,6 +22,10 @@ mod atomic {
     include!("native_atomic_codegen.rs");
 }
 
+mod float_layout {
+    include!("native_float_layout.rs");
+}
+
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
     emit_impl(module, target, None)
 }
@@ -431,6 +435,7 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             | Type::Pointer { address_space: 0 }
             | Type::Void
             | Type::Metadata {}
+            | Type::Float { bits: 128 }
             | Type::Array { .. }
             | Type::Struct { .. }
             | Type::Function { .. } => {}
@@ -441,6 +446,7 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
             }
         }
     }
+    float_layout::audit(module, &executable_value_types(module))?;
     for alias in &module.aliases {
         if !matches!(
             alias.linkage.as_str(),
