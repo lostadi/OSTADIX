@@ -1,0 +1,426 @@
+{
+  "schema": "ostadix.ocore-native-review/v1",
+  "recorded_at_utc": "2026-10-17T01:16:33+00:00",
+  "repository": "https://github.com/lostadi/ostadix-BM",
+  "source": {
+    "published_base_commit": "0c8a1a1218a404765f78a883d2ce63d66e88e74d",
+    "verified_base_git_tree": "cae24aa2621c75d5275a21b9363b3b892e247b4e",
+    "verified_base_tracked_blobs": 2781,
+    "review_patch_files_sha256": {
+      ".github/workflows/ci.yml": "a752fc6a8b6e52f493e82bad7a2c0dfea8a30fad4ccc812b48f66976305ef6e7",
+      "Ocore_Source_Reevaluation_Evidence.md": "bd2b108edcaf2f95a4bc525eff7d9c7186beaec04808804350ad1c15e34f6edc",
+      "crates/ostadix-api/src/ocore/driver.rs": "2aceb1a8d6d1078709650c5bccf37a4f4b33e9552eb45d28c4e8639ae1d11f80",
+      "docs/OCORE.html": "2fd9c3dedcfdd393b22ff87e6d4acf3e726ffcdd25625dfdaf154ffb75b65738",
+      "scripts/check_ocore_native_equivalence.py": "4581abf4b8cffbaf43e0cba5d2f720993b96f7d79e1e614d281592e18f784f93",
+      "tests/test_ocore_native_equivalence.py": "876902665544d13e048e7fb9ffcc0f962d3f14c9f609052cac0a68632e57cde9",
+      "tests/test_ocore_native_map.py": "38460347a9616f130295e73199473bfa43ed3d19b858ec56ffa2e32296d5e60f"
+    },
+    "selected_build_and_fixture_files_sha256": {
+      "Cargo.lock": "8ae07a1800d00813c3b84d748216b98db78ae9fa4aace825a7e88df1d267c3e1",
+      "Cargo.toml": "db81b32755c715bcb3a69e078afbe5ac381b3b0a796ab5228699de88658356e3",
+      "rust-toolchain.toml": "7b672b014a9ba1097e57a3ade9de93d455436cb37201b089963a12768b06b32f",
+      "crates/ostadix-api/Cargo.toml": "8e18152a02009517267d47e7950434d8d0c07ba945e080cd26734a55e72db1be",
+      "crates/ostadix-api/src/ocore/driver.rs": "2aceb1a8d6d1078709650c5bccf37a4f4b33e9552eb45d28c4e8639ae1d11f80",
+      "crates/ostadix-api/src/ocore/mod.rs": "f90aa480b680101031d62a27ddc667c843d56dbd227684885bb57f2cf708874a",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "d70ff2b5ec6d9657da2ff39d4560c52c1c60a4efcddc97f5ccf5555d215c0b41",
+      "crates/ostadix-api/src/ocore/native_map.rs": "75697feb9638ae226950ab5cb63d2109fe901bbde2455fecd028b7961afeb168",
+      "src/bin/ocorec.rs": "58fd68788d4efa2211bd669933703c5836ccb35ac599934269886966467ce053",
+      "tests/fixtures/ocore_native_equivalence.oc": "7dcd744439be1072eafe1aad8851c476f5b7811cfcacb07b4a587205c455391d",
+      "tests/fixtures/ocore_native_equivalence.c": "e18bc6997cdb31012e7c30619e3a2b074eba57eebefdf146df0d9d984c8d0f43",
+      "tests/test_ocore_native_import_backend.py": "90022afb0f1f42eda7ed10c79fbcf0c0f641e1409ed0a72684c6fdf553ffce69"
+    },
+    "binding_note": "The published base tree plus the review patch files above identifies the source used for this review. This evidence record excludes its own hash to avoid self-reference. Documentation and CI files were inspected but are not native compiler build inputs."
+  },
+  "execution_profile": {
+    "host_system": "Linux",
+    "host_machine": "x86_64",
+    "x86_64": "Direct Linux host execution",
+    "aarch64": "QEMU user-mode Linux execution",
+    "riscv64": "QEMU user-mode Linux execution; RV64GC scalar LP64 ABI",
+    "native_artifacts": "Freestanding O-core objects linked with a static independent C reference harness and Linux startup/syscalls",
+    "toolchain": {
+      "rustc": {
+        "version": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "binary_sha256": "d3a664c970a9fd8361b64194861bebc1ae37b9054e5ee3400dc1c9e691797eea"
+      },
+      "cargo": {
+        "version": "cargo 1.97.1 (c980f4866 2026-06-30)",
+        "binary_sha256": "828980723df339d62434390e9fb8ef8831036583343ae2316b7ab5646b5c1953"
+      },
+      "rustfmt": {
+        "version": "rustfmt 1.9.0-stable (8bab26f4f6 2026-07-14)",
+        "binary_sha256": "30de9e1efcd8f8fe7750e00d0c45ff8f4c480608ef1be5baf9ab6f1b4556e8f8"
+      },
+      "clang": {
+        "version": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+        "binary_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+      },
+      "ld.lld": {
+        "version": "Ubuntu LLD 18.1.3 (compatible with GNU linkers)",
+        "binary_sha256": "7ad9a0e8fe6d0e79b71172d731e33872c0274e49fceb7b516d774876d5a58ade"
+      },
+      "qemu-aarch64": {
+        "version": "qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)",
+        "binary_sha256": "0338d0ed6013abe5e0f41c5a22976ac6fe2f1b5869edf05d4a9098c121248f02"
+      },
+      "qemu-riscv64": {
+        "version": "qemu-riscv64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)",
+        "binary_sha256": "2fdbef0779371e2fa23d158fe65cc8c9585e619980c9a9799d13e54cd3a532a8"
+      }
+    },
+    "native_tool_package_sha256": [
+      {
+        "package": "clang-18",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "628b16701014ef7ad648380b20ea74b90dd543857f933b3e34d2fc042783de25"
+      },
+      {
+        "package": "clang",
+        "version": "1:18.0-59~exp2",
+        "architecture": "amd64",
+        "sha256": "54de2f039144ab5f3f8324bdec766023cc27c1e22b66998c841e863234764119"
+      },
+      {
+        "package": "cpp-13-x86-64-linux-gnu",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "2ca48bf0c2d6465bc39322899715a85d934b4d7442dd5586a7bebbe3ce0f806b"
+      },
+      {
+        "package": "cpp-13",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "c7535331fbb183c802c3bf4b6b210872dcc12d0421b3212b3c4b940f2c59ed3a"
+      },
+      {
+        "package": "g++-13-x86-64-linux-gnu",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "0bd6af6164252d4ea9170d201ee4c10a3120fe0fc04985a00be3bc9076353844"
+      },
+      {
+        "package": "g++-13",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "0f3ef964b8a91a9cd7bebfd126839a21941c55547cadcf4aa00204bc8cc43985"
+      },
+      {
+        "package": "gcc-13-base",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "e859aca26585bb91113a451f1e66bc0e5283cb08797d679aacc1d936ae6dff8e"
+      },
+      {
+        "package": "gcc-13-x86-64-linux-gnu",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "a134b0319a82d14581b3a14820d2832af4ec9778ed8b9b4ddaeecfb0555ec325"
+      },
+      {
+        "package": "gcc-13",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "7438ff160b020a74970672189ecae25d0ca650de6d7f543f12a3134192cffbd9"
+      },
+      {
+        "package": "libclang-common-18-dev",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "d41631bb752815a8196261d1030c096591c59678c8adfbf2e6a740a691b49e80"
+      },
+      {
+        "package": "libclang-cpp18",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "e91eda104813ee0468d145d010a4a4e142401f3f17f9a65596c66d416298d018"
+      },
+      {
+        "package": "libclang1-18",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "1ed67106d743ab4f12db2726c5fc11c436c5e1fba613e9f1006bf3fa05cc69bd"
+      },
+      {
+        "package": "libgcc-13-dev",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "cd689db2691edaa10f37329307292796bb599e722e0505c79e14caaa1fe9a93a"
+      },
+      {
+        "package": "libllvm18",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "af6197096ce3b89aab86de59f01c1b5feb008b2ae1514a03906c0664edb8b0b1"
+      },
+      {
+        "package": "libobjc-13-dev",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "6757dc7e223f69c6c41f9aba133f0b54fe4babc8f38a9e1a51d9b03a9a28e8a6"
+      },
+      {
+        "package": "libobjc4",
+        "version": "14.2.0-4ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "0c24f15d962c751bcca42450c418c33337b65f5f56c1bf46f69d9bf8d3a31cbe"
+      },
+      {
+        "package": "libstdc++-13-dev",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "amd64",
+        "sha256": "ee5633e863e19c3381ed97842ce35ed32ede96a3d1ae4e94c051d3036fe21347"
+      },
+      {
+        "package": "lld-18",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "c574594d714bf445f4c2323fa99374c05b79be09a3899edbf9d4b7265c9ccc57"
+      },
+      {
+        "package": "lld",
+        "version": "1:18.0-59~exp2",
+        "architecture": "amd64",
+        "sha256": "0ee73e3eee1c9ffbbb6c59ba20c4205b1f5ee00c2f1524f1721be75e7a656975"
+      },
+      {
+        "package": "llvm-18-linker-tools",
+        "version": "1:18.1.3-1ubuntu1",
+        "architecture": "amd64",
+        "sha256": "50f0bcfa784e42f8bf0eac31aeb6a20798fb6174cc31efe021f12ae71af91b23"
+      },
+      {
+        "package": "qemu-user",
+        "version": "1:8.2.2+ds-0ubuntu1.18",
+        "architecture": "amd64",
+        "sha256": "9655f3e7e50af597e1b845822c47af9231f9f1bcb8c99e586db9da775d70c041"
+      }
+    ]
+  },
+  "checks": {
+    "compiler_build": {
+      "command": "cargo build --locked --bin ocorec",
+      "exit_code": 0,
+      "profile": "dev",
+      "compiler_version": "ocorec 0.4.0",
+      "compiler_sha256": "b06056bd4c57edad3f1d9d7d5a20c5aece31ababa0d80b7c4b0a35ffe42f7da0",
+      "build_log_sha256": "47ba0036c220b82ec11edb1ad4762958534c9537f842dabacbe9bfc2afa7611e",
+      "final_build_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 23s"
+    },
+    "evidence_checker_regressions": {
+      "command": "python3 -m unittest discover -s tests -p test_ocore_native_equivalence.py -v",
+      "exit_code": 0,
+      "tests": 11,
+      "skipped": 0,
+      "output": "test_relative_compiler_executes_and_hashes_the_callers_selected_binary (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_relative_compiler_executes_and_hashes_the_callers_selected_binary) ... ok\ntest_stale_fault_executable_cannot_satisfy_no_output_linker (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_stale_fault_executable_cannot_satisfy_no_output_linker) ... ok\ntest_stale_main_executable_cannot_satisfy_no_output_linker (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_stale_main_executable_cannot_satisfy_no_output_linker) ... ok\ntest_stale_never_executable_cannot_satisfy_no_output_linker (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_stale_never_executable_cannot_satisfy_no_output_linker) ... ok\ntest_stale_primary_object_cannot_satisfy_no_output_compiler (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_stale_primary_object_cannot_satisfy_no_output_compiler) ... ok\ntest_stale_reproducibility_object_cannot_satisfy_no_output_compiler (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_stale_reproducibility_object_cannot_satisfy_no_output_compiler) ... ok\ntest_stale_retained_assembly_cannot_satisfy_partial_output_compiler (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_stale_retained_assembly_cannot_satisfy_partial_output_compiler) ... ok\ntest_success_keeps_existing_output_paths_and_binds_receipt (test_ocore_native_equivalence.NativeEvidenceProvenanceTests.test_success_keeps_existing_output_paths_and_binds_receipt) ... ok\ntest_new_empty_symlink_and_directory_outputs_are_rejected (test_ocore_native_equivalence.ProducerArtifactTests.test_new_empty_symlink_and_directory_outputs_are_rejected) ... ok\ntest_selected_symlink_preserves_its_command_name_across_cwd_changes (test_ocore_native_equivalence.ProducerArtifactTests.test_selected_symlink_preserves_its_command_name_across_cwd_changes) ... ok\ntest_stale_symlink_is_unlinked_without_overwriting_its_target (test_ocore_native_equivalence.ProducerArtifactTests.test_stale_symlink_is_unlinked_without_overwriting_its_target) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 4.860s\n\nOK\n"
+    },
+    "native_map_regressions": {
+      "command": "python3 -m unittest discover -s tests -p test_ocore_native_map.py -v",
+      "exit_code": 0,
+      "tests": 10,
+      "skipped": 0,
+      "output": "test_failed_verification_or_backend_removes_stale_map (test_ocore_native_map.NativeMapTests.test_failed_verification_or_backend_removes_stale_map) ... ok\ntest_new_artifact_and_map_parent_directories_are_allowed (test_ocore_native_map.NativeMapTests.test_new_artifact_and_map_parent_directories_are_allowed) ... ok\ntest_object_and_retained_assembly_collision_is_rejected_before_overwrite (test_ocore_native_map.NativeMapTests.test_object_and_retained_assembly_collision_is_rejected_before_overwrite) ... ok\ntest_original_llvm_input_is_protected_and_failed_import_removes_stale_map (test_ocore_native_map.NativeMapTests.test_original_llvm_input_is_protected_and_failed_import_removes_stale_map) ... ok\ntest_path_collisions_preserve_inputs_outputs_symlinks_and_hardlinks (test_ocore_native_map.NativeMapTests.test_path_collisions_preserve_inputs_outputs_symlinks_and_hardlinks) ... ok\ntest_three_isa_maps_preserve_assembly_and_cover_all_ir_sites (test_ocore_native_map.NativeMapTests.test_three_isa_maps_preserve_assembly_and_cover_all_ir_sites) ... ok\ntest_three_isa_object_maps_bind_real_assembler_outputs (test_ocore_native_map.NativeMapTests.test_three_isa_object_maps_bind_real_assembler_outputs) ... ok\ntest_unresolvable_output_symlinks_reject_before_overwriting_artifacts (test_ocore_native_map.NativeMapTests.test_unresolvable_output_symlinks_reject_before_overwriting_artifacts) ... ok\ntest_verifier_rejects_modified_assembly_even_with_recomputed_claimed_hashes (test_ocore_native_map.NativeMapTests.test_verifier_rejects_modified_assembly_even_with_recomputed_claimed_hashes) ... ok\ntest_verifier_rejects_tampering_missing_reordered_sites_and_stale_module (test_ocore_native_map.NativeMapTests.test_verifier_rejects_tampering_missing_reordered_sites_and_stale_module) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.337s\n\nOK\n"
+    },
+    "native_equivalence": {
+      "command": "python3 scripts/check_ocore_native_equivalence.py --ocorec target/debug/ocorec --output-dir target/native-evidence-review-20261017",
+      "exit_code": 0,
+      "stdout": "x86_64: PASS — OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288; C ABI/memory/atomics; 6 synchronous fault cases; 2 never cases; reproducible object\naarch64: PASS — OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288; C ABI/memory/atomics; 6 synchronous fault cases; 2 never cases; reproducible object\nriscv64: PASS — OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288; C ABI/memory/atomics; 6 synchronous fault cases; 2 never cases; reproducible object\nAll three ISA executions are byte-equivalent to the shared reference corpus.\n",
+      "receipt": {
+        "schema": "ostadix.ocore-native-equivalence/v1",
+        "targets": {
+          "x86_64": {
+            "output": "OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288",
+            "object_sha256": "d53bf9773221119c86750227cd8de325504952e865c11181a307bde0d6ab278b",
+            "elf_sha256": "88becefa3dff85b40209c97e2d3de1f17f53027ca40547ecae836d5ec544dc82",
+            "faults": [
+              {
+                "case": 1,
+                "signal": 8
+              },
+              {
+                "case": 2,
+                "signal": 8
+              },
+              {
+                "case": 3,
+                "signal": 8
+              },
+              {
+                "case": 4,
+                "signal": 8
+              },
+              {
+                "case": 5,
+                "signal": 4
+              },
+              {
+                "case": 6,
+                "signal": 4
+              }
+            ],
+            "never_cases": 2,
+            "reproducible": true
+          },
+          "aarch64": {
+            "output": "OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288",
+            "object_sha256": "6d4ce10a02265315ee6e92b227d9e5e8c6bc1c9e341664fa39051cc012d88a1b",
+            "elf_sha256": "2bc54022db5ba50873497213a48095e0b32c793ef3592da253c14c0df9be77ae",
+            "faults": [
+              {
+                "case": 1,
+                "signal": 5
+              },
+              {
+                "case": 2,
+                "signal": 5
+              },
+              {
+                "case": 3,
+                "signal": 5
+              },
+              {
+                "case": 4,
+                "signal": 5
+              },
+              {
+                "case": 5,
+                "signal": 5
+              },
+              {
+                "case": 6,
+                "signal": 5
+              }
+            ],
+            "never_cases": 2,
+            "reproducible": true,
+            "emulator": "qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)"
+          },
+          "riscv64": {
+            "output": "OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288",
+            "object_sha256": "6f83e307b352a5f8ded4738b44c1745bf63e848e5955686f167abf0ceb629618",
+            "elf_sha256": "043ad236c2f822fe357f794b7a7f7328da77a7148bf2c3096f14fc486cf52ed0",
+            "faults": [
+              {
+                "case": 1,
+                "signal": 4
+              },
+              {
+                "case": 2,
+                "signal": 4
+              },
+              {
+                "case": 3,
+                "signal": 4
+              },
+              {
+                "case": 4,
+                "signal": 4
+              },
+              {
+                "case": 5,
+                "signal": 4
+              },
+              {
+                "case": 6,
+                "signal": 4
+              }
+            ],
+            "never_cases": 2,
+            "reproducible": true,
+            "emulator": "qemu-riscv64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)"
+          }
+        },
+        "compiler": "ocorec 0.4.0",
+        "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+        "assembler_clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+        "source_sha256": "7dcd744439be1072eafe1aad8851c476f5b7811cfcacb07b4a587205c455391d",
+        "reference_sha256": "e18bc6997cdb31012e7c30619e3a2b074eba57eebefdf146df0d9d984c8d0f43",
+        "compiler_sha256": "b06056bd4c57edad3f1d9d7d5a20c5aece31ababa0d80b7c4b0a35ffe42f7da0",
+        "equivalent": true
+      },
+      "artifacts_sha256": {
+        "aarch64-fault-1.elf": "addab0c630f0724d179f1e0f1422fc981884a1fbd926289d4d0cb539b7e95313",
+        "aarch64-fault-2.elf": "379a823ef0f899f68c71e5ba60aa60398dd2f35afefe81e11ebbe9b191253008",
+        "aarch64-fault-3.elf": "64d93af3c7db34d7a6256b0f1a0953aeacb08191bda45c5dbbfbff8e1c6635aa",
+        "aarch64-fault-4.elf": "61c6df57586e3cbe9ac743bc68ba2e28dcd288c185e7936e97ac589c60ee3560",
+        "aarch64-fault-5.elf": "1f9a96b60e0ea65a06a52396bac8a81b0dc82f058f7f50950e071857917c4aa4",
+        "aarch64-fault-6.elf": "5c1263added93f2830f9edea393a97b1070023522951eb96f9136e94e17fd78f",
+        "aarch64-never-1.elf": "134de483832a06c86980bbdfb76318fc4ed87259dd58f066d9db769a189b04c7",
+        "aarch64-never-2.elf": "40dbb5860348c9de5a25e11df202bdb9ae462ee16d31a897d9e8984188dae498",
+        "aarch64.elf": "2bc54022db5ba50873497213a48095e0b32c793ef3592da253c14c0df9be77ae",
+        "aarch64.o": "6d4ce10a02265315ee6e92b227d9e5e8c6bc1c9e341664fa39051cc012d88a1b",
+        "aarch64.s": "e3b717694865da3c01253d841de4eb74cf7dab913c375f1a136a7b1b0fb3366e",
+        "reproducible/aarch64.o": "6d4ce10a02265315ee6e92b227d9e5e8c6bc1c9e341664fa39051cc012d88a1b",
+        "reproducible/riscv64.o": "6f83e307b352a5f8ded4738b44c1745bf63e848e5955686f167abf0ceb629618",
+        "reproducible/x86_64.o": "d53bf9773221119c86750227cd8de325504952e865c11181a307bde0d6ab278b",
+        "riscv64-fault-1.elf": "4584f2f2bd9c1670afd7fcf0d75fec94aa54d5ef74bf88f60e1cbcf878991fb2",
+        "riscv64-fault-2.elf": "f4fed5e2f8214461995234cbd293e5e9b651c78f43755d78a1e962ab37af2d67",
+        "riscv64-fault-3.elf": "fd7e960378c8112fdc0c34796a0ba44af2700e95d2be114e0c076d3b5d091e20",
+        "riscv64-fault-4.elf": "2e12464e0f5176e63a508a8b4b24bd0f5fb81c2a4f3c1b686586910f8f9a0da0",
+        "riscv64-fault-5.elf": "911fb6bceba2df6f18ebd7711bce1168c740dfff55605262f7657825d4b0ec63",
+        "riscv64-fault-6.elf": "ddb73b91ab68b7c141a7cf96ce35e87dc81262745b1b8b8ca0b03e545caa8e82",
+        "riscv64-never-1.elf": "5a3694bc4aabe3c0524c1e1c913a8553ce67a8fabc2c5213e2436eb35f2b10d3",
+        "riscv64-never-2.elf": "14180f204b6055792167bad1255a60c8521fc43dae2ced077fee32963d8ab8ff",
+        "riscv64.elf": "043ad236c2f822fe357f794b7a7f7328da77a7148bf2c3096f14fc486cf52ed0",
+        "riscv64.o": "6f83e307b352a5f8ded4738b44c1745bf63e848e5955686f167abf0ceb629618",
+        "riscv64.s": "dc6424e8ced72539ba43dd2b63796e12d937cb72aa5ff9b6b820fe561bcd666b",
+        "x86_64-fault-1.elf": "106ad70acdd3ca465bd3b8ee04d4f2c09cf319dbce381a04acabb8ac1bb0fc69",
+        "x86_64-fault-2.elf": "1f575e43f1e0af450a711e92f39a339cf9e216ed03f22c3e2c9949d1e00b2581",
+        "x86_64-fault-3.elf": "4122cb49347b02a5e7b113ec6fdf2e14cbb9d35b75b7e14aaeb4940476df1294",
+        "x86_64-fault-4.elf": "9b3e1f8030779d4aae002b260e7a2624bb90f79b56bfda826e3b2cabc3432f9d",
+        "x86_64-fault-5.elf": "b0d111b977ddb8428a11d3e4ea34a3ce5e7c7a7cf8cee71fb5cc1039f3551154",
+        "x86_64-fault-6.elf": "e424b824cb40e224dd092c29f585e2a02c9ed08c2c4a7ba9e355b70b510ae533",
+        "x86_64-never-1.elf": "7bcb259760de6955b246660b5565f9b24b6f783b2e6130cfbebb76fadb41b4a7",
+        "x86_64-never-2.elf": "7c8ff0fb85d1438c3e2fdc5c8854c23b88ccaed7312811ab75d1792403cd7e0e",
+        "x86_64.elf": "88becefa3dff85b40209c97e2d3de1f17f53027ca40547ecae836d5ec544dc82",
+        "x86_64.o": "d53bf9773221119c86750227cd8de325504952e865c11181a307bde0d6ab278b",
+        "x86_64.s": "582e0263db3de4341b75fd2f267a439e1f91cd56fb7fba459161d4db4b7160e9"
+      }
+    },
+    "rustfmt": {
+      "command": "rustfmt --check --edition 2021 crates/ostadix-api/src/ocore/driver.rs",
+      "exit_code": 0
+    },
+    "patch_whitespace": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "html_exports": {
+      "command": "python3 scripts/render_docs.py check --marked /tmp/ostadix-marked-18.0.13/package/bin/marked.js",
+      "marked_version": "18.0.13",
+      "exit_code": 0,
+      "complete_documents": 97,
+      "bytes": 2155853,
+      "drifted": 0
+    },
+    "original_checker_negative_control": {
+      "original_checker_git_blob": "7220773f1ffb23b41fa48fdfd26c1e9a5ad1d683",
+      "observation": "The seven bug-specific regression tests were executed against the exact original checker during review.",
+      "selected_tests": 7,
+      "expected_assertion_failures": 7,
+      "errors": 0,
+      "stale_artifact_acceptance_failures": 6,
+      "selected_compiler_identity_failure": 1,
+      "interpretation": "The original checker fails the new safety assertions; these failures establish that the regressions detect the repaired defects."
+    }
+  },
+  "scope": {
+    "deterministic_arithmetic_inputs_per_target": 4096,
+    "direct_c_reference_comparisons_per_input": 3,
+    "direct_c_reference_comparisons_per_target": 12288,
+    "digest": "b1009525e0d57799",
+    "comparison_note": "Each unsigned, signed and narrow result is directly checked before contributing to the common 64-bit digest. Matching output bytes do not mean identical machine code across different ISAs.",
+    "additional_selftests": "C ABI crossings, memory operations, atomic operations and evaluation order are outside the 12288 arithmetic count.",
+    "atomic_execution": "Single thread; concurrent memory ordering is not established by this corpus.",
+    "fault_cases_per_target": 6,
+    "fault_acceptance": "Synchronous SIGILL, SIGTRAP or SIGFPE and no stdout; no exact fault-PC or cross-ISA signal identity claim.",
+    "nonreturning_expression_cases_per_target": 2,
+    "nonreturning_expression_acceptance": "Required exit status 42 and no stdout; tests nonreturning expression evaluation, not infinite-loop behavior.",
+    "object_reproducibility": "Two emission invocations to separate output directories, using the same compiler, source and execution environment, yielded identical object bytes per target.",
+    "foreign_llvm_22_1_6_import_path_exercised": false,
+    "full_original_runtime_lowering_or_native_service_acceptance_established": false,
+    "published_source_contains_reported_newer_lua_inventory_tests": false,
+    "reported_newer_lua_inventory_tests_independently_rerun": false,
+    "ci_status": "This record contains local execution results. CI outcome is tracked separately on the pull request."
+  }
+}
