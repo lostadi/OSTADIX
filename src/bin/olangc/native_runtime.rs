@@ -18,6 +18,11 @@ const RECEIPT_FORMAT: &str = "ocore-runtime-lowering-v1";
 #[path = "native_runtime/artifact.rs"]
 mod artifact;
 
+#[path = "native_runtime/source_recipe.rs"]
+mod source_recipe;
+
+pub(super) use source_recipe::NativeSourceOptions;
+
 #[cfg(test)]
 #[path = "native_runtime/object_inventory_tests.rs"]
 mod object_inventory_tests;
@@ -1962,6 +1967,50 @@ pub(super) fn compile_capture(
         import_options,
         &compiler,
     )
+}
+
+/// A source recipe first captures its original build, then enters the same
+/// independently verified capture importer used by an existing report.
+pub(super) fn compile_runtime(
+    input: &Path,
+    target: &str,
+    output_kind: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    source_options: NativeSourceOptions<'_>,
+) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct InputSchema {
+        schema: Option<String>,
+    }
+    // Probe only the dispatch tag; large embedded packages are independently
+    // parsed by their existing importer without retaining another full copy.
+    let file = fs::File::open(input)
+        .with_context(|| format!("read native runtime input {}", input.display()))?;
+    let document: InputSchema = serde_json::from_reader(std::io::BufReader::new(file))
+        .context("decode native runtime input schema")?;
+    if document.schema.as_deref() == Some(source_recipe::RECIPE_FORMAT) {
+        let bytes =
+            fs::read(input).with_context(|| format!("read source recipe {}", input.display()))?;
+        let compiler = std::env::current_exe()?
+            .parent()
+            .context("olangc executable has no parent")?
+            .join("ocorec");
+        return source_recipe::compile(
+            input,
+            &bytes,
+            target,
+            output_kind,
+            output,
+            import_options,
+            source_options,
+            &compiler,
+        );
+    }
+    if source_options.requested() {
+        bail!("source capture options require an ocore-runtime-recipe-v1 input; an existing capture or module-set must preserve its own evidence");
+    }
+    compile_capture(input, target, output_kind, output, import_options)
 }
 
 pub(super) struct NativeImportOptions<'a> {

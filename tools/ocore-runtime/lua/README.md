@@ -24,6 +24,53 @@ pinned revision; the capture tool does not fetch or alter it. The runtime,
 build and capture directories must be separate, and this upstream VPATH route
 requires their paths to contain no whitespace or Make metacharacters.
 
+## One compiler invocation
+
+The compiler can own the original source build, capture, independent re-admission
+and attempted O-core lowering from the recipe directly:
+
+```bash
+target/debug/olangc tools/ocore-runtime/lua/full.recipe.json --native-runtime \
+  --native-runtime-source /absolute/clean/lua \
+  --native-runtime-cc /absolute/llvm22/bin/clang \
+  --native-runtime-cxx /absolute/llvm22/bin/clang++ \
+  --native-runtime-llvm-nm /absolute/llvm22/bin/llvm-nm \
+  --native-runtime-llvm-dis /absolute/llvm22/bin/llvm-dis \
+  --native-runtime-jobs 2 \
+  --native-isa riscv64-unknown-none --native-runtime-output obj \
+  --llvm-library /absolute/matching/libLLVM.so.22.1 \
+  --llvm-sha256 EXACT_LLVM_LIBRARY_SHA256 \
+  -o /absolute/new/lua-source-build
+```
+
+Replace the tool/library paths and digest with the verified matching LLVM 22.1.6
+SDK. Scope its archive/link tools on `PATH` and any required shared-library search
+paths for that invocation. The new output directory must have an existing parent
+and be outside the clean pinned checkout. The recipe generates
+`build/unit-inventory.json`, which is the
+driver's default inventory path.
+
+The result retains `driver/`, the original `build/`, `capture/report.json`,
+`capture.log` and `source-recipe.json`. A lowering attempt records
+`lowered/coverage.json`; successful closure also writes
+`lowered/runtime.native-ir.json`, with owned objects under `lowered/` when
+requested. The summary distinguishes the capture worker's
+report from independently admitted capture and completed native module closure.
+The original `build/lua` executable is frontend-produced build/reference evidence;
+O-core products belong under `lowered/`.
+
+With the current unresolved dependency declarations, the command is expected to
+retain the capture evidence and fail lowering until matching verified packages
+are supplied through repeated `--native-runtime-dependency PATH` options. Supplying
+those packages still requires every original Lua unit to pass the supported
+whole-unit import and native backend gates. The existing floating-point, variadic
+and computed-goto blockers below remain. This command does not establish a
+complete Lua runtime, OIR bundle, `.O` execution or native engine adapter.
+
+## Separate capture and lowering
+
+The existing explicit capture, re-admission and lowering workflow remains available:
+
 ```bash
 python3 scripts/ocore_runtime_capture.py capture \
   tools/ocore-runtime/lua/full.recipe.json \
@@ -72,6 +119,8 @@ import. See the [exact SDK evidence](../../../evidence/llvm22_riscv64_20261017.j
 and [original-source results](../../../evidence/original_lua_20261017.json).
 The five unit successes include an empty configured translation unit and do not
 establish runnable engine support.
+
+## Inventory regression gate
 
 Run the inventory regression gate with:
 

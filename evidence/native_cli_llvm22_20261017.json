@@ -1,0 +1,79 @@
+{
+  "format": "ostadix-native-cli-llvm22-gates-v1",
+  "environment": {
+    "OCORE_TEST_LLVM22_BIN": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+    "OCORE_TEST_CLANG22": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+    "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+    "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+    "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+    "OCORE_TEST_NATIVE_RUNTIME_OUTPUT_DIR": "/home/orangepi/ostadix-BM/target/native-cli-llvm22-carrier"
+  },
+  "compiler_sha256": {
+    "ocorec": "3b4189ee8aded7380ee4bcd3b1873305ba5736f906ad0cfd285e9676e666c945",
+    "olangc": "5689dade928faaf984949778a34a3ddf762dfdc7b6f19ae2c6177901a78f3e6c"
+  },
+  "compiler_hash_recorded": "after successful map/carrier gates; production binaries remained unchanged",
+  "llvm_library_sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+  "suites": {
+    "map": {
+      "command": [
+        "/usr/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_ocore_native_map.py",
+        "-v"
+      ],
+      "tests": 11,
+      "duration_seconds": 14.798,
+      "skipped": 0,
+      "returncode": 0,
+      "log": "/home/orangepi/ostadix-BM/target/native-cli-llvm22-map.log"
+    },
+    "runtime": {
+      "command": [
+        "/usr/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_ocore_native_runtime.py",
+        "-v"
+      ],
+      "tests": 17,
+      "duration_seconds": 81.291,
+      "skipped": 0,
+      "returncode": 0,
+      "log": "/home/orangepi/ostadix-BM/target/native-cli-llvm22-runtime.log"
+    },
+    "importer": {
+      "command": [
+        "/usr/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_ocore_llvm_import.py",
+        "-v"
+      ],
+      "returncode": 0,
+      "tests": 72,
+      "skipped": 1,
+      "duration_seconds": 1824.304,
+      "log": "/home/orangepi/ostadix-BM/target/native-cli-llvm22-importer.log",
+      "initial_600_second_guard_exceeded": true
+    }
+  },
+  "retained_carrier_directory": "/home/orangepi/ostadix-BM/target/native-cli-llvm22-carrier",
+  "success": true,
+  "status": "complete",
+  "compiler_bytes_unchanged": true,
+  "source_commit": "c0bee77aa4e10d26686011d7510de2a112aa2944"
+}

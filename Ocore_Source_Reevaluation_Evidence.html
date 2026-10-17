@@ -143,6 +143,32 @@ rejects when it differs from regenerated O-core emission.</p>
 not supply <code>.oc</code> source spans, machine-address ranges, a debugger, native
 HGraph dispatch, runtime observations or admission authority. Existing plain
 emission shares the same emitter and remains byte-identical.</p>
+<h2>Direct original-source recipe orchestration</h2>
+<p><a href="src/bin/olangc/native_runtime/source_recipe.rs"><code>olangc --native-runtime</code></a>
+now accepts an original-source build recipe directly. With
+<code>--native-runtime-source</code>, it invokes its embedded capture worker, independently
+re-verifies the resulting build evidence, and passes the admitted whole units
+to the existing O-core lowering route. The caller supplies the clean pinned
+checkout, exact frontend tools and admitted LLVM parser; the compiler creates
+a separate new build/capture/lowering directory. Existing output directories,
+output paths within the source checkout (including aliases), and escaping
+inventory paths reject before they can be reused.</p>
+<p>The source-recipe receipt binds the recipe, embedded worker/helper, capture
+report and lowering evidence by exact bytes and SHA-256. Capture completion
+requires independent replay admission; successful reference builds alone do
+not set it. Failure retains the stage, process arguments, diagnostics and any
+admitted evidence. Complete unit lowering remains separate from a complete
+runtime, dependency closure, linking and native execution qualification.
+The <a href="tools/ocore-runtime/README.md">workflow documentation</a> and
+<a href="tools/ocore-runtime/lua/README.md">unchanged Lua recipe</a> describe the commands
+and their current limits.</p>
+<p>The <a href="evidence/native_source_recipe_20261017.json">direct-source development evidence</a>
+records 11 passing CLI cases with native fixture execution, 17 passing existing
+capture/package cases, and the unchanged Lua invocation. Lua captured and
+independently admitted all 34 units, then stopped before any unit import because
+its declared source dependencies lacked verified included module-sets. Its
+Clang-built reference engine passed the smoke test; it is not an O-core native
+Lua product.</p>
 <h2>What is still required for the broader completion claim</h2>
 <p>The compiler now also writes and consumes self-contained
 <code>ocore-native-module-set-v1</code> packages. The
@@ -210,12 +236,20 @@ that an installed command reflected changed source:</p>
 <td>11 passed without skips, including embedded-snapshot recovery, real LLVM 22 import, assembly/object maps on all three ISAs, collisions, stale maps and rejected forged assembly correspondence.</td>
 </tr>
 <tr>
+<td><code>python3 -m unittest discover -s tests -p test_ocore_llvm_import.py -v</code> with the pinned LLVM 22 SDK/parser</td>
+<td>71 passed; 1 legacy Clang 21 check skipped because that frontend was unavailable. Actual LLVM 22 text/bitcode and all-three-ISA cases passed; exact commands, environment and compiler hashes are retained in the <a href="evidence/native_cli_llvm22_20261017.json">CLI regression evidence</a>.</td>
+</tr>
+<tr>
 <td><code>python3 -m unittest discover -s tests -p test_ocore_native_runtime.py -v</code> with the pinned LLVM 22 SDK/parser</td>
 <td>17 passed without skips on RISC-V, including actual source capture, verified IR, owned-object native execution and package reuse after source/build/capture removal.</td>
 </tr>
 <tr>
 <td><code>/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::</code></td>
-<td>115 passed, including 9 package/composition tests and actual three-target owned exception-table corruption checks.</td>
+<td>116 passed, including source/output isolation, 9 package/composition tests and actual three-target owned exception-table corruption checks.</td>
+</tr>
+<tr>
+<td><code>python3 -m unittest discover -s tests -p test_ocore_native_source_recipe.py -v</code> with the pinned LLVM 22 SDK/parser</td>
+<td>11 passed without skips, including real two-unit source builds, owned-object native execution, path isolation, failure receipts, and capture/package route rejection of source-only options.</td>
 </tr>
 <tr>
 <td><code>python3 -m unittest discover -s tools/ocore-runtime/lua -p &#39;test_*.py&#39; -v</code></td>

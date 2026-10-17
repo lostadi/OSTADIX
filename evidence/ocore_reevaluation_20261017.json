@@ -131,9 +131,10 @@
     },
     {
       "command": "/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::",
-      "passed": 115,
+      "passed": 116,
       "failed": 0,
-      "package_tests_included": 9
+      "package_tests_included": 9,
+      "source_recipe_boundary_tests_included": 1
     },
     {
       "command": "python3 -m unittest discover -s tools/ocore-runtime/lua -p 'test_*.py' -v",
@@ -145,6 +146,25 @@
       "passed": 17,
       "failed": 0,
       "skipped": 0,
+      "llvm_parser": "22.1.6",
+      "host_native_execution": "riscv64",
+      "compiler_sha256": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+      "duration_seconds": 80.649
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p test_ocore_llvm_import.py -v",
+      "passed": 71,
+      "failed": 0,
+      "skipped": 1,
+      "skip_reason": "Clang 21 frontend unavailable; actual Clang/LLVM22.1.6 cases passed",
+      "duration_seconds": 1823.41
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p test_ocore_native_source_recipe.py -v",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "compiler_sha256": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
       "llvm_parser": "22.1.6",
       "host_native_execution": "riscv64"
     }
@@ -251,5 +271,16 @@
     "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
     "OCORE_TEST_LLVM22_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
     "OCORE_TEST_LLVM22_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+  },
+  "native_cli_llvm22_regression": {
+    "path": "evidence/native_cli_llvm22_20261017.json",
+    "sha256": "81f10ddcf9a20f836dae31f0d21d8179b28f77856d251988bb561d89a9a3df17",
+    "bytes": 2685,
+    "source_commit": "c0bee77aa4e10d26686011d7510de2a112aa2944"
+  },
+  "native_source_recipe": {
+    "path": "evidence/native_source_recipe_20261017.json",
+    "sha256": "ef9829e4252dbcd5c324acd2862f12e333af6bbd1615584c4e1b5d01b7d8e415",
+    "bytes": 11197
   }
 }

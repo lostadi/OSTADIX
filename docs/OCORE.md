@@ -639,11 +639,26 @@ provider lowering, complete rustc/Cargo, dependencies, dynamic loading, OSTADIX
 services and silicon execution remain unqualified. CI records an explicit skip
 when the immutable original provider set is unavailable.
 
-The opt-in `olangc --native-runtime` driver consumes a complete source capture
-report and independently imports/verifies every required unit, emits optional
-O-core objects, and checks cross-module symbol and ABI closure. Its coverage
-receipt retains failures and distinguishes unit lowering from closure and native
-qualification. See [capture recipes and driver usage](../tools/ocore-runtime/README.md).
+The opt-in `olangc --native-runtime` driver accepts a complete source capture
+report, a self-contained verified native module-set, or a pinned source recipe
+with `--native-runtime-source CHECKOUT`. Recipe input makes the compiler own the
+declared original build, frontend capture, independent re-admission and attempted
+O-core lowering. It passes recipe argument vectors without an added shell and
+retains the trusted worker/helper resources and all stage evidence in a new output
+directory outside the pinned clean checkout. Source-build options reject on saved
+capture or package input.
+
+The recipe output separates `build/`, `capture/report.json`,
+`lowered/coverage.json`, `lowered/runtime.native-ir.json` and `source-recipe.json`.
+The stage summary distinguishes the worker's capture report, independently
+admitted capture and complete native module closure. An original frontend
+executable under `build/` is reference/build evidence; owned O-core modules or
+objects belong under `lowered/`. The driver imports/verifies every required unit,
+emits optional O-core objects, and checks cross-module symbol and ABI closure.
+Its coverage receipt retains failures and distinguishes unit lowering from
+closure and native qualification. Unsupported whole units and incomplete
+dependencies still fail. See [source recipe and driver usage](../tools/ocore-runtime/README.md)
+and the [one-command original Lua example](../tools/ocore-runtime/lua/README.md).
 Admission independently reconstructs the unit partition and observed final
 output/link/archive graph from the original build journal and hashed source,
 inventory, logs and tools. Editing a report's completeness flags or mutually
@@ -694,9 +709,11 @@ and `scripts/check_ocore_foreign_frontends.py` exercise actual foreign frontend
 output on all three ISAs. Their Linux test carrier is compiler evidence,
 not the full native runtime acceptance gate. The Java fixture is a separately
 identified reference and method-inventory check, not managed-code lowering.
-The 15 tests in `tests/test_ocore_native_runtime.py` exercise a real pinned
+The 17 tests in `tests/test_ocore_native_runtime.py` exercise a real pinned
 Clang 22.1.6 source capture, unused-body retention, own-object execution, and
 rejection of altered inventory, role, source, hash and output-graph evidence.
+They also recompile and execute a detached native module-set after removing its
+original capture, source build and imported module files.
 The weak-definition gate in `tests/test_ocore_native_weak.py` compares 24 own
 object executions with 24 original Clang 22.1.6 executions across all three
 ISAs and both unchanged LLVM text and bitcode inputs. Each execution checks

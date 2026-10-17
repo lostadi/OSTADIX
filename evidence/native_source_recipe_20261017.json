@@ -1,0 +1,261 @@
+{
+  "schema": "ostadix.native-source-recipe-development-gates/v1",
+  "date": "2026-10-17",
+  "baseline_commit": "c0bee77aa4e10d26686011d7510de2a112aa2944",
+  "host_machine": "riscv64",
+  "scope": "Compiler-owned original-source capture and verified bounded native-unit lowering; complete runtime and native HGraph execution are not established",
+  "compiler": {
+    "path": "/home/orangepi/ostadix-BM/target/debug/olangc",
+    "sha256": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+    "bytes": 44512088
+  },
+  "changed_source_and_embedded_capture_inputs": [
+    {
+      "path": "src/bin/olangc.rs",
+      "sha256": "5b6c38d17066df07d016e158e64d410f0ed4a9c19a0f7d52f09853b293a1da25",
+      "bytes": 271640
+    },
+    {
+      "path": "src/bin/olangc/native_runtime.rs",
+      "sha256": "6e16c8c47e905ec24e527bff48d7330836ac0279cba5cc4595e4f146828425b1",
+      "bytes": 136187
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/source_recipe.rs",
+      "sha256": "5b8b89639eafb13fa1ec4b7fbdfc45e81fb43a803262201181e832dc751b5067",
+      "bytes": 14592
+    },
+    {
+      "path": "scripts/ocore_runtime_capture.py",
+      "sha256": "b6a84b58a09c0893371eae60fd5f8845296aa13ba722915f386e6a37c6b46482",
+      "bytes": 142321
+    },
+    {
+      "path": "tools/ocore-runtime/rust/payload_inventory.py",
+      "sha256": "0190404305ffa887b60d5f23e9af64029c1fe770ce6c705d19a65ee3a89d6767",
+      "bytes": 43028
+    },
+    {
+      "path": "tools/ocore-runtime/lua/full.recipe.json",
+      "sha256": "d277bac2ce4a5b2ec6e3b63ba032b5ba5bc164d48a9d0dad213a5ace2b2c2099",
+      "bytes": 5230
+    },
+    {
+      "path": "tools/ocore-runtime/lua/build_inventory.py",
+      "sha256": "2664932f879026e2489b18ee5d143bcac15b9804445e29e7e530e1be084b6f0b",
+      "bytes": 13962
+    },
+    {
+      "path": "tests/test_ocore_native_source_recipe.py",
+      "sha256": "b2ab8c386374e283baa39c9bd44299204b23718ed382b2ab37aeb6aa9ca9602f",
+      "bytes": 18768
+    }
+  ],
+  "source_recipe_integration": {
+    "schema": "ostadix.native-source-recipe-final-tests/v1",
+    "argv": [
+      "/usr/bin/python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_ocore_native_source_recipe.py",
+      "-v"
+    ],
+    "compiler_before": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/olangc",
+      "sha256": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+      "bytes": 44512088
+    },
+    "compiler_after": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/olangc",
+      "sha256": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+      "bytes": 44512088
+    },
+    "compiler_unchanged": true,
+    "LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+    "LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+    "exit_code": 0,
+    "elapsed_seconds": 62.124810940993484,
+    "log": {
+      "path": "/home/orangepi/ostadix-BM/target/source-recipe-final-integration-20261017.log",
+      "sha256": "f37ece1d0066538ca44f238678008a8c2b2c93039bcee6659263f33a6658e7a2",
+      "bytes": 2309
+    },
+    "retained_artifacts": "/home/orangepi/ostadix-BM/target/native-source-recipe-final-tests-20261017",
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0
+  },
+  "existing_capture_package_regression": {
+    "schema": "ostadix.source-recipe-carrier-regression/v1",
+    "command": [
+      "/usr/bin/python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-p",
+      "test_ocore_native_runtime.py",
+      "-v"
+    ],
+    "returncode": 0,
+    "duration_seconds": 82.544,
+    "compiler_sha256_before": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+    "compiler_sha256_after": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+    "compiler_bytes_unchanged": true,
+    "log": "/home/orangepi/ostadix-BM/target/source-recipe-carrier-final.log",
+    "environment": {
+      "OCORE_TEST_LLVM22_BIN": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+      "OCORE_TEST_NATIVE_RUNTIME_OUTPUT_DIR": "/home/orangepi/ostadix-BM/target/source-recipe-carrier-final"
+    },
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0
+  },
+  "native_runtime_unit_tests": {
+    "command": "/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::",
+    "passed": 116,
+    "failed": 0,
+    "ignored": 0,
+    "log": {
+      "path": "target/source-recipe-final-native-runtime.log",
+      "sha256": "297eedf0743444ebe5e8531bc7695d2b3aa110a64493190a7d7b3b34f4b9e49f",
+      "bytes": 13732
+    }
+  },
+  "original_lua_one_command": {
+    "schema": "ostadix.original-lua-source-recipe-development-evidence/v1",
+    "scope": "One compiler invocation owns unchanged original source recipe capture and re-admission, then rejects unlowered declared dependencies; this is not a native O-core Lua engine",
+    "compiler": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/olangc",
+      "sha256": "8b44cd9b5da327812baa5fef99563d5efc527598b65d8aaf5116542298a562e2",
+      "bytes": 44512088
+    },
+    "compiler_unchanged": true,
+    "invocation": {
+      "argv": [
+        "/home/orangepi/ostadix-BM/target/debug/olangc",
+        "/home/orangepi/ostadix-BM/tools/ocore-runtime/lua/full.recipe.json",
+        "--native-runtime",
+        "--native-runtime-source",
+        "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua",
+        "--native-isa",
+        "riscv64-unknown-none",
+        "--native-runtime-output",
+        "obj",
+        "--native-runtime-cc",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "--native-runtime-cxx",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang++",
+        "--native-runtime-llvm-nm",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+        "--native-runtime-jobs",
+        "2",
+        "--llvm-library",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "--llvm-sha256",
+        "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 1,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/invocation.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/invocation.stderr",
+        "sha256": "2e7bf451f041145b465072156bc6bf0f086f124a420388631099b7cf769c6f04",
+        "bytes": 314
+      }
+    },
+    "source": {
+      "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua",
+      "revision": "0b29f408433e92953cc72b1d3e06c7ac8139e439",
+      "tracked_file_count": 111,
+      "tracked_files_manifest_sha256": "13203ad81b07099cef321eb8c8fa34299fedcac0facf53e40249380f48655c84",
+      "original_bytes_unchanged": true
+    },
+    "recipe": {
+      "path": "/home/orangepi/ostadix-BM/tools/ocore-runtime/lua/full.recipe.json",
+      "sha256": "d277bac2ce4a5b2ec6e3b63ba032b5ba5bc164d48a9d0dad213a5ace2b2c2099",
+      "bytes": 5230
+    },
+    "driver_receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/source-recipe.json",
+      "sha256": "98661f5c23581ae2689b6dd2957145317d7b25b151a88aab47b8674a38a070d0",
+      "bytes": 4253
+    },
+    "driver_outcome": {
+      "schema": "ocore-native-source-recipe-v1",
+      "stage": "lowering",
+      "success": false,
+      "capture_complete": true,
+      "worker_capture_complete": true,
+      "lowering_complete": false,
+      "runtime_complete": false,
+      "native_execution_qualified": false
+    },
+    "capture_report": {
+      "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/capture/report.json",
+      "sha256": "e10f882f301c021cda103f5d55a4016026f3360e1d5872ab90725674ae901125",
+      "bytes": 5645820
+    },
+    "capture_complete": true,
+    "captured_unit_count": 34,
+    "required_lowering_unit_count": 34,
+    "lowered_unit_count": 0,
+    "excluded_unit_count": 0,
+    "original_archive_member_count": 33,
+    "lowering_coverage": {
+      "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/lowered/coverage.json",
+      "sha256": "d446bbc2f13e76b369f8b338b3accb6c08c6f9417f6a5b18fafcdc20d8bf71af",
+      "bytes": 27169
+    },
+    "lowering_issues": [
+      "declared source dependency lacks a verified included native module-set"
+    ],
+    "per_unit_import_performed": false,
+    "reference_engine": {
+      "classification": "Original Clang-built Linux-hosted reference engine, not O-core-generated runtime",
+      "binary": {
+        "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/build/lua",
+        "sha256": "dec8afbb9a5b27335ab63f8855cae6acb1a7492b1f9bee9619f4e3aefe08f709",
+        "bytes": 287992
+      },
+      "argv": [
+        "lua",
+        "-e",
+        "assert(assert(load(\"return 6 * 7\"))() == 42); local c=coroutine.create(function() coroutine.yield(7); return 9 end); local ok,n=coroutine.resume(c); assert(ok and n==7); ok,n=coroutine.resume(c); assert(ok and n==9); assert(math.sqrt(81)==9); assert(utf8.len(\"Ostadix\")==7); local f=assert(io.tmpfile()); assert(f:write(\"original-engine\")); assert(f:seek(\"set\",0)); assert(f:read(\"a\")==\"original-engine\"); assert(f:close()); print(\"original-lua-one-command-reference: ok\")"
+      ],
+      "exit_code": 0,
+      "stdout": "original-lua-one-command-reference: ok\n",
+      "stderr": ""
+    },
+    "sdk_library": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "bytes": 132053720
+    },
+    "dependency_closure_complete": false,
+    "ocore_lowering_complete": false,
+    "native_execution_qualified": false,
+    "runtime_complete": false,
+    "capture_reverification": {
+      "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/lowered/capture-reverification.json",
+      "sha256": "cd1cde644f435d63f7a69582f175d8e3c06a63d04d362d81b5fffd73cdcedbb6",
+      "bytes": 2604
+    }
+  },
+  "complete_native_hgraph_execution_established": false,
+  "complete_foreign_runtime_compiler_lowering_established": false
+}

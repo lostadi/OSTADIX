@@ -54,6 +54,129 @@ proc macros, the test runtime and compiler builtins. Full Cargo unit graphs and 
 <code>compile_commands.json</code>, together with final output membership, must account for
 bootstrap helpers, stage-specific library/compiler variants and source dependencies
 before a complete source inventory can be admitted.</p>
+<h2>Compile directly from a source recipe</h2>
+<p><code>olangc</code> can own the source build, capture and O-core lowering in one invocation.
+Pass a pinned recipe as the positional input and select its existing clean source
+checkout with <code>--native-runtime-source</code>:</p>
+<pre><code class="language-sh">target/debug/olangc /absolute/pinned.recipe.json --native-runtime \
+  --native-runtime-source /absolute/clean-source-checkout \
+  --native-runtime-cc /absolute/llvm22/bin/clang \
+  --native-runtime-cxx /absolute/llvm22/bin/clang++ \
+  --native-runtime-llvm-nm /absolute/llvm22/bin/llvm-nm \
+  --native-isa riscv64-unknown-none --native-runtime-output ir \
+  --llvm-library /absolute/matching/libLLVM.so.22.1 \
+  --llvm-sha256 EXACT_LLVM_LIBRARY_SHA256 \
+  -o /absolute/new-native-source-build
+</code></pre>
+<p>Use frontends and symbol tools matching the recipe&#39;s exact version requirements;
+the explicit LLVM parser path and digest select the corresponding import boundary.
+The source checkout must satisfy the recipe&#39;s revision, submodule and cleanliness
+checks. The compiler does not fetch sources or install tools. Its output must be a
+new directory with an existing parent outside the checkout, with neither directory
+containing the other.
+Source/output aliases, nested locations and inventory paths escaping <code>build/</code>
+reject before creation. Recipe commands are passed as argument vectors without an
+added shell.</p>
+<p>The compiler materializes its trusted capture worker and registered Rust helper,
+invokes the declared original build, and independently re-admits the resulting
+capture before importing its required units. The output retains each stage:</p>
+<table>
+<thead>
+<tr>
+<th>Path under the new output directory</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>driver/</code></td>
+<td>Frozen trusted capture worker and helper resources</td>
+</tr>
+<tr>
+<td><code>build/</code></td>
+<td>Original implementation&#39;s build and generated unit inventory</td>
+</tr>
+<tr>
+<td><code>capture/report.json</code></td>
+<td>Source/build/frontend capture report</td>
+</tr>
+<tr>
+<td><code>capture.log</code></td>
+<td>Capture command output and diagnostics</td>
+</tr>
+<tr>
+<td><code>lowered/coverage.json</code></td>
+<td>Independent capture admission, unit lowering and closure results</td>
+</tr>
+<tr>
+<td><code>lowered/runtime.native-ir.json</code></td>
+<td>Self-contained verified module-set, written after successful closure</td>
+</tr>
+<tr>
+<td><code>source-recipe.json</code></td>
+<td>Driver stage and success summary, including failure evidence</td>
+</tr>
+</tbody></table>
+<p>The summary uses <code>schema: &quot;ocore-native-source-recipe-v1&quot;</code> and stages <code>capture</code>,
+<code>lowering</code> and <code>complete</code>. <code>worker_capture_complete</code> describes the worker&#39;s report;
+<code>capture_complete</code> requires successful trusted independent re-admission.
+<code>lowering_complete</code> requires a complete verified native module-set. A failed stage
+returns an unsuccessful command status and leaves its evidence inspectable.
+<code>capture_process</code> records the program, argument vector, log and exit status. The
+summary records actual file hashes and sizes for the recipe, capture worker and
+Rust helper, plus each available capture report, independent reverification and
+lowering receipt.</p>
+<p>Source-build options apply only to recipe input:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default or interpretation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--native-runtime-cc</code></td>
+<td><code>clang</code> on <code>PATH</code></td>
+</tr>
+<tr>
+<td><code>--native-runtime-cxx</code></td>
+<td><code>clang++</code> on <code>PATH</code></td>
+</tr>
+<tr>
+<td><code>--native-runtime-rustc</code></td>
+<td><code>rustc</code> on <code>PATH</code></td>
+</tr>
+<tr>
+<td><code>--native-runtime-cargo</code></td>
+<td><code>cargo</code> on <code>PATH</code></td>
+</tr>
+<tr>
+<td><code>--native-runtime-llvm-nm</code></td>
+<td><code>llvm-nm</code> on <code>PATH</code></td>
+</tr>
+<tr>
+<td><code>--native-runtime-llvm-dis</code></td>
+<td><code>llvm-dis</code> on <code>PATH</code></td>
+</tr>
+<tr>
+<td><code>--native-runtime-unit-inventory</code></td>
+<td><code>build/unit-inventory.json</code>; relative paths resolve under <code>build/</code>, and absolute paths must stay inside it</td>
+</tr>
+<tr>
+<td><code>--native-runtime-jobs</code></td>
+<td>Available host parallelism</td>
+</tr>
+</tbody></table>
+<p>The original build must generate the selected complete unit inventory, whose
+resolved location must remain inside <code>build/</code>. Repeated
+<code>--native-runtime-dependency PATH</code> options supply the verified module-set packages
+required by the recipe&#39;s declared dependency closure. Capture and package inputs
+retain their existing routes and reject source-build options.</p>
+<p>An original frontend executable under <code>build/</code> is reference/build evidence. The
+O-core products are the verified native IR or owned objects under <code>lowered/</code>.
+This route does not perform the final O-core runtime link, attach <code>.O</code> scripts,
+provide platform services or qualify native OSTADIX execution. <code>runtime_complete</code>
+and <code>native_execution_qualified</code> remain false. The <a href="lua/README.md">original Lua recipe</a>
+provides a concrete one-command example and its current closure/import blockers.</p>
 <h2>Report contract</h2>
 <h3>Reusable verified native dependencies</h3>
 <p>Successful <code>olangc --native-runtime</code> lowering writes <code>runtime.native-ir.json</code>,
@@ -231,8 +354,10 @@ retains per-unit diagnostics. Successful imports receive independent verificatio
 and O-core object emission. <code>audit_complete</code> means every selected unit was attempted;
 all runtime completeness and native qualification flags remain false.</p>
 <h2>O-core lowering driver</h2>
-<p>The opt-in <code>olangc</code> path consumes a complete capture report before the ordinary
-<code>.O</code> parser. It imports the explicitly selected runtime units with the matching LLVM parser through
+<p>The opt-in <code>olangc</code> path accepts a source recipe with <code>--native-runtime-source</code>, a
+complete capture report, or a reusable native module-set before the ordinary <code>.O</code>
+parser. A recipe first runs the source-build workflow above. The capture route
+imports the explicitly selected runtime units with the matching LLVM parser through
 the sibling <code>ocorec</code>, verifies the resulting native IR, and optionally emits objects
 through O-core&#39;s own ISA backend:</p>
 <pre><code class="language-sh">cargo build --locked --bin olangc --bin ocorec

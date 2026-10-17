@@ -61,6 +61,84 @@ proc macros, the test runtime and compiler builtins. Full Cargo unit graphs and 
 bootstrap helpers, stage-specific library/compiler variants and source dependencies
 before a complete source inventory can be admitted.
 
+## Compile directly from a source recipe
+
+`olangc` can own the source build, capture and O-core lowering in one invocation.
+Pass a pinned recipe as the positional input and select its existing clean source
+checkout with `--native-runtime-source`:
+
+```sh
+target/debug/olangc /absolute/pinned.recipe.json --native-runtime \
+  --native-runtime-source /absolute/clean-source-checkout \
+  --native-runtime-cc /absolute/llvm22/bin/clang \
+  --native-runtime-cxx /absolute/llvm22/bin/clang++ \
+  --native-runtime-llvm-nm /absolute/llvm22/bin/llvm-nm \
+  --native-isa riscv64-unknown-none --native-runtime-output ir \
+  --llvm-library /absolute/matching/libLLVM.so.22.1 \
+  --llvm-sha256 EXACT_LLVM_LIBRARY_SHA256 \
+  -o /absolute/new-native-source-build
+```
+
+Use frontends and symbol tools matching the recipe's exact version requirements;
+the explicit LLVM parser path and digest select the corresponding import boundary.
+The source checkout must satisfy the recipe's revision, submodule and cleanliness
+checks. The compiler does not fetch sources or install tools. Its output must be a
+new directory with an existing parent outside the checkout, with neither directory
+containing the other.
+Source/output aliases, nested locations and inventory paths escaping `build/`
+reject before creation. Recipe commands are passed as argument vectors without an
+added shell.
+
+The compiler materializes its trusted capture worker and registered Rust helper,
+invokes the declared original build, and independently re-admits the resulting
+capture before importing its required units. The output retains each stage:
+
+| Path under the new output directory | Meaning |
+| --- | --- |
+| `driver/` | Frozen trusted capture worker and helper resources |
+| `build/` | Original implementation's build and generated unit inventory |
+| `capture/report.json` | Source/build/frontend capture report |
+| `capture.log` | Capture command output and diagnostics |
+| `lowered/coverage.json` | Independent capture admission, unit lowering and closure results |
+| `lowered/runtime.native-ir.json` | Self-contained verified module-set, written after successful closure |
+| `source-recipe.json` | Driver stage and success summary, including failure evidence |
+
+The summary uses `schema: "ocore-native-source-recipe-v1"` and stages `capture`,
+`lowering` and `complete`. `worker_capture_complete` describes the worker's report;
+`capture_complete` requires successful trusted independent re-admission.
+`lowering_complete` requires a complete verified native module-set. A failed stage
+returns an unsuccessful command status and leaves its evidence inspectable.
+`capture_process` records the program, argument vector, log and exit status. The
+summary records actual file hashes and sizes for the recipe, capture worker and
+Rust helper, plus each available capture report, independent reverification and
+lowering receipt.
+
+Source-build options apply only to recipe input:
+
+| Option | Default or interpretation |
+| --- | --- |
+| `--native-runtime-cc` | `clang` on `PATH` |
+| `--native-runtime-cxx` | `clang++` on `PATH` |
+| `--native-runtime-rustc` | `rustc` on `PATH` |
+| `--native-runtime-cargo` | `cargo` on `PATH` |
+| `--native-runtime-llvm-nm` | `llvm-nm` on `PATH` |
+| `--native-runtime-llvm-dis` | `llvm-dis` on `PATH` |
+| `--native-runtime-unit-inventory` | `build/unit-inventory.json`; relative paths resolve under `build/`, and absolute paths must stay inside it |
+| `--native-runtime-jobs` | Available host parallelism |
+
+The original build must generate the selected complete unit inventory, whose
+resolved location must remain inside `build/`. Repeated
+`--native-runtime-dependency PATH` options supply the verified module-set packages
+required by the recipe's declared dependency closure. Capture and package inputs
+retain their existing routes and reject source-build options.
+
+An original frontend executable under `build/` is reference/build evidence. The
+O-core products are the verified native IR or owned objects under `lowered/`.
+This route does not perform the final O-core runtime link, attach `.O` scripts,
+provide platform services or qualify native OSTADIX execution. `runtime_complete`
+and `native_execution_qualified` remain false. The [original Lua recipe](lua/README.md)
+provides a concrete one-command example and its current closure/import blockers.
+
 ## Report contract
 
 ### Reusable verified native dependencies
@@ -226,8 +304,10 @@ all runtime completeness and native qualification flags remain false.
 
 ## O-core lowering driver
 
-The opt-in `olangc` path consumes a complete capture report before the ordinary
-`.O` parser. It imports the explicitly selected runtime units with the matching LLVM parser through
+The opt-in `olangc` path accepts a source recipe with `--native-runtime-source`, a
+complete capture report, or a reusable native module-set before the ordinary `.O`
+parser. A recipe first runs the source-build workflow above. The capture route
+imports the explicitly selected runtime units with the matching LLVM parser through
 the sibling `ocorec`, verifies the resulting native IR, and optionally emits objects
 through O-core's own ISA backend:
 

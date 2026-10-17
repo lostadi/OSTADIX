@@ -290,10 +290,11 @@ the HGraph is serialised as a digraph; pipe to \
 `dot -Tpng` for a rendered image."
 )]
 struct Cli {
-    /// A .O source/lifted bundle or project directory to compile, run, or plan
+    /// A .O source/lifted bundle, project directory, or --native-runtime input.
     input: PathBuf,
 
-    /// Lower a source-build capture or self-contained native module-set through
+    /// Build a pinned original-source recipe, or lower a source-build capture
+    /// or self-contained native module-set through
     /// verified O-core. Output is a new directory with IR, optional objects,
     /// and coverage evidence. This does not yet qualify a complete runtime.
     #[arg(long, conflicts_with_all = ["target", "materialize_only", "browser_bundle", "runtime_bundle"])]
@@ -311,6 +312,44 @@ struct Cli {
     /// source dependency. Repeat for each direct dependency.
     #[arg(long, requires = "native_runtime")]
     native_runtime_dependency: Vec<PathBuf>,
+
+    /// Clean pinned checkout for an original-source recipe. Recipe outputs own
+    /// separate build, capture and lowered subdirectories under -o NEWDIR.
+    #[arg(long, requires = "native_runtime")]
+    native_runtime_source: Option<PathBuf>,
+
+    /// C frontend used by the source capture (default: clang on PATH).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_cc: Option<PathBuf>,
+
+    /// C++ frontend used by the source capture (default: clang++ on PATH).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_cxx: Option<PathBuf>,
+
+    /// Rust frontend used by the source capture (default: rustc on PATH).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_rustc: Option<PathBuf>,
+
+    /// Cargo used by the source capture (default: cargo on PATH).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_cargo: Option<PathBuf>,
+
+    /// Pinned symbol reader used by source capture (default: llvm-nm on PATH).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_llvm_nm: Option<PathBuf>,
+
+    /// Pinned decoder for embedded Rust bitcode (default: llvm-dis on PATH).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_llvm_dis: Option<PathBuf>,
+
+    /// Build-generated full unit inventory, relative to the new build directory
+    /// (default: unit-inventory.json). Absolute paths must remain in that build.
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_unit_inventory: Option<PathBuf>,
+
+    /// Parallel jobs forwarded to the original source build (default: host CPUs).
+    #[arg(long, requires = "native_runtime_source")]
+    native_runtime_jobs: Option<usize>,
 
     /// Digest-pinned LLVM parser worker library for native runtime import.
     #[arg(long, requires = "native_runtime")]
@@ -493,7 +532,7 @@ fn run_cli() -> Result<()> {
             .output
             .as_deref()
             .ok_or_else(|| anyhow::anyhow!("--native-runtime requires -o NEWDIR"))?;
-        return native_runtime::compile_capture(
+        return native_runtime::compile_runtime(
             &cli.input,
             target,
             cli.native_runtime_output.as_deref().unwrap_or("ir"),
@@ -504,6 +543,17 @@ fn run_cli() -> Result<()> {
                 tls_profile: cli.tls_profile.as_deref(),
                 atomic_profile: cli.atomic_profile.as_deref(),
                 dependencies: &cli.native_runtime_dependency,
+            },
+            native_runtime::NativeSourceOptions {
+                source: cli.native_runtime_source.as_deref(),
+                cc: cli.native_runtime_cc.as_deref(),
+                cxx: cli.native_runtime_cxx.as_deref(),
+                rustc: cli.native_runtime_rustc.as_deref(),
+                cargo: cli.native_runtime_cargo.as_deref(),
+                llvm_nm: cli.native_runtime_llvm_nm.as_deref(),
+                llvm_dis: cli.native_runtime_llvm_dis.as_deref(),
+                unit_inventory: cli.native_runtime_unit_inventory.as_deref(),
+                jobs: cli.native_runtime_jobs,
             },
         );
     }

@@ -143,6 +143,36 @@ not supply `.oc` source spans, machine-address ranges, a debugger, native
 HGraph dispatch, runtime observations or admission authority. Existing plain
 emission shares the same emitter and remains byte-identical.
 
+## Direct original-source recipe orchestration
+
+[`olangc --native-runtime`](src/bin/olangc/native_runtime/source_recipe.rs)
+now accepts an original-source build recipe directly. With
+`--native-runtime-source`, it invokes its embedded capture worker, independently
+re-verifies the resulting build evidence, and passes the admitted whole units
+to the existing O-core lowering route. The caller supplies the clean pinned
+checkout, exact frontend tools and admitted LLVM parser; the compiler creates
+a separate new build/capture/lowering directory. Existing output directories,
+output paths within the source checkout (including aliases), and escaping
+inventory paths reject before they can be reused.
+
+The source-recipe receipt binds the recipe, embedded worker/helper, capture
+report and lowering evidence by exact bytes and SHA-256. Capture completion
+requires independent replay admission; successful reference builds alone do
+not set it. Failure retains the stage, process arguments, diagnostics and any
+admitted evidence. Complete unit lowering remains separate from a complete
+runtime, dependency closure, linking and native execution qualification.
+The [workflow documentation](tools/ocore-runtime/README.md) and
+[unchanged Lua recipe](tools/ocore-runtime/lua/README.md) describe the commands
+and their current limits.
+
+The [direct-source development evidence](evidence/native_source_recipe_20261017.json)
+records 11 passing CLI cases with native fixture execution, 17 passing existing
+capture/package cases, and the unchanged Lua invocation. Lua captured and
+independently admitted all 34 units, then stopped before any unit import because
+its declared source dependencies lacked verified included module-sets. Its
+Clang-built reference engine passed the smoke test; it is not an O-core native
+Lua product.
+
 ## What is still required for the broader completion claim
 
 The compiler now also writes and consumes self-contained
@@ -208,8 +238,10 @@ that an installed command reflected changed source:
 |---|---|
 | `/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked -p ostadix-api --lib ocore::native_map` | 4 passed, including all-target exception-landing maps. |
 | `python3 -m unittest discover -s tests -p test_ocore_native_map.py -v` | 11 passed without skips, including embedded-snapshot recovery, real LLVM 22 import, assembly/object maps on all three ISAs, collisions, stale maps and rejected forged assembly correspondence. |
+| `python3 -m unittest discover -s tests -p test_ocore_llvm_import.py -v` with the pinned LLVM 22 SDK/parser | 71 passed; 1 legacy Clang 21 check skipped because that frontend was unavailable. Actual LLVM 22 text/bitcode and all-three-ISA cases passed; exact commands, environment and compiler hashes are retained in the [CLI regression evidence](evidence/native_cli_llvm22_20261017.json). |
 | `python3 -m unittest discover -s tests -p test_ocore_native_runtime.py -v` with the pinned LLVM 22 SDK/parser | 17 passed without skips on RISC-V, including actual source capture, verified IR, owned-object native execution and package reuse after source/build/capture removal. |
-| `/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::` | 115 passed, including 9 package/composition tests and actual three-target owned exception-table corruption checks. |
+| `/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::` | 116 passed, including source/output isolation, 9 package/composition tests and actual three-target owned exception-table corruption checks. |
+| `python3 -m unittest discover -s tests -p test_ocore_native_source_recipe.py -v` with the pinned LLVM 22 SDK/parser | 11 passed without skips, including real two-unit source builds, owned-object native execution, path isolation, failure receipts, and capture/package route rejection of source-only options. |
 | `python3 -m unittest discover -s tools/ocore-runtime/lua -p 'test_*.py' -v` | 9 passed; original source/Make, producer, object and archive substitutions reject. |
 | `python3 scripts/check_ocore_native_equivalence.py --ocorec target/debug/ocorec --output-dir target/native-reevaluation-20261017-final` | All three ISAs passed 12,288 shared-reference cases each, digest `b1009525e0d57799`, 6 synchronous fault cases and 2 `never` cases per ISA, with byte-reproducible objects. |
 | Actual Clang/LLVM 22.1.6 SDK and unchanged Lua source | Parser C-API health and scalar owned-object execution passed; complete original capture and reference smoke passed; all 34 whole units audited, with 5 owned-object successes and 29 explicit rejections. Full-runtime admission rejected missing included dependency module-sets. |
