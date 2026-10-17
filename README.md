@@ -6372,6 +6372,14 @@ source; it does not declare one license for the mixed generated package.
 
 Ostadix-lang / ^Ostadix_ was created by Lee Daghlar Ostadi.
 
+### Related preprints
+
+- [The Information Cost of Compilation: Degenerate Re-instantiation Entropy as a Channel Quantity](https://doi.org/10.5281/zenodo.21496293)
+- [The Nesting Is the Interface: Recursive Evaluator Composition for Whole-Program Polyglot Execution](https://doi.org/10.5281/zenodo.21544345)
+- [Locality as Channel Degeneracy: Local Computation as the Degenerate-Contract Region of Channel-Mediated Computation](https://doi.org/10.5281/zenodo.21637750)
+
+See the [publications page](https://leeostadi.com/papers/) for abstracts, PDFs, and BibTeX.
+
 ### How to cite
 
 Citation metadata lives in the root-level [`CITATION.cff`](CITATION.cff)
@@ -6383,7 +6391,7 @@ existing Zenodo preprint/package record:
     Composition for Whole-Program Polyglot Execution. Draft v0.2. Zenodo.
     https://doi.org/10.5281/zenodo.21544345
 
-DOI `10.5281/zenodo.21544345` identifies that existing preprint/package
+DOI [`10.5281/zenodo.21544345`](https://doi.org/10.5281/zenodo.21544345) identifies that existing preprint/package
 record; it is not an archive of a tagged Ostadix-lang source release. When
 citing the current source before a separate tagged source-release DOI exists,
 identify the repository version and exact revision:

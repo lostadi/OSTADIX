@@ -383,7 +383,7 @@ upload that ZIP as a workflow artifact. Use the successful tag run's
 
 ## Zenodo DOI minting
 
-The existing DOI `10.5281/zenodo.21544345` identifies the preprint/package
+The existing DOI [`10.5281/zenodo.21544345`](https://doi.org/10.5281/zenodo.21544345) identifies the preprint/package
 record. It is not an archive of a tagged Ostadix-lang source release and must
 remain the `preferred-citation` DOI. The steps below mint a separate DOI for a
 future tagged v0.4.0 source snapshot:
