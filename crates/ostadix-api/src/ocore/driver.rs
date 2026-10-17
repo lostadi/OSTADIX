@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
 use super::hir::{HirProgram, Type};
 use super::{codegen, codegen_aarch64, codegen_riscv64};
 use super::{mir, parser, typeck, Diagnostic, Span};
@@ -84,6 +87,35 @@ pub fn compile_native_module(
     input: &Path,
     options: &CompileOptions,
 ) -> Result<CompileOutput, Diagnostic> {
+    compile_native_module_with_map(input, options, None)
+}
+
+/// Descriptive correspondence between a verified imported module, its own
+/// assembly emission, and the exact output artifact. This carries no admission
+/// authority, runtime observations, machine-address map, or source-level map.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeArtifactMap {
+    pub format: String,
+    pub module_file_sha256: String,
+    pub artifact_kind: String,
+    pub artifact_sha256: String,
+    pub artifact_bytes: usize,
+    pub assembly: super::native_map::NativeAssemblyMap,
+}
+
+pub const NATIVE_ARTIFACT_MAP_FORMAT: &str = "ocore-native-artifact-map-v1";
+
+/// Compile with an optional artifact-bound instruction-to-assembly sidecar.
+/// Existing emission is unchanged when no sidecar is requested.
+pub fn compile_native_module_with_map(
+    input: &Path,
+    options: &CompileOptions,
+    map_output: Option<&Path>,
+) -> Result<CompileOutput, Diagnostic> {
+    if let Some(map_output) = map_output {
+        prepare_native_map_output(&[input.to_path_buf()], options, map_output)?;
+    }
     let bytes = fs::read(input)
         .map_err(|e| driver_error(format!("failed to read {}: {e}", input.display())))?;
     let module = super::native_ir::NativeModule::from_json(&bytes)?;
@@ -100,15 +132,175 @@ pub fn compile_native_module(
             "imported native modules have no .oc AST/HIR; use --emit mir",
         ));
     }
-    let assembly = super::native_codegen::emit(&module, options.target)?;
-    if options.emit == EmitKind::Assembly {
+    let (assembly, map) = if map_output.is_some() {
+        let (assembly, map) = super::native_codegen::emit_with_map(&module, options.target)?;
+        (assembly, Some(map))
+    } else {
+        (super::native_codegen::emit(&module, options.target)?, None)
+    };
+    let output = if options.emit == EmitKind::Assembly {
         write_text(&options.output, &assembly)?;
-        return Ok(CompileOutput {
+        CompileOutput {
             output: options.output.clone(),
             assembly: Some(options.output.clone()),
-        });
+        }
+    } else {
+        emit_object(options, &assembly, module.target.abi.as_deref())?
+    };
+    if let (Some(path), Some(map)) = (map_output, map) {
+        let artifact = fs::read(&output.output)
+            .map_err(|error| driver_error(format!("failed to bind native output: {error}")))?;
+        let record = NativeArtifactMap {
+            format: NATIVE_ARTIFACT_MAP_FORMAT.into(),
+            module_file_sha256: hex::encode(Sha256::digest(&bytes)),
+            artifact_kind: if options.emit == EmitKind::Assembly {
+                "assembly"
+            } else {
+                "object"
+            }
+            .into(),
+            artifact_sha256: hex::encode(Sha256::digest(&artifact)),
+            artifact_bytes: artifact.len(),
+            assembly: map,
+        };
+        let json = serde_json::to_string_pretty(&record)
+            .map_err(|error| driver_error(format!("failed to serialize native map: {error}")))?;
+        write_text(path, &json)?;
     }
-    emit_object(options, &assembly, module.target.abi.as_deref())
+    Ok(output)
+}
+
+/// Check all original inputs before import or stale-map removal. The CLI must
+/// include original LLVM inputs here because the driver's imported JSON is a
+/// separate temporary snapshot. A failed import must invalidate an old map too.
+pub fn prepare_native_map_output(
+    inputs: &[PathBuf],
+    options: &CompileOptions,
+    map_output: &Path,
+) -> Result<(), Diagnostic> {
+    if !matches!(options.emit, EmitKind::Assembly | EmitKind::Object) {
+        return Err(driver_error(
+            "a native map requires assembly or object emission",
+        ));
+    }
+    if map_output == Path::new("-") || options.output == Path::new("-") {
+        return Err(driver_error(
+            "native maps require explicit artifact and map files",
+        ));
+    }
+    let mut artifacts = vec![options.output.clone()];
+    if options.keep_assembly && options.emit == EmitKind::Object {
+        let assembly = options.output.with_extension("s");
+        if paths_alias(&options.output, &assembly)? {
+            return Err(driver_error(
+                "native output and retained assembly must be distinct files",
+            ));
+        }
+        artifacts.push(assembly);
+    }
+    for path in inputs.iter().chain(&artifacts) {
+        if paths_alias(map_output, path)? {
+            return Err(driver_error(
+                "native map must not overwrite the input, output, or retained assembly",
+            ));
+        }
+    }
+    for input in inputs {
+        for path in &artifacts {
+            if paths_alias(input, path)? {
+                return Err(driver_error(
+                    "native artifacts must not overwrite the input module",
+                ));
+            }
+        }
+    }
+    match fs::remove_file(map_output) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(driver_error(format!(
+            "failed to remove stale native map: {error}"
+        ))),
+    }
+}
+
+/// Recompute every assembly site from the verified module, then check the
+/// exact artifact digest. An object digest identifies bytes; it does not prove
+/// assembler correctness, linking, execution, or graph-to-native preservation.
+pub fn verify_native_artifact_map(
+    input: &Path,
+    map_input: &Path,
+    assembly_input: &Path,
+    artifact_input: &Path,
+    target: Target,
+) -> Result<NativeArtifactMap, Diagnostic> {
+    let read = |path: &Path| {
+        fs::read(path)
+            .map_err(|error| driver_error(format!("failed to read {}: {error}", path.display())))
+    };
+    let bytes = read(input)?;
+    let module = super::native_ir::NativeModule::from_json(&bytes)?;
+    let record: NativeArtifactMap = serde_json::from_slice(&read(map_input)?)
+        .map_err(|error| driver_error(format!("invalid native artifact map: {error}")))?;
+    if record.format != NATIVE_ARTIFACT_MAP_FORMAT
+        || record.module_file_sha256 != hex::encode(Sha256::digest(&bytes))
+        || !matches!(record.artifact_kind.as_str(), "assembly" | "object")
+    {
+        return Err(driver_error(
+            "native artifact map format or module binding mismatch",
+        ));
+    }
+    let assembly_bytes = read(assembly_input)?;
+    let assembly = std::str::from_utf8(&assembly_bytes)
+        .map_err(|error| driver_error(format!("native assembly is not UTF-8: {error}")))?;
+    record.assembly.verify(&module, target, assembly)?;
+    let artifact = read(artifact_input)?;
+    if record.artifact_bytes != artifact.len()
+        || record.artifact_sha256 != hex::encode(Sha256::digest(&artifact))
+        || (record.artifact_kind == "assembly" && artifact != assembly_bytes)
+    {
+        return Err(driver_error("native artifact map output binding mismatch"));
+    }
+    Ok(record)
+}
+
+fn paths_alias(left: &Path, right: &Path) -> Result<bool, Diagnostic> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if let (Ok(left), Ok(right)) = (fs::metadata(left), fs::metadata(right)) {
+            if left.dev() == right.dev() && left.ino() == right.ino() {
+                return Ok(true);
+            }
+        }
+    }
+    fn resolve(path: &Path) -> Result<PathBuf, Diagnostic> {
+        let absolute = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .map_err(|error| driver_error(format!("resolve artifact path: {error}")))?
+                .join(path)
+        };
+        let mut ancestor = absolute.as_path();
+        let mut tail = Vec::new();
+        let mut resolved = loop {
+            if let Ok(resolved) = ancestor.canonicalize() {
+                break resolved;
+            }
+            let name = ancestor
+                .file_name()
+                .ok_or_else(|| driver_error("cannot resolve native artifact path"))?;
+            tail.push(name.to_os_string());
+            ancestor = ancestor
+                .parent()
+                .ok_or_else(|| driver_error("native artifact path has no parent"))?;
+        };
+        for component in tail.iter().rev() {
+            resolved.push(component);
+        }
+        Ok(resolved)
+    }
+    Ok(resolve(left)? == resolve(right)?)
 }
 
 pub fn compile_with_function_sections(

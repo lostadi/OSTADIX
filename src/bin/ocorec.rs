@@ -80,6 +80,23 @@ struct Cli {
     #[arg(long)]
     keep_asm: bool,
 
+    /// Write an artifact-bound imported-IR instruction-to-assembly map.
+    /// Offsets describe assembly UTF-8 bytes, not machine PCs or HGraph nodes.
+    #[arg(long, conflicts_with_all = ["check", "verify_native", "verify_native_map"])]
+    native_map: Option<PathBuf>,
+
+    /// Verify a native map against its module, exact assembly and artifact.
+    #[arg(long, requires_all = ["map_assembly", "map_artifact"], conflicts_with_all = ["check", "verify_native", "native_map", "output", "emit", "keep_asm", "function_sections"])]
+    verify_native_map: Option<PathBuf>,
+
+    /// Exact generated assembly associated with --verify-native-map.
+    #[arg(long, requires = "verify_native_map")]
+    map_assembly: Option<PathBuf>,
+
+    /// Output object or assembly associated with --verify-native-map.
+    #[arg(long, requires = "verify_native_map")]
+    map_artifact: Option<PathBuf>,
+
     /// Place ordinary functions in separate ELF sections for linker GC.
     #[arg(long)]
     function_sections: bool,
@@ -91,6 +108,20 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
+    if (cli.native_map.is_some() || cli.verify_native_map.is_some())
+        && cli.input_kind == InputKind::Ocore
+    {
+        eprintln!("ocorec: native maps currently require --input-kind native-ir or llvm-ir");
+        std::process::exit(2);
+    }
+    if cli.native_map.is_some() && !matches!(cli.emit, Emit::Asm | Emit::Obj) {
+        eprintln!("ocorec: --native-map requires --emit asm or obj");
+        std::process::exit(2);
+    }
+    if cli.verify_native_map.is_some() && cli.input_kind != InputKind::NativeIr {
+        eprintln!("ocorec: --verify-native-map requires the exact --input-kind native-ir module");
+        std::process::exit(2);
+    }
     if cli.tls_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
         eprintln!("ocorec: --tls-profile selects LLVM import; native IR preserves its own explicit profile");
         std::process::exit(2);
@@ -138,6 +169,34 @@ fn main() {
         );
         std::process::exit(2);
     };
+    if let Some(map) = &cli.verify_native_map {
+        let result = if cli.inputs.len() == 1 {
+            o_lang::ocore::driver::verify_native_artifact_map(
+                &cli.inputs[0],
+                map,
+                cli.map_assembly.as_deref().unwrap(),
+                cli.map_artifact.as_deref().unwrap(),
+                target,
+            )
+        } else {
+            Err(o_lang::ocore::Diagnostic {
+                file: "<ocorec>".into(),
+                span: o_lang::ocore::Span::default(),
+                message: "native map verification requires exactly one complete module".into(),
+            })
+        };
+        match result {
+            Ok(_) => println!("ok: native assembly correspondence and artifact bindings"),
+            Err(error) => {
+                eprintln!(
+                    "{}",
+                    render_diagnostic(&error, None, "native map verification")
+                );
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let emit = match cli.emit {
         Emit::Ast => EmitKind::Ast,
         Emit::Hir => EmitKind::Hir,
@@ -155,6 +214,17 @@ fn main() {
         output,
         keep_assembly: cli.keep_asm,
     };
+    if let Some(map) = &cli.native_map {
+        if let Err(error) =
+            o_lang::ocore::driver::prepare_native_map_output(&cli.inputs, &options, map)
+        {
+            eprintln!(
+                "{}",
+                render_diagnostic(&error, None, "native map output validation")
+            );
+            std::process::exit(1);
+        }
+    }
     let imported;
     let native_input = if cli.input_kind == InputKind::LlvmIr {
         imported = match import_llvm(&cli) {
@@ -182,7 +252,11 @@ fn main() {
             eprintln!("ocorec: imported native function sections are not implemented");
             std::process::exit(2);
         }
-        o_lang::ocore::driver::compile_native_module(native_input, &options)
+        o_lang::ocore::driver::compile_native_module_with_map(
+            native_input,
+            &options,
+            cli.native_map.as_deref(),
+        )
     } else {
         compile_with_function_sections(&cli.inputs, &options, cli.function_sections)
     };
@@ -193,6 +267,9 @@ fn main() {
             }
             if let Some(assembly) = result.assembly.filter(|p| p != &result.output) {
                 eprintln!("ocorec: kept {}", assembly.display());
+            }
+            if let Some(map) = &cli.native_map {
+                eprintln!("ocorec: wrote native assembly map {}", map.display());
             }
         }
         Err(error) => {

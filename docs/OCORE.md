@@ -17,7 +17,8 @@ never available in freestanding O-core code.
 The native pipeline is:
 
 ```text
-O-core source -> AST -> resolved, typed HIR -> SSA MIR -> target object
+O-core source -> AST -> resolved, typed HIR -> SSA MIR -> owned target assembly
+             -> assembler -> target object
 ```
 
 The existing orchestration pipeline remains:
@@ -44,6 +45,46 @@ accepts a bounded LLVM import profile, including actual C and Rust frontend
 output, and has O-core-owned assembly emitters for all three ISAs. It preserves
 the existing `.oc` semantics rather than assuming that foreign code shares them.
 This bridge does not yet compile a complete external runtime or compiler.
+
+The two native routes are distinct. `.oc` compilation calls `typeck::check`
+before `mir::lower`; MIR is typed SSA produced after initial source checking.
+Imported LLVM modules instead pass through LLVM parsing/verification and the
+independent O-core `NativeModule` verifier before O-core assembly emission.
+Clang subsequently assembles the owned assembly with `-c -x assembler`. LLVM's
+implemented import role is broader than a historical feature census. See the
+[source reevaluation evidence](../Ocore_Source_Reevaluation_Evidence.md).
+
+### Imported native instruction correspondence
+
+`ocorec --native-map PATH` writes a strict `ocore-native-artifact-map-v1`
+sidecar for imported native IR or LLVM IR with assembly/object emission:
+
+```sh
+ocorec implementation.json --input-kind native-ir --target riscv64-unknown-none \
+  --keep-asm --native-map implementation.map.json -o implementation.o
+ocorec implementation.json --input-kind native-ir --target riscv64-unknown-none \
+  --verify-native-map implementation.map.json \
+  --map-assembly implementation.s --map-artifact implementation.o
+```
+
+The inner `ocore-native-assembly-map-v1` binds the normalized verified module,
+original frontend-input digest, target and exact generated assembly. Every
+native instruction has a site, including zero-width PHIs and compiler markers;
+terminator sites include normal-edge PHI copies, and per-invoke landing sites
+include unwind-edge copies. The outer map binds the exact module-file bytes
+and output artifact. Verification re-verifies and re-emits the whole module,
+compares every site and byte range, and checks artifact identity. Maps do not
+change the existing assembly or object bytes. Input/output/map aliases reject,
+and failed compilation removes the requested stale map before import/emission.
+
+Ranges are half-open UTF-8 byte offsets in assembly text, including directives
+and labels. They are not machine PCs, object offsets, source lines, HGraph
+identities, debug information, runtime observations or execution authority.
+The outer object digest identifies bytes and does not prove assembler
+correctness. `.oc` source mapping and general native/HGraph execution remain
+separate work. For LLVM input, retain the exact imported native-module JSON
+with `--emit mir` for later map verification; LLVM-input provenance remains
+in the inner map and verification uses `--input-kind native-ir`.
 
 ### External runtime lowering and script bundles
 

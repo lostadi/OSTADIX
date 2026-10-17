@@ -9,6 +9,7 @@ use super::driver::Target;
 use super::native_abi::{AbiContext, AbiLocation, AbiPart, AbiPlan, Extension};
 use super::native_exception_codegen::{CallSite, ExceptionTables};
 use super::native_ir::*;
+use super::native_map::{NativeAssemblyMap, NativeAssemblySite, NativeAssemblySiteKind};
 use super::native_verify::{
     instruction_operands, type_alignment, type_layouts, value_leaf_layouts,
 };
@@ -22,6 +23,26 @@ mod atomic {
 }
 
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
+    emit_impl(module, target, None)
+}
+
+/// Emit the identical assembly together with descriptive IR-to-assembly byte ranges.
+/// The ranges identify UTF-8 assembly bytes, never machine addresses or executions.
+pub fn emit_with_map(
+    module: &NativeModule,
+    target: Target,
+) -> Result<(String, NativeAssemblyMap), Diagnostic> {
+    let mut sites = Vec::new();
+    let assembly = emit_impl(module, target, Some(&mut sites))?;
+    let map = NativeAssemblyMap::from_emission(module, target, &assembly, sites)?;
+    Ok((assembly, map))
+}
+
+fn emit_impl(
+    module: &NativeModule,
+    target: Target,
+    mut sites: Option<&mut Vec<NativeAssemblySite>>,
+) -> Result<String, Diagnostic> {
     super::native_verify::verify(module)?;
     audit(module, target)?;
     let leaf_layouts = value_leaf_layouts(module, &executable_value_types(module))?;
@@ -182,7 +203,7 @@ pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic>
                 &leaf_layouts,
                 &abi,
             )?
-            .emit(&mut out)?;
+            .emit(&mut out, sites.as_deref_mut())?;
         }
     }
     for alias in &module.aliases {
@@ -1111,7 +1132,12 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    fn emit(mut self, out: &mut String) -> Result<(), Diagnostic> {
+    fn emit(
+        mut self,
+        out: &mut String,
+        mut sites: Option<&mut Vec<NativeAssemblySite>>,
+    ) -> Result<(), Diagnostic> {
+        let prologue_start = out.len();
         emit_section(
             out,
             self.module,
@@ -1171,11 +1197,38 @@ impl<'a> Emitter<'a> {
             self.spill_leaf(out, param, part.leaf);
         }
         self.jump(out, &self.block_label(self.function.entry.unwrap()));
+        self.map_site(
+            &mut sites,
+            NativeAssemblySiteKind::FunctionPrologue,
+            None,
+            None,
+            prologue_start,
+            out.len(),
+        );
         for block in &self.function.blocks {
+            let label_start = out.len();
             writeln!(out, "{}:", self.block_label(block.id)).unwrap();
-            for instruction in &block.instructions {
+            self.map_site(
+                &mut sites,
+                NativeAssemblySiteKind::BlockLabel,
+                Some(block.id),
+                None,
+                label_start,
+                out.len(),
+            );
+            for (index, instruction) in block.instructions.iter().enumerate() {
+                let instruction_start = out.len();
                 self.instruction(out, instruction)?;
+                self.map_site(
+                    &mut sites,
+                    NativeAssemblySiteKind::Instruction,
+                    Some(block.id),
+                    Some(index),
+                    instruction_start,
+                    out.len(),
+                );
             }
+            let terminator_start = out.len();
             match &block.terminator {
                 Terminator::Invoke {
                     callee,
@@ -1331,9 +1384,20 @@ impl<'a> Emitter<'a> {
                     Target::Riscv64UnknownNone => "  unimp\n",
                 }),
             }
+            // Edge copies implement successor PHIs and belong to the retained
+            // predecessor terminator, including conditional/switch edge code.
+            self.map_site(
+                &mut sites,
+                NativeAssemblySiteKind::Terminator,
+                Some(block.id),
+                None,
+                terminator_start,
+                out.len(),
+            );
         }
         for block in &self.function.blocks {
             if let Terminator::Invoke { unwind, .. } = &block.terminator {
+                let landing_start = out.len();
                 writeln!(out, "{}:", self.unwind_label(block.id)).unwrap();
                 let landing = self
                     .function
@@ -1391,8 +1455,17 @@ impl<'a> Emitter<'a> {
                 );
                 self.phis(out, block.id, *unwind);
                 self.jump(out, &self.block_label(*unwind));
+                self.map_site(
+                    &mut sites,
+                    NativeAssemblySiteKind::ExceptionLanding,
+                    Some(block.id),
+                    None,
+                    landing_start,
+                    out.len(),
+                );
             }
         }
+        let epilogue_start = out.len();
         out.push_str("  .cfi_endproc\n");
         writeln!(
             out,
@@ -1403,11 +1476,20 @@ impl<'a> Emitter<'a> {
         if self.target == Target::Aarch64UnknownNone {
             out.push_str("  .ltorg\n");
         }
+        self.map_site(
+            &mut sites,
+            NativeAssemblySiteKind::FunctionEpilogue,
+            None,
+            None,
+            epilogue_start,
+            out.len(),
+        );
         if let Some(tables) = self
             .exception_tables
             .as_ref()
             .filter(|_| self.function.exception_handling.is_some())
         {
+            let table_start = out.len();
             emit_section(
                 out,
                 self.module,
@@ -1422,8 +1504,38 @@ impl<'a> Emitter<'a> {
                 &self.lsda_label(),
                 &self.call_sites,
             );
+            self.map_site(
+                &mut sites,
+                NativeAssemblySiteKind::ExceptionTable,
+                None,
+                None,
+                table_start,
+                out.len(),
+            );
         }
         Ok(())
+    }
+
+    fn map_site(
+        &self,
+        sites: &mut Option<&mut Vec<NativeAssemblySite>>,
+        kind: NativeAssemblySiteKind,
+        block: Option<BlockId>,
+        instruction: Option<usize>,
+        assembly_start: usize,
+        assembly_end: usize,
+    ) {
+        if let Some(sites) = sites {
+            sites.push(NativeAssemblySite {
+                function_index: self.index,
+                function: self.function.name.clone(),
+                block,
+                instruction,
+                kind,
+                assembly_start,
+                assembly_end,
+            });
+        }
     }
 
     fn lsda_label(&self) -> String {
