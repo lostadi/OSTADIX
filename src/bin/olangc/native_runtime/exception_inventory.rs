@@ -17,6 +17,7 @@ struct Relocation<'a> {
     kind: u32,
     addend: i64,
     symbol: &'a ObjectSymbol,
+    subtract: Option<Box<Relocation<'a>>>,
 }
 
 struct Reader<'a> {
@@ -148,6 +149,7 @@ fn relocations<'a>(
     sections: &[Section],
     symbols: &'a BTreeMap<usize, Vec<ObjectSymbol>>,
     inspected_sections: &BTreeSet<usize>,
+    arch: &str,
 ) -> Result<BTreeMap<usize, BTreeMap<usize, Relocation<'a>>>> {
     let mut result: BTreeMap<usize, BTreeMap<usize, Relocation<'a>>> = BTreeMap::new();
     for section in sections.iter().filter(|section| {
@@ -160,6 +162,7 @@ fn relocations<'a>(
         let table = symbols
             .get(&section.link)
             .context("EH relocation symbol table missing")?;
+        let mut previous_offset = None;
         for entry in data.chunks_exact(24) {
             let offset = usize::try_from(u64::from_le_bytes(entry[0..8].try_into()?))?;
             let info = u64::from_le_bytes(entry[8..16].try_into()?);
@@ -170,18 +173,172 @@ fn relocations<'a>(
                 kind: info as u32,
                 addend: i64::from_le_bytes(entry[16..24].try_into()?),
                 symbol,
+                subtract: None,
             };
-            if result
-                .entry(section.info)
-                .or_default()
-                .insert(offset, relocation)
-                .is_some()
-            {
-                bail!("duplicate relocation in owned EH object");
+            let fields = result.entry(section.info).or_default();
+            if let Some(existing) = fields.get_mut(&offset) {
+                // These RISC-V expressions occupy one owned field with an
+                // ordered SET/ADD then SUB pair. Keep both operands until the
+                // field decoder checks their exact source-function geometry.
+                if arch != "riscv64"
+                    || previous_offset != Some(offset)
+                    || existing.subtract.is_some()
+                    || !matches!(
+                        (existing.kind, relocation.kind),
+                        (35, 39) | (53, 52) | (54, 37) | (55, 38) | (56, 39) | (60, 61)
+                    )
+                {
+                    bail!("duplicate relocation in owned EH object");
+                }
+                existing.subtract = Some(Box::new(relocation));
+            } else {
+                fields.insert(offset, relocation);
             }
+            previous_offset = Some(offset);
         }
     }
     Ok(result)
+}
+
+fn owned_difference(
+    relocation: &Relocation<'_>,
+    kinds: (u32, u32),
+    definition: &Definition,
+    base: u64,
+) -> Result<u64> {
+    let subtract = relocation
+        .subtract
+        .as_deref()
+        .context("owned RISC-V EH difference lacks its SUB relocation")?;
+    if (relocation.kind, subtract.kind) != kinds {
+        bail!("owned RISC-V EH difference relocation kinds differ from field encoding");
+    }
+    let (positive_section, positive) = relocated_location(relocation)?;
+    let (negative_section, negative) = relocated_location(subtract)?;
+    let positive = u64::try_from(positive)?;
+    let negative = u64::try_from(negative)?;
+    let end = definition
+        .value
+        .checked_add(definition.size)
+        .context("owned EH code range overflow")?;
+    if positive_section != definition.section
+        || negative_section != definition.section
+        || negative != base
+        || base < definition.value
+        || positive < base
+        || positive > end
+    {
+        bail!("owned RISC-V EH difference escapes its exact source-function interval");
+    }
+    Ok(positive - negative)
+}
+
+fn call_uleb(
+    reader: &mut Reader<'_>,
+    relocations: &BTreeMap<usize, Relocation<'_>>,
+    arch: &str,
+    definition: &Definition,
+    base: u64,
+    used: &mut BTreeSet<usize>,
+) -> Result<u64> {
+    let offset = reader.cursor;
+    let value = reader.uleb()?;
+    if let Some(relocation) = relocations.get(&offset) {
+        if arch != "riscv64" || owned_difference(relocation, (60, 61), definition, base)? != value {
+            bail!("owned LSDA ULEB relocation differs from its exact source-code offset");
+        }
+        used.insert(offset);
+    }
+    Ok(value)
+}
+
+/// Admit only relocation operands anchored to actual DW_CFA advance fields.
+/// This checks code-address geometry, not the execution semantics of CFA rows.
+fn cfi_differences(
+    data: &[u8],
+    start: usize,
+    end: usize,
+    relocations: &BTreeMap<usize, Relocation<'_>>,
+    arch: &str,
+    definition: &Definition,
+    used: &mut BTreeSet<usize>,
+) -> Result<()> {
+    if arch != "riscv64"
+        || !relocations
+            .range(start..end)
+            .any(|(_, relocation)| relocation.subtract.is_some())
+    {
+        return Ok(());
+    }
+    let mut reader = Reader::new(data, start, end)?;
+    let mut position = 0u64;
+    while reader.cursor < reader.end {
+        let instruction = reader.cursor;
+        let opcode = reader.byte()?;
+        let advance = match opcode {
+            0x40..=0x7f => Some((instruction, u64::from(opcode & 63), (53, 52), 63)),
+            0x02 => {
+                let offset = reader.cursor;
+                Some((offset, u64::from(reader.byte()?), (54, 37), 255))
+            }
+            0x03 => {
+                let offset = reader.cursor;
+                Some((
+                    offset,
+                    u64::from(u16::from_le_bytes(reader.take(2)?.try_into()?)),
+                    (55, 38),
+                    65535,
+                ))
+            }
+            0x04 => {
+                let offset = reader.cursor;
+                Some((
+                    offset,
+                    u64::from(reader.u32()?),
+                    (56, 39),
+                    u64::from(u32::MAX),
+                ))
+            }
+            0x80..=0xbf => {
+                reader.uleb()?;
+                None
+            }
+            0xc0..=0xff | 0x00 | 0x0a | 0x0b => None,
+            0x05 | 0x09 | 0x0c => {
+                reader.uleb()?;
+                reader.uleb()?;
+                None
+            }
+            0x06..=0x08 | 0x0d | 0x0e => {
+                reader.uleb()?;
+                None
+            }
+            _ => bail!("unsupported owned CFI opcode surrounding RISC-V difference relocation"),
+        };
+        if let Some((offset, mut delta, kinds, maximum)) = advance {
+            if let Some(relocation) = relocations.get(&offset) {
+                if delta != 0 {
+                    bail!("owned CFI difference field is not a pure SET relocation");
+                }
+                let base = definition
+                    .value
+                    .checked_add(position)
+                    .context("owned CFI code offset overflow")?;
+                delta = owned_difference(relocation, kinds, definition, base)?;
+                if delta > maximum {
+                    bail!("owned CFI difference exceeds its field width");
+                }
+                used.insert(offset);
+            }
+            position = position
+                .checked_add(delta)
+                .context("owned CFI code range overflow")?;
+            if position > definition.size {
+                bail!("owned CFI advances outside its source function");
+            }
+        }
+    }
+    Ok(())
 }
 
 fn absolute_kind(arch: &str) -> u32 {
@@ -430,7 +587,8 @@ fn frames<'a>(
             if record.u32()? != 0 {
                 bail!("owned FDE code address slot is not a pure relocation");
             }
-            let extent = u64::from(record.u32()?);
+            let extent_offset = record.cursor;
+            let mut extent = u64::from(record.u32()?);
             let relocation = relocation_map
                 .get(&address)
                 .context("owned FDE code relocation missing")?;
@@ -449,6 +607,17 @@ fn frames<'a>(
                     })
                 })
                 .context("owned FDE has no exact original function start")?;
+            if let Some(relocation) = relocation_map.get(&extent_offset) {
+                if arch != "riscv64" || extent != 0 {
+                    bail!("owned FDE extent is not a pure RISC-V difference relocation");
+                }
+                let definition = &definitions[&function.name];
+                extent = owned_difference(relocation, (35, 39), definition, definition.value)?;
+                used.insert(extent_offset);
+            }
+            // The admitted CIE R encoding is 0x1b. Its range format retains
+            // DW_EH_PE_sdata4 even when the PC-relative application is removed.
+            i32::try_from(extent).context("owned FDE extent exceeds its signed 32-bit encoding")?;
             if extent != definitions[&function.name].size || !found.insert(function.name.clone()) {
                 bail!("owned FDE extent/inventory differs from source function");
             }
@@ -496,6 +665,15 @@ fn frames<'a>(
             } else if cie.personality.is_some() || cie.lsda_encoding != 255 || aug_size != 0 {
                 bail!("ELF added exception metadata to a source function without it");
             }
+            cfi_differences(
+                data,
+                aug_end,
+                record.end,
+                relocation_map,
+                arch,
+                &definitions[&function.name],
+                used,
+            )?;
         }
     }
     if found.len()
@@ -678,10 +856,37 @@ fn table(
     let mut records: BTreeMap<usize, usize> = BTreeMap::new();
     let mut observations = Vec::new();
     let mut landing_targets = BTreeSet::new();
+    let mut expected_relocations = BTreeSet::new();
     for (callee, unwind) in &expected_calls {
-        let offset = calls.uleb()?;
-        let length = calls.uleb()?;
-        let landing = calls.uleb()?;
+        let definition = &definitions[&function.name];
+        let offset = call_uleb(
+            &mut calls,
+            relocations,
+            arch,
+            definition,
+            definition.value,
+            &mut expected_relocations,
+        )?;
+        let base = definition
+            .value
+            .checked_add(offset)
+            .context("owned LSDA call offset overflow")?;
+        let length = call_uleb(
+            &mut calls,
+            relocations,
+            arch,
+            definition,
+            base,
+            &mut expected_relocations,
+        )?;
+        let landing = call_uleb(
+            &mut calls,
+            relocations,
+            arch,
+            definition,
+            definition.value,
+            &mut expected_relocations,
+        )?;
         let action = calls.uleb()?;
         let call_end = offset
             .checked_add(length)
@@ -838,7 +1043,6 @@ fn table(
         {
             bail!("owned LSDA action/type-table padding differs from code profile");
         }
-        let mut expected_relocations = BTreeSet::new();
         for (index, name) in expected.types.iter().enumerate() {
             let offset = type_base - (index + 1) * 8;
             if data
@@ -881,7 +1085,10 @@ fn table(
         }
         filter_end
     } else {
-        if relocations.range(start..end).next().is_some() {
+        if relocations
+            .range(start..end)
+            .any(|(offset, _)| !expected_relocations.contains(offset))
+        {
             bail!("cleanup-only LSDA acquired a relocation");
         }
         records_end
@@ -934,11 +1141,11 @@ pub(super) fn inspect(
     {
         bail!("owned EH frame storage differs from static ELF profile");
     }
-    // This decoder owns one relocation per EH/code field. Ordinary global
-    // initializers have a separate, exact decoder: RV symbol differences use
-    // ADD32 and SUB32 at the same offset and must not be mistaken for duplicate
-    // frame or call fixups. Keep strict uniqueness in every section consumed
-    // below, including the complete code section of each exception function.
+    // Own each EH/code field expression, including only the exact RISC-V
+    // SET/ADD-SUB pairs admitted by its parsed field decoder. Ordinary global
+    // initializers have a separate decoder and must not enter this inventory.
+    // Reject other duplicate fixups throughout the sections consumed below,
+    // including the complete code section of each exception function.
     let mut inspected_sections = BTreeSet::from([frame_index]);
     inspected_sections.extend(
         names
@@ -959,7 +1166,7 @@ pub(super) fn inspect(
                 .section,
         );
     }
-    let relocation_maps = relocations(bytes, sections, symbols, &inspected_sections)?;
+    let relocation_maps = relocations(bytes, sections, symbols, &inspected_sections, arch)?;
     let empty = BTreeMap::new();
     let frame_relocations = relocation_maps.get(&frame_index).unwrap_or(&empty);
     let mut used = BTreeSet::new();
@@ -1071,6 +1278,200 @@ mod tests {
     }
 
     #[test]
+    fn fde_extent_must_fit_the_admitted_signed_32_bit_encoding() {
+        let mut native = module("riscv64-unknown-none", None, "ungrouped");
+        native.functions.truncate(1);
+        native.functions[0].exception_handling = None;
+        native.functions[0].blocks = vec![o_lang::ocore::native_ir::Block {
+            id: 0,
+            instructions: vec![],
+            terminator: Terminator::Return {
+                value: Some(Operand::Value { id: 0 }),
+            },
+        }];
+        native.provenance.source_function_count = 1;
+        o_lang::ocore::native_verify::verify(&native).unwrap();
+        // Minimal aligned zR CIE and FDE. Only the declared range metadata
+        // changes below; testing a 2GiB extent needs no code-sized allocation.
+        let mut data = 16u32.to_le_bytes().to_vec();
+        data.extend_from_slice(&0u32.to_le_bytes());
+        data.extend_from_slice(&[1, b'z', b'R', 0, 1, 0x78, 1, 1, 0x1b, 0, 0, 0]);
+        data.extend_from_slice(&16u32.to_le_bytes());
+        data.extend_from_slice(&24u32.to_le_bytes());
+        data.extend_from_slice(&[0; 12]);
+        for extent in [i32::MAX as u64, i32::MAX as u64 + 1, u64::from(u32::MAX)] {
+            for paired in [false, true] {
+                let start = ObjectSymbol {
+                    name: "source_cleanup".into(),
+                    kind: 2,
+                    binding: 1,
+                    visibility: 0,
+                    section: 1,
+                    value: 0,
+                    size: extent,
+                };
+                let end = ObjectSymbol {
+                    name: ".Lend".into(),
+                    kind: 0,
+                    binding: 0,
+                    visibility: 0,
+                    section: 1,
+                    value: extent,
+                    size: 0,
+                };
+                let definitions = BTreeMap::from([(
+                    "source_cleanup".into(),
+                    Definition {
+                        kind: 2,
+                        binding: 1,
+                        visibility: 0,
+                        section: 1,
+                        value: 0,
+                        size: extent,
+                    },
+                )]);
+                let mut relocations = BTreeMap::from([(
+                    28,
+                    Relocation {
+                        kind: 57,
+                        addend: 0,
+                        symbol: &start,
+                        subtract: None,
+                    },
+                )]);
+                let mut frame_data = data.clone();
+                if paired {
+                    relocations.insert(
+                        32,
+                        Relocation {
+                            kind: 35,
+                            addend: 0,
+                            symbol: &end,
+                            subtract: Some(Box::new(Relocation {
+                                kind: 39,
+                                addend: 0,
+                                symbol: &start,
+                                subtract: None,
+                            })),
+                        },
+                    );
+                } else {
+                    frame_data[32..36]
+                        .copy_from_slice(&u32::try_from(extent).unwrap().to_le_bytes());
+                }
+                let result = frames(
+                    &frame_data,
+                    &relocations,
+                    "riscv64",
+                    &native,
+                    &definitions,
+                    &mut BTreeSet::new(),
+                );
+                if extent <= i32::MAX as u64 {
+                    assert!(result.is_ok(), "paired={paired}");
+                } else {
+                    assert!(
+                        result
+                            .err()
+                            .unwrap()
+                            .to_string()
+                            .contains("signed 32-bit encoding"),
+                        "paired={paired}"
+                    );
+                }
+            }
+        }
+    }
+
+    fn reject_corrupt_riscv_differences(original: &[u8], module: &NativeModule) {
+        let u64_at = |offset| u64::from_le_bytes(original[offset..offset + 8].try_into().unwrap());
+        let u32_at = |offset| u32::from_le_bytes(original[offset..offset + 4].try_into().unwrap());
+        let headers = u64_at(40) as usize;
+        let count = usize::from(u16::from_le_bytes(original[60..62].try_into().unwrap()));
+        let strings = usize::from(u16::from_le_bytes(original[62..64].try_into().unwrap()));
+        let strings_offset = u64_at(headers + strings * 64 + 24) as usize;
+        let mut checked = BTreeSet::new();
+        for index in 0..count {
+            let header = headers + index * 64;
+            if u32_at(header + 4) != 4 {
+                continue;
+            }
+            let target = headers + u32_at(header + 44) as usize * 64;
+            let name_start = strings_offset + u32_at(target) as usize;
+            let tail = &original[name_start..];
+            let name = &tail[..tail.iter().position(|byte| *byte == 0).unwrap()];
+            if name != b".eh_frame" && !name.starts_with(b".gcc_except_table") {
+                continue;
+            }
+            let offset = u64_at(header + 24) as usize;
+            let size = u64_at(header + 32) as usize;
+            for entry in (offset..offset + size).step_by(24) {
+                let kind = u32_at(entry + 8);
+                let subtract = match kind {
+                    35 => 39,
+                    53 => 52,
+                    54 => 37,
+                    55 => 38,
+                    56 => 39,
+                    60 => 61,
+                    _ => continue,
+                };
+                assert!(entry + 48 <= offset + size);
+                assert_eq!(u32_at(entry + 32), subtract);
+                assert_eq!(u64_at(entry), u64_at(entry + 24));
+                checked.insert((kind, subtract));
+                // Preserve the numerical difference while changing both
+                // endpoints: a value-only decoder would miss this corruption.
+                let mut shifted = original.to_vec();
+                for operand in [entry, entry + 24] {
+                    let addend = i64::from_le_bytes(
+                        original[operand + 16..operand + 24].try_into().unwrap(),
+                    );
+                    shifted[operand + 16..operand + 24]
+                        .copy_from_slice(&(addend + 1).to_le_bytes());
+                }
+                assert!(
+                    object_inventory(&shifted, "riscv64", module).is_err(),
+                    "shifted EH pair {kind}/{subtract} admitted"
+                );
+                // Both operands must belong to the actual parsed field.
+                let mut moved = original.to_vec();
+                let field = u64_at(entry);
+                for operand in [entry, entry + 24] {
+                    moved[operand..operand + 8].copy_from_slice(&(field - 1).to_le_bytes());
+                }
+                assert!(
+                    object_inventory(&moved, "riscv64", module).is_err(),
+                    "unowned EH pair {kind}/{subtract} admitted"
+                );
+                let mut missing = original.to_vec();
+                let mut payload = original[offset..offset + size].to_vec();
+                payload.drain(entry + 24 - offset..entry + 48 - offset);
+                let new_offset = missing.len();
+                missing.extend_from_slice(&payload);
+                missing[header + 24..header + 32]
+                    .copy_from_slice(&(new_offset as u64).to_le_bytes());
+                missing[header + 32..header + 40]
+                    .copy_from_slice(&(payload.len() as u64).to_le_bytes());
+                assert!(
+                    object_inventory(&missing, "riscv64", module).is_err(),
+                    "unpaired EH relocation {kind} admitted"
+                );
+            }
+        }
+        // Assemblers that resolve all differences need no pair admission. When
+        // emitted, these authored tables exercise frame, CFI and LSDA operands.
+        if !checked.is_empty() {
+            assert!(
+                checked.contains(&(35, 39))
+                    && checked.contains(&(54, 37))
+                    && checked.contains(&(60, 61)),
+                "{checked:?}"
+            );
+        }
+    }
+
+    #[test]
     fn owned_exception_tables_admit_only_their_derived_whole_group_members_on_each_isa() {
         let directory = std::env::temp_dir().join(format!(
             "ostadix-owned-exception-inventory-{}-{}",
@@ -1176,6 +1577,9 @@ mod tests {
                     );
                     let inventory =
                         object_inventory(&fs::read(&object).unwrap(), arch, &module).unwrap();
+                    if arch == "riscv64" && selection == "ungrouped" && variant == "cleanup" {
+                        reject_corrupt_riscv_differences(&fs::read(&object).unwrap(), &module);
+                    }
                     assert_eq!(
                         inventory["exception_tables"]["functions"][0]["function"],
                         "source_cleanup"

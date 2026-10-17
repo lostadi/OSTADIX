@@ -65,6 +65,8 @@ ocorec implementation.json --input-kind native-ir --target riscv64-unknown-none 
 ocorec implementation.json --input-kind native-ir --target riscv64-unknown-none \
   --verify-native-map implementation.map.json \
   --map-assembly implementation.s --map-artifact implementation.o
+ocorec --target riscv64-unknown-none --verify-native-map implementation.map.json \
+  --map-assembly implementation.s --map-artifact implementation.o
 ```
 
 The inner `ocore-native-assembly-map-v1` binds the normalized verified module,
@@ -76,6 +78,9 @@ and output artifact. Verification re-verifies and re-emits the whole module,
 compares every site and byte range, and checks artifact identity. Maps do not
 change the existing assembly or object bytes. Input/output/map aliases reject,
 and failed compilation removes the requested stale map before import/emission.
+The outer `native_module_json` field preserves the exact imported module
+snapshot as well as its hash, so temporary LLVM-worker output can be recovered
+and independently re-verified without rerunning the frontend/importer.
 
 Ranges are half-open UTF-8 byte offsets in assembly text, including directives
 and labels. They are not machine PCs, object offsets, source lines, HGraph
@@ -84,9 +89,10 @@ The outer object digest checks declared byte identity in an unsigned sidecar;
 it does not independently prove assembly-to-object correspondence or assembler
 correctness. Replacing an object and changing its declared digest is outside
 this descriptive check. `.oc` source mapping and general native/HGraph execution remain
-separate work. For LLVM input, retain the exact imported native-module JSON
-with `--emit mir` for later map verification; LLVM-input provenance remains
-in the inner map and verification uses `--input-kind native-ir`.
+separate work. Verification without a positional module uses the exact embedded
+snapshot. Supplying an external module additionally checks its exact bytes and
+requires `--input-kind native-ir`. Original LLVM-input provenance remains in
+the inner map; map verification does not require another LLVM import.
 
 ### External runtime lowering and script bundles
 

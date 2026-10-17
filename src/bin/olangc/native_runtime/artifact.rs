@@ -709,6 +709,70 @@ mod tests {
     }
 
     #[test]
+    fn dependency_name_cannot_satisfy_an_unchecked_explicit_source_pin() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("provider.json");
+        fs::write(&path, serde_json::to_vec(&package("provider")).unwrap()).unwrap();
+        for pin in [
+            json!("a".repeat(40)),
+            json!({"revision":"a".repeat(40)}),
+            json!({}),
+            json!(false),
+        ] {
+            let capture =
+                json!({"dependencies":{"declared":[{"name":"provider","source_pin":pin}]}});
+            let error = load_dependencies(&capture, &[path.clone()])
+                .err()
+                .unwrap()
+                .to_string();
+            assert!(error.contains("source_pin"), "{error}");
+        }
+        assert!(load_dependencies(
+            &json!({"dependencies":{"declared":[{"name":"provider","source_pin":null}]}}),
+            &[path]
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn captured_unit_text_cannot_collide_with_a_dependency_private_scope() {
+        let private_module = |export: &str| {
+            let mut ir: Value = serde_json::from_slice(&module("helper", true)).unwrap();
+            ir["types"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"kind":"pointer","address_space":0}));
+            ir["functions"][0]["linkage"] = json!("private");
+            let mut caller = ir["functions"][0].clone();
+            caller["name"] = json!(export);
+            caller["linkage"] = json!("external");
+            caller["blocks"][0]["instructions"] = json!([{"result":null,"operation":{
+                "op":"call","callee":{"kind":"symbol","ty":1,"name":"helper"},
+                "signature":{"params":[],"result":0,"abi":"c","variadic":false},"args":[]}}]);
+            ir["functions"].as_array_mut().unwrap().push(caller);
+            ir["provenance"]["source_function_count"] = json!(2);
+            NativeModule::from_json(&serde_json::to_vec(&ir).unwrap()).unwrap()
+        };
+        let dependency_id = module_identity("provider", "unit");
+        let captured_id = module_identity("consumer", &dependency_id);
+        let mut all = symbols(&captured_id, &private_module("consumer_entry")).unwrap();
+        all.extend(symbols(&dependency_id, &private_module("provider_entry")).unwrap());
+        let (inventory, issues) = resolve_symbols(&all);
+        assert!(issues.is_empty(), "{issues:?}");
+        let references = inventory["definition_references"].as_array().unwrap();
+        for (export, expected) in [
+            ("consumer_entry", captured_id),
+            ("provider_entry", dependency_id),
+        ] {
+            let reference = references
+                .iter()
+                .find(|reference| reference["definition"] == export)
+                .unwrap();
+            assert_eq!(reference["resolved_unit"], expected);
+        }
+    }
+
+    #[test]
     fn standalone_package_rejects_retargeting_and_import_overrides_before_emission() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("portable.native-ir.json");

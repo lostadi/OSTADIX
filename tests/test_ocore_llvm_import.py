@@ -26,7 +26,7 @@ TRIPLES = (
 
 
 def llvm_library():
-    """Select an actual Rust LLVM ELF, never its similarly named linker script."""
+    """Select an explicit LLVM ELF or the default Rust LLVM, never a linker script."""
     override = os.environ.get("OCORE_TEST_LLVM_LIBRARY")
     if override:
         candidates = [Path(override)]
@@ -49,6 +49,15 @@ class LlvmImportTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.library = llvm_library()
+        override = os.environ.get("OCORE_TEST_LLVM_LIBRARY")
+        expected = os.environ.get("OCORE_TEST_LLVM_SHA256")
+        if expected and not override:
+            raise RuntimeError("OCORE_TEST_LLVM_SHA256 requires OCORE_TEST_LLVM_LIBRARY")
+        cls.library_sha256 = expected if override and expected else importer.PINNED_SHA256
+        if not re.fullmatch(r"[0-9a-f]{64}", cls.library_sha256):
+            raise RuntimeError("the explicit LLVM parser pin must be a lowercase SHA-256")
+        if hashlib.sha256(cls.library.read_bytes()).hexdigest() != cls.library_sha256:
+            raise RuntimeError("the actual LLVM parser differs from its selected test pin")
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="ocore-llvm-import-test-")
@@ -62,7 +71,7 @@ class LlvmImportTests(unittest.TestCase):
         return self.source
 
     def import_ir(self, body, **kwargs):
-        return importer.import_module(self.write(body, **kwargs), library_path=self.library)
+        return importer.import_module(self.write(body, **kwargs), library_path=self.library, expected_sha256=self.library_sha256)
 
     def reject(self, body, stage="import", **kwargs):
         with self.assertRaises(importer.ImportFailure) as raised:
@@ -146,7 +155,7 @@ define i64 @strong_fn(i64 %value) {{
                     binary = memory.LlvmMemoryImportTests.bitcode(self, source)
                     modules = []
                     for path in (source, binary):
-                        module = importer.import_module(path, library_path=self.library)
+                        module = importer.import_module(path, library_path=self.library, expected_sha256=self.library_sha256)
                         modules.append(module)
                         self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
                         self.assertEqual(module["target"]["triple"], triple)
@@ -1043,7 +1052,7 @@ define i32 @entry() uwtable personality ptr @personality { ret i32 0 }
                 self.assertEqual(raised.exception.symbol, "entry")
 
     def test_llvm22_bitcode_uwtable_rejects_surviving_invalid_payloads_and_records_reader_normalization(self):
-        api = importer.LLVM(self.library, importer.PINNED_SHA256)
+        api = importer.LLVM(self.library, self.library_sha256)
         create_attribute = api.lib.LLVMCreateEnumAttribute
         create_attribute.restype = importer.P
         create_attribute.argtypes = [importer.P, importer.U, importer.Q]
@@ -1055,7 +1064,7 @@ define i32 @entry() uwtable personality ptr @personality { ret i32 0 }
         source = self.write("define i32 @entry() { ret i32 19 }\n",
                             layout="e-p:64:64-i64:64-i128:128-n8:16:32:64-S128")
         original = source.read_bytes()
-        reference = importer.import_module(source, library_path=self.library)
+        reference = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256)
         # LLVM's reader drops None and narrows UWTableKind's int representation.
         # Admission concerns the parsed module; the original hash remains bound.
         for raw_value, normalized in ((0, None), (1, 1), (2, 2), ((1 << 32) + 2, 2),
@@ -1093,11 +1102,11 @@ define i32 @entry() uwtable personality ptr @personality { ret i32 0 }
                 self.assertTrue(data.startswith(b"BC\xc0\xde"))
                 if normalized == "reject":
                     with self.assertRaises(importer.ImportFailure) as raised:
-                        importer.import_module(binary, library_path=self.library)
+                        importer.import_module(binary, library_path=self.library, expected_sha256=self.library_sha256)
                     self.assertEqual(raised.exception.stage, "import")
                     self.assertEqual(raised.exception.symbol, "entry")
                     continue
-                module = importer.import_module(binary, library_path=self.library)
+                module = importer.import_module(binary, library_path=self.library, expected_sha256=self.library_sha256)
                 self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(data).hexdigest())
                 self.assertEqual({key: value for key, value in module.items()
                                   if key not in {"name", "provenance"}},
@@ -1280,7 +1289,7 @@ merge:
         good_source = self.write("define i32 @entry() { ret i32 42 }\n")
         output = self.directory / "existing-good.json"
         command = [sys.executable, str(SCRIPT), str(good_source), "--output", str(output),
-                   "--llvm-library", str(self.library)]
+                   "--llvm-library", str(self.library), "--llvm-sha256", self.library_sha256]
         completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=30)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         previous_bytes = output.read_bytes()
@@ -1306,14 +1315,14 @@ define i32 @entry() { ret i32 0 }
 !0 = !{!"vendor frontend 99.0"}
 !1 = !{!"custom build"}
 """)
-        module = importer.import_module(source, library_path=self.library)
+        module = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256)
         self.assertEqual(module["provenance"]["frontend"], "LLVM IR")
         self.assertEqual(module["provenance"]["frontend_version"],
                          "self-reported !llvm.ident: vendor frontend 99.0; custom build")
         self.assertIn("LLVM 22.1.6", module["provenance"]["importer_version"])
         self.assertTrue(any("descriptive named metadata llvm.ident" in item
                             for item in module["provenance"]["refinements"]))
-        declared = importer.import_module(source, library_path=self.library,
+        declared = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
                                           frontend="declared frontend", frontend_version="declared version")
         self.assertEqual(declared["provenance"]["frontend"], "declared frontend")
         self.assertEqual(declared["provenance"]["frontend_version"], "declared version")
@@ -1612,7 +1621,7 @@ define noundef i32 @entry(i32 noundef %value) sanitize_memory {
                         else:
                             self.assertTrue(source.read_bytes().startswith(b"BC\xc0\xde"))
                         with self.assertRaises(importer.ImportFailure) as raised:
-                            importer.import_module(source, library_path=self.library,
+                            importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
                                                    frontend="Clang", frontend_version=frontend_version)
                         self.assertEqual(raised.exception.stage, "import")
                         self.assertEqual(raised.exception.symbol, symbol)
@@ -1695,7 +1704,7 @@ define noundef i32 @entry(i32 noundef %value) sanitize_memory {
                                  expected_definitions)
                 self.assertEqual({name for name, kind in frontend_functions.items() if kind == "declare"},
                                  expected_declarations)
-                module = importer.import_module(source, library_path=self.library,
+                module = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256,
                                                 frontend="Clang", frontend_version=frontend_version)
                 if require_errno:
                     self.assertTrue(any("llvm.errno.tbaa" in item and "alias-analysis" in item
@@ -1714,7 +1723,7 @@ define noundef i32 @entry(i32 noundef %value) sanitize_memory {
                     cwd=ROOT, capture_output=True, text=True, timeout=30)
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 self.assertTrue(binary_source.read_bytes().startswith(b"BC\xc0\xde"))
-                binary_module = importer.import_module(binary_source, library_path=self.library,
+                binary_module = importer.import_module(binary_source, library_path=self.library, expected_sha256=self.library_sha256,
                                                        frontend="Clang", frontend_version=frontend_version)
                 for key, level in (relocation_levels or {}).items():
                     self.assert_pic_pie_provenance(binary_module, key, level)
@@ -1795,8 +1804,8 @@ define i32 @entry(i8 %byte) {
   ret i32 %result
 }
 """, layout="e-p:64:64-i64:64-i128:128-n8:16:32:64-S128")
-        reference = importer.import_module(source, library_path=self.library)
-        api = importer.LLVM(self.library, importer.PINNED_SHA256)
+        reference = importer.import_module(source, library_path=self.library, expected_sha256=self.library_sha256)
+        api = importer.LLVM(self.library, self.library_sha256)
         data = source.read_bytes()
         context = api.ContextCreate()
         buffer = api.CreateMemoryBufferWithMemoryRangeCopy(data, len(data), b"llvm22-fixture")
@@ -1826,7 +1835,7 @@ define i32 @entry(i8 %byte) {
         self.assertTrue(binary_data.startswith(b"BC\xc0\xde"))
         binary_source = self.directory / "llvm22.bc"
         binary_source.write_bytes(binary_data)
-        module = importer.import_module(binary_source, library_path=self.library)
+        module = importer.import_module(binary_source, library_path=self.library, expected_sha256=self.library_sha256)
         self.assertEqual(module["provenance"]["input_sha256"], hashlib.sha256(binary_data).hexdigest())
         self.assertEqual(module["provenance"]["source_function_count"], 2)
         self.assertEqual(module["provenance"]["source_global_count"], 1)
@@ -1849,7 +1858,7 @@ define i32 @entry(i8 %byte) {
                 output = self.directory / "corrupt.json"
                 completed = subprocess.run(
                     [sys.executable, str(SCRIPT), str(corrupt_source), "--output", str(output),
-                     "--llvm-library", str(self.library)],
+                     "--llvm-library", str(self.library), "--llvm-sha256", self.library_sha256],
                     cwd=ROOT, capture_output=True, text=True, timeout=30)
                 self.assertEqual(completed.returncode, 1, completed.stderr)
                 self.assertEqual(json.loads(completed.stderr)["error"]["stage"], "parse")
@@ -1857,20 +1866,31 @@ define i32 @entry(i8 %byte) {
 
     def test_cli_auto_discovery_explicit_library_and_failure_leave_no_partial_artifact(self):
         source = self.write("define i32 @entry() { ret i32 42 }\n")
+        environment = os.environ.copy()
+        if os.environ.get("OCORE_TEST_LLVM_LIBRARY") and os.environ.get("OCORE_TEST_LLVM_SHA256"):
+            # Exercise the real discovery path with an isolated location for
+            # the explicitly pinned alternative distribution. Production's
+            # default library identity and digest remain unchanged.
+            rustup = self.directory / "discovery-fixture"
+            candidate = rustup / "toolchains" / f"{importer.PINNED_RUST}-test" / "lib" / f"libLLVM.so.22.1-rust-{importer.PINNED_RUST}-stable"
+            candidate.parent.mkdir(parents=True)
+            candidate.symlink_to(self.library)
+            environment["RUSTUP_HOME"] = str(rustup)
         for arguments, filename in (([], "auto.json"),
-                                    (["--llvm-library", str(self.library)], "explicit.json")):
+                                    (["--llvm-library", str(self.library), "--llvm-sha256", self.library_sha256], "explicit.json")):
             with self.subTest(arguments=arguments):
                 output = self.directory / filename
                 completed = subprocess.run(
-                    [sys.executable, str(SCRIPT), str(source), "--output", str(output), *arguments],
-                    cwd=ROOT, capture_output=True, text=True, timeout=30)
+                    [sys.executable, str(SCRIPT), str(source), "--output", str(output),
+                     "--llvm-sha256", self.library_sha256, *arguments],
+                    cwd=ROOT, env=environment, capture_output=True, text=True, timeout=30)
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 self.assertEqual(json.loads(output.read_text())["format"], "ocore-native-module-v1")
         source = self.write("define i32 @broken() { ret i32 %undefined }\n")
         output = self.directory / "must-not-exist.json"
         completed = subprocess.run(
             [sys.executable, str(SCRIPT), str(source), "--output", str(output),
-             "--llvm-library", str(self.library)],
+             "--llvm-library", str(self.library), "--llvm-sha256", self.library_sha256],
             cwd=ROOT, capture_output=True, text=True, timeout=30)
         self.assertNotEqual(completed.returncode, 0)
         self.assertTrue(completed.stderr.strip())

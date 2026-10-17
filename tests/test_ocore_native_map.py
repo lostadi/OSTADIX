@@ -92,6 +92,7 @@ class NativeMapTests(unittest.TestCase):
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         self.assertEqual(record["format"], "ocore-native-artifact-map-v1")
         self.assertEqual(record["module_file_sha256"], sha256(source))
+        self.assertEqual(record["native_module_json"].encode("utf-8"), source.read_bytes())
         self.assertEqual(record["artifact_kind"], kind)
         self.assertEqual(record["artifact_sha256"], sha256(artifact))
         self.assertEqual(record["artifact_bytes"], artifact.stat().st_size)
@@ -245,8 +246,8 @@ class NativeMapTests(unittest.TestCase):
         self.assertFalse(sidecar.exists())
 
     def test_mapped_llvm_import_matches_retained_native_snapshot_bytes(self):
-        library = os.environ.get("OCORE_TEST_LLVM22_LIBRARY")
-        library_sha256 = os.environ.get("OCORE_TEST_LLVM22_SHA256")
+        library = os.environ.get("OCORE_TEST_LLVM22_LIBRARY") or os.environ.get("OCORE_TEST_LLVM_LIBRARY")
+        library_sha256 = os.environ.get("OCORE_TEST_LLVM22_SHA256") or os.environ.get("OCORE_TEST_LLVM_SHA256")
         if not library or not library_sha256:
             self.skipTest("set OCORE_TEST_LLVM22_LIBRARY and OCORE_TEST_LLVM22_SHA256 to a validated LLVM22.1.6 parser")
         self.assertEqual(sha256(Path(library)), library_sha256)
@@ -262,13 +263,43 @@ class NativeMapTests(unittest.TestCase):
         command = [self.compiler, str(source), "--input-kind", "llvm-ir",
                    "--llvm-library", library, "--llvm-sha256", library_sha256,
                    "--target", TARGETS["riscv64"]]
-        self.succeeded([*command, "--emit", "mir", "-o", str(snapshot)])
         self.succeeded([*command, "--emit", "asm", "-o", str(assembly),
                         "--native-map", str(sidecar)])
         record = json.loads(sidecar.read_text(encoding="utf-8"))
+        snapshot.write_bytes(record["native_module_json"].encode("utf-8"))
         self.assertEqual(record["module_file_sha256"], sha256(snapshot))
         self.assertEqual(record["assembly"]["input_sha256"], sha256(source))
         self.succeeded(self.verify_args(snapshot, sidecar, assembly, assembly, "riscv64"))
+        source.unlink()
+        snapshot.unlink()
+        self.succeeded([self.compiler, "--target", TARGETS["riscv64"],
+                        "--verify-native-map", str(sidecar), "--map-assembly", str(assembly),
+                        "--map-artifact", str(assembly)])
+
+    def test_embedded_module_snapshot_verifies_after_original_deletion_and_rejects_forgery(self):
+        source = self.source()
+        assembly, sidecar = self.directory / "out.s", self.directory / "out.map.json"
+        self.succeeded(self.compile_args(source, assembly, sidecar))
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(record["native_module_json"].encode("utf-8"), source.read_bytes())
+        source.unlink()
+        command = [self.compiler, "--target", TARGETS["x86_64"],
+                   "--verify-native-map", str(sidecar), "--map-assembly", str(assembly),
+                   "--map-artifact", str(assembly)]
+        self.succeeded(command)
+        recovered = self.directory / "recovered.json"
+        recovered.write_bytes(record["native_module_json"].encode("utf-8"))
+        self.succeeded(self.verify_args(recovered, sidecar, assembly, assembly))
+        changed = json.loads(record["native_module_json"])
+        changed["name"] += "-forged"
+        recovered.write_text(json.dumps(changed), encoding="utf-8")
+        self.assertNotEqual(self.run_command(self.verify_args(recovered, sidecar, assembly, assembly)).returncode, 0)
+        record["native_module_json"] = json.dumps(changed)
+        sidecar.write_text(json.dumps(record), encoding="utf-8")
+        self.assertNotEqual(self.run_command(command).returncode, 0)
+        record["module_file_sha256"] = hashlib.sha256(record["native_module_json"].encode("utf-8")).hexdigest()
+        sidecar.write_text(json.dumps(record), encoding="utf-8")
+        self.assertNotEqual(self.run_command(command).returncode, 0)
 
     def test_path_collisions_preserve_inputs_outputs_symlinks_and_hardlinks(self):
         source = self.source()

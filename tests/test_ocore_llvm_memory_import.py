@@ -70,7 +70,7 @@ class LlvmMemoryImportTests(unittest.TestCase):
         return name, f"declare void @{name}({destination}, {second}, i{width}, i1 immarg){extra}\n"
 
     def bitcode(self, source):
-        api = importer.LLVM(self.library, importer.PINNED_SHA256)
+        api = importer.LLVM(self.library, getattr(self, "library_sha256", importer.PINNED_SHA256))
         data = source.read_bytes()
         context, module, message = api.ContextCreate(), importer.P(), importer.P()
         buffer = api.CreateMemoryBufferWithMemoryRangeCopy(data, len(data), b"memory-fixture")

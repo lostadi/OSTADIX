@@ -1,0 +1,255 @@
+{
+  "schema": "ostadix.ocore-reevaluation-development-gates/v1",
+  "date": "2026-10-17",
+  "host_machine": "riscv64",
+  "scope": "bounded compiler, native artifact and original-source capture development checks",
+  "native_source_equivalence": {
+    "schema": "ostadix.ocore-native-equivalence/v1",
+    "targets": {
+      "x86_64": {
+        "output": "OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288",
+        "object_sha256": "d53bf9773221119c86750227cd8de325504952e865c11181a307bde0d6ab278b",
+        "elf_sha256": "41ffc78d13042c529f047961a11a54001fc1a9f2de345bcb47169c28a31cf034",
+        "faults": [
+          {
+            "case": 1,
+            "signal": 8
+          },
+          {
+            "case": 2,
+            "signal": 8
+          },
+          {
+            "case": 3,
+            "signal": 8
+          },
+          {
+            "case": 4,
+            "signal": 8
+          },
+          {
+            "case": 5,
+            "signal": 4
+          },
+          {
+            "case": 6,
+            "signal": 4
+          }
+        ],
+        "never_cases": 2,
+        "reproducible": true
+      },
+      "aarch64": {
+        "output": "OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288",
+        "object_sha256": "7804f145e09447a4d333c8f690e7a6c840b84a2973e4eb6b5357c9e88d83f97b",
+        "elf_sha256": "184281ed85c4891c3976479a1451306767c60a9e3449acf6c62c7fabf74c939e",
+        "faults": [
+          {
+            "case": 1,
+            "signal": 5
+          },
+          {
+            "case": 2,
+            "signal": 5
+          },
+          {
+            "case": 3,
+            "signal": 5
+          },
+          {
+            "case": 4,
+            "signal": 5
+          },
+          {
+            "case": 5,
+            "signal": 5
+          },
+          {
+            "case": 6,
+            "signal": 5
+          }
+        ],
+        "never_cases": 2,
+        "reproducible": true,
+        "emulator": "qemu-aarch64 version 10.0.13 (Debian 1:10.0.13+ds-0+deb13u1)"
+      },
+      "riscv64": {
+        "output": "OCORE-NATIVE-EQUIVALENCE digest=b1009525e0d57799 cases=12288",
+        "object_sha256": "60797ec12565221ef1010e97200b0fb6685a24c1b64215d1d0eb2faef76450be",
+        "elf_sha256": "bf49914cc866dd262b293868c02361774c909c2f8f41fc505f06853253acee76",
+        "faults": [
+          {
+            "case": 1,
+            "signal": 4
+          },
+          {
+            "case": 2,
+            "signal": 4
+          },
+          {
+            "case": 3,
+            "signal": 4
+          },
+          {
+            "case": 4,
+            "signal": 4
+          },
+          {
+            "case": 5,
+            "signal": 4
+          },
+          {
+            "case": 6,
+            "signal": 4
+          }
+        ],
+        "never_cases": 2,
+        "reproducible": true,
+        "emulator": "qemu-riscv64 version 10.0.13 (Debian 1:10.0.13+ds-0+deb13u1)"
+      }
+    },
+    "compiler": "ocorec 0.4.0",
+    "clang": "Debian clang version 19.1.7 (3+b1)",
+    "assembler_clang": "Debian clang version 19.1.7 (3+b1)",
+    "source_sha256": "7dcd744439be1072eafe1aad8851c476f5b7811cfcacb07b4a587205c455391d",
+    "reference_sha256": "e18bc6997cdb31012e7c30619e3a2b074eba57eebefdf146df0d9d984c8d0f43",
+    "compiler_sha256": "3b4189ee8aded7380ee4bcd3b1873305ba5736f906ad0cfd285e9676e666c945",
+    "equivalent": true
+  },
+  "gates": [
+    {
+      "command": "/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked -p ostadix-api --lib ocore::native_map",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p test_ocore_native_map.py -v",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "llvm_parser": "22.1.6"
+    },
+    {
+      "command": "/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::",
+      "passed": 115,
+      "failed": 0,
+      "package_tests_included": 9
+    },
+    {
+      "command": "python3 -m unittest discover -s tools/ocore-runtime/lua -p 'test_*.py' -v",
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p test_ocore_native_runtime.py -v",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "llvm_parser": "22.1.6",
+      "host_native_execution": "riscv64"
+    }
+  ],
+  "cargo_profile_overrides": {
+    "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "original_lua_diagnostic_capture": {
+    "source_revision": "0b29f408433e92953cc72b1d3e06c7ac8139e439",
+    "frontend": "Clang 19.1.7 diagnostic profile; committed recipe requires LLVM 22.1.6",
+    "captured_units": 34,
+    "archive_members": 33,
+    "source_data_files": 111,
+    "capture_report_sha256": "8d5d61d20f3c1e58adb8dd8f556b208538493719b767f7b208821633b0ee9881",
+    "development_evidence": {
+      "schema": "ostadix.original-lua-capture-development-evidence/v1",
+      "qualification": "Original unchanged Lua source build and LLVM19 capture; no O-core lowering or native OSTADIX acceptance",
+      "committed_recipe": {
+        "path": "/home/orangepi/ostadix-BM/tools/ocore-runtime/lua/full.recipe.json",
+        "sha256": "d277bac2ce4a5b2ec6e3b63ba032b5ba5bc164d48a9d0dad213a5ace2b2c2099",
+        "bytes": 5230
+      },
+      "diagnostic_recipe": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-clang19-capture-6h02gtc9/recipe/diagnostic.recipe.json",
+        "sha256": "48d4c497f7bb9543361557f355d006612c323f6b6582a964e75cc0acaa5fe161",
+        "bytes": 5375
+      },
+      "capture_report": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-clang19-capture-6h02gtc9/capture/report.json",
+        "sha256": "8d5d61d20f3c1e58adb8dd8f556b208538493719b767f7b208821633b0ee9881",
+        "bytes": 5452517
+      },
+      "capture_verification_receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-clang19-capture-6h02gtc9/capture-verification.json",
+        "sha256": "a6f6ab15a2fa37b70cef3efca0b05b793dd25c6049405fdcbfc0fe74c22e4b82",
+        "bytes": 2548
+      },
+      "capture_verification_exit": 0,
+      "reference_execution": {
+        "binary": {
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-clang19-capture-6h02gtc9/build/lua",
+          "sha256": "fa6e3289835babf7ae675c1acb83d214100a2c7666e1ecddda6452f386305367",
+          "bytes": 280376
+        },
+        "argv": [
+          "lua",
+          "-e",
+          "assert(assert(load(\"return 6 * 7\"))() == 42); local c = coroutine.create(function() coroutine.yield(7); return 9 end); local ok, n = coroutine.resume(c); assert(ok and n == 7); ok, n = coroutine.resume(c); assert(ok and n == 9); assert(math.sqrt(81) == 9); assert(utf8.len(\"Ostadix\") == 7); local f = assert(io.tmpfile()); assert(f:write(\"original-engine\")); assert(f:seek(\"set\", 0)); assert(f:read(\"a\") == \"original-engine\"); assert(f:close()); print(\"original-lua-reference: ok\")"
+        ],
+        "exit_code": 0,
+        "stdout": "original-lua-reference: ok\n",
+        "stderr": ""
+      },
+      "ocore_lowering_complete": false,
+      "dependency_closure_complete": false,
+      "native_execution_qualified": false,
+      "runtime_complete": false
+    },
+    "complete_ocore_runtime_lowering_established": false
+  },
+  "complete_native_hgraph_execution_established": false,
+  "complete_foreign_runtime_compiler_lowering_established": false,
+  "physical_hardware_qualification_established": false,
+  "owned_exception_tables_clang22": {
+    "evidence": {
+      "utc": "2026-10-17T02:04:40.961850+00:00",
+      "command": [
+        "/home/orangepi/ostadix-BM/target/debug/deps/olangc-ddedc15daf27cc4d",
+        "--exact",
+        "native_runtime::exception_inventory::tests::owned_exception_tables_admit_only_their_derived_whole_group_members_on_each_isa",
+        "--nocapture"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "path_prefix": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "ld_library_path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+      "compiler_version_exit": 0,
+      "compiler_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin\n",
+      "compiler_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a",
+      "unit_binary_sha256": "77584a562e93752b5e817ffaf5287420ec45619c2516e954cef7b7ed1ad7d780",
+      "exit_code": 0,
+      "output": "\nrunning 1 test\nowned EH object/group qualification: /tmp/ostadix-owned-exception-inventory-636792-1792202673899260225\ntest native_runtime::exception_inventory::tests::owned_exception_tables_admit_only_their_derived_whole_group_members_on_each_isa ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 175 filtered out; finished in 7.06s\n\n"
+    },
+    "local_receipt_sha256": "f13ddca808ea2c0ced84135ede226cc54735bdaefc5d52a597f9dbfc2537e265"
+  },
+  "pinned_llvm22_sdk": {
+    "path": "evidence/llvm22_riscv64_20261017.json",
+    "sha256": "e7bfa98a4a7723727f06698cde3818d17fd3e22e8f643c0ac32560d85e70197e",
+    "bytes": 17616
+  },
+  "original_lua_pinned_llvm22": {
+    "path": "evidence/original_lua_20261017.json",
+    "sha256": "3fd27fd037d76d4d89c6ce8d98777739debf6d1a3072ec4ccef5ef1f07576a65",
+    "bytes": 40139
+  },
+  "llvm22_test_environment": {
+    "PATH_prefix": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+    "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+    "OCORE_TEST_LLVM22_BIN": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+    "OCORE_TEST_CLANG22": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+    "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+    "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+    "OCORE_TEST_LLVM22_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+    "OCORE_TEST_LLVM22_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+  }
+}

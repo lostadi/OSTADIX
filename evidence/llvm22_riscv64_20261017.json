@@ -1,0 +1,410 @@
+{
+  "schema": "ostadix.exact-llvm22-riscv64-sdk-evidence/v1",
+  "scope": "User-local development toolchain; no claim that target runtime dependencies or OSTADIX services are compiled",
+  "host": {
+    "isa": "riscv64",
+    "glibc": "glibc 2.41"
+  },
+  "snapshot_timestamp": "20260524T150506Z",
+  "inrelease_url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/dists/sid/InRelease",
+  "inrelease_sha256": "d483fbfdb5af81352661ec7d40e39084bba11d291b3a11b7733627daf7000842",
+  "package_index_url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/dists/sid/main/binary-riscv64/Packages.xz",
+  "package_index_sha256": "d6b4304e1cdf260fa23660a5bc76885c75c7df9c500fcb157874e93c05e50c68",
+  "signed_package_index_verified": true,
+  "packages": [
+    {
+      "package": "clang-22",
+      "version": "1:22.1.6-1",
+      "architecture": "riscv64",
+      "filename": "pool/main/l/llvm-toolchain-22/clang-22_22.1.6-1_riscv64.deb",
+      "sha256": "e9ea97735295094df635f043932654a32c06bf1a02d1a00c833b85bf57218197",
+      "bytes": 133916,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/l/llvm-toolchain-22/clang-22_22.1.6-1_riscv64.deb"
+    },
+    {
+      "package": "libclang-cpp22",
+      "version": "1:22.1.6-1",
+      "architecture": "riscv64",
+      "filename": "pool/main/l/llvm-toolchain-22/libclang-cpp22_22.1.6-1_riscv64.deb",
+      "sha256": "a06b0fbf774b58da2b8c648573dc5d077f9564ac8722e4083f5024d5833ec7e0",
+      "bytes": 13140416,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/l/llvm-toolchain-22/libclang-cpp22_22.1.6-1_riscv64.deb"
+    },
+    {
+      "package": "libclang1-22",
+      "version": "1:22.1.6-1",
+      "architecture": "riscv64",
+      "filename": "pool/main/l/llvm-toolchain-22/libclang1-22_22.1.6-1_riscv64.deb",
+      "sha256": "9c3cb4e509e4288b6fa99a4f3d8602ea0bbf1467d15abc3d82a820dc153a1868",
+      "bytes": 7928020,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/l/llvm-toolchain-22/libclang1-22_22.1.6-1_riscv64.deb"
+    },
+    {
+      "package": "libclang-common-22-dev",
+      "version": "1:22.1.6-1",
+      "architecture": "riscv64",
+      "filename": "pool/main/l/llvm-toolchain-22/libclang-common-22-dev_22.1.6-1_riscv64.deb",
+      "sha256": "b9dd069cb728fa47e7082d1283996cd9ac28d6168c8eae26c5ac25e8fa089d6d",
+      "bytes": 772596,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/l/llvm-toolchain-22/libclang-common-22-dev_22.1.6-1_riscv64.deb"
+    },
+    {
+      "package": "llvm-22",
+      "version": "1:22.1.6-1",
+      "architecture": "riscv64",
+      "filename": "pool/main/l/llvm-toolchain-22/llvm-22_22.1.6-1_riscv64.deb",
+      "sha256": "aad42b7a9ce5b95f451196a9d9d4323d31023fc767b5d5271cde0b697be7cf45",
+      "bytes": 19471740,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/l/llvm-toolchain-22/llvm-22_22.1.6-1_riscv64.deb"
+    },
+    {
+      "package": "libllvm22",
+      "version": "1:22.1.6-1",
+      "architecture": "riscv64",
+      "filename": "pool/main/l/llvm-toolchain-22/libllvm22_22.1.6-1_riscv64.deb",
+      "sha256": "4d1e635cecc82850f8376ec6b7eb5aab2188f7021dcf7bc472ba60fb7021bb56",
+      "bytes": 28775200,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/l/llvm-toolchain-22/libllvm22_22.1.6-1_riscv64.deb"
+    },
+    {
+      "package": "libxml2-16",
+      "version": "2.15.2+dfsg-0.1",
+      "architecture": "riscv64",
+      "filename": "pool/main/libx/libxml2/libxml2-16_2.15.2+dfsg-0.1_riscv64.deb",
+      "sha256": "3b5cb91f5badb84e9eab51d79bdd150c904bd89a49956204b944dc78ff7f738a",
+      "bytes": 638532,
+      "url": "https://snapshot.debian.org/archive/debian/20260524T150506Z/pool/main/libx/libxml2/libxml2-16_2.15.2+dfsg-0.1_riscv64.deb"
+    }
+  ],
+  "actual_binaries": {
+    "clang": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+      "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a",
+      "bytes": 111688
+    },
+    "llvm-nm": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+      "sha256": "cea2a545e0b35eaa7733785bccdfb35739c5117b1380f677e9437031d92bf3a8",
+      "bytes": 107328
+    },
+    "llvm-ar": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-ar",
+      "sha256": "dfc928471eac08365bd3d2d7215b9bb61e7db969aa266ecc7a704859078f94b8",
+      "bytes": 61376
+    }
+  },
+  "library": {
+    "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+    "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+    "bytes": 132053720
+  },
+  "all_importer_required_C_API_bindings_verified": true,
+  "llvm_version": [
+    22,
+    1,
+    6
+  ],
+  "environment": {
+    "PATH_prepend": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+    "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib"
+  },
+  "scalar_owned_object_execution_passed": true,
+  "scalar_artifacts": [
+    {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.c",
+      "sha256": "ef1450589c2eae5d46233970ccbef790130c6365755424726e973a4d2c706e4a",
+      "bytes": 50
+    },
+    {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.ll",
+      "sha256": "cda8089ef80f97b45205051493991534b2752cbe63a45d98966a6b0cdfccb73b",
+      "bytes": 3713
+    },
+    {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.native.json",
+      "sha256": "b0fa8538a2deffb19e12ce06bf6adb6d26dc57a66061bc31a4e393e187deb8fd",
+      "bytes": 9297
+    },
+    {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.o",
+      "sha256": "4940360d06b17f7a292b4a304e8d016d725d183516ce508b9b92e0f48a1fcd5b",
+      "bytes": 1160
+    },
+    {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar-verification.json",
+      "sha256": "79b1f34085d4b5c45273c03d97a58529c35ceace483330f42d61728d91696ef5",
+      "bytes": 639
+    },
+    {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar-executable",
+      "sha256": "5b88f8d4ec5b3de90ed3915f28ee656ebfb7f4e0fb9bcb332bd48beb4aacce03",
+      "bytes": 8856
+    }
+  ],
+  "health_commands": [
+    {
+      "name": "gpg-debian-snapshot",
+      "argv": [
+        "gpgv",
+        "--keyring",
+        "/usr/share/keyrings/debian-archive-keyring.gpg",
+        "/home/orangepi/.local/share/ostadix/llvm22/metadata/sid-20260524-InRelease"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/gpg-debian-snapshot.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/gpg-debian-snapshot.stderr",
+        "sha256": "d198c860add5d683867d45edb3ceac382167d32857ed86bbdd80f18d1ed217bf",
+        "bytes": 454
+      }
+    },
+    {
+      "name": "clang-version",
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "--version"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/clang-version.stdout",
+        "sha256": "6da4aee95e7f169501fa572e806a8f7edd224227ef24f5768a7c69fa9902f31f",
+        "bytes": 170
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/clang-version.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "clang++-version",
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang++",
+        "--version"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/clang++-version.stdout",
+        "sha256": "6da4aee95e7f169501fa572e806a8f7edd224227ef24f5768a7c69fa9902f31f",
+        "bytes": 170
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/clang++-version.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "llvm-nm-version",
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+        "--version"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/llvm-nm-version.stdout",
+        "sha256": "6c7ac40a3bc290245ab1011adaac61dc40d2a0d79157857551b122ae4b5c1da8",
+        "bytes": 78
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/llvm-nm-version.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "llvm-ar-version",
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-ar",
+        "--version"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/llvm-ar-version.stdout",
+        "sha256": "1d6a417a12b86c8ce066a1cf20e84fc2819bd21dc947fe12fd381e8dcec5c804",
+        "bytes": 46
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/llvm-ar-version.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "importer-required-C-API",
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import sys; sys.path.insert(0,\"/home/orangepi/ostadix-BM\"); from scripts.ocore_llvm_import import LLVM; parser=LLVM(__import__(\"pathlib\").Path(sys.argv[1]),sys.argv[2]); print(parser.version)",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/importer-required-C-API.stdout",
+        "sha256": "d7d037ab4fadf85832e2c69fe2c4eb93f9e003d52a4e500710738709a3f14a7a",
+        "bytes": 11
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/importer-required-C-API.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "scalar-frontend",
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "-O1",
+        "-S",
+        "-emit-llvm",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.c",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.ll"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-frontend.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-frontend.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "scalar-import",
+      "argv": [
+        "/home/orangepi/ostadix-BM/target/debug/ocorec",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.ll",
+        "--input-kind",
+        "llvm-ir",
+        "--llvm-library",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "--llvm-sha256",
+        "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+        "--emit",
+        "mir",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.native.json"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-import.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-import.stderr",
+        "sha256": "c85c6b918a7dd4556e7369a6eabb3ec4e417bcfb3cf0f90dd0c046d764d665a5",
+        "bytes": 104
+      }
+    },
+    {
+      "name": "scalar-independent-verify",
+      "argv": [
+        "/home/orangepi/ostadix-BM/target/debug/ocorec",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.native.json",
+        "--input-kind",
+        "native-ir",
+        "--verify-native",
+        "--receipt",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar-verification.json"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-independent-verify.stdout",
+        "sha256": "df99b15a2f7a1e9a83f86a1d3cff4b737b444d052a2ac2bbe3ac71384002f5bb",
+        "bytes": 68
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-independent-verify.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "scalar-owned-riscv-object",
+      "argv": [
+        "/home/orangepi/ostadix-BM/target/debug/ocorec",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.native.json",
+        "--input-kind",
+        "native-ir",
+        "--target",
+        "riscv64-unknown-none",
+        "--emit",
+        "obj",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.o"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-owned-riscv-object.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-owned-riscv-object.stderr",
+        "sha256": "634c6a47b97beba8a1c6d26414c5449f6bd481fdb6c0a4e4a885c103a31216db",
+        "bytes": 94
+      }
+    },
+    {
+      "name": "scalar-reference-harness-link",
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar-harness.c",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar.o",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar-executable"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-reference-harness-link.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-reference-harness-link.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "name": "scalar-owned-object-execution",
+      "argv": [
+        "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/scalar-executable"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-owned-object-execution.stdout",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/scalar-owned-object-execution.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    }
+  ],
+  "original_lua_runtime_complete": false
+}

@@ -1,0 +1,926 @@
+{
+  "schema": "ostadix.original-lua-llvm22-development-evidence/v1",
+  "scope": "Complete unchanged source/frontend capture and independent whole-unit import diagnostic; not a complete lowered runtime",
+  "sdk_evidence": {
+    "path": "/home/orangepi/ostadix-BM/evidence/llvm22_riscv64_20261017.json",
+    "sha256": "e7bfa98a4a7723727f06698cde3818d17fd3e22e8f643c0ac32560d85e70197e",
+    "bytes": 17616
+  },
+  "source": {
+    "clean_at_start": true,
+    "commit_timestamp": "1789579091",
+    "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua",
+    "revision": "0b29f408433e92953cc72b1d3e06c7ac8139e439",
+    "submodules": [],
+    "url": "https://github.com/lua/lua.git"
+  },
+  "recipe": {
+    "bytes": 5230,
+    "path": "/home/orangepi/ostadix-BM/tools/ocore-runtime/lua/full.recipe.json",
+    "sha256": "d277bac2ce4a5b2ec6e3b63ba032b5ba5bc164d48a9d0dad213a5ace2b2c2099"
+  },
+  "capture_report": {
+    "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/capture/report.json",
+    "sha256": "0634312fb2c6e53529a8361a08ac282b3bf5eef22b4e3923a6252dd8177e2d72",
+    "bytes": 5578632
+  },
+  "capture_complete": true,
+  "captured_unit_count": 34,
+  "source_file_count": 111,
+  "original_archive_member_count": 33,
+  "selected_whole_units": 34,
+  "excluded_unit_count": 0,
+  "capture_issues": [],
+  "capture_verification": {
+    "receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/capture-verification.json",
+      "sha256": "f93e4a86c94155fd48da79c3c226e7a484e29aa6f5933fa86d0bb1634f86270e",
+      "bytes": 2548
+    },
+    "verified": true,
+    "scope": "source-capture-unit-role-partition-and-observed-native-output-membership"
+  },
+  "reference_execution": {
+    "classification": "Original Clang-built Linux-hosted reference engine; not O-core-generated runtime",
+    "binary": {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/build/lua",
+      "sha256": "dec8afbb9a5b27335ab63f8855cae6acb1a7492b1f9bee9619f4e3aefe08f709",
+      "bytes": 287992
+    },
+    "argv": [
+      "lua",
+      "-e",
+      "assert(assert(load(\"return 6 * 7\"))() == 42); local c = coroutine.create(function() coroutine.yield(7); return 9 end); local ok, n = coroutine.resume(c); assert(ok and n == 7); ok, n = coroutine.resume(c); assert(ok and n == 9); assert(math.sqrt(81) == 9); assert(utf8.len(\"Ostadix\") == 7); local f = assert(io.tmpfile()); assert(f:write(\"original-engine\")); assert(f:seek(\"set\", 0)); assert(f:read(\"a\") == \"original-engine\"); assert(f:close()); print(\"original-lua22-reference: ok\")"
+    ],
+    "exit_code": 0,
+    "stdout": "original-lua22-reference: ok\n",
+    "stderr": ""
+  },
+  "full_runtime_lowering_admission": {
+    "coverage": {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/owned-objects/coverage.json",
+      "sha256": "80fa12f86478cc2431f20dba770deeb87d71c1c1a8d848ef211a5203f568b1b2",
+      "bytes": 26561
+    },
+    "exit_code": 1,
+    "issues": [
+      "declared source dependency lacks a verified included native module-set"
+    ],
+    "attempted_unit_count": 0,
+    "lowered_unit_count": 0
+  },
+  "whole_unit_diagnostic": {
+    "argv": [
+      "/usr/bin/python3",
+      "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+      "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/capture/report.json",
+      "--step",
+      "build-original-lua",
+      "--ocorec",
+      "/home/orangepi/ostadix-BM/target/debug/ocorec",
+      "--target",
+      "riscv64-unknown-none",
+      "--llvm-library",
+      "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "--llvm-sha256",
+      "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "--jobs",
+      "2",
+      "--output",
+      "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit"
+    ],
+    "exit_code": 1,
+    "stdout": {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/whole-unit-import-audit.stdout",
+      "sha256": "cbd0ad4e37092e2cd23df68774f02250c71cb4578e9a3342fcd9a450578fb590",
+      "bytes": 1081
+    },
+    "stderr": {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/logs/whole-unit-import-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "report": {
+      "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/report.json",
+      "sha256": "02399e9a8564ea476021130ddd8a2a2426b7f99710274483338eb182d083e59b",
+      "bytes": 142983
+    },
+    "audit_complete": true,
+    "selected_unit_count": 34,
+    "imported_unit_count": 5,
+    "independently_verified_unit_count": 5,
+    "verified_object_count": 5,
+    "first_failure_groups": [
+      {
+        "count": 16,
+        "diagnostic_stage": "import",
+        "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+        "stage": "import",
+        "unit_ids": [
+          "034a79ada0c84f16894189e3110eaad8:0",
+          "14457a0aa8fb439da42cac45144ffad4:0",
+          "1bcd7ee8ab3c43f58e9067c309a396bf:0",
+          "1d2dbd5fdb7448eea4b60a177343550b:0",
+          "1f84c0b0cdaa4dbf94462177fa7a6d92:0",
+          "42180e231040408491390ff68988a6d9:0",
+          "550eec1bf31848c29cadf5c835f4990a:0",
+          "69224ee2518344699106d242c485d0e5:0",
+          "71288142382b45dba581a91609d7765c:0",
+          "7623d477841a4ed285e045d8e2126e84:0",
+          "795711bbdaeb4a10b73aaa025c6c9930:0",
+          "991b33f1a05948ec911179b086a38261:0",
+          "999d9a0bf9774496b4d4d5417c7574af:0",
+          "b21d78152c7e469cb6c26bc3cf132b2e:0",
+          "ee2b9baad1f249a88ac203ad0eeacf61:0",
+          "ee5605f1f3de44628fbdcb9f6fe023f5:0"
+        ]
+      },
+      {
+        "count": 9,
+        "diagnostic_stage": "import",
+        "message": "variadic calling convention is unsupported",
+        "stage": "import",
+        "unit_ids": [
+          "062fc8e072f14ac1803920e8b503cea0:0",
+          "0dfbed601fb240b38552a2498eb52e5c:0",
+          "1bd45d200c7244798fbaf5610bd514ef:0",
+          "5125071be9b149a2b5cf3e21eab92148:0",
+          "66c3c4eb74c84b2da3a41fb0fc6891e3:0",
+          "927c5b6e02404b8697ac8b722742da87:0",
+          "9ebbb5f69ead463fa1fcc737398a57ec:0",
+          "a59b1fb3cced4f6b9ab276edbdfd5c65:0",
+          "d89fadec72ad4642a5c64871016a5b18:0"
+        ]
+      },
+      {
+        "count": 3,
+        "diagnostic_stage": "import",
+        "message": "unsupported LLVM type kind 5 (float, vector, token and target types require another lowering)",
+        "stage": "import",
+        "unit_ids": [
+          "3dab27bb3fde45259dbc62ff24f26396:0",
+          "5f55e53742e64ffaad97a6eceaf4ca56:0",
+          "f63fda051b8d48bfb69c23e07d974a64:0"
+        ]
+      },
+      {
+        "count": 1,
+        "diagnostic_stage": "import",
+        "message": "unsupported symbolic initializer (only symbol, pointer bitcast and constant GEP are supported)",
+        "stage": "import",
+        "unit_ids": [
+          "bf59597bdb224526bf798b5d4813e9a6:0"
+        ]
+      }
+    ],
+    "units": [
+      {
+        "id": "034a79ada0c84f16894189e3110eaad8:0",
+        "source": {
+          "name": "liolib.c",
+          "sha256": "7e941581f34a8443e4ffbe690e9ee68332c7431a3a27e1d35b2312437459241c"
+        },
+        "input_ir_sha256": "3735b84b7fdc7906413ef23fc3200cce95951b39fac8a8df87686d5e5577790d",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_io"
+        },
+        "diagnostic_log": {
+          "bytes": 348,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0000/import.stderr",
+          "sha256": "be41f41e34a290853da6d6a9903dfdba7eb5f6f1993ce3435b95aef6ac486e1b"
+        }
+      },
+      {
+        "id": "062fc8e072f14ac1803920e8b503cea0:0",
+        "source": {
+          "name": "llex.c",
+          "sha256": "f24fe0ca1cd3c1050c8b229c26a4d31b4abd21bf3b352234efb6b0d7059e1c56"
+        },
+        "input_ir_sha256": "9eeacdeb076b7940157f2985b4483ba98f6426bc688c7347d4e833d54d18894e",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "luaX_token2str"
+        },
+        "diagnostic_log": {
+          "bytes": 301,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0001/import.stderr",
+          "sha256": "2b6f1f1da11a561696930ce261f05742004d9b4bc0486601db2be0b59e285a46"
+        }
+      },
+      {
+        "id": "0d6ac196843142f9a767bbad056ab4a1:0",
+        "source": {
+          "name": "lctype.c",
+          "sha256": "2b8e4894b6cff2afc111c1c996de4b78b4db2cf0c83d485d396806baa9e5b28b"
+        },
+        "input_ir_sha256": "336bde4b7e7859622c7d39bfa5e2293853701adddfdd7910888e9e565cdf16c1",
+        "status": "verified-object",
+        "definition_counts": {
+          "function_declarations": 0,
+          "functions": 0,
+          "globals": 1
+        },
+        "module": {
+          "bytes": 7978,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0002/module.json",
+          "sha256": "ad8fce6833a890460ae3d58157762f1a7918f3c9a90b28b1c726dd6fd42e63ee"
+        },
+        "verification": {
+          "bytes": 516,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0002/verification.json",
+          "sha256": "20ed7ed33bf647b47c9108a4a01a132529affb8caafe51882b94f80ac6a228b5"
+        },
+        "object": {
+          "bytes": 1064,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0002/module.o",
+          "sha256": "26f371a54fce44f2996a0d0f743e4605acb18c6e3b5c0da3a570f54bce9315ab"
+        }
+      },
+      {
+        "id": "0dfbed601fb240b38552a2498eb52e5c:0",
+        "source": {
+          "name": "lparser.c",
+          "sha256": "918436a59eb67e22e08cc0aede69926a9af9ee106c97ce6bd9568b05c728a8c6"
+        },
+        "input_ir_sha256": "671b0c6f968b327a8e6e2f03c5b69b4eab24c657a45e91afae8b82a5bf40a471",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "errorlimit"
+        },
+        "diagnostic_log": {
+          "bytes": 297,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0003/import.stderr",
+          "sha256": "939f27c58624b203303956142b8129eed10c45232b1cbc7b14226471c718b554"
+        }
+      },
+      {
+        "id": "14457a0aa8fb439da42cac45144ffad4:0",
+        "source": {
+          "name": "ldblib.c",
+          "sha256": "af19f54caa086a202d017a46233d7ee20c3709ae1a30548ac0ebcff5ef3023a9"
+        },
+        "input_ir_sha256": "684c24ab463b32fb45fdeae9348816d3be1624c18afa93265ff3379f06055266",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_debug"
+        },
+        "diagnostic_log": {
+          "bytes": 351,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0004/import.stderr",
+          "sha256": "b3e2566d1ecdd8e8c7e4e0d37744da8e470357804b522f1c5dd195bbaaf88785"
+        }
+      },
+      {
+        "id": "1bcd7ee8ab3c43f58e9067c309a396bf:0",
+        "source": {
+          "name": "ltm.c",
+          "sha256": "86e85bbb147f63fbbc67dc451f401fe4bb9b7ecc8c05e003f664dfe9717d860b"
+        },
+        "input_ir_sha256": "d135ca5c3a59cc62093b30a41def567d705e67ee83c00921e0525f4ac1e3de45",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaT_callorderiTM"
+        },
+        "diagnostic_log": {
+          "bytes": 355,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0005/import.stderr",
+          "sha256": "c872a16d0c8da05363c92259799921186f62fd70a16e1cd8e772f9cd8996e12e"
+        }
+      },
+      {
+        "id": "1bd45d200c7244798fbaf5610bd514ef:0",
+        "source": {
+          "name": "ltable.c",
+          "sha256": "a271ba45de53d05c7b47cf8ad86628f2c35c85e920c9d29f6c7e133c5b7664f2"
+        },
+        "input_ir_sha256": "d6e4fa61b9cf2089a9f5564a6b99f7460f9d9d5d472b066ba8f0520274b4b027",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "luaH_next"
+        },
+        "diagnostic_log": {
+          "bytes": 296,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0006/import.stderr",
+          "sha256": "66d2e1b3d7ef32cff884e33ebbc169ce51454c42f5ce25f3bb5fad3dee6a55e2"
+        }
+      },
+      {
+        "id": "1d2dbd5fdb7448eea4b60a177343550b:0",
+        "source": {
+          "name": "lundump.c",
+          "sha256": "4567fbd6689304ae675337805ddb5d13ecda6df0323655bf498978da1a93862c"
+        },
+        "input_ir_sha256": "740b59174debd8e5acd80fff5d3458d5a91869a679e4a6744edb42f6a7d0c9d7",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaU_undump"
+        },
+        "diagnostic_log": {
+          "bytes": 349,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0007/import.stderr",
+          "sha256": "8fa3e14f2c96ed69d81ea31978ce185735093a15c6fc2e5f81ee90757998be05"
+        }
+      },
+      {
+        "id": "1f84c0b0cdaa4dbf94462177fa7a6d92:0",
+        "source": {
+          "name": "ltablib.c",
+          "sha256": "4bde576ca5012b03161d4bf38b4d8fc2aab1bbed1993eb6e629620f1f5eb0f4c"
+        },
+        "input_ir_sha256": "e3419e84b5d8f8676da96297e2ab6b7c7dbb8c2fa91ed904878b96006c91a508",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_table"
+        },
+        "diagnostic_log": {
+          "bytes": 351,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0008/import.stderr",
+          "sha256": "5b2ec0639e997b0df068a6a602b80d7a850a84169dfe5694f739ad775b3a0eb3"
+        }
+      },
+      {
+        "id": "3b6d9e4f5bc54e878a8780637c775c47:0",
+        "source": {
+          "name": "lopcodes.c",
+          "sha256": "fc4036555d17e68bbf4d49de9e0762c0da42886ad7caed10cc9862ed7926ba18"
+        },
+        "input_ir_sha256": "43bb6684ccb11191ac3389c26191e89b1839f7d8b9b0bf0e2c0345ce410a10a8",
+        "status": "verified-object",
+        "definition_counts": {
+          "function_declarations": 0,
+          "functions": 1,
+          "globals": 1
+        },
+        "module": {
+          "bytes": 19143,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0009/module.json",
+          "sha256": "85b3ec510ab764dac545a412f4e919f27df812a5afa2b33b739c77533b40b7b1"
+        },
+        "verification": {
+          "bytes": 638,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0009/verification.json",
+          "sha256": "8f92859fd9eb04f204e870c5b47b5dc22426e3cc6f414197bd0aad91067bad7d"
+        },
+        "object": {
+          "bytes": 2120,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0009/module.o",
+          "sha256": "b29d5b8d5433bbcc9c38c2fefee4ae0dedae68e340a040273c3bfe10a1ff90f3"
+        }
+      },
+      {
+        "id": "3dab27bb3fde45259dbc62ff24f26396:0",
+        "source": {
+          "name": "lstring.c",
+          "sha256": "440700ccb68929ae30339b0837c5e8063e53760a6ce65dca281d9d8e8ffde559"
+        },
+        "input_ir_sha256": "7f496eb517baef6b22828c8dba0f24250dd56f1ec8e1396cdfd4fa13daa4e9a7",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 5 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaS_newudata"
+        },
+        "diagnostic_log": {
+          "bytes": 351,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0010/import.stderr",
+          "sha256": "69eba08c01f14cb6bbc3e54b1cda27df84bd1dd52ddea17f47708bd579fea441"
+        }
+      },
+      {
+        "id": "42180e231040408491390ff68988a6d9:0",
+        "source": {
+          "name": "loadlib.c",
+          "sha256": "234e1f3495fe86344ad9e3014b05f4f5a7b9e57370062c01c6b415add7efd9e9"
+        },
+        "input_ir_sha256": "c6045cc872e2236d8a0751af44b22ebc590d956348ef7bfae3531534ece6c5cb",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_package"
+        },
+        "diagnostic_log": {
+          "bytes": 353,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0011/import.stderr",
+          "sha256": "a50069ff33e0bbb9eba8215df9439e88e2f5b5a6004c8b36626b49283e67c8f4"
+        }
+      },
+      {
+        "id": "5125071be9b149a2b5cf3e21eab92148:0",
+        "source": {
+          "name": "lcode.c",
+          "sha256": "9ad73605143555e094f00bd87b0dadb3002c440e7ed743bdd09637e73466cbb6"
+        },
+        "input_ir_sha256": "e5720886ca921015c497c8d3fc8309642dc1de5eec8a7efac9727a284df78b61",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "luaK_semerror"
+        },
+        "diagnostic_log": {
+          "bytes": 300,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0012/import.stderr",
+          "sha256": "a64487ca480b1b96f545991dd7de1e2c95261e11269ede3363de9f23329343f0"
+        }
+      },
+      {
+        "id": "550eec1bf31848c29cadf5c835f4990a:0",
+        "source": {
+          "name": "lutf8lib.c",
+          "sha256": "7c44f0b2a6ce5f54991baa1bcb643bf563e2dcd7a59be0cd0b0eefe0936ea04a"
+        },
+        "input_ir_sha256": "8e09ab04c7819b5e2f55e683d61fd4d95384cc09992281058282e2792c4ab367",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_utf8"
+        },
+        "diagnostic_log": {
+          "bytes": 350,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0013/import.stderr",
+          "sha256": "f3fe5e84a0081d78e97b246adb76439c56b96a9b5e3730688e1e4c52094e6869"
+        }
+      },
+      {
+        "id": "5f55e53742e64ffaad97a6eceaf4ca56:0",
+        "source": {
+          "name": "lgc.c",
+          "sha256": "137e646f2e240311a58312fa024d5426a7138132b4bb6af7e6ec2a037adc0f9f"
+        },
+        "input_ir_sha256": "ba7e33d0d22577402f8b48011a52b4b80ec6fbab674940ccd5b2771f219cef07",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 5 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "propagatemark"
+        },
+        "diagnostic_log": {
+          "bytes": 351,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0014/import.stderr",
+          "sha256": "e123e9a010f5ebdcc2f5af4c22f9b07355f179f96e4fa641c6675d6b9d7981d5"
+        }
+      },
+      {
+        "id": "66c3c4eb74c84b2da3a41fb0fc6891e3:0",
+        "source": {
+          "name": "ldebug.c",
+          "sha256": "25b9076aeeedab05797e28ace203e101fe1a50238a374ff76f1297d9d41420bb"
+        },
+        "input_ir_sha256": "958cfe98b5d3e507f28dbb0f5750745a7f153c3caffd03844ad4e49658b3cf56",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "typeerror"
+        },
+        "diagnostic_log": {
+          "bytes": 296,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0015/import.stderr",
+          "sha256": "8d1305ed0f739441710fa9b467b2b9de962eddd9c26a5cbfc9d5b27a05a457a3"
+        }
+      },
+      {
+        "id": "69224ee2518344699106d242c485d0e5:0",
+        "source": {
+          "name": "lmathlib.c",
+          "sha256": "287de525bdd80db74bdec1abe000eb0c5af972f87ad451b1c281e7841d69395c"
+        },
+        "input_ir_sha256": "f4f48dba08657862273bf14a01594ba8ab65322ff382012fed69e9717fd0dd88",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_math"
+        },
+        "diagnostic_log": {
+          "bytes": 350,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0016/import.stderr",
+          "sha256": "7cb1622509a9c5cdbec98721337f13ed0a360f116eb9ee4d884a318ebc8953f0"
+        }
+      },
+      {
+        "id": "71288142382b45dba581a91609d7765c:0",
+        "source": {
+          "name": "lobject.c",
+          "sha256": "56b90d71d3bf45f98be32f1ebe2423d49451efbf4487793df1817825e10303e2"
+        },
+        "input_ir_sha256": "ad8ab6b34fcf2c620c5ad9d819e94655bd8ea5c25c718c5875d42f4e33ecea01",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaO_rawarith"
+        },
+        "diagnostic_log": {
+          "bytes": 351,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0017/import.stderr",
+          "sha256": "d3c7a4c981f92a4510aad526070d5eba83f1e7c6264f865456e7bb0fe5669f77"
+        }
+      },
+      {
+        "id": "7623d477841a4ed285e045d8e2126e84:0",
+        "source": {
+          "name": "ldo.c",
+          "sha256": "6dd1265ccbc686073580a49de19e7fb5af80133d5decee104fc012dbfaaab3b8"
+        },
+        "input_ir_sha256": "e27d6423252c664f74d85306e2d04faa6338cf99aad06eab975c5e539848b3fe",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaD_rawrunprotected"
+        },
+        "diagnostic_log": {
+          "bytes": 358,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0018/import.stderr",
+          "sha256": "909fa229be3a5ef9280fcbe60a67033edd2818a5d1655bcff74589f78e21715c"
+        }
+      },
+      {
+        "id": "795711bbdaeb4a10b73aaa025c6c9930:0",
+        "source": {
+          "name": "lbaselib.c",
+          "sha256": "c86efd0ab819c08a4d253d2071ba6ef58bd63d0d1a8b8b383c3bc6b661167028"
+        },
+        "input_ir_sha256": "e7c8a52ba24a7b4be56f7dee5cb9fe0e46c80b37a71e6c4bb073f6a6094dc486",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaB_collectgarbage"
+        },
+        "diagnostic_log": {
+          "bytes": 357,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0019/import.stderr",
+          "sha256": "b65b084f44c27b01a262b0b1a0375407f6e07413f3c7ad5631f339c84248ada5"
+        }
+      },
+      {
+        "id": "927c5b6e02404b8697ac8b722742da87:0",
+        "source": {
+          "name": "lstate.c",
+          "sha256": "19335bd0c9c3ea691cf0cbadcae4b40c08116aa8477bf661c7fa951e5874af1e"
+        },
+        "input_ir_sha256": "52a571681fb856097c298c098a72c4992f4ce2482d047f9d5a552e86ad0f800f",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "luaE_checkcstack"
+        },
+        "diagnostic_log": {
+          "bytes": 303,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0020/import.stderr",
+          "sha256": "57a2847a65ecbc0cf54b40d4d307fdc49043cfeac9d3de225a624fb809ffcb7b"
+        }
+      },
+      {
+        "id": "991b33f1a05948ec911179b086a38261:0",
+        "source": {
+          "name": "lstrlib.c",
+          "sha256": "a8de67c6e3dfb773fdc0a599f887f559864a7061c1e633ec48a4e093fbd5dd72"
+        },
+        "input_ir_sha256": "005eb6e8d38dcd092da3dded670e633766e40de114b353d6a533c56b80234a5e",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_string"
+        },
+        "diagnostic_log": {
+          "bytes": 352,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0021/import.stderr",
+          "sha256": "0cb633057541d3d0ff15fc9f8368b38bd95d4ff1b55c5acf8e5d046d6a3a86e8"
+        }
+      },
+      {
+        "id": "999d9a0bf9774496b4d4d5417c7574af:0",
+        "source": {
+          "name": "lcorolib.c",
+          "sha256": "14ab32084fafe825b6dca8c2d69fbbfd68e6a5c442acf4b18cc78f9dc15a820a"
+        },
+        "input_ir_sha256": "4752a8a2d7a2cc5a216a4ce5f0c5ef2295eeaffa4b9f7b18c952233747fb8847",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_coroutine"
+        },
+        "diagnostic_log": {
+          "bytes": 355,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0022/import.stderr",
+          "sha256": "c49c1ed1c2eed956243d487244432337227edf1c3941607b2d475e650487af72"
+        }
+      },
+      {
+        "id": "9de2de005285432ca5fe46377b9e6487:0",
+        "source": {
+          "name": "linit.c",
+          "sha256": "76225baba77ef9abfc8e06919cb83e34b7c6f65292a200bffa95513782984696"
+        },
+        "input_ir_sha256": "45a365a2774950ed31c4a380a119a997e25bd19d6dbfd87b39506b12ac26cb0e",
+        "status": "verified-object",
+        "definition_counts": {
+          "function_declarations": 15,
+          "functions": 1,
+          "globals": 12
+        },
+        "module": {
+          "bytes": 50395,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0023/module.json",
+          "sha256": "c11be969cc23a1364d4916ef5601ff2079fde1d1ad5d7eb52b373ee749362a03"
+        },
+        "verification": {
+          "bytes": 2526,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0023/verification.json",
+          "sha256": "8481623a6aab856664a4278b6f257cc6d35371a768f134c64b33887e11963a9d"
+        },
+        "object": {
+          "bytes": 4520,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0023/module.o",
+          "sha256": "4178707dcee70f3c1107f6b2c03f896c63cd667b65992345907804d43d211498"
+        }
+      },
+      {
+        "id": "9ebbb5f69ead463fa1fcc737398a57ec:0",
+        "source": {
+          "name": "lua.c",
+          "sha256": "17ce8e73dd3586b84076ceaad9d638887723a1c60945c6ee086d723a6e61453f"
+        },
+        "input_ir_sha256": "d101905dae5e4120423c2291ce657c6db815c3d7ce0b520cfbb8cd5a7af1f6ff",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "main"
+        },
+        "diagnostic_log": {
+          "bytes": 291,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0024/import.stderr",
+          "sha256": "c691d2ff933a0f24790aa157893c73f659ee37756abfc00a5c8a70a2a91b4960"
+        }
+      },
+      {
+        "id": "a59b1fb3cced4f6b9ab276edbdfd5c65:0",
+        "source": {
+          "name": "lfunc.c",
+          "sha256": "033d3511a16e3c0947a69c12d47f54a7d48acf41060355e72779f6459c7f75f3"
+        },
+        "input_ir_sha256": "ec49f1cbbb548a8c7c041468f56b907b1c981b639b6ff7ca518af0437063d136",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "luaF_newtbcupval"
+        },
+        "diagnostic_log": {
+          "bytes": 303,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0025/import.stderr",
+          "sha256": "397adb4939905573c32e76ebcef7d362e6b891b528f4a77fe2a15e2c6659fb9b"
+        }
+      },
+      {
+        "id": "b21d78152c7e469cb6c26bc3cf132b2e:0",
+        "source": {
+          "name": "ldump.c",
+          "sha256": "8571aa21018d50033e32ad2ee28ecf28db303125d472a8fdf6bb9bc57335d978"
+        },
+        "input_ir_sha256": "f307207fdb03497c26e7b64f62cc095d4e2df10315fc372369ab6af20f9ff5db",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaU_dump"
+        },
+        "diagnostic_log": {
+          "bytes": 347,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0026/import.stderr",
+          "sha256": "5eb45625e481817b1be9d48f4c696d0d76826849d9f9c742e8afd67e68a0db6c"
+        }
+      },
+      {
+        "id": "bf59597bdb224526bf798b5d4813e9a6:0",
+        "source": {
+          "name": "lvm.c",
+          "sha256": "67976742c598700cba2c7898a9a7ca8a8ebfae8b32d273f71b90cfb33c88d786"
+        },
+        "input_ir_sha256": "e43c1954085e17bdc229b7884a8ea273e88c3b3a3fb603f06677474fffa578c0",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported symbolic initializer (only symbol, pointer bitcast and constant GEP are supported)",
+          "stage": "import",
+          "symbol": "luaV_execute.disptab"
+        },
+        "diagnostic_log": {
+          "bytes": 359,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0027/import.stderr",
+          "sha256": "de982cd97a1d0b21eb5882e081bb14184c8e437e78a83e0c0e81ff2198a9c130"
+        }
+      },
+      {
+        "id": "d89fadec72ad4642a5c64871016a5b18:0",
+        "source": {
+          "name": "lmem.c",
+          "sha256": "7a63908f22ac826f3eb6826bd106d4eed40a7df749da8a87c06713e980fad099"
+        },
+        "input_ir_sha256": "05afdb88565c3a11ed6aa0e5e3529b8b60500fcfb5f511a28a4980a5ea8c5172",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "variadic calling convention is unsupported",
+          "stage": "import",
+          "symbol": "luaM_growaux_"
+        },
+        "diagnostic_log": {
+          "bytes": 300,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0028/import.stderr",
+          "sha256": "15b218ff9832bc2fdeb2d5bde8477e53630adca821bf47f9f4839a1f083538c3"
+        }
+      },
+      {
+        "id": "eaeae07b926b4c9d9a2c8b2ea2148a28:0",
+        "source": {
+          "name": "ltests.c",
+          "sha256": "62a7015b036d366addd131e4f046f38557d66b8f48aae120e8aad992f3d90199"
+        },
+        "input_ir_sha256": "937915f9242526899bcccf69b331ead8c66bf9bb1c25d8b5e0b23cd78edf519b",
+        "status": "verified-object",
+        "definition_counts": {
+          "function_declarations": 0,
+          "functions": 0,
+          "globals": 0
+        },
+        "module": {
+          "bytes": 3412,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0029/module.json",
+          "sha256": "60ca9c583d4067de659a60d2276b7b5217560a0a2fac6b2e0d4dff783c7c12c2"
+        },
+        "verification": {
+          "bytes": 516,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0029/verification.json",
+          "sha256": "93658ad82469215c7723d4ef5336e006d54587edfb44c2e5672f2cafd88c7da6"
+        },
+        "object": {
+          "bytes": 680,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0029/module.o",
+          "sha256": "ad94df6850095bf9dd238112c8a508318df1e2fd68aae9772c39f9b105c945a1"
+        }
+      },
+      {
+        "id": "ee2b9baad1f249a88ac203ad0eeacf61:0",
+        "source": {
+          "name": "lapi.c",
+          "sha256": "d744084bfec5049f6eaa509f4f353886a8c4fa8c8ef875d9f5bd3783caa46e09"
+        },
+        "input_ir_sha256": "63ea17b3acb8fc7bab9d4128c27bce451a43e5631a5227f0d06bd4e98e118c93",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "lua_version"
+        },
+        "diagnostic_log": {
+          "bytes": 349,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0030/import.stderr",
+          "sha256": "8196bdb522f4820418f7ca21ad8b5ddc14bcc63448809d8cd647db06c14293cd"
+        }
+      },
+      {
+        "id": "ee5605f1f3de44628fbdcb9f6fe023f5:0",
+        "source": {
+          "name": "loslib.c",
+          "sha256": "5cf35fb57b905492b93b7e053b53ccf00a77a33e8034488b91ea622f1e35b0b2"
+        },
+        "input_ir_sha256": "844ceca4b2f305ac24f08416f670c02ea307edfcfdeea3cb448780f19f6f4c45",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaopen_os"
+        },
+        "diagnostic_log": {
+          "bytes": 348,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0031/import.stderr",
+          "sha256": "1d0209efadb05fc4700cf49d40901dc882859fa9517818a833d86a8b5905834a"
+        }
+      },
+      {
+        "id": "f5618b04b028475c8abc13b9bd2bd219:0",
+        "source": {
+          "name": "lzio.c",
+          "sha256": "9495c7396d04a857e4e6ae917a72ab6906855d30f7dc851527a87cc16d01fcc1"
+        },
+        "input_ir_sha256": "c1cea5dd92a9000c4f68b16df0c0a07333b4bbdaef848f92e4893badad3f7a92",
+        "status": "verified-object",
+        "definition_counts": {
+          "function_declarations": 5,
+          "functions": 4,
+          "globals": 0
+        },
+        "module": {
+          "bytes": 77165,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0032/module.json",
+          "sha256": "95f1648a07fc162939116ca5cce500ff5bd44b804c6a5c9ba07adfa06536ea0d"
+        },
+        "verification": {
+          "bytes": 1739,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0032/verification.json",
+          "sha256": "664d2816aec9f82f1073f11ff2caa719af3cf7674fd11cc8c0c29644a26f5a2e"
+        },
+        "object": {
+          "bytes": 5440,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0032/module.o",
+          "sha256": "263f3ceff0d66edcf52d57c6336c326e27df6b0ede8966ad55b22ae88064e4bf"
+        }
+      },
+      {
+        "id": "f63fda051b8d48bfb69c23e07d974a64:0",
+        "source": {
+          "name": "lauxlib.c",
+          "sha256": "12479bc0ada905452185278dc681d72eb865e1fc247a0143227c210bc3f9dd78"
+        },
+        "input_ir_sha256": "8c1520893a424b6165d71d485036d485270a40fee82b42b313d03bbc4972c9ae",
+        "status": "failed",
+        "failed_stage": "import",
+        "first_diagnostic": {
+          "message": "unsupported LLVM type kind 5 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "symbol": "luaL_traceback"
+        },
+        "diagnostic_log": {
+          "bytes": 352,
+          "path": "/home/orangepi/ostadix-BM/target/lua-original-llvm22-20261017-8x9b0ano/whole-unit-import-audit/unit-0033/import.stderr",
+          "sha256": "31d2ec301a14e7d1a09fdde02d05b1e341b6bb0f3b921b4189fbce86ea2dd8d8"
+        }
+      }
+    ],
+    "interpretation": "Each group records only the first rejection in a whole source unit; resolving it can expose further unsupported constructs. Verified objects include an empty upstream default test translation unit and do not establish complete engine support.",
+    "confirmed_symbolic_initializer_failure": {
+      "source": "lvm.c",
+      "symbol": "luaV_execute.disptab",
+      "initializer": "Original 85-entry LLVM blockaddress array",
+      "indirect_branch_present": true,
+      "supported": false
+    }
+  },
+  "dependency_closure_complete": false,
+  "ocore_lowering_complete": false,
+  "native_execution_qualified": false,
+  "runtime_complete": false
+}

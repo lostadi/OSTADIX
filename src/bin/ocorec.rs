@@ -28,7 +28,7 @@ enum Emit {
 )]
 struct Cli {
     /// .oc sources, or one complete imported native module.
-    #[arg(required = true)]
+    #[arg(required_unless_present = "verify_native_map")]
     inputs: Vec<PathBuf>,
 
     /// Input representation. Imported IR is verified before all output.
@@ -108,9 +108,7 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    if (cli.native_map.is_some() || cli.verify_native_map.is_some())
-        && cli.input_kind == InputKind::Ocore
-    {
+    if cli.native_map.is_some() && cli.input_kind == InputKind::Ocore {
         eprintln!("ocorec: native maps currently require --input-kind native-ir or llvm-ir");
         std::process::exit(2);
     }
@@ -118,7 +116,10 @@ fn main() {
         eprintln!("ocorec: --native-map requires --emit asm or obj");
         std::process::exit(2);
     }
-    if cli.verify_native_map.is_some() && cli.input_kind != InputKind::NativeIr {
+    if cli.verify_native_map.is_some()
+        && (cli.input_kind == InputKind::LlvmIr
+            || (!cli.inputs.is_empty() && cli.input_kind != InputKind::NativeIr))
+    {
         eprintln!("ocorec: --verify-native-map requires the exact --input-kind native-ir module");
         std::process::exit(2);
     }
@@ -170,9 +171,9 @@ fn main() {
         std::process::exit(2);
     };
     if let Some(map) = &cli.verify_native_map {
-        let result = if cli.inputs.len() == 1 {
+        let result = if cli.inputs.len() <= 1 {
             o_lang::ocore::driver::verify_native_artifact_map(
-                &cli.inputs[0],
+                cli.inputs.first().map(|input| input.as_path()),
                 map,
                 cli.map_assembly.as_deref().unwrap(),
                 cli.map_artifact.as_deref().unwrap(),
@@ -182,7 +183,7 @@ fn main() {
             Err(o_lang::ocore::Diagnostic {
                 file: "<ocorec>".into(),
                 span: o_lang::ocore::Span::default(),
-                message: "native map verification requires exactly one complete module".into(),
+                message: "native map verification accepts at most one external module".into(),
             })
         };
         match result {

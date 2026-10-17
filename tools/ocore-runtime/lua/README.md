@@ -62,6 +62,17 @@ not claim a runtime-bearing OIR bundle or an OValue engine adapter. Full
 acceptance still requires verified dependency lowering, linking, scripts,
 engine/OS interfaces, and native OSTADIX execution on all three ISAs.
 
+The pinned LLVM 22.1.6 development run on RISC-V retained all 34 units,
+33 archive members and 111 source/data files. Independent capture verification
+and the original-engine smoke passed. The whole-unit diagnostic produced five
+verified owned objects and 29 explicit rejections for floating-point types,
+variadic interfaces or the original computed-goto blockaddress table. The full
+runtime route separately rejected missing included dependency module-sets before
+import. See the [exact SDK evidence](../../../evidence/llvm22_riscv64_20261017.json)
+and [original-source results](../../../evidence/original_lua_20261017.json).
+The five unit successes include an empty configured translation unit and do not
+establish runnable engine support.
+
 Run the inventory regression gate with:
 
 ```bash

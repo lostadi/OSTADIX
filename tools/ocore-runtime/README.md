@@ -92,6 +92,10 @@ identical transitive components are included once, preserving explicit module
 order for weak/COMDAT selection. Native symbol recursion and cyclic component
 dependency edges remain supported when the included closure is complete.
 Object output materializes and lowers all modules through the owned emitters.
+Explicit non-null source pins reject until the package represents and checks
+that source-identity constraint; a matching dependency name cannot satisfy an
+unchecked pin. Captured and dependency units use the same qualified identities,
+so source-selected unit text cannot merge their private symbol scopes.
 
 Direct package input needs no original capture or LLVM installation. It
 rejects implicit retargeting and importer/profile/dependency overrides, because

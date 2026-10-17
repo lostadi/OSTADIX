@@ -47,6 +47,8 @@ sidecar for imported native IR or LLVM IR with assembly/object emission:</p>
 ocorec implementation.json --input-kind native-ir --target riscv64-unknown-none \
   --verify-native-map implementation.map.json \
   --map-assembly implementation.s --map-artifact implementation.o
+ocorec --target riscv64-unknown-none --verify-native-map implementation.map.json \
+  --map-assembly implementation.s --map-artifact implementation.o
 </code></pre>
 <p>The inner <code>ocore-native-assembly-map-v1</code> binds the normalized verified module,
 original frontend-input digest, target and exact generated assembly. Every
@@ -56,7 +58,10 @@ include unwind-edge copies. The outer map binds the exact module-file bytes
 and output artifact. Verification re-verifies and re-emits the whole module,
 compares every site and byte range, and checks artifact identity. Maps do not
 change the existing assembly or object bytes. Input/output/map aliases reject,
-and failed compilation removes the requested stale map before import/emission.</p>
+and failed compilation removes the requested stale map before import/emission.
+The outer <code>native_module_json</code> field preserves the exact imported module
+snapshot as well as its hash, so temporary LLVM-worker output can be recovered
+and independently re-verified without rerunning the frontend/importer.</p>
 <p>Ranges are half-open UTF-8 byte offsets in assembly text, including directives
 and labels. They are not machine PCs, object offsets, source lines, HGraph
 identities, debug information, runtime observations or execution authority.
@@ -64,9 +69,10 @@ The outer object digest checks declared byte identity in an unsigned sidecar;
 it does not independently prove assembly-to-object correspondence or assembler
 correctness. Replacing an object and changing its declared digest is outside
 this descriptive check. <code>.oc</code> source mapping and general native/HGraph execution remain
-separate work. For LLVM input, retain the exact imported native-module JSON
-with <code>--emit mir</code> for later map verification; LLVM-input provenance remains
-in the inner map and verification uses <code>--input-kind native-ir</code>.</p>
+separate work. Verification without a positional module uses the exact embedded
+snapshot. Supplying an external module additionally checks its exact bytes and
+requires <code>--input-kind native-ir</code>. Original LLVM-input provenance remains in
+the inner map; map verification does not require another LLVM import.</p>
 <h3>External runtime lowering and script bundles</h3>
 <p>The primary compiler objective is for <code>olangc</code> to fully and automatically
 compile existing external runtime and compiler implementations in terms of

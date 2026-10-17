@@ -14,7 +14,7 @@ evidence must identify the tested inputs, compiler, target and execution profile
 |---|---|
 | Native `.oc` compilation lowers through LLVM IR. | Contradicted: parsing, O-core type checking, HIR, SSA MIR and owned ISA assembly generation are directly connected in the driver. |
 | Initial source type checking happens in MIR. | Contradicted: `typeck::check` produces HIR before `mir::lower` runs. |
-| Clang performs this route's native instruction selection. | Contradicted: the driver supplies already generated assembly with `-c -x assembler`. |
+| Clang lowers `.oc` or LLVM IR into assembly on the `.oc` route. | Contradicted: the driver supplies already generated assembly with `-c -x assembler`. |
 | LLVM is only used by a historical feature census. | Contradicted: the CLI implements whole-module LLVM import followed by O-core native-module verification and native emission. |
 | Resource-state dependencies and execution provenance are only proposals. | Contradicted: the HGraph projection, readiness scheduler, evidence admission and provenance admission implement concrete representations and checks. |
 | Owning a backend establishes complete graph-to-native preservation. | Not established: an explicit general native orchestrator and complete runtime integration remain required. |
@@ -31,6 +31,9 @@ evidence must identify the tested inputs, compiler, target and execution profile
 calls the parser, checker and lowering passes in that order. Its target match
 selects the x86-64, AArch64 or RISC-V generator. `emit_object` subsequently
 invokes Clang as an assembler. These are distinct compiler and assembler stages.
+Assembler encoding, pseudo-instruction expansion and any permitted relaxation
+remain separate responsibilities; owning target assembly emission does not mean
+that the external assembler or linker is absent from the toolchain.
 
 [`ocore::mir`](crates/ostadix-api/src/ocore/mir.rs) represents each temporary as
 an SSA `ValueId` with one defining instruction. Mutable locals and statics are
@@ -68,12 +71,25 @@ own target assembly. Imported semantics remain distinct from `.oc` semantics.
 Unsupported features fail explicitly; partial lowering does not qualify a
 complete implementation.
 
+The object inventory also checks actual ELF storage, symbols, fixups and owned
+exception metadata. In particular, valid RISC-V difference-relocation pairs
+must describe the exact owned FDE extent, CFI advance or LSDA field. The checker
+does not treat duplicate offsets as sufficient evidence and rejects changed
+endpoints even when their numeric difference is unchanged. These checks establish
+owned field geometry; they do not qualify an unwinder or executed CFA recovery.
+
 The parser pin is also a real environment requirement. The current importer
 requires LLVM 22.1.6 and the admitted library digest. Having Clang 19 or a Rust
 compiler installed does not establish that the foreign import route works on
 that host. An explicitly supplied library still has to pass its digest, version
 and C API checks. The checks must not be weakened to manufacture a successful
 runtime result.
+
+The hosted `.O` binary target is another distinct path:
+[`olangc`](src/bin/olangc.rs) generates a Rust evaluator project and invokes
+Cargo. Producing that hosted native executable does not establish an
+OIR-to-O-core orchestrator. The two O-core native routes above must not be
+conflated with hosted evaluator packaging.
 
 ## Implemented graph and provenance relationships
 
@@ -110,7 +126,10 @@ Zero-width compiler markers and PHIs remain represented. Predecessor terminators
 own their lowered PHI copies; exception-landing sites own unwind-edge copies.
 
 The map binds the target, normalized typed module and generated assembly.
-The driver additionally binds the exact module-file bytes and final artifact.
+The driver additionally binds and embeds the exact imported module-file bytes
+and binds the final artifact. The embedded snapshot can be recovered even when
+LLVM import used a private temporary; it does not require a later import to
+reproduce incidental metadata printer provenance.
 Verification re-verifies the module and regenerates every assembly site, then
 checks the supplied artifact's digest. A matching object digest identifies the
 declared bytes in an unsigned sidecar; it does not independently prove
@@ -136,11 +155,21 @@ a concrete artifact and dependency-composition gap; it does not supply scripts,
 platform/resource closure, executable linking or native HGraph dispatch.
 
 The [original Lua recipe](tools/ocore-runtime/lua/README.md) captures the whole
-pinned upstream Make configuration. A genuine diagnostic capture with Clang
-19.1.7 retained 34 LLVM units, 33 archive members and 111 source/data files;
-independent capture verification and original-language reference smoke passed.
-That diagnostic capture is explicitly distinct from the committed recipe's
-LLVM 22.1.6 requirement and from O-core lowering of the complete engine.
+pinned upstream Make configuration. The committed recipe now also passed with
+actual Clang/LLVM 22.1.6 on this RISC-V host: 34 LLVM units, 33 archive members
+and 111 source/data files, independent capture verification, and original-engine
+reference smoke. The [SDK evidence](evidence/llvm22_riscv64_20261017.json)
+records Debian signed-index/package verification, the exact library hash,
+required C-API health, and a scalar imported module's owned-object execution.
+
+The [whole-unit Lua diagnostic](evidence/original_lua_20261017.json) attempted
+all 34 original units: 5 reached independently verified O-core IR and owned
+RISC-V objects; 29 rejected. First diagnostics identify floating-point types,
+variadic interfaces and an unsupported symbolic initializer. These are complete
+unit outcomes, not percentages of engine support. The separate full-runtime
+route rejects missing verified library/platform dependency module-sets before
+unit import. Neither the original Clang-built executable nor these partial
+imports establish complete O-core lowering or runtime dependency closure.
 
 The acceptance requirements in [OCORE.md](docs/OCORE.md) distinguish source
 capture, complete lowering, dependency closure, linking and native execution.
@@ -168,3 +197,27 @@ backend makes additional relationships representable and checkable. The source
 already implements substantial graph and provenance checks. Complete
 preservation through native execution remains an independently testable
 obligation, not a consequence of backend ownership alone.
+
+## Verified development gates for this work
+
+The following local gates passed with the explicit Rust 1.97.1 toolchain and
+the built `target/debug/ocorec` and `target/debug/olangc`, rather than assuming
+that an installed command reflected changed source:
+
+| Gate | Observed result |
+|---|---|
+| `/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked -p ostadix-api --lib ocore::native_map` | 4 passed, including all-target exception-landing maps. |
+| `python3 -m unittest discover -s tests -p test_ocore_native_map.py -v` | 11 passed without skips, including embedded-snapshot recovery, real LLVM 22 import, assembly/object maps on all three ISAs, collisions, stale maps and rejected forged assembly correspondence. |
+| `python3 -m unittest discover -s tests -p test_ocore_native_runtime.py -v` with the pinned LLVM 22 SDK/parser | 17 passed without skips on RISC-V, including actual source capture, verified IR, owned-object native execution and package reuse after source/build/capture removal. |
+| `/home/orangepi/.cargo/bin/cargo +1.97.1 test --offline --locked --bin olangc native_runtime::` | 115 passed, including 9 package/composition tests and actual three-target owned exception-table corruption checks. |
+| `python3 -m unittest discover -s tools/ocore-runtime/lua -p 'test_*.py' -v` | 9 passed; original source/Make, producer, object and archive substitutions reject. |
+| `python3 scripts/check_ocore_native_equivalence.py --ocorec target/debug/ocorec --output-dir target/native-reevaluation-20261017-final` | All three ISAs passed 12,288 shared-reference cases each, digest `b1009525e0d57799`, 6 synchronous fault cases and 2 `never` cases per ISA, with byte-reproducible objects. |
+| Actual Clang/LLVM 22.1.6 SDK and unchanged Lua source | Parser C-API health and scalar owned-object execution passed; complete original capture and reference smoke passed; all 34 whole units audited, with 5 owned-object successes and 29 explicit rejections. Full-runtime admission rejected missing included dependency module-sets. |
+| `python3 scripts/render_docs.py check --marked /tmp/ostadix-doc-renderer/node_modules/.bin/marked` | All 99 tracked exports matched complete generated bytes using pinned Marked 18.0.13. |
+
+Cargo validation used `CARGO_PROFILE_DEV_OPT_LEVEL=0`,
+`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_OPT_LEVEL=0` and
+`CARGO_PROFILE_TEST_DEBUG=0` on this RISC-V Linux development host. The ordinary
+shell selected an older system Rust, so commands used the explicit rustup
+toolchain. These are bounded compiler and artifact checks; they do not establish
+complete runtime lowering or native HGraph execution.

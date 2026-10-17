@@ -98,6 +98,9 @@ pub fn compile_native_module(
 pub struct NativeArtifactMap {
     pub format: String,
     pub module_file_sha256: String,
+    /// Exact module snapshot, recoverable even when the LLVM worker's input
+    /// module existed only in a private temporary. This is not source authority.
+    pub native_module_json: String,
     pub artifact_kind: String,
     pub artifact_sha256: String,
     pub artifact_bytes: usize,
@@ -153,6 +156,8 @@ pub fn compile_native_module_with_map(
         let record = NativeArtifactMap {
             format: NATIVE_ARTIFACT_MAP_FORMAT.into(),
             module_file_sha256: hex::encode(Sha256::digest(&bytes)),
+            native_module_json: String::from_utf8(bytes.clone())
+                .map_err(|error| driver_error(format!("native module is not UTF-8: {error}")))?,
             artifact_kind: if options.emit == EmitKind::Assembly {
                 "assembly"
             } else {
@@ -227,7 +232,7 @@ pub fn prepare_native_map_output(
 /// exact artifact digest. An object digest identifies bytes; it does not prove
 /// assembler correctness, linking, execution, or graph-to-native preservation.
 pub fn verify_native_artifact_map(
-    input: &Path,
+    input: Option<&Path>,
     map_input: &Path,
     assembly_input: &Path,
     artifact_input: &Path,
@@ -237,12 +242,16 @@ pub fn verify_native_artifact_map(
         fs::read(path)
             .map_err(|error| driver_error(format!("failed to read {}: {error}", path.display())))
     };
-    let bytes = read(input)?;
-    let module = super::native_ir::NativeModule::from_json(&bytes)?;
     let record: NativeArtifactMap = serde_json::from_slice(&read(map_input)?)
         .map_err(|error| driver_error(format!("invalid native artifact map: {error}")))?;
+    let bytes = match input {
+        Some(input) => read(input)?,
+        None => record.native_module_json.as_bytes().to_vec(),
+    };
+    let module = super::native_ir::NativeModule::from_json(&bytes)?;
     if record.format != NATIVE_ARTIFACT_MAP_FORMAT
         || record.module_file_sha256 != hex::encode(Sha256::digest(&bytes))
+        || record.native_module_json.as_bytes() != bytes
         || !matches!(record.artifact_kind.as_str(), "assembly" | "object")
     {
         return Err(driver_error(

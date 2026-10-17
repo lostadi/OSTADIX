@@ -5,9 +5,11 @@ set does not establish complete dependencies, OSTADIX kernel execution or a
 complete runtime/compiler implementation.
 """
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shutil
 import subprocess
@@ -45,8 +47,23 @@ class NativeRuntimeAdmissionTests(unittest.TestCase):
             version = run([cls.sdk/name,"--version"]).stdout
             if not re.search(r"\b(?:clang version|LLVM version) 22\.1\.6(?:\s|$)",version):
                 raise RuntimeError(f"fixture requires exact LLVM22.1.6 {name}: {version}")
-        if not run([cls.sdk/"clang","-dumpmachine"]).stdout.startswith("x86_64-"):
-            raise unittest.SkipTest("this host CLI carrier fixture requires x86-64")
+        native_arch = {"AMD64":"x86_64", "arm64":"aarch64"}.get(platform.machine(),platform.machine())
+        if native_arch not in {"x86_64","aarch64","riscv64"}:
+            raise unittest.SkipTest(f"this host CLI carrier fixture requires a supported native ISA: {native_arch}")
+        if run([cls.sdk/"clang","-dumpmachine"]).stdout.strip().split("-")[0] != native_arch:
+            raise unittest.SkipTest("the LLVM22 SDK must compile for this host's native ISA")
+        cls.native_target = f"{native_arch}-unknown-none"
+        cls.import_options = []
+        library = os.environ.get("OCORE_TEST_LLVM_LIBRARY")
+        expected_digest = os.environ.get("OCORE_TEST_LLVM_SHA256")
+        if expected_digest and not library:
+            raise RuntimeError("OCORE_TEST_LLVM_SHA256 requires OCORE_TEST_LLVM_LIBRARY")
+        if library:
+            library = Path(library).expanduser().resolve(strict=True)
+            actual_digest = hashlib.sha256(library.read_bytes()).hexdigest()
+            if expected_digest and actual_digest != expected_digest:
+                raise RuntimeError("explicit LLVM22 parser digest differs from OCORE_TEST_LLVM_SHA256")
+            cls.import_options = ["--llvm-library",str(library),"--llvm-sha256",actual_digest]
         if "--native-runtime" not in run([cls.olangc,"--help"]).stdout:
             raise RuntimeError("rebuild olangc with current --native-runtime implementation")
         retained = os.environ.get("OCORE_TEST_NATIVE_RUNTIME_OUTPUT_DIR")
@@ -127,7 +144,7 @@ else:
         shutil.copytree(self.capture/"events",self.case/"events")
         output = self.case/"lowered"
         result = subprocess.run([str(self.olangc),str(path),"--native-runtime",
-                                 "--native-isa","x86_64-unknown-none","--native-runtime-output",kind,
+                                 "--native-isa",self.native_target,"--native-runtime-output",kind,*self.import_options,
                                  "-o",str(output)],capture_output=True,text=True,timeout=120)
         receipt_path = output/"coverage.json"
         self.assertTrue(receipt_path.is_file(),result.stdout+result.stderr)
@@ -185,10 +202,41 @@ else:
                 self.assertTrue(json.loads(verification.read_text())["verified"])
                 obj = self.case/f"moved-{index}.o"
                 run([self.ocorec,path,"--input-kind","native-ir","--emit","obj",
-                     "--target","x86_64-unknown-none","-o",obj])
+                     "--target",self.native_target,"-o",obj])
                 self.assertTrue(obj.is_file())
         finally:
             for original,moved in hidden:
+                moved.rename(original)
+
+    def test_actual_module_set_recompiles_after_removing_capture_source_and_imported_modules(self):
+        receipt,output = self.lower(expect_success=True)
+        detached = self.case/"detached.native-ir.json"
+        shutil.copyfile(receipt["module_set_artifact"]["path"],detached)
+        shutil.rmtree(output)
+        hidden = []
+        try:
+            for original in (self.source,self.build,self.capture):
+                moved = original.with_name(original.name+".package-test-hidden")
+                original.rename(moved)
+                hidden.append((original,moved))
+            reused = self.case/"reused"
+            # Package lowering consumes its verified embedded modules; it needs
+            # no foreign frontend, parser option, capture journal, or source.
+            run([self.olangc,detached,"--native-runtime","--native-isa",self.native_target,
+                 "--native-runtime-output","obj","-o",reused])
+            record = json.loads((reused/"coverage.json").read_text())
+            self.assertEqual(record["input_kind"],"native_module_set")
+            self.assertFalse(record["source_capture_reverification_performed"])
+            self.assertTrue(record["unit_lowering_complete"])
+            self.assertTrue(record["native_module_dependency_closure_complete"])
+            objects = list(reused.glob("unit-*/module.o"))
+            self.assertEqual(len(objects),1)
+            self.assertEqual(objects[0].read_bytes()[:4],b"\x7fELF")
+            executable = self.case/"detached-host-carrier"
+            run([self.sdk/"clang",objects[0],"-no-pie","-o",executable])
+            self.assertEqual(run([executable]).returncode,0)
+        finally:
+            for original,moved in reversed(hidden):
                 moved.rename(original)
 
     def test_actual_own_object_has_complete_definitions_and_executes_imported_main(self):
