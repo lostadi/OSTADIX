@@ -1,7 +1,9 @@
 use super::*;
 use crate::backend_catalog::BackendRegistry;
 use crate::eval::{Evaluator, TraceEvent};
-use crate::hgraph::{build_program, solve_types, HNodeKind};
+use crate::hgraph::from_oir::build_program;
+use crate::hgraph::solve::solve_types;
+use crate::hgraph::HNodeKind;
 use crate::ir::{InvokeMode, OIr};
 
 fn program(trap: bool) -> OIrProgram {

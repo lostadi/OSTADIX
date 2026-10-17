@@ -2343,6 +2343,12 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     fs::write(src_dir.join("environment.rs"), RUNTIME_ENVIRONMENT_RS)?;
     fs::write(src_dir.join("parser.rs"), RUNTIME_PARSER_RS)?;
     fs::write(src_dir.join("ir.rs"), RUNTIME_IR_RS)?;
+    fs::write(src_dir.join("native_leaf.rs"), RUNTIME_NATIVE_LEAF_RS)?;
+    let ocore_dir = src_dir.join("ocore");
+    fs::create_dir_all(&ocore_dir)?;
+    for &(relative_path, source) in RUNTIME_OCORE_NATIVE_SOURCES {
+        fs::write(ocore_dir.join(relative_path), source)?;
+    }
     fs::write(
         src_dir.join("backend_catalog.rs"),
         RUNTIME_BACKEND_CATALOG_MODULE_RS,
@@ -3164,6 +3170,7 @@ fn executable_op_label(
     use o_lang::hgraph::{ExecutableOp, ReadyInputPolicy};
 
     match (op, input_policy) {
+        (ExecutableOp::NativeI64 { .. }, _) => "native i64".into(),
         (ExecutableOp::Store, _) => "store".into(),
         (ExecutableOp::LoadBinding, _) => "load binding".into(),
         (ExecutableOp::Invoke { fn_name, mode }, _) => {
@@ -3273,6 +3280,8 @@ fn generate_lib_rs(include_project: bool) -> String {
 // calls them directly.
 
 pub mod value;
+pub mod native_leaf;
+pub mod ocore;
 pub mod cli_diagnostics;
 pub(crate) mod shims {{
     pub(crate) const BUNDLED_SHIM_SUPPORT_NAMES: &[&str] = &{RUNTIME_SHIM_SUPPORT_NAMES:?};
@@ -5109,7 +5118,19 @@ mod tests {
             fs::read_to_string(src_dir.join("cli_diagnostics.rs")).unwrap(),
             CLI_DIAGNOSTICS_RS,
         );
-        assert!(!lib_rs.contains("mod ocore;"));
+        assert!(lib_rs.contains("pub mod ocore;"));
+        assert!(lib_rs.contains("pub mod native_leaf;"));
+        assert_eq!(
+            fs::read_to_string(src_dir.join("native_leaf.rs")).unwrap(),
+            RUNTIME_NATIVE_LEAF_RS,
+        );
+        for &(relative_path, embedded) in RUNTIME_OCORE_NATIVE_SOURCES {
+            assert_eq!(
+                fs::read_to_string(src_dir.join("ocore").join(relative_path)).unwrap(),
+                embedded,
+                "generated native core source {relative_path} must match the engine-owned source"
+            );
+        }
         assert!(lib_rs.contains("pub mod computation_core;"));
         assert!(lib_rs.contains("pub mod computation;"));
         assert_eq!(

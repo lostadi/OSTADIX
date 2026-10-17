@@ -141,6 +141,15 @@ class NativeHgraphCliTests(unittest.TestCase):
         self.assertIsInstance(trace["publications"],list)
         return evidence,trace
 
+    def assert_no_admitted_execution(self,envelope):
+        evidence = envelope["execution_evidence"]
+        self.assertFalse(evidence["native_leaves"])
+        self.assertIsNone(evidence["admission"])
+        trace = evidence["trace"]
+        if trace is not None:
+            self.assertEqual(trace["events"],[])
+            self.assertEqual(trace["publications"],[])
+
     def versions(self,trace):
         return [(publication["plan_node"],output["version"])
                 for publication in trace["publications"] for output in publication["outputs"]
@@ -215,10 +224,7 @@ class NativeHgraphCliTests(unittest.TestCase):
             with self.subTest(name=name):
                 source = self.source(name)
                 envelope = self.execute(source,success=False)
-                evidence = envelope["execution_evidence"]
-                self.assertFalse(evidence["native_leaves"])
-                self.assertIsNone(evidence["trace"])
-                self.assertIsNone(evidence["admission"])
+                self.assert_no_admitted_execution(envelope)
 
     def test_descriptor_is_static_and_cannot_name_a_supplied_executable(self):
         descriptor = copy.deepcopy(self.descriptors["add"])
@@ -262,8 +268,7 @@ class NativeHgraphCliTests(unittest.TestCase):
                 descriptor = {"schema":"ocore-native-i64-leaf-v1","entry":"native_add","module":module}
                 envelope = self.execute(self.source(descriptor=descriptor),success=False)
                 self.assertIn("host ISA",json.dumps(envelope))
-                self.assertFalse(envelope["execution_evidence"]["native_leaves"])
-                self.assertIsNone(envelope["execution_evidence"]["trace"])
+                self.assert_no_admitted_execution(envelope)
 
 
 if __name__=="__main__":

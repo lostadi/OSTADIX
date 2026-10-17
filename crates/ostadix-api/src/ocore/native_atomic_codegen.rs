@@ -9,13 +9,13 @@
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-use crate::ocore::driver::Target;
 use crate::ocore::native_codegen::{constant_type, scalar_bits, Emitter};
 use crate::ocore::native_ir::{
-    error_diagnostic, AtomicOrdering, AtomicProfile, AtomicRmwOp, Instruction, NativeModule, Operand,
-    Operation, Type, TypeId, ValueId,
+    error_diagnostic, AtomicOrdering, AtomicProfile, AtomicRmwOp, Instruction, NativeModule,
+    Operand, Operation, Type, TypeId, ValueId,
 };
 use crate::ocore::Diagnostic;
+use crate::ocore::Target;
 
 pub(super) fn audit_instruction(
     module: &NativeModule,
@@ -723,11 +723,11 @@ mod tests {
     use std::fmt::Write;
 
     use super::merged_cas_order;
-    use crate::ocore::driver::Target;
     use crate::ocore::native_codegen::emit;
     use crate::ocore::native_ir::{
         AtomicOrdering, AtomicProfile, AtomicSyncScope, NativeModule, Operation, FORMAT,
     };
+    use crate::ocore::Target;
     use serde_json::{json, Value as Json};
 
     const INTEGER_RMW_NAMES: [&str; 15] = [

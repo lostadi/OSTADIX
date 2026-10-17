@@ -906,7 +906,15 @@ mod tests {
         assert!(validate_descriptor(&descriptor.to_string(), 1).is_err());
         descriptor.as_object_mut().unwrap().remove("executable");
         descriptor["module"]["functions"][0]["blocks"][0]["terminator"] =
-            serde_json::json!({"op":"jump","target":0});
+            serde_json::json!({"op":"jump","target":1});
+        descriptor["module"]["functions"][0]["blocks"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "id":1,"instructions":[],"terminator":{"op":"jump","target":1}
+            }));
+        let module: NativeModule = serde_json::from_value(descriptor["module"].clone()).unwrap();
+        NativeModule::from_json(&module.to_json().unwrap()).unwrap();
         let error = validate_descriptor(&descriptor.to_string(), 1).unwrap_err();
         assert!(format!("{error:#}").contains("acyclic"), "{error:#}");
         let mut descriptor: serde_json::Value = serde_json::from_str(&good).unwrap();

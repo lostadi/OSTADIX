@@ -14,56 +14,12 @@ pub mod driver;
 pub mod hir;
 pub mod lexer;
 pub mod mir;
-pub mod native_abi;
-pub mod native_codegen;
-pub mod native_eh;
-mod native_exception_codegen;
 pub mod native_interpret;
-pub mod native_ir;
-pub mod native_map;
-pub mod native_verify;
 pub mod parser;
 pub mod typeck;
 
 pub use driver::{
-    compile, compile_with_function_sections, CompileOptions, CompileOutput, EmitKind, Target,
+    compile, compile_with_function_sections, CompileOptions, CompileOutput, EmitKind,
 };
 
-/// Byte range and source location attached to syntax and diagnostics.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-    pub line: usize,
-    pub column: usize,
-}
-
-impl Span {
-    pub fn join(self, other: Span) -> Span {
-        Span {
-            start: self.start.min(other.start),
-            end: self.end.max(other.end),
-            line: self.line,
-            column: self.column,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Diagnostic {
-    pub file: String,
-    pub span: Span,
-    pub message: String,
-}
-
-impl std::fmt::Display for Diagnostic {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:{}:{}: {}",
-            self.file, self.span.line, self.span.column, self.message
-        )
-    }
-}
-
-impl std::error::Error for Diagnostic {}
+include!("native_core.rs");

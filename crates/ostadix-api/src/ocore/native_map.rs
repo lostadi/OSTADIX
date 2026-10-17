@@ -11,9 +11,9 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::driver::Target;
 use super::native_ir::{error_diagnostic, NativeModule};
 use super::Diagnostic;
+use super::Target;
 
 pub const FORMAT: &str = "ocore-native-assembly-map-v1";
 

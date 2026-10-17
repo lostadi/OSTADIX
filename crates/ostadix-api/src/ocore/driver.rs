@@ -10,41 +10,9 @@ use super::hir::{HirProgram, Type};
 use super::{codegen, codegen_aarch64, codegen_riscv64};
 use super::{mir, parser, typeck, Diagnostic, Span};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Target {
-    X86_64UnknownNone,
-    Aarch64UnknownNone,
-    Riscv64UnknownNone,
-}
+pub use super::Target;
 
 impl Target {
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "x86_64-unknown-none" | "x86_64-unknown-none-elf" => Some(Target::X86_64UnknownNone),
-            "aarch64-unknown-none" | "aarch64-unknown-none-elf" => Some(Target::Aarch64UnknownNone),
-            "riscv64-unknown-none" | "riscv64-unknown-none-elf" | "riscv64gc-unknown-none-elf" => {
-                Some(Target::Riscv64UnknownNone)
-            }
-            _ => None,
-        }
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Target::X86_64UnknownNone => "x86_64-unknown-none",
-            Target::Aarch64UnknownNone => "aarch64-unknown-none",
-            Target::Riscv64UnknownNone => "riscv64-unknown-none",
-        }
-    }
-
-    pub fn triple(self) -> &'static str {
-        match self {
-            Target::X86_64UnknownNone => "x86_64-unknown-none-elf",
-            Target::Aarch64UnknownNone => "aarch64-unknown-none-elf",
-            Target::Riscv64UnknownNone => "riscv64-unknown-none-elf",
-        }
-    }
-
     fn architecture(self) -> &'static str {
         match self {
             Target::X86_64UnknownNone => "x86_64",

@@ -4,10 +4,10 @@
 //! its language ABI classification. They do not reclassify a C source struct.
 use std::collections::{BTreeMap, HashSet};
 
-use super::driver::Target;
 use super::native_ir::{error_diagnostic, NativeModule, Signature, Type, TypeId};
 use super::native_verify::{type_layouts, value_leaf_layouts};
 use super::Diagnostic;
+use super::Target;
 
 /// Full general-register names; emitters select the narrow spelling from
 /// `AbiPart::location_bits`. Stack offsets start at the caller's argument area.

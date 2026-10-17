@@ -5,7 +5,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use super::driver::Target;
 use super::native_abi::{AbiContext, AbiLocation, AbiPart, AbiPlan, Extension};
 use super::native_exception_codegen::{CallSite, ExceptionTables};
 use super::native_ir::*;
@@ -14,6 +13,7 @@ use super::native_verify::{
     instruction_operands, type_alignment, type_layouts, value_leaf_layouts,
 };
 use super::Diagnostic;
+use super::Target;
 
 // Keep the exclusive-loop implementation beside the emitter. As a child
 // module it can use the private spill/operand helpers without exposing them

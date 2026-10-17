@@ -20,6 +20,37 @@ pub const RUNTIME_CAPABILITY_RS: &str = include_str!("../capability.rs");
 pub const RUNTIME_ENVIRONMENT_RS: &str = include_str!("../environment.rs");
 pub const RUNTIME_PARSER_RS: &str = include_str!("../parser.rs");
 pub const RUNTIME_IR_RS: &str = include_str!("../ir.rs");
+
+/// The exact owned native computation core, shared with the ordinary engine.
+pub const RUNTIME_NATIVE_LEAF_RS: &str = include_str!("../native_leaf.rs");
+pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
+    ("mod.rs", include_str!("../ocore/native_core.rs")),
+    ("common.rs", include_str!("../ocore/common.rs")),
+    ("native_abi.rs", include_str!("../ocore/native_abi.rs")),
+    (
+        "native_codegen.rs",
+        include_str!("../ocore/native_codegen.rs"),
+    ),
+    ("native_eh.rs", include_str!("../ocore/native_eh.rs")),
+    (
+        "native_exception_codegen.rs",
+        include_str!("../ocore/native_exception_codegen.rs"),
+    ),
+    ("native_ir.rs", include_str!("../ocore/native_ir.rs")),
+    ("native_map.rs", include_str!("../ocore/native_map.rs")),
+    (
+        "native_verify.rs",
+        include_str!("../ocore/native_verify.rs"),
+    ),
+    (
+        "native_atomic_codegen.rs",
+        include_str!("../ocore/native_atomic_codegen.rs"),
+    ),
+    (
+        "native_float_layout.rs",
+        include_str!("../ocore/native_float_layout.rs"),
+    ),
+];
 pub const RUNTIME_BACKEND_CATALOG_MODULE_RS: &str = include_str!("../backend_catalog.rs");
 pub const RUNTIME_BACKEND_CATALOG_DATA_RS: &str = include_str!("../backend_catalog.inc.rs");
 pub const RUNTIME_EXECUTION_CONTRACT_RS: &str = include_str!("../execution_contract.rs");
