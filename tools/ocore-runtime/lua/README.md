@@ -111,7 +111,7 @@ engine/OS interfaces, and native OSTADIX execution on all three ISAs.
 
 The pinned LLVM 22.1.6 development run on RISC-V retained all 34 units,
 33 archive members and 111 source/data files. Independent capture verification
-and the original-engine smoke passed. The whole-unit diagnostic produced five
+and the original-engine smoke passed. The initial whole-unit diagnostic produced five
 verified owned objects and 29 explicit rejections for floating-point types,
 variadic interfaces or the original computed-goto blockaddress table. The full
 runtime route separately rejected missing included dependency module-sets before
@@ -119,6 +119,25 @@ import. See the [exact SDK evidence](../../../evidence/llvm22_riscv64_20261017.j
 and [original-source results](../../../evidence/original_lua_20261017.json).
 The five unit successes include an empty configured translation unit and do not
 establish runnable engine support.
+
+The subsequent [whole-unit audit](../../../evidence/original_lua_whole_unit_frontier_20261017.json)
+attempted all 34 original units again after binary128 storage and narrow direct
+`i32` return-ABI compatibility were implemented. Seven produced independently
+verified owned RISC-V objects: `lopcodes.c`, `lgc.c`, `lstring.c`, `linit.c`,
+`lzio.c`, `ltests.c` and `lctype.c`. `ltests.c` remains an empty configured unit.
+The other 27 first rejections comprise 16 LLVM double-precision types,
+10 variadic interfaces and the `luaV_execute.disptab` symbolic initializer in
+`lvm.c`. This records complete unit attempts without selecting function bodies;
+it does not establish that resolving each first diagnostic would complete that
+unit or the engine.
+
+The [captured dependency frontier](../../../evidence/original_lua_dependency_frontier_20261017.json)
+retains the actual glibc, dynamic-loader, GCC startup and helper providers.
+Host binaries and linker scripts do not satisfy original-source lowering.
+Version-one module sets reject source pins that they cannot authenticate;
+declaring a repository URL and revision alone does not make provider identity
+verified. Dependency closure, full lowering, linking and native engine execution
+remain false in both records.
 
 ## Inventory regression gate
 

@@ -1,0 +1,1319 @@
+{
+  "schema": "ostadix.native-hgraph-aot-development-evidence/v1",
+  "host": {
+    "system": "Linux",
+    "machine": "riscv64"
+  },
+  "test_command": [
+    "python3",
+    "-m",
+    "unittest",
+    "tests.test_ocore_native_hgraph_aot",
+    "-v"
+  ],
+  "test_source_sha256": "20f826e2da188dcdb34ea24f67daed34cbba334ebf9151e46cf5b0424ccf9154",
+  "tests_passed": 3,
+  "skipped": 0,
+  "source_inputs_unchanged": true,
+  "compiler_binaries_sha256": {
+    "O": "adc156f39db6568bac514c8893fc6460f11be33cd3a209230134bb6c681ef13c",
+    "olangc": "b3bbe68d12f950255a2e03cfc919bea41b66dc8bcbcd6ee5dedb06277c757dc7",
+    "ocorec": "3443fddf84c360555e4bdbc502631a28ab2f0d99477abd0ea399f7ba1e1891f5"
+  },
+  "original_compilation": {
+    "proof": {
+      "path": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/build-proof-attempt2.json",
+      "bytes": 50990,
+      "sha256": "5b1dbce8db265c3776f9d573a26d89758d103fceb74b0fe415e4f5e78722c140"
+    },
+    "successful_build_commands": [
+      {
+        "name": "native-frontend",
+        "argv": [
+          "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+          "--target=riscv64-unknown-linux-gnu",
+          "-O1",
+          "-S",
+          "-emit-llvm",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-pic",
+          "-fno-pie",
+          "-fno-stack-protector",
+          "-fno-vectorize",
+          "-fno-slp-vectorize",
+          "-fno-unwind-tables",
+          "-fno-asynchronous-unwind-tables",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/native.c",
+          "-o",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/native.ll"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "elapsed_seconds": 0.998,
+        "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/native-frontend.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/native-frontend.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "trap-frontend",
+        "argv": [
+          "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+          "--target=riscv64-unknown-linux-gnu",
+          "-O1",
+          "-S",
+          "-emit-llvm",
+          "-ffreestanding",
+          "-fno-builtin",
+          "-fno-pic",
+          "-fno-pie",
+          "-fno-stack-protector",
+          "-fno-vectorize",
+          "-fno-slp-vectorize",
+          "-fno-unwind-tables",
+          "-fno-asynchronous-unwind-tables",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap.c",
+          "-o",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap.ll"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "elapsed_seconds": 0.187,
+        "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap-frontend.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap-frontend.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "product-compile",
+        "argv": [
+          "/home/orangepi/ostadix-BM/target/debug/olangc",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/native/program.O",
+          "--target",
+          "binary",
+          "-o",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/program",
+          "--keep-build-dir"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "elapsed_seconds": 1007.104,
+        "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/product-compile.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/product-compile.stderr",
+        "stderr_sha256": "ea21967a7c8ad78f78a7e0182188fb3c81abd97f9408b855ac024324f672fe01"
+      },
+      {
+        "name": "plain-materialize",
+        "argv": [
+          "/home/orangepi/ostadix-BM/target/debug/olangc",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/plain/program.O",
+          "--target",
+          "binary",
+          "-o",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/plain/program",
+          "--materialize-only",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/plain-generated"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "elapsed_seconds": 0.685,
+        "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/plain-materialize.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/plain-materialize.stderr",
+        "stderr_sha256": "4092af6856847325b69b486af020a62f4c9a2abd8d71cc329dabf57fe5a67641"
+      },
+      {
+        "name": "trap-materialize",
+        "argv": [
+          "/home/orangepi/ostadix-BM/target/debug/olangc",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap/program.O",
+          "--target",
+          "binary",
+          "-o",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap/program",
+          "--materialize-only",
+          "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap-generated"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "elapsed_seconds": 0.157,
+        "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap-materialize.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap-materialize.stderr",
+        "stderr_sha256": "246b2a1a2a4fd3a5c550f674d7ad07882358fedf5589a2664a616d28951fa7c9"
+      },
+      {
+        "name": "extra-generated-mains-build",
+        "argv": [
+          "/home/orangepi/.cargo/bin/cargo",
+          "+1.97.1",
+          "build",
+          "--offline",
+          "--locked",
+          "--release",
+          "--jobs",
+          "1",
+          "--manifest-path",
+          "/tmp/olang_build_672720_1792227520377929511_0/Cargo.toml",
+          "--target-dir",
+          "/tmp/olang_build_672720_1792227520377929511_0/target",
+          "--bin",
+          "plain_aot",
+          "--bin",
+          "trap_aot",
+          "--bin",
+          "graph_observer"
+        ],
+        "cwd": "/tmp/olang_build_672720_1792227520377929511_0",
+        "exit_code": 0,
+        "elapsed_seconds": 24.025,
+        "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/extra-generated-mains-build.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/extra-generated-mains-build.stderr",
+        "stderr_sha256": "0dca19616a252bc8c102d6fb89b0a7ec4245fe8481a02ba45bc6796721899269"
+      }
+    ],
+    "observed_actual_cargo_processes": [
+      {
+        "pid": 672729,
+        "argv": [
+          "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+          "build",
+          "--release",
+          "--locked"
+        ],
+        "cwd": "/tmp/olang_build_672720_1792227520377929511_0",
+        "executable_sha256": "a76372e1b06124593f8142a8eedc59514b0730f80f093cd2cfc34eff24f175ab",
+        "profile_environment": {
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_INCREMENTAL": "0",
+          "CARGO_NET_OFFLINE": "true",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+          "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": "16",
+          "CARGO_PROFILE_RELEASE_DEBUG": "0",
+          "CARGO_PROFILE_RELEASE_LTO": "false",
+          "CARGO_PROFILE_RELEASE_OPT_LEVEL": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+          "CARGO_TARGET_DIR": "/tmp/olang_build_672720_1792227520377929511_0/target",
+          "RUSTC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+          "RUSTUP_TOOLCHAIN": "1.97.1-riscv64gc-unknown-linux-gnu"
+        },
+        "observed_unix": 1792227524.5446873
+      },
+      {
+        "pid": 676128,
+        "argv": [
+          "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "--release",
+          "--jobs",
+          "1",
+          "--manifest-path",
+          "/tmp/olang_build_672720_1792227520377929511_0/Cargo.toml",
+          "--target-dir",
+          "/tmp/olang_build_672720_1792227520377929511_0/target",
+          "--bin",
+          "plain_aot",
+          "--bin",
+          "trap_aot",
+          "--bin",
+          "graph_observer"
+        ],
+        "cwd": "/tmp/olang_build_672720_1792227520377929511_0",
+        "executable_sha256": "a76372e1b06124593f8142a8eedc59514b0730f80f093cd2cfc34eff24f175ab",
+        "profile_environment": {
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_INCREMENTAL": "0",
+          "CARGO_NET_OFFLINE": "true",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+          "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": "16",
+          "CARGO_PROFILE_RELEASE_DEBUG": "0",
+          "CARGO_PROFILE_RELEASE_LTO": "false",
+          "CARGO_PROFILE_RELEASE_OPT_LEVEL": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+          "RUSTC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+          "RUSTUP_TOOLCHAIN": "1.97.1-riscv64gc-unknown-linux-gnu"
+        },
+        "observed_unix": 1792228531.6621625
+      }
+    ],
+    "profile_environment": {
+      "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_PROFILE_RELEASE_OPT_LEVEL": "0",
+      "CARGO_PROFILE_RELEASE_DEBUG": "0",
+      "CARGO_PROFILE_RELEASE_LTO": "false",
+      "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": "16"
+    },
+    "compiler_environment": {
+      "RUSTC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+      "RUSTUP_TOOLCHAIN": "1.97.1",
+      "RUSTC_WRAPPER": null,
+      "RUSTC_WORKSPACE_WRAPPER": null
+    },
+    "rustc_sha256": "d9078f24761cabce7da2041858b36b6039abcaea66cc0899063529d1f90e1ace",
+    "rustc_verbose_version": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: riscv64gc-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+    "cargo_version": "cargo 1.97.1 (c980f4866 2026-06-30)"
+  },
+  "fresh_execution": {
+    "receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-final.json",
+      "bytes": 157931,
+      "sha256": "d2365a1e69ceba9da77ada836ccfe5ea83a01cb7c7529be07f1598774cf2fddc"
+    },
+    "log": {
+      "path": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-final.log",
+      "bytes": 668,
+      "sha256": "a5e6ea316578a835c2b0ac4c914e36a450d85d0e286b5d9b9e1656c57aa0c9bd"
+    },
+    "proof": {
+      "schema": "ostadix.native-hgraph-aot-gate/v1",
+      "commands": [
+        {
+          "name": "resolve-pinned-rustc",
+          "argv": [
+            "/home/orangepi/.cargo/bin/rustup",
+            "which",
+            "rustc",
+            "--toolchain",
+            "1.97.1"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM",
+          "exit_code": 0,
+          "elapsed_seconds": 0.058,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/resolve-pinned-rustc.stdout",
+          "stdout_sha256": "85d29b1f7034f4a3de8ba3dbde25534b24a82b23e18f839b8f8a8218ddfe51da",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/resolve-pinned-rustc.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "pinned-rustc-version",
+          "argv": [
+            "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+            "-vV"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM",
+          "exit_code": 0,
+          "elapsed_seconds": 0.079,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/pinned-rustc-version.stdout",
+          "stdout_sha256": "b334b6e2c296a84a60ac47255429f8225445bb1e0ecc2f41c6e12dc4e08d7829",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/pinned-rustc-version.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "pinned-cargo-version",
+          "argv": [
+            "/home/orangepi/.cargo/bin/cargo",
+            "+1.97.1",
+            "--version"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM",
+          "exit_code": 0,
+          "elapsed_seconds": 0.063,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/pinned-cargo-version.stdout",
+          "stdout_sha256": "1aedaa9cce116919d39b1eb303a58865771582bc24fc259aa8e26cb212e0f59e",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/pinned-cargo-version.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "frontend-version",
+          "argv": [
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--version"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM",
+          "exit_code": 0,
+          "elapsed_seconds": 0.093,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/frontend-version.stdout",
+          "stdout_sha256": "6da4aee95e7f169501fa572e806a8f7edd224227ef24f5768a7c69fa9902f31f",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/frontend-version.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "native-product-run",
+          "argv": [
+            "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/program"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-run",
+          "exit_code": 0,
+          "elapsed_seconds": 4.59,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-product-run.stdout",
+          "stdout_sha256": "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-product-run.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "plain-product-run",
+          "argv": [
+            "/tmp/olang_build_672720_1792227520377929511_0/target/release/plain_aot"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/plain-run",
+          "exit_code": 0,
+          "elapsed_seconds": 0.045,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/plain-product-run.stdout",
+          "stdout_sha256": "ce5e16f664f4a73817ffd1dd25d5dc88c79dd4cbcf786a4db6d744c451179b83",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/plain-product-run.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "trap-product-run",
+          "argv": [
+            "/tmp/olang_build_672720_1792227520377929511_0/target/release/trap_aot"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-run",
+          "exit_code": 1,
+          "elapsed_seconds": 9.47,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-product-run.stdout",
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-product-run.stderr",
+          "stderr_sha256": "90f9ec7ddd8884d222f4bc960ca7747a15abe539f2d47550fbee4bbc73fa109f"
+        },
+        {
+          "name": "native-companion-observation",
+          "argv": [
+            "/tmp/olang_build_672720_1792227520377929511_0/target/release/graph_observer",
+            "native"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM",
+          "exit_code": 0,
+          "elapsed_seconds": 6.528,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-companion-observation.stdout",
+          "stdout_sha256": "b39e13bf81af9ffede16b83b11d026e8ee5adbe4d3f8cbdf55561add036cee22",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-companion-observation.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "trap-companion-observation",
+          "argv": [
+            "/tmp/olang_build_672720_1792227520377929511_0/target/release/graph_observer",
+            "trap"
+          ],
+          "cwd": "/home/orangepi/ostadix-BM",
+          "exit_code": 0,
+          "elapsed_seconds": 10.668,
+          "stdout": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-companion-observation.stdout",
+          "stdout_sha256": "3549f1c63b961015c70ff4c48af71a7897e0d7dfff5e2425f0f4013f251ddc63",
+          "stderr": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-companion-observation.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "gates": {
+        "actual_native_product": true,
+        "ordinary_non_native_product_main": true,
+        "trap_product_and_separately_observed_graph": true
+      },
+      "compiler": "/home/orangepi/ostadix-BM/target/debug/olangc",
+      "compiler_sha256": "b3bbe68d12f950255a2e03cfc919bea41b66dc8bcbcd6ee5dedb06277c757dc7",
+      "profile_environment": {
+        "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_PROFILE_RELEASE_OPT_LEVEL": "0",
+        "CARGO_PROFILE_RELEASE_DEBUG": "0",
+        "CARGO_PROFILE_RELEASE_LTO": "false",
+        "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": "16"
+      },
+      "cargo_jobs": 1,
+      "runtime_complete": false,
+      "compiler_environment": {
+        "RUSTC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+        "RUSTUP_TOOLCHAIN": "1.97.1",
+        "RUSTC_WRAPPER": null,
+        "RUSTC_WORKSPACE_WRAPPER": null
+      },
+      "rustc_sha256": "d9078f24761cabce7da2041858b36b6039abcaea66cc0899063529d1f90e1ace",
+      "cargo_version": "cargo 1.97.1 (c980f4866 2026-06-30)",
+      "rustc_verbose_version": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: riscv64gc-unknown-linux-gnu\nrelease: 1.97.1\nLLVM version: 22.1.6\n",
+      "llvm_parser_sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "generated_project": "/tmp/olang_build_672720_1792227520377929511_0",
+      "shared_cargo_target": "/tmp/olang_build_672720_1792227520377929511_0/target",
+      "engine_source_sha256": {
+        "backend.rs": "4155b09d0955cd820b293bd881c81330fcec746ca29f8046a418c974fe9e8573",
+        "backend_catalog.inc.rs": "6eddd348911053268d339c1e0888b7ab9bb8e4b05b7ecf6f98ec06fa432b37a7",
+        "backend_catalog.rs": "a7f41b5c0e7d44f0243d91cb2adf12e4f8461a8513dcdfe9d23dfd35dece9378",
+        "backend_morphism.rs": "f8c01c0c426f5489e24155b1b446589db6f95bf81a2e82c67f41a24014d53e48",
+        "backend_state.rs": "f8e41c07b086240d2fb3d0f1a4264f53e696e791424f9cd45cbc83ce95f647ff",
+        "cancellation.rs": "64892d36915ff8d7c82652cf2d7fc3d24b534c82e1d5ad10d8c68169e0261d84",
+        "canonical_cbor.rs": "6e288ad6805cc4d949bd660c9db06c014b9ca6860fa6b6e30d33b8982765130f",
+        "capability.rs": "74def92d2cec9eaef8fef084bf005780f26e969ee5f2d952284e637ade401698",
+        "cli_diagnostics.rs": "8a7b7ff3110b23fb9032fdfc987ea8a92e1ac9183ccdadcccde7e15c11acf05b",
+        "computation/graph_realization_plan.rs": "a5918c6462b2845873ebf7f61cb312968d2caad8f8aeff4c7e52b0530fa41534",
+        "computation/mod.rs": "fc98c3c23e984ca0576d0577884f9f3e91d4b8c9dd5ba49f66c92ce8a3a9f537",
+        "computation/oir_physical_execution.rs": "e559586c9d815981d07081c796e05de55162c81188832383230b17bd8e0b9d56",
+        "computation/realization_plan.rs": "f903fccc4a7fae886ae3a7cbd379f1d2e4238cb50cc1baf721bdd8741e75e78b",
+        "computation_core.rs": "54be510ef03aed449fca8763405badf72c354bf837c3dd2123dc203d70f675ca",
+        "dispatch_model.rs": "675b3090ce8d7d447dc9829a4c385313935267bc05a3e1336bbe1895f7d4aaa4",
+        "effects.rs": "1bfe8a7aebb77dd14e70aed3ca35b1fddd280eb27ecf3ae65b8a15be4ca428d6",
+        "environment.rs": "e4afd6b38e9da8016c2b25bbc50c8916cbf6ef8d545064996598382d28ddc871",
+        "eval/migration.rs": "af646bba2855c22ddbfe042021560807bdd82a096c422a31ade8bb4c896dfa4f",
+        "eval.rs": "9572979595f5184ef6346319a8629b86c5533096ea553cba7a08818ff5ae1217",
+        "eval_core.rs": "4db16fbd35288043dfc25efc94724ea5f2c0c21a447f42cc1941f832f3ca4867",
+        "evidence/admit.rs": "3ba93cb72b6a11aa69702579ce6aa35ad2c582e6328d831da39d2d28d796ebd0",
+        "evidence/analyze.rs": "cb3ca4f1423f66dedf0bceb4c35ed37e299d5761dd2dc951822361d39fc3b8de",
+        "evidence/fact.rs": "2059cd87428f353b632e3d88eccef20100b4167e9bb780df5a5d2e968f6541d2",
+        "evidence/intent.rs": "c5538c298d891c87d12e496e31158b29c1d8fc1d41bde7f63ad9f0e111871654",
+        "evidence/mod.rs": "bc587b5929e4e36c760f47b7d428700152c310b6cbcabd0bae01f9c1dbc55520",
+        "evidence/profile.rs": "cb394fe4a45a62e644fbf1032de6dacac6309ddc98815658d128e9366e82d226",
+        "execution_contract.rs": "e3f26b91ec2fe97ab603c5af7978b59faa065e9a5011d610c1bbbc5cb20f2098",
+        "execution_fabric/codec.rs": "3d98353941b0c556a232d28408f9f00123c780a6518c5388d2332c755508c972",
+        "execution_fabric/mod.rs": "c95d0322f24aff56f7c03c2ea41178a3ff43d6c863b3a99d54b6c037310e124f",
+        "execution_fabric/protocol.rs": "60e30573a9a9e88a3beec269c621bed4571e6b4de5786e04f4dae5b7ac1ff8e3",
+        "execution_fabric_authority/codec.rs": "d4cdebcc5c1404e5ba0e44d655cb134d94f72f6453258b3af039e72560a42cea",
+        "execution_fabric_authority/crypto.rs": "de614231fd6ef17ce22f9e6fb66ef1ea002d38616626a91707655ae7e57bcc31",
+        "execution_fabric_authority/mod.rs": "63b0f744b900927b19c6c14eec926356d5dd2a8ac7c5b75dd22e18bff10ca58a",
+        "execution_fabric_authority/protocol.rs": "088810251d98c15262ef58b6767acd6b7adc167bc5858cde0a25d1841b03ca12",
+        "execution_fabric_authority/tests.rs": "ef867eb683f7a4821a7a2aeee6b925b3fe1952ad1f06b516abccc3f37a2f3051",
+        "executor/actor.rs": "e566b426e98c9c5f3572b340c2912e9b8173839bbc3475fb90c3011bc1fe2394",
+        "executor/cancellation.rs": "0fcf208f4fc9ac1943de12f080b404c2afe668726b8dd8658a1b7de034c3aaff",
+        "executor/coordinator.rs": "c818e761c5401cb4a996f01f3c8aaf57dc52c2642b5282d896d570aa809dc8c1",
+        "executor/driver.rs": "e90460a6d38473e0bab9dae752a8a402ba8b97b444a2f7e0835d90e16da0f1c6",
+        "executor/effects.rs": "13e9813ec507857a893725d4d0492fd83763e6a2ac5867c1e4ff5841228f238d",
+        "executor/mod.rs": "6dc46cebfbbea2572df6fab332da024508c3756e956fa60c4c10b0bad8a7b75c",
+        "executor/parallel.rs": "e52467acf9f3a5f5b9f2ecec0fb9934b701d8c3342153f7f6bb5384801c6b3ba",
+        "executor/pool.rs": "fea62bb83cf59222589be0db37706eb8fbb2ac7718af717dce02790f015fac7c",
+        "executor/task.rs": "9c0aaa9f5a2275e2e00aaceb2a77d48924ea253ce65030ca79e53dab2eb4b245",
+        "executor/trace.rs": "ae110a54d13dadef8aff09a6d6bf2ca985677c05618ac9e218f7858194d8d5b4",
+        "hgraph/from_oir.rs": "77e01a3aa5ce443fd43e82439ca61c8fe7e9eb027f26bd0afec92b8933335c6f",
+        "hgraph/graph.rs": "7b8eb15dd45620b9c8491cff2fbede5db86734ef6b99666989ece422eca2c8e7",
+        "hgraph/kinds.rs": "ec7972c92c8d99d1def216247e40d30cdfa5a5f26062127e0cfb09c000fdde7b",
+        "hgraph/mod.rs": "6233f47569c42878bc9b608db44a942d679a20ba9d79655c76970a99e5b26ac1",
+        "hgraph/schedule.rs": "7cff3093014d92f91f37744ad77d33ffcd1801c844d6d2bb50c3ccb28fa67148",
+        "hgraph/semantics.rs": "f145a0997931cbfa328f5b4a88d49fa221df05bea3f84fd15723c0709fddf572",
+        "hgraph/solve.rs": "d8101be9469a2ae606787194e09e3c37bfc72de55aaddffc019565eb10af4813",
+        "hosted_remote/fabric/client.rs": "2f0ee900f4c8a6900a1ec12874ab3f3e72214d069874ec68d591552590b2c78d",
+        "hosted_remote/fabric/coordinator.rs": "2c8e2d5401213d9cc31ec84e6b80767d4de36bb6f2b631dbde206ba0dde9b9ba",
+        "hosted_remote/fabric/keys.rs": "df41d56799a012a8203620fcd30cef61dc861a902a2e7bf2ca7c08895ba40de9",
+        "hosted_remote/fabric/ledger.rs": "10106c7c65359af5c0ccc0baeb286f5a0a3f1876ba2584b7d2d294d134ac1758",
+        "hosted_remote/fabric/mod.rs": "497a07adc778590fea0d1783f51666e35fe6f52c4c1512cf2ddaa19457869bd3",
+        "hosted_remote/fabric/profile.rs": "9ebbf26979cbbd50b0ff1d17fb2550213b7a5133983f601821009d0d52a03cea",
+        "hosted_remote/fabric/provider.rs": "5901eca3fdcd95d672913967f46f846a37a14089d7e3ac9be9068ff34a2dea77",
+        "hosted_remote/fabric/realizer.rs": "b2c77cc87b5ebcf6a9d9ffdd51fb006752a300255219e05eada8db64e8be56c6",
+        "hosted_remote/fabric/wire.rs": "1e04d4cfc32bc462f243cf1fe4ba64239f987aa5da3799de2faaaaaf89d1a8e7",
+        "ir.rs": "79d941a6240f496b8e002c53677d445ca53c0913b4d055e08863adf95f665679",
+        "lib.rs": "729514df6360e5f50102db6afa16830f11c2107b4f40ab6b8cb126b3023809f9",
+        "native_leaf.rs": "1761cc6077ba9f940fb96760853dced47ab3f9d83abc0ca898f1c3258868065a",
+        "nix_ops.rs": "8c0995eeac29d0df32bf75e4671b1666aac21936ae346799ee68591efbe37dc3",
+        "nixos_ops.rs": "ae6055f4c3521c40c8abc2d64a6775455f407abb65ffeb239e66093dc9a50d5d",
+        "ocore/common.rs": "8264f9e87c1bc0d5ec8a98de64b45f97017268bce57c64bc7206d766e31ea27e",
+        "ocore/mod.rs": "fd99839dedd850371d1fb4d4bbe0910e11123a55c047b5c56750f832d148eee2",
+        "ocore/native_abi.rs": "2991f9160c9b4023afacd6a6037059b208a8413491d77c8f7bf1bd8732efaee0",
+        "ocore/native_atomic_codegen.rs": "2dcedb8da02f4e4debe18733368677dea590ac70ce67ceec5d998a25ceba8625",
+        "ocore/native_codegen.rs": "7801245de894c1514827bfff3ea338b037f1a63d9fa9da227d410f49547a505e",
+        "ocore/native_eh.rs": "684f8b17d7f1587857267becb0f517a751cc310473dab5f64cce25c16cf57fc0",
+        "ocore/native_exception_codegen.rs": "fb221fad13d9e75d9cac5bf0de8262c59883ca3cf4d0594f3c3ed4df52808320",
+        "ocore/native_float_layout.rs": "81e97d43852684396d816270ce282b3fed80e478a86d35f14f6faaceddfb29c2",
+        "ocore/native_ir.rs": "7d6bb23f478546c7bb215ee3a207b347569adc1971edf16f20707566d709eaeb",
+        "ocore/native_map.rs": "e485a63f591b7f0b7b5f0412db8c9123c0be352dd5350cb0ebd37b522bb6ba38",
+        "ocore/native_verify.rs": "021a4bec993390ab17913f98f2f9cb1f7d9635a12222ca50d8d622e8570f6019",
+        "parser.rs": "7792ef7df818c418418bfab300c8bb044d3c097aa4a8a052d0394c4ac1c638c8",
+        "placement/mod.rs": "97fc0b2707cf03c7706f35c861c6e72c6b3a80d3591c8e02a35242d2c57adb0c",
+        "placement/projection.rs": "af7fddebf351d1cbafb8c60b316bf701831d3594096dd393f00254eef755d7ca",
+        "placement/protocol/candidate.rs": "b749511a14aae96ada4cf08bbb4d83d8497fa464197542a090a551af0d38b0bf",
+        "placement/protocol/catalog.rs": "3caf59f6911fe98a3e13f8fb9d673df0069d6d5d9acf57345550016f3d3a3643",
+        "placement/protocol/digest.rs": "e6e49db2f6b597e84a96a9cdbb19369f1550d43f49aa6b2a003d2881cfdbf93f",
+        "placement/protocol/error.rs": "826fbe9ea95cd8d40a77459f547a910a01f552b8e04047ef42d0b12ac8ecb28d",
+        "placement/protocol/mod.rs": "36c0b3854fb768554e305eaebd02e73a965d6f7eb1b71d154c8a6b525126f153",
+        "placement/protocol/records.rs": "fe3e57e511c2f498428d914a7f626ccf0a7e71941cab465fd8e04823b1162d33",
+        "placement/protocol/requirement.rs": "92d4a81c4547015b24016944cda80ec05aa1dbcf98f58abc888df53fd65864ac",
+        "placement/protocol/state.rs": "ad8cf893d617d5368b7cdaaec014d49b96c54cd8f4121dea870016c1ef72cf75",
+        "placement/protocol/target.rs": "d3ee12c15c41efb07129af12b0873fa0212908039be1ab0c76a13cc8dfe5e37f",
+        "placement/protocol/warrant.rs": "3bc020831e3bdef355f2a320ec65778f4d01c2011b7dc931eb8e1eb787f872be",
+        "process.rs": "6786fdfd91d4fb3b41b187c625cd065b94e512dcb9c9866c08db9b957e1b6e15",
+        "registry/bundle/mod.rs": "5e61e39878de427da340e33db1c66d35fc73839f010df0642c52684578167a44",
+        "registry/mod.rs": "e4fa144d6fcc106324f8952400d18446847fb707430627560566263d39b4fc82",
+        "registry/placement_compat.rs": "cae50a81073f15954cd1c1970e845c9b0746462ffb90cfbaa0a62100b96533bb",
+        "runtime_exec.rs": "3be96e0df21ca440abd0d590696a94ebce5c5afd6379b13b6f53bee0b4275343",
+        "scheduler.rs": "24048f98dba56e8a84eb781cabe4c53e91a4a2716e45dac775f6715bafce7595",
+        "syntax_dialect.rs": "781e7ac3044d32aeba1c7743281eec8cfe1409a17499252ff0f3581ffb2291b9",
+        "value.rs": "8345472101fa703626ea9eb3fd3b5993f8ddfd7c3e44286eb42f529c18606b25",
+        "wire.rs": "0388f7e9ed28fe9b285e6d64425c1e2efbb2a75c53bf25da8baff6ad78faa554",
+        "world/codec.rs": "14405dc101a6151042ec2904fb90e540af86ad23c53a60286ed263e49251e0e2",
+        "world/grounding.rs": "95f51783b2f5f7f2f2102a5c430962b73f4f23ee54cbfeaca7639f33bb82d641",
+        "world/identity.rs": "e771eaf259f78e1f7fc640afcdd19234a79ccabcefc5274d568c69719b25e592",
+        "world/identity_wire.rs": "507067f827c5b3b054e7a7cb9f184929318d8e3a1f31b0e0b76da1971d922a86",
+        "world/mod.rs": "cc7dcab231ddb2ef1249e1667e72ba91d66b9b4d639fe2aca7fbaa77268fb678",
+        "world/protocol.rs": "8244c04fbcee5704c3a71b7a59f70afe91acd83215325020600fa00554b6fdd0",
+        "world/receipt.rs": "60427a3e17c816abefc0b153a5506cc03b5e419aec2320025fa5dc8bd2ef9e0b",
+        "world/receipt_codec.rs": "31c9695c488c8b18eedac31e681a6ca1e841b6d1b369941f4dd5328753f59a26",
+        "world/value.rs": "9770655221af685b698216e65e8a2d9cf5cb827f0c8853b0559eff691b190ed1",
+        "world/value_codec.rs": "6902a781ad20782c492e30b59ea17a0503194b21cf058f0eb7e386d000a2742b"
+      },
+      "owned_native_source_sha256": {
+        "native_leaf.rs": "1761cc6077ba9f940fb96760853dced47ab3f9d83abc0ca898f1c3258868065a",
+        "ocore/mod.rs": "fd99839dedd850371d1fb4d4bbe0910e11123a55c047b5c56750f832d148eee2",
+        "ocore/common.rs": "8264f9e87c1bc0d5ec8a98de64b45f97017268bce57c64bc7206d766e31ea27e",
+        "ocore/native_ir.rs": "7d6bb23f478546c7bb215ee3a207b347569adc1971edf16f20707566d709eaeb",
+        "ocore/native_verify.rs": "021a4bec993390ab17913f98f2f9cb1f7d9635a12222ca50d8d622e8570f6019",
+        "ocore/native_abi.rs": "2991f9160c9b4023afacd6a6037059b208a8413491d77c8f7bf1bd8732efaee0",
+        "ocore/native_codegen.rs": "7801245de894c1514827bfff3ea338b037f1a63d9fa9da227d410f49547a505e",
+        "ocore/native_map.rs": "e485a63f591b7f0b7b5f0412db8c9123c0be352dd5350cb0ebd37b522bb6ba38",
+        "ocore/native_eh.rs": "684f8b17d7f1587857267becb0f517a751cc310473dab5f64cce25c16cf57fc0",
+        "ocore/native_exception_codegen.rs": "fb221fad13d9e75d9cac5bf0de8262c59883ca3cf4d0594f3c3ed4df52808320",
+        "ocore/native_atomic_codegen.rs": "2dcedb8da02f4e4debe18733368677dea590ac70ce67ceec5d998a25ceba8625",
+        "ocore/native_float_layout.rs": "81e97d43852684396d816270ce282b3fed80e478a86d35f14f6faaceddfb29c2"
+      },
+      "product_sha256": "37c13ce4c1c592780a2737c5477ca7eec4449ce844fc3e6d52f7ff1c8f060dc8",
+      "extra_targets": {
+        "plain_aot": {
+          "path": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/plain-generated/src/main.rs",
+          "sha256": "4ce2b95f905a50281c621d1a84dc92f747e3a0dc5b53378768a02a085f56c832"
+        },
+        "trap_aot": {
+          "path": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/trap-generated/src/main.rs",
+          "sha256": "4ce2b95f905a50281c621d1a84dc92f747e3a0dc5b53378768a02a085f56c832"
+        },
+        "graph_observer": {
+          "path": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/graph-observer.rs",
+          "sha256": "f721c18273290429603d462d61184a956c8847961266a51f8ada2fd7220440c4"
+        }
+      },
+      "cargo_manifest_original_sha256": "3dfae4cdd6d45b5737893e8be8ee10c08239a9dc0eed0a0e3871a9a173ee41df",
+      "cargo_manifest_extra_bins_sha256": "1648097044e846d986c4a25bc91f1bff5713dc17c6ef29b931140ff5067e68c2",
+      "cargo_lock_sha256": "252e15a13895b049ddbc066fa4e82c06ba96b7d133868d63be2195d36390c54d",
+      "product_main_sha256": "4ce2b95f905a50281c621d1a84dc92f747e3a0dc5b53378768a02a085f56c832",
+      "executable_sha256": {
+        "native": "37c13ce4c1c592780a2737c5477ca7eec4449ce844fc3e6d52f7ff1c8f060dc8",
+        "plain": "5eb63d4a8fa92b020f5bae1787f04419989ef148657823909a45b03aefc158f6",
+        "trap": "46b36a496bf3040e840581f34e83f1cc6cf1d2caa6e0d3bd80b49bddc74ae8f9",
+        "observer": "41fbd4d5610fa4f182a303c4d66dd03ca8f81b06a1e9770a6ff9feff855ef7eb"
+      },
+      "fixtures": [
+        {
+          "name": "native",
+          "source_sha256": "7e4ddc7cc924afa47b72dd16696b202b0c6a754f330176d4cd84f9eed78e0083",
+          "llvm_sha256": "0d09a84d690950cbc6120ba50fae99a5a9b213596f3271c7a2ad78bb0a440ed0",
+          "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0",
+          "function_count": 1,
+          "global_count": 0
+        },
+        {
+          "name": "trap",
+          "source_sha256": "28d9338cf061ef812f8b3be6d20cd8ad8f615dfbfad17894c0ee59cc14f44b27",
+          "llvm_sha256": "b487d13692d19f6ba00dba08fd127769aa0fad37bc27489f3e0e0977e7be5f79",
+          "descriptor_sha256": "e469d3dc36728bad8917ceed9c5a14efd11e0e3cfe6a5edc6bf537b1a3c21e7e",
+          "function_count": 2,
+          "global_count": 0
+        }
+      ],
+      "retained_compile_evidence": {
+        "proof": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum/build-proof-attempt2.json",
+        "sha256": "5b1dbce8db265c3776f9d573a26d89758d103fceb74b0fe415e4f5e78722c140",
+        "new_compile_performed": false,
+        "original_case_directory": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-c_gy4xum"
+      },
+      "product_runs": {
+        "native": {
+          "executable_sha256": "37c13ce4c1c592780a2737c5477ca7eec4449ce844fc3e6d52f7ff1c8f060dc8",
+          "source_sha256": "34d2a37822a323fa041b5cff626c0067e5289ab0a1c37d1b8e76a9ae99fb3904",
+          "prepared": [
+            {
+              "profile": "linux-elf-i64-acyclic-v1",
+              "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0",
+              "module_sha256": "3a08c90b3045544af3f988e9ddbb9def281168a6401399d3c91a3ec214472586",
+              "entry": "native_add",
+              "target": "riscv64-unknown-linux-gnu",
+              "parameter_count": 1,
+              "adapter_executable_sha256": "37c13ce4c1c592780a2737c5477ca7eec4449ce844fc3e6d52f7ff1c8f060dc8",
+              "tool_environment_sha256": "22b2a707af9f4902685adf558cbf9f9d8e6856ccce65b477227c86a7f7dbfb05",
+              "tool_working_directory": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-run",
+              "assembly_sha256": "1cf937f7c4965fc4442e8baf3ef1b589e85830016da364ff0abf1fedfd105bdc",
+              "assembler": {
+                "invocation": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+                "executable_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+              },
+              "assembler_flags": [
+                "--no-default-config",
+                "-fintegrated-as",
+                "-c",
+                "-x",
+                "assembler",
+                "-target",
+                "riscv64-unknown-linux-gnu",
+                "-march=rv64gc",
+                "-mabi=lp64d"
+              ],
+              "linker": {
+                "invocation": "/usr/bin/ld",
+                "executable_sha256": "fdf9e9a01f733d0d8160c350e7e073bcd5731d6e6b68a97385e5d7c66f81e9c4"
+              },
+              "linker_flags": [
+                "-static",
+                "--build-id=none",
+                "-e",
+                "_start"
+              ],
+              "executable_sha256": "6050dc982cec24f96071485f01e7af4ec4c50a7e2cf3663edf0740257f2c70f0",
+              "executable_bytes": 1776
+            }
+          ],
+          "executed": [
+            "monotonic_ns=171310224185104 pid=676665 thread=ThreadId(3) event=native_leaf.executed descriptor=1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0 executable=6050dc982cec24f96071485f01e7af4ec4c50a7e2cf3663edf0740257f2c70f0 profile=linux-elf-i64-acyclic-v1"
+          ],
+          "lifecycle": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/native-run/lifecycle.log",
+          "exit_code": 0
+        },
+        "plain": {
+          "executable_sha256": "5eb63d4a8fa92b020f5bae1787f04419989ef148657823909a45b03aefc158f6",
+          "source_sha256": "f9dbf69ff6e33a6b93c0ed233ac9aa200ee8d59613af14501e2524a0be03647a",
+          "prepared": [],
+          "executed": [],
+          "lifecycle": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/plain-run/lifecycle.log",
+          "exit_code": 0
+        },
+        "trap": {
+          "executable_sha256": "46b36a496bf3040e840581f34e83f1cc6cf1d2caa6e0d3bd80b49bddc74ae8f9",
+          "source_sha256": "2a97320c24a5e6b47829a18967d2fd0768b42f902758adc0924b7fd1961e7d05",
+          "prepared": [
+            {
+              "profile": "linux-elf-i64-acyclic-v1",
+              "descriptor_sha256": "e469d3dc36728bad8917ceed9c5a14efd11e0e3cfe6a5edc6bf537b1a3c21e7e",
+              "module_sha256": "48d568cd0ea9cdd8d92490b30e18eea0b37e6f4ac8811abf5a6d71eb6a7bec49",
+              "entry": "native_trap",
+              "target": "riscv64-unknown-linux-gnu",
+              "parameter_count": 1,
+              "adapter_executable_sha256": "46b36a496bf3040e840581f34e83f1cc6cf1d2caa6e0d3bd80b49bddc74ae8f9",
+              "tool_environment_sha256": "22b2a707af9f4902685adf558cbf9f9d8e6856ccce65b477227c86a7f7dbfb05",
+              "tool_working_directory": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-run",
+              "assembly_sha256": "5b5a03a1a87242870677a2723a9c61927495cafddaabedb2ac87b99383ad1145",
+              "assembler": {
+                "invocation": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+                "executable_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+              },
+              "assembler_flags": [
+                "--no-default-config",
+                "-fintegrated-as",
+                "-c",
+                "-x",
+                "assembler",
+                "-target",
+                "riscv64-unknown-linux-gnu",
+                "-march=rv64gc",
+                "-mabi=lp64d"
+              ],
+              "linker": {
+                "invocation": "/usr/bin/ld",
+                "executable_sha256": "fdf9e9a01f733d0d8160c350e7e073bcd5731d6e6b68a97385e5d7c66f81e9c4"
+              },
+              "linker_flags": [
+                "-static",
+                "--build-id=none",
+                "-e",
+                "_start"
+              ],
+              "executable_sha256": "3fb1fdb78cffcef7138bcdf4aedbe1267df1304459a12bc0c4594ff44c43cd68",
+              "executable_bytes": 1728
+            },
+            {
+              "profile": "linux-elf-i64-acyclic-v1",
+              "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0",
+              "module_sha256": "3a08c90b3045544af3f988e9ddbb9def281168a6401399d3c91a3ec214472586",
+              "entry": "native_add",
+              "target": "riscv64-unknown-linux-gnu",
+              "parameter_count": 1,
+              "adapter_executable_sha256": "46b36a496bf3040e840581f34e83f1cc6cf1d2caa6e0d3bd80b49bddc74ae8f9",
+              "tool_environment_sha256": "22b2a707af9f4902685adf558cbf9f9d8e6856ccce65b477227c86a7f7dbfb05",
+              "tool_working_directory": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-run",
+              "assembly_sha256": "1cf937f7c4965fc4442e8baf3ef1b589e85830016da364ff0abf1fedfd105bdc",
+              "assembler": {
+                "invocation": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+                "executable_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+              },
+              "assembler_flags": [
+                "--no-default-config",
+                "-fintegrated-as",
+                "-c",
+                "-x",
+                "assembler",
+                "-target",
+                "riscv64-unknown-linux-gnu",
+                "-march=rv64gc",
+                "-mabi=lp64d"
+              ],
+              "linker": {
+                "invocation": "/usr/bin/ld",
+                "executable_sha256": "fdf9e9a01f733d0d8160c350e7e073bcd5731d6e6b68a97385e5d7c66f81e9c4"
+              },
+              "linker_flags": [
+                "-static",
+                "--build-id=none",
+                "-e",
+                "_start"
+              ],
+              "executable_sha256": "6050dc982cec24f96071485f01e7af4ec4c50a7e2cf3663edf0740257f2c70f0",
+              "executable_bytes": 1776
+            }
+          ],
+          "executed": [],
+          "lifecycle": "/home/orangepi/ostadix-BM/target/native-hgraph-aot-artifacts/native-hgraph-aot-qbc0j6wz/trap-run/lifecycle.log",
+          "exit_code": 1
+        }
+      },
+      "separate_companion_observations": {
+        "native": {
+          "schema": "ostadix.native-aot-test-companion/v1",
+          "observation_scope": "separate companion against the exact generated runtime",
+          "observer_executable_sha256": "41fbd4d5610fa4f182a303c4d66dd03ca8f81b06a1e9770a6ff9feff855ef7eb",
+          "source_sha256": "34d2a37822a323fa041b5cff626c0067e5289ab0a1c37d1b8e76a9ae99fb3904",
+          "observed_program_success": true,
+          "value": "\"42\"",
+          "error": null,
+          "native_nodes": [
+            {
+              "plan_node": 5,
+              "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0"
+            }
+          ],
+          "stores": [
+            0,
+            4
+          ],
+          "events": [
+            {
+              "event": "started",
+              "plan_node": 2
+            },
+            {
+              "event": "finished",
+              "plan_node": 2
+            },
+            {
+              "event": "started",
+              "plan_node": 3
+            },
+            {
+              "event": "finished",
+              "plan_node": 3
+            },
+            {
+              "event": "started",
+              "plan_node": 7
+            },
+            {
+              "event": "finished",
+              "plan_node": 7
+            },
+            {
+              "event": "started",
+              "plan_node": 9
+            },
+            {
+              "event": "finished",
+              "plan_node": 9
+            },
+            {
+              "event": "started",
+              "plan_node": 1
+            },
+            {
+              "event": "started",
+              "plan_node": 6
+            },
+            {
+              "event": "finished",
+              "plan_node": 1
+            },
+            {
+              "event": "started",
+              "plan_node": 0
+            },
+            {
+              "event": "finished",
+              "plan_node": 0
+            },
+            {
+              "event": "finished",
+              "plan_node": 6
+            },
+            {
+              "event": "started",
+              "plan_node": 8
+            },
+            {
+              "event": "finished",
+              "plan_node": 8
+            },
+            {
+              "event": "started",
+              "plan_node": 5
+            },
+            {
+              "event": "finished",
+              "plan_node": 5
+            },
+            {
+              "event": "started",
+              "plan_node": 4
+            },
+            {
+              "event": "finished",
+              "plan_node": 4
+            },
+            {
+              "event": "started",
+              "plan_node": 11
+            },
+            {
+              "event": "finished",
+              "plan_node": 11
+            },
+            {
+              "event": "started",
+              "plan_node": 10
+            },
+            {
+              "event": "finished",
+              "plan_node": 10
+            }
+          ],
+          "publications": [
+            {
+              "plan_node": 1,
+              "outputs": [
+                {
+                  "node": 1,
+                  "kind": "value"
+                },
+                {
+                  "node": 13,
+                  "kind": "completion",
+                  "producer": 1
+                }
+              ]
+            },
+            {
+              "plan_node": 0,
+              "outputs": [
+                {
+                  "node": 0,
+                  "kind": "value"
+                },
+                {
+                  "node": 12,
+                  "kind": "completion",
+                  "producer": 0
+                },
+                {
+                  "node": 21,
+                  "kind": "resource_state",
+                  "resource": "scope:x",
+                  "version": 1
+                }
+              ]
+            },
+            {
+              "plan_node": 6,
+              "outputs": [
+                {
+                  "node": 6,
+                  "kind": "value"
+                },
+                {
+                  "node": 16,
+                  "kind": "completion",
+                  "producer": 6
+                }
+              ]
+            },
+            {
+              "plan_node": 8,
+              "outputs": [
+                {
+                  "node": 8,
+                  "kind": "value"
+                },
+                {
+                  "node": 17,
+                  "kind": "completion",
+                  "producer": 8
+                }
+              ]
+            },
+            {
+              "plan_node": 5,
+              "outputs": [
+                {
+                  "node": 5,
+                  "kind": "value"
+                },
+                {
+                  "node": 15,
+                  "kind": "completion",
+                  "producer": 5
+                }
+              ]
+            },
+            {
+              "plan_node": 4,
+              "outputs": [
+                {
+                  "node": 4,
+                  "kind": "value"
+                },
+                {
+                  "node": 14,
+                  "kind": "completion",
+                  "producer": 4
+                },
+                {
+                  "node": 22,
+                  "kind": "resource_state",
+                  "resource": "scope:x",
+                  "version": 2
+                }
+              ]
+            },
+            {
+              "plan_node": 11,
+              "outputs": [
+                {
+                  "node": 11,
+                  "kind": "value"
+                },
+                {
+                  "node": 19,
+                  "kind": "completion",
+                  "producer": 11
+                }
+              ]
+            },
+            {
+              "plan_node": 10,
+              "outputs": [
+                {
+                  "node": 10,
+                  "kind": "value"
+                },
+                {
+                  "node": 18,
+                  "kind": "completion",
+                  "producer": 10
+                }
+              ]
+            }
+          ],
+          "admission_sha256": "5c7f3f044ea1af07976299788f57b9a2321c5b6be5b4ad2ecd48e8ae6b91c6be",
+          "executable_manifest_sha256": "f92f3a41cc055ef7ff712e9ec8e96c7028cdb4999b0898e90d7b3c79576f545b",
+          "native_leaves": [
+            {
+              "profile": "linux-elf-i64-acyclic-v1",
+              "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0",
+              "module_sha256": "3a08c90b3045544af3f988e9ddbb9def281168a6401399d3c91a3ec214472586",
+              "entry": "native_add",
+              "target": "riscv64-unknown-linux-gnu",
+              "parameter_count": 1,
+              "adapter_executable_sha256": "41fbd4d5610fa4f182a303c4d66dd03ca8f81b06a1e9770a6ff9feff855ef7eb",
+              "tool_environment_sha256": "22b2a707af9f4902685adf558cbf9f9d8e6856ccce65b477227c86a7f7dbfb05",
+              "tool_working_directory": "/home/orangepi/ostadix-BM",
+              "assembly_sha256": "1cf937f7c4965fc4442e8baf3ef1b589e85830016da364ff0abf1fedfd105bdc",
+              "assembler": {
+                "invocation": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+                "executable_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+              },
+              "assembler_flags": [
+                "--no-default-config",
+                "-fintegrated-as",
+                "-c",
+                "-x",
+                "assembler",
+                "-target",
+                "riscv64-unknown-linux-gnu",
+                "-march=rv64gc",
+                "-mabi=lp64d"
+              ],
+              "linker": {
+                "invocation": "/usr/bin/ld",
+                "executable_sha256": "fdf9e9a01f733d0d8160c350e7e073bcd5731d6e6b68a97385e5d7c66f81e9c4"
+              },
+              "linker_flags": [
+                "-static",
+                "--build-id=none",
+                "-e",
+                "_start"
+              ],
+              "executable_sha256": "6050dc982cec24f96071485f01e7af4ec4c50a7e2cf3663edf0740257f2c70f0",
+              "executable_bytes": 1776
+            }
+          ]
+        },
+        "trap": {
+          "schema": "ostadix.native-aot-test-companion/v1",
+          "observation_scope": "separate companion against the exact generated runtime",
+          "observer_executable_sha256": "41fbd4d5610fa4f182a303c4d66dd03ca8f81b06a1e9770a6ff9feff855ef7eb",
+          "source_sha256": "2a97320c24a5e6b47829a18967d2fd0768b42f902758adc0924b7fd1961e7d05",
+          "observed_program_success": false,
+          "value": null,
+          "error": "owned native scalar leaf failed: signal: 4 (SIGILL)",
+          "native_nodes": [
+            {
+              "plan_node": 5,
+              "descriptor_sha256": "e469d3dc36728bad8917ceed9c5a14efd11e0e3cfe6a5edc6bf537b1a3c21e7e"
+            },
+            {
+              "plan_node": 11,
+              "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0"
+            }
+          ],
+          "stores": [
+            0,
+            4,
+            10
+          ],
+          "events": [
+            {
+              "event": "started",
+              "plan_node": 2
+            },
+            {
+              "event": "finished",
+              "plan_node": 2
+            },
+            {
+              "event": "started",
+              "plan_node": 3
+            },
+            {
+              "event": "finished",
+              "plan_node": 3
+            },
+            {
+              "event": "started",
+              "plan_node": 7
+            },
+            {
+              "event": "finished",
+              "plan_node": 7
+            },
+            {
+              "event": "started",
+              "plan_node": 9
+            },
+            {
+              "event": "finished",
+              "plan_node": 9
+            },
+            {
+              "event": "started",
+              "plan_node": 13
+            },
+            {
+              "event": "finished",
+              "plan_node": 13
+            },
+            {
+              "event": "started",
+              "plan_node": 15
+            },
+            {
+              "event": "finished",
+              "plan_node": 15
+            },
+            {
+              "event": "started",
+              "plan_node": 1
+            },
+            {
+              "event": "started",
+              "plan_node": 6
+            },
+            {
+              "event": "started",
+              "plan_node": 12
+            },
+            {
+              "event": "finished",
+              "plan_node": 1
+            },
+            {
+              "event": "started",
+              "plan_node": 0
+            },
+            {
+              "event": "finished",
+              "plan_node": 0
+            },
+            {
+              "event": "finished",
+              "plan_node": 6
+            },
+            {
+              "event": "started",
+              "plan_node": 8
+            },
+            {
+              "event": "finished",
+              "plan_node": 8
+            },
+            {
+              "event": "started",
+              "plan_node": 5
+            },
+            {
+              "event": "failed",
+              "plan_node": 5
+            }
+          ],
+          "publications": [
+            {
+              "plan_node": 1,
+              "outputs": [
+                {
+                  "node": 1,
+                  "kind": "value"
+                },
+                {
+                  "node": 19,
+                  "kind": "completion",
+                  "producer": 1
+                }
+              ]
+            },
+            {
+              "plan_node": 0,
+              "outputs": [
+                {
+                  "node": 0,
+                  "kind": "value"
+                },
+                {
+                  "node": 18,
+                  "kind": "completion",
+                  "producer": 0
+                },
+                {
+                  "node": 31,
+                  "kind": "resource_state",
+                  "resource": "scope:x",
+                  "version": 1
+                }
+              ]
+            },
+            {
+              "plan_node": 6,
+              "outputs": [
+                {
+                  "node": 6,
+                  "kind": "value"
+                },
+                {
+                  "node": 22,
+                  "kind": "completion",
+                  "producer": 6
+                }
+              ]
+            },
+            {
+              "plan_node": 8,
+              "outputs": [
+                {
+                  "node": 8,
+                  "kind": "value"
+                },
+                {
+                  "node": 23,
+                  "kind": "completion",
+                  "producer": 8
+                }
+              ]
+            }
+          ],
+          "admission_sha256": "c3f6bb19b3c0f337241b96565e2bb1ecb6e204fbdd066100fb43c266df465b56",
+          "executable_manifest_sha256": "be71d9cf72a19f13b81cb9de89b8cac630f71d8adcd047c30d2e8915798c72aa",
+          "native_leaves": [
+            {
+              "profile": "linux-elf-i64-acyclic-v1",
+              "descriptor_sha256": "1e3fbce36739f917fc9fcb902f7bdac5841fc743f30fe58c02fdc1c33e921dd0",
+              "module_sha256": "3a08c90b3045544af3f988e9ddbb9def281168a6401399d3c91a3ec214472586",
+              "entry": "native_add",
+              "target": "riscv64-unknown-linux-gnu",
+              "parameter_count": 1,
+              "adapter_executable_sha256": "41fbd4d5610fa4f182a303c4d66dd03ca8f81b06a1e9770a6ff9feff855ef7eb",
+              "tool_environment_sha256": "22b2a707af9f4902685adf558cbf9f9d8e6856ccce65b477227c86a7f7dbfb05",
+              "tool_working_directory": "/home/orangepi/ostadix-BM",
+              "assembly_sha256": "1cf937f7c4965fc4442e8baf3ef1b589e85830016da364ff0abf1fedfd105bdc",
+              "assembler": {
+                "invocation": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+                "executable_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+              },
+              "assembler_flags": [
+                "--no-default-config",
+                "-fintegrated-as",
+                "-c",
+                "-x",
+                "assembler",
+                "-target",
+                "riscv64-unknown-linux-gnu",
+                "-march=rv64gc",
+                "-mabi=lp64d"
+              ],
+              "linker": {
+                "invocation": "/usr/bin/ld",
+                "executable_sha256": "fdf9e9a01f733d0d8160c350e7e073bcd5731d6e6b68a97385e5d7c66f81e9c4"
+              },
+              "linker_flags": [
+                "-static",
+                "--build-id=none",
+                "-e",
+                "_start"
+              ],
+              "executable_sha256": "6050dc982cec24f96071485f01e7af4ec4c50a7e2cf3663edf0740257f2c70f0",
+              "executable_bytes": 1776
+            },
+            {
+              "profile": "linux-elf-i64-acyclic-v1",
+              "descriptor_sha256": "e469d3dc36728bad8917ceed9c5a14efd11e0e3cfe6a5edc6bf537b1a3c21e7e",
+              "module_sha256": "48d568cd0ea9cdd8d92490b30e18eea0b37e6f4ac8811abf5a6d71eb6a7bec49",
+              "entry": "native_trap",
+              "target": "riscv64-unknown-linux-gnu",
+              "parameter_count": 1,
+              "adapter_executable_sha256": "41fbd4d5610fa4f182a303c4d66dd03ca8f81b06a1e9770a6ff9feff855ef7eb",
+              "tool_environment_sha256": "22b2a707af9f4902685adf558cbf9f9d8e6856ccce65b477227c86a7f7dbfb05",
+              "tool_working_directory": "/home/orangepi/ostadix-BM",
+              "assembly_sha256": "5b5a03a1a87242870677a2723a9c61927495cafddaabedb2ac87b99383ad1145",
+              "assembler": {
+                "invocation": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+                "executable_sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+              },
+              "assembler_flags": [
+                "--no-default-config",
+                "-fintegrated-as",
+                "-c",
+                "-x",
+                "assembler",
+                "-target",
+                "riscv64-unknown-linux-gnu",
+                "-march=rv64gc",
+                "-mabi=lp64d"
+              ],
+              "linker": {
+                "invocation": "/usr/bin/ld",
+                "executable_sha256": "fdf9e9a01f733d0d8160c350e7e073bcd5731d6e6b68a97385e5d7c66f81e9c4"
+              },
+              "linker_flags": [
+                "-static",
+                "--build-id=none",
+                "-e",
+                "_start"
+              ],
+              "executable_sha256": "3fb1fdb78cffcef7138bcdf4aedbe1267df1304459a12bc0c4594ff44c43cd68",
+              "executable_bytes": 1728
+            }
+          ]
+        }
+      }
+    }
+  },
+  "scope": "A real olangc binary compile and unchanged real emitted plain/trap mains share one generated runtime. Fresh execution assertions reused the exact content-verified retained build after correcting only the test expectation for quoted OValue Text display. Separate companion records belong to its executable, not to the product mains. No new compilation occurred in the fresh continuation.",
+  "general_native_orchestration_complete": false,
+  "runtime_complete": false
+}

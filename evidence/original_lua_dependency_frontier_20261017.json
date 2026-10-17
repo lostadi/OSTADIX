@@ -1,0 +1,97 @@
+{
+  "schema": "ocore-original-lua-dependency-frontier-v1",
+  "observed_at": "2026-10-17T04:46:39.301212+00:00",
+  "capture_report": {
+    "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/capture/report.json",
+    "sha256": "e10f882f301c021cda103f5d55a4016026f3360e1d5872ab90725674ae901125",
+    "bytes": 5645820
+  },
+  "original_lua_source": {
+    "clean_at_start": true,
+    "commit_timestamp": "1789579091",
+    "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua",
+    "revision": "0b29f408433e92953cc72b1d3e06c7ac8139e439",
+    "submodules": [],
+    "url": "https://github.com/lua/lua.git"
+  },
+  "capture_complete": true,
+  "declared_dependencies": [
+    {
+      "name": "libc-and-libm",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "libdl-and-dynamic-loader",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "compiler-helpers",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "Linux-platform-services",
+      "source_pin": null,
+      "status": "required-unresolved"
+    }
+  ],
+  "native_dependency_closure_complete": false,
+  "unowned_provider_occurrence_count": 558,
+  "unowned_provider_path_occurrences": {
+    "/usr/lib/gcc/riscv64-linux-gnu/14/crtbeginS.o": 1,
+    "/usr/lib/gcc/riscv64-linux-gnu/14/crtendS.o": 1,
+    "/usr/lib/gcc/riscv64-linux-gnu/14/crti.o": 1,
+    "/usr/lib/gcc/riscv64-linux-gnu/14/crtn.o": 1,
+    "/usr/lib/gcc/riscv64-linux-gnu/14/libgcc.a": 532,
+    "/usr/lib/gcc/riscv64-linux-gnu/14/libgcc_s.so": 6,
+    "/usr/lib/riscv64-linux-gnu/Scrt1.o": 1,
+    "/usr/lib/riscv64-linux-gnu/ld-linux-riscv64-lp64d.so.1": 2,
+    "/usr/lib/riscv64-linux-gnu/libc.so": 3,
+    "/usr/lib/riscv64-linux-gnu/libc.so.6": 1,
+    "/usr/lib/riscv64-linux-gnu/libc_nonshared.a": 4,
+    "/usr/lib/riscv64-linux-gnu/libgcc_s.so.1": 2,
+    "/usr/lib/riscv64-linux-gnu/libm.so.6": 1,
+    "unknown-nonfile-observation": 2
+  },
+  "count_scope": "All captured source-unowned native provider occurrences, including repeated linker inputs and every recorded archive member. A repeated path is not a distinct binary or selected live member.",
+  "installed_source_package_evidence": {
+    "argv": [
+      "dpkg-query",
+      "-W",
+      "-f=${binary:Package} ${Version} ${source:Package} ${source:Version}\n",
+      "libc6",
+      "libc6-dev",
+      "libgcc-14-dev",
+      "libgcc-s1"
+    ],
+    "stdout": "libc6:riscv64 2.41-12+deb13u4 glibc 2.41-12+deb13u4\nlibc6-dev:riscv64 2.41-12+deb13u4 glibc 2.41-12+deb13u4\nlibgcc-14-dev:riscv64 14.2.0-19 gcc-14 14.2.0-19\nlibgcc-s1:riscv64 14.2.0-19 gcc-14 14.2.0-19\n",
+    "exit_code": 0
+  },
+  "current_local_original_source_fixture_root": "/home/orangepi/ostadix-census-rv64-20261015-102303/src",
+  "current_local_original_source_fixture_directories": [
+    "cpython",
+    "lua",
+    "quickjs",
+    "sqlite"
+  ],
+  "limitations": [
+    "The actual original Lua Linux link imports GLIBC_2.27 and GLIBC_2.34 symbols, and includes glibc libm/libc/dynamic-loader, GCC14 startup objects and helper providers. These native providers lack captured original-source/object provenance.",
+    "dlopen, dlsym, dlclose and dlerror are observed as GLIBC_2.34 imports here; the recipe libdl-and-dynamic-loader name is a logical requirement, not evidence of a distinct libdl shared object provider.",
+    "Native module-set v1 components bind names and capture SHA256 plus complete unit identities, not independently checked source identity. Every nonnull declared source_pin is deliberately rejected by artifact::load_dependencies.",
+    "No musl, glibc or GCC original source checkout is present in the inspected current census fixture root; a filename search under nonhidden /home/orangepi found no musl/glibc/GCC source archive. Historical /home/ustad captures are documentation, not established local available inputs.",
+    "The existing pinned musl static recipes represent a different libc/execution profile. They cannot silently satisfy the observed host glibc provider source/ABI closure; choosing musl requires explicit original Lua recapture and profile qualification.",
+    "Exact original-source builds still need complete distro patches/configuration, startup/assembly, compiler-helper, libc/libm/loader dependencies, TLS/context mechanisms and platform interfaces. Verified source/module packages alone do not establish Linux or OSTADIX kernel service closure or executable runtime qualification."
+  ],
+  "next_implementation_slice": "Add independently capture-bound original source identity to native module-set components and exact source_pin matching, exercised by real pinned provider+consumer C recipes, transitive package closure, mismatched pins and detached reuse. Preserve fail-closed v1 behavior and keep platform/runtime qualification separate.",
+  "implementation_references": [
+    "src/bin/olangc/native_runtime/artifact.rs:18",
+    "src/bin/olangc/native_runtime/artifact.rs:225",
+    "src/bin/olangc/native_runtime/artifact.rs:419",
+    "tools/ocore-runtime/libc/riscv64.static.recipe.json",
+    "tools/ocore-runtime/dependencies/README.md"
+  ],
+  "runtime_complete": false,
+  "native_execution_qualified": false
+}

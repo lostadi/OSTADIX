@@ -192,6 +192,11 @@ class NativeHgraphAotTests(unittest.TestCase):
         if sha(library) != library_sha:
             raise RuntimeError("actual LLVM parser differs from selected digest")
         cls.proof["llvm_parser_sha256"] = library_sha
+        resume = os.environ.get("OCORE_TEST_AOT_RESUME_PROOF")
+        if resume:
+            cls.reuse_build(Path(resume))
+            cls.observe_products()
+            return
         cls.descriptors = {}
         cls.proof["fixtures"] = []
         arch = {"arm64":"aarch64"}.get(platform.machine(),platform.machine())
@@ -281,6 +286,107 @@ class NativeHgraphAotTests(unittest.TestCase):
         cls.products = {"native":cls.product,"plain":cls.target/"release/plain_aot",
                         "trap":cls.target/"release/trap_aot","observer":cls.target/"release/graph_observer"}
         cls.proof["executable_sha256"] = {name:sha(path) for name,path in cls.products.items()}
+        cls.observe_products()
+
+    @classmethod
+    def reuse_build(cls, proof_path):
+        # Reuse is explicit and content-bound. This branch never presents the
+        # retained compile as a new compile; all observations below run afresh.
+        proof_path = proof_path.resolve()
+        expected = os.environ.get("OCORE_TEST_AOT_RESUME_SHA256")
+        if not expected or sha(proof_path) != expected:
+            raise RuntimeError("resume requires the exact original compile-proof digest")
+        previous = json.loads(proof_path.read_text())
+        if previous.get("schema") != "ostadix.native-hgraph-aot-gate/v1":
+            raise RuntimeError("unrecognized retained compile proof")
+        for name in ("product-compile","extra-generated-mains-build"):
+            records = [item for item in previous["commands"] if item["name"] == name]
+            if len(records) != 1 or records[0]["exit_code"] != 0:
+                raise RuntimeError("retained proof lacks one successful actual "+name)
+        for item in previous["commands"]:
+            for stream in ("stdout","stderr"):
+                if sha(item[stream]) != item[stream+"_sha256"]:
+                    raise RuntimeError("retained command evidence changed")
+        for key in ("compiler_sha256","profile_environment","compiler_environment",
+                    "rustc_sha256","cargo_version","rustc_verbose_version","llvm_parser_sha256"):
+            if cls.proof[key] != previous[key]:
+                raise RuntimeError("retained build selection changed: "+key)
+        old = proof_path.parent
+        cls.project = Path(previous["generated_project"])
+        cls.target = Path(previous["shared_cargo_target"])
+        if cls.target != cls.project/"target":
+            raise RuntimeError("retained generated target no longer belongs to its project")
+        cls.engine = previous["engine_source_sha256"]
+        if engine_sources(cls.project/"src") != cls.engine:
+            raise RuntimeError("retained generated runtime changed")
+        checks = {cls.project/"Cargo.toml":previous["cargo_manifest_extra_bins_sha256"],
+                  cls.project/"Cargo.lock":previous["cargo_lock_sha256"],
+                  cls.project/"src/main.rs":previous["product_main_sha256"]}
+        for target in previous["extra_targets"].values():
+            checks[Path(target["path"])] = target["sha256"]
+        for path,digest in checks.items():
+            if sha(path) != digest:
+                raise RuntimeError("retained generated main/manifest/lock changed: "+str(path))
+        for relative,digest in previous["owned_native_source_sha256"].items():
+            source = ROOT/"crates/ostadix-api/src"/relative
+            if relative == "ocore/mod.rs":
+                source = source.with_name("native_core.rs")
+            if sha(source) != digest or sha(cls.project/"src"/relative) != digest:
+                raise RuntimeError("retained native core differs from current source: "+relative)
+        cls.sources = {name:old/name/"program.O" for name in ("native","plain","trap")}
+        for name,source in cls.sources.items():
+            generated = cls.project if name == "native" else old/(name+"-generated")
+            if sha(source) != previous["product_runs"][name]["source_sha256"]:
+                raise RuntimeError("retained original .O input changed")
+            if (generated/"src/program.O").read_bytes() != source.read_bytes():
+                raise RuntimeError("retained include_str program bytes changed")
+            if engine_sources(generated/"src") != cls.engine:
+                raise RuntimeError("retained materialized runtime changed")
+        cls.descriptors = {}
+        prefix = "let x = text^(41)_text;\nlet x = ocore_i64(text^("
+        for fixture in previous["fixtures"]:
+            name = fixture["name"]
+            if sha(old/(name+".c")) != fixture["source_sha256"] or sha(old/(name+".ll")) != fixture["llvm_sha256"]:
+                raise RuntimeError("retained original frontend input/output changed")
+            text = cls.sources[name].read_text()
+            if not text.startswith(prefix):
+                raise RuntimeError("retained original descriptor source changed")
+            descriptor,end = json.JSONDecoder().raw_decode(text[len(prefix):])
+            raw = text[len(prefix):len(prefix)+end]
+            if text_sha(raw) != fixture["descriptor_sha256"]:
+                raise RuntimeError("retained original descriptor changed")
+            module = descriptor["module"]
+            if (module["provenance"]["input_sha256"] != fixture["llvm_sha256"]
+                or len(module["functions"]) != fixture["function_count"]
+                or len(module["globals"]) != fixture["global_count"]):
+                raise RuntimeError("retained whole-unit descriptor inventory changed")
+            cls.descriptors[name] = raw
+        cls.product = old/"program"
+        cls.products = {"native":cls.product,"plain":cls.target/"release/plain_aot",
+                        "trap":cls.target/"release/trap_aot","observer":cls.target/"release/graph_observer"}
+        if sha(cls.product) != previous["product_sha256"]:
+            raise RuntimeError("retained actual product executable changed")
+        for name,path in cls.products.items():
+            if sha(path) != previous["executable_sha256"][name]:
+                raise RuntimeError("retained executable changed: "+name)
+        # The current observer template must match the genuinely compiled one.
+        lib_name = tomllib.loads((cls.project/"Cargo.toml").read_text())["lib"]["name"]
+        observer = OBSERVER.replace("__RUNTIME__",lib_name)\
+            .replace("__NATIVE_SOURCE__",json.dumps(str(cls.sources["native"])))\
+            .replace("__TRAP_SOURCE__",json.dumps(str(cls.sources["trap"])))
+        if Path(previous["extra_targets"]["graph_observer"]["path"]).read_text() != observer:
+            raise RuntimeError("retained compiled observer differs from the current test")
+        retained_keys = ("generated_project","shared_cargo_target","engine_source_sha256",
+                         "owned_native_source_sha256","product_sha256","extra_targets",
+                         "cargo_manifest_original_sha256","cargo_manifest_extra_bins_sha256",
+                         "cargo_lock_sha256","product_main_sha256","executable_sha256","fixtures")
+        cls.proof.update({key:previous[key] for key in retained_keys})
+        cls.proof["retained_compile_evidence"] = {"proof":str(proof_path),"sha256":expected,
+            "new_compile_performed":False,"original_case_directory":str(old)}
+        cls.save()
+
+    @classmethod
+    def observe_products(cls):
         cls.runs = {}
         for name in ("native","plain","trap"):
             working = cls.directory/(name+"-run")
@@ -347,7 +453,7 @@ class NativeHgraphAotTests(unittest.TestCase):
             for leaf in observation["native_leaves"]:
                 self.assertEqual(leaf["adapter_executable_sha256"],sha(self.products["observer"]))
         self.assertTrue(normal["observed_program_success"])
-        self.assertEqual(normal["value"],"42")
+        self.assertEqual(normal["value"],json.dumps("42"))
         versions = lambda observation: [output["version"] for publication in observation["publications"]
                     for output in publication["outputs"] if output.get("kind")=="resource_state"
                     and output.get("resource")=="scope:x"]

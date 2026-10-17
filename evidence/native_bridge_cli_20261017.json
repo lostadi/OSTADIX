@@ -1,0 +1,243 @@
+{
+  "schema": "ocore-native-final-cli-gates-v1",
+  "success": true,
+  "compiler_artifacts": {
+    "O": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/O",
+      "bytes": 23664912,
+      "sha256": "adc156f39db6568bac514c8893fc6460f11be33cd3a209230134bb6c681ef13c"
+    },
+    "olangc": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/olangc",
+      "bytes": 47196120,
+      "sha256": "b3bbe68d12f950255a2e03cfc919bea41b66dc8bcbcd6ee5dedb06277c757dc7"
+    },
+    "ocorec": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/ocorec",
+      "bytes": 12426600,
+      "sha256": "3443fddf84c360555e4bdbc502631a28ab2f0d99477abd0ea399f7ba1e1891f5"
+    }
+  },
+  "gate_count": 7,
+  "tests_run": 130,
+  "passed_test_count": 129,
+  "skips": [
+    {
+      "test": "tests.test_ocore_llvm_import.LlvmImportTests.test_clang21_text_and_bitcode_full_unit_inventory_and_symbol_closure_on_all_three_isas",
+      "reason": "Clang 21 frontend unavailable"
+    }
+  ],
+  "gates": [
+    {
+      "suite": "fp128",
+      "tests_run": 8,
+      "passed_test_count": 8,
+      "skips": [],
+      "elapsed_seconds": 559.0298544740072,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128.json",
+        "bytes": 1075,
+        "sha256": "5a527f4132e372b8ec17f29f5b70c0d2938b2521ab2553486f50de6932ade029"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128.log",
+        "bytes": 1808,
+        "sha256": "9d7ddd9ee5e8a342e5f770de17ecb994a3f606cd8a90cda363bae84f2111dfde"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_fp128_layout.py",
+        "bytes": 23896,
+        "sha256": "4ce3ea74a2d7c73dd1e3869ce9c8bb675deb413e51fbdae499feeefcad7f0589"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt"
+    },
+    {
+      "suite": "abi",
+      "tests_run": 3,
+      "passed_test_count": 3,
+      "skips": [],
+      "elapsed_seconds": 264.91845766597544,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-abi.json",
+        "bytes": 914,
+        "sha256": "bee7bbd62c22d22149922a31dd9dff03603f65e6c7d21d3cdd4cdb1f6d92efea"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-abi.log",
+        "bytes": 867,
+        "sha256": "88091c3ca1144e670b778017321197a59d7613ecbe6f0637ae721189b8b0cbcd"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_return_extension.py",
+        "bytes": 11773,
+        "sha256": "ebcdc9f2be586f33a1dffef7e22b4908208382d260f9401d46f5bb963e8938c0"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-abi-fixtures/run-bbwu_ov7"
+    },
+    {
+      "suite": "hgraph",
+      "tests_run": 8,
+      "passed_test_count": 8,
+      "skips": [],
+      "elapsed_seconds": 106.91804691500147,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-hgraph.json",
+        "bytes": 1068,
+        "sha256": "c356848d16b0002a1d9b9728f5ff5eea0783e3cc8d47615e23646b5aec1417db"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-hgraph.log",
+        "bytes": 1739,
+        "sha256": "44e05d827b20ecee11f8e701e60e950ff4c51d0ddcdbad1d4c5985b992aeba67"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_hgraph_cli.py",
+        "bytes": 15243,
+        "sha256": "e083bea781c624f387256a381088493092f4c9b0d288778eae250831891f2355"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-hgraph-fixtures/run-mi_i1_hl"
+    },
+    {
+      "suite": "importer",
+      "tests_run": 72,
+      "passed_test_count": 71,
+      "skips": [
+        {
+          "test": "tests.test_ocore_llvm_import.LlvmImportTests.test_clang21_text_and_bitcode_full_unit_inventory_and_symbol_closure_on_all_three_isas",
+          "reason": "Clang 21 frontend unavailable"
+        }
+      ],
+      "elapsed_seconds": 2053.603659485001,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-importer.json",
+        "bytes": 1847,
+        "sha256": "da481a4a9896b51fcf39116966156635442c9d404042bc32a857756c52692353"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-importer.log",
+        "bytes": 14805,
+        "sha256": "595116c1ff2540d5b832f89716ba339f478b0e468327acf6d4b39903915f49c5"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+        "bytes": 112834,
+        "sha256": "ac0684625d67e10980a45ec3311ef1aa4f8ad683ddcf044aa9e3f50e0aa6800c"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-regression-importer-fixtures"
+    },
+    {
+      "suite": "runtime",
+      "tests_run": 17,
+      "passed_test_count": 17,
+      "skips": [],
+      "elapsed_seconds": 158.39986978500383,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-runtime.json",
+        "bytes": 1637,
+        "sha256": "6198d2b78b1c9503036d3ccffa4a234733ad730c48dbd16e3cfb6388c79d7e7e"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-runtime.log",
+        "bytes": 3542,
+        "sha256": "5971064920d58f287a8ee02b3f6a6d8c1c9c4f46ecf852c368b89a7e85e4b8b3"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_runtime.py",
+        "bytes": 19135,
+        "sha256": "1838d640739d781e5435f12090f3b88df3234c22612211e56b6e57b9a9a6123f"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-regression-runtime-fixtures"
+    },
+    {
+      "suite": "source-recipe",
+      "tests_run": 11,
+      "passed_test_count": 11,
+      "skips": [],
+      "elapsed_seconds": 120.6783234780014,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-source-recipe.json",
+        "bytes": 1654,
+        "sha256": "3055316ea5a2295669b7cb443455a24831d9631d7c3bda0cb22f5e6d1d90ce6f"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-source-recipe.log",
+        "bytes": 2376,
+        "sha256": "0cb5db12964b3750dd2886589273d715acd2122a68009558bcb500a3cb0237f1"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_source_recipe.py",
+        "bytes": 18768,
+        "sha256": "b2ab8c386374e283baa39c9bd44299204b23718ed382b2ab37aeb6aa9ca9602f"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-regression-source-recipe-fixtures"
+    },
+    {
+      "suite": "native-map",
+      "tests_run": 11,
+      "passed_test_count": 11,
+      "skips": [],
+      "elapsed_seconds": 24.384000542020658,
+      "receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-native-map.json",
+        "bytes": 1639,
+        "sha256": "d9450f2212237f31e1addb37dffb1f7799b151c6e6b8f24583db273b2f00f0cf"
+      },
+      "log": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-regression-native-map.log",
+        "bytes": 2112,
+        "sha256": "e1aa9775d4093eb1e4a50326c33511aec61180a1cee8effc1f6e0e0589e852e7"
+      },
+      "test_source": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_map.py",
+        "bytes": 18403,
+        "sha256": "ea0a160fe0e03df9c4bf7a6178346473d4be5cc5c569c2d9cc0835f44ecb264f"
+      },
+      "fixture_directory": "/home/orangepi/ostadix-BM/target/native-final-regression-native-map-fixtures"
+    }
+  ],
+  "final_binary_whole_lua_storage_units": {
+    "path": "/home/orangepi/ostadix-BM/target/original_lua_storage_units_final_20261017.json",
+    "bytes": 16994,
+    "sha256": "d86fbcc3be3a0d8bc2f2ff281a143f868d81176549a9d3d359a3eba9ddcc121d"
+  },
+  "historical_whole_lua_audit": {
+    "receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/original_lua_whole_unit_frontier_final_20261017.json",
+      "bytes": 46241,
+      "sha256": "c0644d58166fcde58e12d27a064c57298079076c1779a19ec689f0685917cc52"
+    },
+    "compiler_sha256": {
+      "ocorec": "75a6f04fd2041fac5c8c5b68218a2abeabc889b6878a04791b6a0b5b7c91ecbd",
+      "olangc": "07ed0ae5ccb16eb41b2009dbcf04c10f30a8b75fb9033d8d07d3dc0abf4f4e9f",
+      "O": "63e514dc37890c58edbd8e54cb330e4bcb5a03ad50af8b0f479cf8107d0012bf"
+    },
+    "artifact_scope": "Earlier pre-AOT whole-unit audit; compiler hashes are retained explicitly and differ from final CLI binaries.",
+    "attempted_units": 34,
+    "verified_object_units": [
+      "lopcodes.c",
+      "lgc.c",
+      "lstring.c",
+      "linit.c",
+      "lzio.c",
+      "ltests.c",
+      "lctype.c"
+    ],
+    "first_failure_groups": [
+      {
+        "count": 16,
+        "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)"
+      },
+      {
+        "count": 10,
+        "message": "variadic calling convention is unsupported"
+      },
+      {
+        "count": 1,
+        "message": "unsupported symbolic initializer (only symbol, pointer bitcast and constant GEP are supported)"
+      }
+    ],
+    "runtime_complete": false
+  },
+  "scope": "Regression and integration test methods for the retained artifacts. This does not establish universal compiler correctness, whole original Lua runtime support, or general HGraph-to-native lowering.",
+  "runtime_complete": false
+}

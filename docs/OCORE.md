@@ -208,9 +208,20 @@ this local Linux adapter.
   versions and producing plan nodes. Static inspection does not create these
   observations. A failure before execution may have no trace.
 
+`olangc native-chain.O --target binary -o native-chain` also includes this
+adapter in the generated evaluator. The engine and generated runtime share
+the exact native computation source through `ocore/native_core.rs`; generated
+runtime construction copies the facade, common types, verifier, ABI planner,
+emitter and their required modules verbatim. A prepared leaf in the resulting
+application binds that application's own executable digest. The coordinator
+remains hosted. The generated product's existing `O_LIFECYCLE_TRACE` records
+prepared manifests and successful native executions; its main does not expose
+the `O --json` observation interface.
+
 The implementation and its focused tests are in `native_leaf.rs`,
 `native_leaf_tests.rs`, `executor/native_leaf_graph_tests.rs` and
-`tests/test_ocore_native_hgraph_cli.py`. Test presence alone is not a passed
+`tests/test_ocore_native_hgraph_cli.py` and
+`tests/test_ocore_native_hgraph_aot.py`. Test presence alone is not a passed
 execution gate. This interface keeps the coordinator hosted and qualifies a
 scalar native leaf boundary; it does not implement a native HGraph scheduler,
 general graph-to-native lowering, arbitrary external runtimes, signed portable

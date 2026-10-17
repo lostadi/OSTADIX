@@ -94,7 +94,7 @@ acceptance still requires verified dependency lowering, linking, scripts,
 engine/OS interfaces, and native OSTADIX execution on all three ISAs.</p>
 <p>The pinned LLVM 22.1.6 development run on RISC-V retained all 34 units,
 33 archive members and 111 source/data files. Independent capture verification
-and the original-engine smoke passed. The whole-unit diagnostic produced five
+and the original-engine smoke passed. The initial whole-unit diagnostic produced five
 verified owned objects and 29 explicit rejections for floating-point types,
 variadic interfaces or the original computed-goto blockaddress table. The full
 runtime route separately rejected missing included dependency module-sets before
@@ -102,6 +102,23 @@ import. See the <a href="../../../evidence/llvm22_riscv64_20261017.json">exact S
 and <a href="../../../evidence/original_lua_20261017.json">original-source results</a>.
 The five unit successes include an empty configured translation unit and do not
 establish runnable engine support.</p>
+<p>The subsequent <a href="../../../evidence/original_lua_whole_unit_frontier_20261017.json">whole-unit audit</a>
+attempted all 34 original units again after binary128 storage and narrow direct
+<code>i32</code> return-ABI compatibility were implemented. Seven produced independently
+verified owned RISC-V objects: <code>lopcodes.c</code>, <code>lgc.c</code>, <code>lstring.c</code>, <code>linit.c</code>,
+<code>lzio.c</code>, <code>ltests.c</code> and <code>lctype.c</code>. <code>ltests.c</code> remains an empty configured unit.
+The other 27 first rejections comprise 16 LLVM double-precision types,
+10 variadic interfaces and the <code>luaV_execute.disptab</code> symbolic initializer in
+<code>lvm.c</code>. This records complete unit attempts without selecting function bodies;
+it does not establish that resolving each first diagnostic would complete that
+unit or the engine.</p>
+<p>The <a href="../../../evidence/original_lua_dependency_frontier_20261017.json">captured dependency frontier</a>
+retains the actual glibc, dynamic-loader, GCC startup and helper providers.
+Host binaries and linker scripts do not satisfy original-source lowering.
+Version-one module sets reject source pins that they cannot authenticate;
+declaring a repository URL and revision alone does not make provider identity
+verified. Dependency closure, full lowering, linking and native engine execution
+remain false in both records.</p>
 <h2>Inventory regression gate</h2>
 <p>Run the inventory regression gate with:</p>
 <pre><code class="language-bash">python3 -m unittest discover -s tools/ocore-runtime/lua -p &#39;test_*.py&#39; -v

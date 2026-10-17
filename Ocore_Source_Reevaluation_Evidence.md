@@ -155,6 +155,15 @@ effectful native resource handles and instruction-level debugging remain
 separate requirements. The [interface documentation](docs/OCORE.md) gives the
 descriptor format and a complete ordinary `.O` example.
 
+Generated `olangc --target binary` evaluators include the same native-leaf
+adapter and owned computation core. A shared
+[native-core facade](crates/ostadix-api/src/ocore/native_core.rs) supplies the
+same types, verifier, ABI planner and emitter to the engine and generated
+runtime; [the source inventory](crates/ostadix-api/src/api/aot_source.rs)
+copies those files verbatim. The generated main remains a hosted evaluator.
+Its prepared-leaf manifest binds that application's executable, rather than
+the compiler that generated it.
+
 ## Imported binary128 storage and narrow return compatibility
 
 The LLVM importer and independent native emitter now admit IEEE binary128 as
@@ -172,7 +181,7 @@ caller consumes the low 32 bits, while the callee retains its original return
 plan. Reverse guarantees, `zeroext` conflicts, parameter changes, aliases,
 Invoke and provider-signature equality remain strict. The importer rejects
 `musttail` before constructing this ordinary call. This is a deliberately narrow
-native rule: [LLVM 22's ABI documentation](https://releases.llvm.org/22.1.0/docs/LangRef.html#parameter-attributes)
+native rule: [LLVM 22.1.6's ABI documentation](https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-22.1.6/llvm/docs/LangRef.rst)
 generally requires ABI attribute agreement and does not license arbitrary
 signature mismatches.
 
@@ -251,14 +260,26 @@ reference smoke. The [SDK evidence](evidence/llvm22_riscv64_20261017.json)
 records Debian signed-index/package verification, the exact library hash,
 required C-API health, and a scalar imported module's owned-object execution.
 
-The [whole-unit Lua diagnostic](evidence/original_lua_20261017.json) attempted
-all 34 original units: 5 reached independently verified O-core IR and owned
-RISC-V objects; 29 rejected. First diagnostics identify floating-point types,
-variadic interfaces and an unsupported symbolic initializer. These are complete
-unit outcomes, not percentages of engine support. The separate full-runtime
-route rejects missing verified library/platform dependency module-sets before
-unit import. Neither the original Clang-built executable nor these partial
-imports establish complete O-core lowering or runtime dependency closure.
+The [initial whole-unit Lua diagnostic](evidence/original_lua_20261017.json)
+attempted all 34 original units: five produced verified O-core objects and
+29 rejected. After the binary128-storage and narrow return-ABI changes,
+[a complete repeat audit](evidence/original_lua_whole_unit_frontier_20261017.json)
+produced seven verified RISC-V objects: `lopcodes.c`, `lgc.c`, `lstring.c`,
+`linit.c`, `lzio.c`, `ltests.c` and `lctype.c`. The configured `ltests.c` unit
+contains no function definitions. All 34 units were attempted without function
+or body selection. The other 27 first rejections comprise 16 double-precision
+type rejections, 10 variadic-interface rejections and the `luaV_execute.disptab`
+symbolic initializer in `lvm.c`. These are whole-unit outcomes, not percentages
+of engine support; each rejection may conceal further unsupported features.
+
+The [dependency audit](evidence/original_lua_dependency_frontier_20261017.json)
+also identifies the actual captured glibc libraries, dynamic loader, GCC
+startup objects and compiler helpers. Their presence in a successful reference
+link does not supply original implementations lowered through O-core. The
+full-runtime route rejects missing verified library/platform module-sets before
+unit import. Version-one packages also reject non-null source pins they cannot
+independently authenticate. Neither a reference executable nor partial unit
+imports establish runtime dependency closure or a runnable O-core Lua engine.
 
 The acceptance requirements in [OCORE.md](docs/OCORE.md) distinguish source
 capture, complete lowering, dependency closure, linking and native execution.
@@ -291,9 +312,10 @@ obligation, not a consequence of backend ownership alone.
 
 ## Verified development gates for this work
 
-The following local gates passed with the explicit Rust 1.97.1 toolchain and
-the built `target/debug/ocorec` and `target/debug/olangc`, rather than assuming
-that an installed command reflected changed source:
+The earlier completed baseline gates below used the explicit Rust 1.97.1
+toolchain and built compiler binaries. Their linked receipts identify the
+tested artifacts; later source changes do not retroactively change those
+historical results:
 
 | Gate | Observed result |
 |---|---|
@@ -313,4 +335,46 @@ Cargo validation used `CARGO_PROFILE_DEV_OPT_LEVEL=0`,
 `CARGO_PROFILE_TEST_DEBUG=0` on this RISC-V Linux development host. The ordinary
 shell selected an older system Rust, so commands used the explicit rustup
 toolchain. These are bounded compiler and artifact checks; they do not establish
-complete runtime lowering or native HGraph execution.
+complete runtime lowering or general native graph orchestration.
+
+## Final native-leaf and storage gates
+
+The [final development evidence](evidence/native_bridge_and_storage_20261017.json)
+binds the rebuilt `O`, `olangc` and `ocorec`, monitored source hashes, commands,
+profiles and retained logs. The CLI and AOT gates used that final binary set;
+the Rust gates compiled the same frozen source. The
+[CLI index](evidence/native_bridge_cli_20261017.json) records 129 passing test
+methods and one explicit unavailable-Clang-21 skip across seven suites. The
+separate AOT suite adds three passing methods without skips.
+
+| Gate | Observed result |
+|---|---|
+| API `native_leaf` | 16 passed, including independent whole-module purity checks, sealed preparation, graph ordering and failure settlement. |
+| API `ocore::native_` | 223 passed, including binary128 storage and strict return-contract controls. |
+| API runtime, admission, graph, executor, dispatch and IR filters | Respectively 20, 47, 58, 32, 2 and 43 passed. Filter counts can overlap. |
+| `olangc native_runtime::` | 116 passed. |
+| Generated-runtime source inventory and project source inventory | Six and one passed; emitted native-core files match their embedded source bytes. |
+| Binary128 storage CLI | Eight passed without skips; actual text/bitcode, owned objects and byte-layout execution on all three ISAs, plus whole unchanged Lua storage units. |
+| Direct return-ABI CLI | Three passed without skips; owned/reference execution on all three ISAs and strict mismatch controls. |
+| Ordinary native-HGraph CLI | Eight passed without skips on this RISC-V Linux host; real Store versions, stack arguments, invalid inputs and native traps. |
+| Generated ordinary `.O` applications | Three passed without skips; actual native and plain applications, and a failing trap application with a blocked successor. |
+| LLVM import, runtime package, source recipe and native-map regressions | Respectively 71, 17, 11 and 11 passed; only the legacy Clang 21 frontend case skipped. Actual LLVM 22.1.6 cases ran. |
+| Formatting | All 30 changed Rust files passed the explicit Rust 1.97.1 formatter check. |
+
+The [AOT evidence](evidence/native_hgraph_aot_20261017.json) retains the real
+`olangc` product compile and two further unmodified emitted mains compiled
+against the same generated runtime. Fresh execution checks reused that exact
+content-verified build after correcting a test expectation for quoted text
+display. The separate observer's records are bound to its own executable;
+they are not attributed to a product main. Actual product lifecycle records
+bind each application's running image and prepared/executed native leaves.
+
+The [whole original storage-unit proof](evidence/original_lua_storage_units_20261017.json)
+binds unchanged `lgc.c` and `lstring.c`, their complete frontend inventories,
+independent native verification and actual owned objects to the final compiler
+set. The complete 34-unit diagnostic above remains bound to its recorded
+earlier compiler rather than being relabeled as a new run.
+
+This qualifies the bounded scalar leaf under the existing coordinator. General
+native orchestration, effectful native resource handles, machine-PC debugging
+and complete original-runtime dependency closure remain outside these results.

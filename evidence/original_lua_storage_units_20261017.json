@@ -1,0 +1,587 @@
+{
+  "schema": "ocore-original-lua-whole-storage-units-v1",
+  "source_pin": {
+    "clean_at_start": true,
+    "commit_timestamp": "1789579091",
+    "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua",
+    "revision": "0b29f408433e92953cc72b1d3e06c7ac8139e439",
+    "submodules": [],
+    "url": "https://github.com/lua/lua.git"
+  },
+  "capture_report": {
+    "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/capture/report.json",
+    "bytes": 5645820,
+    "sha256": "e10f882f301c021cda103f5d55a4016026f3360e1d5872ab90725674ae901125"
+  },
+  "fp128_suite": {
+    "path": "/home/orangepi/ostadix-BM/target/native-final-fp128.json",
+    "bytes": 1075,
+    "sha256": "5a527f4132e372b8ec17f29f5b70c0d2938b2521ab2553486f50de6932ade029"
+  },
+  "abi_interop_suite": {
+    "path": "/home/orangepi/ostadix-BM/target/native-final-abi.json",
+    "bytes": 914,
+    "sha256": "bee7bbd62c22d22149922a31dd9dff03603f65e6c7d21d3cdd4cdb1f6d92efea"
+  },
+  "compiler_sha256": "3443fddf84c360555e4bdbc502631a28ab2f0d99477abd0ea399f7ba1e1891f5",
+  "llvm_parser_sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+  "units": [
+    {
+      "source_name": "lgc.c",
+      "captured_unit_id": "2cbd3ed156ec486da9139de14c45b4a5:0",
+      "original_source": {
+        "bytes": 57948,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua/lgc.c",
+        "sha256": "137e646f2e240311a58312fa024d5426a7138132b4bb6af7e6ec2a037adc0f9f"
+      },
+      "original_frontend_llvm": {
+        "bytes": 209931,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/capture/units/2cbd3ed156ec486da9139de14c45b4a5/unit-0.ll",
+        "sha256": "ba7e33d0d22577402f8b48011a52b4b80ec6fbab674940ccd5b2771f219cef07",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "imported_native_module": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/whole.native-ir.json",
+        "bytes": 1598250,
+        "sha256": "290f94a024ce46fe5a36c1b92be423710c7a87a4d7d46df63f7607ba8d54392c"
+      },
+      "reserialized_independent_verifier_and_object_input": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/module.native-ir.json",
+        "bytes": 619596,
+        "sha256": "4c4d116ceb55ad0fe2a694a3fe80db75d69bdc13e71f363fab2a9a262d0212e8"
+      },
+      "independent_verification_receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/verification.json",
+        "bytes": 7530,
+        "sha256": "ddbe28d0994ea45ed5c79e95d1adad641d41458a42c688c25f02e6fd7f29fe80"
+      },
+      "verification_scope": "structural_ir_verification",
+      "owned_object": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/module.o",
+        "bytes": 123528,
+        "sha256": "169caaf40e925f862124d6870c12b9b3d73265fdd53340db63ce8a2b75bfb1a3"
+      },
+      "elf": {
+        "machine": 243,
+        "flags": 5
+      },
+      "target": {
+        "triple": "riscv64-unknown-linux-gnu",
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "pointer_bits": 64,
+        "little_endian": true,
+        "abi": "lp64d",
+        "tls_profile": null,
+        "atomic_profile": null
+      },
+      "function_record_count": 56,
+      "function_definition_count": 29,
+      "function_declaration_count": 27,
+      "global_record_count": 2,
+      "global_definition_count": 2,
+      "global_declaration_count": 0,
+      "complete_function_inventory": [
+        {
+          "name": "luaC_barrier_",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "llvm.lifetime.start.p0",
+          "definition": false,
+          "intrinsic": "llvm.lifetime.start.p0"
+        },
+        {
+          "name": "reallymarkobject",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "llvm.lifetime.end.p0",
+          "definition": false,
+          "intrinsic": "llvm.lifetime.end.p0"
+        },
+        {
+          "name": "luaC_barrierback_",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_fix",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_newobjdt",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaM_malloc_",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_newobj",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_checkfinalizer",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaT_gettm",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "sweeptolive",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_changemode",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "minor2inc",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "entergen",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_freeallobjects",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_runtilstate",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "singlestep",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_step",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaE_setdebt",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_fullgc",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "fullinc",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "objsize",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaH_size",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaF_protosize",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaE_threadsize",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_sizelngstr",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "freeobj",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaF_freeproto",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaM_free_",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaH_free",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaE_freethread",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_remove",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaF_unlinkupval",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaO_applyparam",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "atomic",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "atomic2gen",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "markmt",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "clearbyvalues",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_clearcache",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "propagatemark",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "traverseephemeron",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "strchr",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaD_shrinkstack",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "finishgencycle",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaD_checkminstack",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "correctgraylist",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_resize",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "GCTM",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaT_gettmbyobj",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaD_pcall",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "dothecall",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaE_warnerror",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaD_callnoyield",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "llvm.smax.i64",
+          "definition": false,
+          "intrinsic": "llvm.smax.i64"
+        },
+        {
+          "name": "llvm.memset.p0.i64",
+          "definition": false,
+          "intrinsic": "llvm.memset.p0.i64"
+        }
+      ]
+    },
+    {
+      "source_name": "lstring.c",
+      "captured_unit_id": "3043f19753c843829a5b0fa57cf3b899:0",
+      "original_source": {
+        "bytes": 9726,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/lua/lstring.c",
+        "sha256": "440700ccb68929ae30339b0837c5e8063e53760a6ce65dca281d9d8e8ffde559"
+      },
+      "original_frontend_llvm": {
+        "bytes": 61804,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/original-lua-source-recipe-20261017-ndpqjeew/compiled/capture/units/3043f19753c843829a5b0fa57cf3b899/unit-0.ll",
+        "sha256": "7f496eb517baef6b22828c8dba0f24250dd56f1ec8e1396cdfd4fa13daa4e9a7",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "imported_native_module": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/lstring.c/whole.native-ir.json",
+        "bytes": 362141,
+        "sha256": "9c8b4511eba20bdd184df012d5487c7f29a0c30633b751b2c403f0bcebf51619"
+      },
+      "reserialized_independent_verifier_and_object_input": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/lstring.c/module.native-ir.json",
+        "bytes": 158921,
+        "sha256": "b84f239088873b769fec53c7eafc6d9166ea4dab857bc3b4f5e49f41944978b0"
+      },
+      "independent_verification_receipt": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/lstring.c/verification.json",
+        "bytes": 4438,
+        "sha256": "312da20890940fdf129267acb66e9650d50b24493cab3b7f09313ef2e0e8575c"
+      },
+      "verification_scope": "structural_ir_verification",
+      "owned_object": {
+        "path": "/home/orangepi/ostadix-BM/target/native-final-fp128-fixtures/run-qy2ba3bt/case-lyje225c/lgc.c/lstring.c/module.o",
+        "bytes": 26064,
+        "sha256": "976dcd47998812626f920eb3264f76c9fad06651a013fdb881232988b14b819a"
+      },
+      "elf": {
+        "machine": 243,
+        "flags": 5
+      },
+      "target": {
+        "triple": "riscv64-unknown-linux-gnu",
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "pointer_bits": 64,
+        "little_endian": true,
+        "abi": "lp64d",
+        "tls_profile": null,
+        "atomic_profile": null
+      },
+      "function_record_count": 31,
+      "function_definition_count": 16,
+      "function_declaration_count": 15,
+      "global_record_count": 1,
+      "global_definition_count": 1,
+      "global_declaration_count": 0,
+      "complete_function_inventory": [
+        {
+          "name": "luaS_eqstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "llvm.lifetime.start.p0",
+          "definition": false,
+          "intrinsic": "llvm.lifetime.start.p0"
+        },
+        {
+          "name": "llvm.lifetime.end.p0",
+          "definition": false,
+          "intrinsic": "llvm.lifetime.end.p0"
+        },
+        {
+          "name": "luaS_hashlongstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_resize",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "tablerehash",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaM_realloc_",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_clearcache",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_init",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaM_malloc_",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_newlstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_fix",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_sizelngstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_createlngstrobj",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_remove",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "internshrstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaM_toobig",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "llvm.memcpy.p0.p0.i64",
+          "definition": false,
+          "intrinsic": "llvm.memcpy.p0.p0.i64"
+        },
+        {
+          "name": "luaS_new",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "strcmp",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "strlen",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_newudata",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_newobj",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_newextlstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "f_newext",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaD_rawrunprotected",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaD_throw",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "luaS_normstr",
+          "definition": true,
+          "intrinsic": null
+        },
+        {
+          "name": "luaC_fullgc",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "bcmp",
+          "definition": false,
+          "intrinsic": null
+        },
+        {
+          "name": "llvm.memset.p0.i64",
+          "definition": false,
+          "intrinsic": "llvm.memset.p0.i64"
+        }
+      ]
+    }
+  ],
+  "scope": "Complete unchanged lgc.c and lstring.c source translation units; every declaration/definition and global retained. Importer-output and reserialized verifier/object-input identities are separate byte records for equal module contents. No native Lua link or runtime execution is established.",
+  "dependency_closure_complete": false,
+  "native_execution_qualified": false,
+  "runtime_complete": false
+}

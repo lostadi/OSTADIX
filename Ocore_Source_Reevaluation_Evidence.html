@@ -154,6 +154,14 @@ under the existing Rust coordinator. General native graph orchestration,
 effectful native resource handles and instruction-level debugging remain
 separate requirements. The <a href="docs/OCORE.md">interface documentation</a> gives the
 descriptor format and a complete ordinary <code>.O</code> example.</p>
+<p>Generated <code>olangc --target binary</code> evaluators include the same native-leaf
+adapter and owned computation core. A shared
+<a href="crates/ostadix-api/src/ocore/native_core.rs">native-core facade</a> supplies the
+same types, verifier, ABI planner and emitter to the engine and generated
+runtime; <a href="crates/ostadix-api/src/api/aot_source.rs">the source inventory</a>
+copies those files verbatim. The generated main remains a hosted evaluator.
+Its prepared-leaf manifest binds that application&#39;s executable, rather than
+the compiler that generated it.</p>
 <h2>Imported binary128 storage and narrow return compatibility</h2>
 <p>The LLVM importer and independent native emitter now admit IEEE binary128 as
 storage with exact 16-byte allocation and alignment. This permits original
@@ -169,7 +177,7 @@ caller consumes the low 32 bits, while the callee retains its original return
 plan. Reverse guarantees, <code>zeroext</code> conflicts, parameter changes, aliases,
 Invoke and provider-signature equality remain strict. The importer rejects
 <code>musttail</code> before constructing this ordinary call. This is a deliberately narrow
-native rule: <a href="https://releases.llvm.org/22.1.0/docs/LangRef.html#parameter-attributes">LLVM 22&#39;s ABI documentation</a>
+native rule: <a href="https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-22.1.6/llvm/docs/LangRef.rst">LLVM 22.1.6&#39;s ABI documentation</a>
 generally requires ABI attribute agreement and does not license arbitrary
 signature mismatches.</p>
 <h2>Native assembly provenance added in this work</h2>
@@ -236,14 +244,25 @@ and 111 source/data files, independent capture verification, and original-engine
 reference smoke. The <a href="evidence/llvm22_riscv64_20261017.json">SDK evidence</a>
 records Debian signed-index/package verification, the exact library hash,
 required C-API health, and a scalar imported module&#39;s owned-object execution.</p>
-<p>The <a href="evidence/original_lua_20261017.json">whole-unit Lua diagnostic</a> attempted
-all 34 original units: 5 reached independently verified O-core IR and owned
-RISC-V objects; 29 rejected. First diagnostics identify floating-point types,
-variadic interfaces and an unsupported symbolic initializer. These are complete
-unit outcomes, not percentages of engine support. The separate full-runtime
-route rejects missing verified library/platform dependency module-sets before
-unit import. Neither the original Clang-built executable nor these partial
-imports establish complete O-core lowering or runtime dependency closure.</p>
+<p>The <a href="evidence/original_lua_20261017.json">initial whole-unit Lua diagnostic</a>
+attempted all 34 original units: five produced verified O-core objects and
+29 rejected. After the binary128-storage and narrow return-ABI changes,
+<a href="evidence/original_lua_whole_unit_frontier_20261017.json">a complete repeat audit</a>
+produced seven verified RISC-V objects: <code>lopcodes.c</code>, <code>lgc.c</code>, <code>lstring.c</code>,
+<code>linit.c</code>, <code>lzio.c</code>, <code>ltests.c</code> and <code>lctype.c</code>. The configured <code>ltests.c</code> unit
+contains no function definitions. All 34 units were attempted without function
+or body selection. The other 27 first rejections comprise 16 double-precision
+type rejections, 10 variadic-interface rejections and the <code>luaV_execute.disptab</code>
+symbolic initializer in <code>lvm.c</code>. These are whole-unit outcomes, not percentages
+of engine support; each rejection may conceal further unsupported features.</p>
+<p>The <a href="evidence/original_lua_dependency_frontier_20261017.json">dependency audit</a>
+also identifies the actual captured glibc libraries, dynamic loader, GCC
+startup objects and compiler helpers. Their presence in a successful reference
+link does not supply original implementations lowered through O-core. The
+full-runtime route rejects missing verified library/platform module-sets before
+unit import. Version-one packages also reject non-null source pins they cannot
+independently authenticate. Neither a reference executable nor partial unit
+imports establish runtime dependency closure or a runnable O-core Lua engine.</p>
 <p>The acceptance requirements in <a href="docs/OCORE.md">OCORE.md</a> distinguish source
 capture, complete lowering, dependency closure, linking and native execution.
 An original runtime or compiler must pass through the owned emitters with every
@@ -270,9 +289,10 @@ already implements substantial graph and provenance checks. Complete
 preservation through native execution remains an independently testable
 obligation, not a consequence of backend ownership alone.</p>
 <h2>Verified development gates for this work</h2>
-<p>The following local gates passed with the explicit Rust 1.97.1 toolchain and
-the built <code>target/debug/ocorec</code> and <code>target/debug/olangc</code>, rather than assuming
-that an installed command reflected changed source:</p>
+<p>The earlier completed baseline gates below used the explicit Rust 1.97.1
+toolchain and built compiler binaries. Their linked receipts identify the
+tested artifacts; later source changes do not retroactively change those
+historical results:</p>
 <table>
 <thead>
 <tr>
@@ -326,4 +346,79 @@ that an installed command reflected changed source:</p>
 <code>CARGO_PROFILE_TEST_DEBUG=0</code> on this RISC-V Linux development host. The ordinary
 shell selected an older system Rust, so commands used the explicit rustup
 toolchain. These are bounded compiler and artifact checks; they do not establish
-complete runtime lowering or native HGraph execution.</p>
+complete runtime lowering or general native graph orchestration.</p>
+<h2>Final native-leaf and storage gates</h2>
+<p>The <a href="evidence/native_bridge_and_storage_20261017.json">final development evidence</a>
+binds the rebuilt <code>O</code>, <code>olangc</code> and <code>ocorec</code>, monitored source hashes, commands,
+profiles and retained logs. The CLI and AOT gates used that final binary set;
+the Rust gates compiled the same frozen source. The
+<a href="evidence/native_bridge_cli_20261017.json">CLI index</a> records 129 passing test
+methods and one explicit unavailable-Clang-21 skip across seven suites. The
+separate AOT suite adds three passing methods without skips.</p>
+<table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>Observed result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>API <code>native_leaf</code></td>
+<td>16 passed, including independent whole-module purity checks, sealed preparation, graph ordering and failure settlement.</td>
+</tr>
+<tr>
+<td>API <code>ocore::native_</code></td>
+<td>223 passed, including binary128 storage and strict return-contract controls.</td>
+</tr>
+<tr>
+<td>API runtime, admission, graph, executor, dispatch and IR filters</td>
+<td>Respectively 20, 47, 58, 32, 2 and 43 passed. Filter counts can overlap.</td>
+</tr>
+<tr>
+<td><code>olangc native_runtime::</code></td>
+<td>116 passed.</td>
+</tr>
+<tr>
+<td>Generated-runtime source inventory and project source inventory</td>
+<td>Six and one passed; emitted native-core files match their embedded source bytes.</td>
+</tr>
+<tr>
+<td>Binary128 storage CLI</td>
+<td>Eight passed without skips; actual text/bitcode, owned objects and byte-layout execution on all three ISAs, plus whole unchanged Lua storage units.</td>
+</tr>
+<tr>
+<td>Direct return-ABI CLI</td>
+<td>Three passed without skips; owned/reference execution on all three ISAs and strict mismatch controls.</td>
+</tr>
+<tr>
+<td>Ordinary native-HGraph CLI</td>
+<td>Eight passed without skips on this RISC-V Linux host; real Store versions, stack arguments, invalid inputs and native traps.</td>
+</tr>
+<tr>
+<td>Generated ordinary <code>.O</code> applications</td>
+<td>Three passed without skips; actual native and plain applications, and a failing trap application with a blocked successor.</td>
+</tr>
+<tr>
+<td>LLVM import, runtime package, source recipe and native-map regressions</td>
+<td>Respectively 71, 17, 11 and 11 passed; only the legacy Clang 21 frontend case skipped. Actual LLVM 22.1.6 cases ran.</td>
+</tr>
+<tr>
+<td>Formatting</td>
+<td>All 30 changed Rust files passed the explicit Rust 1.97.1 formatter check.</td>
+</tr>
+</tbody></table>
+<p>The <a href="evidence/native_hgraph_aot_20261017.json">AOT evidence</a> retains the real
+<code>olangc</code> product compile and two further unmodified emitted mains compiled
+against the same generated runtime. Fresh execution checks reused that exact
+content-verified build after correcting a test expectation for quoted text
+display. The separate observer&#39;s records are bound to its own executable;
+they are not attributed to a product main. Actual product lifecycle records
+bind each application&#39;s running image and prepared/executed native leaves.</p>
+<p>The <a href="evidence/original_lua_storage_units_20261017.json">whole original storage-unit proof</a>
+binds unchanged <code>lgc.c</code> and <code>lstring.c</code>, their complete frontend inventories,
+independent native verification and actual owned objects to the final compiler
+set. The complete 34-unit diagnostic above remains bound to its recorded
+earlier compiler rather than being relabeled as a new run.</p>
+<p>This qualifies the bounded scalar leaf under the existing coordinator. General
+native orchestration, effectful native resource handles, machine-PC debugging
+and complete original-runtime dependency closure remain outside these results.</p>
