@@ -6391,7 +6391,9 @@ existing Zenodo preprint/package record:
     Composition for Whole-Program Polyglot Execution. Draft v0.2. Zenodo.
     https://doi.org/10.5281/zenodo.21544345
 
-DOI [`10.5281/zenodo.21544345`](https://doi.org/10.5281/zenodo.21544345) identifies that existing preprint/package
+[Open the preprint/package DOI](https://doi.org/10.5281/zenodo.21544345).
+
+DOI `10.5281/zenodo.21544345` identifies that existing preprint/package
 record; it is not an archive of a tagged Ostadix-lang source release. When
 citing the current source before a separate tagged source-release DOI exists,
 identify the repository version and exact revision:
