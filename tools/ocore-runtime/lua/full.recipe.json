@@ -1,0 +1,198 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-lua-complete-hosted-linux",
+  "source": {
+    "url": "https://github.com/lua/lua.git",
+    "revision": "0b29f408433e92953cc72b1d3e06c7ac8139e439",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "original-hosted-linux-defaults",
+  "intended_execution_profile": "ostadix-kernel",
+  "intended_targets": [
+    "x86_64-unknown-none",
+    "aarch64-unknown-none",
+    "riscv64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_inventory.py",
+    "sha256": "2664932f879026e2489b18ee5d143bcac15b9804445e29e7e530e1be084b6f0b"
+  },
+  "commands": [
+    {
+      "name": "plan-original-lua",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "plan",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--expected-helper-sha256",
+        "2664932f879026e2489b18ee5d143bcac15b9804445e29e7e530e1be084b6f0b",
+        "--output",
+        "{build}/native-build-plan.json"
+      ]
+    },
+    {
+      "name": "build-original-lua",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "build",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--expected-helper-sha256",
+        "2664932f879026e2489b18ee5d143bcac15b9804445e29e7e530e1be084b6f0b",
+        "--jobs",
+        "{jobs}"
+      ]
+    },
+    {
+      "name": "inventory-whole-original-lua",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--expected-helper-sha256",
+        "2664932f879026e2489b18ee5d143bcac15b9804445e29e7e530e1be084b6f0b",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "lua",
+      "liblua.a",
+      "native-build-plan.json",
+      "unit-inventory.json"
+    ],
+    "required_units": [
+      {
+        "id": "engine",
+        "kind": "clang",
+        "source": "lvm.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "parser",
+        "kind": "clang",
+        "source": "lparser.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "compiler",
+        "kind": "clang",
+        "source": "lcode.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "memory",
+        "kind": "clang",
+        "source": "lmem.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "collector",
+        "kind": "clang",
+        "source": "lgc.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "io",
+        "kind": "clang",
+        "source": "liolib.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "os",
+        "kind": "clang",
+        "source": "loslib.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "math",
+        "kind": "clang",
+        "source": "lmathlib.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "modules",
+        "kind": "clang",
+        "source": "loadlib.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "coroutines",
+        "kind": "clang",
+        "source": "lcorolib.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      },
+      {
+        "id": "entrypoint",
+        "kind": "clang",
+        "source": "lua.c",
+        "role": "runtime",
+        "build_step": "build-original-lua"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "libc-and-libm",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "libdl-and-dynamic-loader",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "compiler-helpers",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "Linux-platform-services",
+      "source_pin": null,
+      "status": "required-unresolved"
+    }
+  ],
+  "blockers": [
+    "Original Linux Make defaults are retained, including floating point, varargs, setjmp/longjmp, standard libraries and dynamic module loading; no source bodies are dropped.",
+    "A matching Clang/LLVM 22.1.6 frontend and pinned importer library must be supplied; census IR or native reference objects cannot substitute for whole-unit O-core lowering.",
+    "Complete source-built dependency closure, original OS semantics, linking, engine adapters, scripts and all three native OSTADIX execution gates remain required.",
+    "A complete source-capture inventory does not establish O-core lowering, dependency closure or native runtime qualification."
+  ]
+}

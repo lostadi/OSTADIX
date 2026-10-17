@@ -293,8 +293,8 @@ struct Cli {
     /// A .O source/lifted bundle or project directory to compile, run, or plan
     input: PathBuf,
 
-    /// Lower every LLVM unit in a source-build capture through verified O-core.
-    /// Input is a capture report; output is a new directory with IR, objects,
+    /// Lower a source-build capture or self-contained native module-set through
+    /// verified O-core. Output is a new directory with IR, optional objects,
     /// and coverage evidence. This does not yet qualify a complete runtime.
     #[arg(long, conflicts_with_all = ["target", "materialize_only", "browser_bundle", "runtime_bundle"])]
     native_runtime: bool,
@@ -306,6 +306,11 @@ struct Cli {
     /// Native runtime artifact kind: ir or obj (default: ir).
     #[arg(long, requires = "native_runtime", value_parser = ["ir", "obj"])]
     native_runtime_output: Option<String>,
+
+    /// Include a self-contained verified native module-set for a declared
+    /// source dependency. Repeat for each direct dependency.
+    #[arg(long, requires = "native_runtime")]
+    native_runtime_dependency: Vec<PathBuf>,
 
     /// Digest-pinned LLVM parser worker library for native runtime import.
     #[arg(long, requires = "native_runtime")]
@@ -498,6 +503,7 @@ fn run_cli() -> Result<()> {
                 llvm_sha256: cli.llvm_sha256.as_deref(),
                 tls_profile: cli.tls_profile.as_deref(),
                 atomic_profile: cli.atomic_profile.as_deref(),
+                dependencies: &cli.native_runtime_dependency,
             },
         );
     }

@@ -1,0 +1,166 @@
+<h1>O-core source reevaluation evidence</h1>
+<p>O-core owns the intermediate representations and native assembly generators
+used by its <code>.oc</code> compiler. It is not a syntax frontend that delegates that
+route&#39;s native code generation to LLVM. LLVM also has an implemented, separate
+role in foreign-code import. Backend ownership, graph-level dependency checks,
+and preservation of those relationships in native execution are separate claims.</p>
+<p>Here, <strong>verified in source</strong> means confirmed in the inspected implementation.
+It is not a proof that every accepted program compiles correctly. Execution
+evidence must identify the tested inputs, compiler, target and execution profile.</p>
+<table>
+<thead>
+<tr>
+<th>Claim</th>
+<th>Source finding</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Native <code>.oc</code> compilation lowers through LLVM IR.</td>
+<td>Contradicted: parsing, O-core type checking, HIR, SSA MIR and owned ISA assembly generation are directly connected in the driver.</td>
+</tr>
+<tr>
+<td>Initial source type checking happens in MIR.</td>
+<td>Contradicted: <code>typeck::check</code> produces HIR before <code>mir::lower</code> runs.</td>
+</tr>
+<tr>
+<td>Clang performs this route&#39;s native instruction selection.</td>
+<td>Contradicted: the driver supplies already generated assembly with <code>-c -x assembler</code>.</td>
+</tr>
+<tr>
+<td>LLVM is only used by a historical feature census.</td>
+<td>Contradicted: the CLI implements whole-module LLVM import followed by O-core native-module verification and native emission.</td>
+</tr>
+<tr>
+<td>Resource-state dependencies and execution provenance are only proposals.</td>
+<td>Contradicted: the HGraph projection, readiness scheduler, evidence admission and provenance admission implement concrete representations and checks.</td>
+</tr>
+<tr>
+<td>Owning a backend establishes complete graph-to-native preservation.</td>
+<td>Not established: an explicit general native orchestrator and complete runtime integration remain required.</td>
+</tr>
+<tr>
+<td>An assembly correspondence map establishes instruction-level execution debugging.</td>
+<td>Not established: the implemented map describes generated assembly text, without machine PCs, execution events or HGraph operation bindings.</td>
+</tr>
+</tbody></table>
+<h2>Native O-core source</h2>
+<pre><code class="language-text">.oc source -&gt; parsed AST -&gt; typeck::check -&gt; typed HIR -&gt; mir::lower
+           -&gt; typed SSA MIR -&gt; O-core target assembly -&gt; assembler -&gt; ELF object
+</code></pre>
+<p><a href="crates/ostadix-api/src/ocore/driver.rs"><code>ocore::driver::compile_with_function_sections</code></a>
+calls the parser, checker and lowering passes in that order. Its target match
+selects the x86-64, AArch64 or RISC-V generator. <code>emit_object</code> subsequently
+invokes Clang as an assembler. These are distinct compiler and assembler stages.</p>
+<p><a href="crates/ostadix-api/src/ocore/mir.rs"><code>ocore::mir</code></a> represents each temporary as
+an SSA <code>ValueId</code> with one defining instruction. Mutable locals and statics are
+explicit <code>Place</code>s; a load produces a new SSA value. This preserves the distinction
+between a value definition and the mutable storage from which it was obtained.</p>
+<p>The <a href="crates/ostadix-api/src/ocore/codegen.rs">x86-64</a>,
+<a href="crates/ostadix-api/src/ocore/codegen_aarch64.rs">AArch64</a> and
+<a href="crates/ostadix-api/src/ocore/codegen_riscv64.rs">RV64</a> generators construct
+assembly from HIR/MIR. For example, x86-64 emits statics and processes MIR
+functions through its own <code>FunctionCodegen</code>; it does not call an LLVM object
+emitter.</p>
+<h2>Imported implementations</h2>
+<pre><code class="language-text">whole foreign LLVM module -&gt; pinned LLVM parsing and verification
+                         -&gt; O-core NativeModule -&gt; independent verification
+                         -&gt; O-core ISA assembly -&gt; assembler -&gt; ELF object
+</code></pre>
+<p><a href="src/bin/ocorec.rs"><code>ocorec</code></a> accepts <code>--input-kind llvm-ir</code>, invokes its
+embedded import worker and passes the resulting native module to the native
+driver. <a href="scripts/ocore_llvm_import.py"><code>ocore_llvm_import.py</code></a> uses the
+digest-pinned LLVM C API and the accompanying
+<a href="scripts/ocore_llvm_bitcode.py">bitcode audit</a>. This is an implemented import
+route, rather than a census or an implicit property of <code>.oc</code> syntax.</p>
+<p><a href="crates/ostadix-api/src/ocore/native_ir.rs"><code>NativeModule</code></a> retains imported
+types, target layout, ABI, symbols, control flow, instructions and provenance.
+<a href="crates/ostadix-api/src/ocore/native_verify.rs"><code>native_verify</code></a> verifies that
+representation independently. <a href="crates/ostadix-api/src/ocore/native_codegen.rs"><code>native_codegen</code></a>
+audits the complete module&#39;s supported native realization before emitting its
+own target assembly. Imported semantics remain distinct from <code>.oc</code> semantics.
+Unsupported features fail explicitly; partial lowering does not qualify a
+complete implementation.</p>
+<p>The parser pin is also a real environment requirement. The current importer
+requires LLVM 22.1.6 and the admitted library digest. Having Clang 19 or a Rust
+compiler installed does not establish that the foreign import route works on
+that host. An explicitly supplied library still has to pass its digest, version
+and C API checks. The checks must not be weakened to manufacture a successful
+runtime result.</p>
+<h2>Implemented graph and provenance relationships</h2>
+<p><a href="crates/ostadix-api/src/hgraph/from_oir.rs"><code>hgraph::from_oir</code></a> projects the
+validated execution plan into executable hyperedges with separate value,
+completion, control, actor and resource-state inputs and outputs. Resource
+tracking includes state versions and reader drains. The
+<a href="crates/ostadix-api/src/hgraph/schedule.rs"><code>readiness scheduler</code></a> uses these
+relationships as execution blockers; they are operational constraints.</p>
+<p><a href="crates/ostadix-api/src/evidence/admit.rs"><code>evidence::admit</code></a> checks exact
+program, plan, solved graph and runtime bindings before constructing the
+private admitted-execution type accepted by the coordinator. Current V6
+admission materializes type, effect, dispatch, capability, placement, failure
+and resource-demand evidence. Descriptive inspection snapshots and historical
+receipts do not authorize a fresh execution.</p>
+<p><a href="crates/ostadix-api/src/information_provenance/mod.rs"><code>information_provenance</code></a>
+also implements admission against the exact execution admission, signed receipt
+and terminal output. Its guarantees are those checked bindings; they do not
+automatically extend to arbitrary native instructions or all external effects.</p>
+<p>The project-specific <a href="crates/ostadix-api/src/project">planning and execution path</a>
+has its own source-plan reconstruction and terminal runtime-graph evidence.
+The <a href="docs/HGRAPH_EXECUTOR_PLAN.md">executor specification</a> describes the limits
+between these execution and admission paths.</p>
+<h2>Native assembly provenance added in this work</h2>
+<p><a href="crates/ostadix-api/src/ocore/native_map.rs"><code>native_map</code></a> records the exact
+half-open UTF-8 assembly byte ranges for imported native instructions,
+terminators, block labels, prologues, epilogues and exception-landing stubs.
+Zero-width compiler markers and PHIs remain represented. Predecessor terminators
+own their lowered PHI copies; exception-landing sites own unwind-edge copies.</p>
+<p>The map binds the target, normalized typed module and generated assembly.
+The driver additionally binds the exact module-file bytes and final artifact.
+Verification re-verifies the module and regenerates every assembly site, then
+checks the supplied artifact&#39;s digest. A matching object digest identifies the
+declared bytes in an unsigned sidecar; it does not independently prove
+assembly-to-object correspondence, assembler correctness or execution semantics.
+An object replacement accompanied by a changed declared digest is outside that
+descriptive identity check. Assembly replacement, even with changed hashes,
+rejects when it differs from regenerated O-core emission.</p>
+<p>This is a descriptive compiler correspondence for imported native IR. It does
+not supply <code>.oc</code> source spans, machine-address ranges, a debugger, native
+HGraph dispatch, runtime observations or admission authority. Existing plain
+emission shares the same emitter and remains byte-identical.</p>
+<h2>What is still required for the broader completion claim</h2>
+<p>The compiler now also writes and consumes self-contained
+<code>ocore-native-module-set-v1</code> packages. The
+<a href="src/bin/olangc/native_runtime/artifact.rs">package verifier</a> re-verifies every
+embedded module, target/profile binding, component/unit inventory, dependency
+edge and symbol/ABI/COMDAT closure. Direct package input can produce IR or owned
+objects without reopening original source, LLVM or capture files. This closes
+a concrete artifact and dependency-composition gap; it does not supply scripts,
+platform/resource closure, executable linking or native HGraph dispatch.</p>
+<p>The <a href="tools/ocore-runtime/lua/README.md">original Lua recipe</a> captures the whole
+pinned upstream Make configuration. A genuine diagnostic capture with Clang
+19.1.7 retained 34 LLVM units, 33 archive members and 111 source/data files;
+independent capture verification and original-language reference smoke passed.
+That diagnostic capture is explicitly distinct from the committed recipe&#39;s
+LLVM 22.1.6 requirement and from O-core lowering of the complete engine.</p>
+<p>The acceptance requirements in <a href="docs/OCORE.md">OCORE.md</a> distinguish source
+capture, complete lowering, dependency closure, linking and native execution.
+An original runtime or compiler must pass through the owned emitters with every
+required function, global, initializer, relocation, ABI feature, helper, library
+and module accounted for. Its build must bind the exact source, configuration,
+frontend, IR and artifacts. Scripts and declared resource closure must be
+included, with native references resolving to verified content.</p>
+<p>An explicit OIR/ExecutionPlan-to-O-core runtime interface must then preserve the
+admitted value, control and resource relationships at native dispatch and result
+publication. Carrying a graph, bundling an unchanged runtime executable or
+calling a hosted evaluator does not establish that lowering.</p>
+<p>Reference tests and real <code>.O</code> execution must compare required values, faults
+and effects on x86-64, AArch64 and RV64GC under explicit execution profiles,
+after removing dependence on the original runtime executable. Linux hosts and
+QEMU user-mode runs provide development evidence; native OSTADIX service
+acceptance and physical-device claims require their own gates. Compiling a
+compiler implementation and routing its generated programs through O-core are
+separate requirements. JIT code publication also needs a verified path.</p>
+<p>The stronger architectural claim is therefore precise: ownership of the native
+backend makes additional relationships representable and checkable. The source
+already implements substantial graph and provenance checks. Complete
+preservation through native execution remains an independently testable
+obligation, not a consequence of backend ownership alone.</p>

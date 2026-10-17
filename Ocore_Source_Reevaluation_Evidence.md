@@ -113,7 +113,11 @@ The map binds the target, normalized typed module and generated assembly.
 The driver additionally binds the exact module-file bytes and final artifact.
 Verification re-verifies the module and regenerates every assembly site, then
 checks the supplied artifact's digest. A matching object digest identifies the
-bytes; it does not prove assembler correctness or execution semantics.
+declared bytes in an unsigned sidecar; it does not independently prove
+assembly-to-object correspondence, assembler correctness or execution semantics.
+An object replacement accompanied by a changed declared digest is outside that
+descriptive identity check. Assembly replacement, even with changed hashes,
+rejects when it differs from regenerated O-core emission.
 
 This is a descriptive compiler correspondence for imported native IR. It does
 not supply `.oc` source spans, machine-address ranges, a debugger, native
@@ -121,6 +125,22 @@ HGraph dispatch, runtime observations or admission authority. Existing plain
 emission shares the same emitter and remains byte-identical.
 
 ## What is still required for the broader completion claim
+
+The compiler now also writes and consumes self-contained
+`ocore-native-module-set-v1` packages. The
+[package verifier](src/bin/olangc/native_runtime/artifact.rs) re-verifies every
+embedded module, target/profile binding, component/unit inventory, dependency
+edge and symbol/ABI/COMDAT closure. Direct package input can produce IR or owned
+objects without reopening original source, LLVM or capture files. This closes
+a concrete artifact and dependency-composition gap; it does not supply scripts,
+platform/resource closure, executable linking or native HGraph dispatch.
+
+The [original Lua recipe](tools/ocore-runtime/lua/README.md) captures the whole
+pinned upstream Make configuration. A genuine diagnostic capture with Clang
+19.1.7 retained 34 LLVM units, 33 archive members and 111 source/data files;
+independent capture verification and original-language reference smoke passed.
+That diagnostic capture is explicitly distinct from the committed recipe's
+LLVM 22.1.6 requirement and from O-core lowering of the complete engine.
 
 The acceptance requirements in [OCORE.md](docs/OCORE.md) distinguish source
 capture, complete lowering, dependency closure, linking and native execution.

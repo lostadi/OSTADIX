@@ -63,6 +63,54 @@ before a complete source inventory can be admitted.
 
 ## Report contract
 
+### Reusable verified native dependencies
+
+Successful `olangc --native-runtime` lowering writes `runtime.native-ir.json`,
+a self-contained `ocore-native-module-set-v1` package. It embeds exact verified
+native-module JSON, hashes, original unit and component/capture identities,
+target and execution profiles, and the recomputed symbol inventory. Loading a
+package never opens its original source, LLVM, capture or native-module paths.
+This is a native IR artifact; it does not attach `.O` scripts or implement an
+OIR native orchestrator.
+
+Supply one package per declared dependency using repeated options:
+
+```sh
+olangc capture/report.json --native-runtime --native-runtime-output ir \
+  --native-runtime-dependency /artifacts/libc/runtime.native-ir.json \
+  --native-isa riscv64-unknown-none -o /artifacts/engine
+olangc /artifacts/engine/runtime.native-ir.json --native-runtime \
+  --native-isa riscv64-unknown-none --native-runtime-output obj -o /artifacts/objects
+```
+
+The compiler requires exact declared dependency names, checks all embedded
+module hashes and structural validity, reconstructs the component/unit
+inventory and dependency graph, requires matching target/TLS/atomic profiles,
+and recomputes symbol, ABI and COMDAT closure. Missing or unused packages,
+conflicting component definitions and forged closure summaries reject. Shared
+identical transitive components are included once, preserving explicit module
+order for weak/COMDAT selection. Native symbol recursion and cyclic component
+dependency edges remain supported when the included closure is complete.
+Object output materializes and lowers all modules through the owned emitters.
+
+Direct package input needs no original capture or LLVM installation. It
+rejects implicit retargeting and importer/profile/dependency overrides, because
+the package already binds that closure and execution profile. Object emission
+still needs `ocorec` and its assembler; it does not link an executable.
+
+The receipt separates `native_module_dependency_closure_complete` and
+`module_set_artifact` from whole-runtime `dependency_closure_complete`,
+`artifact_complete` and native runtime acceptance. Complete module closure does
+not supply platform services, resources, linking, reference execution, a native
+HGraph dispatcher or JIT publication. Capture digests are retained provenance
+coordinates; an unsigned package is not independent source attestation.
+
+The [Lua source recipe](lua/README.md) supplies a full Make-derived inventory
+for the pinned original engine and frontend. It is an additional capture route,
+not an assertion that currently unsupported Lua imports have been lowered.
+
+### Capture report fields
+
 `report.json` uses `ocore-runtime-capture-v1`. Important fields are:
 
 | Field | Evidence |

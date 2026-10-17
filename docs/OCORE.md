@@ -80,8 +80,10 @@ and failed compilation removes the requested stale map before import/emission.
 Ranges are half-open UTF-8 byte offsets in assembly text, including directives
 and labels. They are not machine PCs, object offsets, source lines, HGraph
 identities, debug information, runtime observations or execution authority.
-The outer object digest identifies bytes and does not prove assembler
-correctness. `.oc` source mapping and general native/HGraph execution remain
+The outer object digest checks declared byte identity in an unsigned sidecar;
+it does not independently prove assembly-to-object correspondence or assembler
+correctness. Replacing an object and changing its declared digest is outside
+this descriptive check. `.oc` source mapping and general native/HGraph execution remain
 separate work. For LLVM input, retain the exact imported native-module JSON
 with `--emit mir` for later map verification; LLVM-input provenance remains
 in the inner map and verification uses `--input-kind native-ir`.

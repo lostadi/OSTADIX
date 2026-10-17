@@ -158,6 +158,38 @@ else:
         module = json.loads(modules[0].read_text())
         self.assertEqual({function["name"] for function in module["functions"]},
                          {"main","engine_add","cold_path"})
+        self.assertTrue(receipt["native_module_dependency_closure_complete"])
+        artifact_path = Path(receipt["module_set_artifact"]["path"])
+        artifact = json.loads(artifact_path.read_text())
+        self.assertEqual(artifact["format"],"ocore-native-module-set-v1")
+        self.assertEqual(len(artifact["modules"]),1)
+        self.assertEqual(json.loads(artifact["modules"][0]["native_ir"]),module)
+        self.assertTrue(artifact["symbol_inventory"]["closed"])
+
+    def test_module_set_survives_removal_of_imported_and_original_llvm_inputs(self):
+        receipt,output = self.lower(expect_success=True)
+        artifact = json.loads(Path(receipt["module_set_artifact"]["path"]).read_text())
+        shutil.rmtree(output)
+        hidden = []
+        try:
+            for unit in self.report["units"]:
+                original = Path(unit["ir"]["path"])
+                moved = original.with_name(original.name+".package-test-hidden")
+                original.rename(moved)
+                hidden.append((original,moved))
+            for index,embedded in enumerate(artifact["modules"]):
+                path = self.case/f"moved-{index}.native-ir.json"
+                path.write_text(embedded["native_ir"])
+                verification = self.case/f"moved-{index}.verification.json"
+                run([self.ocorec,path,"--input-kind","native-ir","--verify-native","--receipt",verification])
+                self.assertTrue(json.loads(verification.read_text())["verified"])
+                obj = self.case/f"moved-{index}.o"
+                run([self.ocorec,path,"--input-kind","native-ir","--emit","obj",
+                     "--target","x86_64-unknown-none","-o",obj])
+                self.assertTrue(obj.is_file())
+        finally:
+            for original,moved in hidden:
+                moved.rename(original)
 
     def test_actual_own_object_has_complete_definitions_and_executes_imported_main(self):
         receipt,output = self.lower(kind="obj",expect_success=True)

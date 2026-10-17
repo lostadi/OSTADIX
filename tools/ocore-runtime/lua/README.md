@@ -1,0 +1,69 @@
+# Original Lua implementation capture
+
+`full.recipe.json` captures the unchanged original Lua implementation at Git
+commit `0b29f408433e92953cc72b1d3e06c7ac8139e439`. The upstream Linux Make
+defaults retain the interpreter, compiler, allocator, garbage collector,
+coroutines, every configured standard library, floating point, varargs,
+setjmp/longjmp and dynamic module loading. No original C body is filtered,
+rewritten or replaced by a native executable supplied from another compiler.
+
+The build runs the original `makefile` with GNU Make `VPATH` in a separate empty
+directory. Only the compiler and archive tool paths select capture wrappers.
+The helper records all 111 tracked original source/data files, expands
+`CORE_O`, `AUX_O`, `LIB_O`, `LUA_O` and `ALL_O`, and captures every dry-run C
+producer. This pinned source has 34 whole C translation units, 33 archive
+members and the `lua` executable. `ltests.c` remains in the original configured
+graph even when its default preprocessor context makes its object empty.
+The final inventory verifies actual frontend arguments, source/object hashes,
+every required source occurrence, and the archive's complete ordered members
+against the original plan. A native build cache cannot replace this evidence.
+
+Use the matching Clang/LLVM 22.1.6 frontend and symbol tools required by the
+existing capture/import boundary. The source checkout must be clean at the
+pinned revision; the capture tool does not fetch or alter it. The runtime,
+build and capture directories must be separate, and this upstream VPATH route
+requires their paths to contain no whitespace or Make metacharacters.
+
+```bash
+python3 scripts/ocore_runtime_capture.py capture \
+  tools/ocore-runtime/lua/full.recipe.json \
+  --source /absolute/clean/lua \
+  --build /absolute/new/lua-build \
+  --output /absolute/new/lua-capture \
+  --cc /absolute/llvm22/bin/clang \
+  --cxx /absolute/llvm22/bin/clang++ \
+  --llvm-nm /absolute/llvm22/bin/llvm-nm \
+  --unit-inventory /absolute/new/lua-build/unit-inventory.json --jobs 2
+
+python3 scripts/ocore_runtime_capture.py verify-report \
+  /absolute/new/lua-capture/report.json \
+  --receipt /absolute/new/lua-capture-verification.json
+
+target/debug/olangc /absolute/new/lua-capture/report.json --native-runtime \
+  --native-isa riscv64-unknown-none --native-runtime-output obj \
+  -o /absolute/new/lua-ocore-objects
+```
+
+These commands feed the captured original `.ll` units into the existing
+whole-module LLVM importer, independent O-core verifier and owned ISA emitter.
+Use a frontend targeting the requested ISA and preserve its original ABI and
+DataLayout; this recipe does not retarget existing IR. Scope the matching SDK
+archive/link tools on `PATH` as required by the generic capture workflow.
+Unsupported constructs must reject an entire source unit. Partial successful
+imports remain diagnostics rather than complete engine support.
+
+The inventory's `complete` flag establishes coverage of this original Make
+configuration. `dependency_closure_complete`, `ocore_lowering_complete`,
+`native_execution_qualified` and `runtime_complete` remain false. The original
+libc/libm/libdl, dynamic loader, compiler helpers and Linux platform interfaces
+are declared unresolved dependencies, not admitted host-library substitutes.
+The source data manifest includes the original Lua tests and manual; it does
+not claim a runtime-bearing OIR bundle or an OValue engine adapter. Full
+acceptance still requires verified dependency lowering, linking, scripts,
+engine/OS interfaces, and native OSTADIX execution on all three ISAs.
+
+Run the inventory regression gate with:
+
+```bash
+python3 -m unittest discover -s tools/ocore-runtime/lua -p 'test_*.py' -v
+```

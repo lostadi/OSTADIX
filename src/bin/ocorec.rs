@@ -367,6 +367,15 @@ fn import_llvm(cli: &Cli) -> anyhow::Result<ImportedFile> {
             String::from_utf8_lossy(&result.stderr)
         );
     }
+    if cli.native_map.is_some() {
+        // Use the same reloadable bytes that `--emit mir` publishes. The
+        // worker's JSON spelling otherwise exists only in a private temporary.
+        let module = o_lang::ocore::native_ir::NativeModule::from_json(
+            &std::fs::read(&temporary.0).context("read imported native map input")?,
+        )?;
+        std::fs::write(&temporary.0, module.to_json()?)
+            .context("normalize imported native map input")?;
+    }
     Ok(temporary)
 }
 

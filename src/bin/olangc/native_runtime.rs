@@ -15,6 +15,9 @@ use std::process::Command;
 const CAPTURE_FORMAT: &str = "ocore-runtime-capture-v1";
 const RECEIPT_FORMAT: &str = "ocore-runtime-lowering-v1";
 
+#[path = "native_runtime/artifact.rs"]
+mod artifact;
+
 #[cfg(test)]
 #[path = "native_runtime/object_inventory_tests.rs"]
 mod object_inventory_tests;
@@ -1966,6 +1969,7 @@ pub(super) struct NativeImportOptions<'a> {
     pub(super) llvm_sha256: Option<&'a str>,
     pub(super) tls_profile: Option<&'a str>,
     pub(super) atomic_profile: Option<&'a str>,
+    pub(super) dependencies: &'a [PathBuf],
 }
 
 fn compile_with_compiler(
@@ -1981,6 +1985,7 @@ fn compile_with_compiler(
         llvm_sha256,
         tls_profile,
         atomic_profile,
+        dependencies: dependency_paths,
     } = import_options;
     let expected_tls_profile = match tls_profile {
         None => None,
@@ -2004,6 +2009,16 @@ fn compile_with_compiler(
     let bytes =
         fs::read(report).with_context(|| format!("read runtime capture {}", report.display()))?;
     let capture: Value = serde_json::from_slice(&bytes).context("decode runtime capture report")?;
+    if capture["format"] == artifact::FORMAT {
+        if llvm_library.is_some()
+            || tls_profile.is_some()
+            || atomic_profile.is_some()
+            || !dependency_paths.is_empty()
+        {
+            bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
+        }
+        return artifact::compile_package(&bytes, target, output_kind, output, compiler);
+    }
     fs::create_dir(output).with_context(|| {
         format!(
             "native runtime output must be a new directory: {}",
@@ -2017,6 +2032,8 @@ fn compile_with_compiler(
     };
     let mut records = Vec::new();
     let mut collected_symbols = Vec::new();
+    let mut imported_modules = Vec::new();
+    let mut module_target = None;
     let mut profile: Option<(String, String)> = None;
     let mut unit_ids = BTreeSet::new();
     let units = capture
@@ -2048,6 +2065,18 @@ fn compile_with_compiler(
         }
     } else {
         None
+    };
+    let dependencies = if preflight_ok {
+        match artifact::load_dependencies(&capture, dependency_paths) {
+            Ok(dependencies) => dependencies,
+            Err(error) => {
+                issues.push(error.to_string());
+                preflight_ok = false;
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
     };
     for (index, unit) in units.iter().enumerate() {
         let id = unit
@@ -2122,6 +2151,14 @@ fn compile_with_compiler(
                 bail!("cross-module frontend platform/DataLayout mismatch");
             }
             profile = Some(current);
+            let current_target = serde_json::to_value(&module.target)?;
+            if module_target
+                .as_ref()
+                .is_some_and(|target| target != &current_target)
+            {
+                bail!("cross-module target/DataLayout/execution profile mismatch");
+            }
+            module_target = Some(current_target);
             let verification = directory.join("verification.json");
             invoke(
                 compiler,
@@ -2170,11 +2207,15 @@ fn compile_with_compiler(
                 record["object_inventory"] = object_inventory(&object_bytes, arch, &module)?;
                 record["object"] = json!({"path":object,"sha256":digest(&object_bytes),"bytes":object_bytes.len()});
             }
-            collected_symbols.extend(symbols(id, &module)?);
+            collected_symbols.extend(symbols(
+                &artifact::module_identity(string(&capture, "name")?, id),
+                &module,
+            )?);
             if digest(&fs::read(&imported)?) != digest(&imported_bytes) {
                 bail!("imported module changed during lowering");
             }
             unit_ids.insert(id.to_owned());
+            imported_modules.push((id.to_owned(), imported_bytes));
             record["lowered"] = json!(true);
             Ok(())
         })();
@@ -2183,6 +2224,76 @@ fn compile_with_compiler(
             issues.push(format!("unit {id}: {error}"));
         }
         records.push(record);
+    }
+    let mut dependency_records = Vec::new();
+    let mut embedded_dependencies = Vec::new();
+    let mut dependency_positions = BTreeMap::<String, usize>::new();
+    for dependency in &dependencies {
+        dependency_records.push(json!({"name":dependency.artifact.name,
+            "sha256":dependency.sha256,"module_count":dependency.artifact.modules.len()}));
+        for module in &dependency.artifact.modules {
+            let identity = module.identity();
+            match dependency_positions.get(&identity) {
+                Some(index) if &embedded_dependencies[*index] == module => {}
+                Some(_) => {
+                    issues.push(format!("conflicting supplied dependency module {identity}"))
+                }
+                None => {
+                    dependency_positions.insert(identity, embedded_dependencies.len());
+                    embedded_dependencies.push(module.clone());
+                }
+            }
+        }
+    }
+    let mut dependency_module_records = Vec::new();
+    for (index, embedded) in embedded_dependencies.into_iter().enumerate() {
+        let identity = embedded.identity();
+        let mut record = json!({"id":identity,"component":embedded.component,
+            "unit_id":embedded.unit_id,"sha256":embedded.sha256,"lowered":false});
+        let result = (|| -> Result<()> {
+            let module = embedded.verify()?;
+            if module_target.as_ref() != Some(&serde_json::to_value(&module.target)?) {
+                bail!("dependency target/DataLayout/execution profiles differ from captured implementation");
+            }
+            let directory = output.join(format!("dependency-{index:06}"));
+            fs::create_dir(&directory)?;
+            let imported = directory.join("module.native-ir.json");
+            fs::write(&imported, embedded.native_ir.as_bytes())?;
+            record["module"] = json!({"path":imported,"sha256":embedded.sha256});
+            if output_kind == "obj" {
+                let object = directory.join("module.o");
+                invoke(
+                    compiler,
+                    &[
+                        imported.display().to_string(),
+                        "--input-kind".into(),
+                        "native-ir".into(),
+                        "--emit".into(),
+                        "obj".into(),
+                        "--target".into(),
+                        format!("{arch}-unknown-none"),
+                        "-o".into(),
+                        object.display().to_string(),
+                    ],
+                    &directory.join("emit.log"),
+                )?;
+                let bytes = fs::read(&object)?;
+                record["object_inventory"] = object_inventory(&bytes, arch, &module)?;
+                record["object"] =
+                    json!({"path":object,"sha256":digest(&bytes),"bytes":bytes.len()});
+            }
+            collected_symbols.extend(symbols(&identity, &module)?);
+            if fs::read(&imported)? != embedded.native_ir.as_bytes() {
+                bail!("dependency native module changed during lowering");
+            }
+            record["lowered"] = json!(true);
+            Ok(())
+        })();
+        if let Err(error) = result {
+            record["failure"] = json!(error.to_string());
+            issues.push(format!("dependency module {identity}: {error}"));
+        }
+        dependency_module_records.push(record);
     }
     if let Some(expected) = &compiler_digest {
         if fs::read(compiler).map(|bytes| digest(&bytes)).ok().as_ref() != Some(expected) {
@@ -2200,22 +2311,6 @@ fn compile_with_compiler(
     let (mut closure, closure_issues) = resolve_symbols(&collected_symbols);
     let symbol_closure_complete = closure_issues.is_empty();
     issues.extend(closure_issues);
-    if let Some(dependencies) = capture["dependencies"]["declared"].as_array() {
-        for dependency in dependencies {
-            if dependency["status"] != "verified-ocore-closure" {
-                issues.push(format!(
-                    "declared source dependency is not a verified included O-core closure: {}",
-                    dependency["name"]
-                ));
-            } else {
-                // A status label alone is insufficient; only definitions in these modules are admitted.
-                issues.push(format!(
-                    "dependency receipt/reference verification is not implemented: {}",
-                    dependency["name"]
-                ));
-            }
-        }
-    }
     issues.sort();
     issues.dedup();
     let unit_complete = !selected.is_empty()
@@ -2228,7 +2323,40 @@ fn compile_with_compiler(
     if !unit_complete {
         closure["closed"] = json!(false);
     }
-    let complete = unit_complete && issues.is_empty();
+    let mut complete = unit_complete && issues.is_empty();
+    let module_set_artifact = if complete {
+        let result = (|| -> Result<Value> {
+            let artifact = artifact::Artifact::build(
+                string(&capture, "name")?,
+                &digest(&bytes),
+                &imported_modules,
+                &dependencies,
+            )?;
+            let bytes = serde_json::to_vec_pretty(&artifact)?;
+            artifact::Artifact::from_bytes(&bytes)?;
+            let path = output.join(artifact::FILE_NAME);
+            fs::write(&path, &bytes)?;
+            if fs::read(&path)? != bytes {
+                bail!("native module-set changed during publication");
+            }
+            Ok(
+                json!({"path":path,"sha256":digest(&bytes),"bytes":bytes.len(),
+                "format":artifact::FORMAT,"module_count":artifact.modules.len()}),
+            )
+        })();
+        match result {
+            Ok(record) => Some(record),
+            Err(error) => {
+                issues.push(error.to_string());
+                complete = false;
+                None
+            }
+        }
+    } else {
+        None
+    };
+    issues.sort();
+    issues.dedup();
     let receipt = json!({"schema":RECEIPT_FORMAT,"capture_report":report,"capture_sha256":digest(&bytes),
         "tls_profile":expected_tls_profile,"tls_platform_execution_qualified":false,
         "atomic_profile":expected_atomic_profile,"atomic_hardware_memory_order_qualified":false,
@@ -2238,11 +2366,13 @@ fn compile_with_compiler(
         "capture_complete":preflight_ok,"captured_unit_count":units.len(),"lowered_unit_count":unit_ids.len(),
         "required_lowering_unit_count":selected.len(),"non_lowering_units":capture["non_lowering_units"],
         "units":records,"symbol_inventory":closure,"issues":issues,
+        "dependencies":dependency_records,"dependency_modules":dependency_module_records,
+        "module_set_artifact":module_set_artifact,"native_module_dependency_closure_complete":complete,
         "unit_lowering_complete":unit_complete,"lowering_complete":complete,
         "symbol_closure_complete":unit_complete && symbol_closure_complete,"dependency_closure_complete":false,
         "module_set_complete":complete,"artifact_complete":false,"link_performed":false,"native_execution_qualified":false,"runtime_complete":false,
         "remaining_runtime_requirements":capture["remaining_runtime_requirements"],
-        "scope":"verified native modules and own-emitter relocatable objects; no script/runtime orchestration or native qualification"});
+        "scope":"self-contained verified native module-set and own-emitter relocatable objects; no script/runtime orchestration or native qualification"});
     let receipt_path = output.join("coverage.json");
     fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
     if !complete {
@@ -3014,6 +3144,7 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
+                dependencies: &[],
             },
             Path::new("/compiler-must-not-run")
         )

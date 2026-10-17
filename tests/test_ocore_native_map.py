@@ -80,9 +80,7 @@ class NativeMapTests(unittest.TestCase):
         if sidecar is not None:
             command.extend(["--native-map", str(sidecar)])
         if extra.get("keep_assembly"):
-            command.append("--keep-assembly")
-        if extra.get("clang"):
-            command.extend(["--clang", extra["clang"]])
+            command.append("--keep-asm")
         return command
 
     def verify_args(self, source, sidecar, assembly, artifact, isa="x86_64"):
@@ -144,7 +142,8 @@ class NativeMapTests(unittest.TestCase):
         supported = self.succeeded([clang, "--print-targets"]).stdout
         for isa in TARGETS:
             with self.subTest(isa=isa):
-                if isa not in supported:
+                target_name = "x86-64" if isa == "x86_64" else isa
+                if target_name not in supported:
                     self.skipTest(f"Clang lacks {isa}")
                 source = self.source(map_module(isa), f"{isa}.json")
                 obj = self.directory / f"{isa}.o"
@@ -227,6 +226,49 @@ class NativeMapTests(unittest.TestCase):
         sidecar.write_text("old successful map", encoding="utf-8")
         self.assertNotEqual(self.run_command([*command, str(sidecar)]).returncode, 0)
         self.assertFalse(sidecar.exists())
+
+    def test_failed_assembler_removes_stale_map(self):
+        source = self.source()
+        output, sidecar = self.directory / "out.o", self.directory / "out.map.json"
+        sidecar.write_text("old successful map", encoding="utf-8")
+        shim_directory = self.directory / "failing-assembler"
+        shim_directory.mkdir()
+        clang = shim_directory / "clang"
+        clang.write_text("#!/bin/sh\nexit 19\n", encoding="utf-8")
+        clang.chmod(0o700)
+        environment = os.environ.copy()
+        environment["PATH"] = str(shim_directory)
+        result = subprocess.run(self.compile_args(source, output, sidecar, emit="obj"),
+                                cwd=ROOT, env=environment, text=True,
+                                capture_output=True, timeout=60)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(sidecar.exists())
+
+    def test_mapped_llvm_import_matches_retained_native_snapshot_bytes(self):
+        library = os.environ.get("OCORE_TEST_LLVM22_LIBRARY")
+        library_sha256 = os.environ.get("OCORE_TEST_LLVM22_SHA256")
+        if not library or not library_sha256:
+            self.skipTest("set OCORE_TEST_LLVM22_LIBRARY and OCORE_TEST_LLVM22_SHA256 to a validated LLVM22.1.6 parser")
+        self.assertEqual(sha256(Path(library)), library_sha256)
+        source = self.directory / "mapped-import.ll"
+        source.write_text('target triple = "riscv64-unknown-linux-gnu"\n'
+                          'target datalayout = "e-p:64:64-i64:64-n8:16:32:64-S128"\n'
+                          'define i64 @mapped_import(i64 %input) {\n'
+                          '  %sum = add i64 %input, 1\n'
+                          '  ret i64 %sum\n}\n', encoding="utf-8")
+        assembly = self.directory / "mapped-import.s"
+        snapshot = self.directory / "mapped-import.native-ir.json"
+        sidecar = self.directory / "mapped-import.map.json"
+        command = [self.compiler, str(source), "--input-kind", "llvm-ir",
+                   "--llvm-library", library, "--llvm-sha256", library_sha256,
+                   "--target", TARGETS["riscv64"]]
+        self.succeeded([*command, "--emit", "mir", "-o", str(snapshot)])
+        self.succeeded([*command, "--emit", "asm", "-o", str(assembly),
+                        "--native-map", str(sidecar)])
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+        self.assertEqual(record["module_file_sha256"], sha256(snapshot))
+        self.assertEqual(record["assembly"]["input_sha256"], sha256(source))
+        self.succeeded(self.verify_args(snapshot, sidecar, assembly, assembly, "riscv64"))
 
     def test_path_collisions_preserve_inputs_outputs_symlinks_and_hardlinks(self):
         source = self.source()
