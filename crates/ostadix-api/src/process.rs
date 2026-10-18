@@ -251,6 +251,8 @@ struct BackendProcess {
     native_operation_depth: usize,
     // set on a plain bash helper: where it is parked again after a block.
     plain_bash_key: Option<PlainBashHelperKey>,
+    // set for one exec: the plan has another plain bash block ahead.
+    plain_bash_next: bool,
 }
 
 // why no default: an operation (an ephemeral exec, a state checkpoint or
@@ -382,6 +384,9 @@ struct StepWatch {
     spinner: bool,
 }
 
+/// Time between spinner frames, and before the first one.
+const SPINNER_FRAME: Duration = Duration::from_millis(200);
+
 impl StepWatch {
     fn new(pulse: &Mutex<Pulse>) -> Self {
         // child state seen during an earlier wait (say a shell that exited at
@@ -449,10 +454,13 @@ impl StepWatch {
             }
         }
         drop(pulse);
+        // why the first draw waits a frame: a step shorter than that would
+        // only draw and erase a line.
         if self.spinner
-            && self.last_draw.is_none_or(|drawn| {
-                now.saturating_duration_since(drawn) >= Duration::from_millis(200)
-            })
+            && now.saturating_duration_since(self.started) >= SPINNER_FRAME
+            && self
+                .last_draw
+                .is_none_or(|drawn| now.saturating_duration_since(drawn) >= SPINNER_FRAME)
         {
             self.last_draw = Some(now);
             crate::progress::spinner(label, now.saturating_duration_since(self.started));
@@ -1346,6 +1354,7 @@ impl BackendProcess {
             awaiting_callback: false,
             native_operation_depth: 0,
             plain_bash_key: None,
+            plain_bash_next: false,
             label: lang.to_string(),
             pulse,
             write_cancellation: None,
@@ -1685,9 +1694,12 @@ impl BackendProcess {
                 bindings,
             });
         } else {
+            let plain_next =
+                std::mem::take(&mut self.plain_bash_next) && self.plain_bash_key.is_some();
             self.send_command(&BackendWireCommandV2::Exec {
                 code: code.to_string(),
                 bindings,
+                plain_next,
             })?;
         }
         self.exec_pending = true;
@@ -2201,6 +2213,7 @@ impl Drop for BackendProcess {
 
 /// Execute one cancellation-aware ephemeral backend operation and close its
 /// physical process before returning the semantic result to the worker pool.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_ephemeral_with_eval_callback_controlled<F>(
     language: &str,
     code: &str,
@@ -2208,6 +2221,7 @@ pub(crate) fn run_ephemeral_with_eval_callback_controlled<F>(
     launch: BackendLaunchContext<'_>,
     morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
     cancellation: Option<&crate::cancellation::CancellationToken>,
+    plain_bash_next: bool,
     mut evaluate: F,
 ) -> Result<OValue>
 where
@@ -2249,6 +2263,7 @@ where
     let mut watch = StepWatch::new(&process.pulse);
     let mut last_watch = Instant::now();
 
+    process.plain_bash_next = plain_bash_next;
     let execution = (|| {
         process
             .begin_exec_with_morphism(code, bindings, morphism_contract)
@@ -2506,6 +2521,8 @@ pub struct ProcessRegistry {
     // later blocks on the id fail instead. kept for the registry lifetime.
     lost_sessions: HashMap<(String, u32, BackendSandboxPolicy), &'static str>,
     request_cancellation: Option<crate::cancellation::CancellationToken>,
+    // for the next send_exec only; see [`Self::set_plain_bash_next`].
+    plain_bash_next: bool,
 }
 
 pub(crate) struct FreshActorSuspension(String);
@@ -2747,6 +2764,7 @@ impl ProcessRegistry {
             morphism_contract: None,
             lost_sessions: HashMap::new(),
             request_cancellation: None,
+            plain_bash_next: false,
         }
     }
 
@@ -2762,6 +2780,7 @@ impl ProcessRegistry {
             morphism_contract: None,
             lost_sessions: HashMap::new(),
             request_cancellation: None,
+            plain_bash_next: false,
         }
     }
 
@@ -2810,6 +2829,7 @@ impl ProcessRegistry {
             .get_mut(&key)
             .expect("backend was just inserted but is missing");
         process.write_cancellation = self.request_cancellation.clone();
+        process.plain_bash_next = std::mem::take(&mut self.plain_bash_next);
         let sent = process.begin_exec_with_morphism(code, bindings, morphism_contract);
         process.write_cancellation = None;
         if let Err(error) = &sent {
@@ -2835,6 +2855,13 @@ impl ProcessRegistry {
         token: Option<crate::cancellation::CancellationToken>,
     ) {
         self.request_cancellation = token;
+    }
+
+    /// Tell the next `send_exec` that the plan has another plain bash block
+    /// ahead. a hint only: a wrong value costs a spare shell or one inline
+    /// fork, never a result.
+    pub(crate) fn set_plain_bash_next(&mut self, ahead: bool) {
+        self.plain_bash_next = ahead;
     }
 
     /// Read the next step from the shim for `(lang, env_id)`.
