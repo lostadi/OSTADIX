@@ -487,6 +487,9 @@ impl BashSession {
             .stderr(Stdio::null())
             .spawn()
             .context("failed to launch admitted `bash` executable")?;
+        if let Ok(pid) = i32::try_from(child.id()) {
+            SHELL_PID.store(pid, std::sync::atomic::Ordering::SeqCst);
+        }
         let stdin = child.stdin.take().context("bash session has no stdin")?;
         let stdout = child.stdout.take().context("bash session has no stdout")?;
         Ok(Self {
@@ -590,7 +593,8 @@ impl BashSession {
         // double-forked ones, were reparented to this backend, which is
         // their subreaper; stop them so nothing outlives the block (plain
         // bash) or the session (bash[N]).
-        stop_backend_descendants(JOB_CLEANUP_WINDOW).report()
+        let shell = i32::try_from(self.child.id()).ok();
+        stop_backend_descendants(JOB_CLEANUP_WINDOW, shell).report()
     }
 }
 
@@ -674,19 +678,19 @@ fn backend_descendants() -> io::Result<Vec<i32>> {
 /// What one cleanup pass did.
 #[derive(Debug, Default)]
 struct JobSweep {
-    // background jobs stopped: the distinct process groups of the live
-    // (non-zombie) processes the walk killed. why groups, not pids: a
-    // subshell that is just exiting is seen on some runs and not others,
-    // but it shares its job's group, so the count does not change between
-    // runs. a setsid job is its own group, and every job bash started
-    // without one shares the shell's group.
+    // background jobs stopped: every live (non-zombie) descendant of this
+    // backend except the block's own bash, as one snapshot taken before
+    // the first kill. why a snapshot: counting what each pass happened to
+    // kill or reap depended on timing (a job's children reach this
+    // subreaper only as the job dies). `sleep 1 | sleep 2 &` is two jobs; a
+    // setsid job is one.
     stopped: usize,
     // children still present when the window ran out.
     survivors: Vec<i32>,
     // why the children could not be listed or reaped, if they could not.
     error: Option<String>,
-    // a block-end walk that overlapped a SIGTERM: the SIGTERM's walk
-    // writes the one notice.
+    // a walk at stdin EOF: the session's jobs were never a block's to
+    // report, so only a failure is said.
     quiet: bool,
 }
 
@@ -697,7 +701,7 @@ impl JobSweep {
         // one line, written once the walk has finished.
         if self.stopped > 0 && !self.quiet {
             eprintln!(
-                "bash block left {} background job(s); they were stopped",
+                "bash block left {} background process(es); they were stopped",
                 self.stopped
             );
         }
@@ -725,21 +729,27 @@ impl JobSweep {
 }
 
 /// SIGKILL every child and its process group and reap, until waitpid says
-/// no child is left (ECHILD) or `budget` runs out.
+/// no child is left (ECHILD) or `budget` runs out. `shell` is the block's own
+/// bash, which the job count leaves out.
 ///
 /// why ECHILD and not an empty scan: a job killed in this pass reparents its
 /// own children here only as it dies, so a scan can come back empty while a
 /// grandchild is still on its way.
-fn stop_backend_descendants(budget: Duration) -> JobSweep {
+fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
     // why one lock over the whole walk: a SIGTERM's walk and the block-end
-    // walk can overlap. they run one after the other, and the groups either
-    // stopped are counted once, in one notice, so the count does not depend
-    // on which walk reached a job first.
-    let mut groups = STOPPED_GROUPS
-        .lock()
-        .unwrap_or_else(|poison| poison.into_inner());
+    // walk can overlap; they run one after the other.
+    let _walk = WALK.lock().unwrap_or_else(|poison| poison.into_inner());
     let deadline = std::time::Instant::now() + budget;
     let mut sweep = JobSweep::default();
+    match live_descendant_tree() {
+        Ok(tree) => {
+            sweep.stopped = tree.iter().filter(|pid| Some(**pid) != shell).count();
+        }
+        Err(error) => {
+            sweep.error = Some(error.to_string());
+            return sweep;
+        }
+    }
     loop {
         let live = match backend_descendants() {
             Ok(live) => live,
@@ -749,9 +759,6 @@ fn stop_backend_descendants(budget: Duration) -> JobSweep {
             }
         };
         for pid in &live {
-            if let Some(group) = live_process_group(*pid) {
-                groups.insert(group);
-            }
             // a job that called setsid leads its own group; killing the group
             // takes its pipeline down in one pass.
             // SAFETY: killpg and kill only signal a pid found as our child.
@@ -788,23 +795,62 @@ fn stop_backend_descendants(budget: Duration) -> JobSweep {
         }
         std::thread::sleep(Duration::from_millis(1));
     }
-    sweep.stopped = groups.len();
-    // a block-end walk reports and starts the next block from zero; once a
-    // SIGTERM is being handled, its own walk reports the total instead.
+    // a SIGTERM that landed during this walk reuses it: this walk already
+    // signals every job, so it reports and exits here, still holding the
+    // lock, instead of the SIGTERM waiting for it and walking again. that
+    // keeps the whole cleanup inside one window, and inside the host's.
     if TERMINATING.load(std::sync::atomic::Ordering::SeqCst) {
-        sweep.quiet = true;
-    } else {
-        groups.clear();
+        sweep.quiet = false;
+        if let Err(error) = sweep.report() {
+            eprintln!("{error:#}");
+        }
+        std::process::exit(128 + libc::SIGTERM);
     }
     sweep
 }
 
-/// Groups stopped since the last notice; see [`stop_backend_descendants`].
-static STOPPED_GROUPS: std::sync::Mutex<std::collections::BTreeSet<i32>> =
-    std::sync::Mutex::new(std::collections::BTreeSet::new());
+/// Every live descendant of this process: its children, theirs, and so on.
+/// a pid that exits during the walk is skipped.
+#[cfg(target_os = "linux")]
+fn live_descendant_tree() -> io::Result<Vec<i32>> {
+    let mut found = Vec::new();
+    let mut pending = backend_descendants()?;
+    while let Some(pid) = pending.pop() {
+        if found.contains(&pid) {
+            continue;
+        }
+        if live_process_group(pid).is_some() {
+            found.push(pid);
+        }
+        let Ok(tasks) = fs::read_dir(format!("/proc/{pid}/task")) else {
+            continue;
+        };
+        for task in tasks.flatten() {
+            if let Ok(list) = fs::read_to_string(task.path().join("children")) {
+                pending.extend(
+                    list.split_whitespace()
+                        .filter_map(|child| child.parse::<i32>().ok()),
+                );
+            }
+        }
+    }
+    Ok(found)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn live_descendant_tree() -> io::Result<Vec<i32>> {
+    backend_descendants()
+}
+
+/// Serializes the cleanup walks; see [`stop_backend_descendants`].
+static WALK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Set once a SIGTERM is being handled.
 static TERMINATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The pid of the bash this backend started last, left out of the job count
+/// of a SIGTERM's walk.
+static SHELL_PID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
 
 /// The process group of `pid`, or None for a zombie or a vanished pid.
 #[cfg(target_os = "linux")]
@@ -888,13 +934,14 @@ mod bash_termination {
     /// Stop the shell and every job, say what was left, and exit.
     pub(super) fn terminate_now() -> ! {
         super::TERMINATING.store(true, std::sync::atomic::Ordering::SeqCst);
-        let mut sweep = super::stop_backend_descendants(super::JOB_CLEANUP_WINDOW);
-        sweep.quiet = false;
-        let outcome = sweep.report();
-        if let Err(error) = outcome {
-            eprintln!("{error:#}");
-        }
-        std::process::exit(128 + libc::SIGTERM)
+        let shell = super::SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
+        // a walk already running sees TERMINATING when it ends, reports and
+        // exits, so this only gets the lock if that walk had finished.
+        let _ = super::stop_backend_descendants(
+            super::JOB_CLEANUP_WINDOW,
+            (shell != 0).then_some(shell),
+        );
+        unreachable!("a walk during termination exits the process")
     }
 }
 

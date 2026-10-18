@@ -160,32 +160,54 @@ def _children():
     return sorted(found)
 
 
-def _live_group(pid):
-    """The process group of pid, or None for a zombie or a vanished pid."""
+def _live(pid):
+    """Whether pid is a live process (a zombie or a vanished pid is not)."""
     try:
         with open(f"/proc/{pid}/stat") as handle:
-            fields = handle.read().rsplit(")", 1)[1].split()
+            state = handle.read().rsplit(")", 1)[1].split()[0]
     except (OSError, IndexError):
-        return None
-    return None if fields[0] in ("Z", "X") else int(fields[2])
+        return False
+    return state not in ("Z", "X")
 
 
-def _stop_jobs():
+def _live_tree():
+    """Every live descendant of this process."""
+    found, pending = [], _children()
+    while pending:
+        pid = pending.pop()
+        if pid in found:
+            continue
+        if _live(pid):
+            found.append(pid)
+        try:
+            tasks = os.listdir(f"/proc/{pid}/task")
+        except OSError:
+            continue
+        for task in tasks:
+            try:
+                with open(f"/proc/{pid}/task/{task}/children") as handle:
+                    pending.extend(int(child) for child in handle.read().split())
+            except OSError:
+                continue
+    return found
+
+
+def _stop_jobs(shell=None):
     """SIGKILL every child and its group and reap until no child is left
     (ECHILD) or the window ends. returns (stopped, survivors, error), where
-    stopped counts the distinct process groups of the live processes killed,
-    as in the rust backend, so a just-exiting subshell never changes it."""
+    stopped is one snapshot, taken before the first kill, of every live
+    descendant except the block's own bash, as in the rust backend."""
     deadline = time.monotonic() + _JOB_CLEANUP_WINDOW
-    stopped = set()
+    try:
+        stopped = len([pid for pid in _live_tree() if pid != shell])
+    except OSError as error:
+        return 0, [], f"cannot list the jobs: {error}"
     while True:
         try:
             live = _children()
         except OSError as error:
-            return len(stopped), [], f"cannot list the jobs: {error}"
+            return stopped, [], f"cannot list the jobs: {error}"
         for pid in live:
-            group = _live_group(pid)
-            if group is not None:
-                stopped.add(group)
             for kill in (os.killpg, os.kill):
                 try:
                     kill(pid, signal.SIGKILL)
@@ -196,13 +218,13 @@ def _stop_jobs():
                 pass
         except ChildProcessError:
             # ECHILD: nothing left, not even a job still being reparented.
-            return len(stopped), [], None
+            return stopped, [], None
         if time.monotonic() >= deadline:
             try:
                 survivors = _children()
             except OSError:
                 survivors = live
-            return len(stopped), survivors, None
+            return stopped, survivors, None
         time.sleep(0.001)
 
 
@@ -210,7 +232,7 @@ def _report_jobs(stopped, survivors, error):
     """The stderr notice; the error text when cleanup failed: the jobs could
     not be listed, or some outlived the window."""
     if stopped:
-        print(f"bash block left {stopped} background job(s); they were stopped",
+        print(f"bash block left {stopped} background process(es); they were stopped",
               file=sys.stderr, flush=True)
     if error is not None:
         return f"bash job cleanup failed: {error}"
@@ -224,7 +246,8 @@ def _report_jobs(stopped, survivors, error):
 def _on_sigterm(_signum, _frame):
     # the host's cancel: stop the shell and every job, then exit. a SIGKILL
     # would end this subreaper first and hand its setsid jobs to init.
-    error = _report_jobs(*_stop_jobs())
+    shell = _session.proc.pid if _session is not None else None
+    error = _report_jobs(*_stop_jobs(shell))
     if error:
         print(error, file=sys.stderr, flush=True)
     os._exit(128 + signal.SIGTERM)
@@ -320,7 +343,7 @@ class BashSession:
         except (OSError, ChildProcessError) as error:
             errors.append(f"reaping the shell: {error}")
         if _sweep_jobs:
-            job_error = _report_jobs(*_stop_jobs())
+            job_error = _report_jobs(*_stop_jobs(self.proc.pid))
             if job_error:
                 errors.append(job_error)
         try:

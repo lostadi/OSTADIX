@@ -1151,13 +1151,18 @@ silent default.
   open cannot stall it: when the block ends, every background job it left,
   including ones detached with `setsid`, `nohup`, `disown`, or a double fork,
   is killed and reaped within 2 s, and stderr says `bash block left N
-  background job(s); they were stopped`. N counts the distinct process groups
-  of the live processes stopped: a `setsid` job is one, and every job bash
-  started without its own group shares the shell's group and counts once
-  with it. The line is written once the cleanup has finished; if a job is
-  still alive after the 2 s it ends `, and M still alive after 2000 ms: pid
-  ...`. A job list that cannot be read fails the block. A `bash[N]` session's jobs live until
-  the session ends and are stopped the same way then. A descendant that makes
+  background process(es); they were stopped`. N is the number of distinct
+  live (non-zombie) processes below the helper other than the block's own
+  bash, taken once, when the block's bash has exited (or, on a cancel, when
+  the SIGTERM arrives) and before anything is signalled. So
+  `sleep 900 | sleep 901 & setsid sleep 902 &` gives 3 on every run, at the
+  block's end and on a cancel; a cancel also counts the block's foreground
+  command. The line is written once the cleanup has finished. A process still
+  alive after the 2 s, or a process list that cannot be read, fails the block
+  with `bash job cleanup failed: ...`, which names the pids, and the helper is
+  retired. A `bash[N]` session's jobs live until the session ends, and are
+  stopped the same way then: on its shutdown, on a cancel, and when its stdin
+  closes (O exiting, or killed), without a notice unless cleanup fails. A descendant that makes
   itself a subreaper, or one started by an external service manager, is not
   caught; only a cgroup could hold it. Effect ordering is unaffected: source
   sequence edges and resource-state chains are independent of these data
