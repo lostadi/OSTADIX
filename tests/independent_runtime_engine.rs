@@ -136,10 +136,8 @@ fn compatibility_modules_preserve_the_engine_type_identities() {
 #[test]
 fn dependency_direction_is_shell_to_engine_only() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let shell_manifest: toml::Value = fs::read_to_string(root.join("Cargo.toml"))
-        .unwrap()
-        .parse()
-        .unwrap();
+    let shell_manifest: toml::Value =
+        toml::from_str(&fs::read_to_string(root.join("Cargo.toml")).unwrap()).unwrap();
     let shell_version = shell_manifest["package"]["version"].as_str().unwrap();
     let engine_dependency = &shell_manifest["dependencies"]["ostadix-api"];
     let exact_version = engine_dependency["version"].as_str().unwrap();
@@ -147,10 +145,8 @@ fn dependency_direction_is_shell_to_engine_only() {
 
     let engine_manifest_path = root.join("crates/ostadix-api/Cargo.toml");
     if engine_manifest_path.is_file() {
-        let engine_manifest: toml::Value = fs::read_to_string(engine_manifest_path)
-            .unwrap()
-            .parse()
-            .unwrap();
+        let engine_manifest: toml::Value =
+            toml::from_str(&fs::read_to_string(engine_manifest_path).unwrap()).unwrap();
         assert_eq!(
             engine_manifest["package"]["version"].as_str(),
             Some(shell_version)

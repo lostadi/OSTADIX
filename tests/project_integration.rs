@@ -399,7 +399,7 @@ fn project_discovery_python() {
     write(
         dir.path(),
         "pyproject.toml",
-        b"[project.scripts]\nmytool = \"pkg.cli:main\"\n",
+        b"[project.scripts]\nmytool = \"pkg.cli:main\"\n\n[tool.poetry.scripts]\npoetrytool = \"pkg.poetry:main\"\n",
     );
 
     let bundle = bundle_dir(dir.path(), "py").unwrap();
@@ -408,7 +408,20 @@ fn project_discovery_python() {
 
     assert!(ids.iter().any(|id| id.starts_with("py-main-")), "{ids:?}");
     assert!(routes.iter().any(|r| r.id == "py-module-pkg"), "{ids:?}");
-    assert!(routes.iter().any(|r| r.id == "py-script-mytool"), "{ids:?}");
+    for (id, module) in [
+        ("py-script-mytool", "pkg.cli"),
+        ("py-script-poetrytool", "pkg.poetry"),
+    ] {
+        let script = routes.iter().find(|r| r.id == id).unwrap();
+        assert_eq!(
+            script.command,
+            [
+                "python3".to_string(),
+                "-c".to_string(),
+                format!("import sys; from {module} import main; sys.exit(main())")
+            ]
+        );
+    }
 }
 
 #[test]
@@ -458,6 +471,48 @@ fn project_discovery_rust() {
     assert!(routes.iter().any(|r| r.id == "rust-run"));
     assert!(routes.iter().any(|r| r.id == "rust-build"));
     assert!(routes.iter().any(|r| r.id == "rust-test"));
+}
+
+#[test]
+fn project_discovery_rust_named_binary() {
+    let dir = tempfile::tempdir().unwrap();
+    write(
+        dir.path(),
+        "Cargo.toml",
+        b"[package]\nname = \"demo\"\nversion = \"0.1.0\"\n\n[[bin]]\nname = \"worker\"\npath = \"src/worker.rs\"\n",
+    );
+    write(dir.path(), "src/worker.rs", b"fn main() {}\n");
+
+    let bundle = bundle_dir(dir.path(), "rs").unwrap();
+    let routes = discover::discover_all(dir.path(), &bundle.files);
+    let worker = routes.iter().find(|r| r.id == "rust-bin-worker").unwrap();
+    assert_eq!(worker.command, ["cargo", "run", "--bin", "worker"]);
+    assert!(!routes.iter().any(|r| r.id == "rust-run"));
+    assert!(routes.iter().any(|r| r.id == "rust-build"));
+    assert!(routes.iter().any(|r| r.id == "rust-test"));
+}
+
+#[test]
+fn project_discovery_ignores_malformed_toml_manifests() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "Cargo.toml", b"[package\nname = \"demo\"\n");
+    write(dir.path(), "src/main.rs", b"fn main() {}\n");
+    write(
+        dir.path(),
+        "pyproject.toml",
+        b"[project.scripts\nmytool = \"pkg:main\"\n",
+    );
+    write(
+        dir.path(),
+        "app.py",
+        b"if __name__ == '__main__':\n    print('hi')\n",
+    );
+
+    let bundle = bundle_dir(dir.path(), "invalid-manifests").unwrap();
+    let routes = discover::discover_all(dir.path(), &bundle.files);
+    assert!(routes.iter().any(|r| r.id == "py-main-app-py"));
+    assert!(!routes.iter().any(|r| r.id.starts_with("rust-")));
+    assert!(!routes.iter().any(|r| r.id.starts_with("py-script-")));
 }
 
 #[test]

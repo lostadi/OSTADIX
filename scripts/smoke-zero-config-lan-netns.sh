@@ -31,7 +31,8 @@ fi
 node_bin="$repo_root/target/debug/o-node"
 client_bin="$repo_root/target/debug/octl"
 evaluator_bin="$repo_root/target/debug/O"
-for binary in "$node_bin" "$client_bin" "$evaluator_bin"; do
+front_door_bin="$repo_root/target/debug/o-cli"
+for binary in "$node_bin" "$client_bin" "$evaluator_bin" "$front_door_bin"; do
     if [[ ! -x "$binary" ]]; then
         echo "error: required hosted binary is not executable: $binary" >&2
         exit 2
@@ -80,6 +81,7 @@ run_node() {
         O_LANG_NODE_BIN="$node_bin" \
         O_LANG_OCTL_BIN="$client_bin" \
         O_LANG_EVALUATOR_BIN="$evaluator_bin" \
+        O_LANG_OCLI_BIN="$front_door_bin" \
         "$repo_root/scripts/o-cli.sh" node "$@"
 }
 
@@ -91,6 +93,7 @@ run_client() {
         O_LANG_NODE_BIN="$node_bin" \
         O_LANG_OCTL_BIN="$client_bin" \
         O_LANG_EVALUATOR_BIN="$evaluator_bin" \
+        O_LANG_OCLI_BIN="$front_door_bin" \
         "$repo_root/scripts/o-cli.sh" node "$@"
 }
 

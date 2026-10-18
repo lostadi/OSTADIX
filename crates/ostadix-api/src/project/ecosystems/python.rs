@@ -37,7 +37,7 @@ impl EcosystemDiscoverer for PythonDiscoverer {
 
         // ── pyproject.toml scripts ──────────────────────────────────────────
         if let Some(pyproject) = find_file(files, "pyproject.toml").and_then(file_text) {
-            if let Ok(value) = pyproject.parse::<toml::Value>() {
+            if let Ok(value) = toml::from_str::<toml::Value>(pyproject) {
                 collect_scripts(&value, &mut routes);
             }
         }

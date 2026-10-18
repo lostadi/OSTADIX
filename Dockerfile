@@ -42,6 +42,7 @@ COPY crates/ostadix-api ./crates/ostadix-api
 COPY ostadix-core ./ostadix-core
 COPY src ./src
 COPY scripts ./scripts
+COPY tools/ocore-runtime/rust/payload_inventory.py ./tools/ocore-runtime/rust/payload_inventory.py
 COPY backends ./backends
 COPY apps/olang-browser-wasi ./apps/olang-browser-wasi
 

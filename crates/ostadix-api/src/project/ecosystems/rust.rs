@@ -36,7 +36,7 @@ impl EcosystemDiscoverer for RustDiscoverer {
         let Some(cargo) = find_file(files, "Cargo.toml").and_then(file_text) else {
             return Vec::new();
         };
-        let Ok(value) = cargo.parse::<toml::Value>() else {
+        let Ok(value) = toml::from_str::<toml::Value>(cargo) else {
             return Vec::new();
         };
 

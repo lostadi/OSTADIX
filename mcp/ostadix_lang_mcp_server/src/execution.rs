@@ -1001,7 +1001,8 @@ mod terminal {
                 &mut slave,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-                &mut size,
+                // openpty takes a const winsize on Linux and a mutable one on macOS.
+                std::ptr::addr_of_mut!(size),
             )
         } < 0
         {

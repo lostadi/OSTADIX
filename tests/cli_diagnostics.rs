@@ -67,7 +67,17 @@ fn json_failure_remains_one_machine_readable_envelope() {
         .as_str()
         .unwrap()
         .contains("Unclosed expression"));
-    assert_eq!(value.as_object().unwrap().len(), 3);
+    assert_eq!(
+        value["execution_evidence"],
+        serde_json::json!({
+            "schema": "ostadix.native-execution-evidence/v1",
+            "trace": null,
+            "admission": null,
+            "native_leaves": [],
+        }),
+        "a parse failure must not invent execution or admission evidence"
+    );
+    assert_eq!(value.as_object().unwrap().len(), 4);
 }
 
 #[test]

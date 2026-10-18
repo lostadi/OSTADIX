@@ -1101,8 +1101,8 @@ fn capture_execution_manifest_for_shim_backends(
                 .context("native leaf plan requires a static literal descriptor")?;
             crate::native_leaf::validate_descriptor(descriptor, *argument_count)?;
             let key = crate::native_leaf::digest(descriptor.as_bytes());
-            if !native_leases.contains_key(&key) {
-                native_leases.insert(key, crate::native_leaf::prepare(descriptor)?);
+            if let std::collections::btree_map::Entry::Vacant(entry) = native_leases.entry(key) {
+                entry.insert(crate::native_leaf::prepare(descriptor)?);
             }
         }
     }

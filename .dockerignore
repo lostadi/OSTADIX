@@ -8,7 +8,10 @@ Ostadix-lang/
 docs/
 examples/
 setup/
-tools/
+tools/**
+!tools/ocore-runtime/
+!tools/ocore-runtime/rust/
+!tools/ocore-runtime/rust/payload_inventory.py
 tests/
 o_lang/__pycache__/
 *.md

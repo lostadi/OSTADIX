@@ -134,11 +134,31 @@ fn incompatible_input_and_splice_fail_before_backend_effects() {
     let fixture = Fixture::new();
     for executor in ["serial", "graph"] {
         for splice in [false, true] {
-            let source = format!("let payload = html^(opaque)_html\npython^(\nopen('input-effect', 'w').write('ran')\n{}\n)_python", if splice { "$payload" } else { "42" });
+            let source = format!("let payload = html^(opaque)_html\npython^(\nopen('input-effect', 'w').write('ran')\n{}\n)_python", if splice { "$payload" } else { "payload" });
             let error = failure(&fixture.run(executor, &source, true));
             assert!(error.contains("morphism.input-rejected"), "{error}");
             assert!(!fixture.marker("input-effect").exists());
         }
+    }
+}
+
+#[test]
+fn unreferenced_incompatible_binding_does_not_cross_into_backend() {
+    if !support::require_runtime("python3") {
+        return;
+    }
+    for executor in ["serial", "graph"] {
+        let fixture = Fixture::new();
+        let output = fixture.run(
+            executor,
+            "let payload = html^(opaque)_html\npython^(\nopen('unused-input-effect', 'w').write('ran')\n42\n)_python",
+            true,
+        );
+        assert_eq!(value(&output), OValue::int(42));
+        assert_eq!(
+            fs::read_to_string(fixture.marker("unused-input-effect")).unwrap(),
+            "ran"
+        );
     }
 }
 

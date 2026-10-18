@@ -2988,6 +2988,8 @@ impl<'a> Verifier<'a> {
         Ok(())
     }
 
+    // Ordinary calls and invokes share validation while retaining their distinct ABI rules.
+    #[allow(clippy::too_many_arguments)]
     fn call(
         &self,
         callee: &Operand,
