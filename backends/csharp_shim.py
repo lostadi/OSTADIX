@@ -35,7 +35,7 @@ def try_mono(code, tmpdir):
 
     comp = subprocess.run(
         ["mcs", "-out:" + binary, src],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
     )
     if comp.returncode != 0:
         return comp
@@ -66,7 +66,7 @@ def try_dotnet_run(code, tmpdir):
         f.write(code)
     return subprocess.run(
         ["dotnet", "run", "--project", tmpdir],
-        capture_output=True, text=True, timeout=120, env=environment,
+        capture_output=True, text=True, timeout=o_shim_common.step_timeout(), env=environment,
     )
 
 
