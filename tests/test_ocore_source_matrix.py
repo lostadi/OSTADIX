@@ -72,9 +72,216 @@ class SourceMatrixTests(unittest.TestCase):
                                           "unit_ids": ["first", "second"], "count": 2}],
                 "dependency_closure_complete": False, "native_execution_qualified": False, "runtime_complete": False}
 
-    def check(self, raw=None):
+    def check(self, raw=None, decoder_sha256=None):
         self.report_path.write_text(json.dumps(self.raw if raw is None else raw))
-        return matrix.checked_result(self.report_path, self.profile, self.compiler_file["sha256"], "riscv64-unknown-none")
+        return matrix.checked_result(self.report_path, self.profile, self.compiler_file["sha256"], "riscv64-unknown-none", decoder_sha256)
+
+    def bitcode_fixture(self, magic=b"BC\xc0\xde"):
+        # Synthetic bytes and receipts exercise the matrix's provenance checks;
+        # they are never passed off as a real decoded/compiler-qualified unit.
+        original = self.root / "original.bc"
+        original.write_bytes(magic + b"synthetic whole bitcode fixture")
+        self.units[0]["ir"] = {**matrix.audit.file_info(original),
+                               "target_triple": "riscv64-unknown-linux-gnu",
+                               "data_layout": "e-p:64:64"}
+        self.capture.write_text(json.dumps(self.capture_data))
+        self.profile = matrix.load_profiles(self.manifest)[0]
+        self.decoder = self.root / "llvm-dis"
+        self.decoder.write_text("#!/bin/sh\nexit 44\n")
+        self.decoder.chmod(0o755)
+        snapshot = self.root / "decoder-snapshot"
+        snapshot.write_bytes(self.decoder.read_bytes())
+        version_stdout = self.root / "decoder-version.stdout"
+        version_stdout.write_text("Debian LLVM version 22.1.6\n")
+        version_stderr = self.root / "decoder-version.stderr"
+        version_stderr.write_text("")
+        decoded = self.root / "decoded.ll"
+        decoded.write_text('target triple = "riscv64-unknown-linux-gnu"\n'
+                           'target datalayout = "e-p:64:64"\n'
+                           'define i64 @whole_fixture(i64 %x) { ret i64 %x }\n')
+        decode_stderr = self.root / "decode.stderr"
+        decode_stderr.write_text("")
+        self.raw = self.result(self.compiler)
+        decoder = {**matrix.audit.file_info(self.decoder),
+                   "snapshot": matrix.audit.file_info(snapshot), "llvm_version": "22.1.6",
+                   "version_exit_code": 0, "version_argv": [str(snapshot), "--version"],
+                   "version_stdout": matrix.audit.file_info(version_stdout),
+                   "version_stderr": matrix.audit.file_info(version_stderr)}
+        self.raw["tools"]["llvm_dis"] = decoder
+        self.raw["units"][0].update(
+            llvm_decode={"argv": [str(snapshot), str(original), "-o", "-"],
+                         "input": matrix.audit.file_info(original),
+                         "decoder": copy.deepcopy(decoder["snapshot"]), "exit_code": 0,
+                         "stdout": matrix.audit.file_info(decoded),
+                         "stderr": matrix.audit.file_info(decode_stderr)},
+            decoded_llvm=matrix.audit.file_info(decoded))
+        return decoder["sha256"]
+
+    def mocked_bitcode_child(self, argv, **kwargs):
+        destination = Path(argv[argv.index("--output") + 1])
+        destination.mkdir()
+        compiler = Path(argv[argv.index("--ocorec") + 1])
+        frozen_decoder = Path(argv[argv.index("--llvm-dis") + 1])
+        self.assertEqual(kwargs["stdin"], matrix.subprocess.DEVNULL)
+        self.assertEqual(frozen_decoder, destination.parent / "tools/llvm-dis")
+        self.assertEqual(frozen_decoder.read_bytes(), self.decoder.read_bytes())
+        raw = copy.deepcopy(self.raw)
+        raw["tools"].update(ocorec=matrix.audit.file_info(compiler), snapshot=matrix.audit.file_info(compiler))
+        decoder = raw["tools"]["llvm_dis"]
+        decoder.update(matrix.audit.file_info(frozen_decoder))
+        decoder["snapshot"] = matrix.audit.file_info(frozen_decoder)
+        decoder["version_argv"] = [str(frozen_decoder), "--version"]
+        for unit in raw["units"]:
+            unit["stages"][0]["argv"][0] = str(compiler)
+            if "llvm_decode" in unit:
+                unit["llvm_decode"]["argv"][0] = str(frozen_decoder)
+                unit["llvm_decode"]["decoder"] = decoder["snapshot"]
+        (destination / "report.json").write_text(json.dumps(raw))
+        return matrix.subprocess.CompletedProcess(argv, 1)
+
+    def test_raw_and_wrapper_bitcode_keep_original_input_and_decoder_provenance(self):
+        for magic in (b"BC\xc0\xde", b"\xde\xc0\x17\x0b"):
+            with self.subTest(magic=magic):
+                decoder_sha256 = self.bitcode_fixture(magic)
+                checked = self.check(decoder_sha256=decoder_sha256)
+                self.assertTrue(checked["audit_complete"])
+                self.assertFalse(checked["all_units_lowered"])
+                self.assertEqual(checked["attempted_unit_ids"], ["first", "second"])
+                self.assertEqual(self.raw["units"][0]["stages"][0]["argv"][1],
+                                 self.units[0]["ir"]["path"])
+
+    def test_bitcode_requires_the_frozen_decoder_and_complete_decode_record(self):
+        digest = self.bitcode_fixture()
+        with self.assertRaisesRegex(ValueError, "not frozen"):
+            self.check()
+        raw = copy.deepcopy(self.raw)
+        raw["tools"].pop("llvm_dis")
+        with self.assertRaisesRegex(ValueError, "decoder presence"):
+            self.check(raw, digest)
+        for key in ("llvm_decode", "decoded_llvm"):
+            raw = copy.deepcopy(self.raw)
+            raw["units"][0].pop(key)
+            with self.subTest(key=key), self.assertRaises((KeyError, ValueError)):
+                self.check(raw, digest)
+
+    def test_decode_input_argv_and_decoder_substitution_are_rejected(self):
+        digest = self.bitcode_fixture()
+        for mutate in (
+                lambda decode: decode["argv"].__setitem__(1, self.units[1]["ir"]["path"]),
+                lambda decode: decode["argv"].append("--filtered"),
+                lambda decode: decode["input"].update(sha256="0" * 64),
+                lambda decode: decode["decoder"].update(sha256="0" * 64),
+                lambda decode: decode.update(exit_code=1)):
+            raw = copy.deepcopy(self.raw)
+            mutate(raw["units"][0]["llvm_decode"])
+            with self.subTest(mutate=mutate), self.assertRaisesRegex(ValueError, "bitcode"):
+                self.check(raw, digest)
+
+    def test_decoded_target_contract_cannot_be_relabelled_with_matching_hashes(self):
+        digest = self.bitcode_fixture()
+        decoded = Path(self.raw["units"][0]["decoded_llvm"]["path"])
+        original = decoded.read_text()
+        for old, changed in (("riscv64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
+                             ("e-p:64:64", "e-p:32:32")):
+            decoded.write_text(original.replace(old, changed))
+            raw = copy.deepcopy(self.raw)
+            record = matrix.audit.file_info(decoded)
+            raw["units"][0]["decoded_llvm"] = record
+            raw["units"][0]["llvm_decode"]["stdout"] = record
+            with self.subTest(changed=changed), self.assertRaisesRegex(ValueError, "target contract"):
+                self.check(raw, digest)
+        decoded.write_text(original)
+
+    def test_import_must_consume_original_bitcode_even_after_successful_decode(self):
+        digest = self.bitcode_fixture()
+        raw = copy.deepcopy(self.raw)
+        raw["units"][0]["stages"][0]["argv"][1] = raw["units"][0]["decoded_llvm"]["path"]
+        with self.assertRaisesRegex(ValueError, "complete captured LLVM"):
+            self.check(raw, digest)
+
+    def test_decoder_bytes_version_and_decode_logs_are_independently_bound(self):
+        digest = self.bitcode_fixture()
+        decoder = self.raw["tools"]["llvm_dis"]
+        records = [decoder, decoder["snapshot"], decoder["version_stdout"], decoder["version_stderr"],
+                   self.raw["units"][0]["llvm_decode"]["stdout"],
+                   self.raw["units"][0]["llvm_decode"]["stderr"]]
+        for record in records:
+            path = Path(record["path"])
+            original = path.read_bytes()
+            path.write_bytes(original + b"tampered")
+            with self.subTest(path=path.name), self.assertRaisesRegex(ValueError, "artifact changed"):
+                self.check(decoder_sha256=digest)
+            path.write_bytes(original)
+        version = Path(decoder["version_stdout"]["path"])
+        version.write_text("LLVM version 22.1.7\n")
+        raw = copy.deepcopy(self.raw)
+        raw["tools"]["llvm_dis"]["version_stdout"] = matrix.audit.file_info(version)
+        with self.assertRaisesRegex(ValueError, "pinned LLVM version"):
+            self.check(raw, digest)
+
+    def test_exact_decoder_version_accepts_stderr_and_rejects_duplicate_or_mixed_reports(self):
+        digest = self.bitcode_fixture()
+        decoder = self.raw["tools"]["llvm_dis"]
+        stdout = Path(decoder["version_stdout"]["path"])
+        stderr = Path(decoder["version_stderr"]["path"])
+        for out, err, accepted in (("", "LLVM version 22.1.6\n", True),
+                                   ("LLVM version 22.1.6\n", "LLVM version 22.1.6\n", False),
+                                   ("LLVM version 22.1.6\n", "LLVM version 22.1.7\n", False),
+                                   ("LLVM version 22.1.60\n", "", False)):
+            stdout.write_text(out)
+            stderr.write_text(err)
+            raw = copy.deepcopy(self.raw)
+            raw["tools"]["llvm_dis"].update(version_stdout=matrix.audit.file_info(stdout),
+                                             version_stderr=matrix.audit.file_info(stderr))
+            with self.subTest(stdout=out, stderr=err):
+                if accepted:
+                    self.assertTrue(self.check(raw, digest)["audit_complete"])
+                else:
+                    with self.assertRaisesRegex(ValueError, "pinned LLVM version"):
+                        self.check(raw, digest)
+
+    def test_textual_ir_cannot_forge_a_bitcode_decode_stage(self):
+        self.raw["units"][0].update(llvm_decode={}, decoded_llvm={})
+        with self.assertRaisesRegex(ValueError, "forged decode"):
+            self.check()
+
+    def test_cli_freezes_explicit_decoder_and_forwards_only_its_snapshot(self):
+        self.bitcode_fixture()
+        output = self.root / "bitcode-complete"
+        with patch.object(matrix.subprocess, "run", side_effect=self.mocked_bitcode_child) as child:
+            code = matrix.main([str(self.manifest), "--ocorec", str(self.compiler),
+                                "--llvm-dis", str(self.decoder), "--jobs", "1", "--output", str(output)])
+        self.assertEqual(code, 0)
+        child.assert_called_once()
+        report = json.loads((output / "report.json").read_text())
+        self.assertTrue(report["audit_complete"])
+        self.assertEqual(report["llvm_dis"]["snapshot"]["path"], str(output / "tools/llvm-dis"))
+        self.assertEqual(report["llvm_dis"]["sha256"], matrix.audit.file_info(self.decoder)["sha256"])
+        self.assertFalse(report["all_units_lowered"])
+
+    def test_cli_rejects_missing_decoder_before_launching_diagnostics(self):
+        self.bitcode_fixture()
+        with patch.object(matrix.subprocess, "run") as child:
+            code = matrix.main([str(self.manifest), "--ocorec", str(self.compiler),
+                                "--llvm-dis", str(self.root / "absent-decoder"),
+                                "--output", str(self.root / "missing-decoder")])
+        self.assertEqual(code, 2)
+        child.assert_not_called()
+
+    def test_cli_rechecks_original_decoder_after_child_finishes(self):
+        self.bitcode_fixture()
+        output = self.root / "changed-decoder"
+        def child(argv, **kwargs):
+            result = self.mocked_bitcode_child(argv, **kwargs)
+            self.decoder.write_text("#!/bin/sh\nexit 45\n")
+            return result
+        with patch.object(matrix.subprocess, "run", side_effect=child):
+            code = matrix.main([str(self.manifest), "--ocorec", str(self.compiler),
+                                "--llvm-dis", str(self.decoder), "--output", str(output)])
+        self.assertEqual(code, 2)
+        report = json.loads((output / "report.json").read_text())
+        self.assertFalse(report["audit_complete"])
+        self.assertIn("artifact changed", report["issues"][-1]["error"])
 
     def test_complete_diagnostics_preserve_every_failed_unit_without_claiming_support(self):
         checked = self.check()

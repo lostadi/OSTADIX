@@ -396,6 +396,29 @@ C-ABI exports. It is not evidence of stdlib/rustc completeness or native compile
 bootstrap. Its floating-point, unwinding and platform dependencies are intentionally
 outside this probe's scope, while the full Rust recipe continues to require them.
 
+## Python, C and Rust source profiles
+
+The [full CPython profile](cpython/README.md) follows the original configured
+Make graph, including standard and test extensions. The [original C compiler
+profile](c-compiler/README.md) captures all nine chibicc translation units. The
+[configured Rust library profile](rust-crates/README.md) retains the original
+default-feature adler2 library and every codegen unit actually emitted by rustc.
+These profiles record complete build inputs before attempting whole-unit import;
+unsupported declarations and bodies remain in the diagnostics.
+
+Rust's captured embedded LLVM bitcode stays the compiler input. The diagnostic
+runner accepts `--llvm-dis /absolute/llvm22/bin/llvm-dis` to decode a separate,
+retained metadata copy with LLVM 22.1.6. It freezes and hashes the decoder and
+checks the original target and DataLayout. It never supplies that text copy to
+the O-core importer. A decoder or provenance failure makes the audit incomplete.
+
+The C profile also supplies a native C-program execution check. The Rust library
+has a separate original-object versus O-core-object checksum comparison. Those
+checks qualify their actual inputs and APIs. Source capture, whole-unit lowering,
+provider closure, runtime execution and graph integration remain separate results.
+The [full Rust compiler recipe](rust/README.md) retains its broader bootstrap and
+provider requirements; this library profile does not satisfy them.
+
 ## Current boundaries
 
 Capture covers calls routed through `CC`, `CXX`, `RUSTC_WRAPPER`, and Rust's forwarded
@@ -416,10 +439,12 @@ capture command rejects the resulting incomplete report. LLVM-only builds withou
 need a separate artifact policy rather than pretending to satisfy the current native
 reference-output audit.
 
-The CPython recipe explicitly requires representative standard-library extensions,
+The full CPython profile derives its extension inventory from the original
+configured build and requires representative standard-library extensions,
 including SSL, SQLite, ctypes, compression and Tk. Missing development dependencies
-therefore remain visible failures. It still needs a full extension inventory and
-source-built dependency recipes. The Rust recipe retains both panic profiles,
+remain visible failures. Hosted libraries remain declared dependencies until
+their source-built implementations and final selection are admitted. The full
+Rust recipe retains both panic profiles,
 core/alloc/std, rustc's LLVM implementation, Cargo and helper closure; an abort-only
 or `no_std` capture does not satisfy the requested full Rust scope.
 

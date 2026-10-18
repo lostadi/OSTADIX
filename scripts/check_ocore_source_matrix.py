@@ -32,6 +32,11 @@ def checked_file(record: dict) -> dict:
     return actual
 
 
+def is_bitcode(path: Path) -> bool:
+    with path.open("rb") as stream:
+        return stream.read(4) in (b"BC\xc0\xde", b"\xde\xc0\x17\x0b")
+
+
 def load_profiles(manifest: Path) -> list[dict]:
     data = json.loads(manifest.read_text())
     require(isinstance(data, dict) and data.get("schema") == "ocore-source-audit-matrix-v1", "wrong matrix manifest schema")
@@ -56,7 +61,8 @@ def load_profiles(manifest: Path) -> list[dict]:
     return profiles
 
 
-def checked_result(path: Path, profile: dict, compiler_sha256: str, target: str) -> dict:
+def checked_result(path: Path, profile: dict, compiler_sha256: str, target: str,
+                   decoder_sha256: str | None = None) -> dict:
     result = json.loads(path.read_text())
     require(result.get("schema") == "ocore-runtime-import-diagnostics-v1", "wrong diagnostic report schema")
     require(result.get("audit_complete") is True and result.get("issues") == [], "unit diagnostic did not finish")
@@ -77,6 +83,22 @@ def checked_result(path: Path, profile: dict, compiler_sha256: str, target: str)
         require(checked_file(result["tools"][key])["sha256"] == compiler_sha256,
                 "diagnostic used a different compiler")
     snapshot = Path(result["tools"]["snapshot"]["path"]).resolve()
+    decoder = result["tools"].get("llvm_dis")
+    needs_decoder = any(is_bitcode(Path(u["ir"]["path"])) for u in expected.values())
+    require(bool(decoder) == needs_decoder, "bitcode decoder presence does not match original inputs")
+    if needs_decoder:
+        require(decoder_sha256 is not None, "bitcode decoder was not frozen by the matrix")
+        require(all(checked_file(record)["sha256"] == decoder_sha256
+                    for record in (decoder, decoder["snapshot"])), "diagnostic used a different bitcode decoder")
+        require(decoder["llvm_version"] == "22.1.6" and decoder["version_exit_code"] == 0 and
+                decoder["version_argv"] == [decoder["snapshot"]["path"], "--version"],
+                "bitcode decoder version check changed")
+        checked_file(decoder["version_stdout"])
+        checked_file(decoder["version_stderr"])
+        versions = re.findall(r"\bLLVM version (\d+\.\d+\.\d+)(?:\s|$)",
+                              Path(decoder["version_stdout"]["path"]).read_text(errors="replace") + "\n" +
+                              Path(decoder["version_stderr"]["path"]).read_text(errors="replace"))
+        require(versions == ["22.1.6"], "bitcode decoder did not report the pinned LLVM version")
     counts = {"imported_unit_count": 0, "independently_verified_unit_count": 0, "verified_object_count": 0}
     failures = {}
     for unit in units:
@@ -84,6 +106,23 @@ def checked_result(path: Path, profile: dict, compiler_sha256: str, target: str)
         require(unit["input"] == original["ir"] and unit.get("source") == original.get("source"),
                 "diagnostic changed an original whole-unit input")
         checked_file(unit["input"])
+        if is_bitcode(Path(original["ir"]["path"])):
+            decode = unit["llvm_decode"]
+            require(decode["exit_code"] == 0 and decode["argv"] ==
+                    [decoder["snapshot"]["path"], original["ir"]["path"], "-o", "-"],
+                    "diagnostic did not decode the complete original bitcode")
+            require(decode["input"] == audit.file_info(Path(original["ir"]["path"])) and
+                    decode["decoder"] == decoder["snapshot"], "bitcode decode provenance changed")
+            checked_file(decode["stderr"])
+            checked_file(decode["stdout"])
+            require(unit["decoded_llvm"] == decode["stdout"], "decoded LLVM identity changed")
+            text = Path(unit["decoded_llvm"]["path"]).read_text()
+            for spelling, key in (("triple", "target_triple"), ("datalayout", "data_layout")):
+                match = re.search(r'^target ' + spelling + r'\s*=\s*"([^"\n]*)"', text, re.MULTILINE)
+                require(match is not None and match.group(1) == original["ir"][key],
+                        "decoded bitcode changed the frontend target contract")
+        else:
+            require("llvm_decode" not in unit and "decoded_llvm" not in unit, "textual LLVM has a forged decode stage")
         stages = unit.get("stages", [])
         require([stage["stage"] for stage in stages] == ["import", "verify", "object"][:len(stages)],
                 "unexpected diagnostic stage sequence")
@@ -157,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", choices=audit.TARGETS, default="riscv64-unknown-none")
     parser.add_argument("--llvm-library", type=Path)
     parser.add_argument("--llvm-sha256")
+    parser.add_argument("--llvm-dis", help="LLVM 22.1.6 decoder for original bitcode metadata; compiler input remains raw bitcode")
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
@@ -180,10 +220,20 @@ def main(argv: list[str] | None = None) -> int:
         snapshot = tools / "ocorec"
         shutil.copy2(compiler_file["path"], snapshot)
         require(audit.file_info(snapshot)["sha256"] == compiler_file["sha256"], "compiler changed during snapshot")
+        decoder_file = None
+        if any(is_bitcode(Path(u["ir"]["path"])) for p in profiles for u in p["selected_units"]):
+            selected_decoder = shutil.which(args.llvm_dis or "llvm-dis")
+            require(selected_decoder is not None, "LLVM bitcode decoder executable was not found")
+            decoder_file = audit.file_info(Path(selected_decoder))
+            decoder_snapshot = tools / "llvm-dis"
+            shutil.copy2(decoder_file["path"], decoder_snapshot)
+            decoder_file["snapshot"] = audit.file_info(decoder_snapshot)
+            require(decoder_file["snapshot"]["sha256"] == decoder_file["sha256"], "decoder changed during snapshot")
         worker = Path(audit.__file__).resolve()
         report = {"schema": "ocore-source-audit-matrix-result-v1", "manifest": manifest_file,
                   "runner": audit.file_info(Path(__file__).resolve()), "worker": audit.file_info(worker),
                   "compiler": compiler_file, "snapshot": audit.file_info(snapshot), "llvm_library": library_file,
+                  "llvm_dis": decoder_file,
                   "target": args.target, "jobs": args.jobs, "profiles": [], "issues": [],
                   "audit_complete": False, "native_execution_qualified": False, "runtime_complete": False}
         audit.write_json(output / "report.json", report)
@@ -193,13 +243,16 @@ def main(argv: list[str] | None = None) -> int:
                     "--output", str(output / profile["name"])]
             if library_file:
                 argv.extend(["--llvm-library", library_file["path"], "--llvm-sha256", args.llvm_sha256])
+            if decoder_file:
+                argv.extend(["--llvm-dis", decoder_file["snapshot"]["path"]])
             log = output / (profile["name"] + ".log")
             with log.open("wb") as stream:
                 process = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.STDOUT)
             try:
                 require(process.returncode in (0, 1), "diagnostic process failed before a complete audit")
                 checked = checked_result(output / profile["name"] / "report.json", profile,
-                                         compiler_file["sha256"], args.target)
+                                         compiler_file["sha256"], args.target,
+                                         decoder_file["sha256"] if decoder_file else None)
                 checked.update({"command": argv, "exit_code": process.returncode, "log": audit.file_info(log)})
                 report["profiles"].append(checked)
                 print(json.dumps({key: checked[key] for key in ("name", "selected_units", "verified_object_count", "audit_complete")}), flush=True)
@@ -208,7 +261,8 @@ def main(argv: list[str] | None = None) -> int:
                                          "exit_code": process.returncode, "log": audit.file_info(log)})
             audit.write_json(output / "report.json", report)
         for record in [manifest_file, compiler_file, report["snapshot"], report["runner"], report["worker"],
-                       *[profile["capture_file"] for profile in profiles], *([library_file] if library_file else [])]:
+                       *[profile["capture_file"] for profile in profiles], *([library_file] if library_file else []),
+                       *([decoder_file, decoder_file["snapshot"]] if decoder_file else [])]:
             checked_file(record)
         report["audit_complete"] = len(report["profiles"]) == len(profiles) and not report["issues"]
         report["all_units_lowered"] = report["audit_complete"] and all(p["all_units_lowered"] for p in report["profiles"])
