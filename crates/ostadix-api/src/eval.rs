@@ -3389,15 +3389,15 @@ impl Evaluator {
                         }
                     }
                     let rendered = render_with(backend.renderer, &resolved);
-                    // bash drops a NUL in its script text without a word, so
-                    // a bare splice is refused like a NUL in an injected let.
-                    if backend.canonical == "bash" && rendered.contains('\0') {
-                        let what = match child {
-                            OIr::Load(name) => format!("`${name}`"),
-                            _ => "a spliced value".to_string(),
-                        };
-                        bail!("{what} contains a NUL byte, which a bash block cannot hold");
-                    }
+                    let name = match child {
+                        OIr::Load(name) => Some(name.as_str()),
+                        _ => None,
+                    };
+                    crate::eval_core::refuse_nul_in_bash_splice(
+                        &backend.canonical,
+                        name,
+                        &rendered,
+                    )?;
                     buf.push_str(&rendered);
                     if constructs_thunk {
                         deps.push(resolved);
@@ -6357,7 +6357,10 @@ mod tests {
             return;
         };
         let error = format!("{:#}", result.unwrap_err());
-        assert!(error.contains("NUL"), "{error}");
+        assert!(
+            error.contains("`$x` contains a NUL byte, which a bash block cannot hold"),
+            "{error}"
+        );
     }
 
     #[test]

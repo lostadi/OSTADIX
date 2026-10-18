@@ -146,3 +146,31 @@ fn a_real_cancel_during_now_batch_is_not_a_member_failure() {
     assert!(!stderr.contains("batch member"), "{stderr}");
     assert!(!stdout.contains('2'), "the batch yielded a value: {stdout}");
 }
+
+// ---------------------------------------------------------------------------
+// NUL in a bash splice, on both executors
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_nul_in_a_bash_splice_names_the_variable_on_every_executor() {
+    if !support::require_runtimes(&["python3", "bash"]) {
+        return;
+    }
+    for executor in ["serial", "graph"] {
+        let workdir = tempfile::tempdir().unwrap();
+        let program = write_program(
+            workdir.path(),
+            "let x = python^(__oval_result__ = 'a\\x00b')_python\n\
+             bash^(echo [$x])_bash\n",
+        );
+        let mut command = o_command(&program, workdir.path());
+        command.env("O_EXECUTOR", executor);
+        let output = support::output_private_executable(&mut command).unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{executor}: {stderr}");
+        assert!(
+            stderr.contains("`$x` contains a NUL byte, which a bash block cannot hold"),
+            "{executor}: {stderr}"
+        );
+    }
+}

@@ -538,7 +538,13 @@ fn build_task(
                                 .validate_value(&language, value)
                                 .map_err(anyhow::Error::msg)?;
                         }
-                        code.push_str(&render_with(renderer, value));
+                        let rendered = render_with(renderer, value);
+                        let name = match &plan.nodes[child.0].kind {
+                            PlanNodeKind::Load { name } => Some(name.as_str()),
+                            _ => None,
+                        };
+                        crate::eval_core::refuse_nul_in_bash_splice(&language, name, &rendered)?;
+                        code.push_str(&rendered);
                     }
                 }
             }
