@@ -14,7 +14,7 @@ import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from o_shim_common import command_loop, write_wire_message
-from o_shim_common import stdout_result
+from o_shim_common import step_timeout, stdout_result
 
 
 def send_ok(value):
@@ -39,7 +39,7 @@ def handle_exec(cmd):
             try:
                 result = subprocess.run(
                     ["wolframscript", "-file", tmp],
-                    capture_output=True, text=True, timeout=300,
+                    capture_output=True, text=True, timeout=step_timeout(),
                 )
             finally:
                 os.unlink(tmp)
@@ -55,7 +55,7 @@ def handle_exec(cmd):
                 "Install Wolfram Engine (https://www.wolfram.com/engine/)."
             )
     except subprocess.TimeoutExpired:
-        send_err("Mathematica execution timed out")
+        send_err("Mathematica execution exceeded the opt-in limit O_BACKEND_STEP_TIMEOUT_MS")
     except Exception:
         send_err(traceback.format_exc())
 
