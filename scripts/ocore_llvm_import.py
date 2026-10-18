@@ -84,6 +84,8 @@ class LLVM:
             "LLVMGetModuleIdentifier": (P, [P, C.POINTER(S)]),
             "LLVMGetModuleInlineAsm": (P, [P, C.POINTER(S)]),
             "LLVMGetFirstFunction": (P, [P]), "LLVMGetNextFunction": (P, [P]),
+            "LLVMGetNamedFunction": (P, [P, C.c_char_p]),
+            "LLVMDeleteFunction": (None, [P]),
             "LLVMGetFirstGlobal": (P, [P]), "LLVMGetNextGlobal": (P, [P]),
             "LLVMGetFirstGlobalAlias": (P, [P]), "LLVMGetNextGlobalAlias": (P, [P]),
             "LLVMAliasGetAliasee": (P, [P]), "LLVMIsAGlobalAlias": (P, [P]),
@@ -156,6 +158,7 @@ class LLVM:
             "LLVMGetSwitchCaseValue": (P, [P, U]),
             "LLVMGetMDKindIDInContext": (U, [P, C.c_char_p, U]),
             "LLVMInstructionGetAllMetadataOtherThanDebugLoc": (P, [P, C.POINTER(S)]),
+            "LLVMGetMetadata": (P, [P, U]),
             "LLVMGlobalCopyAllMetadata": (P, [P, C.POINTER(S)]),
             "LLVMValueMetadataEntriesGetKind": (U, [P, U]),
             "LLVMValueMetadataEntriesGetMetadata": (P, [P, U]),
@@ -2223,6 +2226,135 @@ def preflight_scoped_alias_metadata(a, context, module):
                     visit(a.ValueAsMetadata(argument), "list")
 
 
+def audit_verified_module(a, module):
+    serialized = a.WriteBitcodeToMemoryBuffer(module)
+    if not serialized:
+        raise ImportFailure("LLVM could not serialize verified module for blind-field audit", "bitcode-audit")
+    try:
+        try:
+            return audit_bitcode(C.string_at(a.GetBufferStart(serialized), a.GetBufferSize(serialized)))
+        except BitcodeFailure as error:
+            raise ImportFailure(str(error), "bitcode-audit") from error
+    finally:
+        a.DisposeMemoryBuffer(serialized)
+
+
+def metadata_references_any(a, context, module, candidates):
+    """Include metadata uses, which LLVMGetFirstUse does not enumerate."""
+    pending, visited = [], set()
+
+    def attachments(value, global_value=False):
+        count = S()
+        entries = (a.GlobalCopyAllMetadata if global_value else
+                   a.InstructionGetAllMetadataOtherThanDebugLoc)(value, C.byref(count))
+        try:
+            for index in range(count.value):
+                metadata = a.ValueMetadataEntriesGetMetadata(entries, index)
+                if metadata:
+                    pending.append(a.MetadataAsValue(context, metadata))
+        finally:
+            if entries:
+                a.DisposeValueMetadataEntries(entries)
+
+    for node in a.sequence(a.GetFirstNamedMetadata, a.GetNextNamedMetadata, module):
+        name = a.string(a.GetNamedMetadataName, node).encode()
+        values = (P * a.GetNamedMetadataNumOperands(module, name))()
+        a.GetNamedMetadataOperands(module, name, values)
+        pending.extend(values)
+    for global_ in a.sequence(a.GetFirstGlobal, a.GetNextGlobal, module):
+        attachments(global_, True)
+    debug_kind = a.GetMDKindIDInContext(context, b"dbg", 3)
+    for function in a.sequence(a.GetFirstFunction, a.GetNextFunction, module):
+        attachments(function, True)
+        for block in a.sequence(a.GetFirstBasicBlock, a.GetNextBasicBlock, function):
+            for instruction in a.sequence(a.GetFirstInstruction, a.GetNextInstruction, block):
+                attachments(instruction)
+                pending.append(a.GetMetadata(instruction, debug_kind))
+                for index in range(a.GetNumOperands(instruction)):
+                    operand = a.GetOperand(instruction, index)
+                    if operand and a.GetTypeKind(a.TypeOf(operand)) == 14:
+                        pending.append(operand)
+    while pending:
+        value = pending.pop()
+        if not value:
+            continue
+        if value in candidates:
+            return True
+        if value in visited:
+            continue
+        visited.add(value)
+        # LLVM22's getters also expose the underlying ValueAsMetadata operand.
+        if a.IsAMDNode(value):
+            values = (P * a.GetMDNodeNumOperands(value))()
+            a.GetMDNodeOperands(value, values)
+            pending.extend(values)
+    return False
+
+
+def normalize_legacy_lifetime_artifacts(a, context, module, audit):
+    """Remove only the unused declarations left by LLVM22's legacy upgrade bug.
+
+    LLVM PR204601 (https://github.com/llvm/llvm-project/pull/204601) fixes
+    the old (i64 size, ptr) upgrade choosing the size's
+    type for an unused declaration, while actual calls become canonical p0.
+    This is not admission of lifetime.i64 calls or arbitrary malformed IR.
+    Audit the original parsed module first so deletion cannot hide blind fields.
+    """
+    kinds = (("start", 219), ("end", 218))
+    candidates = {kind: a.GetNamedFunction(module, f"llvm.lifetime.{kind}.i64".encode())
+                  for kind, _ in kinds}
+    if not any(candidates.values()):
+        return []
+    functions = list(a.sequence(a.GetFirstFunction, a.GetNextFunction, module))
+    if len(functions) != len(audit["function_alignments"]):
+        raise ImportFailure("LLVM bitcode alignment audit and C API symbol inventories disagree", "bitcode-audit")
+    alignments = dict(zip(functions, audit["function_alignments"]))
+    by_name = {a.name(value): value for value in functions}
+    removed = []
+    for kind, intrinsic_id in kinds:
+        name = f"llvm.lifetime.{kind}.i64"
+        value = candidates[kind]
+        if not value:
+            continue
+        canonical = by_name.get(f"llvm.lifetime.{kind}.p0")
+
+        def parameter(function, expected_kind):
+            ty = a.GlobalGetValueType(function)
+            if (a.CountParamTypes(ty) != 1 or a.IsFunctionVarArg(ty)
+                    or a.GetTypeKind(a.GetReturnType(ty)) != 0):
+                return False
+            params = (P * 1)()
+            a.GetParamTypes(ty, params)
+            return (a.GetTypeKind(params[0]) == expected_kind
+                    and (a.GetIntTypeWidth(params[0]) == 64 if expected_kind == 8
+                         else a.GetPointerAddressSpace(params[0]) == 0))
+
+        count = S()
+        metadata = a.GlobalCopyAllMetadata(value, C.byref(count))
+        a.DisposeValueMetadataEntries(metadata)
+        if (not canonical or not parameter(value, 8) or not parameter(canonical, 12)
+                or a.GetIntrinsicID(value) != intrinsic_id
+                or a.GetIntrinsicID(canonical) != intrinsic_id
+                or a.GetFirstUse(value) or a.GetFirstBasicBlock(value)
+                or a.GetFirstBasicBlock(canonical) or a.GetFunctionCallConv(canonical)
+                or a.GetLinkage(canonical) or a.GetVisibility(canonical)
+                or a.GetPointerAddressSpace(a.TypeOf(canonical))
+                or a.GetFunctionCallConv(value) or a.GetLinkage(value) or a.GetVisibility(value)
+                or a.GetPointerAddressSpace(a.TypeOf(value)) or alignments[value]
+                or a.GetDLLStorageClass(value) or a.GetSection(value) or a.GetComdat(value)
+                or a.GetUnnamedAddress(value) or a.GetGC(value) or a.HasPersonalityFn(value)
+                or a.HasPrefixData(value) or a.HasPrologueData(value) or count.value
+                or any(a.GetAttributeCountAtIndex(value, index) for index in (0xffffffff, 0, 1))):
+            raise ImportFailure("legacy lifetime upgrade artifact requires an unused unannotated external void(i64) declaration and its canonical void(ptr AS0) counterpart", symbol=name)
+        removed.append((name, value))
+    if removed and metadata_references_any(a, context, module, {value for _, value in removed}):
+        raise ImportFailure("legacy lifetime upgrade artifact has metadata references")
+    for _, value in removed:
+        a.DeleteFunction(value)
+    return [(functions.index(value), f"{name}: removed exact unused void(i64) declaration left by pinned LLVM22 legacy lifetime auto-upgrade (LLVM PR204601); canonical pointer lifetime calls and original input_sha256 retained; complete module audited before and after normalization")
+            for name, value in removed]
+
+
 def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                   frontend="LLVM IR", frontend_version="producer version not declared", tls_profile=None,
                   atomic_profile=None):
@@ -2250,16 +2382,20 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
         importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile)
         importer.module_metadata()
         importer.check_target_profile()
-        serialized = a.WriteBitcodeToMemoryBuffer(module)
-        if not serialized:
-            raise ImportFailure("LLVM could not serialize verified module for blind-field audit", "bitcode-audit")
-        try:
-            try:
-                audit = audit_bitcode(C.string_at(a.GetBufferStart(serialized), a.GetBufferSize(serialized)))
-            except BitcodeFailure as error:
-                raise ImportFailure(str(error), "bitcode-audit") from error
-        finally:
-            a.DisposeMemoryBuffer(serialized)
+        audit = audit_verified_module(a, module)
+        normalized = normalize_legacy_lifetime_artifacts(a, context, module, audit)
+        if normalized:
+            removed_indices = {index for index, _ in normalized}
+            importer.refinements.update(note for _, note in normalized)
+            original_audit, audit = audit, audit_verified_module(a, module)
+            if (original_audit["function_count"] != audit["function_count"] + len(normalized)
+                    or any(original_audit[key] != audit[key] for key in
+                           ("dso_local_count", "global_count", "global_alignments", "global_comdat_ids",
+                            "alias_count", "comdat_count", "comdat_contracts"))
+                    or any([value for index, value in enumerate(original_audit[key])
+                            if index not in removed_indices] != audit[key]
+                           for key in ("function_alignments", "function_comdat_ids"))):
+                raise ImportFailure("legacy lifetime normalization changed additional audited symbol contracts")
         if ((audit["triple"] or "") != (a.GetTarget(module) or b"").decode()
                 or (audit["data_layout"] or "") != (a.GetDataLayoutStr(module) or b"").decode()):
             raise ImportFailure("LLVM bitcode audit and C API target strings disagree", "bitcode-audit")

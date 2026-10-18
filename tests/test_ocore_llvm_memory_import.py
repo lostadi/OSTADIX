@@ -209,6 +209,79 @@ define void @entry() {
                 self.assertIn("alloca storage and address identity", refinements)
                 self.assertIn("poison markers have no effect", refinements)
 
+    def test_legacy_sized_lifetime_calls_normalize_only_unused_reader_artifacts_all_three_isas(self):
+        body = """
+declare void @llvm.lifetime.start.p0(i64 immarg, ptr captures(none))
+declare void @llvm.lifetime.end.p0(i64 immarg, ptr captures(none))
+define i64 @entry(i64 %value) {
+  %local = alloca i64, align 8
+  call void @llvm.lifetime.start.p0(i64 8, ptr %local)
+  store i64 %value, ptr %local, align 8
+  %result = load i64, ptr %local, align 8
+  call void @llvm.lifetime.end.p0(i64 8, ptr %local)
+  ret i64 %result
+}
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                source = self.write(body, triple)
+                self.assert_roundtrip(source)
+                for path in (source, self.bitcode(source)):
+                    module = importer.import_module(path, library_path=self.library)
+                    self.assertEqual({fn["name"] for fn in module["functions"]},
+                                     LIFETIME_NAMES | {"entry"})
+                    self.assertEqual(module["provenance"]["source_function_count"], 3)
+                    self.assertEqual(module["provenance"]["input_sha256"],
+                                     hashlib.sha256(path.read_bytes()).hexdigest())
+                    operations = self.operations(self.function(module, "entry"))
+                    lifetime = [op for op in operations if op["op"] == "lifetime"]
+                    self.assertEqual([op["end"] for op in lifetime], [False, True])
+                    self.assertEqual(lifetime[0]["pointer"], lifetime[1]["pointer"])
+                    self.assertEqual([op["op"] for op in operations],
+                                     ["alloca", "lifetime", "store", "load", "lifetime"])
+                    refinements = module["provenance"]["refinements"]
+                    self.assertEqual(sum("LLVM PR204601" in note for note in refinements), 2)
+
+    def test_legacy_lifetime_artifact_normalization_rejects_other_declarations_and_uses(self):
+        companion = "declare void @llvm.lifetime.start.p0(ptr)\n"
+        for declaration in (
+                "declare void @llvm.lifetime.start.i64(i64)",
+                "declare void @llvm.lifetime.end.i64(i64)"):
+            with self.subTest(declaration=declaration, companion=False):
+                self.reject(declaration + "\n")
+        for declaration in (
+                "declare void @llvm.lifetime.start.i64(i32)",
+                "declare i32 @llvm.lifetime.start.i64(i64)",
+                "declare void @llvm.lifetime.start.i64(i64, ...)",
+                "declare hidden void @llvm.lifetime.start.i64(i64)",
+                "declare fastcc void @llvm.lifetime.start.i64(i64)",
+                'declare void @llvm.lifetime.start.i64(i64) section ".extra"',
+                "declare void @llvm.lifetime.start.i64(i64) nounwind",
+                "declare void @llvm.lifetime.start.i64(i64) align 4294967296",
+                "declare dso_local void @llvm.lifetime.start.i64(i64)"):
+            with self.subTest(declaration=declaration, companion=True):
+                self.reject(companion + declaration + "\n")
+        declaration = companion + "declare void @llvm.lifetime.start.i64(i64)\n"
+        for extra in (
+                '!llvm.ident = !{!0}\n!0 = !{ptr @llvm.lifetime.start.i64}\n',
+                'define void @entry() { ret void, !annotation !0 }\n!0 = !{ptr @llvm.lifetime.start.i64}\n'):
+            with self.subTest(metadata=extra):
+                self.reject(declaration + extra, stage="llvm-verify")
+        self.reject(companion + 'declare void @llvm.lifetime.start.i64(i64) partition "separate"\n',
+                    stage="bitcode-audit")
+        with self.assertRaisesRegex(importer.ImportFailure, "artifact has metadata references"):
+            self.import_ir(declaration + 'define void @entry() { ret void, !custom !0 }\n'
+                           + '!0 = !{ptr @llvm.lifetime.start.i64}\n')
+        self.reject(declaration + '@escape = global ptr @llvm.lifetime.start.i64\n', stage="llvm-verify")
+        self.reject(declaration + "define double @unsupported(double %x) { ret double %x }\n")
+        self.reject(companion + """
+declare void @llvm.lifetime.start.i64(i64)
+define void @entry() {
+  call void @llvm.lifetime.start.i64(i64 8)
+  ret void
+}
+""", stage="llvm-verify")
+
     def test_callsite_alignment_has_no_declaration_fallback_and_keeps_full_64_bit_payload(self):
         body = """
 declare void @llvm.memset.p0.i64(ptr align 32, i8, i64, i1 immarg)

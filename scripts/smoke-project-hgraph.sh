@@ -119,7 +119,7 @@ done
 mark 'DeploymentPlanV1 canonical hosted intent and bundle-scoped snapshot proposal: PASS'
 mark 'DeploymentPlanV1 World-epoch, hierarchy/task, and substitution rejection: PASS'
 
-run cargo build --locked --package o-lang --bin olangc --bin o-cli
+run cargo build --locked --package o-lang --bin O --bin olangc --bin o-cli
 first="$work_dir/project-plan-first.log"
 second="$work_dir/project-plan-second.log"
 run_logged "$first" "$ROOT/target/debug/olangc" "$fixture" \
@@ -137,10 +137,15 @@ cmp "$first" "$dispatcher_log"
 
 installed_cargo_bin="$work_dir/installed-cargo/bin"
 installed_local_bin="$work_dir/installed-local/bin"
-run "$ROOT/scripts/install-o-cli-wrapper.sh" "$installed_cargo_bin/o"
-run "$ROOT/scripts/install-o-cli-wrapper.sh" "$installed_local_bin/o"
+# Install the debug binaries exercised above; clean CI has no release build.
+run python3 "$ROOT/scripts/install_native_binaries.py" \
+    --repo-root "$ROOT" --build-dir "$ROOT/target/debug" \
+    --bin-dir "$installed_cargo_bin" --front-door-only
+run python3 "$ROOT/scripts/install_native_binaries.py" \
+    --repo-root "$ROOT" --build-dir "$ROOT/target/debug" \
+    --bin-dir "$installed_local_bin" --front-door-only
 installed_dispatch_log="$work_dir/project-plan-installed-dispatcher.log"
-PATH="$installed_local_bin:$installed_cargo_bin:$ROOT/target/release:/usr/bin:/bin" \
+PATH="$installed_local_bin:$installed_cargo_bin:/usr/bin:/bin" \
     O_LANG_OLANGC_BIN="$ROOT/target/debug/olangc" \
     O_LANG_OCLI_BIN="$ROOT/target/debug/o-cli" \
     o plan "$fixture" --route main \
@@ -148,7 +153,7 @@ PATH="$installed_local_bin:$installed_cargo_bin:$ROOT/target/release:/usr/bin:/b
 cmp "$first" "$installed_dispatch_log"
 
 fallback_log="$work_dir/project-dispatcher-fallback.log"
-PATH="$installed_cargo_bin:$installed_local_bin:$ROOT/target/release:/usr/bin:/bin" \
+PATH="$installed_cargo_bin:$installed_local_bin:/usr/bin:/bin" \
     O_LANG_EVALUATOR_BIN=/bin/echo \
     o pr7-fallback-probe preserved-argument \
     >"$fallback_log" 2>>"$transcript"
