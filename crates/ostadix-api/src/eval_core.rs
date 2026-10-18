@@ -166,13 +166,7 @@ pub(crate) fn refuse_nul_in_bash_splice(
 /// Whether a plan node is a plain bash block: a fresh-environment bash exec
 /// that a reusable plain helper runs.
 pub(crate) fn is_plain_bash_exec(kind: &PlanNodeKind) -> bool {
-    matches!(
-        kind,
-        PlanNodeKind::Exec { env_id, backend, .. }
-            if backend.canonical == "bash"
-                && backend.execution == crate::backend_catalog::ExecutionMode::Shim
-                && *env_id > crate::environment::MAX_PERSISTENT_ENV_ID
-    )
+    kind.is_plain_bash_exec()
 }
 
 /// Materialized values and policy context for one graph evaluation.
