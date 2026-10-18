@@ -754,6 +754,41 @@ pub(crate) fn linux_process_observation_disappeared(error: &io::Error) -> bool {
 /// Linux cgroup or a Windows job object.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn owned_group_has_no_active_descendants(group: i32) -> io::Result<bool> {
+    // SAFETY: signal zero performs existence/permission checks only.
+    let probe = unsafe { libc::kill(-group, 0) };
+    let errno = (probe != 0).then(io::Error::last_os_error);
+    if group_probe_says_empty(errno.as_ref())? {
+        return Ok(true);
+    }
+    scan_owned_group(group)
+}
+
+/// What `kill(-group, 0)` says about the group.
+///
+/// why probe first: the scan below reads every /proc/*/stat on the host,
+/// a few ms on a busy box, and it ran at every backend exit (bash_hello
+/// paid it once the helper was reaped). ESRCH means no process is left in
+/// the group, so it is empty at once. success or EPERM means something is
+/// still in it, maybe only a zombie, so the scan decides (zombies count as
+/// finished). any other errno is unexpected and fails closed.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn group_probe_says_empty(errno: Option<&io::Error>) -> io::Result<bool> {
+    match errno.map(io::Error::raw_os_error) {
+        None => Ok(false),
+        Some(Some(libc::ESRCH)) => Ok(true),
+        Some(Some(libc::EPERM)) => Ok(false),
+        Some(_) => Err(io::Error::new(
+            errno.map_or(io::ErrorKind::Other, io::Error::kind),
+            format!(
+                "cannot probe the backend process group: {}",
+                errno.map_or_else(String::new, ToString::to_string)
+            ),
+        )),
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn scan_owned_group(group: i32) -> io::Result<bool> {
     for entry in std::fs::read_dir("/proc")? {
         let entry = match entry {
             Ok(entry) => entry,
@@ -4065,6 +4100,63 @@ impl Drop for ProcessRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // the group probe: ESRCH is empty at once; success and EPERM fall back
+    // to the scan; any other errno fails closed.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn the_group_probe_reads_each_errno_one_way() {
+        assert!(!group_probe_says_empty(None).unwrap());
+        let esrch = io::Error::from_raw_os_error(libc::ESRCH);
+        assert!(group_probe_says_empty(Some(&esrch)).unwrap());
+        let eperm = io::Error::from_raw_os_error(libc::EPERM);
+        assert!(!group_probe_says_empty(Some(&eperm)).unwrap());
+        let einval = io::Error::from_raw_os_error(libc::EINVAL);
+        let error = group_probe_says_empty(Some(&einval)).unwrap_err();
+        assert!(error.to_string().contains("cannot probe"), "{error}");
+    }
+
+    // a live group is not empty (probe succeeds, scan finds it); a reaped
+    // one is empty (probe gives ESRCH); a group whose only member is an
+    // unreaped zombie is empty (probe succeeds, the scan skips zombies).
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn the_group_probe_and_scan_agree_on_live_zombie_and_reaped_groups() -> Result<()> {
+        use std::os::unix::process::CommandExt as _;
+        let mut live = Command::new("sleep").arg("30").process_group(0).spawn()?;
+        let group = live.id() as i32;
+        // the leader is skipped by the scan, so give the group a second member.
+        let mut member = Command::new("sleep")
+            .arg("30")
+            .process_group(group)
+            .spawn()?;
+        assert!(!owned_group_has_no_active_descendants(group)?);
+        member.kill()?;
+        member.wait()?;
+        live.kill()?;
+        // the leader is a zombie until it is reaped: kill(-group, 0) still
+        // succeeds, and the scan treats the zombie as finished.
+        let started = Instant::now();
+        while !owned_group_has_no_active_descendants(group)? {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "zombie group never read empty"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+        // SAFETY: signal zero only probes the group.
+        assert_eq!(
+            unsafe { libc::kill(-group, 0) },
+            0,
+            "the zombie leader keeps the group"
+        );
+        live.wait()?;
+        // SAFETY: as above.
+        assert_ne!(unsafe { libc::kill(-group, 0) }, 0);
+        assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
+        assert!(owned_group_has_no_active_descendants(group)?);
+        Ok(())
+    }
 
     // the host's exit wait is chunked by the heartbeat interval, so a long
     // wait on a pidfd still returns to its caller once per interval to read
