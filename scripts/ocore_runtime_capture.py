@@ -935,6 +935,53 @@ def verify_rust_capture_event(event: dict, session: dict, directory: Path) -> No
             raise CaptureError("Rust original embedded CGU inventory is incomplete")
 
 
+
+def verified_rust_native_member_copies(event: dict, session: dict, directory: Path) -> list[dict]:
+    """Readmit original CGU edges before indexing possible exact native copies.
+
+    This binds copy contents to an original archive member, not to a guessed
+    save-temp filename. It grants neither source-provider ownership nor native
+    machine/post-LTO equivalence. All ordinary worker/source gates still apply.
+    """
+    verify_rust_capture_event(event, session, directory)
+    if (event.get("kind") != "rustc" or event.get("state") != "finished"
+            or event.get("exit_code") != 0 or event.get("capture_errors")
+            or not event.get("rust_capture", {}).get("applied")):
+        return []
+    origins = []
+    for record in event.get("saved_cgus", []):
+        container = record.get("container")
+        if container is None:
+            continue
+        member = container["member"]
+        origins.append({"invocation_id": event["id"], "archive": container["artifact"],
+                        "member_index": member["index"], "member_name": member["name"],
+                        "member_name_bytes": member["name_bytes"],
+                        "object": record["object"], "bitcode": record["bitcode"],
+                        "embedded_bitcode_edge": record["edge"]})
+    return origins
+
+
+def rust_native_member_copy_index(origins: list[dict]) -> dict:
+    index = {}
+    for origin in origins:
+        key = (bytes(origin["member_name_bytes"]), origin["object"]["sha256"], origin["object"]["bytes"])
+        index.setdefault(key, []).append(origin)
+    return index
+
+
+def exact_rust_native_member_copy(artifact: dict, index: dict) -> dict | None:
+    key = (os.fsencode(Path(artifact["path"]).name), artifact["sha256"], artifact["bytes"])
+    matches = index.get(key, [])
+    if len(matches) != 1:
+        return None
+    origin = matches[0]
+    return {**artifact, "captured_origin": origin["archive"]["path"],
+            "captured_origin_kind": "verified-rust-archive-member-copy",
+            "captured_rust_member": origin, "source_production_ownership_verified": False,
+            "native_machine_equivalence_verified": False, "post_lto_equivalence_verified": False}
+
+
 def observed_link_inputs(args: list[str], cwd: Path) -> dict:
     files, libraries, search_paths, ordered = [], [], [], []
     args = [item for arg in args for item in (arg[4:].split(",") if arg.startswith("-Wl,") else [arg])]
@@ -2023,12 +2070,13 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
         issues.append("full build-generated source-unit inventory is required and unavailable")
     required = check_requirements(requirements, events, source)
     issues.extend(f"required unit incomplete: {item['id']} ({item['source']})" for item in required if not item["complete"])
+    rust_member_origins = []
     for event in events:
         if event.get("state") != "finished":
             issues.append(f"unfinished compiler invocation: {event['id']}")
         issues.extend(f"invocation {event['id']}: {error}" for error in event.get("capture_errors", []))
         try:
-            verify_rust_capture_event(event, session, directory)
+            rust_member_origins.extend(verified_rust_native_member_copies(event, session, directory))
         except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
             issues.append(f"Rust embedded capture readmission {event['id']}: {error}")
         compiler_artifacts = [*event.get("compiler_inputs", []),
@@ -2045,6 +2093,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     outputs = [output for event in events for output in event.get("outputs", [])]
     produced = {output["path"] for output in outputs}
     output_hashes = {output["sha256"]: output["path"] for output in outputs}
+    rust_member_index = rust_native_member_copy_index(rust_member_origins)
     uncaptured = []
     copied_outputs = []
     for root in session["audit_roots"]:
@@ -2058,7 +2107,11 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                 if item["sha256"] in output_hashes:
                     copied_outputs.append({**item, "captured_origin": output_hashes[item["sha256"]]})
                 else:
-                    uncaptured.append(item)
+                    rust_copy = exact_rust_native_member_copy(item, rust_member_index)
+                    if rust_copy is not None:
+                        copied_outputs.append(rust_copy)
+                    else:
+                        uncaptured.append(item)
     if uncaptured:
         issues.append(f"{len(uncaptured)} native object/archive outputs have no captured compiler invocation")
     build_steps = session.get("build_steps", [])
