@@ -32,6 +32,20 @@ _session = None
 # signal that killed the session shell mid-block; every later block fails
 # instead of silently starting a fresh shell (its state is gone).
 _killed_by = None
+# a plain-block helper gives every block a fresh shell and ends it before
+# answering, so nothing a block leaves reaches the next one.
+_plain = os.environ.get("O_BACKEND_PLAIN_BASH_HELPER") == "1"
+
+# a helper serves many plain blocks; its own identity is not the block's.
+_PLAIN_HELPER_PRIVATE_ENV = ("O_BACKEND_SESSION_ID", "O_BACKEND_LAUNCH_GENERATION",
+                             "O_BACKEND_NATIVE_INSTANCE_ID", "O_BACKEND_PLAIN_BASH_HELPER")
+
+
+def _shell_env():
+    if not _plain:
+        return None
+    return {k: v for k, v in os.environ.items() if k not in _PLAIN_HELPER_PRIVATE_ENV}
+
 
 # keep in step with BASH_WRITABLE_SPECIAL_NAMES in crates/ostadix-api/src/ir.rs
 WRITABLE_SPECIALS = {
@@ -118,7 +132,7 @@ class BashSession:
         self.proc = subprocess.Popen(
             ["bash", "--noprofile", "--norc", "-s"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, text=True,
+            stderr=subprocess.DEVNULL, text=True, env=_shell_env(),
         )
         self.serial = 0
 
@@ -249,12 +263,16 @@ def handle_exec(cmd):
         if _session is None:
             _session = BashSession()
         returncode, stdout, stderr, alive = _session.run(code, env)
+        if _plain and alive:
+            _session.close()
+            _session = None
         if not alive:
             _session.close()
             _session = None
             if returncode < 0:
-                _killed_by = -returncode
-                send_err(f"bash session was killed by signal {_killed_by} during this block; its state is gone")
+                if not _plain:
+                    _killed_by = -returncode
+                send_err(f"bash session was killed by signal {-returncode} during this block; its state is gone")
                 return
         if returncode != 0 and not alive:
             # a failing block that ended the session, e.g. under a persisted

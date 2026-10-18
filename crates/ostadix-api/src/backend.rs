@@ -90,14 +90,11 @@ pub fn run_backend(lang: &str) -> Result<()> {
     }
     let mut backend = RustBackend::new(tools);
     if lang == "bash" {
-        // the shell is spawned before the first request, so each plain
-        // block runs in a fresh bash under its own subreaper helper.
-        let session = BashSession::start(&backend.tools)?;
-        // the heartbeat watches this shell from the first block on.
-        backend
-            .child_pid
-            .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
-        backend.bash = Some(session);
+        backend.plain_bash = std::env::var_os(crate::process::PLAIN_BASH_HELPER_ENV)
+            .is_some_and(|value| value == "1");
+        // the shell is spawned before the first request, so no block waits
+        // for a fork.
+        backend.prespawn_bash()?;
     }
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -177,6 +174,10 @@ pub fn run_backend(lang: &str) -> Result<()> {
             }
         };
         wire::write_frame(&mut stdout.lock(), &response)?;
+        if backend.plain_bash {
+            // after the answer, off the block's path: the next block's shell.
+            backend.prespawn_bash()?;
+        }
     }
 
     Ok(())
@@ -262,14 +263,26 @@ struct RustBackend {
     // 0 when none), reported in heartbeats.
     // signal that killed the bash session shell mid-block; later blocks fail.
     bash_killed: Option<i32>,
+    // a plain-block helper: every block gets a fresh shell, ended (with its
+    // jobs) before the answer is written, and the next shell is spawned after.
+    plain_bash: bool,
     child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
     tools: BackendToolchain,
 }
 
+/// Helper-only variables a plain block's shell never inherits.
+const PLAIN_HELPER_PRIVATE_ENV: [&str; 4] = [
+    "O_BACKEND_SESSION_ID",
+    "O_BACKEND_LAUNCH_GENERATION",
+    "O_BACKEND_NATIVE_INSTANCE_ID",
+    crate::process::PLAIN_BASH_HELPER_ENV,
+];
+
 /// Persistent `bash` session for one backend process.
 ///
 /// A backend process serves exactly one (language, environment) pair. Plain
-/// `bash^(...)_bash` blocks get a fresh backend process per block, so their
+/// `bash^(...)_bash` blocks run in a reusable helper backend that gives every
+/// block a fresh shell and ends it, with its jobs, before answering, so their
 /// variables vanish when the block finishes. Numbered environments such as
 /// `bash[0]^(...)_bash[0]` reuse one backend process, and this session keeps
 /// shell variables, functions, options, and the working directory across the
@@ -360,9 +373,19 @@ fn bash_values(bindings: HashMap<String, OValue>) -> Result<Vec<(String, String)
 }
 
 impl BashSession {
-    fn start(tools: &BackendToolchain) -> Result<Self> {
+    fn start(tools: &BackendToolchain, plain: bool) -> Result<Self> {
         let dir = TempDir::new("o-bash-session")?;
         let mut command = tools.command("bash")?;
+        if plain {
+            // a helper serves many plain blocks; its own identity is not the
+            // block's, so the shell does not see it.
+            for name in PLAIN_HELPER_PRIVATE_ENV {
+                command.env_remove(name);
+            }
+        }
+        // the shell stays in the backend's process group: the host kills
+        // that group on cancellation or the opt-in limit, and the group kill
+        // must reach the shell and the jobs it started.
         let mut child = command
             .args(["--noprofile", "--norc", "-s"])
             .stdin(Stdio::piped())
@@ -498,51 +521,29 @@ fn become_bash_subreaper() {
 #[cfg(not(target_os = "linux"))]
 fn become_bash_subreaper() {}
 
-/// Every live descendant of this process, read from `/proc`.
+/// The live children of this process, from `/proc/self/task/*/children`.
+///
+/// why not a /proc scan: reading every process's stat cost a few ms per plain
+/// block on a busy host. as the subreaper this process inherits every orphan
+/// bash leaves, so its own children are all that cleanup has to visit; killing
+/// one reparents its children here for the next pass.
 #[cfg(target_os = "linux")]
 fn backend_descendants() -> Vec<i32> {
-    let mut parents = HashMap::new();
-    if let Ok(entries) = fs::read_dir("/proc") {
-        for entry in entries.flatten() {
-            let Some(pid) = entry
-                .file_name()
-                .to_str()
-                .and_then(|n| n.parse::<i32>().ok())
-            else {
+    let mut children = Vec::new();
+    if let Ok(tasks) = fs::read_dir("/proc/self/task") {
+        for task in tasks.flatten() {
+            let Ok(list) = fs::read_to_string(task.path().join("children")) else {
                 continue;
             };
-            let Ok(stat) = fs::read_to_string(format!("/proc/{pid}/stat")) else {
-                continue;
-            };
-            // the command name may hold spaces or parens, so fields are
-            // read after its closing paren: state, then ppid.
-            let Some(rest) = stat.rfind(')').map(|index| &stat[index + 1..]) else {
-                continue;
-            };
-            let mut fields = rest.split_whitespace();
-            let state = fields.next().unwrap_or("");
-            if state == "Z" || state == "X" {
-                continue;
-            }
-            if let Some(ppid) = fields.next().and_then(|field| field.parse::<i32>().ok()) {
-                parents.insert(pid, ppid);
-            }
+            children.extend(
+                list.split_whitespace()
+                    .filter_map(|pid| pid.parse::<i32>().ok()),
+            );
         }
     }
-    let mut found = vec![std::process::id() as i32];
-    let mut index = 0;
-    while index < found.len() {
-        let parent = found[index];
-        found.extend(
-            parents
-                .iter()
-                .filter(|(_, ppid)| **ppid == parent)
-                .map(|(pid, _)| *pid),
-        );
-        index += 1;
-    }
-    found.remove(0);
-    found
+    children.sort_unstable();
+    children.dedup();
+    children
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -550,16 +551,20 @@ fn backend_descendants() -> Vec<i32> {
     Vec::new()
 }
 
-/// SIGKILL every descendant and reap them within `budget`; returns how
-/// many distinct processes were stopped.
+/// SIGKILL every child and its process group, reap them, and repeat until no
+/// child remains or `budget` runs out; returns how many distinct processes
+/// were stopped. the budget bounds cleanup only, never a step.
 fn stop_backend_descendants(budget: Duration) -> usize {
     let deadline = std::time::Instant::now() + budget;
     let mut stopped = std::collections::HashSet::new();
     loop {
         let live = backend_descendants();
         for pid in &live {
-            // SAFETY: kill only signals a pid found as our descendant.
+            // a job that called setsid leads its own group; killing the group
+            // takes its pipeline down in one pass.
+            // SAFETY: killpg and kill only signal a pid found as our child.
             unsafe {
+                libc::killpg(*pid, libc::SIGKILL);
                 libc::kill(*pid, libc::SIGKILL);
             }
             stopped.insert(*pid);
@@ -576,7 +581,7 @@ fn stop_backend_descendants(budget: Duration) -> usize {
         if live.is_empty() || std::time::Instant::now() >= deadline {
             break;
         }
-        std::thread::sleep(Duration::from_millis(5));
+        std::thread::sleep(Duration::from_millis(1));
     }
     stopped.len()
 }
@@ -610,8 +615,22 @@ impl RustBackend {
             bash: None,
             child_pid: Default::default(),
             bash_killed: None,
+            plain_bash: false,
             tools,
         }
+    }
+
+    /// Spawn the shell the next block will use, so the block itself never
+    /// waits for a fork.
+    fn prespawn_bash(&mut self) -> Result<()> {
+        if self.bash.is_none() {
+            let session = BashSession::start(&self.tools, self.plain_bash)?;
+            // the heartbeat watches this shell from its block on.
+            self.child_pid
+                .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
+            self.bash = Some(session);
+        }
+        Ok(())
     }
 
     fn exec(
@@ -629,13 +648,16 @@ impl RustBackend {
                 }
                 let env = bash_values(bindings)?;
                 if self.bash.is_none() {
-                    let session = BashSession::start(&self.tools)?;
+                    let session = BashSession::start(&self.tools, self.plain_bash)?;
                     self.child_pid
                         .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
                     self.bash = Some(session);
                 }
                 let session = self.bash.as_mut().expect("bash session started");
                 let (output, alive) = session.run(code, &env)?;
+                if self.plain_bash {
+                    return self.finish_plain_bash_block(output, alive);
+                }
                 if !alive {
                     self.child_pid
                         .store(0, std::sync::atomic::Ordering::Relaxed);
@@ -879,6 +901,33 @@ impl RustBackend {
 
     fn shutdown(&mut self) -> Result<()> {
         self.cleanup()
+    }
+
+    /// End a plain block's shell and every job it left, then report the
+    /// block. a plain block never shares a shell, so nothing latches: a shell
+    /// killed by a signal fails only its own block.
+    fn finish_plain_bash_block(&mut self, output: Output, alive: bool) -> Result<OValue> {
+        self.child_pid
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        if let Some(mut ended) = self.bash.take() {
+            ended.shutdown();
+        }
+        use std::os::unix::process::ExitStatusExt;
+        if !alive {
+            if let Some(signal) = output.status.signal() {
+                bail!(
+                    "bash session was killed by signal {signal} during this block; its state is gone"
+                );
+            }
+            // the same words a plain block got from its own backend before.
+            return output_to_value(
+                "bash session ended during this block, dropping its \
+                 variables, functions, and options; the next block starts \
+                 a fresh session. bash",
+                output,
+            );
+        }
+        output_to_value("bash", output)
     }
 }
 
