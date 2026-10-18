@@ -251,11 +251,11 @@ fn a_cancel_counts_each_process_the_block_had() {
     for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGINT, libc::SIGTERM] {
         let stderr = signal_during_pipeline_block(signal);
         assert!(
-            stderr.contains("bash block left 4 background process(es); they were stopped"),
+            stderr.contains("bash block cancelled; stopped 4 process(es)"),
             "signal {signal}: {stderr}"
         );
         assert_eq!(
-            stderr.matches("background process(es)").count(),
+            stderr.matches("process(es) were stopped").count(),
             1,
             "{stderr}"
         );
@@ -271,7 +271,7 @@ fn killing_o_counts_each_process_the_block_had() {
         // the helper still holds O's stderr, so its notice arrives.
         let stderr = signal_during_pipeline_block(libc::SIGKILL);
         assert!(
-            stderr.contains("bash block left 4 background process(es); they were stopped"),
+            stderr.contains("bash block cancelled; stopped 4 process(es)"),
             "{stderr}"
         );
     }
