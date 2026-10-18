@@ -471,6 +471,11 @@ Package SemVer is only one of the independent coordinates documented in
   read, not only at spawn.
 - Isolated project workspaces are created private (0700, random name).
 - A NUL in a `$x` bash splice names `$x` under the graph executor too.
+- Native leaf `clang` and `ld` are taken from `O_NATIVE_CLANG` and
+  `O_NATIVE_LD`, which must be absolute paths, or else from absolute `PATH`
+  entries only. An empty or relative `PATH` entry no longer lets the
+  caller's working directory supply the assembler or linker.
+
 - Native leaf integer division no longer returns `0` for a zero divisor:
   `udiv`, `sdiv`, `urem` and `srem` trap at every width, in owned native
   code and in the reference interpreter. Signed minimum divided by `-1`

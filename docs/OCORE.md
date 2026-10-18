@@ -167,8 +167,12 @@ reject. The native result crosses back as an O integer. Traps and malformed
 protocol responses fail the operation. There is no hosted evaluation fallback.
 The wrapper disables core dumping before entering module code.
 
-Before fresh graph admission, the adapter resolves `clang` and `ld` from a
-single captured search path, reads their exact ELF bytes, and runs sealed
+Before fresh graph admission, the adapter resolves `clang` and `ld`. A tool
+is taken from `O_NATIVE_CLANG` or `O_NATIVE_LD` when that is set, and the value
+must be an absolute path to an executable file. Otherwise the tool is looked up
+in the absolute entries of a single captured search path. Empty, `.` and
+relative entries are skipped, so the caller's working directory never supplies
+a tool. The adapter reads the tools' exact ELF bytes and runs sealed
 copies to assemble and statically link the owned assembly. It preserves their
 original invocation paths as `argv[0]`. Both tools use one captured working
 directory and an otherwise cleared environment containing `LC_ALL=C` and the

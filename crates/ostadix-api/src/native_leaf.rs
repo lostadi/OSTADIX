@@ -32,6 +32,12 @@ pub(crate) use child_watch::ChildWatch;
 pub(crate) use crate::native_leaf_identity::digest;
 pub use crate::native_leaf_identity::BUILTIN;
 pub const SCHEMA: &str = "ocore-native-i64-leaf-v1";
+/// Absolute path of the clang that assembles native leaves; when unset, the
+/// absolute entries of PATH are searched.
+pub const NATIVE_CLANG_ENV: &str = "O_NATIVE_CLANG";
+/// Absolute path of the ld that links native leaves; when unset, the
+/// absolute entries of PATH are searched.
+pub const NATIVE_LD_ENV: &str = "O_NATIVE_LD";
 pub const PROFILE: &str = "linux-elf-i64-acyclic-v1";
 const MAGIC: u64 = u64::from_le_bytes(*b"OCI64v1\0");
 
@@ -669,17 +675,12 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         let tool_search_path = std::env::var_os("PATH");
         fn tool(
             name: &str,
-            cwd: &std::path::Path,
+            pin_env: &str,
             search_path: &Option<std::ffi::OsString>,
         ) -> Result<(ToolIdentity, SealedImage)> {
-            let invocation = which::which_in(name, search_path.as_deref(), cwd)
-                .with_context(|| format!("locate trusted native leaf {name}"))?;
-            let invocation = if invocation.is_absolute() {
-                invocation
-            } else {
-                cwd.join(invocation)
-            };
-            let bytes = fs::read(&invocation)?;
+            let invocation = locate_tool(name, pin_env, std::env::var_os(pin_env), search_path)?;
+            let bytes = fs::read(&invocation)
+                .with_context(|| format!("read native leaf {name} {}", invocation.display()))?;
             if !bytes.starts_with(b"\x7fELF") {
                 bail!("native leaf {name} must be an ELF executable, not a script launcher");
             }
@@ -733,9 +734,8 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             }
             Ok(())
         }
-        let (assembler, assembler_image) =
-            tool("clang", &tool_working_directory, &tool_search_path)?;
-        let (linker, linker_image) = tool("ld", &tool_working_directory, &tool_search_path)?;
+        let (assembler, assembler_image) = tool("clang", NATIVE_CLANG_ENV, &tool_search_path)?;
+        let (linker, linker_image) = tool("ld", NATIVE_LD_ENV, &tool_search_path)?;
         let mut assembly =
             crate::ocore::native_codegen::emit(&audited.descriptor.module, audited.target)
                 .map_err(|e| anyhow::anyhow!("{}", e.message))?;
@@ -837,6 +837,58 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
         let _ = audited;
         bail!("native scalar leaf execution requires Linux sealed ELF leases")
     }
+}
+
+// ############################################################################
+// tool resolution
+// ############################################################################
+
+/// The absolute path of native leaf tool `name`: the pinned path in `pin_env`
+/// when set, else the first absolute PATH entry holding an executable file.
+/// why absolute only: an empty or relative PATH entry resolves against the
+/// caller's cwd, so running O inside an untrusted checkout would run its
+/// `./clang`. such entries are skipped, never consulted.
+#[cfg(target_os = "linux")]
+fn locate_tool(
+    name: &str,
+    pin_env: &str,
+    pin: Option<std::ffi::OsString>,
+    search_path: &Option<std::ffi::OsString>,
+) -> Result<PathBuf> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let runnable = |path: &std::path::Path| {
+        fs::metadata(path)
+            .is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
+    };
+    if let Some(pin) = pin {
+        let path = PathBuf::from(pin);
+        if !path.is_absolute() {
+            bail!(
+                "{pin_env} must be an absolute path to {name}, got {}",
+                path.display()
+            );
+        }
+        if !runnable(&path) {
+            bail!(
+                "{pin_env} names {}, which is not an executable file",
+                path.display()
+            );
+        }
+        return Ok(path);
+    }
+    for entry in search_path.iter().flat_map(std::env::split_paths) {
+        if !entry.is_absolute() {
+            continue;
+        }
+        let candidate = entry.join(name);
+        if runnable(&candidate) {
+            return Ok(candidate);
+        }
+    }
+    bail!(
+        "locate trusted native leaf {name}: {pin_env} is unset and no absolute PATH \
+         entry has an executable {name}"
+    )
 }
 
 /// Tool stderr with the private build directory replaced by a fixed name:
@@ -962,6 +1014,95 @@ mod tests {
         );
         assert!(!text.contains("/home/someone"), "{text}");
     }
+    /// A private dir holding an executable stand-in named `name`.
+    #[cfg(target_os = "linux")]
+    fn fake_tool_dir(name: &str) -> PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mut random = [0u8; 16];
+        getrandom::fill(&mut random).unwrap();
+        let dir = std::env::temp_dir().join(format!("o-native-tool-test-{}", hex::encode(random)));
+        fs::create_dir(&dir).unwrap();
+        let tool = dir.join(name);
+        fs::write(&tool, b"\x7fELF").unwrap();
+        fs::set_permissions(&tool, fs::Permissions::from_mode(0o700)).unwrap();
+        dir
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn tools_come_from_a_pin_or_absolute_path_entries_never_the_cwd() {
+        let dir = fake_tool_dir("clang");
+        // the same dir, spelled relative to the test's cwd.
+        let cwd = std::env::current_dir().unwrap();
+        let mut relative = PathBuf::new();
+        for _ in cwd.components().skip(1) {
+            relative.push("..");
+        }
+        relative.push(dir.strip_prefix("/").unwrap());
+        assert!(relative.is_relative() && relative.join("clang").is_file());
+        let path = |entries: &[&std::path::Path]| Some(std::env::join_paths(entries).unwrap());
+        let empty = std::path::Path::new("");
+        let dot = std::path::Path::new(".");
+        // empty, dot and relative entries are never searched, even when they
+        // hold the tool.
+        let error = locate_tool(
+            "clang",
+            NATIVE_CLANG_ENV,
+            None,
+            &path(&[empty, dot, &relative]),
+        )
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("O_NATIVE_CLANG is unset"),
+            "{error:#}"
+        );
+        assert_eq!(
+            locate_tool(
+                "clang",
+                NATIVE_CLANG_ENV,
+                None,
+                &path(&[empty, &relative, &dir])
+            )
+            .unwrap(),
+            dir.join("clang")
+        );
+        // a pin wins over PATH, must be absolute and must name an executable.
+        let pinned = dir.join("clang");
+        assert_eq!(
+            locate_tool(
+                "clang",
+                NATIVE_CLANG_ENV,
+                Some(pinned.clone().into()),
+                &None
+            )
+            .unwrap(),
+            pinned
+        );
+        let error = locate_tool(
+            "clang",
+            NATIVE_CLANG_ENV,
+            Some(relative.join("clang").into()),
+            &path(&[&dir]),
+        )
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("must be an absolute path"),
+            "{error:#}"
+        );
+        let error = locate_tool(
+            "clang",
+            NATIVE_CLANG_ENV,
+            Some(dir.join("missing").into()),
+            &path(&[&dir]),
+        )
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("not an executable file"),
+            "{error:#}"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn native_leaf_audits_every_function_and_rejects_cycles_and_supplied_code() {
         let good = test_descriptor(1, false);
