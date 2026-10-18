@@ -3444,6 +3444,8 @@ impl Evaluator {
         let environment = EnvironmentRefV2::from_encoded(env_id);
         let runtime_env_id = environment.runtime_env_id();
         let env_label = match environment {
+            // the same name the registry's messages use for this block.
+            EnvironmentRefV2::Ephemeral if runtime_lang == "bash" => "plain bash block".to_string(),
             EnvironmentRefV2::Ephemeral => format!("{runtime_lang}[*ephemeral*]"),
             EnvironmentRefV2::LinkerIsolated => format!("{runtime_lang}[*linked*]"),
             EnvironmentRefV2::Persistent(id) => format!("{runtime_lang}[{id}]"),
