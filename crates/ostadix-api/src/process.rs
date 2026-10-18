@@ -255,6 +255,8 @@ struct BackendProcess {
     plain_bash_next: bool,
     // a forced kill began with SIGTERM to a plain bash helper.
     graceful_term_sent: bool,
+    // the backend said its job cleanup failed; it is never reused.
+    job_cleanup_failed: bool,
 }
 
 // why no default: an operation (an ephemeral exec, a state checkpoint or
@@ -355,6 +357,9 @@ pub(crate) const HEARTBEAT_CAPABILITY: &str = "heartbeat_v1";
 /// Set to `1` on a bash backend that serves plain blocks: it gives each block
 /// a fresh shell and ends that shell and its jobs before answering.
 pub(crate) const PLAIN_BASH_HELPER_ENV: &str = "O_BACKEND_PLAIN_BASH_HELPER";
+
+/// The words a bash backend's failed job cleanup starts with.
+pub(crate) const JOB_CLEANUP_FAILED: &str = "bash job cleanup failed";
 
 /// The bash backend's job cleanup window (JOB_CLEANUP_WINDOW in backend.rs).
 const PLAIN_BASH_CLEANUP_WINDOW: Duration = Duration::from_secs(2);
@@ -1232,16 +1237,15 @@ impl BackendProcess {
 
         #[cfg(unix)]
         command.process_group(0);
-        #[cfg(any(target_os = "linux", target_os = "android"))]
-        if plain_bash_helper {
-            // a pooled helper outlives the block that started it, so it must
-            // not outlive O: it gets SIGTERM, and stops its jobs, when we die.
-            let parent = std::process::id() as libc::pid_t;
-            // SAFETY: the hook runs between fork and exec and calls only
-            // prctl and getppid, which are async-signal-safe.
-            unsafe {
-                command.pre_exec(move || arm_parent_death_signal(parent));
-            }
+        // a bash backend must not outlive O: after exec it arms its parent
+        // death signal (SIGTERM, which stops its jobs) and checks that this
+        // pid is still its parent. why not a pre_exec hook: any hook makes
+        // std fork in full instead of using vfork-style spawning, which cost
+        // every bash_hello a slower spawn.
+        if lang == "bash" {
+            command.env(BACKEND_PARENT_PID_ENV, std::process::id().to_string());
+        } else {
+            command.env_remove(BACKEND_PARENT_PID_ENV);
         }
 
         // while the spinner is on, backend stderr goes through the one
@@ -1256,10 +1260,10 @@ impl BackendProcess {
             } else {
                 Stdio::inherit()
             });
-        // a pooled helper is forked from one long-lived thread: the parent
+        // a bash backend is forked from one long-lived thread: the parent
         // death signal fires when the forking thread exits, and a worker
-        // thread may exit while its helper is parked for the next block.
-        let spawned = if plain_bash_helper {
+        // thread may exit while its helper is parked or its session lives on.
+        let spawned = if lang == "bash" {
             spawn_from_long_lived_thread(command)
         } else {
             command.spawn()
@@ -1393,6 +1397,7 @@ impl BackendProcess {
             plain_bash_key: None,
             plain_bash_next: false,
             graceful_term_sent: false,
+            job_cleanup_failed: false,
             label: lang.to_string(),
             pulse,
             write_cancellation: None,
@@ -1672,6 +1677,9 @@ impl BackendProcess {
             }
             BackendWireResponseV2::Ok { value } => Ok(ExecStep::Done(value)),
             BackendWireResponseV2::Err { message } => {
+                if message.contains(JOB_CLEANUP_FAILED) {
+                    self.job_cleanup_failed = true;
+                }
                 Err(anyhow::Error::new(BackendSemanticError(message)))
             }
             BackendWireResponseV2::EvalRequest { src, scope } => {
@@ -1700,6 +1708,7 @@ impl BackendProcess {
     /// caller.
     fn idle(&self) -> bool {
         !self.terminal
+            && !self.job_cleanup_failed
             && !self.exec_pending
             && !self.awaiting_callback
             && self.native_operation_depth == 0
@@ -2014,12 +2023,13 @@ impl BackendProcess {
         kill_trace("kill");
         self.stdin.take();
         let mut failures = Vec::new();
-        // a plain bash helper is its jobs' subreaper; a group SIGKILL would
+        // a bash backend (plain helper or bash[N]) is its jobs' subreaper; a
+        // group SIGKILL would
         // end it first and hand its setsid jobs to init. it gets SIGTERM,
         // stops its shell and jobs, and exits; the group kill follows only
         // if it does not.
         #[cfg(unix)]
-        if self.plain_bash_key.is_some() {
+        if self.language == "bash" {
             // SAFETY: the pid is our own unreaped child, the group leader.
             if unsafe { libc::kill(self.child.id() as libc::pid_t, libc::SIGTERM) } == 0 {
                 self.graceful_term_sent = true;
@@ -2406,9 +2416,13 @@ where
     // a plain bash helper already ended the block's shell and jobs before it
     // answered, so after a plain answer, value or bash error, it is as fresh
     // as a new one and goes back for the next plain block.
+    // a helper whose cleanup failed may still hold jobs: it is retired,
+    // never parked, so no later block runs beside them.
     let answered = match &execution {
         Ok(_) => true,
-        Err(error) => error.is::<BackendSemanticError>(),
+        Err(error) => {
+            error.is::<BackendSemanticError>() && !format!("{error:#}").contains(JOB_CLEANUP_FAILED)
+        }
     };
     if answered && process.plain_bash_key.is_some() && process.idle() {
         park_plain_bash_helper(process);
@@ -2479,12 +2493,15 @@ impl PlainBashHelperKey {
 static PLAIN_BASH_HELPERS: Mutex<Vec<BackendProcess>> = Mutex::new(Vec::new());
 
 /// A parked helper for `key`, or a new one from `spawn`.
+/// Set on a bash backend: the host's pid, for [`arm_parent_death_signal`].
+pub(crate) const BACKEND_PARENT_PID_ENV: &str = "O_BACKEND_PARENT_PID";
+
 /// PR_SET_PDEATHSIG with SIGTERM, then a check that the parent is still
 /// `expected_parent`. why the check: a parent that died before the prctl
-/// sends no signal, so a helper that finds itself reparented stops at once.
-/// async-signal-safe, for a pre_exec hook.
+/// sends no signal, so a backend that finds itself reparented stops at once.
+/// async-signal-safe, so the unit test can call it in a forked child.
 #[cfg(any(target_os = "linux", target_os = "android"))]
-fn arm_parent_death_signal(expected_parent: libc::pid_t) -> io::Result<()> {
+pub(crate) fn arm_parent_death_signal(expected_parent: libc::pid_t) -> io::Result<()> {
     // SAFETY: prctl with an integer signal number affects only this process.
     if unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0) } != 0 {
         return Err(io::Error::last_os_error());
