@@ -54,7 +54,7 @@ mark() {
 tests_log="$work_dir/project-hgraph-tests.log"
 run_logged "$tests_log" env CARGO_TERM_COLOR=never \
     cargo test --locked --package o-lang --test project_hgraph
-require_test_count "$tests_log" 10
+require_test_count "$tests_log" 12
 for name in \
     real_bundle_constructs_all_five_project_operations \
     topology_preserves_logical_branches_prerequisites_compare_and_selection \
@@ -65,6 +65,8 @@ for name in \
     project_source_validation_rejects_bundle_and_policy_substitution \
     project_projection_rejects_dependency_and_effect_forgery \
     governed_route_effect_spelling_is_rejected_and_pure_metadata_keeps_hostworld \
+    typed_project_grounding_binds_exact_logical_and_hosted_deployment_records \
+    prepared_project_grounding_rejects_identity_substitution \
     real_cli_plans_directory_and_lifted_project_without_execution
 do
     require_test "$tests_log" "$name"
