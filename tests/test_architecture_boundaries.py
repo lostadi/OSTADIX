@@ -255,7 +255,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 },
             ],
         )
-        self.assertEqual(len(roots), 52)
+        self.assertEqual(len(roots), 53)
         api_root = next(root for root in roots if root["name"] == "api")
         self.assertIn("ir", api_root["allowed_dependencies"])
         boot_object_root = next(root for root in roots if root["name"] == "boot_objects")

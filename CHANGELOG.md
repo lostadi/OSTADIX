@@ -227,6 +227,17 @@ Package SemVer is only one of the independent coordinates documented in
   checkpoint and restore, native operations and local-worker `O.eval`
   callbacks are bounded only when `O_BACKEND_OPERATION_TIMEOUT_MS` is set
   (validated the same way as the step knob).
+- `O_BACKEND_HEARTBEAT_INTERVAL_MS` and `O_BACKEND_HEARTBEAT_WARN_MS` are
+  validated the same way: a malformed, zero or oversized value fails the
+  backend spawn instead of silently falling back to 5 s and 30 s.
+- Native leaf children (clang, ld and the sealed leaf) run in their own
+  process group under the same watch: one stderr warning after the hang
+  threshold, the group killed when the opt-in step limit passes or the
+  request is cancelled, and the group killed after the leader exits so no
+  orphan outlives it. Their pipes are read on capture threads while the wait
+  polls. Tool stderr names the private build directory as
+  `<native build directory>`, and `O --json` evidence no longer publishes the
+  tools' working directory.
 - A backend killed mid-step by the opt-in limit, by a request deadline or by
   cancellation is killed and removed at that point, for pooled and direct
   callers alike, so a late answer can never be read as the reply to a later

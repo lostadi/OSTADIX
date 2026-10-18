@@ -235,6 +235,11 @@ layer = 8
 allowed_dependencies = ["live_system", "world"]
 
 [[root]]
+name = "step_knobs"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
 name = "progress"
 layer = 0
 allowed_dependencies = []
@@ -257,7 +262,7 @@ allowed_dependencies = []
 [[root]]
 name = "native_leaf"
 layer = 3
-allowed_dependencies = ["lifecycle_trace", "native_leaf_identity", "ocore", "value"]
+allowed_dependencies = ["cancellation", "lifecycle_trace", "native_leaf_identity", "ocore", "progress", "step_knobs", "value"]
 compatibility_export = false
 
 [[root]]
@@ -293,7 +298,7 @@ allowed_dependencies = ["resource_identity"]
 [[root]]
 name = "process"
 layer = 8
-allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "progress", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "progress", "runtime_exec", "step_knobs", "value", "wire"]
 
 [[root]]
 name = "project"

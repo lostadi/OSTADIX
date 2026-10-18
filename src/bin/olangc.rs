@@ -2340,6 +2340,7 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     fs::write(src_dir.join("value.rs"), RUNTIME_VALUE_RS)?;
     fs::write(src_dir.join("cancellation.rs"), RUNTIME_CANCELLATION_RS)?;
     fs::write(src_dir.join("progress.rs"), RUNTIME_PROGRESS_RS)?;
+    fs::write(src_dir.join("step_knobs.rs"), RUNTIME_STEP_KNOBS_RS)?;
     fs::write(src_dir.join("capability.rs"), RUNTIME_CAPABILITY_RS)?;
     fs::write(src_dir.join("environment.rs"), RUNTIME_ENVIRONMENT_RS)?;
     fs::write(src_dir.join("parser.rs"), RUNTIME_PARSER_RS)?;
@@ -2352,6 +2353,11 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     fs::write(
         src_dir.join("lifecycle_trace.rs"),
         RUNTIME_LIFECYCLE_TRACE_RS,
+    )?;
+    fs::create_dir_all(src_dir.join("native_leaf"))?;
+    fs::write(
+        src_dir.join("native_leaf").join("child_watch.rs"),
+        RUNTIME_NATIVE_LEAF_CHILD_WATCH_RS,
     )?;
     let ocore_dir = src_dir.join("ocore");
     fs::create_dir_all(&ocore_dir)?;
@@ -3301,6 +3307,7 @@ pub mod computation_core;
 pub mod computation;
 pub mod cancellation;
 pub mod progress;
+pub(crate) mod step_knobs;
 mod capability;
 pub mod environment;
 pub mod backend;
@@ -5190,6 +5197,12 @@ mod tests {
             fs::read_to_string(src_dir.join("progress.rs")).unwrap(),
             RUNTIME_PROGRESS_RS,
             "generated runtimes must share the one stderr status writer"
+        );
+        assert!(lib_rs.contains("pub(crate) mod step_knobs;"));
+        assert_eq!(
+            fs::read_to_string(src_dir.join("native_leaf").join("child_watch.rs")).unwrap(),
+            RUNTIME_NATIVE_LEAF_CHILD_WATCH_RS,
+            "generated runtimes must watch native leaf children the same way"
         );
         assert!(lib_rs.contains("pub mod environment;"));
         assert!(lib_rs.contains("pub(crate) mod backend_catalog;"));

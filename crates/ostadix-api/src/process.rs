@@ -20,6 +20,10 @@ use crate::backend_state::{
     BackendWireResponseV2, EvaluatorActorCheckpointV1, EvaluatorStateSnapshotV1,
 };
 use crate::capability::BackendSandboxPolicy;
+use crate::step_knobs::parse_timeout_knob;
+pub(crate) use crate::step_knobs::{
+    BACKEND_STEP_TIMEOUT_ENV, DEFAULT_HEARTBEAT_WARNING, HEARTBEAT_INTERVAL_ENV,
+};
 use crate::value::OValue;
 use crate::wire;
 
@@ -34,25 +38,10 @@ const DEFAULT_BACKEND_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 // cancellation, drop of a non-terminal actor, spawn-failure cleanup), and
 // registry teardown shares one budget across all actors (force_terminate_all).
 const BACKEND_FALLBACK_REAP_TIMEOUT: Duration = Duration::from_secs(2);
-// why there is no default per-step limit: steps may legitimately run for
-// days, so a silent step is never killed unless the user opts in with
-// O_BACKEND_STEP_TIMEOUT_MS. a hang is surfaced instead by the heartbeat
-// watchdog (warn, never kill) and a crash by reader eof or the leader-exit
-// poll, which fail fast.
-pub(crate) const BACKEND_STEP_TIMEOUT_ENV: &str = "O_BACKEND_STEP_TIMEOUT_MS";
-// shims send a heartbeat this often while a step runs (passed to the backend
-// as O_BACKEND_HEARTBEAT_INTERVAL_MS). tests shrink it.
-pub(crate) const DEFAULT_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
-pub(crate) const HEARTBEAT_INTERVAL_ENV: &str = "O_BACKEND_HEARTBEAT_INTERVAL_MS";
-// one warning after this long without a heartbeat (or this long in state D
-// for a bash child). tests shrink it with O_BACKEND_HEARTBEAT_WARN_MS.
-pub(crate) const DEFAULT_HEARTBEAT_WARNING: Duration = Duration::from_secs(30);
-pub(crate) const HEARTBEAT_WARNING_ENV: &str = "O_BACKEND_HEARTBEAT_WARN_MS";
 // how often a step wait wakes to poll for leader exit, check heartbeats and
 // redraw the spinner. bounds crash detection when a grandchild keeps the
 // response pipe open.
 const STEP_WATCH_TICK: Duration = Duration::from_millis(100);
-const MAXIMUM_BACKEND_STEP_TIMEOUT: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 // why 64 KiB: linux pipe capacity. a frame at or below it fits in an empty
 // pipe, so the existing blocking write cannot wedge on it; only larger frames
 // pay for the nonblocking, deadline-bounded write.
@@ -280,34 +269,9 @@ pub(crate) fn backend_operation_timeout() -> Result<Option<Duration>> {
 /// malformed, zero or oversized value is a hard error rather than a silent
 /// fallback, because a knob the user set and the runtime ignored is a silent
 /// failure.
-pub(crate) fn parse_backend_step_timeout(
-    raw: Option<&std::ffi::OsStr>,
-) -> Result<Option<Duration>> {
+#[cfg(test)]
+fn parse_backend_step_timeout(raw: Option<&std::ffi::OsStr>) -> Result<Option<Duration>> {
     parse_timeout_knob(BACKEND_STEP_TIMEOUT_ENV, raw)
-}
-
-fn parse_timeout_knob(name: &str, raw: Option<&std::ffi::OsStr>) -> Result<Option<Duration>> {
-    let Some(raw) = raw else {
-        return Ok(None);
-    };
-    let text = raw
-        .to_str()
-        .ok_or_else(|| anyhow!("{name} is not valid UTF-8"))?;
-    let millis = text
-        .trim()
-        .parse::<u64>()
-        .map_err(|_| anyhow!("{name}={text:?} is not a whole number of milliseconds"))?;
-    if millis == 0 {
-        bail!("{name}=0 is invalid: the limit must be at least 1 ms");
-    }
-    let limit = Duration::from_millis(millis);
-    if limit > MAXIMUM_BACKEND_STEP_TIMEOUT {
-        bail!(
-            "{name}={millis} exceeds the maximum of {} ms",
-            MAXIMUM_BACKEND_STEP_TIMEOUT.as_millis()
-        );
-    }
-    Ok(Some(limit))
 }
 
 // why cached: the value is fixed for the process lifetime, so it is parsed
@@ -317,15 +281,7 @@ pub(crate) fn backend_step_timeout() -> Result<Option<Duration>> {
     if let Some(timeout) = STEP_TIMEOUT_OVERRIDE.with(std::cell::Cell::get) {
         return Ok(Some(timeout));
     }
-    static TIMEOUT: std::sync::OnceLock<std::result::Result<Option<Duration>, String>> =
-        std::sync::OnceLock::new();
-    TIMEOUT
-        .get_or_init(|| {
-            parse_backend_step_timeout(std::env::var_os(BACKEND_STEP_TIMEOUT_ENV).as_deref())
-                .map_err(|error| format!("{error:#}"))
-        })
-        .clone()
-        .map_err(anyhow::Error::msg)
+    crate::step_knobs::step_timeout()
 }
 
 /// "N s" for whole or fractional seconds, "N ms" below one second.
@@ -366,21 +322,12 @@ fn warning_text(duration: Duration) -> String {
     }
 }
 
-fn duration_ms_env(name: &str, default: Duration) -> Duration {
-    std::env::var(name)
-        .ok()
-        .and_then(|raw| raw.trim().parse::<u64>().ok())
-        .filter(|millis| *millis > 0)
-        .map(Duration::from_millis)
-        .unwrap_or(default)
-}
-
-pub(crate) fn heartbeat_interval() -> Duration {
+pub(crate) fn heartbeat_interval() -> Result<Duration> {
     #[cfg(test)]
     if let Some(timing) = HEARTBEAT_OVERRIDE.with(std::cell::Cell::get) {
-        return timing.0;
+        return Ok(timing.0);
     }
-    duration_ms_env(HEARTBEAT_INTERVAL_ENV, DEFAULT_HEARTBEAT_INTERVAL)
+    crate::step_knobs::heartbeat_interval()
 }
 
 /// The protocol feature a shim lists in `hello_v1` when it sends heartbeats.
@@ -397,12 +344,12 @@ pub(crate) fn shim_heartbeat_interval() -> Option<Duration> {
         .map(Duration::from_millis)
 }
 
-pub(crate) fn heartbeat_warning() -> Duration {
+pub(crate) fn heartbeat_warning() -> Result<Duration> {
     #[cfg(test)]
     if let Some(timing) = HEARTBEAT_OVERRIDE.with(std::cell::Cell::get) {
-        return timing.1;
+        return Ok(timing.1);
     }
-    duration_ms_env(HEARTBEAT_WARNING_ENV, DEFAULT_HEARTBEAT_WARNING)
+    crate::step_knobs::heartbeat_warning()
 }
 
 /// Liveness observed by the response reader from heartbeat frames.
@@ -440,7 +387,9 @@ impl StepWatch {
         }
         Self {
             started: Instant::now(),
-            warning: heartbeat_warning(),
+            // the knob was validated when the backend was spawned, so an
+            // error cannot appear here; the default only satisfies the type.
+            warning: heartbeat_warning().unwrap_or(DEFAULT_HEARTBEAT_WARNING),
             silent_warned: false,
             beats_at_warning: 0,
             child_warned: false,
@@ -1156,14 +1105,14 @@ impl BackendProcess {
         )?;
 
         let native_instance = fresh_registry_identity();
+        let heartbeat = heartbeat_interval()?;
+        // checked here so a bad warning knob fails the spawn, not a later wait.
+        heartbeat_warning()?;
         command
             .env("O_BACKEND_SESSION_ID", session_id)
             .env("O_BACKEND_LAUNCH_GENERATION", launch_generation)
             .env("O_BACKEND_NATIVE_INSTANCE_ID", &native_instance)
-            .env(
-                HEARTBEAT_INTERVAL_ENV,
-                heartbeat_interval().as_millis().to_string(),
-            );
+            .env(HEARTBEAT_INTERVAL_ENV, heartbeat.as_millis().to_string());
 
         #[cfg(unix)]
         command.process_group(0);

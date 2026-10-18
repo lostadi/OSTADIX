@@ -163,6 +163,8 @@ class NativeHgraphCliTests(unittest.TestCase):
         self.assertEqual(leaf["parameter_count"],parameter_count)
         for key in ("module_sha256","assembly_sha256","executable_sha256","adapter_executable_sha256"):
             self.assertRegex(leaf[key],r"^[0-9a-f]{64}$",key)
+        # the evidence never publishes the local working directory.
+        self.assertNotIn("tool_working_directory",leaf)
         return leaf
 
     def assert_value(self,envelope,expected):

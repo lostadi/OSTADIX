@@ -532,6 +532,12 @@ fn observed_graph_execution(evaluator: Option<&Evaluator>) -> serde_json::Value 
                 {
                     let mut record =
                         serde_json::to_value(manifest).expect("serialize native manifest identity");
+                    // the admission digest binds the working directory the
+                    // tools ran in; the evidence never publishes it, since it is
+                    // a local path and not part of what the leaf computes.
+                    if let Some(record) = record.as_object_mut() {
+                        record.remove("tool_working_directory");
+                    }
                     record["plan_node"] = serde_json::json!(node.id.0);
                     leaves.push(record);
                 }

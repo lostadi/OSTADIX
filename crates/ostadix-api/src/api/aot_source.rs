@@ -17,6 +17,7 @@ pub const RUNTIME_VALUE_RS: &str = include_str!("../value.rs");
 pub const RUNTIME_SHIM_SUPPORT_NAMES: &[&str] = crate::shims::BUNDLED_SHIM_SUPPORT_NAMES;
 pub const RUNTIME_CANCELLATION_RS: &str = include_str!("../cancellation.rs");
 pub const RUNTIME_PROGRESS_RS: &str = include_str!("../progress.rs");
+pub const RUNTIME_STEP_KNOBS_RS: &str = include_str!("../step_knobs.rs");
 pub const RUNTIME_CAPABILITY_RS: &str = include_str!("../capability.rs");
 pub const RUNTIME_ENVIRONMENT_RS: &str = include_str!("../environment.rs");
 pub const RUNTIME_PARSER_RS: &str = include_str!("../parser.rs");
@@ -26,6 +27,7 @@ pub const RUNTIME_IR_RS: &str = include_str!("../ir.rs");
 pub const RUNTIME_NATIVE_LEAF_IDENTITY_RS: &str = include_str!("../native_leaf_identity.rs");
 pub const RUNTIME_LIFECYCLE_TRACE_RS: &str = include_str!("../lifecycle_trace.rs");
 pub const RUNTIME_NATIVE_LEAF_RS: &str = include_str!("../native_leaf.rs");
+pub const RUNTIME_NATIVE_LEAF_CHILD_WATCH_RS: &str = include_str!("../native_leaf/child_watch.rs");
 pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
     ("mod.rs", include_str!("../ocore/native_core.rs")),
     ("common.rs", include_str!("../ocore/common.rs")),
