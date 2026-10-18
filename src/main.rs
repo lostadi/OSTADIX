@@ -537,6 +537,22 @@ fn observed_graph_execution(evaluator: Option<&Evaluator>) -> serde_json::Value 
                     // a local path and not part of what the leaf computes.
                     if let Some(record) = record.as_object_mut() {
                         record.remove("tool_working_directory");
+                        // the tools' absolute paths are local too; the file
+                        // name and the bound executable hash identify them.
+                        for tool in ["assembler", "linker"] {
+                            if let Some(invocation) = record
+                                .get_mut(tool)
+                                .and_then(|tool| tool.get_mut("invocation"))
+                            {
+                                let name = invocation
+                                    .as_str()
+                                    .and_then(|path| std::path::Path::new(path).file_name())
+                                    .map(|name| name.to_string_lossy().into_owned());
+                                if let Some(name) = name {
+                                    *invocation = serde_json::json!(name);
+                                }
+                            }
+                        }
                     }
                     record["plan_node"] = serde_json::json!(node.id.0);
                     leaves.push(record);

@@ -246,6 +246,19 @@ WebAssembly text conversion (formerly 30 s), reads the opt-in
 <code>nix build</code> wait (formerly 600 s) has no default either; its own
 <code>O_NIXOS_TEST_TIMEOUT_SECONDS</code> stays as the opt-in limit.</p>
 </li>
+<li><p><code>O_BACKEND_SHUTDOWN_TIMEOUT_MS</code>, <code>O_BACKEND_MAX_OPEN_SESSIONS</code> and
+<code>O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND</code> fail the backend spawn when
+malformed, zero or (for the shutdown budget) over 60 s, instead of silently
+using their defaults.</p>
+</li>
+<li><p>A bash block whose stdout or stderr capture file disappears or cannot be
+read fails with that reason instead of returning empty output.</p>
+</li>
+<li><p>Native leaf tool errors and <code>O --json</code> evidence carry the clang and ld
+file names only: ld&#39;s argv0 prefix and the tools&#39; working directory are
+replaced in stderr, and <code>assembler.invocation</code> / <code>linker.invocation</code> are
+reduced to the file name. The admission digest still binds the full paths.</p>
+</li>
 <li><p>Native leaf children (clang, ld and the sealed leaf) run in their own
 process group under the same watch: one stderr warning after the hang
 threshold, the group killed when the opt-in step limit passes or the

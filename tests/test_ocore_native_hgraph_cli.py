@@ -165,6 +165,9 @@ class NativeHgraphCliTests(unittest.TestCase):
             self.assertRegex(leaf[key],r"^[0-9a-f]{64}$",key)
         # the evidence never publishes the local working directory.
         self.assertNotIn("tool_working_directory",leaf)
+        # nor the tools' absolute paths: only their file names.
+        for tool in ("assembler","linker"):
+            self.assertNotIn("/",leaf[tool]["invocation"],tool)
         return leaf
 
     def assert_value(self,envelope,expected):

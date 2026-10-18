@@ -6249,6 +6249,19 @@ mod tests {
     }
 
     #[test]
+    fn a_bash_block_that_removes_its_capture_file_is_an_error_not_empty_output() {
+        // fd 3 copies the block's stdout capture, so the command substitution
+        // sees the capture file rather than its own pipe.
+        let Some(result) = run_bash_document(
+            "bash^(exec 3>&1; rm -f \"$(readlink /proc/self/fd/3)\"; exec 3>&-; echo lost)_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("stdout capture is missing"), "{error}");
+    }
+
+    #[test]
     fn bash_errors_name_the_block_not_the_session_temp_path() {
         let Some(result) = run_bash_document("bash^(no_such_command_o_test)_bash\n") else {
             return;
