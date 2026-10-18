@@ -1765,8 +1765,7 @@ impl Evaluator {
                     }
                     // recorded only once every member settled, so a nested
                     // plan run by a later member cannot claim them.
-                    self.forced_batch_failures.extend(failures);
-                    Ok(OValue::list(out))
+                    self.settle_forced_batch(out, failures)
                 } else {
                     // All: hard all-or-nothing barrier — fail on first error.
                     let mut out = Vec::with_capacity(members.len());
@@ -1912,6 +1911,25 @@ impl Evaluator {
                     out.push(val);
                 }
             }
+        }
+        self.settle_forced_batch(out, failures)
+    }
+
+    /// The value of a forced `batch(...)` once every member settled. SPEC
+    /// 772-773: when every direct member failed, the batch yields no value and
+    /// raises its summary error, which reports the members itself; otherwise
+    /// it yields its list and the failures are recorded for the run.
+    fn settle_forced_batch(
+        &mut self,
+        out: Vec<OValue>,
+        failures: Vec<(usize, String)>,
+    ) -> Result<OValue> {
+        if !out.is_empty() && failures.len() == out.len() {
+            return Err(crate::eval_core::BatchAllMembersFailed {
+                fn_name: "batch".to_string(),
+                members: failures,
+            }
+            .into());
         }
         self.forced_batch_failures.extend(failures);
         Ok(OValue::list(out))
@@ -6523,6 +6541,35 @@ mod tests {
          python^(raise KeyError('missing'))_python\n\
          ))\n\
          now($g)\n";
+
+    #[test]
+    fn now_batch_whose_every_member_failed_raises_its_summary() {
+        // SPEC 772-773: no value, the batch's summary error instead.
+        let Some(result) = run_python_document(
+            "let g = lazy(batch(\n\
+             python^(raise KeyError('first'))_python,\n\
+             python^(raise KeyError('second'))_python\n\
+             ))\n\
+             now($g)\n",
+        ) else {
+            return;
+        };
+        let error = result.expect_err("an all-failed forced batch yielded a value");
+        let text = format!("{error:#}");
+        assert!(text.contains("every batch(...) member failed"), "{text}");
+        assert!(
+            text.contains("member 0") && text.contains("first"),
+            "{text}"
+        );
+        assert!(
+            text.contains("member 1") && text.contains("second"),
+            "{text}"
+        );
+        assert!(
+            error.downcast_ref::<BatchMemberFailures>().is_none(),
+            "{text}"
+        );
+    }
 
     #[test]
     fn now_batch_keeps_a_member_error_in_its_own_slot() {
