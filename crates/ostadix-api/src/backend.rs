@@ -90,7 +90,7 @@ pub fn run_backend(lang: &str) -> Result<()> {
             .context("the bash backend could not become the subreaper of its jobs")?;
         // a SIGTERM, from the host's cancel or from our parent's death, stops
         // the shell and its jobs before this process exits.
-        bash_termination::install()
+        install_bash_termination()
             .context("could not install the bash backend's SIGTERM cleanup")?;
         // armed only after the handler: from here our parent's death runs
         // the cleanup. a parent already gone sent no signal, so stop now.
@@ -102,9 +102,7 @@ pub fn run_backend(lang: &str) -> Result<()> {
                 .context("O_BACKEND_PARENT_PID is not a pid")?;
             match crate::process::arm_parent_death_signal(parent) {
                 Ok(()) => {}
-                Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {
-                    bash_termination::terminate_now()
-                }
+                Err(error) if error.raw_os_error() == Some(libc::ESRCH) => terminate_bash_now(),
                 Err(error) => {
                     return Err(error)
                         .context("could not arm the bash backend's parent death signal")
@@ -114,6 +112,7 @@ pub fn run_backend(lang: &str) -> Result<()> {
     }
     let mut backend = RustBackend::new(tools);
     if lang == "bash" {
+        backend.bash_backend = true;
         backend.plain_bash = std::env::var_os(crate::process::PLAIN_BASH_HELPER_ENV)
             .is_some_and(|value| value == "1");
         // the shell is spawned before the first request, so no block waits
@@ -135,30 +134,36 @@ pub fn run_backend(lang: &str) -> Result<()> {
 
     // started by the first step that needs it.
     let mut heartbeat: Option<Heartbeat> = None;
-    while let Some(command) = wire::read_frame::<_, BackendWireCommandV2>(&mut reader)? {
-        if matches!(&command, BackendWireCommandV2::Shutdown) {
-            match backend.shutdown() {
-                Ok(()) => {
-                    wire::write_frame(
-                        &mut stdout.lock(),
-                        &BackendWireResponseV2::ok(OValue::Null),
-                    )?;
-                    crate::process::lifecycle_trace(
-                        "backend.shutdown_acknowledged",
-                        format!("language={lang}"),
-                    );
-                    break;
-                }
-                Err(error) => {
-                    wire::write_frame(
-                        &mut stdout.lock(),
-                        &BackendWireResponseV2::err(format!("backend shutdown failed: {error:#}")),
-                    )?;
-                    return Err(error).context("backend shutdown failed");
+    let mut shutdown_walked = false;
+    let loop_result: Result<()> = (|| {
+        while let Some(command) = wire::read_frame::<_, BackendWireCommandV2>(&mut reader)? {
+            if matches!(&command, BackendWireCommandV2::Shutdown) {
+                match backend.shutdown() {
+                    Ok(()) => {
+                        shutdown_walked = true;
+                        wire::write_frame(
+                            &mut stdout.lock(),
+                            &BackendWireResponseV2::ok(OValue::Null),
+                        )?;
+                        crate::process::lifecycle_trace(
+                            "backend.shutdown_acknowledged",
+                            format!("language={lang}"),
+                        );
+                        return Ok(());
+                    }
+                    Err(error) => {
+                        shutdown_walked = true;
+                        wire::write_frame(
+                            &mut stdout.lock(),
+                            &BackendWireResponseV2::err(format!(
+                                "backend shutdown failed: {error:#}"
+                            )),
+                        )?;
+                        return Err(error).context("backend shutdown failed");
+                    }
                 }
             }
-        }
-        let response = match command {
+            let response = match command {
             BackendWireCommandV2::ExecMorphismV1 { .. } => BackendWireResponseV2::err(
                 "morphism.unsupported-backend: this native adapter has no executable morphism contract",
             ),
@@ -226,20 +231,26 @@ pub fn run_backend(lang: &str) -> Result<()> {
                 backend.restore_response(lang, checkpoint)
             }
         };
-        wire::write_frame(&mut stdout.lock(), &response)?;
-    }
+            wire::write_frame(&mut stdout.lock(), &response)?;
+        }
+        Ok(())
+    })();
 
-    // stdin EOF: the host is gone or closing us. a bash backend still has its
-    // shell and maybe a session's jobs (bash[N] keeps them between blocks),
-    // so it stops them before it exits. a SIGTERM's walk that is already
-    // running ends the process itself; this waits on its lock meanwhile.
-    if lang == "bash" {
+    // stdin EOF or a broken pipe: the host is gone or closing us without a
+    // Shutdown frame (which already walked in backend.shutdown()). a bash
+    // backend still has its shell and maybe a session's jobs, so it stops
+    // them before it exits. a SIGTERM's walk that is already running ends
+    // the process itself; this waits on its lock meanwhile.
+    if lang == "bash" && !shutdown_walked {
         let shell = SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
         let mut sweep = stop_backend_descendants(JOB_CLEANUP_WINDOW, (shell != 0).then_some(shell));
         sweep.quiet = true;
-        sweep.report()?;
+        let report = sweep.report();
+        loop_result?;
+        report?;
+        return Ok(());
     }
-    Ok(())
+    loop_result
 }
 
 /// Sends `heartbeat_v1` frames on stdout while a native step runs, so the
@@ -368,6 +379,8 @@ struct RustBackend {
     // a plain-block helper: every block gets a fresh shell, ended (with its
     // jobs) before the answer is written, and the next shell is spawned after.
     plain_bash: bool,
+    // this backend serves bash, so it is the subreaper of bash's jobs.
+    bash_backend: bool,
     child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
     tools: BackendToolchain,
 }
@@ -642,17 +655,41 @@ const JOB_CLEANUP_WINDOW: Duration = Duration::from_secs(2);
 /// why not a /proc scan: reading every process's stat cost a few ms per plain
 /// block on a busy host. as the subreaper this process inherits every orphan
 /// bash leaves, so its own children are all that cleanup has to visit; killing
-/// one reparents its children here for the next pass.
+/// one reparents its children here for the next pass. an empty children file
+/// is the whole check when nothing is left.
 ///
 /// a task that exited between the listing and the read is skipped; any other
 /// unreadable file is an error, since a child it hides would escape cleanup.
+/// a kernel without the children files (CONFIG_PROC_CHILDREN off) falls back
+/// to the /proc scan, after a one-time warning.
 #[cfg(target_os = "linux")]
 fn backend_descendants() -> io::Result<Vec<i32>> {
+    children_of(None)
+}
+
+/// The children of `pid`, or of this process for None; see
+/// [`backend_descendants`].
+#[cfg(target_os = "linux")]
+fn children_of(pid: Option<i32>) -> io::Result<Vec<i32>> {
+    let root = match pid {
+        Some(pid) => format!("/proc/{pid}/task"),
+        None => "/proc/self/task".to_string(),
+    };
     let mut children = Vec::new();
-    for task in fs::read_dir("/proc/self/task")? {
+    for task in fs::read_dir(&root)? {
         let task = task?;
-        let list = match fs::read_to_string(task.path().join("children")) {
+        let path = task.path().join("children");
+        let list = match fs::read_to_string(&path) {
             Ok(list) => list,
+            // the task is there but the file is not: no children files on
+            // this kernel.
+            Err(error)
+                if error.kind() == io::ErrorKind::NotFound && task.path().join("stat").exists() =>
+            {
+                warn_no_children_files();
+                let parent = pid.unwrap_or_else(|| std::process::id() as i32);
+                return children_by_scan(parent);
+            }
             Err(error)
                 if error.kind() == io::ErrorKind::NotFound
                     || error.raw_os_error() == Some(libc::ESRCH) =>
@@ -662,15 +699,15 @@ fn backend_descendants() -> io::Result<Vec<i32>> {
             Err(error) => {
                 return Err(io::Error::new(
                     error.kind(),
-                    format!("{}: {error}", task.path().join("children").display()),
+                    format!("{}: {error}", path.display()),
                 ))
             }
         };
-        for pid in list.split_whitespace() {
-            children.push(pid.parse::<i32>().map_err(|_| {
+        for child in list.split_whitespace() {
+            children.push(child.parse::<i32>().map_err(|_| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("unreadable child pid `{pid}` in /proc/self/task"),
+                    format!("unreadable child pid `{child}` in {root}"),
                 )
             })?);
         }
@@ -678,6 +715,48 @@ fn backend_descendants() -> io::Result<Vec<i32>> {
     children.sort_unstable();
     children.dedup();
     Ok(children)
+}
+
+/// The children of `parent` from every /proc/*/stat: the slow path, only
+/// for a kernel without the children files.
+#[cfg(target_os = "linux")]
+fn children_by_scan(parent: i32) -> io::Result<Vec<i32>> {
+    let mut children = Vec::new();
+    for entry in fs::read_dir("/proc")? {
+        let entry = entry?;
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<i32>().ok())
+        else {
+            continue;
+        };
+        let Ok(stat) = fs::read_to_string(entry.path().join("stat")) else {
+            continue;
+        };
+        // fields after the parenthesised command: state, ppid.
+        let ppid = stat
+            .rsplit_once(')')
+            .and_then(|(_, rest)| rest.split_whitespace().nth(1))
+            .and_then(|field| field.parse::<i32>().ok());
+        if ppid == Some(parent) {
+            children.push(pid);
+        }
+    }
+    children.sort_unstable();
+    Ok(children)
+}
+
+/// Said once per backend: this kernel has no /proc/<pid>/task/*/children.
+#[cfg(target_os = "linux")]
+fn warn_no_children_files() {
+    static WARNED: std::sync::Once = std::sync::Once::new();
+    WARNED.call_once(|| {
+        eprintln!(
+            "bash backend: /proc/<pid>/task/*/children is missing (CONFIG_PROC_CHILDREN off); \
+             job cleanup scans /proc instead"
+        );
+    });
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -714,10 +793,7 @@ impl JobSweep {
         // one line, written once the walk has finished.
         if self.stopped > 0 && !self.quiet {
             if self.cancelled {
-                eprintln!(
-                    "bash block cancelled; stopped {} process(es)",
-                    self.stopped
-                );
+                eprintln!("bash block cancelled; stopped {} process(es)", self.stopped);
             } else {
                 eprintln!(
                     "bash block left {} background process(es); they were stopped",
@@ -855,16 +931,9 @@ fn live_descendant_tree() -> io::Result<Vec<i32>> {
         if live_process_group(pid).is_some() {
             found.push(pid);
         }
-        let Ok(tasks) = fs::read_dir(format!("/proc/{pid}/task")) else {
-            continue;
-        };
-        for task in tasks.flatten() {
-            if let Ok(list) = fs::read_to_string(task.path().join("children")) {
-                pending.extend(
-                    list.split_whitespace()
-                        .filter_map(|child| child.parse::<i32>().ok()),
-                );
-            }
+        // a pid that exits meanwhile has no children left to list.
+        if let Ok(children) = children_of(Some(pid)) {
+            pending.extend(children);
         }
     }
     Ok(found)
@@ -916,79 +985,74 @@ fn live_process_group(pid: i32) -> Option<i32> {
 /// thread, which stops the shell and every job and then exits. a SIGKILL
 /// would end this subreaper first and hand its setsid jobs to init.
 #[cfg(target_os = "linux")]
-mod bash_termination {
-    use std::io::{self, Read};
-    use std::os::fd::FromRawFd;
-    use std::sync::atomic::{AtomicI32, Ordering};
+static BASH_SIGTERM_WAKE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
 
-    static WAKE: AtomicI32 = AtomicI32::new(-1);
-
-    extern "C" fn on_sigterm(_: libc::c_int) {
-        let fd = WAKE.load(Ordering::Relaxed);
-        if fd >= 0 {
-            let byte = 1u8;
-            // SAFETY: write is async-signal-safe; fd is our pipe's write end.
-            unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
-        }
-    }
-
-    pub(super) fn install() -> io::Result<()> {
-        if WAKE.load(Ordering::Relaxed) >= 0 {
-            return Ok(());
-        }
-        let mut fds = [0; 2];
-        // SAFETY: pipe2 fills two fds; O_CLOEXEC keeps them from bash.
-        if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } != 0 {
-            return Err(io::Error::last_os_error());
-        }
-        // SAFETY: fds[0] is a fresh fd owned from here on.
-        let mut wake = unsafe { std::fs::File::from_raw_fd(fds[0]) };
-        WAKE.store(fds[1], Ordering::Relaxed);
-        std::thread::Builder::new()
-            .name("ostadix-bash-sigterm".into())
-            .spawn(move || {
-                let mut byte = [0u8; 1];
-                loop {
-                    match wake.read(&mut byte) {
-                        Ok(1) => terminate_now(),
-                        Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-                        _ => return,
-                    }
-                }
-            })?;
-        // SAFETY: a zeroed sigaction with a plain handler and an empty mask.
-        let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
-        action.sa_sigaction = on_sigterm as *const () as usize;
-        action.sa_flags = libc::SA_RESTART;
-        // SAFETY: sigemptyset and sigaction on a local struct.
-        unsafe { libc::sigemptyset(&mut action.sa_mask) };
-        if unsafe { libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut()) } != 0 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(())
-    }
-
-    /// Stop the shell and every job, say what was left, and exit.
-    pub(super) fn terminate_now() -> ! {
-        super::TERMINATING.store(true, std::sync::atomic::Ordering::SeqCst);
-        let shell = super::SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
-        // a walk already running sees TERMINATING when it ends, reports and
-        // exits, so this only gets the lock if that walk had finished. the
-        // walk exits too; should it ever return, say so and exit anyway.
-        let _ = super::stop_backend_descendants(
-            super::JOB_CLEANUP_WINDOW,
-            (shell != 0).then_some(shell),
-        );
-        eprintln!("bash job cleanup failed: the SIGTERM walk returned instead of exiting");
-        std::process::exit(128 + libc::SIGTERM)
+#[cfg(target_os = "linux")]
+extern "C" fn on_bash_sigterm(_: libc::c_int) {
+    let fd = BASH_SIGTERM_WAKE.load(std::sync::atomic::Ordering::Relaxed);
+    if fd >= 0 {
+        let byte = 1u8;
+        // SAFETY: write is async-signal-safe; fd is our pipe's write end.
+        unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
     }
 }
 
-#[cfg(not(target_os = "linux"))]
-mod bash_termination {
-    pub(super) fn install() -> std::io::Result<()> {
-        Ok(())
+#[cfg(target_os = "linux")]
+fn install_bash_termination() -> io::Result<()> {
+    use std::io::Read;
+    use std::os::fd::FromRawFd;
+    use std::sync::atomic::Ordering;
+    if BASH_SIGTERM_WAKE.load(Ordering::Relaxed) >= 0 {
+        return Ok(());
     }
+    let mut fds = [0; 2];
+    // SAFETY: pipe2 fills two fds; O_CLOEXEC keeps them from bash.
+    if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: fds[0] is a fresh fd owned from here on.
+    let mut wake = unsafe { std::fs::File::from_raw_fd(fds[0]) };
+    BASH_SIGTERM_WAKE.store(fds[1], Ordering::Relaxed);
+    std::thread::Builder::new()
+        .name("ostadix-bash-sigterm".into())
+        .spawn(move || {
+            let mut byte = [0u8; 1];
+            loop {
+                match wake.read(&mut byte) {
+                    Ok(1) => terminate_bash_now(),
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                    _ => return,
+                }
+            }
+        })?;
+    // SAFETY: a zeroed sigaction with a plain handler and an empty mask.
+    let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+    action.sa_sigaction = on_bash_sigterm as *const () as usize;
+    action.sa_flags = libc::SA_RESTART;
+    // SAFETY: sigemptyset and sigaction on a local struct.
+    unsafe { libc::sigemptyset(&mut action.sa_mask) };
+    if unsafe { libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut()) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+/// Stop the shell and every job, say what was left, and exit.
+#[cfg(target_os = "linux")]
+fn terminate_bash_now() -> ! {
+    TERMINATING.store(true, std::sync::atomic::Ordering::SeqCst);
+    let shell = SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
+    // a walk already running sees TERMINATING when it ends, reports and
+    // exits, so this only gets the lock if that walk had finished. the
+    // walk exits too; should it ever return, say so and exit anyway.
+    let _ = stop_backend_descendants(JOB_CLEANUP_WINDOW, (shell != 0).then_some(shell));
+    eprintln!("bash job cleanup failed: the SIGTERM walk returned instead of exiting");
+    std::process::exit(128 + libc::SIGTERM)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn install_bash_termination() -> std::io::Result<()> {
+    Ok(())
 }
 
 /// Persistent `sqlite3` CLI session.
@@ -1021,6 +1085,7 @@ impl RustBackend {
             child_pid: Default::default(),
             bash_killed: None,
             plain_bash: false,
+            bash_backend: false,
             tools,
         }
     }
@@ -1164,6 +1229,12 @@ impl RustBackend {
     fn cleanup(&mut self) -> Result<()> {
         if let Some(mut bash) = self.bash.take() {
             bash.shutdown()?;
+        } else if self.bash_backend {
+            // no shell now, but a job an earlier block left may still be
+            // ours; the walk is one read of an empty children file when not.
+            let mut sweep = stop_backend_descendants(JOB_CLEANUP_WINDOW, None);
+            sweep.quiet = true;
+            sweep.report()?;
         }
         if let Some(mut sql) = self.sql.take() {
             sql.shutdown(crate::process::backend_shutdown_timeout()?)?;
@@ -2892,6 +2963,24 @@ impl Drop for TempDir {
 #[cfg(test)]
 mod tests {
 
+    // the /proc scan that stands in for missing children files finds the
+    // same child as the children files do.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_children_scan_fallback_finds_what_the_children_files_list() {
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = child.id() as i32;
+        let listed = super::children_of(None).unwrap();
+        let scanned = super::children_by_scan(std::process::id() as i32).unwrap();
+        child.kill().unwrap();
+        child.wait().unwrap();
+        assert!(listed.contains(&pid), "{listed:?}");
+        assert!(scanned.contains(&pid), "{scanned:?}");
+    }
+
     // 08c-M2: a job snapshot that cannot be read must not stop the SIGTERM
     // walk. the walk still kills the setsid job, reports the failure, and
     // exits 143; nothing panics. it runs in a child copy of this test
@@ -2915,7 +3004,7 @@ mod tests {
             assert!(status.success());
             // bash has exited, so the setsid job is now this process's child.
             super::FAIL_SNAPSHOT.store(true, std::sync::atomic::Ordering::SeqCst);
-            super::bash_termination::terminate_now();
+            super::terminate_bash_now();
         }
         let dir = tempfile::tempdir().unwrap();
         let pidfile = dir.path().join("job.pid");
