@@ -578,7 +578,8 @@ impl<'a> Prepared<'a> {
                 width,
                 &self.operand(frame, lhs)?,
                 &self.operand(frame, rhs)?,
-            ),
+            )
+            .ok_or_else(|| fail(format!("integer {kind:?} by zero trapped")))?,
             Operation::IntegerMinMax { kind, lhs, rhs } => {
                 // Materialize each source operand once. Reusing an unfrozen
                 // undef independently for comparison and selection could
@@ -664,7 +665,13 @@ fn encode_signed(value: &BigInt, width: u16) -> BigUint {
     }
 }
 
-fn binary(kind: BinaryOp, width: u16, lhs: &BigUint, rhs: &BigUint) -> BigUint {
+/// One integer binary operation at `width`, or `None` when it traps.
+///
+/// only division by zero traps, for sdiv, srem, udiv and urem at every
+/// width. signed MIN / -1 does not trap: sdiv yields MIN, the wrapped
+/// quotient, and srem yields 0. add, sub, mul and shl wrap (nsw and nuw are
+/// ignored), and an over-wide shift count is masked.
+fn binary(kind: BinaryOp, width: u16, lhs: &BigUint, rhs: &BigUint) -> Option<BigUint> {
     let modulus = BigUint::one() << usize::from(width);
     let bits = match kind {
         BinaryOp::Add => lhs + rhs,
@@ -675,7 +682,7 @@ fn binary(kind: BinaryOp, width: u16, lhs: &BigUint, rhs: &BigUint) -> BigUint {
         BinaryOp::Xor => lhs ^ rhs,
         BinaryOp::UDiv | BinaryOp::URem => {
             if rhs.is_zero() {
-                BigUint::zero()
+                return None;
             } else if kind == BinaryOp::UDiv {
                 lhs / rhs
             } else {
@@ -686,9 +693,15 @@ fn binary(kind: BinaryOp, width: u16, lhs: &BigUint, rhs: &BigUint) -> BigUint {
             let lhs = signed(lhs, width);
             let rhs = signed(rhs, width);
             let minimum = -(BigInt::one() << usize::from(width - 1));
-            if rhs.is_zero() || (kind == BinaryOp::SDiv && lhs == minimum && rhs == -BigInt::one())
-            {
-                BigUint::zero()
+            if rhs.is_zero() {
+                return None;
+            } else if lhs == minimum && rhs == -BigInt::one() {
+                // the quotient wraps to MIN; the remainder is exactly 0.
+                if kind == BinaryOp::SDiv {
+                    encode_signed(&minimum, width)
+                } else {
+                    BigUint::zero()
+                }
             } else if kind == BinaryOp::SDiv {
                 encode_signed(&(lhs / rhs), width)
             } else {
@@ -708,7 +721,7 @@ fn binary(kind: BinaryOp, width: u16, lhs: &BigUint, rhs: &BigUint) -> BigUint {
             }
         }
     };
-    bits & (&modulus - BigUint::one())
+    Some(bits & (&modulus - BigUint::one()))
 }
 
 fn compare(predicate: IntPredicate, width: u16, lhs: &BigUint, rhs: &BigUint) -> bool {
@@ -1245,21 +1258,23 @@ mod tests {
             for rhs in 0_u16..256 {
                 let a = i32::from(lhs as u8 as i8);
                 let b = i32::from(rhs as u8 as i8);
-                let quotient = if b == 0 || (a == -128 && b == -1) {
-                    0
-                } else {
-                    (a / b) as u8
-                };
-                let remainder = if b == 0 { 0 } else { (a % b) as u8 };
                 let lhs = BigUint::from(lhs);
                 let rhs = BigUint::from(rhs);
+                if b == 0 {
+                    assert_eq!(binary(BinaryOp::SDiv, 8, &lhs, &rhs), None);
+                    assert_eq!(binary(BinaryOp::SRem, 8, &lhs, &rhs), None);
+                    continue;
+                }
+                // MIN / -1 wraps to MIN; its remainder is 0.
+                let quotient = (a.wrapping_div(b) as i8) as u8;
+                let remainder = (a % b) as u8;
                 assert_eq!(
                     binary(BinaryOp::SDiv, 8, &lhs, &rhs),
-                    BigUint::from(quotient)
+                    Some(BigUint::from(quotient))
                 );
                 assert_eq!(
                     binary(BinaryOp::SRem, 8, &lhs, &rhs),
-                    BigUint::from(remainder)
+                    Some(BigUint::from(remainder))
                 );
             }
         }
@@ -1270,7 +1285,12 @@ mod tests {
         for width in [1, 8, 16, 24, 32, 64, 129] {
             let minimum = BigUint::one() << usize::from(width - 1);
             let negative_one = mask(width);
-            for kind in [BinaryOp::SDiv, BinaryOp::SRem] {
+            // MIN / -1 does not trap: sdiv gives MIN and srem gives 0. at i1
+            // MIN and -1 are the same pattern, so -1 / -1 gives -1.
+            for (kind, expected) in [
+                (BinaryOp::SDiv, minimum.clone()),
+                (BinaryOp::SRem, BigUint::zero()),
+            ] {
                 let module = binary_module(width, kind);
                 assert_eq!(
                     evaluate(
@@ -1279,9 +1299,11 @@ mod tests {
                         &[minimum.clone(), negative_one.clone()]
                     )
                     .unwrap(),
-                    Some(BigUint::zero())
+                    Some(expected),
+                    "width {width} {kind:?}"
                 );
             }
+            // division by zero traps for every division at every width.
             for kind in [
                 BinaryOp::SDiv,
                 BinaryOp::SRem,
@@ -1289,9 +1311,12 @@ mod tests {
                 BinaryOp::URem,
             ] {
                 let module = binary_module(width, kind);
-                assert_eq!(
-                    evaluate(&module, "calculate", &[minimum.clone(), BigUint::zero()]).unwrap(),
-                    Some(BigUint::zero())
+                let error = evaluate(&module, "calculate", &[minimum.clone(), BigUint::zero()])
+                    .unwrap_err();
+                assert!(
+                    error.message.contains("by zero trapped"),
+                    "width {width} {kind:?}: {}",
+                    error.message
                 );
             }
         }
@@ -2275,18 +2300,19 @@ mod tests {
                 (BinaryOp::Sub,a.wrapping_sub(b)&mask),
                 (BinaryOp::Mul,a.wrapping_mul(b)&mask),
                 (BinaryOp::And,a&b),(BinaryOp::Or,a|b),(BinaryOp::Xor,a^b),
-                (BinaryOp::UDiv,a.checked_div(b).unwrap_or(0)),
-                (BinaryOp::URem,a.checked_rem(b).unwrap_or(0)),
             ] {
-                prop_assert_eq!(binary(op,width,&BigUint::from(a),&BigUint::from(b)),BigUint::from(expected));
+                prop_assert_eq!(binary(op,width,&BigUint::from(a),&BigUint::from(b)),Some(BigUint::from(expected)));
             }
+            prop_assert_eq!(binary(BinaryOp::UDiv,width,&BigUint::from(a),&BigUint::from(b)),a.checked_div(b).map(BigUint::from));
+            prop_assert_eq!(binary(BinaryOp::URem,width,&BigUint::from(a),&BigUint::from(b)),a.checked_rem(b).map(BigUint::from));
             let signed_a=((a << (128-width)) as i128) >> (128-width);
             let signed_b=((b << (128-width)) as i128) >> (128-width);
             let minimum=if width==128 {i128::MIN} else {-(1_i128 << (width-1))};
-            let quotient=if signed_b==0 || (signed_a==minimum && signed_b == -1) {0} else {signed_a/signed_b};
-            let remainder=if signed_b==0 || (signed_a==i128::MIN && signed_b == -1) {0} else {signed_a%signed_b};
-            prop_assert_eq!(binary(BinaryOp::SDiv,width,&BigUint::from(a),&BigUint::from(b)),BigUint::from((quotient as u128)&mask));
-            prop_assert_eq!(binary(BinaryOp::SRem,width,&BigUint::from(a),&BigUint::from(b)),BigUint::from((remainder as u128)&mask));
+            // division by zero traps; MIN / -1 wraps to MIN with remainder 0.
+            let quotient=(signed_b!=0).then(|| if signed_a==minimum && signed_b == -1 {minimum} else {signed_a.wrapping_div(signed_b)});
+            let remainder=(signed_b!=0).then(|| if signed_a==minimum && signed_b == -1 {0} else {signed_a.wrapping_rem(signed_b)});
+            prop_assert_eq!(binary(BinaryOp::SDiv,width,&BigUint::from(a),&BigUint::from(b)),quotient.map(|q| BigUint::from((q as u128)&mask)));
+            prop_assert_eq!(binary(BinaryOp::SRem,width,&BigUint::from(a),&BigUint::from(b)),remainder.map(|r| BigUint::from((r as u128)&mask)));
             for (predicate,expected) in [
                 (IntPredicate::Eq,a==b),(IntPredicate::Ne,a!=b),(IntPredicate::Ugt,a>b),(IntPredicate::Uge,a>=b),
                 (IntPredicate::Ult,a<b),(IntPredicate::Ule,a<=b),(IntPredicate::Sgt,signed_a>signed_b),(IntPredicate::Sge,signed_a>=signed_b),

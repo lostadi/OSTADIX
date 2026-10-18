@@ -471,6 +471,15 @@ Package SemVer is only one of the independent coordinates documented in
   read, not only at spawn.
 - Isolated project workspaces are created private (0700, random name).
 - A NUL in a `$x` bash splice names `$x` under the graph executor too.
+- Native leaf integer division no longer returns `0` for a zero divisor:
+  `udiv`, `sdiv`, `urem` and `srem` trap at every width, in owned native
+  code and in the reference interpreter. Signed minimum divided by `-1`
+  yields the minimum for `sdiv` and `0` for `srem`, also at `i1`, where
+  minimum and `-1` coincide. Explicit guards run before each divide
+  instruction and are left out only for literal operands that cannot trip
+  them. We match WebAssembly on division by zero and on `rem_s` of minimum
+  by `-1`, and differ only in `div_s` of minimum by `-1`, which yields the
+  minimum instead of trapping.
 
 - Backend temp dirs for block files, extracted shims and olangc script mode
   are created with mode 0700 and a random name, also under a custom

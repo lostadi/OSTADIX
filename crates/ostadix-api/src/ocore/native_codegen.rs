@@ -839,6 +839,20 @@ impl<'a> Emitter<'a> {
             | Operand::Poison { ty } => *ty,
         }
     }
+    /// The bit pattern of an integer constant operand, truncated to `width`,
+    /// or `None` when the operand is not a constant known here.
+    fn constant_bits(&self, operand: &Operand, width: u16) -> Option<u64> {
+        let Operand::Int { bits, .. } = operand else {
+            return None;
+        };
+        let value = bits.parse::<u128>().ok()?;
+        let mask = if width >= 64 {
+            u64::MAX as u128
+        } else {
+            (1u128 << width) - 1
+        };
+        Some((value & mask) as u64)
+    }
     fn bits(&self, operand: &Operand) -> u16 {
         scalar_bits(self.module, self.ty(operand)).unwrap()
     }
@@ -2266,35 +2280,66 @@ impl<'a> Emitter<'a> {
                 }
             }
             BinaryOp::UDiv | BinaryOp::SDiv | BinaryOp::URem | BinaryOp::SRem => {
+                // ### division refinements ###
+                // only division by zero traps, at every width. signed MIN / -1
+                // does not trap: sdiv yields MIN (the wrapped quotient) and
+                // srem yields 0. both guards are explicit branches emitted
+                // before the divide instruction, so the hardware never sees
+                // a zero divisor or MIN / -1 (x86 idiv faults on both) and
+                // nothing depends on what an assembler or cpu does there.
                 let signed = matches!(kind, BinaryOp::SDiv | BinaryOp::SRem);
                 let remainder = matches!(kind, BinaryOp::URem | BinaryOp::SRem);
+                let width = self.bits(lhs);
                 if signed {
-                    self.signed(out, 0, self.bits(lhs));
-                    self.signed(out, 1, self.bits(rhs));
+                    self.signed(out, 0, width);
+                    self.signed(out, 1, width);
                 }
-                let bad = self.label();
+                let trap = self.label();
                 let done = self.label();
-                self.zero_jump(out, 1, &bad, true);
-                if signed {
-                    let okay = self.label();
-                    self.immediate(out, 2, 0u64.wrapping_sub(1u64 << (self.bits(lhs) - 1)));
+                let divisor = self.constant_bits(rhs, width);
+                let dividend = self.constant_bits(lhs, width);
+                // a divisor known to be non-zero needs no zero check.
+                if divisor.is_none_or(|bits| bits == 0) {
+                    self.zero_jump(out, 1, &trap, true);
+                }
+                // the MIN / -1 branch is dropped only when the divisor is known
+                // not to be -1 or the dividend is known not to be MIN. at i1,
+                // MIN and -1 are the same bit pattern.
+                let all_ones = if width >= 64 {
+                    u64::MAX
+                } else {
+                    (1u64 << width) - 1
+                };
+                let minimum = 1u64 << (width - 1);
+                let may_overflow = signed
+                    && divisor.is_none_or(|bits| bits == all_ones)
+                    && dividend.is_none_or(|bits| bits == minimum);
+                if may_overflow {
+                    let normal = self.label();
+                    self.immediate(out, 2, 0u64.wrapping_sub(minimum));
                     match self.target {
                         Target::X86_64UnknownNone => writeln!(
                             out,
-                            "  cmp rax, rdx\n  jne {okay}\n  cmp rcx, -1\n  je {bad}\n{okay}:"
+                            "  cmp rax, rdx\n  jne {normal}\n  cmp rcx, -1\n  jne {normal}"
                         )
                         .unwrap(),
                         Target::Aarch64UnknownNone => writeln!(
                             out,
-                            "  cmp x9, x11\n  b.ne {okay}\n  cmn x10, #1\n  b.eq {bad}\n{okay}:"
+                            "  cmp x9, x11\n  b.ne {normal}\n  cmn x10, #1\n  b.ne {normal}"
                         )
                         .unwrap(),
                         Target::Riscv64UnknownNone => writeln!(
                             out,
-                            "  bne t0, t2, {okay}\n  li t2, -1\n  beq t1, t2, {bad}\n{okay}:"
+                            "  bne t0, t2, {normal}\n  li t2, -1\n  bne t1, t2, {normal}"
                         )
                         .unwrap(),
                     }
+                    // the dividend register already holds MIN, the sdiv result.
+                    if remainder {
+                        self.immediate(out, 0, 0);
+                    }
+                    self.jump(out, &done);
+                    writeln!(out, "{normal}:").unwrap();
                 }
                 match self.target {
                     Target::X86_64UnknownNone => {
@@ -2333,8 +2378,13 @@ impl<'a> Emitter<'a> {
                     .unwrap(),
                 }
                 self.jump(out, &done);
-                writeln!(out, "{bad}:").unwrap();
-                self.immediate(out, 0, 0);
+                // the same instruction an explicit llvm.trap lowers to.
+                writeln!(out, "{trap}:").unwrap();
+                out.push_str(match self.target {
+                    Target::X86_64UnknownNone => "  ud2\n",
+                    Target::Aarch64UnknownNone => "  brk #1\n",
+                    Target::Riscv64UnknownNone => "  unimp\n",
+                });
                 writeln!(out, "{done}:").unwrap();
             }
         }
