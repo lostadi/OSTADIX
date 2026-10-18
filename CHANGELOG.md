@@ -471,6 +471,10 @@ Package SemVer is only one of the independent coordinates documented in
   read, not only at spawn.
 - Isolated project workspaces are created private (0700, random name).
 - A NUL in a `$x` bash splice names `$x` under the graph executor too.
+- `O_NATIVE_CLANG_SHA256` and `O_NATIVE_LD_SHA256` pin the native leaf
+  tools' bytes. A tool whose SHA-256 differs is refused before it runs.
+  Previously the hash was recorded in the manifest but never compared.
+
 - Native leaf `clang` and `ld` are taken from `O_NATIVE_CLANG` and
   `O_NATIVE_LD`, which must be absolute paths, or else from absolute `PATH`
   entries only. An empty or relative `PATH` entry no longer lets the

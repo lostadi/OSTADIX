@@ -172,7 +172,10 @@ is taken from `O_NATIVE_CLANG` or `O_NATIVE_LD` when that is set, and the value
 must be an absolute path to an executable file. Otherwise the tool is looked up
 in the absolute entries of a single captured search path. Empty, `.` and
 relative entries are skipped, so the caller's working directory never supplies
-a tool. The adapter reads the tools' exact ELF bytes and runs sealed
+a tool. `O_NATIVE_CLANG_SHA256` and `O_NATIVE_LD_SHA256`, when set, pin each
+tool's bytes: a tool with a different SHA-256 is refused, and a pin that is
+not 64 lowercase hex digits is an error. The adapter reads the tools' exact
+ELF bytes and runs sealed
 copies to assemble and statically link the owned assembly. It preserves their
 original invocation paths as `argv[0]`. Both tools use one captured working
 directory and an otherwise cleared environment containing `LC_ALL=C` and the
