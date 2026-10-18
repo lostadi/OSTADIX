@@ -131,6 +131,11 @@ pub(crate) fn is_infrastructure_error(error: &anyhow::Error) -> bool {
 pub(crate) use crate::lifecycle_trace::lifecycle_trace;
 use crate::lifecycle_trace::monotonic_nanos;
 
+/// Silence backend progress lines and spinner output (`--quiet` / `-q`).
+pub fn set_quiet(quiet: bool) {
+    crate::progress::set_quiet(quiet);
+}
+
 #[cfg(test)]
 const PYTHON_POLICY_BOOTSTRAP: &str = r#"
 import json, os, runpy, sys

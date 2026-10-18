@@ -303,7 +303,7 @@ allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "ca
 [[root]]
 name = "project"
 layer = 11
-allowed_dependencies = ["backend_catalog", "effects", "executor", "hgraph", "ir", "parser", "process", "value", "world"]
+allowed_dependencies = ["backend_catalog", "effects", "executor", "hgraph", "ir", "parser", "process", "shims", "value", "world"]
 
 [[root]]
 name = "registry"

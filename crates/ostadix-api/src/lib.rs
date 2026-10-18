@@ -47,7 +47,7 @@ pub mod placement;
 #[path = "placement/protocol/mod.rs"]
 pub(crate) mod placement_protocol;
 pub mod process;
-pub mod progress;
+pub(crate) mod progress;
 pub mod project;
 pub mod registry;
 #[path = "world/identity.rs"]
