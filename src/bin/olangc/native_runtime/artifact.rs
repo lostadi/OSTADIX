@@ -585,7 +585,7 @@ mod tests {
         let path = directory.path().join("provider.json");
         fs::write(&path, serde_json::to_vec(&package("provider")).unwrap()).unwrap();
         let capture = json!({"dependencies":{"declared":[{"name":"provider"}]}});
-        assert!(load_dependencies(&capture, &[path.clone()]).is_ok());
+        assert!(load_dependencies(&capture, std::slice::from_ref(&path)).is_ok());
         assert!(load_dependencies(&capture, &[]).is_err());
         assert!(load_dependencies(&capture, &[path.clone(), path.clone()]).is_err());
         assert!(load_dependencies(&json!({"dependencies":{"declared":[]}}), &[path]).is_err());
@@ -721,7 +721,7 @@ mod tests {
         ] {
             let capture =
                 json!({"dependencies":{"declared":[{"name":"provider","source_pin":pin}]}});
-            let error = load_dependencies(&capture, &[path.clone()])
+            let error = load_dependencies(&capture, std::slice::from_ref(&path))
                 .err()
                 .unwrap()
                 .to_string();

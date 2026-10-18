@@ -125,6 +125,9 @@ fn immutable_driver(recipe: &Path, bytes: &[u8], worker: &Path, helper: &Path) -
     Ok(())
 }
 
+// Keep source bytes, output contract, both option sets, and compiler identity
+// explicit at the shared native-runtime orchestration boundary.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn compile(
     recipe_input: &Path,
     recipe_bytes: &[u8],
