@@ -163,6 +163,18 @@ pub(crate) fn refuse_nul_in_bash_splice(
     Ok(())
 }
 
+/// Whether a plan node is a plain bash block: a fresh-environment bash exec
+/// that a reusable plain helper runs.
+pub(crate) fn is_plain_bash_exec(kind: &PlanNodeKind) -> bool {
+    matches!(
+        kind,
+        PlanNodeKind::Exec { env_id, backend, .. }
+            if backend.canonical == "bash"
+                && backend.execution == crate::backend_catalog::ExecutionMode::Shim
+                && *env_id > crate::environment::MAX_PERSISTENT_ENV_ID
+    )
+}
+
 /// Materialized values and policy context for one graph evaluation.
 pub(crate) struct GraphEvalFrame {
     pub(crate) plan_index: ExecutionPlanIndex,
@@ -180,6 +192,17 @@ pub(crate) struct GraphEvalFrame {
 }
 
 impl GraphEvalFrame {
+    /// Whether the plan still holds a plain bash block, other than `id`, that
+    /// has no value yet. the helper uses it to spawn the next block's shell
+    /// before answering, and to skip that spawn for the last block.
+    pub(crate) fn plain_bash_block_ahead(&self, plan: &ExecutionPlan, id: PlanNodeId) -> bool {
+        plan.nodes.iter().enumerate().any(|(index, node)| {
+            index != id.0
+                && self.values.get(index).is_some_and(Option::is_none)
+                && is_plain_bash_exec(&node.kind)
+        })
+    }
+
     pub(crate) fn value(&self, id: PlanNodeId) -> Result<&OValue> {
         self.values
             .get(id.0)

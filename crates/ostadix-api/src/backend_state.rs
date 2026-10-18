@@ -490,6 +490,11 @@ pub enum BackendWireCommandV2 {
     Exec {
         code: String,
         bindings: HashMap<String, OValue>,
+        // a hint to a plain bash helper that the plan has another plain block
+        // ahead, so it spawns that block's shell before it answers. absent on
+        // the wire when false, which keeps the legacy shape byte-identical.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        plain_next: bool,
     },
     Cleanup,
     Shutdown,
@@ -817,6 +822,7 @@ mod tests {
                 BackendWireCommandV2::Exec {
                     code: "value + 1".to_string(),
                     bindings,
+                    plain_next: false,
                 },
             ),
             (OWireCommand::Ping, BackendWireCommandV2::Ping),

@@ -107,6 +107,8 @@ pub fn run_backend(lang: &str) -> Result<()> {
         )?;
     }
 
+    // started by the first step that needs it.
+    let mut heartbeat: Option<Heartbeat> = None;
     while let Some(command) = wire::read_frame::<_, BackendWireCommandV2>(&mut reader)? {
         if matches!(&command, BackendWireCommandV2::Shutdown) {
             match backend.shutdown() {
@@ -134,14 +136,41 @@ pub fn run_backend(lang: &str) -> Result<()> {
             BackendWireCommandV2::ExecMorphismV1 { .. } => BackendWireResponseV2::err(
                 "morphism.unsupported-backend: this native adapter has no executable morphism contract",
             ),
-            BackendWireCommandV2::Exec { code, bindings } => {
+            BackendWireCommandV2::Exec {
+                code,
+                bindings,
+                plain_next,
+            } => {
                 let result = if lang == "javascript" && (code.contains("O.native_")
                     || bindings.values().any(|value| matches!(value, OValue::Native { .. }))) {
                     run_javascript_native_bridge(&backend.tools, &code, &bindings, &mut reader, &mut stdout.lock())
                 } else {
-                    let _pulse = Heartbeat::start(backend.child_pid.clone());
+                    if heartbeat.is_none() {
+                        if let Some(interval) = crate::process::shim_heartbeat_interval() {
+                            heartbeat = Some(Heartbeat::start(backend.child_pid.clone(), interval)?);
+                        }
+                    }
+                    let _pulse = match &heartbeat {
+                        Some(heartbeat) => heartbeat.step(),
+                        None => HeartbeatStep { heartbeat: None },
+                    };
                     backend.exec(lang, &code, bindings)
                 };
+                // the next plain block's shell, spawned before the answer so
+                // the host's next request finds it ready. only when the plan
+                // has another plain block ahead: a one-block program spawns
+                // exactly one shell.
+                if backend.plain_bash && plain_next {
+                    if let Err(error) = backend.prespawn_bash() {
+                        // the block itself succeeded or failed on its own; the
+                        // next block starts its shell inline and reports a
+                        // real failure there.
+                        crate::process::lifecycle_trace(
+                            "backend.plain_bash_prespawn_failed",
+                            format!("{error:#}"),
+                        );
+                    }
+                }
                 match result {
                     Ok(value) => BackendWireResponseV2::ok(value),
                     Err(error) => BackendWireResponseV2::err(format!("{error:#}")),
@@ -172,12 +201,6 @@ pub fn run_backend(lang: &str) -> Result<()> {
             }
         };
         wire::write_frame(&mut stdout.lock(), &response)?;
-        // after the answer, off the block's path: the next block's shell, but
-        // only once a second block has come. a one-block program never pays
-        // for a spare shell it would only have to stop again.
-        if backend.plain_bash && backend.plain_blocks_served >= 2 {
-            backend.prespawn_bash()?;
-        }
     }
 
     Ok(())
@@ -185,26 +208,61 @@ pub fn run_backend(lang: &str) -> Result<()> {
 
 /// Sends `heartbeat_v1` frames on stdout while a native step runs, so the
 /// host can tell a long step from a hung one. For bash it reports the session
-/// shell's kernel state. Stopped (and joined) on drop, before the step's
-/// answer is written, so a heartbeat never follows the answer.
+/// shell's kernel state.
+///
+/// why one long-lived thread: a thread per step cost every short block a
+/// spawn and a join. the thread starts with the first step, and each step
+/// only flips a flag under a lock; the first frame of a step comes one
+/// interval after it began, so a short step sends none. the heartbeat always
+/// runs, since it is how the host tells a dead backend from a slow one.
 struct Heartbeat {
-    stop: Option<mpsc::Sender<()>>,
-    thread: Option<thread::JoinHandle<()>>,
+    shared: std::sync::Arc<(std::sync::Mutex<HeartbeatState>, std::sync::Condvar)>,
+}
+
+#[derive(Default)]
+struct HeartbeatState {
+    // the step now running, if any; numbered so a frame due for an earlier
+    // step is never sent for a later one.
+    step: Option<u64>,
+    next_step: u64,
+}
+
+/// Ends the step's heartbeat on drop, before the step's answer is written.
+/// the flag is cleared under the lock the thread writes under, so no frame
+/// can follow the answer.
+struct HeartbeatStep<'a> {
+    heartbeat: Option<&'a Heartbeat>,
 }
 
 impl Heartbeat {
-    fn start(child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>) -> Self {
-        let Some(interval) = crate::process::shim_heartbeat_interval() else {
-            return Self {
-                stop: None,
-                thread: None,
-            };
-        };
-        let (stop, stopped) = mpsc::channel::<()>();
-        let thread = thread::Builder::new()
+    fn start(
+        child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
+        interval: Duration,
+    ) -> io::Result<Self> {
+        let shared = std::sync::Arc::new((
+            std::sync::Mutex::new(HeartbeatState::default()),
+            std::sync::Condvar::new(),
+        ));
+        let watched = std::sync::Arc::clone(&shared);
+        thread::Builder::new()
             .name("ostadix-backend-heartbeat".into())
             .spawn(move || {
-                while let Err(mpsc::RecvTimeoutError::Timeout) = stopped.recv_timeout(interval) {
+                let (state, wake) = &*watched;
+                let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+                loop {
+                    let Some(step) = guard.step else {
+                        guard = wake.wait(guard).unwrap_or_else(|e| e.into_inner());
+                        continue;
+                    };
+                    // armed: one interval after the step began, then each
+                    // interval while the same step still runs.
+                    let (next, _) = wake
+                        .wait_timeout_while(guard, interval, |state| state.step == Some(step))
+                        .unwrap_or_else(|e| e.into_inner());
+                    guard = next;
+                    if guard.step != Some(step) {
+                        continue;
+                    }
                     let pid = child_pid.load(std::sync::atomic::Ordering::Relaxed);
                     let child = (pid != 0).then(|| heartbeat_child(pid));
                     let frame = BackendWireResponseV2::HeartbeatV1 { child };
@@ -212,20 +270,28 @@ impl Heartbeat {
                         return;
                     }
                 }
-            })
-            .ok();
-        Self {
-            stop: Some(stop),
-            thread,
+            })?;
+        Ok(Self { shared })
+    }
+
+    fn step(&self) -> HeartbeatStep<'_> {
+        let (state, wake) = &*self.shared;
+        let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+        guard.next_step = guard.next_step.wrapping_add(1);
+        guard.step = Some(guard.next_step);
+        wake.notify_all();
+        HeartbeatStep {
+            heartbeat: Some(self),
         }
     }
 }
 
-impl Drop for Heartbeat {
+impl Drop for HeartbeatStep<'_> {
     fn drop(&mut self) {
-        self.stop.take();
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+        if let Some(heartbeat) = self.heartbeat.take() {
+            let (state, wake) = &*heartbeat.shared;
+            state.lock().unwrap_or_else(|e| e.into_inner()).step = None;
+            wake.notify_all();
         }
     }
 }
@@ -266,8 +332,6 @@ struct RustBackend {
     // a plain-block helper: every block gets a fresh shell, ended (with its
     // jobs) before the answer is written, and the next shell is spawned after.
     plain_bash: bool,
-    // plain blocks this helper has answered; gates the spare shell.
-    plain_blocks_served: u32,
     child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
     tools: BackendToolchain,
 }
@@ -618,7 +682,6 @@ impl RustBackend {
             child_pid: Default::default(),
             bash_killed: None,
             plain_bash: false,
-            plain_blocks_served: 0,
             tools,
         }
     }
@@ -919,7 +982,6 @@ impl RustBackend {
     /// block. a plain block never shares a shell, so nothing latches: a shell
     /// killed by a signal fails only its own block.
     fn finish_plain_bash_block(&mut self, output: Output, alive: bool) -> Result<OValue> {
-        self.plain_blocks_served = self.plain_blocks_served.saturating_add(1);
         self.child_pid
             .store(0, std::sync::atomic::Ordering::Relaxed);
         if let Some(mut ended) = self.bash.take() {
