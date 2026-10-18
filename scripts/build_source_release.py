@@ -27,13 +27,13 @@ import zipfile
 import zlib
 
 try:
-    from scripts.check_attribution import (
+    from scripts.check_commit_authors import (
         cargo_author_values,
         cff_author_values,
         contains_forbidden_identity,
     )
 except ModuleNotFoundError:  # Direct `python3 scripts/build_source_release.py`.
-    from check_attribution import (  # type: ignore[no-redef]
+    from check_commit_authors import (  # type: ignore[no-redef]
         cargo_author_values,
         cff_author_values,
         contains_forbidden_identity,
@@ -719,7 +719,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "scripts/smoke-zero-config-lan-netns.sh",
         "scripts/semantic_custody_demo.sh",
         "scripts/contract_surfaces.py",
-        "scripts/check_attribution.py",
+        "scripts/check_commit_authors.py",
         "scripts/check_architecture_boundaries.py",
         "scripts/local_ci_posture.py",
         "scripts/install-o-cli-wrapper.sh",
@@ -982,7 +982,7 @@ REQUIRED_RELEASE_PATHS = frozenset(
         "tests/native_cli_dispatch.rs",
         "tests/cli_diagnostics.rs",
         "tests/test_contract_surfaces.py",
-        "tests/test_attribution_policy.py",
+        "tests/test_commit_authors.py",
         "tests/test_architecture_boundaries.py",
         "tests/test_governance_surfaces.py",
         "tests/test_local_ci_posture.py",
@@ -1124,10 +1124,10 @@ WORLD_CLAIM_POLICY_SHA256 = (
 WORLD_DERIVATION_HASH = (
     "sha256:3a017fee12f6cc7b3c9ef9ec099407f39b5bb143251c21b9937abe47409c9d06"
 )
-WORLD_ATTRIBUTION_REWRITE_MAP_PATH = (
+WORLD_HISTORY_REWRITE_MAP_PATH = (
     "evidence/attribution-rewrite-2026-09-03.commit-map"
 )
-WORLD_ATTRIBUTION_REWRITE_MAP_SHA256 = (
+WORLD_HISTORY_REWRITE_MAP_SHA256 = (
     "41e205ed45e01c4a719c669e2d1473d6b0f84bc1d925037279cf8ba553ff3f52"
 )
 WORLD_HISTORICAL_VALIDATOR_SHA256_BY_ATTESTATION = {
@@ -2208,7 +2208,7 @@ def _validate_cargo_authors(manifest: dict[str, object], label: str) -> None:
     for field, author in authors:
         if contains_forbidden_identity(author):
             raise ReleaseError(
-                f"{label} {field} must not attribute Claude or Codex: {author!r}"
+                f"{label} {field} must name only the allowed author: {author!r}"
             )
 
 
@@ -2219,8 +2219,8 @@ def _validate_cff_authors(text: str, label: str) -> None:
     for line_number, author in authors:
         if contains_forbidden_identity(author):
             raise ReleaseError(
-                f"{label} authors line {line_number} must not attribute "
-                f"Claude or Codex: {author!r}"
+                f"{label} authors line {line_number} must name only the allowed author: "
+                f"{author!r}"
             )
 
 
@@ -4002,15 +4002,15 @@ def _validate_world_evidence_ledger_release_surface(
 def _validate_world_alpha_release_surface(
     files: dict[str, bytes], modes: dict[str, str]
 ) -> None:
-    rewrite_map = files.get(WORLD_ATTRIBUTION_REWRITE_MAP_PATH)
+    rewrite_map = files.get(WORLD_HISTORY_REWRITE_MAP_PATH)
     if (
         rewrite_map is None
-        or modes.get(WORLD_ATTRIBUTION_REWRITE_MAP_PATH) != "100644"
+        or modes.get(WORLD_HISTORY_REWRITE_MAP_PATH) != "100644"
         or hashlib.sha256(rewrite_map).hexdigest()
-        != WORLD_ATTRIBUTION_REWRITE_MAP_SHA256
+        != WORLD_HISTORY_REWRITE_MAP_SHA256
     ):
         raise ReleaseError(
-            f"{WORLD_ATTRIBUTION_REWRITE_MAP_PATH} differs from the trusted history-rewrite map"
+            f"{WORLD_HISTORY_REWRITE_MAP_PATH} differs from the trusted history-rewrite map"
         )
     texts = {
         path: _sealed_world_alpha_text(files, modes, path)

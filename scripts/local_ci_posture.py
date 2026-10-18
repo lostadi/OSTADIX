@@ -50,9 +50,9 @@ RISKY_TRIGGERS = frozenset(
 )
 RELEASE_SURFACE_PATHS = (
     "docs/CI_POSTURE.md",
-    "scripts/check_attribution.py",
+    "scripts/check_commit_authors.py",
     "scripts/local_ci_posture.py",
-    "tests/test_attribution_policy.py",
+    "tests/test_commit_authors.py",
     "tests/test_local_ci_posture.py",
 )
 EXCLUDED_WALK_DIRECTORIES = frozenset(

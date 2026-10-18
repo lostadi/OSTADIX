@@ -53,7 +53,7 @@ WORLD_EVIDENCE_EVENT_PATHS = {
     "evidence/world/g2-counter-wording-supersession-2026-08-03.toml",
 }
 WORLD_EVIDENCE_RELEASE_PATHS = set(WORLD_ATTESTATION_PATHS) | WORLD_EVIDENCE_EVENT_PATHS
-WORLD_EVIDENCE_RELEASE_PATHS.add(release.WORLD_ATTRIBUTION_REWRITE_MAP_PATH)
+WORLD_EVIDENCE_RELEASE_PATHS.add(release.WORLD_HISTORY_REWRITE_MAP_PATH)
 for _attestation_path in WORLD_ATTESTATION_PATHS:
     _attestation = tomllib.loads(
         (PROJECT_ROOT / _attestation_path).read_text(encoding="utf-8")
@@ -468,12 +468,12 @@ class RootReleaseMetadataValidationTests(unittest.TestCase):
             "cargo tool author": (
                 "Cargo.toml",
                 FIXTURE_CARGO.replace("Lee Daghlar Ostadi", "OpenAI Codex"),
-                r"package\.authors must not attribute Claude or Codex",
+                r"package\.authors must name only the allowed author",
             ),
             "citation tool author": (
                 "CITATION.cff",
                 FIXTURE_CITATION.replace("Lee Daghlar", "Claude Sonnet 5"),
-                r"authors line .* must not attribute Claude or Codex",
+                r"authors line .* must name only the allowed author",
             ),
             "license text": (
                 "LICENSE",
@@ -610,7 +610,7 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
         ).encode()
         with self.assertRaisesRegex(
             release.ReleaseError,
-            r"package\.authors must not attribute Claude or Codex",
+            r"package\.authors must name only the allowed author",
         ):
             release._validate_workspace_facade_release_surface(files)
 
@@ -1363,7 +1363,7 @@ class SourceReleaseTests(unittest.TestCase):
             "scripts/smoke-zero-config-lan-netns.sh": "#!/usr/bin/env bash\n",
             "scripts/semantic_custody_demo.sh": "#!/usr/bin/env bash\n",
             "scripts/contract_surfaces.py": "#!/usr/bin/env python3\n",
-            "scripts/check_attribution.py": "#!/usr/bin/env python3\n",
+            "scripts/check_commit_authors.py": "#!/usr/bin/env python3\n",
             "scripts/check_architecture_boundaries.py": "#!/usr/bin/env python3\n",
             "scripts/local_ci_posture.py": "#!/usr/bin/env python3\n",
             "scripts/install-o-cli-wrapper.sh": "#!/usr/bin/env bash\n",
@@ -1563,7 +1563,7 @@ class SourceReleaseTests(unittest.TestCase):
             "tests/fixtures/world_receipt_v1.hex": "4f57524543454950\n",
             "tests/fixtures/world_value_v1.hex": "4f5756414c554531\n",
             "tests/test_example_manifest.py": "# fixture example manifest tests\n",
-            "tests/test_attribution_policy.py": "# fixture attribution policy tests\n",
+            "tests/test_commit_authors.py": "# fixture commit author tests\n",
             "tests/test_contract_surfaces.py": "# fixture contract projection tests\n",
             "tests/test_architecture_boundaries.py": "# fixture architecture boundary tests\n",
             "tests/test_governance_surfaces.py": "# fixture governance surface tests\n",
@@ -2129,7 +2129,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "scripts/smoke-zero-config-lan-netns.sh",
                 "scripts/semantic_custody_demo.sh",
                 "scripts/contract_surfaces.py",
-                "scripts/check_attribution.py",
+                "scripts/check_commit_authors.py",
                 "scripts/check_architecture_boundaries.py",
                 "scripts/local_ci_posture.py",
                 "scripts/install-o-cli-wrapper.sh",
@@ -2325,7 +2325,7 @@ class SourceReleaseTests(unittest.TestCase):
                 "tests/fixtures/world_receipt_v1.hex",
                 "tests/fixtures/world_value_v1.hex",
                 "tests/test_example_manifest.py",
-                "tests/test_attribution_policy.py",
+                "tests/test_commit_authors.py",
                 "tests/test_contract_surfaces.py",
                 "tests/test_architecture_boundaries.py",
                 "tests/test_governance_surfaces.py",
@@ -2979,12 +2979,12 @@ class SourceReleaseTests(unittest.TestCase):
             "ci/test-suites.toml",
             "rust-toolchain.toml",
             "docs/CI_POSTURE.md",
-            "scripts/check_attribution.py",
+            "scripts/check_commit_authors.py",
             "scripts/contract_surfaces.py",
             "scripts/check_architecture_boundaries.py",
             "scripts/local_ci_posture.py",
             "tests/test_architecture_boundaries.py",
-            "tests/test_attribution_policy.py",
+            "tests/test_commit_authors.py",
             "tests/test_contract_surfaces.py",
             "tests/test_local_ci_posture.py",
         )
@@ -3342,13 +3342,13 @@ class SourceReleaseTests(unittest.TestCase):
         ):
             self.assertIn(path, message)
 
-    def test_attribution_rewrite_map_is_required_and_digest_pinned(self) -> None:
-        path = release.WORLD_ATTRIBUTION_REWRITE_MAP_PATH
+    def test_history_rewrite_map_is_required_and_digest_pinned(self) -> None:
+        path = release.WORLD_HISTORY_REWRITE_MAP_PATH
         self._commit()
         self._git("rm", path)
-        self._git("commit", "-q", "-m", "remove attribution rewrite map")
+        self._git("commit", "-q", "-m", "remove history rewrite map")
         self._assert_missing_required_paths(
-            "missing-attribution-rewrite-map.zip", (path,)
+            "missing-history-rewrite-map.zip", (path,)
         )
 
         tampered = (PROJECT_ROOT / path).read_bytes() + b"tamper\n"

@@ -213,14 +213,169 @@ physical-multinode, distinct-kernel, or heterogeneous-architecture claim.</p>
 </ul>
 <h3>Changed</h3>
 <ul>
+<li><p>Backend steps have no default time limit: a step may run for days. A
+silent step is killed only when the user opts in with
+<code>O_BACKEND_STEP_TIMEOUT_MS</code> (milliseconds, 1 to 604800000); it then fails
+with <code>backend `&lt;lang&gt;` step exceeded &lt;N&gt; s (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)</code>. An unparsable, zero or oversized value is an
+error on the first step, not a silent fallback. Shims answer once per step,
+so the limit bounds one step; an <code>O.eval</code> callback round trip restarts it.</p>
+</li>
+<li><p>The 60 s cap that the base applied to every <code>bash</code> block was already
+removed by the numbered bash environments change above; bash blocks, like
+every other step, run without a limit unless the knob is set. The other
+language shims (C, C++, Java, JavaScript, Ruby, Rust, OCaml, Haskell, C#,
+Racket, Lisp, sh, WebAssembly) no longer apply their own 60 s limit either;
+they read the same knob, with no default, and a malformed value is an
+error.</p>
+</li>
+<li><p>The 60 s default operation limit is gone too. Ephemeral backend runs, state
+checkpoint and restore, native operations and local-worker <code>O.eval</code>
+callbacks are bounded only when <code>O_BACKEND_OPERATION_TIMEOUT_MS</code> is set
+(validated the same way as the step knob).</p>
+</li>
+<li><p><code>O_BACKEND_HEARTBEAT_INTERVAL_MS</code> and <code>O_BACKEND_HEARTBEAT_WARN_MS</code> are
+validated the same way: a malformed, zero or oversized value fails the
+backend spawn instead of silently falling back to 5 s and 30 s.</p>
+</li>
+<li><p>Native leaf children (clang, ld and the sealed leaf) run in their own
+process group under the same watch: one stderr warning after the hang
+threshold, the group killed when the opt-in step limit passes or the
+request is cancelled, and the group killed after the leader exits so no
+orphan outlives it. Their pipes are read on capture threads while the wait
+polls. Tool stderr names the private build directory as
+<code>&lt;native build directory&gt;</code>, and <code>O --json</code> evidence no longer publishes the
+tools&#39; working directory.</p>
+</li>
+<li><p>A backend killed mid-step by the opt-in limit, by a request deadline or by
+cancellation is killed and removed at that point, for pooled and direct
+callers alike, so a late answer can never be read as the reply to a later
+request. A numbered session that ends this way (<code>python[N]</code>, <code>bash[N]</code>, ...)
+or whose backend dies mid-step is recorded as lost: every later block on
+that session id fails with <code>session &lt;lang&gt;[&lt;N&gt;] was terminated after &lt;cause&gt;; its state is gone</code> instead of silently starting an empty session.</p>
+</li>
+<li><p>A request deadline that expires inside a <code>batch(...)</code> member now fails the
+request rather than being absorbed as that member&#39;s own error value: the
+deadline belongs to the whole request (typed <code>RequestDeadlineExpired</code>).</p>
+</li>
+<li><p>Hang visibility without killing. Shims started by this runtime send a
+<code>hello_v1</code> frame listing the <code>heartbeat_v1</code> capability and then a
+<code>heartbeat_v1</code> frame every 5 s while a step runs (python and every other
+shim on the shared shim loop from a side thread; bash and sql from the Rust
+backend, reporting the session shell&#39;s or sqlite3&#39;s pid, kernel state and
+utime+stime from <code>/proc</code>). If no heartbeat arrives for 30 s, one stderr line
+is printed: <code>no heartbeat from &lt;lang&gt;[&lt;N&gt;] for 30 s; it may be hanging (still running)</code>, and a single <code>resumed</code> line if heartbeats return. For bash
+and sql a child stuck in state D for 30 s, or gone while the backend is
+alive, is also reported once. Nothing is ever killed by these warnings.
+Known gap: JavaScript bridge steps and native operations send no heartbeat,
+so a long one can print the 30 s warning while it is still working.
+Shims that predate the hello frame never get a warning, and a shim only
+sends these frames when the host sets <code>O_BACKEND_HEARTBEAT_INTERVAL_MS</code>.
+Known limits: the python heartbeat thread needs the GIL, so a C extension
+that holds the GIL for over 30 s (a long numpy or regex call) produces a
+warning for healthy work; <code>time.sleep</code> releases the GIL and keeps
+heartbeats going. A bash child that is merely sleeping cannot be told apart
+from one that is stuck waiting. Test hooks: <code>O_BACKEND_HEARTBEAT_INTERVAL_MS</code>
+and <code>O_BACKEND_HEARTBEAT_WARN_MS</code>.</p>
+</li>
+<li><p>A progress spinner showing the running block (<code>python[1] running 12s</code>) is
+drawn on stderr, redrawn every 200 ms, only when stderr is a terminal; it is
+off with <code>O --quiet</code>, under the MCP server (<code>O_QUIET</code>), and when <code>CI</code> or
+<code>NO_COLOR</code> is set. One writer serializes the spinner, heartbeat warnings,
+forwarded backend stderr and a lifecycle trace aimed at stderr; it clears
+the spinner line before any other output and never draws while a backend
+line is half written. stdout is never touched.</p>
+</li>
 <li><p>Shim blocks now receive only the visible <code>let</code> bindings they reference, by
 <code>$name</code> splice or whole identifier token anywhere in the block&#39;s OIR
-subtree, for every backend including bash and sh and for each parallel
-branch separately. <code>O.scope</code> is O syntax and references every visible
+subtree, and for each parallel branch separately. Shell blocks (<code>bash</code>,
+<code>sh</code>, <code>shell</code>) instead use the shell reference rules: <code>$name</code> splices,
+<code>${name}</code> references, and bare names in arithmetic contexts and array
+subscripts, not whole-token matching. <code>O.scope</code> is O syntax and references every visible
 binding. Reflective or runtime-built access to an unreferenced name, such as
 Python <code>globals()</code> or a shell <code>${!name}</code>, gets nothing. Plans for long <code>let</code>
 chains are now linear in chain length instead of quadratic, and effect
 ordering is unchanged.</p>
+</li>
+<li><p>Numbered bash environments such as <code>bash[0]^(...)_bash[0]</code> now keep shell
+variables, functions, options, and the working directory across blocks with
+the same number. Plain <code>bash^(...)_bash</code> blocks remain ephemeral. Shell
+blocks no longer receive <code>let</code> bindings as environment variables; they read
+<code>let</code> values through <code>$name</code> splices, and bash blocks also through braced
+expansions such as <code>${name}</code>, <code>${name:-x}</code>, <code>${#name}</code>, and <code>${name%2}</code>,
+which receive the value as a non-exported variable of that block.</p>
+</li>
+<li><p>Breaking: <code>\$name</code> in a shell block no longer reads a <code>let</code> binding.
+<code>\$</code> remains the opt-out from O&#39;s splice, so bash still sees <code>$name</code>, but
+bash no longer receives the binding as an environment variable and
+<code>\$name</code> now expands to empty. <code>examples/bash_binding.O</code> now uses
+<code>$greeting</code>. To print the literal text <code>$name</code>, write <code>\\$name</code> inside
+double quotes.</p>
+</li>
+<li><p>Breaking: a <code>let</code> named <code>PATH</code> (or <code>HOME</code>, <code>IFS</code>, <code>LC_*</code>, and other
+writable bash specials) now takes effect in a bash session only from the
+first block that names it; on the base it replaced <code>PATH</code> for every block
+from the start, and since the previous entry it was unset after the first
+block that named it. The naming block assigns the <code>let</code> text with the
+export flag unchanged and nothing restores or unsets it, so later blocks of
+that <code>bash[N]</code> session see the <code>let</code> value (a <code>$PATH</code> splice names it
+too); a plain block starts fresh, so
+a later plain block that does not name it sees the host value. A <code>let</code>
+named like a readonly bash variable (<code>UID</code>, <code>EUID</code>, <code>PPID</code>, <code>BASHPID</code>, ...)
+that a bash block references is now a compile error, and a writable special
+must hold text.</p>
+</li>
+<li><p>Bash <code>let</code> injection uses <code>declare +x</code>, so a name the session or the O
+process already exported no longer leaks the <code>let</code> value to child
+processes. A list, map, or null reaches <code>${x}</code> as the same text <code>$x</code>
+splices, instead of nothing. A NUL byte in a value is an error instead of a
+silent truncation. Each injected assignment runs inside the block&#39;s
+capture and is checked; one that fails (for example on a name an earlier
+<code>bash[N]</code> block made readonly) is a reported error and the block does not
+run. Bash error messages say <code>bash: line N:</code> with the block&#39;s
+own line numbers instead of a session temp path.</p>
+</li>
+<li><p>A plain bash block that leaves background jobs, including <code>setsid</code>,
+<code>nohup</code>, <code>disown</code>, and double-forked ones, no longer fails with &quot;process
+group still contains an active descendant&quot;: each block&#39;s bash is
+pre-spawned by a per-block backend helper that is the subreaper of its
+jobs (the O process is not), stops them all when the block ends, and prints
+<code>bash block left N background job(s); they were stopped</code>. <code>bash[N]</code> jobs
+are stopped when their session ends.</p>
+</li>
+<li><p>A bash block that ends its <code>bash[N]</code> session with a failure, for example
+under a persisted <code>set -e</code>, now says that the session ended and its state
+was dropped.</p>
+</li>
+<li><p>The Python bash shim passes float <code>let</code> values (formatted as the native
+backend does) and keeps rendering booleans as <code>True</code>/<code>False</code>.</p>
+</li>
+<li><p>Bash blocks see <code>let</code> values that bash reads as bare names in
+arithmetic context: <code>$(( ))</code>, <code>(( ))</code>, <code>for (( ))</code>, <code>$[ ]</code>, <code>let</code>
+arguments, <code>declare -i x=EXPR</code>, <code>${s:off:len}</code>, <code>[[ -eq ]]</code>-style
+operators (also after <code>if</code>, <code>elif</code>, <code>while</code>, <code>until</code>, and <code>time</code>), and
+array subscripts. With the environment pass-through removed in the entry
+above, these had evaluated to 0. Runtime-built names (<code>v=name; $((v))</code>) still see nothing.</p>
+</li>
+<li><p>A failing member of <code>batch(...)</code> now settles as <code>&lt;error&gt;</code> at its own index
+while the other members still return their values. The batch is marked
+failed: <code>O</code> prints the partial value, reports each member error, and exits
+with status 1. If every member failed, the batch produces no value.</p>
+</li>
+<li><p>Breaking for embedders: a document with a failed <code>batch(...)</code> member now
+returns an error (<code>BatchMemberFailures</code>, carrying the value and each failed
+member&#39;s index and message) from every <code>eval_document*</code> and
+<code>eval_ir_program*</code> entry point, so intent, coordinator, MCP, and server
+callers fail instead of reporting success. Only member execution errors are
+absorbed; a Strict cache miss after an autonomous flush, cancellation, and
+infrastructure failures stay fatal. The all-failed check uses failure flags,
+so <code>batch($e)</code> where <code>$e</code> is an error value no longer fails. Nested batch
+errors are reported once, as <code>error: batch member N failed</code>, and the JSON
+envelope lists <code>{member, node, error}</code> records.</p>
+</li>
+<li><p>Failure output changed for documents with failing batch members:
+<code>benchmarks/hgraph_hosted/heterogeneous.O</code> now prints partial results with
+<code>[error]</code> members, and <code>benchmarks/real_world/video_previews.O</code> reports
+each failing member separately. Both still exit with status 1.</p>
 </li>
 <li><p>Fresh automatic <code>o node start</code> PKI can explicitly use ECDSA P-256 while
 retaining RSA-3072 as the default. The hosted-live cross-architecture gate
@@ -233,9 +388,8 @@ one private ISO snapshot, and graphical monitor operations share one absolute
 deadline. Aggregate re-smoke v2 does not select or execute the remaining five
 menu entries.</p>
 </li>
-<li><p>Project authorship metadata and new commit attribution now reject Claude and
-Codex identities; contribution credit remains assigned to the responsible
-human contributors.</p>
+<li><p>Project author metadata and new commits are checked against the
+allowed-author list.</p>
 </li>
 <li><p>Information Provenance V2 adds an authority-free, content-addressed sidecar
 over frozen Information Atom V1 identities plus a higher-layer execution
@@ -296,6 +450,39 @@ Setup and release guards exercise declared host capabilities and executable
 installation plans. CI retains every Rust target while bounding concurrent
 links and debug artifact size.</p>
 </li>
+<li><p>A backend that dies mid-step fails the step at once: reader EOF is an
+immediate error, and every step wait also polls the backend leader every
+100 ms with a non-reaping <code>waitid</code>, so a background grandchild that keeps
+the response pipe open can no longer hide the exit. Previously a dead
+backend could leave the evaluator waiting forever.</p>
+</li>
+<li><p>Every backend response wait is watched the same way (exit poll, heartbeat
+warning, spinner, and the opt-in limit when set): the plain step read, the
+cancellation-polled read, ephemeral runs, state operations and native
+operations. Cancellation ends the cancellation-polled read and kills the
+backend. Commands larger than 64 KiB are written with a polled write when
+the opt-in limit or a cancellation token can end it
+(<code>backend `&lt;lang&gt;` read no input for &lt;N&gt; s</code>, or the cancellation error);
+smaller commands keep the blocking write, which an empty pipe always
+accepts. The sqlite3 session read is bounded by the opt-in limit and
+otherwise covered by the backend&#39;s heartbeat, which reports sqlite3&#39;s state.</p>
+</li>
+<li><p>Killing backends during evaluator teardown sends SIGKILL to every remaining
+backend before reaping any of them, against one shared 2 s budget, so N
+stuck backends cost one budget instead of N. The post-SIGKILL reap budget
+is 2 s (raised from 250 ms) so slow kernel teardown of a large process under
+memory pressure is no longer reported as &quot;forced termination also failed&quot;.</p>
+</li>
+<li><p>Still unbounded, with no exit detection or heartbeat of their own: the
+local worker pool&#39;s event receive and worker joins (<code>executor/pool.rs</code>;
+each worker&#39;s backend waits are watched, so a hung backend is still
+reported), the JavaScript native bridge&#39;s output join in the Rust backend,
+the toolchain <code>Command::output</code> probes and compiles in the Rust backend
+adapters, the blocking write of commands up to 64 KiB, a command write over
+64 KiB when neither the opt-in limit nor a cancellation token is present,
+and the project route-settlement receives in the project executor. Explicit
+<code>shutdown_all</code> still shuts backends down one at a time.</p>
+</li>
 <li><p>Generated AOT binaries now extract their backend adapters to a private
 <code>0700</code> directory under <code>$TMPDIR</code> (falling back to <code>/tmp</code>) instead of a
 <code>.o_shims_&lt;pid&gt;</code> directory in the current working directory. Programs run
@@ -334,6 +521,18 @@ Scheduler cache keys preserve canonical lowercase SHA-256 filenames while
 mapping every noncanonical input to a bounded domain-separated hash inside
 the cache directory.</p>
 </li>
+</ul>
+<h3>Known issues</h3>
+<ul>
+<li>No shim applies a fixed limit to running a step any more: every
+execution, including the Mathematica, MATLAB/Octave and Ubuntu VM shims
+(formerly 300 s, 120/300 s and 600 s), reads the opt-in
+<code>O_BACKEND_STEP_TIMEOUT_MS</code> and has no default. Compiling a block still has
+a fixed bound in the C, C++, C#, Haskell, Java, OCaml and Rust shims
+(120 s) and in the WebAssembly text conversion (30 s).</li>
+<li>The 30 s heartbeat warning can fire on a step that is still working when
+the step sends no heartbeat: JavaScript bridge steps and native operations.
+The warning says the step is still running and never stops it.</li>
 </ul>
 <h3>Release boundary</h3>
 <p>This post-v0.3 extraction is a next-release source-contract change. Both Rust

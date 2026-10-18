@@ -139,7 +139,7 @@ main O-lang build.
 
 Built by `setup.sh` (`build_mcp_server`, skip with `--no-mcp`) via
 `cargo build --release --locked`; installs the native `ostadix-mcp` executable into
-`~/.local/bin`. Registered for MCP clients (Claude Code included) via
+`~/.local/bin`. Registered for MCP clients via
 `.mcp.json` at repo root. Rebuild directly with:
 
 ```bash
