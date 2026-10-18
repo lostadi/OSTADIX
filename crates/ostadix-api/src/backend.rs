@@ -702,6 +702,9 @@ struct JobSweep {
     // a walk at stdin EOF: the session's jobs were never a block's to
     // report, so only a failure is said.
     quiet: bool,
+    // a SIGTERM's walk: the count includes the block's foreground command,
+    // so the notice does not call them background processes.
+    cancelled: bool,
 }
 
 impl JobSweep {
@@ -710,10 +713,17 @@ impl JobSweep {
     fn report(self) -> Result<()> {
         // one line, written once the walk has finished.
         if self.stopped > 0 && !self.quiet {
-            eprintln!(
-                "bash block left {} background process(es); they were stopped",
-                self.stopped
-            );
+            if self.cancelled {
+                eprintln!(
+                    "bash block cancelled; stopped {} process(es)",
+                    self.stopped
+                );
+            } else {
+                eprintln!(
+                    "bash block left {} background process(es); they were stopped",
+                    self.stopped
+                );
+            }
         }
         let failed = crate::process::JOB_CLEANUP_FAILED;
         if let Some(error) = self.error {
@@ -751,20 +761,20 @@ fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
     let _walk = WALK.lock().unwrap_or_else(|poison| poison.into_inner());
     let deadline = std::time::Instant::now() + budget;
     let mut sweep = JobSweep::default();
+    // a snapshot that cannot be read fails the cleanup, but the kill loop
+    // still runs: it kills what it can list.
     match live_descendant_tree() {
         Ok(tree) => {
             sweep.stopped = tree.iter().filter(|pid| Some(**pid) != shell).count();
         }
-        Err(error) => {
-            sweep.error = Some(error.to_string());
-            return sweep;
-        }
+        Err(error) => sweep.error = Some(format!("cannot list the jobs: {error}")),
     }
+    let mut walk_error = None;
     loop {
         let live = match backend_descendants() {
             Ok(live) => live,
             Err(error) => {
-                sweep.error = Some(error.to_string());
+                walk_error = Some(error.to_string());
                 break;
             }
         };
@@ -791,12 +801,12 @@ fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
                 match error.raw_os_error() {
                     Some(libc::EINTR) => continue,
                     Some(libc::ECHILD) => no_children = true,
-                    _ => sweep.error = Some(format!("waitpid: {error}")),
+                    _ => walk_error = Some(format!("waitpid: {error}")),
                 }
             }
             break;
         }
-        if no_children || sweep.error.is_some() {
+        if no_children || walk_error.is_some() {
             break;
         }
         if std::time::Instant::now() >= deadline {
@@ -805,12 +815,21 @@ fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
         }
         std::thread::sleep(Duration::from_millis(1));
     }
-    // a SIGTERM that landed during this walk reuses it: this walk already
-    // signals every job, so it reports and exits here, still holding the
-    // lock, instead of the SIGTERM waiting for it and walking again. that
-    // keeps the whole cleanup inside one window, and inside the host's.
+    if sweep.error.is_none() {
+        sweep.error = walk_error;
+    }
+    finish_walk(sweep)
+}
+
+/// The one exit of a cleanup walk. a SIGTERM that landed during the walk
+/// reuses it: this walk already signalled every job, so it reports and
+/// exits here, still holding the lock, instead of the SIGTERM waiting for
+/// it and walking again. that keeps the whole cleanup inside one window,
+/// and inside the host's.
+fn finish_walk(mut sweep: JobSweep) -> JobSweep {
     if TERMINATING.load(std::sync::atomic::Ordering::SeqCst) {
         sweep.quiet = false;
+        sweep.cancelled = true;
         if let Err(error) = sweep.report() {
             eprintln!("{error:#}");
         }
@@ -823,6 +842,10 @@ fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
 /// a pid that exits during the walk is skipped.
 #[cfg(target_os = "linux")]
 fn live_descendant_tree() -> io::Result<Vec<i32>> {
+    #[cfg(test)]
+    if FAIL_SNAPSHOT.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(io::Error::other("injected /proc read failure"));
+    }
     let mut found = Vec::new();
     let mut pending = backend_descendants()?;
     while let Some(pid) = pending.pop() {
@@ -851,6 +874,10 @@ fn live_descendant_tree() -> io::Result<Vec<i32>> {
 fn live_descendant_tree() -> io::Result<Vec<i32>> {
     backend_descendants()
 }
+
+/// Test-only: makes the next job snapshots fail as a /proc read would.
+#[cfg(test)]
+static FAIL_SNAPSHOT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Serializes the cleanup walks; see [`stop_backend_descendants`].
 static WALK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -946,12 +973,14 @@ mod bash_termination {
         super::TERMINATING.store(true, std::sync::atomic::Ordering::SeqCst);
         let shell = super::SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
         // a walk already running sees TERMINATING when it ends, reports and
-        // exits, so this only gets the lock if that walk had finished.
+        // exits, so this only gets the lock if that walk had finished. the
+        // walk exits too; should it ever return, say so and exit anyway.
         let _ = super::stop_backend_descendants(
             super::JOB_CLEANUP_WINDOW,
             (shell != 0).then_some(shell),
         );
-        unreachable!("a walk during termination exits the process")
+        eprintln!("bash job cleanup failed: the SIGTERM walk returned instead of exiting");
+        std::process::exit(128 + libc::SIGTERM)
     }
 }
 
@@ -2862,6 +2891,91 @@ impl Drop for TempDir {
 
 #[cfg(test)]
 mod tests {
+
+    // 08c-M2: a job snapshot that cannot be read must not stop the SIGTERM
+    // walk. the walk still kills the setsid job, reports the failure, and
+    // exits 143; nothing panics. it runs in a child copy of this test
+    // binary, because the walk reaps every child of its process and exits.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_failed_job_snapshot_still_stops_the_jobs_on_sigterm() {
+        use std::time::{Duration, Instant};
+        const CHILD: &str = "O_TEST_FAILED_SNAPSHOT_CHILD";
+        if let Some(pidfile) = std::env::var_os(CHILD) {
+            super::become_bash_subreaper().unwrap();
+            let pidfile = std::path::PathBuf::from(pidfile);
+            let status = std::process::Command::new("bash")
+                .arg("-c")
+                .arg(format!(
+                    "setsid sleep 7996 >/dev/null 2>&1 </dev/null & echo $! > {}",
+                    pidfile.display()
+                ))
+                .status()
+                .unwrap();
+            assert!(status.success());
+            // bash has exited, so the setsid job is now this process's child.
+            super::FAIL_SNAPSHOT.store(true, std::sync::atomic::Ordering::SeqCst);
+            super::bash_termination::terminate_now();
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let pidfile = dir.path().join("job.pid");
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "backend::tests::a_failed_job_snapshot_still_stops_the_jobs_on_sigterm",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(CHILD, &pidfile)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let started = Instant::now();
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if started.elapsed() > Duration::from_secs(20) {
+                let _ = child.kill();
+                panic!("the SIGTERM walk did not exit");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let mut stderr = String::new();
+        std::io::Read::read_to_string(&mut child.stderr.take().unwrap(), &mut stderr).unwrap();
+        let job: i32 = std::fs::read_to_string(&pidfile)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        let alive = |pid: i32| {
+            std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+                stat.rsplit_once(')')
+                    .and_then(|(_, rest)| rest.split_whitespace().next())
+                    .is_some_and(|state| state != "Z" && state != "X")
+            })
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while alive(job) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let survived = alive(job);
+        if survived {
+            // SAFETY: the test stops the job its child started.
+            unsafe { libc::kill(job, libc::SIGKILL) };
+        }
+        assert!(!stderr.contains("panicked"), "the walk panicked: {stderr}");
+        assert!(
+            !survived,
+            "the setsid job {job} outlived the SIGTERM walk: {stderr}"
+        );
+        assert_eq!(status.code(), Some(128 + libc::SIGTERM), "{stderr}");
+        assert!(
+            stderr.contains("bash job cleanup failed: cannot list the jobs"),
+            "{stderr}"
+        );
+    }
 
     #[test]
     fn backend_temp_dirs_are_private_and_unpredictable() -> anyhow::Result<()> {

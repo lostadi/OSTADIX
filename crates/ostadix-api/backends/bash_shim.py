@@ -198,15 +198,18 @@ def _stop_jobs(shell=None):
     stopped is one snapshot, taken before the first kill, of every live
     descendant except the block's own bash, as in the rust backend."""
     deadline = time.monotonic() + _JOB_CLEANUP_WINDOW
+    # a snapshot that cannot be read fails the cleanup, but the kill loop
+    # still runs and kills what it can list.
+    first_error = None
     try:
         stopped = len([pid for pid in _live_tree() if pid != shell])
     except OSError as error:
-        return 0, [], f"cannot list the jobs: {error}"
+        stopped, first_error = 0, f"cannot list the jobs: {error}"
     while True:
         try:
             live = _children()
         except OSError as error:
-            return stopped, [], f"cannot list the jobs: {error}"
+            return stopped, [], first_error or f"cannot list the jobs: {error}"
         for pid in live:
             for kill in (os.killpg, os.kill):
                 try:
@@ -218,20 +221,24 @@ def _stop_jobs(shell=None):
                 pass
         except ChildProcessError:
             # ECHILD: nothing left, not even a job still being reparented.
-            return stopped, [], None
+            return stopped, [], first_error
         if time.monotonic() >= deadline:
             try:
                 survivors = _children()
             except OSError:
                 survivors = live
-            return stopped, survivors, None
+            return stopped, survivors, first_error
         time.sleep(0.001)
 
 
-def _report_jobs(stopped, survivors, error):
+def _report_jobs(stopped, survivors, error, cancelled=False):
     """The stderr notice; the error text when cleanup failed: the jobs could
     not be listed, or some outlived the window."""
-    if stopped:
+    if stopped and cancelled:
+        # a cancel's count includes the block's foreground command.
+        print(f"bash block cancelled; stopped {stopped} process(es)",
+              file=sys.stderr, flush=True)
+    elif stopped:
         print(f"bash block left {stopped} background process(es); they were stopped",
               file=sys.stderr, flush=True)
     if error is not None:
@@ -247,7 +254,7 @@ def _on_sigterm(_signum, _frame):
     # the host's cancel: stop the shell and every job, then exit. a SIGKILL
     # would end this subreaper first and hand its setsid jobs to init.
     shell = _session.proc.pid if _session is not None else None
-    error = _report_jobs(*_stop_jobs(shell))
+    error = _report_jobs(*_stop_jobs(shell), cancelled=True)
     if error:
         print(error, file=sys.stderr, flush=True)
     os._exit(128 + signal.SIGTERM)
@@ -256,7 +263,7 @@ def _on_sigterm(_signum, _frame):
 # linux only, as in the rust backend: elsewhere there is no subreaper bit
 # and no /proc children list.
 _sweep_jobs = _plain and sys.platform.startswith("linux")
-if _sweep_jobs:
+if sys.platform.startswith("linux"):
     _become_subreaper()
     signal.signal(signal.SIGTERM, _on_sigterm)
 
