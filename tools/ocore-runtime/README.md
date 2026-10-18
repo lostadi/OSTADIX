@@ -139,6 +139,65 @@ provide platform services or qualify native OSTADIX execution. `runtime_complete
 and `native_execution_qualified` remain false. The [original Lua recipe](lua/README.md)
 provides a concrete one-command example and its current closure/import blockers.
 
+## Audit several original source builds
+
+`scripts/check_ocore_source_matrix.py` runs the existing whole-unit diagnostic
+for several recorded source-build steps with one frozen O-core compiler. It
+accepts any implementation language; the language field is descriptive. Build
+each implementation with its pinned recipe first. A historical LLVM census
+without a capture journal cannot substitute for a source-build capture.
+
+The manifest has schema `ocore-source-audit-matrix-v1` and a nonempty `profiles`
+array. Each entry contains exactly these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Unique directory name for this configured source profile |
+| `language` | Language/runtime being investigated, such as Python, C or Rust |
+| `capture` | Capture report path, absolute or relative to the manifest |
+| `step` | Exact successfully completed build-step name recorded in that report |
+
+For example, an original Lua control profile is:
+
+```json
+{
+  "schema": "ocore-source-audit-matrix-v1",
+  "profiles": [
+    {
+      "name": "lua-control",
+      "language": "lua",
+      "capture": "/captures/lua/report.json",
+      "step": "build-original-lua"
+    }
+  ]
+}
+```
+
+Add entries for the actual CPython, C compiler and Rust crate captures, preserving
+their recorded step names and configured features. Run with the installed tools
+and exact admitted LLVM parser:
+
+```sh
+python3 scripts/check_ocore_source_matrix.py /captures/matrix.json \
+  --ocorec /absolute/installed/ocorec --target riscv64-unknown-none \
+  --llvm-library /absolute/libLLVM.so.22.1 --llvm-sha256 EXACT_LIBRARY_SHA256 \
+  --jobs 2 --output /absolute/new-matrix-audit
+```
+
+The runner attempts every selected whole unit, retains all capture units as
+provenance, and checks the selected IDs, original input hashes, compiler bytes,
+independent verifier receipts, definition inventories, object identities and
+first-failure groups. Profiles run sequentially with the requested worker budget.
+An independent profile failure does not prevent the remaining profiles from
+being attempted. Input reports and tools must remain unchanged during the run.
+
+Exit zero means all requested diagnostics completed. Unsupported units remain
+explicit failures under each profile; `all_units_lowered` reports whether every
+selected unit produced an independently verified owned object. An incomplete
+diagnostic or changed input/tool returns exit two. Neither result establishes
+dependency closure, a linked executable, full language support or native runtime
+execution. Those qualification fields remain false.
+
 ## Report contract
 
 ### Reusable verified native dependencies
