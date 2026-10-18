@@ -156,6 +156,9 @@ pub(crate) struct GraphEvalFrame {
     /// all-failed check reads these flags, never the value shape, because a
     /// member may legitimately return an error value.
     pub(crate) failed_batch_members: HashSet<PlanNodeId>,
+    /// Member failures of a `batch(...)` forced by `now(...)` inside the node
+    /// that just ran, waiting to be moved into the run's trace.
+    pub(crate) forced_batch_failures: Vec<BatchMemberFailure>,
 }
 
 impl GraphEvalFrame {
