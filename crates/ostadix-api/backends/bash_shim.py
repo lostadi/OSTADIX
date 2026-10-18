@@ -247,6 +247,12 @@ def handle_exec(cmd):
         return
     code = cmd.get("code", "")
     bindings = cmd.get("bindings", {})
+    # a bare `$name` splice renders its value into the block text; bash would
+    # silently drop a NUL there, so it is an error like a NUL in a let.
+    if "\0" in code:
+        send_err("bash block contains a NUL byte, probably from a spliced value; "
+                 "bash cannot hold NUL, so the block did not run")
+        return
 
     # Bindings become non-exported shell variables for this block only.
     env = {}
