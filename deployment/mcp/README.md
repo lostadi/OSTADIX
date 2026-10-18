@@ -182,6 +182,114 @@ configuration](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
 uses default header forwarding and immediate flushing. Do not add response
 caching or an interactive browser login redirect in front of `/mcp`.
 
+### Add `/mcp` to an existing nginx website
+
+Keep the website's existing HTTPS `server` block, certificate, document root
+and other locations. Add only this exact location inside that block, replacing
+`8787` if the native listener uses another port:
+
+```nginx
+location = /mcp {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header Connection "";
+    proxy_pass_request_headers on;
+    proxy_pass_request_body on;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_cache off;
+    proxy_next_upstream off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    client_max_body_size 16m;
+}
+```
+
+There is deliberately no trailing slash or URI after the upstream port:
+nginx forwards `/mcp` unchanged. Header forwarding retains MCP session and
+protocol headers; methods including POST, GET, DELETE and OPTIONS reach the
+server unchanged. Buffering and caching are disabled for streaming, and
+upstream retries are disabled. See the [nginx proxy module
+reference](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
+
+Add `--allowed-host website.example.com` to the native service. Use the
+connector URL `https://website.example.com/mcp` without a trailing slash.
+Check inherited site rules for redirects or method restrictions affecting this
+location. Validate the configuration before reloading the existing nginx
+service; on a Linux host with systemd:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+The native `/healthz` can remain loopback-only; it need not replace any website
+route. Recheck both the site's normal page and the MCP URL after reload.
+
+### Persistent public URL with Tailscale Funnel
+
+On a Tailscale-enrolled host with Funnel enabled, inspect existing routing
+before choosing a port:
+
+```bash
+tailscale serve status --json
+tailscale funnel status --json
+```
+
+This example reserves an **unused** Funnel HTTPS port `8443`, leaving an
+existing website or Serve listener on `443` alone. If `8443` already has a
+handler, select an unused allowed port (`443`, `8443` or `10000`), or integrate
+with your existing proxy deliberately. Do not reset the Serve/Funnel
+configuration or replace an occupied listener.
+Serve/Funnel visibility applies to the whole port: enabling Funnel on an
+existing private Serve port makes that port public. See [Funnel requirements
+and limitations](https://tailscale.com/docs/features/tailscale-funnel#requirements-and-limitations).
+
+Keep the authenticated native service on `127.0.0.1:8787`, and add
+`--allowed-host node.example-tailnet.ts.net:8443` using the actual hostname
+reported by Tailscale. Then configure the dedicated listener:
+
+```bash
+tailscale funnel --bg --https=8443 http://127.0.0.1:8787
+tailscale funnel status
+```
+
+Use the reported URL with `/mcp` appended, for example
+`https://node.example-tailnet.ts.net:8443/mcp`. `--bg` retains the Funnel
+configuration across reboots; the Ostadix service must also be installed using
+the service instructions below. Funnel is publicly reachable and does not
+replace the MCP bearer token or OAuth gateway. See the [official Funnel CLI
+reference](https://tailscale.com/docs/reference/tailscale-cli/funnel).
+
+To remove only this dedicated listener:
+
+```bash
+tailscale funnel --bg --https=8443 off
+```
+
+### Use a different local port
+
+If `8787` is occupied, choose a free loopback port, for example `18787`. Change
+the server's `--bind` to `127.0.0.1:18787`, the proxy upstream to
+`http://127.0.0.1:18787`, and every scheduled or manual updater restart command
+to include `--health-url http://127.0.0.1:18787/healthz`. For example:
+
+```bash
+curl --fail http://127.0.0.1:18787/healthz
+MCP_BASE="$HOME/.local/share/ostadix-mcp"
+python3 "$MCP_BASE/state/current/scripts/update_ostadix_mcp_http.py" \
+  --state-dir "$MCP_BASE/state" update \
+  --restart systemd-user --service-name ostadix-mcp-http \
+  --health-url http://127.0.0.1:18787/healthz
+```
+
+Apply the same arguments in the copied systemd units or generated launchd
+plists. The external URL and `--allowed-host` refer to the proxy's public
+authority, not this internal port.
+
+### Configure the chat client
+
 Configure a remote MCP client with these values, using its own configuration
 format:
 
@@ -374,3 +482,104 @@ launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.ostadix.mcp-htt
 
 Leave the server service loaded if you want to keep using its current
 release. Manual update, status and rollback commands remain available.
+
+## Move the connector to another host or directory
+
+Rebuild on the destination from the same source commit, using its own native
+toolchain and backend dependencies. Do not copy only `ostadix-mcp`: it depends
+on the matching runtime, scripts and `backends/`. A move between CPU
+architectures or operating systems requires a native rebuild. Optional tools,
+SDKs and project data also need to exist on the destination for the same
+execution capabilities to remain available.
+
+For a managed installation, record the repository, branch and selected commit
+on the source host:
+
+```bash
+MCP_BASE="$HOME/.local/share/ostadix-mcp"
+cat "$MCP_BASE/state/config.json"
+git -C "$MCP_BASE/state/current" rev-parse HEAD
+python3 "$MCP_BASE/state/current/scripts/update_ostadix_mcp_http.py" \
+  --state-dir "$MCP_BASE/state" status
+```
+
+Create a **fresh** managed state on the destination, after installing the host
+requirements above. Set these values to the recorded repository, branch and
+full commit ID, then build that exact release:
+
+```bash
+MCP_REPO=https://github.com/lostadi/OSTADIX.git
+MCP_BRANCH=master
+MCP_COMMIT=PASTE_RECORDED_FULL_COMMIT_ID
+MCP_BASE="$HOME/.local/share/ostadix-mcp"
+mkdir -p "$MCP_BASE"
+git clone --branch "$MCP_BRANCH" "$MCP_REPO" "$MCP_BASE/controller"
+python3 "$MCP_BASE/controller/scripts/update_ostadix_mcp_http.py" \
+  --state-dir "$MCP_BASE/state" update \
+  --repo "$MCP_REPO" --branch "$MCP_BRANCH" --commit "$MCP_COMMIT"
+```
+
+The commit must still be reachable from the configured branch. `--commit`
+selects this installation's release; it does not permanently pin future
+updates. Leave scheduled updates disabled until cutover is complete. An
+unpinned update afterward follows the configured branch.
+
+Do not move `state/` wholesale or edit its verification receipts to make it
+appear portable. Receipts include the absolute verified release root, and Git
+worktrees refer to the managed repository's paths. There is no state relocation
+command. The same fresh-build procedure applies when changing the managed
+base directory on one machine. Preserve the old installation for rollback
+until the replacement is verified.
+
+Provision the destination credential separately. Either generate a new token
+with the earlier command and update the clients, or copy the existing token
+over authenticated SSH to retain their current credentials. For example, on
+the destination, after checking the source host's SSH identity:
+
+```bash
+mkdir -p "$HOME/.config/ostadix-mcp"
+chmod 700 "$HOME/.config/ostadix-mcp"
+scp -p old-user@old-host:.config/ostadix-mcp/token \
+  "$HOME/.config/ostadix-mcp/token"
+chmod 600 "$HOME/.config/ostadix-mcp/token"
+```
+
+Keep credentials outside Git and release trees. An OAuth gateway has its own
+configuration and credentials to provision separately. Copy any required
+projects and durable data through your normal backup or transfer process,
+and update absolute project paths, environment variables and service-account
+permissions. Tools invoked through the new URL operate on the new host.
+
+Install the destination's systemd or launchd templates using the instructions
+above. Regenerate paths rather than copying a plist with the old username or
+Python executable. Update the service's token path, allowed hosts/origins,
+listener port and the updater's matching `--health-url`; configure its proxy
+without replacing existing website or Serve routes.
+
+Before redirecting clients, check local `/healthz`, then use an MCP client
+against the new HTTPS `/mcp` URL with the intended authentication. Verify
+initialization, tool listing, `o_env` and `o_smoke`, and a representative tool
+that uses the destination's required backend. Also check that the existing
+website still loads. The build smoke starts a separate temporary local
+server; it does not test the deployed proxy or public URL.
+
+For a custom domain, provision HTTPS on the destination, test it, then switch
+the domain's DNS/proxy destination. Keeping the same public hostname and token
+keeps the client configuration stable. A new Tailscale node normally has its
+own Funnel hostname: use the URL that node reports and update the clients
+unless you have deliberately retained the original public route. Reconnect
+clients and repeat the authenticated checks after the switch.
+
+MCP sessions, intent handles and managed jobs cannot move between server
+processes. Finish or explicitly cancel outstanding work before cutover; retain
+its outputs separately and do not automatically replay calls whose completion
+is unknown. Keep the old service available until the new endpoint passes its
+checks, then stop the old service and its updater. Enable updates on the new
+host when ready.
+
+For an unmanaged source checkout, a fresh clone at the recorded commit plus
+`bash scripts/setup_ostadix_mcp_http.sh --build-runtime` is the corresponding
+migration and includes the local HTTP smoke. Point `O_LANG_ROOT`,
+`O_BACKENDS_DIR`, `PATH` and service commands at the new checkout, and follow
+the same credential, proxy and client checks. Copying prebuilt artifacts from
+a different host is not a substitute for this verification.
