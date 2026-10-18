@@ -756,6 +756,21 @@ impl ExecutionPlan {
 }
 
 impl PlanNodeKind {
+    /// Whether a plan node is a plain bash block: a fresh-environment bash
+    /// exec that a reusable plain helper runs.
+    pub(crate) fn is_plain_bash_exec(&self) -> bool {
+        match self {
+            Self::Exec {
+                env_id, backend, ..
+            } => {
+                backend.canonical == "bash"
+                    && backend.execution == crate::backend_catalog::ExecutionMode::Shim
+                    && *env_id > crate::environment::MAX_PERSISTENT_ENV_ID
+            }
+            _ => false,
+        }
+    }
+
     pub fn class(&self) -> PlanNodeClass {
         match self {
             Self::Text

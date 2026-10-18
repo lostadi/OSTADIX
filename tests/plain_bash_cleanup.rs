@@ -255,7 +255,7 @@ fn a_cancel_counts_each_process_the_block_had() {
             "signal {signal}: {stderr}"
         );
         assert_eq!(
-            stderr.matches("process(es) were stopped").count(),
+            stderr.matches("stopped 4 process(es)").count(),
             1,
             "{stderr}"
         );
