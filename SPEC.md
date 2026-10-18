@@ -1044,6 +1044,13 @@ Adding a new language: write a Backend subclass, add it to
 
 ---
 
+The teardown and session knobs, `O_BACKEND_SHUTDOWN_TIMEOUT_MS`,
+`O_BACKEND_MAX_OPEN_SESSIONS` and `O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND`,
+are validated when a backend starts, so a file that starts no backend ignores
+them. Surrounding whitespace is trimmed; any other malformed, zero or (for the
+shutdown budget) oversized value fails that start and every later use, never a
+silent default.
+
 ## 7. Known limitations / current status
 
 * **`$var` splice** is supported for top-level `let` bindings in both

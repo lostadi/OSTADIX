@@ -4936,7 +4936,8 @@ platforms do not receive the stronger group-quiescence claim.
 default: unset, an operation may run as long as it needs.
 `O_BACKEND_SHUTDOWN_TIMEOUT_MS` bounds teardown only and defaults to 2,000 ms
 (at most 60,000 ms). A malformed, zero or oversized value of either is an
-error, never a silent default.
+error, never a silent default. The shutdown budget and the session caps are
+checked when a backend starts, so a file with no backend ignores them.
 The same absolute operation deadline is inherited by recursive `O.eval`
 callbacks. Native backends and the primary Python shim acknowledge `shutdown`
 directly; the production compatibility proxy translates it into command-channel
