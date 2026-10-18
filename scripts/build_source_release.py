@@ -145,6 +145,7 @@ ALLOWED_TOP_LEVEL_FILES = frozenset(
         "LICENSE",
         "llms.txt",
         "NOTICE",
+        "Ocore_Source_Reevaluation_Evidence.md",
         "Ostadix-lang_Technical_Whitepaper.pdf",
         "o-node-quickstart.sh",
         "ORIGIN.md",
@@ -319,6 +320,7 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
     "ir": f"{OSTADIX_API_SOURCE_ROOT}/ir.rs",
     "kernel_world": f"{OSTADIX_API_SOURCE_ROOT}/kernel_world.rs",
     "live_system": f"{OSTADIX_API_SOURCE_ROOT}/live_system/mod.rs",
+    "native_leaf": f"{OSTADIX_API_SOURCE_ROOT}/native_leaf.rs",
     "nix_ops": f"{OSTADIX_API_SOURCE_ROOT}/nix_ops.rs",
     "nixos_ops": f"{OSTADIX_API_SOURCE_ROOT}/nixos_ops.rs",
     "ocore": f"{OSTADIX_API_SOURCE_ROOT}/ocore/mod.rs",
@@ -338,6 +340,9 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
     "wire": f"{OSTADIX_API_SOURCE_ROOT}/wire.rs",
     "world": f"{OSTADIX_API_SOURCE_ROOT}/world/mod.rs",
 }
+# Public engine APIs introduced after the historical o-lang compatibility
+# facade need not expand that facade's reexports. They remain release inputs.
+OSTADIX_API_ENGINE_ONLY_PUBLIC_MODULES = frozenset({"native_leaf"})
 # Both front doors compile the shared catalog, and operation dispatch depends
 # on the managed-job and complete-program helpers. Keep this source closure in
 # release validation as well as the generally allowed mcp/docs directories.
@@ -346,9 +351,21 @@ HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
         "src/command_catalog.rs",
         "mcp/ostadix_lang_mcp_server/src/capabilities.rs",
         "mcp/ostadix_lang_mcp_server/src/execution.rs",
+        "mcp/ostadix_lang_mcp_server/src/http.rs",
         "mcp/ostadix_lang_mcp_server/src/operation.rs",
         "mcp/ostadix_lang_mcp_server/src/selected_node.rs",
         "mcp/ostadix_lang_mcp_server/src/unified.rs",
+        "scripts/setup_ostadix_mcp_http.sh",
+        "scripts/smoke_ostadix_mcp_http.py",
+        "scripts/update_ostadix_mcp_http.py",
+        "tests/test_mcp_http_updater.py",
+        "deployment/mcp/README.md",
+        "deployment/mcp/Caddyfile",
+        "deployment/mcp/ostadix-mcp-http.service",
+        "deployment/mcp/ostadix-mcp-http-update.service",
+        "deployment/mcp/ostadix-mcp-http-update.timer",
+        "deployment/mcp/com.ostadix.mcp-http.plist",
+        "deployment/mcp/com.ostadix.mcp-http-update.plist",
         "docs/HUMAN_LLM_WORKFLOWS.md",
     }
 )
@@ -2505,7 +2522,9 @@ def _validate_workspace_facade_release_surface(files: dict[str, bytes]) -> None:
         "placement_protocol",
     }
     expected_compatibility_names = (
-        set(OSTADIX_API_ROOT_MODULE_PATHS) - private_engine_modules
+        set(OSTADIX_API_ROOT_MODULE_PATHS)
+        - private_engine_modules
+        - OSTADIX_API_ENGINE_ONLY_PUBLIC_MODULES
     )
     if compatibility_names != expected_compatibility_names:
         raise ReleaseError(

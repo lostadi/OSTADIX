@@ -1067,10 +1067,10 @@ without a file.</li>
 <p>See <a href="docs/AI_GUIDE.md">docs/AI_GUIDE.md</a> for the full agent workflow, syntax
 pitfalls, and recipes, and <a href="llms.txt">llms.txt</a> for an LLM-oriented index of
 this repository.</p>
-<h3>Local MCP server for AI-agent tools</h3>
-<p>The repository includes <code>ostadix-mcp</code>, a local stdio
+<h3>MCP server for AI-agent tools and URL connectors</h3>
+<p>The repository includes <code>ostadix-mcp</code>, a stdio and Streamable HTTP
 <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> server under
-<code>mcp/ostadix_lang_mcp_server/</code>. Its 20 typed tools include <code>o_execute</code>, the
+<code>mcp/ostadix_lang_mcp_server/</code>. Its 21 typed tools include <code>o_execute</code>, the
 primary source-first computation interface. Supply exactly one complete O
 <code>source</code> or existing program/project <code>path</code>; use an explicit <code>cwd</code> for relative
 filesystem context. Execution, parse-only checking, static planning, compiler
@@ -1078,6 +1078,11 @@ outputs, project placement, and optional same-intent gating use the existing
 native runtime. Expert discovery, full command arguments, and managed jobs
 remain available. See the <a href="mcp/ostadix_lang_mcp_server/README.md">MCP guide</a>
 for the complete contract and native placement boundaries.</p>
+<p>For chatbots supporting URL-based MCP connectors, run <code>ostadix-mcp --transport http</code> and use its <code>/mcp</code> endpoint through HTTPS. The repository includes a
+locked build helper, real HTTP smoke tests, HTTPS proxy and service templates,
+and a candidate-build updater with rollback and optional daily scheduling.
+Follow the <a href="deployment/mcp/README.md">remote connector deployment guide</a>.
+The empty-argument command continues to use stdio.</p>
 <table>
 <thead>
 <tr>
@@ -6525,10 +6530,15 @@ actor generation. It does not migrate a running process image or its live
 memory. Local fallback is eligible only while execution-start evidence
 remains absent.</p>
 </li>
-<li><p><code>ostadix-mcp</code> is a local stdio child process that inherits the MCP client&#39;s
-authority. Its 20 tools expose source-first execution, full native command
+<li><p><code>ostadix-mcp</code> defaults to a local stdio child process that inherits the MCP client&#39;s
+authority. Its 21 tools expose source-first execution, full native command
 arguments, concurrent managed jobs, capability guides, environment/runtime
-diagnostics, compiler, intent, search, and bounded Information inspection. It has no network listener or MCP-level authentication layer. The
+diagnostics, compiler, intent, search, and bounded Information inspection.
+Explicit <code>--transport http</code> exposes the same capabilities at <code>/mcp</code> with
+bearer authentication, host/origin validation, and separate session state.
+TLS belongs to the configured reverse proxy; OAuth requires a compatible
+gateway. <code>--allow-unauthenticated</code> explicitly removes the bearer check.
+Neither transport creates a per-user sandbox. The
 <code>o_run</code> tool uses the unified local front door by default and can explicitly
 submit one complete document through the existing hosted-node client; the one-use
 <code>o_analyze_intent</code> and <code>o_execute_intent</code> pair supplies intent recomputation

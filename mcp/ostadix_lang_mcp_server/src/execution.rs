@@ -33,7 +33,18 @@ pub struct JobManager {
     inner: Arc<ManagerInner>,
 }
 
+/// Shutdown bookkeeping must not keep an HTTP session and its jobs alive.
+pub struct WeakJobManager(std::sync::Weak<ManagerInner>);
+
+impl WeakJobManager {
+    pub fn upgrade(&self) -> Option<JobManager> {
+        self.0.upgrade().map(|inner| JobManager { inner })
+    }
+}
+
 struct ManagerInner {
+    start_gate: tokio::sync::RwLock<()>,
+    closing: AtomicBool,
     session: String,
     directory: PathBuf,
     sequence: AtomicU64,
@@ -114,6 +125,10 @@ impl Drop for ManagerInner {
 }
 
 impl JobManager {
+    pub fn downgrade(&self) -> WeakJobManager {
+        WeakJobManager(Arc::downgrade(&self.inner))
+    }
+
     pub fn new() -> Self {
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -122,6 +137,8 @@ impl JobManager {
         let session = SESSION_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         Self {
             inner: Arc::new(ManagerInner {
+                start_gate: tokio::sync::RwLock::new(()),
+                closing: AtomicBool::new(false),
                 session: format!("{}-{stamp}-{session}", std::process::id()),
                 directory: std::env::temp_dir().join(format!(
                     "ostadix-mcp-jobs-{}-{stamp}-{session}",
@@ -154,6 +171,12 @@ impl JobManager {
         request: ExecutionRequest,
         retained: T,
     ) -> Result<Value, String> {
+        // Concurrent starts share this gate. Shutdown takes it exclusively so
+        // its cleanup snapshot includes every child that was allowed to spawn.
+        let _start_guard = self.inner.start_gate.read().await;
+        if self.inner.closing.load(Ordering::Acquire) {
+            return Err("MCP session is shutting down".into());
+        }
         if request.timeout_secs == Some(0) {
             return Err("timeout_secs must be positive when specified".into());
         }
@@ -441,6 +464,8 @@ impl JobManager {
 
     /// Signal every job first, then observe all monitors finish their cleanup.
     pub async fn shutdown(&self) -> Result<(), String> {
+        let start_guard = self.inner.start_gate.write().await;
+        self.inner.closing.store(true, Ordering::Release);
         let ids: Vec<_> = self
             .inner
             .jobs
@@ -450,6 +475,7 @@ impl JobManager {
             .filter(|(_, job)| job.running.load(Ordering::Acquire))
             .map(|(id, _)| id.clone())
             .collect();
+        drop(start_guard);
         for id in &ids {
             self.request_cancel(id)?;
         }
@@ -1471,6 +1497,11 @@ os._exit(0)
             jobs.status(id(&third)).await.unwrap()["cleanup"]["child_reaped"],
             true
         );
+        assert!(jobs
+            .start(shell("exit 0"))
+            .await
+            .unwrap_err()
+            .contains("shutting down"));
     }
 
     #[tokio::test]

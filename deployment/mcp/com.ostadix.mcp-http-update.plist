@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.ostadix.mcp-http-update</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>__BASE__/state/current/scripts/update_ostadix_mcp_http.py</string>
+    <string>--state-dir</string><string>__BASE__/state</string>
+    <string>update</string>
+    <string>--restart</string><string>launchd</string>
+    <string>--service-name</string><string>com.ostadix.mcp-http</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>__PATH__</string>
+  </dict>
+  <key>WorkingDirectory</key><string>__BASE__</string>
+  <key>StartInterval</key><integer>86400</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>__BASE__/update.log</string>
+  <key>StandardErrorPath</key><string>__BASE__/update.log</string>
+</dict>
+</plist>

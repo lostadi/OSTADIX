@@ -1,11 +1,39 @@
 # ostadix-mcp (Rust-only)
 
-Stdio MCP server for **Ostadix-lang / O-lang**. Supply a complete `.O`
+Stdio and Streamable HTTP MCP server for **Ostadix-lang / O-lang**. Supply a complete `.O`
 computation to `o_execute`, or pass an existing program/project path. The
 21-tool surface also supports toolchain discovery, task guides, full native
 command arguments, and concurrent or interactive jobs.
 The server supplies an **absolute** `O_BACKENDS_DIR`, so relative `backends`
 and bare `$O_BACKENDS_DIR` splice mistakes do not break runs.
+
+## URL connectors
+
+Run `ostadix-mcp --transport http --token-file /path/to/token` to serve the same
+21 tools at `http://127.0.0.1:8787/mcp`. Clients send `Authorization: Bearer TOKEN`.
+Use `--bind` to select the listener and `--allowed-host` for your public HTTPS
+hostname. Explicit `--allow-unauthenticated` supports an authentication gateway
+or clients using no authentication. This endpoint grants the same execution
+capabilities as stdio to its clients.
+
+The [portable deployment guide](../../deployment/mcp/README.md) includes the
+locked build, real protocol smoke test, TLS proxy, Linux/macOS services, Windows
+WSL2 path, manual upgrades, rollback, and optional daily updates. Client support
+for OAuth and custom headers varies; the server implements bearer and explicit
+no-auth modes, while OAuth login requires an MCP-compatible OAuth gateway.
+
+HTTP negotiates the initialized MCP lifecycle through `2025-11-25`; it does not
+advertise sessionless protocol support. Each session owns its jobs and intent
+handles. Clients must retain `Mcp-Session-Id` and the negotiated
+`MCP-Protocol-Version` on subsequent requests. DELETE ends that session and
+cancels its jobs. The default inactivity expiry is one hour; configure
+`--session-timeout-secs` (zero disables expiry) for long-running workloads.
+Server shutdown or upgrade cancels jobs and invalidates sessions. `/healthz`
+is a public liveness response without environment details. Browser origins are
+denied unless listed by repeatable `--allowed-origin`; non-browser clients
+without Origin headers remain supported. `--max-request-bytes` defaults to
+16 MiB and can be increased for larger inline programs. No graph-size limit is
+introduced by this transport.
 
 ## Tools
 

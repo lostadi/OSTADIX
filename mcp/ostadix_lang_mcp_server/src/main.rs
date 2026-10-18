@@ -1,4 +1,4 @@
-//! Ostadix-lang / O-lang MCP server (Rust-only, stdio).
+//! Ostadix-lang / O-lang MCP server (stdio and Streamable HTTP).
 //!
 //! Exposes toolchain helpers so agents can run `O` / `olangc` with a correct
 //! backends path — avoiding the relative-`backends` and `$VAR` splice traps.
@@ -7,6 +7,7 @@
 
 mod capabilities;
 mod execution;
+mod http;
 mod installation;
 mod operation;
 mod tool_schema;
@@ -61,6 +62,7 @@ const INFORMATION_NON_AUTHORITY_NOTICE: &str =
 
 #[derive(Clone)]
 struct OstadixMcp {
+    http_mode: bool,
     tool_router: ToolRouter<Self>,
     runtime_search: RuntimeSearchPath,
     intents: Arc<Mutex<IntentStore>>,
@@ -74,6 +76,7 @@ impl OstadixMcp {
             tool_schema::normalize(Arc::make_mut(&mut route.attr.input_schema));
         }
         Self {
+            http_mode: false,
             tool_router,
             runtime_search,
             intents: Arc::new(Mutex::new(IntentStore::default())),
@@ -3328,6 +3331,19 @@ impl OstadixMcp {
 
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for OstadixMcp {
+    fn supported_protocol_versions(
+        &self,
+    ) -> std::borrow::Cow<'static, [rmcp::model::ProtocolVersion]> {
+        use rmcp::model::ProtocolVersion;
+        // HTTP jobs and intent leases require the initialized session lifecycle.
+        // Newer sessionless revisions need a separate ownership design.
+        std::borrow::Cow::Borrowed(if self.http_mode {
+            ProtocolVersion::known_up_to(&ProtocolVersion::V_2025_11_25)
+        } else {
+            ProtocolVersion::KNOWN_VERSIONS
+        })
+    }
+
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
             .with_server_info(rmcp::model::Implementation::new(
@@ -3392,6 +3408,8 @@ Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use clap::Parser;
+    let options = http::Options::parse();
     // GUI/MCP clients often launch with a system-only PATH. Restore known
     // local runtime locations once so discovery and every child backend see
     // the same executable universe.
@@ -3407,6 +3425,10 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
+
+    if options.transport == http::Transport::Http {
+        return http::serve(options, runtime_search).await;
+    }
 
     let server = OstadixMcp::new(runtime_search);
     let jobs = server.jobs.clone();

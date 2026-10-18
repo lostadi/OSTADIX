@@ -1,0 +1,9 @@
+# Replace mcp.example.com with your DNS hostname before using this file.
+# Run the MCP server on loopback with --allowed-host mcp.example.com.
+mcp.example.com {
+	reverse_proxy 127.0.0.1:8787 {
+		# Flush streaming MCP/SSE responses promptly. Default proxy behavior
+		# preserves Authorization, Host, MCP-Session-Id and MCP-Protocol-Version.
+		flush_interval -1
+	}
+}

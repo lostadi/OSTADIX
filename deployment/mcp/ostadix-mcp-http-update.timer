@@ -1,0 +1,11 @@
+[Unit]
+Description=Check daily for an Ostadix MCP update
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30m
+Persistent=true
+Unit=ostadix-mcp-http-update.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,19 @@
+# systemd USER service: ~/.config/systemd/user/ostadix-mcp-http.service
+# See README.md for initial release preparation and token creation.
+[Unit]
+Description=Ostadix MCP Streamable HTTP connector
+After=network.target
+
+[Service]
+Type=simple
+Environment="PATH=%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=%h/.local/share/ostadix-mcp
+ExecStart=/usr/bin/python3 %h/.local/share/ostadix-mcp/controller/scripts/update_ostadix_mcp_http.py --state-dir %h/.local/share/ostadix-mcp/state run -- --transport http --bind 127.0.0.1:8787 --token-file %h/.config/ostadix-mcp/token --allowed-host mcp.example.com
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=default.target

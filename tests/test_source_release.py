@@ -141,9 +141,10 @@ FIXTURE_PRIVATE_ENGINE_MODULES = {
 FIXTURE_PUBLIC_ENGINE_MODULES = (
     set(release.OSTADIX_API_ROOT_MODULE_PATHS) - FIXTURE_PRIVATE_ENGINE_MODULES
 )
+FIXTURE_COMPATIBILITY_MODULES = FIXTURE_PUBLIC_ENGINE_MODULES - {"native_leaf"}
 FIXTURE_ROOT_LIB_SOURCE = (
     "pub use ostadix_api::{\n    "
-    + ", ".join(sorted(FIXTURE_PUBLIC_ENGINE_MODULES))
+    + ", ".join(sorted(FIXTURE_COMPATIBILITY_MODULES))
     + ",\n};\npub mod cli_diagnostics;\npub mod cli_paths;\n"
 )
 FIXTURE_API_SOURCE = (
@@ -574,6 +575,29 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
         }
         release._validate_workspace_facade_release_surface(files)
 
+    def test_public_native_leaf_preserves_historical_compatibility_surface(self) -> None:
+        files = self.fixture_files()
+        engine_path = "crates/ostadix-api/src/lib.rs"
+        self.assertIn(b"pub mod native_leaf;", files[engine_path])
+        self.assertNotIn(b"native_leaf", files["src/lib.rs"])
+        release._validate_workspace_facade_release_surface(files)
+
+        missing_module = dict(files)
+        missing_module[engine_path] = files[engine_path].replace(
+            b"pub mod native_leaf;\n", b""
+        )
+        with self.assertRaisesRegex(release.ReleaseError, "module closure differs"):
+            release._validate_workspace_facade_release_surface(missing_module)
+
+        expanded_facade = dict(files)
+        expanded_facade["src/lib.rs"] = files["src/lib.rs"].replace(
+            b"pub use ostadix_api::{", b"pub use ostadix_api::{native_leaf, "
+        )
+        with self.assertRaisesRegex(
+            release.ReleaseError, "compatibility module closure differs"
+        ):
+            release._validate_workspace_facade_release_surface(expanded_facade)
+
     def test_tool_authors_cannot_be_made_consistent_across_packages(self) -> None:
         files = self.fixture_files()
         files["Cargo.toml"] = FIXTURE_CARGO.replace(
@@ -749,6 +773,8 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
         self.assertTrue(release.is_allowed_release_path("src/bin/olangc.rs"))
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             self.assertTrue(release.is_allowed_release_path(path), path)
+        self.assertFalse(release.is_allowed_release_path("deployment/private.env"))
+        self.assertFalse(release.is_allowed_release_path("deployment/mcp/private.env"))
         self.assertTrue(
             release.is_allowed_release_path("apps/olang-browser-wasi/index.html")
         )
@@ -2485,6 +2511,22 @@ class SourceReleaseTests(unittest.TestCase):
                 f"{hashlib.sha256(manifest_bytes).hexdigest()}  {release.MANIFEST_NAME}\n",
                 checksums,
             )
+
+    def test_ocore_source_evidence_is_packaged_without_expanding_root_allowlist(self) -> None:
+        evidence_path = "Ocore_Source_Reevaluation_Evidence.md"
+        private_path = "Ocore_Source_Reevaluation_Private.md"
+        evidence = "# Source reevaluation\n[O-core interface](docs/OCORE.md)\n"
+        self._commit({
+            "docs/OCORE.md": f"# O-core\n[Source evidence](../{evidence_path})\n",
+            evidence_path: evidence,
+            private_path: "Private scratch notes\n",
+        })
+        result = self._build("ocore-source-evidence.zip")
+        with zipfile.ZipFile(result.output) as archive:
+            self.assertEqual(
+                archive.read(f"{result.prefix}/{evidence_path}"), evidence.encode()
+            )
+            self.assertNotIn(f"{result.prefix}/{private_path}", archive.namelist())
 
     def test_relative_document_links_must_resolve_inside_release(self) -> None:
         self._commit(

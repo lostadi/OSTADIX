@@ -1,0 +1,12 @@
+# systemd USER oneshot; the timer below schedules this unit.
+[Unit]
+Description=Build, verify and promote the latest Ostadix MCP release
+After=network.target
+
+[Service]
+Type=oneshot
+Environment="PATH=%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=%h/.local/share/ostadix-mcp
+ExecStart=/usr/bin/python3 %h/.local/share/ostadix-mcp/state/current/scripts/update_ostadix_mcp_http.py --state-dir %h/.local/share/ostadix-mcp/state update --restart systemd-user --service-name ostadix-mcp-http
+TimeoutStartSec=infinity
+UMask=0077
