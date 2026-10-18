@@ -3,10 +3,9 @@ use std::fs;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
@@ -30,7 +29,6 @@ use crate::runtime_exec::BackendToolchain;
 use crate::value::{FloatFormat, ONumber, OValue};
 use crate::wire;
 
-static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 #[cfg(test)]
 const NATIVE_BACKEND_HANDLERS: &[&str] = &[
     "bash",
@@ -647,6 +645,15 @@ impl RustBackend {
                     );
                 }
                 let env = bash_values(bindings)?;
+                // a bare `$name` splice renders its value into the block text;
+                // bash would silently drop a NUL there, so it is an error like
+                // a NUL in an injected let.
+                if code.contains('\0') {
+                    bail!(
+                        "bash block contains a NUL byte, probably from a spliced value; \
+                         bash cannot hold NUL, so the block did not run"
+                    );
+                }
                 if self.bash.is_none() {
                     let session = BashSession::start(&self.tools, self.plain_bash)?;
                     self.child_pid
@@ -2432,16 +2439,25 @@ struct TempDir {
 }
 
 impl TempDir {
+    /// A fresh directory only this user can enter: block files hold user code.
+    /// the name is random and `create` refuses an existing path, symlinks
+    /// included, so honouring TMPDIR cannot hand the files to someone else.
     fn new(prefix: &str) -> Result<Self> {
         let base = std::env::temp_dir();
-        for _ in 0..100 {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0);
-            let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-            let path = base.join(format!("{prefix}-{}-{now}-{counter}", std::process::id()));
-            match fs::create_dir(&path) {
+        let mut builder = fs::DirBuilder::new();
+        {
+            use std::os::unix::fs::DirBuilderExt as _;
+            builder.mode(0o700);
+        }
+        for _ in 0..16 {
+            let mut random = [0u8; 16];
+            getrandom::fill(&mut random).map_err(|error| anyhow!("{error}"))?;
+            let path = base.join(format!(
+                "{prefix}-{}-{}",
+                std::process::id(),
+                hex::encode(random)
+            ));
+            match builder.create(&path) {
                 Ok(()) => return Ok(Self { path }),
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
                 Err(error) => return Err(error).context("failed to create backend temp dir"),
@@ -2463,6 +2479,26 @@ impl Drop for TempDir {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn backend_temp_dirs_are_private_and_unpredictable() -> anyhow::Result<()> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let first = super::TempDir::new("o-backend-mode-test")?;
+        let second = super::TempDir::new("o-backend-mode-test")?;
+        let mode = std::fs::metadata(first.path())?.permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700, "backend temp dir is {mode:o}");
+        // the random part is 32 hex digits, so a planted name cannot be guessed.
+        let name = first
+            .path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let random = name.rsplit('-').next().unwrap();
+        assert_eq!(random.len(), 32, "{name}");
+        assert_ne!(first.path(), second.path());
+        Ok(())
+    }
 
     #[test]
     fn sqlite_session_read_is_bounded_by_the_step_limit() -> anyhow::Result<()> {

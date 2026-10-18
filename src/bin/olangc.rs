@@ -2568,27 +2568,9 @@ fn run_as_script_controlled(
     // Script mode extracts compatibility adapters for backends that still need
     // them, while Rust-native backends run through the current executable.
     let shims = read_shims(override_shim_dir)?;
-    let shim_dir = std::env::temp_dir().join(format!("o_shims_{}", std::process::id()));
-    fs::create_dir_all(&shim_dir)?;
-
-    // RAII guard: clean up the temp shim directory when we leave scope.
-    struct ShimGuard(PathBuf);
-    impl Drop for ShimGuard {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-    let _guard = ShimGuard(shim_dir.clone());
-
-    for (name, content) in &shims {
-        let dest = shim_dir.join(name);
-        fs::write(&dest, content).with_context(|| format!("failed to extract shim {name}"))?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&dest, fs::Permissions::from_mode(0o755))?;
-        }
-    }
+    // a private 0700 directory with a random name, removed when the guard drops.
+    let extracted = o_lang::shims::extract_shims("o_shims", &shims)?;
+    let shim_dir = extracted.path().to_path_buf();
 
     eprintln!("olangc: script mode — executing in-process");
     eprintln!("olangc: using {} shim script(s)", shims.len());

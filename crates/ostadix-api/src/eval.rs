@@ -3370,7 +3370,17 @@ impl Evaluator {
                                 .map_err(anyhow::Error::msg)?;
                         }
                     }
-                    buf.push_str(&render_with(backend.renderer, &resolved));
+                    let rendered = render_with(backend.renderer, &resolved);
+                    // bash drops a NUL in its script text without a word, so
+                    // a bare splice is refused like a NUL in an injected let.
+                    if backend.canonical == "bash" && rendered.contains('\0') {
+                        let what = match child {
+                            OIr::Load(name) => format!("`${name}`"),
+                            _ => "a spliced value".to_string(),
+                        };
+                        bail!("{what} contains a NUL byte, which a bash block cannot hold");
+                    }
+                    buf.push_str(&rendered);
                     if constructs_thunk {
                         deps.push(resolved);
                     }
@@ -6318,6 +6328,18 @@ mod tests {
         };
         let error = format!("{:#}", result.unwrap_err());
         assert!(error.contains("stdout capture is missing"), "{error}");
+    }
+
+    #[test]
+    fn nul_in_a_bare_bash_splice_is_an_explicit_error() {
+        let Some(result) = run_bash_document(
+            "let x = python^(__oval_result__ = 'a\\x00b')_python\n\
+             bash^(echo [$x])_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("NUL"), "{error}");
     }
 
     #[test]
