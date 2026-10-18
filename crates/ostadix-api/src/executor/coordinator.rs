@@ -1212,7 +1212,7 @@ impl<'a> Coordinator<'a> {
                             });
                         }
                         self.trace.finished(id, output_type, fingerprint);
-                        self.materialize_success(index);
+                        self.materialize_member_error(index);
                         crate::process::lifecycle_trace(
                             "coordinator.result_settled",
                             format!("token={index} plan_node={} outcome=member_error", id.0),
@@ -1455,7 +1455,7 @@ impl<'a> Coordinator<'a> {
                         trace_fingerprint(&value),
                     );
                     self.frame.set_value(id, value)?;
-                    self.materialize_success(index);
+                    self.materialize_member_error(index);
                     return Ok(());
                 }
                 self.trace.failed(id, err.to_string());
@@ -1509,6 +1509,15 @@ impl<'a> Coordinator<'a> {
     fn materialize_success(&mut self, index: usize) {
         self.publish_outputs(index);
         self.record_publication(index);
+        self.ops[index].state = OpRunState::Settled;
+    }
+
+    /// A `batch(...)` member that failed settles as its error value: its
+    /// outputs are released so the batch can assemble, but nothing is recorded
+    /// as a publication, since publications list successful settlements only.
+    /// the member is already in `failed_batch_members`.
+    fn materialize_member_error(&mut self, index: usize) {
+        self.publish_outputs(index);
         self.ops[index].state = OpRunState::Settled;
     }
 
