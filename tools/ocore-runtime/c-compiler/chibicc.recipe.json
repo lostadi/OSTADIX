@@ -1,0 +1,178 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-chibicc-complete-stage1-hosted-linux",
+  "source": {
+    "url": "https://github.com/rui314/chibicc.git",
+    "revision": "90d1f7f199cc55b13c7fdb5839d1409806633fdb",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "original-hosted-linux-stage1",
+  "intended_execution_profile": "ostadix-kernel",
+  "intended_targets": [
+    "x86_64-unknown-none",
+    "aarch64-unknown-none",
+    "riscv64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_inventory.py",
+    "sha256": "617f984603da21008370a1a10b001dbdab7bc3df7f8a2dbb4131cf559a521789"
+  },
+  "commands": [
+    {
+      "name": "plan-original-chibicc",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "plan",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--expected-helper-sha256",
+        "617f984603da21008370a1a10b001dbdab7bc3df7f8a2dbb4131cf559a521789",
+        "--output",
+        "{build}/native-build-plan.json"
+      ]
+    },
+    {
+      "name": "build-original-chibicc",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "build",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--expected-helper-sha256",
+        "617f984603da21008370a1a10b001dbdab7bc3df7f8a2dbb4131cf559a521789",
+        "--jobs",
+        "{jobs}"
+      ]
+    },
+    {
+      "name": "inventory-whole-original-chibicc",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_inventory.py",
+        "inventory",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--capture",
+        "{output}",
+        "--expected-helper-sha256",
+        "617f984603da21008370a1a10b001dbdab7bc3df7f8a2dbb4131cf559a521789",
+        "--output",
+        "{build}/unit-inventory.json"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "chibicc",
+      "native-build-plan.json",
+      "unit-inventory.json"
+    ],
+    "required_units": [
+      {
+        "id": "codegen",
+        "kind": "clang",
+        "source": "codegen.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "hashmap",
+        "kind": "clang",
+        "source": "hashmap.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "main",
+        "kind": "clang",
+        "source": "main.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "parse",
+        "kind": "clang",
+        "source": "parse.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "preprocess",
+        "kind": "clang",
+        "source": "preprocess.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "strings",
+        "kind": "clang",
+        "source": "strings.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "tokenize",
+        "kind": "clang",
+        "source": "tokenize.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "type",
+        "kind": "clang",
+        "source": "type.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      },
+      {
+        "id": "unicode",
+        "kind": "clang",
+        "source": "unicode.c",
+        "role": "runtime",
+        "build_step": "build-original-chibicc"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "libc-and-dynamic-loader",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "compiler-helpers",
+      "source_pin": null,
+      "status": "required-unresolved"
+    },
+    {
+      "name": "Linux-platform-services",
+      "source_pin": null,
+      "status": "required-unresolved"
+    }
+  ],
+  "blockers": [
+    "The unchanged original stage-one compiler Make graph and all source/data files are retained; upstream test/stage-two configurations are separate.",
+    "The original compiler emits x86-64 assembly; lowering its implementation is distinct from routing its generated programs through O-core.",
+    "Whole-unit import, verified dependency closure, native linking, semantic qualification and all three native OSTADIX execution gates remain required.",
+    "A successful source build/capture is reference evidence, not complete compiler lowering or native compiler qualification."
+  ]
+}
