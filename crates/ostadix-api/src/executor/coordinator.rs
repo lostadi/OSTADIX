@@ -204,6 +204,7 @@ impl<'a> Coordinator<'a> {
             node_policy,
             trace: ExecutionTrace::new(),
             failed_batch_members: std::collections::HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
 
         Ok(Self {
@@ -1424,6 +1425,9 @@ impl<'a> Coordinator<'a> {
 
         match outcome {
             Ok(value) => {
+                for failure in std::mem::take(&mut self.frame.forced_batch_failures) {
+                    self.trace.batch_member_failed(failure);
+                }
                 if let Some(crossing) = self.trace.crossing_mut(id) {
                     crossing.observe_result(&value);
                 }
