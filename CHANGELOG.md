@@ -453,6 +453,12 @@ Package SemVer is only one of the independent coordinates documented in
 
 ### Fixed
 
+- Backend temp dirs for block files, extracted shims and olangc script mode
+  are created with mode 0700 and a random name, also under a custom
+  `TMPDIR`, and an existing path or symlink at that name is refused. A NUL
+  byte in a bare `$s` splice into a bash block is an error naming the
+  variable instead of being silently dropped by bash.
+
 - The MCP bridge removes its socket while holding the startup lock before
   waiting for child shutdown, preserving a replacement daemon's socket.
   Setup and release guards exercise declared host capabilities and executable
