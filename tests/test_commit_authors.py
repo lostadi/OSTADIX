@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 import tempfile
 
-from scripts.check_attribution import (
+from scripts.check_commit_authors import (
     CommitMetadata,
     LEGACY_POLICY_BASELINE,
     ROOT,
@@ -30,28 +30,28 @@ def commit(**overrides: str) -> CommitMetadata:
         "author_email": "ostadi.lee@gmail.com",
         "committer_name": "Lee Daghlar Ostadi",
         "committer_email": "ostadi.lee@gmail.com",
-        "message": "Document Codex as a supported development tool",
+        "message": "Document the example tool as a supported development tool",
     }
     values.update(overrides)
     return CommitMetadata(**values)
 
 
-class AttributionPolicyTests(unittest.TestCase):
-    def test_tooling_mentions_are_not_attribution(self) -> None:
+class AuthorCheckTests(unittest.TestCase):
+    def test_tooling_mentions_pass(self) -> None:
         self.assertEqual(commit_violations(commit()), [])
 
-    def test_ai_author_and_committer_identities_are_rejected(self) -> None:
+    def test_tool_author_and_committer_identities_are_rejected(self) -> None:
         violations = commit_violations(
             commit(
-                author_name="Claude Sonnet",
-                committer_email="codex-validation@localhost",
+                author_name="Example Tool",
+                committer_name="Example Tool",
             )
         )
         self.assertEqual(
             {(item.field, item.value) for item in violations},
             {
-                ("author name", "Claude Sonnet"),
-                ("committer email", "codex-validation@localhost"),
+                ("author name", "Example Tool"),
+                ("committer name", "Example Tool"),
             },
         )
 
@@ -64,7 +64,7 @@ class AttributionPolicyTests(unittest.TestCase):
             commit_violations(commit(author_email="lee@example.invalid")), []
         )
 
-    def test_all_supplemental_credit_is_rejected_even_for_unknown_tools(self) -> None:
+    def test_all_extra_author_trailers_are_rejected_even_for_unknown_tools(self) -> None:
         for key in (
             "Co-Authored-By", "Author", "Assisted-By", "Generated-By",
             "Reviewed-By", "Signed-Off-By", "Tested-By", "Pair-Programmed-By",
@@ -75,7 +75,7 @@ class AttributionPolicyTests(unittest.TestCase):
                     message=f"Change\n\n{key}: Another Person <person@example.invalid>\n"
                 )))
 
-    def test_explicit_ai_contribution_credit_is_rejected(self) -> None:
+    def test_explicit_disallowed_author_lines_are_rejected(self) -> None:
         for credit in (
             "Generated with Codex", "This commit was written by AI Assistant",
             "🤖 Generated with Claude Code", "Code reviewed by Gemini",
@@ -95,13 +95,13 @@ class AttributionPolicyTests(unittest.TestCase):
             with self.subTest(message=message):
                 self.assertEqual(commit_violations(commit(message=message)), [])
 
-    def test_ai_coauthor_and_contributor_trailers_are_rejected(self) -> None:
+    def test_disallowed_author_and_contributor_trailers_are_rejected(self) -> None:
         violations = commit_violations(
             commit(
                 message=(
                     "Implement feature\n\n"
-                    "Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>\n"
-                    "Contributor: OpenAI Codex <codex@example.invalid>\n"
+                    "Co-Authored-By: Example Tool <tool@example.invalid>\n"
+                    "Contributor: Example Helper <helper@example.invalid>\n"
                 )
             )
         )
@@ -110,7 +110,7 @@ class AttributionPolicyTests(unittest.TestCase):
     def test_project_author_metadata_is_clean(self) -> None:
         self.assertEqual(project_metadata_violations(), [])
 
-    def test_owned_cargo_metadata_requires_sole_lee_without_rewriting_upstream_credit(self) -> None:
+    def test_owned_cargo_metadata_requires_the_allowed_author_only(self) -> None:
         for authors in (["Another Person"], ["Lee Daghlar Ostadi", "Another Person"], []):
             with self.subTest(authors=authors):
                 manifest = {"package": {"authors": authors}}
@@ -140,7 +140,7 @@ class AttributionPolicyTests(unittest.TestCase):
             with self.subTest(invalid=invalid):
                 self.assertTrue(cff_project_author_violations(invalid))
 
-    def test_agent_session_trailers_are_rejected(self) -> None:
+    def test_session_log_trailers_are_rejected(self) -> None:
         violations = commit_violations(
             commit(message="Fix runtime\n\nAgent-Logs-Url: https://example.invalid/session\n")
         )
@@ -169,14 +169,16 @@ class AttributionPolicyTests(unittest.TestCase):
             "base..head",
         )
 
-    @patch("scripts.check_attribution.subprocess.run")
+    @patch("scripts.check_commit_authors.subprocess.run")
     def test_policy_boundary_tracks_rewritten_introduction(
         self, run: Mock
     ) -> None:
         introduction = "1" * 40
         parent = "2" * 40
         run.side_effect = (
-            subprocess.CompletedProcess([], 0, f"{introduction}\n", ""),
+            subprocess.CompletedProcess(
+                [], 0, f"commit {introduction}\n\nA\tscripts/check_commit_authors.py\n", ""
+            ),
             subprocess.CompletedProcess([], 0, f"{parent}\n", ""),
         )
         self.assertEqual(policy_boundary("rewritten-head"), (introduction, parent))
@@ -238,11 +240,11 @@ class AttributionPolicyTests(unittest.TestCase):
         self.assertFalse(contains_forbidden_identity("codec validation"))
 
 
-class AttributionPrePushTests(unittest.TestCase):
+class AuthorCheckPrePushTests(unittest.TestCase):
     """Exercise the real hook against disposable Git history, never a remote."""
 
     def setUp(self) -> None:
-        self.temp = tempfile.TemporaryDirectory(prefix="ostadix-attribution-")
+        self.temp = tempfile.TemporaryDirectory(prefix="ostadix-author-check-")
         self.addCleanup(self.temp.cleanup)
         self.repo = Path(self.temp.name)
         self.env = dict(os.environ)
@@ -262,10 +264,10 @@ class AttributionPrePushTests(unittest.TestCase):
         self.write("README.md", "# Project\n\n## Citation and authorship\nLee Daghlar Ostadi\n")
         self.write(".github/CODEOWNERS", "* @lostadi\n")
         self.write("Cargo.toml", '[package]\nname = "fixture"\nversion = "0.1.0"\nauthors = ["Lee Daghlar Ostadi"]\n')
-        for name in ("scripts/check_attribution.py", ".githooks/pre-push"):
+        for name in ("scripts/check_commit_authors.py", ".githooks/pre-push"):
             self.write(name, (ROOT / name).read_text())
         (self.repo / ".githooks/pre-push").chmod(0o755)
-        self.policy = self.make_commit("Introduce attribution policy")
+        self.policy = self.make_commit("Introduce author check")
 
     def write(self, name: str, text: str) -> None:
         path = self.repo / name
@@ -296,7 +298,7 @@ class AttributionPrePushTests(unittest.TestCase):
     def test_new_branch_accepts_policy_history_without_rewriting_legacy_baseline(self) -> None:
         result = self.push_check(self.policy)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("attribution policy: pass", result.stdout)
+        self.assertIn("author check: pass", result.stdout)
 
     def test_outgoing_branch_is_checked_when_checked_out_head_is_clean(self) -> None:
         bad = self.make_commit("Candidate change", author="Someone Else")
@@ -347,7 +349,7 @@ class AttributionPrePushTests(unittest.TestCase):
         blob = self.git("rev-parse", "HEAD:README.md")
         self.assertNotEqual(self.push_check(blob).returncode, 0)
 
-    def test_annotated_tag_credit_and_tagger_are_checked(self) -> None:
+    def test_annotated_tag_message_and_tagger_are_checked(self) -> None:
         env = dict(self.env, GIT_COMMITTER_NAME="Other Tagger")
         self.git("-c", "tag.gpgsign=false", "tag", "-a", "bad", "-m", "Release", env=env)
         result = self.push_check(self.git("rev-parse", "refs/tags/bad"))
@@ -360,7 +362,7 @@ class AttributionPrePushTests(unittest.TestCase):
         self.git("-c", "tag.gpgsign=false", "tag", "-a", "credit", "-m", "Release\n\nGenerated with AI")
         result = self.push_check(self.git("rev-parse", "refs/tags/credit"))
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("AI contribution credit", result.stderr)
+        self.assertIn("disallowed author line", result.stderr)
 
 
 if __name__ == "__main__":
