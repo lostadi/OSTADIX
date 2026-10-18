@@ -92,6 +92,25 @@ pub fn run_backend(lang: &str) -> Result<()> {
         // the shell and its jobs before this process exits.
         bash_termination::install()
             .context("could not install the bash backend's SIGTERM cleanup")?;
+        // armed only after the handler: from here our parent's death runs
+        // the cleanup. a parent already gone sent no signal, so stop now.
+        #[cfg(target_os = "linux")]
+        if let Some(parent) = std::env::var_os(crate::process::BACKEND_PARENT_PID_ENV) {
+            let parent = parent
+                .to_str()
+                .and_then(|text| text.parse::<libc::pid_t>().ok())
+                .context("O_BACKEND_PARENT_PID is not a pid")?;
+            match crate::process::arm_parent_death_signal(parent) {
+                Ok(()) => {}
+                Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {
+                    bash_termination::terminate_now()
+                }
+                Err(error) => {
+                    return Err(error)
+                        .context("could not arm the bash backend's parent death signal")
+                }
+            }
+        }
     }
     let mut backend = RustBackend::new(tools);
     if lang == "bash" {
@@ -449,6 +468,8 @@ impl BashSession {
     fn start(tools: &BackendToolchain, plain: bool) -> Result<Self> {
         let dir = TempDir::new("o-bash-session")?;
         let mut command = tools.command("bash")?;
+        // the host's pid is for this backend only.
+        command.env_remove(crate::process::BACKEND_PARENT_PID_ENV);
         if plain {
             // a helper serves many plain blocks; its own identity is not the
             // block's, so the shell does not see it.
@@ -671,31 +692,32 @@ impl JobSweep {
     /// see every job.
     fn report(self) -> Result<()> {
         // one line, written once the walk has finished.
-        if self.survivors.is_empty() {
-            if self.stopped > 0 {
-                eprintln!(
-                    "bash block left {} background job(s); they were stopped",
-                    self.stopped
-                );
-            }
-        } else {
+        if self.stopped > 0 {
+            eprintln!(
+                "bash block left {} background job(s); they were stopped",
+                self.stopped
+            );
+        }
+        let failed = crate::process::JOB_CLEANUP_FAILED;
+        if let Some(error) = self.error {
+            bail!("{failed}: {error}");
+        }
+        // a job that outlived the window means cleanup failed: the block
+        // fails, and the host retires this backend instead of reusing it.
+        if !self.survivors.is_empty() {
             let pids = self
                 .survivors
                 .iter()
                 .map(i32::to_string)
                 .collect::<Vec<_>>()
                 .join(" ");
-            eprintln!(
-                "bash block left {} background job(s); they were stopped, and {} still alive after {} ms: pid {pids}",
-                self.stopped,
+            bail!(
+                "{failed}: {} job(s) still alive after {} ms: pid {pids}",
                 self.survivors.len(),
                 JOB_CLEANUP_WINDOW.as_millis()
             );
         }
-        match self.error {
-            Some(error) => bail!("bash job cleanup failed: {error}"),
-            None => Ok(()),
-        }
+        Ok(())
     }
 }
 
@@ -941,15 +963,19 @@ impl RustBackend {
                 if !alive {
                     self.child_pid
                         .store(0, std::sync::atomic::Ordering::Relaxed);
-                    if let Some(mut ended) = self.bash.take() {
-                        ended.shutdown()?;
-                    }
                     // a shell killed by a signal lost its state without any
                     // block asking for that: fail this block and every later
                     // one (fail closed) instead of starting a fresh shell.
+                    // latched before cleanup, so a failed cleanup cannot
+                    // leave the session looking alive.
                     use std::os::unix::process::ExitStatusExt;
                     if let Some(signal) = output.status.signal() {
                         self.bash_killed = Some(signal);
+                    }
+                    if let Some(mut ended) = self.bash.take() {
+                        ended.shutdown()?;
+                    }
+                    if let Some(signal) = output.status.signal() {
                         bail!(
                             "bash session was killed by signal {signal} during this block; its state is gone"
                         );
