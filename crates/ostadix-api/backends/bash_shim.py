@@ -40,7 +40,8 @@ _plain = os.environ.get("O_BACKEND_PLAIN_BASH_HELPER") == "1"
 
 # a helper serves many plain blocks; its own identity is not the block's.
 _PLAIN_HELPER_PRIVATE_ENV = ("O_BACKEND_SESSION_ID", "O_BACKEND_LAUNCH_GENERATION",
-                             "O_BACKEND_NATIVE_INSTANCE_ID", "O_BACKEND_PLAIN_BASH_HELPER")
+                             "O_BACKEND_NATIVE_INSTANCE_ID", "O_BACKEND_PLAIN_BASH_HELPER",
+                             "O_BACKEND_PARENT_PID")
 
 
 def _shell_env():
@@ -206,17 +207,18 @@ def _stop_jobs():
 
 
 def _report_jobs(stopped, survivors, error):
-    """The stderr notice; the error text when cleanup could not see every job."""
-    if survivors:
-        pids = " ".join(str(pid) for pid in survivors)
-        print(f"bash block left {stopped} background job(s); they were stopped, "
-              f"and {len(survivors)} still alive after "
-              f"{int(_JOB_CLEANUP_WINDOW * 1000)} ms: pid {pids}",
-              file=sys.stderr, flush=True)
-    elif stopped:
+    """The stderr notice; the error text when cleanup failed: the jobs could
+    not be listed, or some outlived the window."""
+    if stopped:
         print(f"bash block left {stopped} background job(s); they were stopped",
               file=sys.stderr, flush=True)
-    return None if error is None else f"bash job cleanup failed: {error}"
+    if error is not None:
+        return f"bash job cleanup failed: {error}"
+    if survivors:
+        pids = " ".join(str(pid) for pid in survivors)
+        return (f"bash job cleanup failed: {len(survivors)} job(s) still alive after "
+                f"{int(_JOB_CLEANUP_WINDOW * 1000)} ms: pid {pids}")
+    return None
 
 
 def _on_sigterm(_signum, _frame):
