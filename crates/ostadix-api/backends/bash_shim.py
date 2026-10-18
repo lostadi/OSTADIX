@@ -457,3 +457,12 @@ def handle_exec(cmd):
 
 o_shim_common.heartbeat_child_pid = lambda: _session.proc.pid if _session is not None else None
 command_loop(handle_exec)
+
+# stdin EOF: the host is gone or closing us. a bash[N] session keeps its jobs
+# between blocks, so stop them before exiting; only a failure is said.
+if _session is not None and sys.platform.startswith("linux"):
+    _, _survivors, _error = _stop_jobs(_session.proc.pid)
+    _error = _report_jobs(0, _survivors, _error)
+    if _error:
+        print(_error, file=sys.stderr, flush=True)
+        sys.exit(1)

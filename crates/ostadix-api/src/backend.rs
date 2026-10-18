@@ -229,6 +229,16 @@ pub fn run_backend(lang: &str) -> Result<()> {
         wire::write_frame(&mut stdout.lock(), &response)?;
     }
 
+    // stdin EOF: the host is gone or closing us. a bash backend still has its
+    // shell and maybe a session's jobs (bash[N] keeps them between blocks),
+    // so it stops them before it exits. a SIGTERM's walk that is already
+    // running ends the process itself; this waits on its lock meanwhile.
+    if lang == "bash" {
+        let shell = SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
+        let mut sweep = stop_backend_descendants(JOB_CLEANUP_WINDOW, (shell != 0).then_some(shell));
+        sweep.quiet = true;
+        sweep.report()?;
+    }
     Ok(())
 }
 

@@ -2022,21 +2022,23 @@ impl BackendProcess {
     fn send_forced_kill(&mut self) -> Vec<String> {
         #[cfg(test)]
         kill_trace("kill");
-        self.stdin.take();
         let mut failures = Vec::new();
         // a bash backend (plain helper or bash[N]) is its jobs' subreaper; a
-        // group SIGKILL would
-        // end it first and hand its setsid jobs to init. it gets SIGTERM,
-        // stops its shell and jobs, and exits; the group kill follows only
-        // if it does not.
+        // group SIGKILL would end it first and hand its setsid jobs to init.
+        // it gets SIGTERM, stops its shell and jobs, and exits; the group
+        // kill follows only if it does not. why SIGTERM before closing
+        // stdin: an idle backend reads EOF first otherwise, and its walk
+        // would race the SIGTERM's.
         #[cfg(unix)]
         if self.language == "bash" {
             // SAFETY: the pid is our own unreaped child, the group leader.
             if unsafe { libc::kill(self.child.id() as libc::pid_t, libc::SIGTERM) } == 0 {
                 self.graceful_term_sent = true;
+                self.stdin.take();
                 return failures;
             }
         }
+        self.stdin.take();
         if let Err(error) = signal_owned_process_group(&mut self.child) {
             failures.push(format!("backend SIGKILL failed: {error:#}"));
         }
