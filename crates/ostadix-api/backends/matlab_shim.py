@@ -14,7 +14,7 @@ import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from o_shim_common import command_loop, write_wire_message
-from o_shim_common import stdout_result
+from o_shim_common import step_timeout, stdout_result
 
 
 def send_ok(value):
@@ -38,7 +38,7 @@ def handle_exec(cmd):
             if shutil.which("octave"):
                 result = subprocess.run(
                     ["octave", "--no-gui", "--norc", "--silent", tmp],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True, text=True, timeout=step_timeout(),
                 )
             elif shutil.which("matlab"):
                 # MATLAB batch mode
@@ -49,7 +49,7 @@ def handle_exec(cmd):
                         "matlab", "-batch",
                         f"addpath('{script_dir}'); {script_name}",
                     ],
-                    capture_output=True, text=True, timeout=300,
+                    capture_output=True, text=True, timeout=step_timeout(),
                 )
             else:
                 send_err(
@@ -67,7 +67,7 @@ def handle_exec(cmd):
             send_ok(stdout_result(result.stdout))
 
     except subprocess.TimeoutExpired:
-        send_err("MATLAB/Octave execution timed out")
+        send_err("MATLAB/Octave execution exceeded the opt-in limit O_BACKEND_STEP_TIMEOUT_MS")
     except Exception:
         send_err(traceback.format_exc())
 
