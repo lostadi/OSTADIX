@@ -8,7 +8,7 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -641,21 +641,22 @@ const MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_OPEN_SESSIONS_ENV: &str = "O_BACKEND_MAX_OPEN_SESSIONS";
 const MAX_OPEN_SESSIONS_PER_BACKEND_ENV: &str = "O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND";
 
-pub(crate) fn backend_shutdown_timeout() -> Duration {
-    duration_from_env(
-        BACKEND_SHUTDOWN_TIMEOUT_ENV,
-        DEFAULT_BACKEND_SHUTDOWN_TIMEOUT,
-        MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT,
-    )
-}
-
-fn duration_from_env(name: &str, default: Duration, maximum: Duration) -> Duration {
-    // a malformed value already failed every spawn (`check_process_knobs`),
-    // so the default here is only reached when the knob is unset.
-    checked_duration_from_env(name, maximum)
-        .ok()
-        .flatten()
-        .unwrap_or(default)
+/// The teardown budget: `O_BACKEND_SHUTDOWN_TIMEOUT_MS`, or the default when
+/// unset. parsed once; a malformed value is an error at every read, never the
+/// default.
+pub(crate) fn backend_shutdown_timeout() -> Result<Duration> {
+    static TIMEOUT: OnceLock<std::result::Result<Option<Duration>, String>> = OnceLock::new();
+    let value = TIMEOUT
+        .get_or_init(|| {
+            checked_duration_from_env(
+                BACKEND_SHUTDOWN_TIMEOUT_ENV,
+                MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT,
+            )
+            .map_err(|error| format!("{error:#}"))
+        })
+        .clone()
+        .map_err(anyhow::Error::msg)?;
+    Ok(value.unwrap_or(DEFAULT_BACKEND_SHUTDOWN_TIMEOUT))
 }
 
 /// The knob's value, None when unset, or an error naming the bad value.
@@ -682,7 +683,10 @@ fn positive_integer_knob(name: &str, raw: &std::ffi::OsStr) -> Result<usize> {
     let text = raw
         .to_str()
         .ok_or_else(|| anyhow!("{name} is not valid UTF-8"))?;
+    // the same whitespace rule as the step knobs: surrounding blanks are
+    // trimmed, anything else is a malformed value.
     let value = text
+        .trim()
         .parse::<usize>()
         .map_err(|_| anyhow!("{name}={text:?} is not a positive whole number"))?;
     if value == 0 {
@@ -694,15 +698,8 @@ fn positive_integer_knob(name: &str, raw: &std::ffi::OsStr) -> Result<usize> {
 /// Validate the teardown budget and the session caps, so a malformed value
 /// fails the spawn instead of silently becoming the default.
 fn check_process_knobs() -> Result<()> {
-    checked_duration_from_env(
-        BACKEND_SHUTDOWN_TIMEOUT_ENV,
-        MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT,
-    )?;
-    for name in [MAX_OPEN_SESSIONS_ENV, MAX_OPEN_SESSIONS_PER_BACKEND_ENV] {
-        if let Some(raw) = std::env::var_os(name) {
-            positive_integer_knob(name, &raw)?;
-        }
-    }
+    backend_shutdown_timeout()?;
+    BackendSessionLimits::from_env()?;
     Ok(())
 }
 
@@ -2330,7 +2327,7 @@ where
     match execution {
         Ok(value) => {
             process
-                .retire_fresh_attempt(backend_shutdown_timeout())
+                .retire_fresh_attempt(backend_shutdown_timeout().map_err(infrastructure_error)?)
                 .with_context(|| {
                     format!(
                         "ephemeral backend `{language}` returned a value but could not be retired"
@@ -2430,10 +2427,15 @@ pub(crate) fn retire_plain_bash_helpers() {
     // why graceful first: an idle helper answers shutdown at once, after
     // stopping its spare shell itself, while a forced kill polls the leader
     // and the group in 2 ms steps, which a one-block program paid at exit.
-    let timeout = backend_shutdown_timeout();
+    // a malformed budget cannot be honoured, so the helpers are force-killed.
+    let timeout = backend_shutdown_timeout().ok();
     let mut stuck = Vec::new();
     for mut process in processes {
-        if let Err(error) = process.retire_fresh_attempt(timeout) {
+        let outcome = match timeout {
+            Some(timeout) => process.retire_fresh_attempt(timeout),
+            None => Err(anyhow!("no valid {BACKEND_SHUTDOWN_TIMEOUT_ENV}")),
+        };
+        if let Err(error) = outcome {
             lifecycle_trace(
                 "worker.plain_bash_helper_shutdown_failed",
                 format!("{error:#}"),
@@ -2455,23 +2457,37 @@ pub(crate) struct BackendSessionLimits {
 }
 
 impl BackendSessionLimits {
-    fn from_env() -> Self {
-        let total =
-            positive_usize_from_env(MAX_OPEN_SESSIONS_ENV, DEFAULT_MAX_OPEN_BACKEND_SESSIONS);
-        let per_backend = positive_usize_from_env(
-            MAX_OPEN_SESSIONS_PER_BACKEND_ENV,
-            DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND,
-        )
-        .min(total);
-        Self { total, per_backend }
+    /// The session caps, parsed once. a malformed cap is an error at every
+    /// read instead of silently becoming the default.
+    fn from_env() -> Result<Self> {
+        static LIMITS: OnceLock<std::result::Result<BackendSessionLimits, String>> =
+            OnceLock::new();
+        LIMITS
+            .get_or_init(|| {
+                (|| -> Result<Self> {
+                    let total = positive_usize_from_env(
+                        MAX_OPEN_SESSIONS_ENV,
+                        DEFAULT_MAX_OPEN_BACKEND_SESSIONS,
+                    )?;
+                    let per_backend = positive_usize_from_env(
+                        MAX_OPEN_SESSIONS_PER_BACKEND_ENV,
+                        DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND,
+                    )?
+                    .min(total);
+                    Ok(Self { total, per_backend })
+                })()
+                .map_err(|error| format!("{error:#}"))
+            })
+            .clone()
+            .map_err(anyhow::Error::msg)
     }
 }
 
-fn positive_usize_from_env(name: &str, default: usize) -> usize {
-    // a malformed value already failed every spawn (`check_process_knobs`).
-    std::env::var_os(name)
-        .and_then(|raw| positive_integer_knob(name, &raw).ok())
-        .unwrap_or(default)
+fn positive_usize_from_env(name: &str, default: usize) -> Result<usize> {
+    match std::env::var_os(name) {
+        Some(raw) => positive_integer_knob(name, &raw),
+        None => Ok(default),
+    }
 }
 
 pub struct ProcessRegistry {
@@ -2480,7 +2496,8 @@ pub struct ProcessRegistry {
     // Ownership tombstones survive cleanup and prevent the old evaluator
     // from silently recreating actors after an acknowledged migration.
     migrated_actors: HashSet<(String, u32, BackendSandboxPolicy)>,
-    session_limits: BackendSessionLimits,
+    // a malformed cap fails the first session that needs it.
+    session_limits: std::result::Result<BackendSessionLimits, String>,
     registry_identity_sha256: String,
     morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
     // persistent sessions killed by a response deadline. their interpreter
@@ -2725,7 +2742,7 @@ impl ProcessRegistry {
             registry: HashMap::new(),
             suspended_fresh: Vec::new(),
             migrated_actors: HashSet::new(),
-            session_limits: BackendSessionLimits::from_env(),
+            session_limits: BackendSessionLimits::from_env().map_err(|error| format!("{error:#}")),
             registry_identity_sha256: fresh_registry_identity(),
             morphism_contract: None,
             lost_sessions: HashMap::new(),
@@ -2740,7 +2757,7 @@ impl ProcessRegistry {
             registry: HashMap::new(),
             suspended_fresh: Vec::new(),
             migrated_actors: HashSet::new(),
-            session_limits: BackendSessionLimits { total, per_backend },
+            session_limits: Ok(BackendSessionLimits { total, per_backend }),
             registry_identity_sha256: fresh_registry_identity(),
             morphism_contract: None,
             lost_sessions: HashMap::new(),
@@ -3506,7 +3523,7 @@ impl ProcessRegistry {
                     park_plain_bash_helper(process);
                     continue;
                 }
-                process.retire_fresh_attempt(backend_shutdown_timeout())?;
+                process.retire_fresh_attempt(backend_shutdown_timeout()?)?;
             }
         }
         Ok(())
@@ -3562,10 +3579,11 @@ impl ProcessRegistry {
     }
 
     fn ensure_session_capacity(&self, lang: &str) -> Result<()> {
-        if self.registry.len() + self.suspended_fresh.len() >= self.session_limits.total {
+        let limits = self.session_limits.clone().map_err(anyhow::Error::msg)?;
+        if self.registry.len() + self.suspended_fresh.len() >= limits.total {
             bail!(
                 "session.capacity-exhausted: open backend sessions reached configured total quota {}",
-                self.session_limits.total
+                limits.total
             );
         }
         let backend_count = self
@@ -3578,10 +3596,10 @@ impl ProcessRegistry {
                 .iter()
                 .filter(|actor| actor.key.0 == lang)
                 .count();
-        if backend_count >= self.session_limits.per_backend {
+        if backend_count >= limits.per_backend {
             bail!(
                 "session.capacity-exhausted: backend `{lang}` reached configured per-backend quota {}",
-                self.session_limits.per_backend
+                limits.per_backend
             );
         }
         Ok(())
@@ -3664,7 +3682,8 @@ impl ProcessRegistry {
         }
         let mut failures = Vec::new();
         for mut process in retired {
-            if let Err(error) = process.shutdown(backend_shutdown_timeout()) {
+            let outcome = backend_shutdown_timeout().and_then(|timeout| process.shutdown(timeout));
+            if let Err(error) = outcome {
                 failures.push(format!("{error:#}"));
             }
         }
@@ -3774,7 +3793,13 @@ mod tests {
             duration_knob("K", OsStr::new("2500"), max).unwrap(),
             Duration::from_millis(2500)
         );
-        for bad in ["", "abc", "0", "-1", "1.5", " 5"] {
+        // surrounding blanks are trimmed as the step knobs do.
+        assert_eq!(positive_integer_knob("K", OsStr::new(" 5 ")).unwrap(), 5);
+        assert_eq!(
+            duration_knob("K", OsStr::new("\t2500\n"), max).unwrap(),
+            Duration::from_millis(2500)
+        );
+        for bad in ["", " ", "abc", "0", "-1", "1.5", "5 5"] {
             assert!(duration_knob("K", OsStr::new(bad), max).is_err(), "{bad:?}");
             assert!(
                 positive_integer_knob("K", OsStr::new(bad)).is_err(),
@@ -3918,7 +3943,7 @@ mod tests {
         let value = expect_done(process.recv_step()?);
 
         assert_eq!(value, OValue::Null);
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3929,7 +3954,7 @@ mod tests {
         let value = process.exec("__oval_result__ = 42", HashMap::new())?;
 
         assert_eq!(value, OValue::int(42));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3950,7 +3975,7 @@ mod tests {
             }
             other => panic!("expected number/int OValue, got {other:?}"),
         }
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3995,7 +4020,7 @@ mod tests {
             OValue::bool_(true),
         );
 
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4036,7 +4061,7 @@ mod tests {
             scope,
         );
 
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4053,7 +4078,7 @@ mod tests {
             }
             other => panic!("expected bytes OValue, got {other:?}"),
         }
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4073,7 +4098,7 @@ mod tests {
             }
             other => panic!("expected structural set OValue, got {other:?}"),
         }
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4100,7 +4125,7 @@ mod tests {
             "{message}"
         );
         assert!(!message.contains("silently-erased-object"), "{message}");
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4112,7 +4137,7 @@ mod tests {
         let value = process.exec("__oval_result__ = msg.upper()", bindings)?;
 
         assert_eq!(value, OValue::str_("HELLO"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4125,7 +4150,7 @@ mod tests {
             .unwrap_err();
 
         assert!(err.to_string().contains("boom from shim"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4137,7 +4162,7 @@ mod tests {
         let value = expect_done(process.recv_step()?);
 
         assert_eq!(value, OValue::Null);
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4149,7 +4174,7 @@ mod tests {
             HashMap::new(),
         )?;
         let checkpoint = source.checkpoint(1024 * 1024)?;
-        source.shutdown(backend_shutdown_timeout())?;
+        source.shutdown(backend_shutdown_timeout()?)?;
 
         let mut target = spawn_python_shim()?;
         let receipt = target.restore(checkpoint.clone())?;
@@ -4159,7 +4184,7 @@ mod tests {
             target.exec("__oval_result__ = x is y and x[0] is x", HashMap::new())?,
             OValue::bool_(true)
         );
-        target.shutdown(backend_shutdown_timeout())?;
+        target.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4175,7 +4200,7 @@ mod tests {
             HashMap::new(),
         )?;
         let checkpoint = source.checkpoint(1024 * 1024)?;
-        source.shutdown(backend_shutdown_timeout())?;
+        source.shutdown(backend_shutdown_timeout()?)?;
 
         let mut target = spawn_python_shim()?;
         target.restore(checkpoint)?;
@@ -4192,7 +4217,7 @@ mod tests {
             )?,
             OValue::bool_(true)
         );
-        target.shutdown(backend_shutdown_timeout())?;
+        target.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -4211,7 +4236,7 @@ mod tests {
             process.exec("__oval_result__ = f()", HashMap::new())?,
             OValue::int(42)
         );
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -5296,7 +5321,7 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("denies process spawn"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -5311,7 +5336,7 @@ mod tests {
             .unwrap_err();
         assert!(error.to_string().contains("denies filesystem write"));
         assert!(!Path::new("/tmp/o-backend-forbidden").exists());
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -5325,7 +5350,7 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("denies filesystem read"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -5339,7 +5364,7 @@ mod tests {
             HashMap::new(),
         )?;
         assert_eq!(value, OValue::bool_(true));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -5353,7 +5378,7 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("denies network access"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -5367,7 +5392,7 @@ mod tests {
             HashMap::new(),
         )?;
         assert_eq!(value, OValue::int(0));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
