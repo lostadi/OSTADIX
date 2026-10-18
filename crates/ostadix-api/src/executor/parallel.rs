@@ -655,13 +655,22 @@ struct NativeI64Task {
     arguments: Vec<OValue>,
 }
 impl PreparedTask for NativeI64Task {
-    fn execute(self: Box<Self>, _context: &TaskContext) -> Result<OValue> {
+    fn execute(self: Box<Self>, context: &TaskContext) -> Result<OValue> {
         let arguments = self
             .arguments
             .iter()
             .map(crate::native_leaf::argument)
             .collect::<Result<Vec<_>>>()?;
-        self.leaf.execute(&arguments)
+        #[cfg(target_os = "linux")]
+        {
+            let watch = crate::native_leaf::ChildWatch::from_knobs(context.cancellation_token())?;
+            self.leaf.execute_watched(&arguments, &watch)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = context;
+            self.leaf.execute(&arguments)
+        }
     }
 }
 pub(crate) fn prepare_native(
