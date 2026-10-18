@@ -68,6 +68,8 @@ enum ParallelTaskBody {
         sandbox: BackendSandboxPolicy,
         executable_leases: Arc<crate::runtime_exec::ExecutableLeaseSet>,
         morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+        // another plain bash block is still ahead in the plan.
+        plain_bash_next: bool,
     },
 }
 
@@ -556,6 +558,7 @@ fn build_task(
                 sandbox,
                 executable_leases,
                 morphism_contract,
+                plain_bash_next: frame.plain_bash_block_ahead(plan, id),
             }
         }
         TaskKind::Renderer {
@@ -761,6 +764,7 @@ fn execute_prepared(task: &ParallelTask, context: &TaskContext) -> Result<OValue
             sandbox,
             executable_leases,
             morphism_contract,
+            plain_bash_next,
         } => {
             let lexical_bindings = bindings.clone();
             run_ephemeral_with_eval_callback_controlled(
@@ -775,6 +779,7 @@ fn execute_prepared(task: &ParallelTask, context: &TaskContext) -> Result<OValue
                 },
                 *morphism_contract,
                 context.cancellation_token(),
+                *plain_bash_next,
                 |src, explicit_scope, remaining| {
                     let callback_scope = match explicit_scope {
                         None => lexical_bindings.clone(),
