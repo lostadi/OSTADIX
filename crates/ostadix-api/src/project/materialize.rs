@@ -36,27 +36,10 @@ impl Drop for Workspace {
     }
 }
 
-/// Allocate a unique, previously non-existent temp directory path.
+/// A fresh workspace root: mode 0700 under the temp dir, with a random name
+/// created exclusively, so another user can neither predict nor plant it.
 fn unique_temp_dir() -> Result<PathBuf> {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let base = std::env::temp_dir();
-    for _ in 0..64 {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let candidate = base.join(format!("olang-ws-{}-{}-{}", std::process::id(), nanos, n));
-        if !candidate.exists() {
-            std::fs::create_dir_all(&candidate)
-                .with_context(|| format!("failed to create {}", candidate.display()))?;
-            return Ok(candidate);
-        }
-    }
-    bail!("could not allocate a unique workspace directory")
+    crate::shims::create_private_dir("olang-ws")
 }
 
 /// Validate that a stored relative path is safe (relative, no `..`, no root)
@@ -220,4 +203,33 @@ fn create_symlink(_target: &str, link: &Path) -> Result<()> {
     // On non-unix hosts, fall back to an empty placeholder file.
     std::fs::write(link, b"")
         .with_context(|| format!("failed to create placeholder for {}", link.display()))
+}
+
+#[cfg(test)]
+mod private_root_tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn isolated_workspace_roots_are_private_and_unpredictable() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let first = unique_temp_dir().unwrap();
+        let second = unique_temp_dir().unwrap();
+        for root in [&first, &second] {
+            let mode = std::fs::metadata(root).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o700, "{}", root.display());
+            let name = root.file_name().unwrap().to_string_lossy().into_owned();
+            assert!(name.starts_with("olang-ws_"), "{name}");
+            // pid then 32 hex digits of randomness.
+            let random = name.rsplit('_').next().unwrap();
+            assert_eq!(random.len(), 32, "{name}");
+            assert!(
+                random.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                "{name}"
+            );
+        }
+        assert_ne!(first, second);
+        let _ = std::fs::remove_dir(&first);
+        let _ = std::fs::remove_dir(&second);
+    }
 }
