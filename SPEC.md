@@ -502,6 +502,14 @@ remain the affected member's result rather than suppress independent members.
 Actor identity in V6 is a serialization constraint only and MUST NOT close an
 unknown hosted footprint.
 
+An admitted `ocore_i64` native leaf (docs/OCORE.md, "Admitted scalar native
+leaves in ordinary O") divides as NativeIR does. A zero divisor in `udiv`,
+`sdiv`, `urem` or `srem` traps at every integer width, and the leaf's
+operation fails. Signed minimum divided by `-1` does not trap: `sdiv` yields
+the minimum and `srem` yields `0`. This matches WebAssembly for division by
+zero and for `rem_s`. It differs only for `div_s` of minimum by `-1`, which
+traps in WebAssembly and yields the minimum here.
+
 Graph V2 and Evidence/Admission V6 bind the complete canonical
 `FidelityAssessmentV2`, including absence versus an explicit unsupported
 assessment. A present Graph V2 `fidelity_assessment` requires legacy
