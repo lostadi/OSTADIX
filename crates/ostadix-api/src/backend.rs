@@ -172,8 +172,10 @@ pub fn run_backend(lang: &str) -> Result<()> {
             }
         };
         wire::write_frame(&mut stdout.lock(), &response)?;
-        if backend.plain_bash {
-            // after the answer, off the block's path: the next block's shell.
+        // after the answer, off the block's path: the next block's shell, but
+        // only once a second block has come. a one-block program never pays
+        // for a spare shell it would only have to stop again.
+        if backend.plain_bash && backend.plain_blocks_served >= 2 {
             backend.prespawn_bash()?;
         }
     }
@@ -264,6 +266,8 @@ struct RustBackend {
     // a plain-block helper: every block gets a fresh shell, ended (with its
     // jobs) before the answer is written, and the next shell is spawned after.
     plain_bash: bool,
+    // plain blocks this helper has answered; gates the spare shell.
+    plain_blocks_served: u32,
     child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
     tools: BackendToolchain,
 }
@@ -614,6 +618,7 @@ impl RustBackend {
             child_pid: Default::default(),
             bash_killed: None,
             plain_bash: false,
+            plain_blocks_served: 0,
             tools,
         }
     }
@@ -914,6 +919,7 @@ impl RustBackend {
     /// block. a plain block never shares a shell, so nothing latches: a shell
     /// killed by a signal fails only its own block.
     fn finish_plain_bash_block(&mut self, output: Output, alive: bool) -> Result<OValue> {
+        self.plain_blocks_served = self.plain_blocks_served.saturating_add(1);
         self.child_pid
             .store(0, std::sync::atomic::Ordering::Relaxed);
         if let Some(mut ended) = self.bash.take() {
