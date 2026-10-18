@@ -892,18 +892,36 @@ fn locate_tool(
         }
         return Ok(path);
     }
+    let mut searched = Vec::new();
+    let mut skipped = Vec::new();
     for entry in search_path.iter().flat_map(std::env::split_paths) {
         if !entry.is_absolute() {
+            skipped.push(format!("{:?}", entry.display().to_string()));
             continue;
         }
         let candidate = entry.join(name);
         if runnable(&candidate) {
             return Ok(candidate);
         }
+        searched.push(entry.display().to_string());
     }
+    // say where we looked and how to fix it, not just "cannot find".
+    let searched = if searched.is_empty() {
+        "no absolute PATH entries".to_string()
+    } else {
+        searched.join(", ")
+    };
+    let skipped = if skipped.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "; skipped empty or relative PATH entries {}",
+            skipped.join(", ")
+        )
+    };
     bail!(
-        "locate trusted native leaf {name}: {pin_env} is unset and no absolute PATH \
-         entry has an executable {name}"
+        "locate trusted native leaf {name}: {pin_env} is unset and no executable {name} \
+         was found in {searched}{skipped}; set {pin_env} to the absolute path of {name}"
     )
 }
 
@@ -1104,8 +1122,26 @@ mod tests {
             &path(&[empty, dot, &relative]),
         )
         .unwrap_err();
+        let text = format!("{error:#}");
+        assert!(text.contains("O_NATIVE_CLANG is unset"), "{text}");
+        assert!(text.contains("no absolute PATH entries"), "{text}");
         assert!(
-            format!("{error:#}").contains("O_NATIVE_CLANG is unset"),
+            text.contains("skipped empty or relative PATH entries"),
+            "{text}"
+        );
+        assert!(
+            text.contains("set O_NATIVE_CLANG to the absolute path"),
+            "{text}"
+        );
+        let error = locate_tool(
+            "clang",
+            NATIVE_CLANG_ENV,
+            None,
+            &path(&[std::path::Path::new("/nonexistent-o-dir")]),
+        )
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("found in /nonexistent-o-dir;"),
             "{error:#}"
         );
         assert_eq!(
