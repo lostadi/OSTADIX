@@ -248,6 +248,12 @@ Package SemVer is only one of the independent coordinates documented in
   file names only: ld's argv0 prefix and the tools' working directory are
   replaced in stderr, and `assembler.invocation` / `linker.invocation` are
   reduced to the file name. The admission digest still binds the full paths.
+- `now(batch(...))` follows the batch rules in SPEC: an ordinary member
+  error stays an error value in its own slot, the run still fails with
+  `BatchMemberFailures` (`O` prints `error: batch member N failed` and exits
+  1), and cancellation, deadline, infrastructure errors and the Strict cache
+  miss stay fatal. It used to turn every member error, including those, into
+  a value and report success.
 - Native leaf children (clang, ld and the sealed leaf) run in their own
   process group under the same watch: one stderr warning after the hang
   threshold, the group killed when the opt-in step limit passes or the
