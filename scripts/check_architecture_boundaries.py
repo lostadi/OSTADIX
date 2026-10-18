@@ -759,6 +759,8 @@ class CompiledFragment:
     path: str
     owner: str
     included_from: str
+    module_path: tuple[str, ...] | None = None
+    child_modules: tuple[str, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -766,6 +768,8 @@ class SourceInclusion:
     source: str
     target: str
     offset: int
+    inline_modules: tuple[str, ...] = ()
+    module_scope: bool = True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -788,6 +792,7 @@ class RootSpec:
     name: str
     layer: int
     allowed_dependencies: frozenset[str]
+    compatibility_export: bool = True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1654,7 +1659,12 @@ def load_manifest(root: Path, manifest_path: Path | None = None) -> Architecture
         raise ValueError("architecture manifest must declare at least one root")
     for index, table in enumerate(root_tables):
         label = f"manifest root[{index}]"
-        _exact_keys(table, frozenset({"name", "layer", "allowed_dependencies"}), label)
+        _exact_keys(
+            table,
+            frozenset({"name", "layer", "allowed_dependencies"})
+            | (table.keys() & {"compatibility_export"}),
+            label,
+        )
         name = table["name"]
         if not isinstance(name, str) or not IDENTIFIER_RE.fullmatch(name):
             raise ValueError(f"{label}.name must be a Rust identifier")
@@ -1668,7 +1678,10 @@ def load_manifest(root: Path, manifest_path: Path | None = None) -> Architecture
         )
         if any(not IDENTIFIER_RE.fullmatch(dependency) for dependency in allowed):
             raise ValueError(f"{label}.allowed_dependencies must contain Rust identifiers")
-        roots[name] = RootSpec(name, layer, frozenset(allowed))
+        compatibility_export = table.get("compatibility_export", True)
+        if not isinstance(compatibility_export, bool):
+            raise ValueError(f"{label}.compatibility_export must be boolean")
+        roots[name] = RootSpec(name, layer, frozenset(allowed), compatibility_export)
 
     for root_spec in roots.values():
         for dependency in sorted(root_spec.allowed_dependencies):
@@ -1689,7 +1702,12 @@ def load_manifest(root: Path, manifest_path: Path | None = None) -> Architecture
     fragment_paths: set[str] = set()
     for index, table in enumerate(_manifest_tables(data, "compiled_fragment")):
         label = f"manifest compiled_fragment[{index}]"
-        _exact_keys(table, frozenset({"path", "owner", "included_from"}), label)
+        _exact_keys(
+            table,
+            frozenset({"path", "owner", "included_from"})
+            | (table.keys() & {"module_path", "child_modules"}),
+            label,
+        )
         fragment_path = _relative_manifest_path(table["path"], f"{label}.path")
         if fragment_path in fragment_paths:
             raise ValueError(f"duplicate compiled fragment path `{fragment_path}`")
@@ -1712,8 +1730,20 @@ def load_manifest(root: Path, manifest_path: Path | None = None) -> Architecture
             raise ValueError(
                 f"{label}.included_from must name an enumerated production source"
             )
+        module_path = None
+        if "module_path" in table:
+            module_path = _string_list(table["module_path"], f"{label}.module_path")
+            if not module_path or module_path[0] != owner or any(
+                not IDENTIFIER_RE.fullmatch(part) for part in module_path
+            ):
+                raise ValueError(f"{label}.module_path must be beneath its owner root")
+        children = _string_list(table.get("child_modules", []), f"{label}.child_modules")
+        if any(not IDENTIFIER_RE.fullmatch(child) for child in children):
+            raise ValueError(f"{label}.child_modules must contain Rust identifiers")
+        if children and module_path is None:
+            raise ValueError(f"{label}.child_modules require an explicit module_path")
         compiled_fragments.append(
-            CompiledFragment(fragment_path, owner, included_from)
+            CompiledFragment(fragment_path, owner, included_from, module_path, children)
         )
 
     expected_excluded_files = {
@@ -2259,7 +2289,24 @@ def _source_inclusion_surface(
                 f"include! path `{literal}` at source offset {token.start} "
                 "escapes the repository"
             )
-        inclusions.append(SourceInclusion(relative, target, token.start))
+        inline_ranges = _inline_module_ranges(tokens, matches)
+        inline_modules = tuple(
+            tokens[opening - 1].text
+            for opening, closing in inline_ranges
+            if opening < index < closing
+        )
+        inline_openings = {opening for opening, _closing in inline_ranges}
+        module_scope = not any(
+            candidate.text == "{" and opening < index < matches[opening]
+            and opening not in inline_openings
+            for opening, candidate in enumerate(tokens)
+        ) and not any(
+            opening < index < closing
+            for opening, closing in _macro_token_ranges(production, tokens, matches)
+        )
+        inclusions.append(SourceInclusion(
+            relative, target, token.start, inline_modules, module_scope
+        ))
     return inclusions, path_attributes
 
 
@@ -2618,7 +2665,9 @@ def _engine_shell_direction_findings(
         )
         return failures
     expected_reexports = {
-        name for name, declaration in declarations.items() if declaration.public
+        name for name, declaration in declarations.items()
+        if declaration.public
+        and (name not in manifest.roots or manifest.roots[name].compatibility_export)
     }
     if reexports != expected_reexports:
         missing = sorted(expected_reexports - (reexports or set()))
@@ -2664,6 +2713,11 @@ def _crate_root_findings(root: Path, manifest: ArchitectureManifest) -> list[str
     for module in sorted(manifest.roots.keys() - declarations.keys()):
         failures.append(f"manifest root `{module}` is not declared by the crate root")
     for module in sorted(declarations.keys() & manifest.roots.keys()):
+        if (
+            not manifest.roots[module].compatibility_export
+            and not declarations[module].public
+        ):
+            failures.append(f"engine-only root `{module}` must be public in the engine crate")
         raw_path = declarations[module].path
         try:
             declared_path = (
@@ -2783,6 +2837,110 @@ def _top_level_external_modules(path: Path) -> set[str]:
     return modules
 
 
+def _external_module_records(
+    path: Path, *, include_disabled: bool = False
+) -> list[tuple[str, str | None, int, bool]]:
+    """Resolve literal attributes on top-level external declarations only.
+
+    Disabled declarations are used to prove test-only source ownership, never
+    to excuse a source that also has a production declaration or inclusion.
+    Unsupported nested and macro geometry remains rejected by the ordinary
+    module ownership audit.
+    """
+    raw = path.read_text(encoding="utf-8")
+    source = (
+        _mask_comments_and_literals(raw)
+        if include_disabled else production_source(path)
+    )
+    tokens = _tokens(source)
+    matches = _delimiter_matches(tokens)
+    disabled = _production_disabled_item_ranges(source, tokens, matches)
+    records: list[tuple[str, str | None, int, bool]] = []
+    for index, token in enumerate(tokens):
+        if not (
+            _is_keyword(source, token, "mod")
+            and index + 2 < len(tokens)
+            and IDENTIFIER_RE.fullmatch(tokens[index + 1].text)
+            and tokens[index + 2].text == ";"
+            and not _inside_brace(tokens, matches, index)
+        ):
+            continue
+        cursor = index - 1
+        if cursor >= 0 and tokens[cursor].text == ")":
+            opening = matches[cursor]
+            if opening > 0 and tokens[opening - 1].text == "pub":
+                cursor = opening - 2
+        elif cursor >= 0 and tokens[cursor].text == "pub":
+            cursor -= 1
+        declared_path = None
+        uncertain_path = False
+        while cursor >= 0 and tokens[cursor].text == "]":
+            opening = matches[cursor]
+            marker = opening - 1
+            if marker < 0 or tokens[marker].text != "#":
+                break
+            value = _path_attribute_value(raw, tokens, marker, cursor)
+            if value is not None:
+                if declared_path is not None:
+                    raise ValueError("module declaration has multiple path attributes")
+                declared_path = value
+            uncertain_path |= bool(
+                _cfg_attr_path_values(raw, tokens, marker, cursor, matches)
+            )
+            cursor = marker - 1
+        if uncertain_path:
+            continue
+        records.append((
+            tokens[index + 1].text, declared_path, token.start,
+            any(start <= token.start < end for start, end in disabled),
+        ))
+    return records
+
+
+def _disabled_external_source_paths(root: Path, manifest: ArchitectureManifest) -> set[str]:
+    """Exclude only sources proven unreachable when `test = false`.
+
+    This is deliberately not a filename convention: unknown cfg expressions
+    remain production, as do duplicate production declarations of test bytes.
+    Unreferenced files continue to be inventoried by the ordinary glob.
+    """
+    disabled: set[str] = set()
+    active: set[str] = set()
+    source_root = root / manifest.production.source_root
+    for path in sorted(source_root.rglob("*.rs")):
+        relative = path.relative_to(root).as_posix()
+        try:
+            records = _external_module_records(path, include_disabled=True)
+            inclusions, _ = _source_inclusion_surface(
+                path, relative, production_source(path)
+            )
+        except (OSError, UnicodeError, ValueError):
+            # The main audit reports malformed production source. It cannot
+            # provide proof that any target is test-only.
+            continue
+        active.update(inclusion.target for inclusion in inclusions)
+        for name, declared_path, _offset, is_disabled in records:
+            if declared_path is None:
+                directory = (
+                    path.parent if path.name in {"mod.rs", "lib.rs"}
+                    else path.with_suffix("")
+                )
+                candidates = [directory / f"{name}.rs", directory / name / "mod.rs"]
+            else:
+                literal = Path(declared_path)
+                if literal.is_absolute() or "\\" in declared_path or ".." in literal.parts:
+                    continue
+                candidates = [path.parent / literal]
+            for candidate in candidates:
+                if not candidate.is_file():
+                    continue
+                target = candidate.relative_to(root).as_posix()
+                (disabled if is_disabled else active).add(target)
+    active.update(override.path for override in manifest.physical_overrides)
+    active.update(fragment.path for fragment in manifest.compiled_fragments)
+    return disabled - active
+
+
 def _physical_override_ownership_findings(
     root: Path,
     manifest: ArchitectureManifest,
@@ -2882,24 +3040,45 @@ def _physical_override_ownership_findings(
                     f"ownership through `{parent_relative}` (`mod {child_name};`)"
                 )
 
-    # An include! fragment is compiled in its owner's module identity. External
-    # module declarations inside one have path-resolution semantics tied to the
-    # include site rather than the fragment pathname, which this lexical root
-    # graph intentionally does not model.
+    # Only explicitly inventoried, same-directory fragment children are
+    # supported. Their Rust identity must equal the ordinary physical identity.
     for fragment in manifest.compiled_fragments:
         fragment_path = root / fragment.path
         try:
             declared_children = _top_level_external_modules(fragment_path)
+            child_records = _external_module_records(fragment_path)
         except (OSError, UnicodeError, ValueError) as error:
             failures.append(
                 f"{fragment.path}: could not analyze fragment module ownership: {error}"
             )
             continue
-        if declared_children:
+        if declared_children != set(fragment.child_modules):
             failures.append(
                 f"compiled fragment `{fragment.path}` declares external modules "
-                f"{sorted(declared_children)}; fragment module ownership is unsupported"
+                f"{sorted(declared_children)}; expected declared children "
+                f"{sorted(fragment.child_modules)}"
             )
+        for name, declared_path, _offset, _disabled in child_records:
+            target = (Path(fragment.path).parent / f"{name}.rs").as_posix()
+            expected_module = (*(fragment.module_path or (fragment.owner,)), name)
+            if (
+                name not in fragment.child_modules
+                or declared_path != f"{name}.rs"
+                or target not in production_by_relative
+                or _file_module_path(
+                    target, manifest.production.source_root, manifest.physical_overrides
+                ) != expected_module
+            ):
+                failures.append(
+                    f"compiled fragment `{fragment.path}` child `{name}` must use "
+                    "its declared same-directory #[path] source and module identity"
+                )
+            for other, children in module_declarations.items():
+                if other == fragment.included_from and name in children:
+                    failures.append(
+                        f"compiled fragment `{fragment.path}` child `{name}` "
+                        f"also has conventional ownership through `{other}`"
+                    )
     return failures
 
 
@@ -2917,9 +3096,12 @@ def _production_paths(root: Path, manifest: ArchitectureManifest) -> list[Path]:
         if candidate.is_symlink():
             relative = candidate.relative_to(root).as_posix()
             raise ValueError(f"production source path `{relative}` must not be a symlink")
+    disabled_sources = _disabled_external_source_paths(root, manifest)
     paths: dict[str, Path] = {}
     for path in sorted(source_root.rglob("*.rs")):
         relative = path.relative_to(root).as_posix()
+        if relative in disabled_sources:
+            continue
         if relative in manifest.production.excluded_files:
             continue
         if any(
@@ -2957,6 +3139,7 @@ def _source_inclusion_findings(
 ) -> list[str]:
     failures: list[str] = []
     actual: list[SourceInclusion] = []
+    fragments = {fragment.path: fragment for fragment in manifest.compiled_fragments}
     for analysis in analyses.values():
         path = root / analysis.relative
         try:
@@ -2969,7 +3152,13 @@ def _source_inclusion_findings(
             )
             continue
         actual.extend(inclusions)
+        fragment = fragments.get(analysis.relative)
+        declared_children = set(fragment.child_modules) if fragment else set()
         for offset, declared_path in path_attributes:
+            child = declared_path.removesuffix(".rs")
+            if declared_path == f"{child}.rs" and child in declared_children:
+                declared_children.remove(child)
+                continue
             line = analysis.source.count("\n", 0, offset) + 1
             failures.append(
                 f"{analysis.relative}:{line}: undeclared #[path = "
@@ -3006,6 +3195,22 @@ def _source_inclusion_findings(
                 f"{inclusion.source}:{line}: include! source `{inclusion.target}` "
                 f"is not declared in {manifest.path}"
             )
+        else:
+            fragment = declared[key]
+            parent = analyses.get(inclusion.source)
+            if fragment.module_path is not None and parent is not None:
+                actual_module = (*parent.module_path, *inclusion.inline_modules)
+                if not inclusion.module_scope:
+                    failures.append(
+                        f"compiled fragment `{fragment.path}` include site must be "
+                        "directly in its declared module, not a block or macro"
+                    )
+                if actual_module != fragment.module_path:
+                    failures.append(
+                        f"compiled fragment `{fragment.path}` include site resolves "
+                        f"to `{'::'.join(actual_module)}`, expected "
+                        f"`{'::'.join(fragment.module_path)}`"
+                    )
     for key, fragment in declared.items():
         count = counts.get(key, 0)
         if count != 1:
@@ -3087,7 +3292,7 @@ def audit_architecture(
         (path, None) for path in paths
     ]
     source_entries.extend(
-        (root / fragment.path, (fragment.owner,))
+        (root / fragment.path, fragment.module_path or (fragment.owner,))
         for fragment in manifest.compiled_fragments
     )
 

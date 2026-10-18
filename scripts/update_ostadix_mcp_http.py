@@ -2,7 +2,7 @@
 """Build pinned MCP releases without modifying the developer checkout.
 
 Examples (Python 3.10+, Git, and preinstalled compiler/runtime dependencies):
-  python3 scripts/update_ostadix_mcp_http.py --state-dir ~/.local/state/ostadix-mcp-http update --repo https://github.com/lostadi/ostadix-BM --branch master
+  python3 scripts/update_ostadix_mcp_http.py --state-dir ~/.local/state/ostadix-mcp-http update --repo https://github.com/lostadi/OSTADIX --branch master
   python3 scripts/update_ostadix_mcp_http.py check
   python3 scripts/update_ostadix_mcp_http.py update --restart systemd-user
   python3 scripts/update_ostadix_mcp_http.py rollback --restart systemd-user

@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_REPORT_URL = (
-    "https://github.com/lostadi/ostadix-BM/security/advisories/new"
+    "https://github.com/lostadi/OSTADIX/security/advisories/new"
 )
 
 

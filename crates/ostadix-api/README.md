@@ -36,7 +36,7 @@ and exact referential consistency only. They do not plan or select a
 realization, prove behavioral equivalence or evidence authenticity, determine
 target eligibility or placement, execute or recover work, or grant admission,
 capability, lease, or World authority. The complete boundary is documented in
-the [operation-realization V1 contract](https://github.com/lostadi/ostadix-BM/blob/master/docs/OPERATION_REALIZATION_V1.md).
+the [operation-realization V1 contract](https://github.com/lostadi/OSTADIX/blob/master/docs/OPERATION_REALIZATION_V1.md).
 
 The repository-root `o-lang` package is the compatibility and CLI shell. It
 depends one-way on this engine and explicitly reexports the historical module

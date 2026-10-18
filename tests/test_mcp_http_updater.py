@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,168 @@ assert SPEC and SPEC.loader
 updater = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = updater
 SPEC.loader.exec_module(updater)
+
+ALIASES_SCRIPT = SCRIPT.with_name("mcp_http_runtime_aliases.py")
+ALIASES_SPEC = importlib.util.spec_from_file_location("mcp_http_runtime_aliases", ALIASES_SCRIPT)
+assert ALIASES_SPEC and ALIASES_SPEC.loader
+aliases = importlib.util.module_from_spec(ALIASES_SPEC)
+sys.modules[ALIASES_SPEC.name] = aliases
+ALIASES_SPEC.loader.exec_module(aliases)
+
+
+class RuntimeAliasTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.build = Path(self.temporary.name).resolve()
+        for name, content in (("O", b"raw evaluator\n"), ("o-cli", b"native command front door\n")):
+            path = self.build / name
+            path.write_bytes(content)
+            path.chmod(0o755)
+
+    def test_actual_filesystem_preserves_evaluator_and_selects_front_door(self) -> None:
+        shared_name = aliases.case_insensitive_directory(self.build)
+        command = aliases.create_runtime_aliases(self.build)
+        self.assertEqual((self.build / "O").read_bytes(), b"raw evaluator\n")
+        self.assertEqual((self.build / "ostadix-evaluator").read_bytes(), b"raw evaluator\n")
+        self.assertEqual((self.build / command).read_bytes(), b"native command front door\n")
+        self.assertEqual(command, "o-cli" if shared_name else "o")
+        self.assertEqual(sorted(path.name for path in self.build.glob(".ostadix-case-*")), [])
+
+    def test_case_sensitive_metadata_creates_separate_lowercase_cli_alias(self) -> None:
+        copies = []
+        # Emulate distinct inodes for upper/lower spellings, as on ordinary
+        # Linux filesystems, even when this test runs on case-insensitive APFS.
+        with patch.object(Path, "samefile", return_value=False), patch.object(
+            aliases, "atomic_copy", side_effect=lambda source, target: copies.append(
+                (target.name, source.read_bytes())
+            )
+        ):
+            command = aliases.create_runtime_aliases(self.build)
+        self.assertEqual(command, "o")
+        self.assertEqual(copies, [
+            ("ostadix-evaluator", b"raw evaluator\n"),
+            ("o", b"native command front door\n"),
+        ])
+
+    def test_case_insensitive_metadata_never_replaces_shared_evaluator_name(self) -> None:
+        with patch.object(Path, "samefile", return_value=True):
+            self.assertEqual(aliases.create_runtime_aliases(self.build), "o-cli")
+        self.assertEqual((self.build / "O").read_bytes(), b"raw evaluator\n")
+        self.assertEqual((self.build / "ostadix-evaluator").read_bytes(), b"raw evaluator\n")
+
+    def installer_fixture(self) -> tuple[Path, dict[str, str]]:
+        root = self.build / "checkout with spaces"
+        scripts = root / "scripts"
+        scripts.mkdir(parents=True)
+        for name in ("setup_ostadix_mcp_http.sh", "mcp_http_runtime_aliases.py"):
+            shutil.copyfile(SCRIPT.with_name(name), scripts / name)
+        for name in ("Cargo.toml", "Cargo.lock", "backends/python_shim.py",
+                     "mcp/ostadix_lang_mcp_server/Cargo.toml",
+                     "mcp/ostadix_lang_mcp_server/Cargo.lock"):
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("")
+        (root / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.97.1"\n')
+        (scripts / "smoke_ostadix_mcp_http.py").write_text(textwrap.dedent('''\
+            import argparse
+            from pathlib import Path
+            parser = argparse.ArgumentParser()
+            parser.add_argument("--root"); parser.add_argument("--server")
+            args = parser.parse_args()
+            build = Path(args.root) / "target/release"
+            assert (build / "O").read_bytes() == b"raw evaluator\\n"
+            assert (build / "ostadix-evaluator").read_bytes() == b"raw evaluator\\n"
+            assert (build / "o-cli").read_bytes() == b"native command front door\\n"
+            assert Path(args.server).is_file()
+            print("fixture HTTP smoke preserved evaluator")
+        '''))
+        tools = self.build / "fake-tools"
+        tools.mkdir()
+        cargo = tools / "cargo"
+        cargo.write_text(textwrap.dedent('''\
+            #!/usr/bin/env python3
+            from pathlib import Path
+            import json, os, sys
+            args = sys.argv[1:]
+            assert args[0] == "+1.97.1" and "--locked" in args
+            build = Path(args[args.index("--target-dir") + 1]) / "release"
+            build.mkdir(parents=True, exist_ok=True)
+            (build / "deps").mkdir(exist_ok=True)
+            (build / "deps/uncopied-intermediate").write_text("compiler intermediate")
+            with open(os.environ["MCP_FAKE_CARGO_LOG"], "a") as log:
+                log.write(json.dumps(str(build.parent)) + "\\n")
+            bins = [args[index + 1] for index, value in enumerate(args) if value == "--bin"]
+            for name in bins or ["ostadix-mcp"]:
+                executable = build / name
+                content = {"O": b"raw evaluator\\n", "o-cli": b"native command front door\\n"}.get(name, b"fixture executable\\n")
+                executable.write_bytes(content)
+                executable.chmod(0o755)
+        '''))
+        cargo.chmod(0o755)
+        environment = dict(os.environ, PATH=f"{tools}{os.pathsep}{os.environ['PATH']}")
+        environment.pop("OSTADIX_MCP_BUILD_CACHE", None)
+        environment["MCP_FAKE_CARGO_LOG"] = str(self.build / "cargo-targets.jsonl")
+        return root, environment
+
+    def run_installer(self, root: Path, environment: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
+        outcome = subprocess.run(
+            ["bash", str(root / "scripts/setup_ostadix_mcp_http.sh"), "--root", str(root), *args],
+            cwd=self.build, env=environment, capture_output=True, text=True,
+        )
+        self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
+        return outcome
+
+    def test_full_installer_preserves_distinct_evaluator_and_front_door_bytes(self) -> None:
+        root, environment = self.installer_fixture()
+        outcome = self.run_installer(root, environment, "--build-runtime")
+        self.assertIn("fixture HTTP smoke preserved evaluator", outcome.stdout)
+        build = root / "target/release"
+        shared_name = aliases.case_insensitive_directory(build)
+        command = "o-cli" if shared_name else "o"
+        self.assertEqual((build / command).read_bytes(), b"native command front door\n")
+        self.assertEqual((build / "O").read_bytes(), b"raw evaluator\n")
+
+    def test_external_cache_leaves_self_contained_binaries_after_cache_removal(self) -> None:
+        root, environment = self.installer_fixture()
+        cache = self.build / "temporary cache with spaces"
+        environment["OSTADIX_MCP_BUILD_CACHE"] = str(cache)
+        build = root / "target/release"
+        build.mkdir(parents=True)
+        untouched = self.build / "previous-executable"
+        untouched.write_bytes(b"preserve symlink target\n")
+        for name in ("O", "ostadix-evaluator"):
+            (build / name).symlink_to(untouched)
+        self.run_installer(root, environment, "--build-runtime")
+        self.assertEqual(untouched.read_bytes(), b"preserve symlink target\n")
+        self.assertFalse((build / "O").is_symlink())
+        self.assertFalse((build / "ostadix-evaluator").is_symlink())
+        targets = [json.loads(line) for line in Path(environment["MCP_FAKE_CARGO_LOG"]).read_text().splitlines()]
+        self.assertEqual(targets, [str(cache / "runtime"), str(cache / "mcp")])
+        runtime_names = {"O", "o-cli", "olangc", "ocorec", "o-link", "o-unlink", "ogit", "o-live-host",
+                         "o-node", "octl", "o-registry", "o-info", "ostadix-device", "ocore-kernel-world-record"}
+        self.assertTrue(all((build / name).is_file() for name in runtime_names))
+        self.assertFalse((build / "deps").exists())
+        mcp_build = root / "mcp/ostadix_lang_mcp_server/target/release"
+        self.assertEqual({path.name for path in mcp_build.iterdir()}, {"ostadix-mcp"})
+        self.assertFalse((mcp_build / "ostadix-mcp").is_symlink())
+        shutil.rmtree(cache)
+        outcome = self.run_installer(root, environment, "--verify-only")
+        self.assertIn("fixture HTTP smoke preserved evaluator", outcome.stdout)
+        self.assertFalse(cache.exists())
+        self.assertEqual((build / "O").read_bytes(), b"raw evaluator\n")
+        self.assertEqual((mcp_build / "ostadix-mcp").read_bytes(), b"fixture executable\n")
+
+    def test_relative_cache_is_rejected_before_building(self) -> None:
+        root, environment = self.installer_fixture()
+        environment["OSTADIX_MCP_BUILD_CACHE"] = "relative-cache"
+        outcome = subprocess.run(
+            ["bash", str(root / "scripts/setup_ostadix_mcp_http.sh"), "--build-runtime"],
+            cwd=self.build, env=environment, capture_output=True, text=True,
+        )
+        self.assertEqual(outcome.returncode, 2)
+        self.assertIn("must be an absolute path", outcome.stderr)
+        self.assertFalse(Path(environment["MCP_FAKE_CARGO_LOG"]).exists())
 
 
 class UpdaterTests(unittest.TestCase):

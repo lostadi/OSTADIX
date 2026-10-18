@@ -793,7 +793,7 @@ impl<'a> Coordinator<'a> {
             let submission = (|| -> Result<TaskSubmission> {
                 Ok(
                     if self.ops[index].dispatch_adapter == DispatchAdapterV1::NativeI64V1 {
-                        let descriptor = crate::native_leaf::source_descriptor(self.flat[id.0])
+                        let descriptor = crate::ir::native_leaf_source_descriptor(self.flat[id.0])
                             .ok_or_else(|| anyhow::anyhow!("native leaf lost source descriptor"))?;
                         let leaf = self
                             .admitted

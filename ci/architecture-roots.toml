@@ -8,7 +8,7 @@ schema_version = 1
 package_manifest = "crates/ostadix-api/Cargo.toml"
 source_root = "crates/ostadix-api/src"
 crate_root = "crates/ostadix-api/src/lib.rs"
-excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
+excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/ocore/native_core.rs", "crates/ostadix-api/src/ocore/native_float_layout.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
 excluded_directories = []
 
 # Token fragments compiled with include!() are scanned under their owning root
@@ -29,6 +29,21 @@ included_from = "crates/ostadix-api/src/project/lower.rs"
 path = "crates/ostadix-api/src/ocore/native_atomic_codegen.rs"
 owner = "ocore"
 included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+
+# The shared native core declares the exact same child module sources used
+# by generated evaluators; they retain their ordinary O-core module identity.
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_core.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/mod.rs"
+module_path = ["ocore"]
+child_modules = ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_ir", "native_map", "native_verify"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_float_layout.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "float_layout"]
 
 # These physical paths are compiled under roots that differ from their
 # conventional on-disk module path. They are part of the dependency identity,
@@ -137,7 +152,7 @@ allowed_dependencies = ["backend_catalog", "effects", "environment", "ir"]
 [[root]]
 name = "effects"
 layer = 4
-allowed_dependencies = ["backend_catalog", "environment", "ir", "resource_identity"]
+allowed_dependencies = ["backend_catalog", "environment", "ir", "native_leaf", "resource_identity"]
 
 [[root]]
 name = "environment"
@@ -177,12 +192,12 @@ allowed_dependencies = ["canonical_cbor", "execution_contract", "execution_fabri
 [[root]]
 name = "executor"
 layer = 10
-allowed_dependencies = ["backend_catalog", "backend_morphism", "cancellation", "capability", "dispatch_model", "effects", "environment", "eval_core", "evidence", "execution_contract", "hgraph", "ir", "process", "runtime_exec", "value"]
+allowed_dependencies = ["backend_catalog", "backend_morphism", "cancellation", "capability", "dispatch_model", "effects", "environment", "eval_core", "evidence", "execution_contract", "hgraph", "ir", "native_leaf", "process", "runtime_exec", "value"]
 
 [[root]]
 name = "hgraph"
 layer = 6
-allowed_dependencies = ["backend_catalog", "backend_morphism", "dispatch_model", "effects", "environment", "ir", "value"]
+allowed_dependencies = ["backend_catalog", "backend_morphism", "dispatch_model", "effects", "environment", "ir", "native_leaf", "value"]
 
 [[root]]
 name = "hosted_remote"
@@ -212,7 +227,7 @@ allowed_dependencies = ["backend_catalog", "cancellation", "canonical_cbor", "ev
 [[root]]
 name = "ir"
 layer = 3
-allowed_dependencies = ["backend_catalog", "environment", "parser", "value"]
+allowed_dependencies = ["backend_catalog", "environment", "native_leaf_identity", "parser", "value"]
 
 [[root]]
 name = "kernel_world"
@@ -223,6 +238,22 @@ allowed_dependencies = ["live_system", "world"]
 name = "live_system"
 layer = 2
 allowed_dependencies = ["capability", "value", "wire"]
+
+[[root]]
+name = "lifecycle_trace"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
+name = "native_leaf_identity"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
+name = "native_leaf"
+layer = 3
+allowed_dependencies = ["lifecycle_trace", "native_leaf_identity", "ocore", "value"]
+compatibility_export = false
 
 [[root]]
 name = "nix_ops"
@@ -257,7 +288,7 @@ allowed_dependencies = ["resource_identity"]
 [[root]]
 name = "process"
 layer = 8
-allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "runtime_exec", "value", "wire"]
 
 [[root]]
 name = "project"
@@ -277,7 +308,7 @@ allowed_dependencies = []
 [[root]]
 name = "runtime_exec"
 layer = 7
-allowed_dependencies = ["backend_catalog", "ir", "placement", "resource_identity"]
+allowed_dependencies = ["backend_catalog", "ir", "native_leaf", "placement", "resource_identity"]
 
 [[root]]
 name = "scheduler"

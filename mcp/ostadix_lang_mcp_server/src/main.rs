@@ -3351,7 +3351,7 @@ impl ServerHandler for OstadixMcp {
                 concat!(env!("CARGO_PKG_VERSION"), "+source-surface.3"),
             )
                 .with_title("Ostadix runtime and toolchain")
-                .with_website_url("https://github.com/lostadi/ostadix-BM"))
+                .with_website_url("https://github.com/lostadi/OSTADIX"))
             .with_instructions(
                 "Ostadix-lang / O-lang MCP. Prefer o_execute with one complete polyglot O source or existing program/project path. Its action defaults to execute; check is parse-only, plan is static inspection, compile explicitly requests an artifact. \
 Use mode admitted for an automatic same-source/same-intent gate on ordinary O before fresh native admission. Project placement auto delegates to native mesh-prefer or the marked operation's own planner; mesh-required never silently falls back to local execution. \

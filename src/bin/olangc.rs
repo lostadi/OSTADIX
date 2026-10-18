@@ -2344,6 +2344,14 @@ fn write_runtime_sources(src_dir: &Path) -> Result<()> {
     fs::write(src_dir.join("parser.rs"), RUNTIME_PARSER_RS)?;
     fs::write(src_dir.join("ir.rs"), RUNTIME_IR_RS)?;
     fs::write(src_dir.join("native_leaf.rs"), RUNTIME_NATIVE_LEAF_RS)?;
+    fs::write(
+        src_dir.join("native_leaf_identity.rs"),
+        RUNTIME_NATIVE_LEAF_IDENTITY_RS,
+    )?;
+    fs::write(
+        src_dir.join("lifecycle_trace.rs"),
+        RUNTIME_LIFECYCLE_TRACE_RS,
+    )?;
     let ocore_dir = src_dir.join("ocore");
     fs::create_dir_all(&ocore_dir)?;
     for &(relative_path, source) in RUNTIME_OCORE_NATIVE_SOURCES {
@@ -3281,6 +3289,8 @@ fn generate_lib_rs(include_project: bool) -> String {
 
 pub mod value;
 pub mod native_leaf;
+mod native_leaf_identity;
+mod lifecycle_trace;
 pub mod ocore;
 pub mod cli_diagnostics;
 pub(crate) mod shims {{
@@ -5124,6 +5134,16 @@ mod tests {
             fs::read_to_string(src_dir.join("native_leaf.rs")).unwrap(),
             RUNTIME_NATIVE_LEAF_RS,
         );
+        for (name, embedded) in [
+            ("native_leaf_identity", RUNTIME_NATIVE_LEAF_IDENTITY_RS),
+            ("lifecycle_trace", RUNTIME_LIFECYCLE_TRACE_RS),
+        ] {
+            assert!(lib_rs.contains(&format!("mod {name};")));
+            assert_eq!(
+                fs::read_to_string(src_dir.join(format!("{name}.rs"))).unwrap(),
+                embedded,
+            );
+        }
         for &(relative_path, embedded) in RUNTIME_OCORE_NATIVE_SOURCES {
             assert_eq!(
                 fs::read_to_string(src_dir.join("ocore").join(relative_path)).unwrap(),

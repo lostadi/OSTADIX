@@ -389,7 +389,7 @@ remain the `preferred-citation` DOI. The steps below mint a separate DOI for a
 future tagged v0.4.0 source snapshot:
 
 1. Enable the repository in Zenodo's GitHub integration.
-2. Confirm Zenodo sees `lostadi/ostadix-BM` and is authorized to archive releases.
+2. Confirm Zenodo sees `lostadi/OSTADIX` and is authorized to archive releases.
 3. Publish the GitHub release for the tag.
 4. Wait for Zenodo to archive that exact repository state.
 5. Record the DOI minted by Zenodo for the versioned release, not just the

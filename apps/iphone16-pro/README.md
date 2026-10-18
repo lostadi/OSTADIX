@@ -51,7 +51,7 @@ iPhone 16 Pro (A18 Pro, iOS 18.x, USB-C).
 ## Run
 
 ```bash
-export O_LANG_ROOT="$HOME/ostadix-BM"
+export O_LANG_ROOT="$HOME/OSTADIX"
 cd $O_LANG_ROOT
 O apps/iphone16-pro/recon.O backends
 ```

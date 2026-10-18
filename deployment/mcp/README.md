@@ -42,8 +42,8 @@ across operating systems.
 From a fresh checkout:
 
 ```bash
-git clone https://github.com/lostadi/ostadix-BM.git
-cd ostadix-BM
+git clone https://github.com/lostadi/OSTADIX.git
+cd OSTADIX
 bash scripts/setup_ostadix_mcp_http.sh --with-runtime
 ```
 
@@ -58,6 +58,25 @@ checkout without running package installers:
 ```bash
 bash scripts/setup_ostadix_mcp_http.sh --build-runtime
 ```
+
+When durable disk space is limited, place Cargo's intermediate files on another
+filesystem, including a sufficiently large temporary filesystem:
+
+```bash
+OSTADIX_MCP_BUILD_CACHE=/tmp/ostadix-mcp-build \
+  bash scripts/setup_ostadix_mcp_http.sh --build-runtime
+```
+
+The cache path must be absolute. Builds use its `runtime/` and `mcp/` target
+directories, then atomically copy only the 14 declared runtime binaries and
+the MCP binary into the normal checkout targets before creating aliases and
+running the smoke. The installed release contains ordinary executable files
+and continues running if the cache disappears after reboot. A later build
+recreates the cache. Set the same variable in the updater's environment to use
+this layout for managed releases. This option requires preinstalled build
+dependencies and cannot be combined with `--with-runtime`; the canonical setup
+workflow retains its own build directories. Allow enough temporary space for
+compilation and durable space for the installed binaries and retained releases.
 
 This builds the same native Rust command set as minimal setup, including `O`,
 `o`, `olangc`, `ocorec`, `o-link`, `octl`, native node commands and the MCP
@@ -204,10 +223,10 @@ account. This assumes the prerequisites were installed above:
 ```bash
 MCP_BASE="$HOME/.local/share/ostadix-mcp"
 mkdir -p "$MCP_BASE"
-git clone https://github.com/lostadi/ostadix-BM.git "$MCP_BASE/controller"
+git clone https://github.com/lostadi/OSTADIX.git "$MCP_BASE/controller"
 python3 "$MCP_BASE/controller/scripts/update_ostadix_mcp_http.py" \
   --state-dir "$MCP_BASE/state" update \
-  --repo https://github.com/lostadi/ostadix-BM.git --branch master
+  --repo https://github.com/lostadi/OSTADIX.git --branch master
 ```
 
 The chosen repository and branch are retained in updater state. Use a branch

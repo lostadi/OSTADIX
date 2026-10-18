@@ -45,7 +45,7 @@ MANIFEST_NAME = "SOURCE-MANIFEST.json"
 CHECKSUMS_NAME = "SHA256SUMS"
 FIXED_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 ROOT_LICENSE_SPDX = "LGPL-2.1-only"
-ROOT_REPOSITORY = "https://github.com/lostadi/ostadix-BM"
+ROOT_REPOSITORY = "https://github.com/lostadi/OSTADIX"
 EXISTING_PREPRINT_DOI = "10.5281/zenodo.21544345"
 
 # `olangc` owns the generated-project writer, while the independent engine
@@ -321,6 +321,8 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
     "kernel_world": f"{OSTADIX_API_SOURCE_ROOT}/kernel_world.rs",
     "live_system": f"{OSTADIX_API_SOURCE_ROOT}/live_system/mod.rs",
     "native_leaf": f"{OSTADIX_API_SOURCE_ROOT}/native_leaf.rs",
+    "native_leaf_identity": f"{OSTADIX_API_SOURCE_ROOT}/native_leaf_identity.rs",
+    "lifecycle_trace": f"{OSTADIX_API_SOURCE_ROOT}/lifecycle_trace.rs",
     "nix_ops": f"{OSTADIX_API_SOURCE_ROOT}/nix_ops.rs",
     "nixos_ops": f"{OSTADIX_API_SOURCE_ROOT}/nixos_ops.rs",
     "ocore": f"{OSTADIX_API_SOURCE_ROOT}/ocore/mod.rs",
@@ -356,6 +358,7 @@ HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
         "mcp/ostadix_lang_mcp_server/src/selected_node.rs",
         "mcp/ostadix_lang_mcp_server/src/unified.rs",
         "scripts/setup_ostadix_mcp_http.sh",
+        "scripts/mcp_http_runtime_aliases.py",
         "scripts/smoke_ostadix_mcp_http.py",
         "scripts/update_ostadix_mcp_http.py",
         "tests/test_mcp_http_updater.py",
@@ -2520,6 +2523,8 @@ def _validate_workspace_facade_release_surface(files: dict[str, bytes]) -> None:
         "dispatch_model",
         "eval_core",
         "placement_protocol",
+        "native_leaf_identity",
+        "lifecycle_trace",
     }
     expected_compatibility_names = (
         set(OSTADIX_API_ROOT_MODULE_PATHS)

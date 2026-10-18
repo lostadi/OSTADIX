@@ -6,7 +6,7 @@ body:
     attributes:
       value: >-
         Do not disclose suspected vulnerabilities here. Use
-        https://github.com/lostadi/ostadix-BM/security/advisories/new instead.
+        https://github.com/lostadi/OSTADIX/security/advisories/new instead.
   - type: textarea
     id: summary
     attributes:

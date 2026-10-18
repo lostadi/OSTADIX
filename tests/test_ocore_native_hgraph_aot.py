@@ -237,6 +237,8 @@ class NativeHgraphAotTests(unittest.TestCase):
             raise RuntimeError("actual olangc binary product is not ELF")
         cls.engine = engine_sources(cls.project/"src")
         core = {"native_leaf.rs":ROOT/"crates/ostadix-api/src/native_leaf.rs",
+                "native_leaf_identity.rs":ROOT/"crates/ostadix-api/src/native_leaf_identity.rs",
+                "lifecycle_trace.rs":ROOT/"crates/ostadix-api/src/lifecycle_trace.rs",
                 "ocore/mod.rs":ROOT/"crates/ostadix-api/src/ocore/native_core.rs"}
         for name in ("common","native_ir","native_verify","native_abi","native_codegen","native_map",
                      "native_eh","native_exception_codegen","native_atomic_codegen","native_float_layout"):

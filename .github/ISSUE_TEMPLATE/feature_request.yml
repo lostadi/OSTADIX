@@ -6,7 +6,7 @@ body:
     attributes:
       value: >-
         Security vulnerabilities belong in private reporting, not this public
-        form: https://github.com/lostadi/ostadix-BM/security/advisories/new
+        form: https://github.com/lostadi/OSTADIX/security/advisories/new
   - type: textarea
     id: problem
     attributes:

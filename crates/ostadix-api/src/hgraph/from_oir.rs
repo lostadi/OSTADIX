@@ -560,7 +560,7 @@ fn hnode_for_oir(node: &OIr) -> HNode {
             }
             node
         }
-        node if crate::native_leaf::is_call(node) => {
+        node if crate::ir::is_native_leaf_call(node) => {
             let mut node = HNode::fresh();
             node.domain = DomainFlags::INTEGER;
             node.rep = RepFlags::I64;

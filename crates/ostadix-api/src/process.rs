@@ -2,16 +2,13 @@ use anyhow::{anyhow, bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::error::Error as StdError;
 use std::fmt;
-use std::fs::OpenOptions;
-use std::io::{self, BufReader, BufWriter, Write};
+use std::io::{self, BufReader, BufWriter};
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(not(unix))]
-use std::sync::OnceLock;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -26,7 +23,6 @@ use crate::capability::BackendSandboxPolicy;
 use crate::value::OValue;
 use crate::wire;
 
-static LIFECYCLE_TRACE_LOCK: Mutex<()> = Mutex::new(());
 static BACKEND_SESSION_COUNTER: AtomicU64 = AtomicU64::new(0);
 const DEFAULT_BACKEND_OPERATION_TIMEOUT: Duration = Duration::from_secs(60);
 const DEFAULT_BACKEND_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
@@ -113,56 +109,8 @@ pub(crate) fn is_infrastructure_error(error: &anyhow::Error) -> bool {
     error.is::<BackendInfrastructureError>()
 }
 
-/// Append one best-effort process-lifecycle event when diagnostics are enabled.
-///
-/// `O_LIFECYCLE_TRACE` names the trace file. Events intentionally contain no
-/// source or value payloads, and tracing failure never changes execution.
-pub(crate) fn lifecycle_trace(event: &str, detail: impl AsRef<str>) {
-    let Some(path) = std::env::var_os("O_LIFECYCLE_TRACE") else {
-        return;
-    };
-    let detail = detail.as_ref().replace(['\n', '\r'], " ");
-    let line = format!(
-        "monotonic_ns={} pid={} thread={:?} event={} {}\n",
-        monotonic_nanos(),
-        std::process::id(),
-        std::thread::current().id(),
-        event,
-        detail,
-    );
-    let _guard = LIFECYCLE_TRACE_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(parent) = Path::new(&path).parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
-        let _ = file.write_all(line.as_bytes());
-    }
-}
-
-#[cfg(unix)]
-fn monotonic_nanos() -> u128 {
-    let mut timestamp = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    // SAFETY: `timestamp` is valid writable storage for one `timespec`, and
-    // CLOCK_MONOTONIC requires no additional caller-managed lifetime.
-    if unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut timestamp) } == 0 {
-        (timestamp.tv_sec as u128)
-            .saturating_mul(1_000_000_000)
-            .saturating_add(timestamp.tv_nsec as u128)
-    } else {
-        0
-    }
-}
-
-#[cfg(not(unix))]
-fn monotonic_nanos() -> u128 {
-    static START: OnceLock<Instant> = OnceLock::new();
-    START.get_or_init(Instant::now).elapsed().as_nanos()
-}
+pub(crate) use crate::lifecycle_trace::lifecycle_trace;
+use crate::lifecycle_trace::monotonic_nanos;
 
 #[cfg(test)]
 const PYTHON_POLICY_BOOTSTRAP: &str = r#"

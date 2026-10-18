@@ -57,7 +57,12 @@ class ContractSurfacesTests(unittest.TestCase):
             r"[a-z_][a-z0-9_]*", reexport.group("modules")
         )
 
-        self.assertEqual(set(compatibility_modules), set(public_modules))
+        # Native leaves extend the engine API without expanding the historical
+        # compatibility facade. Every existing compatibility module is retained.
+        self.assertNotIn("native_leaf", compatibility_modules)
+        self.assertEqual(
+            set(compatibility_modules) | {"native_leaf"}, set(public_modules)
+        )
         self.assertIn(
             f"Direct engine users may import the {len(public_modules)} public runtime modules",
             readme,

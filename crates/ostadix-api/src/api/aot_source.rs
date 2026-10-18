@@ -22,6 +22,8 @@ pub const RUNTIME_PARSER_RS: &str = include_str!("../parser.rs");
 pub const RUNTIME_IR_RS: &str = include_str!("../ir.rs");
 
 /// The exact owned native computation core, shared with the ordinary engine.
+pub const RUNTIME_NATIVE_LEAF_IDENTITY_RS: &str = include_str!("../native_leaf_identity.rs");
+pub const RUNTIME_LIFECYCLE_TRACE_RS: &str = include_str!("../lifecycle_trace.rs");
 pub const RUNTIME_NATIVE_LEAF_RS: &str = include_str!("../native_leaf.rs");
 pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
     ("mod.rs", include_str!("../ocore/native_core.rs")),

@@ -1,6 +1,6 @@
 // Binary128 storage is not a first-class floating-point realization. This
 // audit runs before leaf expansion or emission, including dead SSA values.
-use super::*;
+use super::{error_diagnostic, type_layouts, Diagnostic, Initializer, NativeModule, Type, TypeId};
 
 fn failure(message: &str) -> Diagnostic {
     error_diagnostic(format!("native binary128 storage: {message}"))
@@ -185,6 +185,7 @@ fn audit_initializer(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::{emit, emit_with_map, Instruction, Operand, Operation, Relocation, Target, Value, FORMAT};
     use serde_json::json;
 
     fn module(triple: &str) -> NativeModule {

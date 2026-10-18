@@ -120,7 +120,7 @@ pub(crate) fn adapter_matches(
 fn native_adapter_matches(plan: &ExecutionPlan, id: PlanNodeId, oir: &OIr) -> bool {
     match (
         plan.nodes.get(id.0).map(|node| &node.kind),
-        crate::native_leaf::source_descriptor(oir),
+        crate::ir::native_leaf_source_descriptor(oir),
     ) {
         (
             Some(PlanNodeKind::NativeI64 {
@@ -334,7 +334,7 @@ fn renderer_input_statically_preparable(input: &OIr) -> bool {
 /// Hard effect/failure predicate shared by evidence and runtime verification.
 pub(crate) fn effect_contract_worker_safe(summary: &EffectSummary, oir: &OIr) -> bool {
     match oir {
-        native if crate::native_leaf::is_call(native) => {
+        native if crate::ir::is_native_leaf_call(native) => {
             summary.confidence == EffectConfidence::Verified
                 && summary.deterministic
                 && summary.fallibility == Fallibility::MayFail

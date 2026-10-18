@@ -1,6 +1,6 @@
-<h1>ostadix-BM — agent instructions</h1>
-<p>This is the <strong>ostadix-BM</strong> development repository for O / Ostadix-lang and
-O-core, derived from <code>lostadi/OSTADIX</code>.</p>
+<h1>OSTADIX — agent instructions</h1>
+<p>This is <strong>OSTADIX</strong>, the canonical repository for O / Ostadix-lang and
+O-core at <code>lostadi/OSTADIX</code>.</p>
 <h2>Primary compiler objective</h2>
 <p>The highest compiler priority is for <code>olangc</code> to fully and automatically
 compile existing external runtime and compiler implementations in terms of
@@ -59,7 +59,7 @@ budgets, security boundaries, and task scope; graph size alone is not a gate.
 Existing <code>olang</code> command, skill, path, and MCP names remain compatibility
 identifiers for OSTADIX and are not renamed by this preference.</p>
 <h2>Roots</h2>
-<pre><code class="language-bash">export O_LANG_ROOT=&quot;$HOME/ostadix-BM&quot;
+<pre><code class="language-bash">export O_LANG_ROOT=&quot;$HOME/OSTADIX&quot;
 export O_BACKENDS_DIR=$O_LANG_ROOT/backends
 export PATH=&quot;$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH&quot;
 </code></pre>
@@ -106,7 +106,8 @@ export PATH=&quot;$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:
 </tr>
 </tbody></table>
 <h2>MCP server</h2>
-<p><code>mcp/ostadix_lang_mcp_server</code> — Rust/<code>rmcp</code> stdio MCP server. Prefer
+<p><code>mcp/ostadix_lang_mcp_server</code> — Rust/<code>rmcp</code> MCP server with stdio and
+Streamable HTTP transports. Prefer
 <code>o_execute</code> with exactly one complete <code>source</code> or existing program/project
 <code>path</code>. <code>action</code> defaults to execute; check is parse-only, plan is static,
 and compile explicitly requests an artifact. <code>mode: admitted</code> automatically

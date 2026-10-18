@@ -10,18 +10,18 @@ A language boundary is not treated as a string wrapper, template block, code
 fence, or external FFI layer. The evaluator is part of the expression syntax
 itself, and values cross boundaries through OValue.
 
-This repository, `ostadix-BM`, is derived from the original public implementation
-of the Ostadix-lang / ^Ostadix_ system, including hosted `.O` orchestration, OIR,
+OSTADIX is the public implementation of the Ostadix-lang / ^Ostadix_ system,
+including hosted `.O` orchestration, OIR,
 backend shims, OValue, O-core `.oc`, HIR/MIR lowering, and freestanding native
 object generation.
 
-Development repository:
-
-    https://github.com/lostadi/ostadix-BM
-
-Original canonical repository:
+Canonical repository:
 
     https://github.com/lostadi/OSTADIX
+
+Development from the following repository has also been integrated into OSTADIX:
+
+    https://github.com/lostadi/ostadix-BM
 
 Canonical phrase:
 

@@ -1341,7 +1341,7 @@ impl HGraph {
                     .ir_map
                     .get(&info.value_output)
                     .ok_or("native leaf lacks source provenance")?;
-                let descriptor = crate::native_leaf::source_descriptor(oir)
+                let descriptor = crate::ir::native_leaf_source_descriptor(oir)
                     .ok_or("native leaf lacks its static source descriptor")?;
                 if crate::native_leaf::digest(descriptor.as_bytes()) != *descriptor_sha256
                     || !crate::dispatch_model::effect_contract_worker_safe(summary, oir)

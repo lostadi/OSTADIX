@@ -2,15 +2,15 @@
   <img src="./assets/olang-logo.png" alt="Ostadix-lang" width="900" />
 </p>
 
-# ostadix-BM
+# OSTADIX
 
 *By Lee Daghlar Ostadi*
 
-Independent development repository for Ostadix-lang and O-core, derived from
+The canonical repository for Ostadix-lang and O-core:
 [lostadi/OSTADIX](https://github.com/lostadi/OSTADIX).
 
-[![CI](https://github.com/lostadi/ostadix-BM/actions/workflows/ci.yml/badge.svg)](https://github.com/lostadi/ostadix-BM/actions/workflows/ci.yml)
-[![Parser fuzz campaign](https://github.com/lostadi/ostadix-BM/actions/workflows/fuzz.yml/badge.svg)](https://github.com/lostadi/ostadix-BM/actions/workflows/fuzz.yml)
+[![CI](https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml/badge.svg)](https://github.com/lostadi/OSTADIX/actions/workflows/ci.yml)
+[![Parser fuzz campaign](https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml/badge.svg)](https://github.com/lostadi/OSTADIX/actions/workflows/fuzz.yml)
 
 > **Every expression carries its evaluator as part of its syntax.**
 
@@ -271,8 +271,8 @@ below exercise the source revision you just checked out rather than an older
 binary already on `PATH`:
 
 ```bash
-git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
-cd ostadix-BM
+git clone https://github.com/lostadi/OSTADIX.git OSTADIX
+cd OSTADIX
 ./setup.sh -y --minimal
 source "$HOME/.config/ostadix/env.sh"
 
@@ -561,13 +561,14 @@ let mut runtime = Runtime::new("/absolute/path/to/backends");
 let value: OValue = runtime.evaluate("text^(hello)_text")?;
 ```
 
-Direct engine users may import the 42 public runtime modules from
+Direct engine users may import the 43 public runtime modules from
 `ostadix_api`, including `parser`, `ir`, `hgraph`, `evidence`, `eval`,
 `execution_fabric`, `execution_fabric_authority`, `executor`, `hosted_remote`,
-`project`, and `world`. Historical
-`o_lang::<module>` paths explicitly reexport the same nominal types. Reflected
+`project`, and `world`. The 42 historical
+`o_lang::<module>` paths explicitly reexport the same nominal types; the newer
+`native_leaf` module is available through `ostadix_api` directly. Reflected
 diagnostic paths such as `type_name` name the defining `ostadix_api` crate even
-when code imports the compatibility path. Six additional engine modules remain
+when code imports the compatibility path. Eight additional engine modules remain
 crate-private implementation structure.
 
 Registry publication order is now `ostadix-api` first, verify that exact version
@@ -1427,8 +1428,8 @@ eligible standalone apps and O-core/WASI artifacts. Each unavailable component
 is listed with its missing prerequisites. A selected build failure fails setup.
 
 ```bash
-git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
-cd ostadix-BM
+git clone https://github.com/lostadi/OSTADIX.git OSTADIX
+cd OSTADIX
 ./setup.sh
 ```
 
@@ -1530,8 +1531,8 @@ python3 -m o_lang examples/hello.O
 ### Option B: Manual Rust setup
 
 ```bash
-git clone https://github.com/lostadi/ostadix-BM.git ostadix-BM
-cd ostadix-BM
+git clone https://github.com/lostadi/OSTADIX.git OSTADIX
+cd OSTADIX
 cargo build --release
 
 ./target/release/O examples/hello.O backends
@@ -4860,7 +4861,7 @@ Native computation
 ```text
 Ostadix-lang/
 ├── crates/ostadix-api/src/
-│   ├── lib.rs                  # 48 engine modules, 42 public
+│   ├── lib.rs                  # 51 engine modules, 43 public
 │   ├── parser.rs               # hosted typed-parenthesis parser
 │   ├── value.rs                # OValue and hosted wire protocol
 │   ├── ir.rs                   # OIR and ExecutionPlan
@@ -6414,7 +6415,7 @@ identify the repository version and exact revision:
     Whole-Program Polyglot Execution. Version 0.4.0.
     Unreleased development source; identify the exact commit used.
     Commit: `FULL_COMMIT_SHA_USED`.
-    https://github.com/lostadi/ostadix-BM
+    https://github.com/lostadi/OSTADIX
 
 Once Zenodo archives a future tagged source release, cite that separate,
 version-specific source-release DOI for the exact source snapshot used. The

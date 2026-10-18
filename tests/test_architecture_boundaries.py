@@ -104,9 +104,10 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/registry/bundle/mod.rs": "pub use crate::backend_catalog::*;\n",
         "crates/ostadix-api/src/project.rs": "pub mod lower;\n",
         "crates/ostadix-api/src/project/lower.rs": 'include!("input_kind.inc.rs");\n',
-        "crates/ostadix-api/src/ocore.rs": "mod native_codegen;\n",
+        "crates/ostadix-api/src/ocore/mod.rs": 'include!("native_core.rs");\n',
         "crates/ostadix-api/src/ocore/native_codegen.rs": (
             'mod atomic { include!("native_atomic_codegen.rs"); }\n'
+            'mod float_layout { include!("native_float_layout.rs"); }\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -126,6 +127,19 @@ def write_minimal_tree(root: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             path.write_text("pub struct Boundary;\n", encoding="utf-8")
+    for fragment in manifest["compiled_fragment"]:
+        fragment_path = root / fragment["path"]
+        if fragment.get("child_modules"):
+            fragment_path.write_text("".join(
+                f'#[path = "{child}.rs"]\nmod {child};\n'
+                for child in fragment["child_modules"]
+            ), encoding="utf-8")
+            for child in fragment["child_modules"]:
+                child_path = fragment_path.parent / f"{child}.rs"
+                if not child_path.exists():
+                    child_path.write_text("pub struct Boundary;\n", encoding="utf-8")
+        elif not fragment_path.exists():
+            fragment_path.write_text("pub struct Boundary;\n", encoding="utf-8")
     source_prefix = manifest["production"]["source_root"] + "/"
     override_declarations = {
         entry["module_path"][0]: (
@@ -157,7 +171,7 @@ def write_minimal_tree(root: Path) -> None:
     )
     (root / "src/bin").mkdir(parents=True, exist_ok=True)
     (root / "src/main.rs").write_text("fn main() {}\n", encoding="utf-8")
-    public_roots = [root_spec["name"] for root_spec in manifest["root"]]
+    public_roots = [root_spec["name"] for root_spec in manifest["root"] if root_spec.get("compatibility_export", True)]
     (root / "src/lib.rs").write_text(
         "pub use ostadix_api::{" + ", ".join(public_roots) + "};\n",
         encoding="utf-8",
@@ -226,9 +240,22 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                 },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_core.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/mod.rs",
+                    "module_path": ["ocore"],
+                    "child_modules": ["common", "native_abi", "native_codegen", "native_eh", "native_exception_codegen", "native_ir", "native_map", "native_verify"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_float_layout.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "float_layout"],
+                },
             ],
         )
-        self.assertEqual(len(roots), 48)
+        self.assertEqual(len(roots), 51)
         api_root = next(root for root in roots if root["name"] == "api")
         self.assertIn("ir", api_root["allowed_dependencies"])
         boot_object_root = next(root for root in roots if root["name"] == "boot_objects")
@@ -853,6 +880,8 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             ("crates/ostadix-api/src/backend_catalog.inc.rs", "backend_catalog"),
             ("crates/ostadix-api/src/project/input_kind.inc.rs", "project"),
             ("crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_core.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_float_layout.rs", "ocore"),
         ):
             with self.subTest(fragment=relative):
                 with tempfile.TemporaryDirectory() as directory:
@@ -866,6 +895,122 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 self.assertIn(
                     f"root edge `{owner} -> api` is not declared", result.stderr
                 )
+
+    def test_external_test_sources_require_definitely_disabled_declarations(self) -> None:
+        for attribute, success in (
+            ("#[cfg(test)]", True),
+            ("#[cfg(all(test, feature = \"fixture\"))]", True),
+            ("#[cfg_attr(all(), cfg(test))]", True),
+            ("#[cfg(any(test, feature = \"fixture\"))]", False),
+            ("#[cfg(not(test))]", False),
+            ("", False),
+        ):
+            with self.subTest(attribute=attribute), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                (root / "crates/ostadix-api/src/parser.rs").write_text(
+                    f'{attribute}\n#[path = "external_fixture.rs"]\nmod tests;\n', encoding="utf-8"
+                )
+                (root / "crates/ostadix-api/src/external_fixture.rs").write_text(
+                    "use super::*;\nuse crate::executor::Boundary;\n", encoding="utf-8"
+                )
+                result = run_checker(root)
+                self.assertEqual(result.returncode, 0 if success else 1, result.stderr)
+                if not success:
+                    self.assertIn("unknown root `external_fixture`", result.stderr)
+
+    def test_conventional_external_test_module_is_not_a_production_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            parent = root / "crates/ostadix-api/src/parser.rs"
+            parent.write_text("#[cfg(test)]\nmod tests;\n", encoding="utf-8")
+            child = root / "crates/ostadix-api/src/parser/tests.rs"
+            child.parent.mkdir(parents=True)
+            child.write_text("use crate::executor::Boundary;\n", encoding="utf-8")
+            self.assertEqual(run_checker(root).returncode, 0)
+            parent.write_text("mod tests;\n", encoding="utf-8")
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("root edge `parser -> executor` is not declared", result.stderr)
+
+    def test_test_filename_and_disabled_alias_cannot_hide_active_source(self) -> None:
+        for production in ("", '#[path = "external_tests.rs"]\nmod active;\n', 'include!("external_tests.rs");\n'):
+            with self.subTest(production=production), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                child = root / "crates/ostadix-api/src/external_tests.rs"
+                child.write_text("use crate::executor::Boundary;\n", encoding="utf-8")
+                parent = root / "crates/ostadix-api/src/parser.rs"
+                if production:
+                    parent.write_text('#[cfg(test)]\n#[path = "external_tests.rs"]\nmod tests;\n' + production, encoding="utf-8")
+                result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("unknown root `external_tests`", result.stderr)
+
+    def test_fragment_children_cannot_redirect_or_escape_declared_module_identity(self) -> None:
+        for replacement, expected in (
+            ('#[path = "../parser.rs"]\nmod common;', "must use its declared same-directory"),
+            ('mod common;', "must use its declared same-directory"),
+            ('#[path = "common.rs"]\nmod renamed;', "expected declared children"),
+        ):
+            with self.subTest(replacement=replacement), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                write_minimal_tree(root)
+                fragment = root / "crates/ostadix-api/src/ocore/native_core.rs"
+                fragment.write_text(fragment.read_text().replace('#[path = "common.rs"]\nmod common;', replacement), encoding="utf-8")
+                result = run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(expected, result.stderr)
+
+    def test_fragment_child_dependencies_and_duplicate_ownership_remain_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            (root / "crates/ostadix-api/src/ocore/common.rs").write_text("use crate::executor::Boundary;\n", encoding="utf-8")
+            parent = root / "crates/ostadix-api/src/ocore/mod.rs"
+            parent.write_text(parent.read_text() + "mod common;\n", encoding="utf-8")
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("root edge `ocore -> executor` is not declared", result.stderr)
+            self.assertIn("also has conventional ownership", result.stderr)
+
+    def test_fragment_include_site_must_match_declared_module_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            parent = root / "crates/ostadix-api/src/ocore/native_codegen.rs"
+            parent.write_text(parent.read_text().replace("mod float_layout", "mod different"), encoding="utf-8")
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("include site resolves to `ocore::native_codegen::different`", result.stderr)
+
+    def test_fragment_with_children_cannot_move_into_a_block(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            parent = root / "crates/ostadix-api/src/ocore/mod.rs"
+            parent.write_text('fn hidden() { include!("native_core.rs"); }\n', encoding="utf-8")
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("include site must be directly in its declared module", result.stderr)
+
+    def test_native_leaf_seams_preserve_engine_only_api_and_neutral_dependencies(self) -> None:
+        manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
+        roots = {spec["name"]: spec for spec in manifest["root"]}
+        self.assertFalse(roots["native_leaf"]["compatibility_export"])
+        self.assertEqual(roots["native_leaf"]["allowed_dependencies"], ["lifecycle_trace", "native_leaf_identity", "ocore", "value"])
+        for name in ("lifecycle_trace", "native_leaf_identity"):
+            self.assertEqual(roots[name]["layer"], 0)
+            self.assertEqual(roots[name]["allowed_dependencies"], [])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_minimal_tree(root)
+            shell = root / "src/lib.rs"
+            shell.write_text(shell.read_text().replace("ostadix_api::{", "ostadix_api::{native_leaf, "), encoding="utf-8")
+            result = run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("unexpected native_leaf", result.stderr)
 
     def test_compiled_fragment_cannot_declare_external_modules_in_inline_body(
         self,

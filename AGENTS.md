@@ -1,7 +1,7 @@
-# ostadix-BM — agent instructions
+# OSTADIX — agent instructions
 
-This is the **ostadix-BM** development repository for O / Ostadix-lang and
-O-core, derived from `lostadi/OSTADIX`.
+This is **OSTADIX**, the canonical repository for O / Ostadix-lang and
+O-core at `lostadi/OSTADIX`.
 
 ## Primary compiler objective
 
@@ -72,7 +72,7 @@ identifiers for OSTADIX and are not renamed by this preference.
 ## Roots
 
 ```bash
-export O_LANG_ROOT="$HOME/ostadix-BM"
+export O_LANG_ROOT="$HOME/OSTADIX"
 export O_BACKENDS_DIR=$O_LANG_ROOT/backends
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH"
 ```
@@ -94,7 +94,8 @@ Do **not** use `~/O-lang` for builds/runs on this machine.
 
 ## MCP server
 
-`mcp/ostadix_lang_mcp_server` — Rust/`rmcp` stdio MCP server. Prefer
+`mcp/ostadix_lang_mcp_server` — Rust/`rmcp` MCP server with stdio and
+Streamable HTTP transports. Prefer
 `o_execute` with exactly one complete `source` or existing program/project
 `path`. `action` defaults to execute; check is parse-only, plan is static,
 and compile explicitly requests an artifact. `mode: admitted` automatically

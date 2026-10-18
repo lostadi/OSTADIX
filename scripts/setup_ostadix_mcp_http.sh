@@ -26,6 +26,11 @@ listener, write credentials, or install a service.
   --skip-smoke      Build only, explicitly skipping HTTP/runtime verification
   -h, --help        Show this help
 
+Optional OSTADIX_MCP_BUILD_CACHE=/absolute/path places Cargo intermediates in
+PATH/runtime and PATH/mcp, then copies binaries into this checkout. Use with
+--build-runtime or MCP-only builds, not --with-runtime. Installed binaries do
+not depend on the cache after setup succeeds.
+
 Requirements: Bash, Python 3.10+, the repository's Rust toolchain, and a native
 C linker. --build-runtime also needs the dependencies of the hosted Rust core.
 On Windows use WSL2. See deployment/mcp/README.md for HTTPS and client setup.
@@ -58,7 +63,7 @@ esac
 
 for required_path in rust-toolchain.toml Cargo.lock backends/python_shim.py \
   mcp/ostadix_lang_mcp_server/Cargo.toml mcp/ostadix_lang_mcp_server/Cargo.lock \
-  scripts/smoke_ostadix_mcp_http.py; do
+  scripts/smoke_ostadix_mcp_http.py scripts/mcp_http_runtime_aliases.py; do
   [[ -f "$repo_root/$required_path" ]] || fail "missing $required_path in $repo_root"
 done
 command -v python3 >/dev/null || fail 'Python 3.10+ is required'
@@ -68,11 +73,20 @@ cd "$repo_root"
 export O_LANG_ROOT="$repo_root"
 export O_BACKENDS_DIR="$repo_root/backends"
 export PATH="$repo_root/target/release:$PATH"
-# Always build native binaries into the documented checkout-local locations.
+# Always install native binaries into the documented checkout-local locations.
 unset CARGO_BUILD_TARGET
 mcp_manifest="$repo_root/mcp/ostadix_lang_mcp_server/Cargo.toml"
 mcp_target="$repo_root/mcp/ostadix_lang_mcp_server/target"
 server="$mcp_target/release/ostadix-mcp"
+runtime_build_target="$repo_root/target"
+mcp_build_target="$mcp_target"
+build_cache="${OSTADIX_MCP_BUILD_CACHE:-}"
+if [[ -n "$build_cache" ]]; then
+  [[ "$build_cache" == /* ]] || fail 'OSTADIX_MCP_BUILD_CACHE must be an absolute path'
+  $with_runtime && fail 'build cache requires preinstalled dependencies; use --build-runtime instead of --with-runtime'
+  runtime_build_target="$build_cache/runtime"
+  mcp_build_target="$build_cache/mcp"
+fi
 
 printf 'Checkout: %s\n' "$repo_root"
 if ! $verify_only; then
@@ -100,17 +114,20 @@ PY
     runtime_bins=(O o-cli olangc ocorec o-link o-unlink ogit o-live-host o-node octl
       o-registry o-info ostadix-device ocore-kernel-world-record)
     cargo_args=(build --release --locked --manifest-path "$repo_root/Cargo.toml"
-      --package o-lang --target-dir "$repo_root/target")
+      --package o-lang --target-dir "$runtime_build_target")
     for runtime_bin in "${runtime_bins[@]}"; do cargo_args+=(--bin "$runtime_bin"); done
     "${cargo_command[@]}" "${cargo_args[@]}"
-    # Replace aliases atomically, including an alias left as a symlink by a
-    # previous installation. Never copy through a link into its source file.
-    cp "$repo_root/target/release/o-cli" "$repo_root/target/release/.o.$$"
-    mv -f "$repo_root/target/release/.o.$$" "$repo_root/target/release/o"
-    cp "$repo_root/target/release/O" "$repo_root/target/release/.ostadix-evaluator.$$"
-    mv -f "$repo_root/target/release/.ostadix-evaluator.$$" "$repo_root/target/release/ostadix-evaluator"
+    if [[ -n "$build_cache" ]]; then
+      python3 "$repo_root/scripts/mcp_http_runtime_aliases.py" copy \
+        "$runtime_build_target/release" "$repo_root/target/release" "${runtime_bins[@]}"
+    fi
+    python3 "$repo_root/scripts/mcp_http_runtime_aliases.py" aliases "$repo_root/target/release"
   fi
-  "${cargo_command[@]}" build --release --locked --manifest-path "$mcp_manifest" --target-dir "$mcp_target"
+  "${cargo_command[@]}" build --release --locked --manifest-path "$mcp_manifest" --target-dir "$mcp_build_target"
+  if [[ -n "$build_cache" ]]; then
+    python3 "$repo_root/scripts/mcp_http_runtime_aliases.py" copy \
+      "$mcp_build_target/release" "$mcp_target/release" ostadix-mcp
+  fi
 fi
 
 [[ -x "$server" ]] || fail "MCP executable missing: $server"

@@ -671,7 +671,7 @@ pub(crate) fn prepare_native(
     id: PlanNodeId,
     oir: &OIr,
 ) -> Result<Box<dyn PreparedTask>> {
-    let expected = crate::native_leaf::source_descriptor(oir)
+    let expected = crate::ir::native_leaf_source_descriptor(oir)
         .ok_or_else(|| anyhow::anyhow!("native scalar source descriptor is not static"))?;
     let children = frame
         .plan_index

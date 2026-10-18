@@ -6,22 +6,26 @@
 //! caller-supplied executables or descriptive maps, carry launch authority.
 
 use std::collections::{BTreeMap, VecDeque};
+#[cfg(target_os = "linux")]
 use std::fs::{self, File};
+#[cfg(target_os = "linux")]
 use std::io::Write;
 use std::path::PathBuf;
+#[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "linux")]
 use sha2::{Digest, Sha256};
 
-use crate::ir::{InvokeMode, OIr};
 use crate::ocore::native_ir::{NativeModule, Operand, Operation, Terminator, Type};
 use crate::ocore::Target;
 use crate::value::{ONumber, OValue};
 
-pub const BUILTIN: &str = "ocore_i64";
+pub(crate) use crate::native_leaf_identity::digest;
+pub use crate::native_leaf_identity::BUILTIN;
 pub const SCHEMA: &str = "ocore-native-i64-leaf-v1";
 pub const PROFILE: &str = "linux-elf-i64-acyclic-v1";
 const MAGIC: u64 = u64::from_le_bytes(*b"OCI64v1\0");
@@ -61,42 +65,6 @@ pub struct NativeLeafManifest {
 pub struct ToolIdentity {
     pub invocation: PathBuf,
     pub executable_sha256: String,
-}
-
-pub(crate) fn digest(bytes: &[u8]) -> String {
-    hex::encode(Sha256::digest(bytes))
-}
-
-/// Only an eager call and a literal, attribute-free text descriptor qualify.
-/// A missing/static-shape error remains a NativeI64 plan node and fails closed.
-pub(crate) fn source_descriptor(oir: &OIr) -> Option<&str> {
-    let OIr::Invoke {
-        fn_name,
-        mode: InvokeMode::Eager,
-        args,
-    } = oir
-    else {
-        return None;
-    };
-    if fn_name != BUILTIN {
-        return None;
-    }
-    match args.first()? {
-        OIr::Exec {
-            backend,
-            attr: None,
-            body,
-            ..
-        } if backend.canonical == "text" && backend.pure => match body.as_slice() {
-            [OIr::Text(text)] => Some(text),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-pub(crate) fn is_call(oir: &OIr) -> bool {
-    matches!(oir, OIr::Invoke {fn_name, mode: InvokeMode::Eager, ..} if fn_name == BUILTIN)
 }
 
 struct Audited {
@@ -583,7 +551,7 @@ impl PreparedLeaf {
                     .try_into()
                     .expect("checked response length"),
             );
-            crate::process::lifecycle_trace(
+            crate::lifecycle_trace::lifecycle_trace(
                 "native_leaf.executed",
                 format!(
                     "descriptor={} executable={} profile={}",
@@ -796,7 +764,10 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
             executable_sha256: image.sha256.clone(),
             executable_bytes: image.bytes,
         };
-        crate::process::lifecycle_trace("native_leaf.prepared", serde_json::to_string(&manifest)?);
+        crate::lifecycle_trace::lifecycle_trace(
+            "native_leaf.prepared",
+            serde_json::to_string(&manifest)?,
+        );
         let manifest_binding = digest(&serde_json::to_vec(&manifest)?);
         Ok(Arc::new(PreparedLeaf {
             manifest,

@@ -137,6 +137,8 @@ FIXTURE_PRIVATE_ENGINE_MODULES = {
     "dispatch_model",
     "eval_core",
     "placement_protocol",
+    "native_leaf_identity",
+    "lifecycle_trace",
 }
 FIXTURE_PUBLIC_ENGINE_MODULES = (
     set(release.OSTADIX_API_ROOT_MODULE_PATHS) - FIXTURE_PRIVATE_ENGINE_MODULES

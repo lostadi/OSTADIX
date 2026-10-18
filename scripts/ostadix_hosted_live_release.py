@@ -25,7 +25,7 @@ from typing import Callable, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parent.parent
-CANONICAL_REMOTE = "https://github.com/lostadi/ostadix-BM.git"
+CANONICAL_REMOTE = "https://github.com/lostadi/OSTADIX.git"
 DEFAULT_OUTPUT_DIRECTORY = ROOT / "target/ostadix-hosted-live/x86_64"
 DEFAULT_VM = "moral-gaur"
 GUEST_RELEASE_BASE = Path("/home/ubuntu/.cache/ostadix/hosted-live-release")
