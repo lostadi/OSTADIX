@@ -153,14 +153,19 @@ class BashSession:
         alive = status is not None
         if not alive:
             status = self.proc.wait()
-        stdout = ""
-        if os.path.exists(out_path):
-            with open(out_path, errors="replace") as f:
-                stdout = f.read()
-        stderr = ""
-        if os.path.exists(err_path):
-            with open(err_path, errors="replace") as f:
-                stderr = f.read()
+        # once the shell answered, its capture files exist; a missing one
+        # means the output is unknown, never empty. a shell that died before
+        # answering already fails the block.
+        def capture(path, stream):
+            try:
+                with open(path, errors="replace") as f:
+                    return f.read()
+            except OSError:
+                if not alive:
+                    return ""
+                raise RuntimeError(f"bash block {stream} capture is missing or unreadable") from None
+        stdout = capture(out_path, "stdout")
+        stderr = capture(err_path, "stderr")
         # the session temp path is an implementation detail.
         stderr = stderr.replace(code_path, "bash").replace(self.dir.name, "<bash session>")
         for path in (code_path, out_path, err_path):
@@ -265,6 +270,8 @@ def handle_exec(cmd):
             send_ok(stdout_result(stdout))
     except FileNotFoundError:
         send_err("bash is not installed or not in PATH")
+    except RuntimeError as error:
+        send_err(str(error))
     except Exception:
         send_err(traceback.format_exc())
 
