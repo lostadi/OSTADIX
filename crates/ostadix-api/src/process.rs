@@ -253,6 +253,8 @@ struct BackendProcess {
     plain_bash_key: Option<PlainBashHelperKey>,
     // set for one exec: the plan has another plain bash block ahead.
     plain_bash_next: bool,
+    // a forced kill began with SIGTERM to a plain bash helper.
+    graceful_term_sent: bool,
 }
 
 // why no default: an operation (an ephemeral exec, a state checkpoint or
@@ -340,6 +342,9 @@ pub(crate) const HEARTBEAT_CAPABILITY: &str = "heartbeat_v1";
 /// Set to `1` on a bash backend that serves plain blocks: it gives each block
 /// a fresh shell and ends that shell and its jobs before answering.
 pub(crate) const PLAIN_BASH_HELPER_ENV: &str = "O_BACKEND_PLAIN_BASH_HELPER";
+
+/// The bash backend's job cleanup window (JOB_CLEANUP_WINDOW in backend.rs).
+const PLAIN_BASH_CLEANUP_WINDOW: Duration = Duration::from_secs(2);
 
 /// Inside a backend: the interval the host asked for, or None when the host
 /// did not set `O_BACKEND_HEARTBEAT_INTERVAL_MS`. Without it a shim sends no
@@ -1214,21 +1219,40 @@ impl BackendProcess {
 
         #[cfg(unix)]
         command.process_group(0);
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        if plain_bash_helper {
+            // a pooled helper outlives the block that started it, so it must
+            // not outlive O: it gets SIGTERM, and stops its jobs, when we die.
+            let parent = std::process::id() as libc::pid_t;
+            // SAFETY: the hook runs between fork and exec and calls only
+            // prctl and getppid, which are async-signal-safe.
+            unsafe {
+                command.pre_exec(move || arm_parent_death_signal(parent));
+            }
+        }
 
         // while the spinner is on, backend stderr goes through the one
         // status writer so a block's stderr never lands inside the spinner
         // line. otherwise it is inherited exactly as before.
         let route_stderr = crate::progress::spinner_enabled();
-        let mut child = command
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(if route_stderr {
                 Stdio::piped()
             } else {
                 Stdio::inherit()
-            })
-            .spawn()
-            .with_context(|| format!("failed to spawn backend process for `{lang}`"))?;
+            });
+        // a pooled helper is forked from one long-lived thread: the parent
+        // death signal fires when the forking thread exits, and a worker
+        // thread may exit while its helper is parked for the next block.
+        let spawned = if plain_bash_helper {
+            spawn_from_long_lived_thread(command)
+        } else {
+            command.spawn()
+        };
+        let mut child =
+            spawned.with_context(|| format!("failed to spawn backend process for `{lang}`"))?;
         if let Some(mut stderr) = child.stderr.take() {
             let _ = thread::Builder::new()
                 .name(format!("ostadix-backend-stderr-{}", child.id()))
@@ -1355,6 +1379,7 @@ impl BackendProcess {
             native_operation_depth: 0,
             plain_bash_key: None,
             plain_bash_next: false,
+            graceful_term_sent: false,
             label: lang.to_string(),
             pulse,
             write_cancellation: None,
@@ -1976,6 +2001,18 @@ impl BackendProcess {
         kill_trace("kill");
         self.stdin.take();
         let mut failures = Vec::new();
+        // a plain bash helper is its jobs' subreaper; a group SIGKILL would
+        // end it first and hand its setsid jobs to init. it gets SIGTERM,
+        // stops its shell and jobs, and exits; the group kill follows only
+        // if it does not.
+        #[cfg(unix)]
+        if self.plain_bash_key.is_some() {
+            // SAFETY: the pid is our own unreaped child, the group leader.
+            if unsafe { libc::kill(self.child.id() as libc::pid_t, libc::SIGTERM) } == 0 {
+                self.graceful_term_sent = true;
+                return failures;
+            }
+        }
         if let Err(error) = signal_owned_process_group(&mut self.child) {
             failures.push(format!("backend SIGKILL failed: {error:#}"));
         }
@@ -1991,6 +2028,31 @@ impl BackendProcess {
     ) -> Result<()> {
         #[cfg(test)]
         kill_trace("settle");
+
+        let mut deadline = deadline;
+        if std::mem::take(&mut self.graceful_term_sent) {
+            // the helper's own cleanup gets the window a normal block end
+            // gets, plus a little to exit; it is cleanup, not a step limit.
+            // only then is its group killed, and the reap gets its own
+            // budget after that.
+            let window = PLAIN_BASH_CLEANUP_WINDOW + Duration::from_millis(500);
+            if self
+                .wait_for_leader_exit_before(Instant::now() + window, window)
+                .is_err()
+            {
+                eprintln!(
+                    "bash helper {} did not finish stopping its jobs within {} ms; \
+                     its process group was killed, and a job that left that group \
+                     (setsid) may still be alive",
+                    self.child.id(),
+                    window.as_millis()
+                );
+            }
+            if let Err(error) = signal_owned_process_group(&mut self.child) {
+                failures.push(format!("backend SIGKILL failed: {error:#}"));
+            }
+            deadline = Instant::now() + timeout;
+        }
 
         let leader_exited = match self.wait_for_leader_exit_before(deadline, timeout) {
             Ok(()) => true,
@@ -2404,6 +2466,56 @@ impl PlainBashHelperKey {
 static PLAIN_BASH_HELPERS: Mutex<Vec<BackendProcess>> = Mutex::new(Vec::new());
 
 /// A parked helper for `key`, or a new one from `spawn`.
+/// PR_SET_PDEATHSIG with SIGTERM, then a check that the parent is still
+/// `expected_parent`. why the check: a parent that died before the prctl
+/// sends no signal, so a helper that finds itself reparented stops at once.
+/// async-signal-safe, for a pre_exec hook.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn arm_parent_death_signal(expected_parent: libc::pid_t) -> io::Result<()> {
+    // SAFETY: prctl with an integer signal number affects only this process.
+    if unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: getppid has no preconditions.
+    if unsafe { libc::getppid() } != expected_parent {
+        // no allocation here: this runs between fork and exec.
+        return Err(io::Error::from_raw_os_error(libc::ESRCH));
+    }
+    Ok(())
+}
+
+type SpawnRequest = (Command, mpsc::Sender<io::Result<Child>>);
+
+/// Spawn `command` from one thread that lives as long as the process.
+fn spawn_from_long_lived_thread(command: Command) -> io::Result<Child> {
+    static SPAWNER: OnceLock<std::result::Result<Mutex<mpsc::Sender<SpawnRequest>>, String>> =
+        OnceLock::new();
+    let spawner = SPAWNER
+        .get_or_init(|| {
+            let (requests, incoming) = mpsc::channel::<SpawnRequest>();
+            thread::Builder::new()
+                .name("ostadix-plain-bash-spawner".into())
+                .spawn(move || {
+                    for (mut command, reply) in incoming {
+                        let _ = reply.send(command.spawn());
+                    }
+                })
+                .map(|_| Mutex::new(requests))
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .map_err(|error| io::Error::other(format!("no helper spawner thread: {error}")))?;
+    let (reply, answer) = mpsc::channel();
+    spawner
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .send((command, reply))
+        .map_err(|_| io::Error::other("the helper spawner thread is gone"))?;
+    answer
+        .recv()
+        .map_err(|_| io::Error::other("the helper spawner thread is gone"))?
+}
+
 fn plain_bash_helper(
     key: PlainBashHelperKey,
     spawn: impl FnOnce() -> Result<BackendProcess>,
@@ -2415,10 +2527,21 @@ fn plain_bash_helper(
             .position(|held| held.plain_bash_key.as_ref() == Some(&key))
         {
             let mut process = idle.swap_remove(index);
-            // a helper that died while parked is dropped, which reaps it.
-            if matches!(process.child.try_wait(), Ok(None)) {
-                return Ok(process);
-            }
+            // a helper that died while parked is reported and dropped, which
+            // reaps it; a fresh one replaces it.
+            let gone = match process.child.try_wait() {
+                Ok(None) => return Ok(process),
+                Ok(Some(status)) => format!("exited ({status})"),
+                Err(error) => format!("could not be checked ({error})"),
+            };
+            lifecycle_trace(
+                "worker.plain_bash_helper_dead",
+                format!("backend_pid={} {gone}", process.child.id()),
+            );
+            eprintln!(
+                "a parked bash helper (pid {}) {gone}; a new helper runs this block",
+                process.child.id()
+            );
         }
     }
     let mut process = spawn()?;
@@ -3835,6 +3958,57 @@ mod tests {
         }
         assert!(duration_knob("K", OsStr::new("60001"), max).is_err());
         assert_eq!(positive_integer_knob("K", OsStr::new("8")).unwrap(), 8);
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn a_helper_whose_parent_is_already_gone_stops_at_once() {
+        // a live parent: armed, nothing to do.
+        let parent = std::process::id() as libc::pid_t;
+        // SAFETY: the child calls only async-signal-safe functions, then _exit.
+        let child = unsafe { libc::fork() };
+        assert!(child >= 0);
+        if child == 0 {
+            let code = if arm_parent_death_signal(parent).is_ok() {
+                0
+            } else {
+                1
+            };
+            unsafe { libc::_exit(code) };
+        }
+        let mut status = 0;
+        assert_eq!(unsafe { libc::waitpid(child, &mut status, 0) }, child);
+        assert!(libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0);
+
+        // a parent that died before the prctl: the helper is told to stop.
+        let mut fds = [0; 2];
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+        // SAFETY: as above; the middle process only forks and exits.
+        let middle = unsafe { libc::fork() };
+        assert!(middle >= 0);
+        if middle == 0 {
+            let middle_pid = unsafe { libc::getpid() };
+            if unsafe { libc::fork() } == 0 {
+                while unsafe { libc::getppid() } == middle_pid {
+                    unsafe { libc::usleep(1000) };
+                }
+                let byte: u8 = match arm_parent_death_signal(middle_pid) {
+                    Err(error) if error.raw_os_error() == Some(libc::ESRCH) => b'y',
+                    _ => b'n',
+                };
+                unsafe {
+                    libc::write(fds[1], (&byte as *const u8).cast(), 1);
+                    libc::_exit(0);
+                }
+            }
+            unsafe { libc::_exit(0) };
+        }
+        unsafe { libc::close(fds[1]) };
+        assert_eq!(unsafe { libc::waitpid(middle, &mut status, 0) }, middle);
+        let mut byte = 0u8;
+        let read = unsafe { libc::read(fds[0], (&mut byte as *mut u8).cast(), 1) };
+        unsafe { libc::close(fds[0]) };
+        assert_eq!((read, byte), (1, b'y'));
     }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]

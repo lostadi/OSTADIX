@@ -17,9 +17,11 @@ import os
 import decimal
 import math
 import shlex
+import signal
 import struct
 import subprocess
 import tempfile
+import time
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -126,6 +128,114 @@ def send_err(message):
     write_wire_message({"status": "err", "message": message})
 
 
+# ############################################################################
+# plain-block job cleanup
+# ############################################################################
+
+# keep in step with JOB_CLEANUP_WINDOW in crates/ostadix-api/src/backend.rs
+_JOB_CLEANUP_WINDOW = 2.0
+_PR_SET_CHILD_SUBREAPER = 36
+
+
+def _become_subreaper():
+    """Make this shim the subreaper of every job bash starts, so a setsid or
+    double-forked job is reparented here, not to init. fail closed."""
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(_PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) != 0:
+        raise OSError(ctypes.get_errno(), "prctl(PR_SET_CHILD_SUBREAPER) failed")
+
+
+def _children():
+    """This process's children, from /proc/self/task/*/children. a task that
+    exited meanwhile is skipped; any other unreadable file is an error."""
+    found = set()
+    for task in os.listdir("/proc/self/task"):
+        try:
+            with open(f"/proc/self/task/{task}/children") as handle:
+                found.update(int(pid) for pid in handle.read().split())
+        except FileNotFoundError:
+            continue
+    return sorted(found)
+
+
+def _live_group(pid):
+    """The process group of pid, or None for a zombie or a vanished pid."""
+    try:
+        with open(f"/proc/{pid}/stat") as handle:
+            fields = handle.read().rsplit(")", 1)[1].split()
+    except (OSError, IndexError):
+        return None
+    return None if fields[0] in ("Z", "X") else int(fields[2])
+
+
+def _stop_jobs():
+    """SIGKILL every child and its group and reap until no child is left
+    (ECHILD) or the window ends. returns (stopped, survivors, error), where
+    stopped counts the distinct process groups of the live processes killed,
+    as in the rust backend, so a just-exiting subshell never changes it."""
+    deadline = time.monotonic() + _JOB_CLEANUP_WINDOW
+    stopped = set()
+    while True:
+        try:
+            live = _children()
+        except OSError as error:
+            return len(stopped), [], f"cannot list the jobs: {error}"
+        for pid in live:
+            group = _live_group(pid)
+            if group is not None:
+                stopped.add(group)
+            for kill in (os.killpg, os.kill):
+                try:
+                    kill(pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+        try:
+            while os.waitpid(-1, os.WNOHANG)[0] > 0:
+                pass
+        except ChildProcessError:
+            # ECHILD: nothing left, not even a job still being reparented.
+            return len(stopped), [], None
+        if time.monotonic() >= deadline:
+            try:
+                survivors = _children()
+            except OSError:
+                survivors = live
+            return len(stopped), survivors, None
+        time.sleep(0.001)
+
+
+def _report_jobs(stopped, survivors, error):
+    """The stderr notice; the error text when cleanup could not see every job."""
+    if survivors:
+        pids = " ".join(str(pid) for pid in survivors)
+        print(f"bash block left {stopped} background job(s); they were stopped, "
+              f"and {len(survivors)} still alive after "
+              f"{int(_JOB_CLEANUP_WINDOW * 1000)} ms: pid {pids}",
+              file=sys.stderr, flush=True)
+    elif stopped:
+        print(f"bash block left {stopped} background job(s); they were stopped",
+              file=sys.stderr, flush=True)
+    return None if error is None else f"bash job cleanup failed: {error}"
+
+
+def _on_sigterm(_signum, _frame):
+    # the host's cancel: stop the shell and every job, then exit. a SIGKILL
+    # would end this subreaper first and hand its setsid jobs to init.
+    error = _report_jobs(*_stop_jobs())
+    if error:
+        print(error, file=sys.stderr, flush=True)
+    os._exit(128 + signal.SIGTERM)
+
+
+# linux only, as in the rust backend: elsewhere there is no subreaper bit
+# and no /proc children list.
+_sweep_jobs = _plain and sys.platform.startswith("linux")
+if _sweep_jobs:
+    _become_subreaper()
+    signal.signal(signal.SIGTERM, _on_sigterm)
+
+
 class BashSession:
     def __init__(self):
         self.dir = tempfile.TemporaryDirectory(prefix="o-bash-session-")
@@ -190,13 +300,32 @@ class BashSession:
         return status, stdout, stderr, alive
 
     def close(self):
+        """End the shell, and in a plain helper every job it left. returns an
+        error text when that could not be done, else None."""
+        errors = []
         try:
             self.proc.stdin.close()
+        except OSError as error:
+            errors.append(f"closing the shell's stdin: {error}")
+        try:
             self.proc.kill()
-            self.proc.wait()
-        except Exception:
+        except ProcessLookupError:
             pass
-        self.dir.cleanup()
+        except OSError as error:
+            errors.append(f"killing the shell: {error}")
+        try:
+            self.proc.wait()
+        except (OSError, ChildProcessError) as error:
+            errors.append(f"reaping the shell: {error}")
+        if _sweep_jobs:
+            job_error = _report_jobs(*_stop_jobs())
+            if job_error:
+                errors.append(job_error)
+        try:
+            self.dir.cleanup()
+        except OSError as error:
+            errors.append(f"removing the session dir: {error}")
+        return "; ".join(errors) or None
 
 
 def _scalar(oval):
@@ -269,12 +398,13 @@ def handle_exec(cmd):
         if _session is None:
             _session = BashSession()
         returncode, stdout, stderr, alive = _session.run(code, env)
-        if _plain and alive:
-            _session.close()
+        if _plain or not alive:
+            close_error = _session.close()
             _session = None
+            if close_error:
+                send_err(close_error)
+                return
         if not alive:
-            _session.close()
-            _session = None
             if returncode < 0:
                 if not _plain:
                     _killed_by = -returncode
