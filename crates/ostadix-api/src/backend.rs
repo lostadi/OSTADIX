@@ -760,7 +760,7 @@ impl RustBackend {
             bash.shutdown();
         }
         if let Some(mut sql) = self.sql.take() {
-            sql.shutdown(crate::process::backend_shutdown_timeout())?;
+            sql.shutdown(crate::process::backend_shutdown_timeout()?)?;
         }
         Ok(())
     }
@@ -1359,7 +1359,8 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
             // that compatibility translation, so every shim gets one uniform
             // terminal command without duplicating protocol branches.
             child_stdin.take();
-            let status = reap_legacy_child(&mut child, crate::process::backend_shutdown_timeout())?;
+            let status =
+                reap_legacy_child(&mut child, crate::process::backend_shutdown_timeout()?)?;
             if !status.success() {
                 wire::write_frame(
                     &mut writer,
