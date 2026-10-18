@@ -20,6 +20,8 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = "scripts/check_commit_authors.py"
+# the name the check was introduced under, before its rename.
+LEGACY_POLICY_PATH = "scripts/check_attribution.py"
 PROJECT_AUTHOR = "Lee Daghlar Ostadi"
 PROJECT_ORCID = "0009-0001-6380-9558"
 OWNED_AUTHOR_MANIFESTS = frozenset({"Cargo.toml", "crates/ostadix-api/Cargo.toml"})
@@ -437,33 +439,43 @@ def policy_boundary(head: str) -> tuple[str | None, str]:
     Before the policy is committed, use the audited legacy tip so the working
     tree implementation remains testable.
     """
-    result = subprocess.run(
-        [
-            "git",
-            "log",
-            # follow renames, so the boundary stays the original introduction;
-            # git ignores --diff-filter and --reverse with --follow, so the
-            # added-file commits are picked out of the name-status lines.
-            "--follow",
-            "--name-status",
-            "--format=commit %H",
-            head,
-            "--",
-            POLICY_PATH,
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    introductions = []
-    current = None
-    for line in result.stdout.splitlines():
-        if line.startswith("commit "):
-            current = line.split()[1]
-        elif line.startswith("A\t") and current is not None:
-            introductions.append(current)
-    introductions.reverse()
+    # the check was introduced as scripts/check_attribution.py and later
+    # renamed. both names are asked for, with rename detection off so the
+    # answer does not depend on how similar the two files are: the original
+    # introduction is the one commit that added the old name, and the new
+    # name may only appear by a commit that also deleted the old one. a head
+    # from before the rename has only the old name and resolves the same way.
+    def changes(path: str, status: str) -> list[str]:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                "--no-renames",
+                f"--diff-filter={status}",
+                "--reverse",
+                "--format=%H",
+                head,
+                "--",
+                path,
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.split()
+
+    introductions = changes(LEGACY_POLICY_PATH, "A")
+    if not introductions:
+        introductions = changes(POLICY_PATH, "A")
+    else:
+        removals = set(changes(LEGACY_POLICY_PATH, "D"))
+        for renamed in changes(POLICY_PATH, "A"):
+            if renamed not in removals:
+                raise RuntimeError(
+                    f"{POLICY_PATH} was added by {renamed} without replacing "
+                    f"{LEGACY_POLICY_PATH}"
+                )
     if not introductions:
         return None, LEGACY_POLICY_BASELINE
     if len(introductions) != 1:

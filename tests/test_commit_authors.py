@@ -176,9 +176,11 @@ class AuthorCheckTests(unittest.TestCase):
         introduction = "1" * 40
         parent = "2" * 40
         run.side_effect = (
-            subprocess.CompletedProcess(
-                [], 0, f"commit {introduction}\n\nA\tscripts/check_commit_authors.py\n", ""
-            ),
+            # additions of the original name, its removals, additions of the
+            # current name, then the introduction's parent.
+            subprocess.CompletedProcess([], 0, f"{introduction}\n", ""),
+            subprocess.CompletedProcess([], 0, "", ""),
+            subprocess.CompletedProcess([], 0, "", ""),
             subprocess.CompletedProcess([], 0, f"{parent}\n", ""),
         )
         self.assertEqual(policy_boundary("rewritten-head"), (introduction, parent))
@@ -367,3 +369,63 @@ class AuthorCheckPrePushTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuthorCheckRenameBoundaryTests(unittest.TestCase):
+    """The introduction boundary must survive the check's rename."""
+
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory(prefix="ostadix-author-rename-")
+        self.addCleanup(self.temp.cleanup)
+        self.repo = Path(self.temp.name)
+        self.env = dict(os.environ)
+        self.env.update({
+            "GIT_AUTHOR_NAME": "Lee Daghlar Ostadi",
+            "GIT_AUTHOR_EMAIL": "lee@example.invalid",
+            "GIT_COMMITTER_NAME": "Lee Daghlar Ostadi",
+            "GIT_COMMITTER_EMAIL": "lee@example.invalid",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+        })
+        self.git("init", "-q", "-b", "main")
+        self.base = self.commit("Legacy baseline")
+        script = (ROOT / "scripts/check_commit_authors.py").read_text()
+        (self.repo / "scripts").mkdir()
+        (self.repo / "scripts/check_attribution.py").write_text(script)
+        self.introduction = self.commit("Introduce author check")
+        self.git("mv", "scripts/check_attribution.py", "scripts/check_commit_authors.py")
+        self.renamed = self.commit("Rename author check")
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=self.repo, env=self.env,
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+
+    def commit(self, message: str) -> str:
+        self.git("add", "-A")
+        self.git("-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q", "-m", message)
+        return self.git("rev-parse", "HEAD")
+
+    def boundary(self, head: str):
+        import scripts.check_commit_authors as check
+        with patch.object(check, "ROOT", self.repo):
+            return check.policy_boundary(head)
+
+    def test_heads_before_and_after_the_rename_find_the_same_introduction(self) -> None:
+        expected = (self.introduction, self.base)
+        self.assertEqual(self.boundary(self.introduction), expected)
+        self.assertEqual(self.boundary(self.renamed), expected)
+
+    def test_a_rewritten_rename_still_finds_the_introduction(self) -> None:
+        # rename detection would miss a rename that also rewrote the file.
+        (self.repo / "scripts/check_commit_authors.py").write_text("# rewritten\n")
+        head = self.commit("Rewrite author check")
+        self.assertEqual(self.boundary(head), (self.introduction, self.base))
+
+    def test_adding_the_new_name_beside_the_old_one_is_rejected(self) -> None:
+        self.git("checkout", "-q", "--detach", self.introduction)
+        (self.repo / "scripts/check_commit_authors.py").write_text("# second check\n")
+        head = self.commit("Add a second author check")
+        with self.assertRaises(RuntimeError):
+            self.boundary(head)
