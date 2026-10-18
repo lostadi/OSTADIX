@@ -471,6 +471,11 @@ Package SemVer is only one of the independent coordinates documented in
   read, not only at spawn.
 - Isolated project workspaces are created private (0700, random name).
 - A NUL in a `$x` bash splice names `$x` under the graph executor too.
+- When the native leaf `clang` or `ld` is missing, the error now lists the
+  `PATH` directories that were searched and the empty or relative entries
+  that were skipped, and names `O_NATIVE_CLANG` or `O_NATIVE_LD` as the fix.
+  It used to say only "cannot find binary path".
+
 - The caller's `LD_LIBRARY_PATH` is no longer passed to the native leaf
   `clang` and `ld`. A toolchain that needs a library path sets
   `O_NATIVE_TOOL_LIBRARY_PATH`, which accepts absolute entries only.
