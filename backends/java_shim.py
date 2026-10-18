@@ -53,7 +53,7 @@ def handle_exec(cmd):
             # Compile
             comp = subprocess.run(
                 ["javac", src],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
             )
             if comp.returncode != 0:
                 stderr = comp.stderr.strip()
