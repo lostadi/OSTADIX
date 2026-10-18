@@ -307,6 +307,19 @@ fn session_label(lang: &str, env_id: u32) -> String {
     }
 }
 
+/// The session as errors name it. a fresh environment's id is a sentinel
+/// (u32::MAX), never shown: it reads as `plain bash block` or `L[*ephemeral*]`,
+/// like the evaluator's own label.
+fn session_name(lang: &str, env_id: u32) -> String {
+    if env_id <= crate::environment::MAX_PERSISTENT_ENV_ID {
+        format!("{lang}[{env_id}]")
+    } else if lang == "bash" {
+        "plain bash block".to_string()
+    } else {
+        format!("{lang}[*ephemeral*]")
+    }
+}
+
 pub(crate) fn step_limit_exceeded_message(language: &str, limit: Duration) -> String {
     format!("backend `{language}` {}", step_limit_exceeded_reason(limit))
 }
@@ -2853,12 +2866,13 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         if let Some(cause) = self
             .lost_sessions
             .get(&(lang.to_string(), env_id, sandbox.clone()))
         {
             return Err(infrastructure_error(anyhow!(
-                "session {lang}[{env_id}] was terminated after {cause}; its state is gone"
+                "session {lang_env} was terminated after {cause}; its state is gone"
             )));
         }
         Ok(())
@@ -2994,11 +3008,12 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<ExecStep> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         let step = self
             .registry
             .get_mut(&key)
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
             .recv_step();
 
         if let Err(error) = step.as_ref() {
@@ -3006,7 +3021,7 @@ impl ProcessRegistry {
                 self.evict_failed(&key, error);
             }
         }
-        let step = step.with_context(|| format!("backend `{lang}[{env_id}]` recv_step failed"))?;
+        let step = step.with_context(|| format!("backend `{lang_env}` recv_step failed"))?;
         if matches!(step, ExecStep::Done(_)) {
             lifecycle_trace(
                 "worker.done_received",
@@ -3027,18 +3042,18 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         timeout: Duration,
     ) -> Result<ExecStep> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         let step = self
             .registry
             .get_mut(&key)
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
             .recv_step_timeout(timeout);
         let step = match step {
             Ok(step) => step,
             Err(error) if error.is::<BackendSemanticError>() => {
-                return Err(error).with_context(|| {
-                    format!("backend `{lang}[{env_id}]` returned an execution error")
-                });
+                return Err(error)
+                    .with_context(|| format!("backend `{lang_env}` returned an execution error"));
             }
             Err(error) => {
                 self.mark_session_lost(&key, KILLED_BY_TIMEOUT);
@@ -3048,7 +3063,7 @@ impl ProcessRegistry {
                     .expect("timed receive process was present before removal");
                 let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
                 let error = error.context(format!(
-                    "backend `{lang}[{env_id}]` did not settle within the inherited callback deadline"
+                    "backend `{lang_env}` did not settle within the inherited callback deadline"
                 ));
                 return match termination {
                     Err(termination) => Err(infrastructure_error(anyhow!(
@@ -3083,6 +3098,7 @@ impl ProcessRegistry {
     where
         F: FnMut() -> bool,
     {
+        let lang_env = session_name(lang, env_id);
         const POLL_INTERVAL: Duration = Duration::from_millis(25);
         let key = self.process_key(lang, env_id, sandbox)?;
         // the opt-in per-step limit applies here too. one call reads one
@@ -3100,7 +3116,7 @@ impl ProcessRegistry {
             &self
                 .registry
                 .get(&key)
-                .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+                .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
                 .pulse,
         );
         let mut last_watch = Instant::now();
@@ -3138,9 +3154,9 @@ impl ProcessRegistry {
                     .expect("controlled receive process was present before removal");
                 let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
                 let error = match termination {
-                    Ok(()) => anyhow!("backend `{lang}[{env_id}]` {reason}; actor forcibly reaped"),
+                    Ok(()) => anyhow!("backend `{lang_env}` {reason}; actor forcibly reaped"),
                     Err(termination) => anyhow!(
-                        "backend `{lang}[{env_id}]` {reason}; actor termination also failed: {termination:#}"
+                        "backend `{lang_env}` {reason}; actor termination also failed: {termination:#}"
                     ),
                 };
                 let error = if request_cancelled {
@@ -3169,7 +3185,7 @@ impl ProcessRegistry {
             let step = self
                 .registry
                 .get_mut(&key)
-                .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+                .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
                 .poll_step(wait);
             let step = match step {
                 Ok(None) if last_watch.elapsed() < STEP_WATCH_TICK => continue,
@@ -3178,7 +3194,7 @@ impl ProcessRegistry {
                     let process = self
                         .registry
                         .get_mut(&key)
-                        .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?;
+                        .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?;
                     match process.watch_tick(&mut watch) {
                         Ok(()) => continue,
                         Err(error) => Err(error),
@@ -3198,7 +3214,7 @@ impl ProcessRegistry {
                 }
                 Err(error) if error.is::<BackendSemanticError>() => {
                     break Err(error).with_context(|| {
-                        format!("backend `{lang}[{env_id}]` returned an execution error")
+                        format!("backend `{lang_env}` returned an execution error")
                     });
                 }
                 Err(error) => {
@@ -3208,10 +3224,10 @@ impl ProcessRegistry {
                     let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
                     break match termination {
                         Ok(()) => Err(infrastructure_error(error.context(format!(
-                            "backend `{lang}[{env_id}]` controlled receive failed"
+                            "backend `{lang_env}` controlled receive failed"
                         )))),
                         Err(termination) => Err(infrastructure_error(anyhow!(
-                            "backend `{lang}[{env_id}]` controlled receive failed: {error:#}; actor termination also failed: {termination:#}"
+                            "backend `{lang_env}` controlled receive failed: {error:#}; actor termination also failed: {termination:#}"
                         ))),
                     };
                 }
@@ -3229,10 +3245,11 @@ impl ProcessRegistry {
         value: OValue,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         self.registry
             .get_mut(&key)
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
             .send_eval_result(value)
             .with_context(|| format!("failed to send eval_result to backend `{lang}`"))
     }
@@ -3417,14 +3434,13 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<BackendStateCapabilitiesV1> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         self.registry
             .get_mut(&key)
             .expect("resolved backend process is missing")
             .state_capabilities()
-            .with_context(|| {
-                format!("failed to query backend state capabilities for `{lang}[{env_id}]`")
-            })
+            .with_context(|| format!("failed to query backend state capabilities for `{lang_env}`"))
     }
 
     pub(crate) fn checkpoint_env(
@@ -3434,12 +3450,13 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         max_bytes: u64,
     ) -> Result<BackendCheckpointV1> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         self.registry
             .get_mut(&key)
             .expect("resolved backend process is missing")
             .checkpoint(max_bytes)
-            .with_context(|| format!("failed to checkpoint backend `{lang}[{env_id}]`"))
+            .with_context(|| format!("failed to checkpoint backend `{lang_env}`"))
     }
 
     /// Capture every settled persistent actor without removing, replacing, or
@@ -3566,6 +3583,7 @@ impl ProcessRegistry {
         checkpoint: BackendCheckpointV1,
         launch: BackendLaunchContext<'_>,
     ) -> Result<BackendRestoreReceiptV1> {
+        let lang_env = session_name(lang, env_id);
         self.ensure_actor_not_migrated(lang, env_id, launch.sandbox)?;
         checkpoint.validate()?;
         if checkpoint.backend != lang {
@@ -3583,9 +3601,7 @@ impl ProcessRegistry {
                     && candidate_sandbox == launch.sandbox
             })
         {
-            bail!(
-                "state.restore-conflict: backend `{lang}[{env_id}]` already owns an open session"
-            );
+            bail!("state.restore-conflict: backend `{lang_env}` already owns an open session");
         }
         self.ensure_session_capacity(lang)?;
         let launch_generation_sha256 = actor_launch_generation(&launch, lang)?;
@@ -3605,7 +3621,7 @@ impl ProcessRegistry {
             &session_id,
             &key.3,
         )
-        .with_context(|| format!("failed to start restore target for `{lang}[{env_id}]`"))?;
+        .with_context(|| format!("failed to start restore target for `{lang_env}`"))?;
         match process.restore(checkpoint) {
             Ok(receipt) => {
                 self.registry.insert(key, process);
@@ -3710,6 +3726,7 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<(String, u32, BackendSandboxPolicy, String)> {
+        let lang_env = session_name(lang, env_id);
         let mut matching =
             self.registry
                 .keys()
@@ -3721,9 +3738,9 @@ impl ProcessRegistry {
         let key = matching
             .next()
             .cloned()
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?;
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?;
         if matching.next().is_some() {
-            bail!("multiple launch generations are live for backend `{lang}[{env_id}]`");
+            bail!("multiple launch generations are live for backend `{lang_env}`");
         }
         Ok(key)
     }
@@ -3762,6 +3779,7 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         launch_generation_sha256: &str,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         self.ensure_actor_not_migrated(lang, env_id, sandbox)?;
         let conflicting_generation = self
             .registry
@@ -3777,7 +3795,7 @@ impl ProcessRegistry {
             .map(|(_, _, _, digest)| digest);
         if let Some(conflicting_generation) = conflicting_generation {
             bail!(
-                "session.generation-conflict: backend `{lang}[{env_id}]` remains pinned to launch generation `{conflicting_generation}`; explicitly checkpoint/cleanup/restore before using `{launch_generation_sha256}`"
+                "session.generation-conflict: backend `{lang_env}` remains pinned to launch generation `{conflicting_generation}`; explicitly checkpoint/cleanup/restore before using `{launch_generation_sha256}`"
             );
         }
         Ok(())
@@ -3789,11 +3807,12 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         if self
             .migrated_actors
             .contains(&(lang.to_string(), env_id, sandbox.clone()))
         {
-            bail!("state.actor-migrated: backend `{lang}[{env_id}]` ownership left this evaluator");
+            bail!("state.actor-migrated: backend `{lang_env}` ownership left this evaluator");
         }
         Ok(())
     }
