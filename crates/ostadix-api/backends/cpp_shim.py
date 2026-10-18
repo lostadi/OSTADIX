@@ -38,7 +38,7 @@ def handle_exec(cmd):
             # Compile with C++17
             comp = subprocess.run(
                 ["g++", "-std=c++17", "-o", binary, src],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
             )
             if comp.returncode != 0:
                 stderr = comp.stderr.strip()

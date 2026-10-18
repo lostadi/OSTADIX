@@ -46,7 +46,7 @@ def handle_exec(cmd):
                 binary = os.path.join(tmpdir, "main")
                 comp = subprocess.run(
                     [compiler, "-o", binary, src],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
                 )
                 if comp.returncode != 0:
                     stderr = comp.stderr.strip()

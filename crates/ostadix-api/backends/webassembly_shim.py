@@ -64,7 +64,7 @@ def handle_exec(cmd):
 
                 conv = subprocess.run(
                     conversion_command,
-                    capture_output=True, text=True, timeout=30,
+                    capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
                 )
                 if conv.returncode != 0:
                     stderr = conv.stderr.strip()

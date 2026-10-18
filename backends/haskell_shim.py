@@ -38,14 +38,14 @@ def handle_exec(cmd):
                 # Interpreted execution
                 result = subprocess.run(
                     ["runghc", src],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
                 )
             elif shutil.which("ghc"):
                 # Compiled execution
                 binary = os.path.join(tmpdir, "Main")
                 comp = subprocess.run(
                     ["ghc", "-o", binary, src],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
                 )
                 if comp.returncode != 0:
                     stderr = comp.stderr.strip()
