@@ -471,6 +471,12 @@ Package SemVer is only one of the independent coordinates documented in
   read, not only at spawn.
 - Isolated project workspaces are created private (0700, random name).
 - A NUL in a `$x` bash splice names `$x` under the graph executor too.
+- `ocorec` without `--keep-asm` writes its transient assembly in a fresh 0700
+  directory with a random name, as a 0600 file that must not already exist
+  and is never opened through a symlink. The directory is removed even if
+  `ocorec` panics. The old `ocorec-<pid>-<nanos>.s` temp file was predictable,
+  0644 and followed symlinks.
+
 - When the native leaf `clang` or `ld` is missing, the error now lists the
   `PATH` directories that were searched and the empty or relative entries
   that were skipped, and names `O_NATIVE_CLANG` or `O_NATIVE_LD` as the fix.
