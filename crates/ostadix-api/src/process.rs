@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::{self, BufReader, BufWriter, Write};
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
@@ -249,6 +249,8 @@ struct BackendProcess {
     pending_morphism: Option<PendingMorphismV1>,
     awaiting_callback: bool,
     native_operation_depth: usize,
+    // set on a plain bash helper: where it is parked again after a block.
+    plain_bash_key: Option<PlainBashHelperKey>,
 }
 
 // why no default: an operation (an ephemeral exec, a state checkpoint or
@@ -332,6 +334,10 @@ pub(crate) fn heartbeat_interval() -> Result<Duration> {
 
 /// The protocol feature a shim lists in `hello_v1` when it sends heartbeats.
 pub(crate) const HEARTBEAT_CAPABILITY: &str = "heartbeat_v1";
+
+/// Set to `1` on a bash backend that serves plain blocks: it gives each block
+/// a fresh shell and ends that shell and its jobs before answering.
+pub(crate) const PLAIN_BASH_HELPER_ENV: &str = "O_BACKEND_PLAIN_BASH_HELPER";
 
 /// Inside a backend: the interval the host asked for, or None when the host
 /// did not set `O_BACKEND_HEARTBEAT_INTERVAL_MS`. Without it a shim sends no
@@ -1105,6 +1111,16 @@ impl BackendProcess {
         sandbox: &BackendSandboxPolicy,
         executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
     ) -> Result<Self> {
+        Self::new_ephemeral(lang, shim_path, sandbox, executable_leases, false)
+    }
+
+    fn new_ephemeral(
+        lang: &str,
+        shim_path: &Path,
+        sandbox: &BackendSandboxPolicy,
+        executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
+        plain_bash_helper: bool,
+    ) -> Result<Self> {
         let ordinal = BACKEND_SESSION_COUNTER.fetch_add(1, Ordering::Relaxed);
         let session_id = hex::encode(Sha256::digest(format!(
             "ostadix-ephemeral-session-v1\0{}\0{}\0{}",
@@ -1112,13 +1128,14 @@ impl BackendProcess {
             ordinal,
             lang
         )));
-        Self::new_with_session(
+        Self::spawn(
             lang,
             shim_path,
             sandbox,
             executable_leases,
             &session_id,
             "unmanaged",
+            lang == "bash" && plain_bash_helper,
         )
     }
 
@@ -1129,6 +1146,26 @@ impl BackendProcess {
         executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
         session_id: &str,
         launch_generation: &str,
+    ) -> Result<Self> {
+        Self::spawn(
+            lang,
+            shim_path,
+            sandbox,
+            executable_leases,
+            session_id,
+            launch_generation,
+            false,
+        )
+    }
+
+    fn spawn(
+        lang: &str,
+        shim_path: &Path,
+        sandbox: &BackendSandboxPolicy,
+        executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
+        session_id: &str,
+        launch_generation: &str,
+        plain_bash_helper: bool,
     ) -> Result<Self> {
         if session_id.len() != 64 || !session_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             bail!("backend session identity must be a 64-character SHA-256 digest");
@@ -1164,6 +1201,11 @@ impl BackendProcess {
             .env("O_BACKEND_LAUNCH_GENERATION", launch_generation)
             .env("O_BACKEND_NATIVE_INSTANCE_ID", &native_instance)
             .env(HEARTBEAT_INTERVAL_ENV, heartbeat.as_millis().to_string());
+        if plain_bash_helper {
+            command.env(PLAIN_BASH_HELPER_ENV, "1");
+        } else {
+            command.env_remove(PLAIN_BASH_HELPER_ENV);
+        }
 
         #[cfg(unix)]
         command.process_group(0);
@@ -1306,6 +1348,7 @@ impl BackendProcess {
             pending_morphism: None,
             awaiting_callback: false,
             native_operation_depth: 0,
+            plain_bash_key: None,
             label: lang.to_string(),
             pulse,
             write_cancellation: None,
@@ -1607,6 +1650,16 @@ impl BackendProcess {
         self.send_command(&BackendWireCommandV2::EvalResult { value })?;
         self.awaiting_callback = false;
         Ok(())
+    }
+
+    /// Between operations with a live, unread pipe: safe to hand to another
+    /// caller.
+    fn idle(&self) -> bool {
+        !self.terminal
+            && !self.exec_pending
+            && !self.awaiting_callback
+            && self.native_operation_depth == 0
+            && self.pending_morphism.is_none()
     }
 
     fn begin_exec_with_morphism(
@@ -2168,12 +2221,25 @@ where
             .validate_bindings(language, &bindings)
             .map_err(anyhow::Error::msg)?;
     }
-    let mut process = BackendProcess::new(
-        language,
-        launch.shim_path,
-        launch.sandbox,
-        launch.executable_leases.map(AsRef::as_ref),
-    )
+    let mut process = if language == "bash" && morphism_contract.is_none() {
+        let key = PlainBashHelperKey::new(&launch, None).map_err(infrastructure_error)?;
+        plain_bash_helper(key, || {
+            BackendProcess::new_ephemeral(
+                language,
+                launch.shim_path,
+                launch.sandbox,
+                launch.executable_leases.map(AsRef::as_ref),
+                true,
+            )
+        })
+    } else {
+        BackendProcess::new(
+            language,
+            launch.shim_path,
+            launch.sandbox,
+            launch.executable_leases.map(AsRef::as_ref),
+        )
+    }
     .with_context(|| format!("failed to start ephemeral backend `{language}`"))
     .map_err(infrastructure_error)?;
     let operation_timeout = backend_operation_timeout().map_err(infrastructure_error)?;
@@ -2250,6 +2316,17 @@ where
     })();
     watch.finish();
 
+    // a plain bash helper already ended the block's shell and jobs before it
+    // answered, so after a plain answer, value or bash error, it is as fresh
+    // as a new one and goes back for the next plain block.
+    let answered = match &execution {
+        Ok(_) => true,
+        Err(error) => error.is::<BackendSemanticError>(),
+    };
+    if answered && process.plain_bash_key.is_some() && process.idle() {
+        park_plain_bash_helper(process);
+        return execution;
+    }
     match execution {
         Ok(value) => {
             process
@@ -2276,6 +2353,82 @@ where
                 Err(infrastructure_error(error))
             }
         },
+    }
+}
+
+// ############################################################################
+// plain bash helpers
+// ############################################################################
+
+// why reuse: starting a backend process cost more than most plain blocks
+// themselves. the helper keeps no shell between blocks, so reuse shares only
+// the launch identity below, which is what a fresh helper would get anyway.
+const PLAIN_BASH_HELPER_IDLE_MAX: usize = 8;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PlainBashHelperKey {
+    shim_path: PathBuf,
+    sandbox: BackendSandboxPolicy,
+    // the admitted bash executables; a different admission never reuses one.
+    executables: Option<String>,
+    // the registry's launch generation; None for autonomous ephemeral runs.
+    launch_generation: Option<String>,
+}
+
+impl PlainBashHelperKey {
+    fn new(launch: &BackendLaunchContext<'_>, launch_generation: Option<&str>) -> Result<Self> {
+        Ok(Self {
+            shim_path: launch.shim_path.to_path_buf(),
+            sandbox: launch.sandbox.clone(),
+            executables: launch
+                .executable_leases
+                .map(|leases| leases.backend_manifest_json("bash"))
+                .transpose()?,
+            launch_generation: launch_generation.map(str::to_string),
+        })
+    }
+}
+
+static PLAIN_BASH_HELPERS: Mutex<Vec<BackendProcess>> = Mutex::new(Vec::new());
+
+/// A parked helper for `key`, or a new one from `spawn`.
+fn plain_bash_helper(
+    key: PlainBashHelperKey,
+    spawn: impl FnOnce() -> Result<BackendProcess>,
+) -> Result<BackendProcess> {
+    {
+        let mut idle = PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner());
+        while let Some(index) = idle
+            .iter()
+            .position(|held| held.plain_bash_key.as_ref() == Some(&key))
+        {
+            let mut process = idle.swap_remove(index);
+            // a helper that died while parked is dropped, which reaps it.
+            if matches!(process.child.try_wait(), Ok(None)) {
+                return Ok(process);
+            }
+        }
+    }
+    let mut process = spawn()?;
+    process.plain_bash_key = Some(key);
+    Ok(process)
+}
+
+fn park_plain_bash_helper(process: BackendProcess) {
+    let mut idle = PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner());
+    if idle.len() < PLAIN_BASH_HELPER_IDLE_MAX {
+        idle.push(process);
+    }
+    // over the cap the helper drops here, which kills and reaps its group.
+}
+
+/// Stop every parked plain bash helper. Called when a process registry is
+/// torn down, so no helper outlives the evaluation that started it.
+pub(crate) fn retire_plain_bash_helpers() {
+    let mut processes =
+        std::mem::take(&mut *PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner()));
+    for error in force_terminate_all(&mut processes, BACKEND_FALLBACK_REAP_TIMEOUT) {
+        lifecycle_trace("worker.plain_bash_helper_cleanup_failed", error);
     }
 }
 
@@ -2612,16 +2765,9 @@ impl ProcessRegistry {
                 env_id,
                 launch.sandbox,
             );
-            let process = BackendProcess::new_with_session(
-                lang,
-                launch.shim_path,
-                launch.sandbox,
-                launch.executable_leases.map(AsRef::as_ref),
-                &session_id,
-                &key.3,
-            )
-            .with_context(|| format!("failed to start backend for language `{lang}`"))?;
-            let mut process = process;
+            let mut process = self
+                .spawn_actor(lang, env_id, &launch, &session_id, &key.3)
+                .with_context(|| format!("failed to start backend for language `{lang}`"))?;
             process.label = session_label(lang, env_id);
             self.registry.insert(key.clone(), process);
         }
@@ -3049,16 +3195,9 @@ impl ProcessRegistry {
                 env_id,
                 launch.sandbox,
             );
-            let process = BackendProcess::new_with_session(
-                lang,
-                launch.shim_path,
-                launch.sandbox,
-                launch.executable_leases.map(AsRef::as_ref),
-                &session_id,
-                &key.3,
-            )
-            .with_context(|| format!("failed to start backend for language `{lang}`"))?;
-            let mut process = process;
+            let mut process = self
+                .spawn_actor(lang, env_id, &launch, &session_id, &key.3)
+                .with_context(|| format!("failed to start backend for language `{lang}`"))?;
             process.label = session_label(lang, env_id);
             self.registry.insert(key.clone(), process);
         }
@@ -3301,6 +3440,39 @@ impl ProcessRegistry {
         }
     }
 
+    /// Start the backend for one registry key. a plain bash block (a fresh
+    /// environment) runs in a reusable helper; numbered sessions and every
+    /// other language get their own backend.
+    fn spawn_actor(
+        &self,
+        lang: &str,
+        env_id: u32,
+        launch: &BackendLaunchContext<'_>,
+        session_id: &str,
+        launch_generation: &str,
+    ) -> Result<BackendProcess> {
+        let spawn = |plain_bash_helper| {
+            BackendProcess::spawn(
+                lang,
+                launch.shim_path,
+                launch.sandbox,
+                launch.executable_leases.map(AsRef::as_ref),
+                session_id,
+                launch_generation,
+                plain_bash_helper,
+            )
+        };
+        if lang == "bash"
+            && env_id > crate::environment::MAX_PERSISTENT_ENV_ID
+            && self.morphism_contract.is_none()
+        {
+            let key = PlainBashHelperKey::new(launch, Some(launch_generation))?;
+            plain_bash_helper(key, || spawn(true))
+        } else {
+            spawn(false)
+        }
+    }
+
     pub fn cleanup_env(&mut self, lang: &str, env_id: u32) -> Result<()> {
         let keys = self
             .registry
@@ -3312,6 +3484,12 @@ impl ProcessRegistry {
             .collect::<Vec<_>>();
         for key in keys {
             if let Some(mut process) = self.registry.remove(&key) {
+                // a plain bash helper ended the block's shell and jobs before
+                // it answered; it goes back for the next plain block.
+                if process.plain_bash_key.is_some() && process.idle() {
+                    park_plain_bash_helper(process);
+                    continue;
+                }
                 process.retire_fresh_attempt(backend_shutdown_timeout())?;
             }
         }
@@ -3564,6 +3742,7 @@ impl Drop for ProcessRegistry {
         for error in force_terminate_all(&mut processes, BACKEND_FALLBACK_REAP_TIMEOUT) {
             lifecycle_trace("worker.registry_drop_cleanup_failed", error);
         }
+        retire_plain_bash_helpers();
     }
 }
 
