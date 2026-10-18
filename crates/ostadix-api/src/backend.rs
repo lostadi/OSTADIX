@@ -84,7 +84,14 @@ pub fn run_backend(lang: &str) -> Result<()> {
     }
 
     if lang == "bash" {
-        become_bash_subreaper();
+        // fail closed: without the subreaper bit a setsid or double-forked
+        // job escapes to init and outlives its block.
+        become_bash_subreaper()
+            .context("the bash backend could not become the subreaper of its jobs")?;
+        // a SIGTERM, from the host's cancel or from our parent's death, stops
+        // the shell and its jobs before this process exits.
+        bash_termination::install()
+            .context("could not install the bash backend's SIGTERM cleanup")?;
     }
     let mut backend = RustBackend::new(tools);
     if lang == "bash" {
@@ -552,7 +559,9 @@ impl BashSession {
         Ok((output, alive))
     }
 
-    fn shutdown(&mut self) {
+    /// End the shell and every job it left. an error means the jobs could
+    /// not be enumerated, so some may still run.
+    fn shutdown(&mut self) -> Result<()> {
         self.stdin.take();
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -560,10 +569,7 @@ impl BashSession {
         // double-forked ones, were reparented to this backend, which is
         // their subreaper; stop them so nothing outlives the block (plain
         // bash) or the session (bash[N]).
-        let stopped = stop_backend_descendants(Duration::from_secs(2));
-        if stopped > 0 {
-            eprintln!("bash block left {stopped} background job(s); they were stopped");
-        }
+        stop_backend_descendants(JOB_CLEANUP_WINDOW).report()
     }
 }
 
@@ -578,14 +584,23 @@ impl BashSession {
 /// not mixed in. A descendant that makes itself a subreaper, or that a
 /// service manager starts, still escapes; only a cgroup could hold those.
 #[cfg(target_os = "linux")]
-fn become_bash_subreaper() {
+fn become_bash_subreaper() -> io::Result<()> {
     // SAFETY: PR_SET_CHILD_SUBREAPER takes one integer flag and changes only
     // this process's reparenting attribute.
-    let _ = unsafe { libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) };
+    if unsafe { libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 #[cfg(not(target_os = "linux"))]
-fn become_bash_subreaper() {}
+fn become_bash_subreaper() -> io::Result<()> {
+    Ok(())
+}
+
+/// How long job cleanup may keep killing and reaping before it reports the
+/// jobs still alive. it bounds cleanup only, never a block.
+const JOB_CLEANUP_WINDOW: Duration = Duration::from_secs(2);
 
 /// The live children of this process, from `/proc/self/task/*/children`.
 ///
@@ -593,39 +608,119 @@ fn become_bash_subreaper() {}
 /// block on a busy host. as the subreaper this process inherits every orphan
 /// bash leaves, so its own children are all that cleanup has to visit; killing
 /// one reparents its children here for the next pass.
+///
+/// a task that exited between the listing and the read is skipped; any other
+/// unreadable file is an error, since a child it hides would escape cleanup.
 #[cfg(target_os = "linux")]
-fn backend_descendants() -> Vec<i32> {
+fn backend_descendants() -> io::Result<Vec<i32>> {
     let mut children = Vec::new();
-    if let Ok(tasks) = fs::read_dir("/proc/self/task") {
-        for task in tasks.flatten() {
-            let Ok(list) = fs::read_to_string(task.path().join("children")) else {
-                continue;
-            };
-            children.extend(
-                list.split_whitespace()
-                    .filter_map(|pid| pid.parse::<i32>().ok()),
-            );
+    for task in fs::read_dir("/proc/self/task")? {
+        let task = task?;
+        let list = match fs::read_to_string(task.path().join("children")) {
+            Ok(list) => list,
+            Err(error)
+                if error.kind() == io::ErrorKind::NotFound
+                    || error.raw_os_error() == Some(libc::ESRCH) =>
+            {
+                continue
+            }
+            Err(error) => {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!("{}: {error}", task.path().join("children").display()),
+                ))
+            }
+        };
+        for pid in list.split_whitespace() {
+            children.push(pid.parse::<i32>().map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("unreadable child pid `{pid}` in /proc/self/task"),
+                )
+            })?);
         }
     }
     children.sort_unstable();
     children.dedup();
-    children
+    Ok(children)
 }
 
 #[cfg(not(target_os = "linux"))]
-fn backend_descendants() -> Vec<i32> {
-    Vec::new()
+fn backend_descendants() -> io::Result<Vec<i32>> {
+    Ok(Vec::new())
 }
 
-/// SIGKILL every child and its process group, reap them, and repeat until no
-/// child remains or `budget` runs out; returns how many distinct processes
-/// were stopped. the budget bounds cleanup only, never a step.
-fn stop_backend_descendants(budget: Duration) -> usize {
+/// What one cleanup pass did.
+#[derive(Debug, Default)]
+struct JobSweep {
+    // background jobs stopped: the distinct process groups of the live
+    // (non-zombie) processes the walk killed. why groups, not pids: a
+    // subshell that is just exiting is seen on some runs and not others,
+    // but it shares its job's group, so the count does not change between
+    // runs. a setsid job is its own group, and every job bash started
+    // without one shares the shell's group.
+    stopped: usize,
+    // children still present when the window ran out.
+    survivors: Vec<i32>,
+    // why the children could not be listed or reaped, if they could not.
+    error: Option<String>,
+}
+
+impl JobSweep {
+    /// The stderr notice for the block, and an error when cleanup could not
+    /// see every job.
+    fn report(self) -> Result<()> {
+        // one line, written once the walk has finished.
+        if self.survivors.is_empty() {
+            if self.stopped > 0 {
+                eprintln!(
+                    "bash block left {} background job(s); they were stopped",
+                    self.stopped
+                );
+            }
+        } else {
+            let pids = self
+                .survivors
+                .iter()
+                .map(i32::to_string)
+                .collect::<Vec<_>>()
+                .join(" ");
+            eprintln!(
+                "bash block left {} background job(s); they were stopped, and {} still alive after {} ms: pid {pids}",
+                self.stopped,
+                self.survivors.len(),
+                JOB_CLEANUP_WINDOW.as_millis()
+            );
+        }
+        match self.error {
+            Some(error) => bail!("bash job cleanup failed: {error}"),
+            None => Ok(()),
+        }
+    }
+}
+
+/// SIGKILL every child and its process group and reap, until waitpid says
+/// no child is left (ECHILD) or `budget` runs out.
+///
+/// why ECHILD and not an empty scan: a job killed in this pass reparents its
+/// own children here only as it dies, so a scan can come back empty while a
+/// grandchild is still on its way.
+fn stop_backend_descendants(budget: Duration) -> JobSweep {
     let deadline = std::time::Instant::now() + budget;
-    let mut stopped = std::collections::HashSet::new();
+    let mut groups = std::collections::HashSet::new();
+    let mut sweep = JobSweep::default();
     loop {
-        let live = backend_descendants();
+        let live = match backend_descendants() {
+            Ok(live) => live,
+            Err(error) => {
+                sweep.error = Some(error.to_string());
+                break;
+            }
+        };
         for pid in &live {
+            if let Some(group) = live_process_group(*pid) {
+                groups.insert(group);
+            }
             // a job that called setsid leads its own group; killing the group
             // takes its pipeline down in one pass.
             // SAFETY: killpg and kill only signal a pid found as our child.
@@ -633,23 +728,133 @@ fn stop_backend_descendants(budget: Duration) -> usize {
                 libc::killpg(*pid, libc::SIGKILL);
                 libc::kill(*pid, libc::SIGKILL);
             }
-            stopped.insert(*pid);
         }
         // reap every child that has exited, including reparented ones.
+        let mut no_children = false;
         loop {
             let mut status = 0;
             // SAFETY: waitpid with WNOHANG on any child of this process.
             let reaped = unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) };
-            if reaped <= 0 {
-                break;
+            if reaped > 0 {
+                continue;
             }
+            if reaped < 0 {
+                let error = io::Error::last_os_error();
+                match error.raw_os_error() {
+                    Some(libc::EINTR) => continue,
+                    Some(libc::ECHILD) => no_children = true,
+                    _ => sweep.error = Some(format!("waitpid: {error}")),
+                }
+            }
+            break;
         }
-        if live.is_empty() || std::time::Instant::now() >= deadline {
+        if no_children || sweep.error.is_some() {
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            sweep.survivors = backend_descendants().unwrap_or(live);
             break;
         }
         std::thread::sleep(Duration::from_millis(1));
     }
-    stopped.len()
+    sweep.stopped = groups.len();
+    sweep
+}
+
+/// The process group of `pid`, or None for a zombie or a vanished pid.
+#[cfg(target_os = "linux")]
+fn live_process_group(pid: i32) -> Option<i32> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    // fields after the parenthesised command: state, ppid, pgrp.
+    let mut fields = stat.rsplit_once(')')?.1.split_whitespace();
+    let state = fields.next()?;
+    if state == "Z" || state == "X" {
+        return None;
+    }
+    fields.nth(1)?.parse().ok()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn live_process_group(pid: i32) -> Option<i32> {
+    Some(pid)
+}
+
+// ############################################################################
+// bash backend termination
+// ############################################################################
+
+/// SIGTERM cleanup for the bash backend. the host's cancel and our parent's
+/// death (PR_SET_PDEATHSIG) both send SIGTERM; the handler only wakes a
+/// thread, which stops the shell and every job and then exits. a SIGKILL
+/// would end this subreaper first and hand its setsid jobs to init.
+#[cfg(target_os = "linux")]
+mod bash_termination {
+    use std::io::{self, Read};
+    use std::os::fd::FromRawFd;
+    use std::sync::atomic::{AtomicI32, Ordering};
+
+    static WAKE: AtomicI32 = AtomicI32::new(-1);
+
+    extern "C" fn on_sigterm(_: libc::c_int) {
+        let fd = WAKE.load(Ordering::Relaxed);
+        if fd >= 0 {
+            let byte = 1u8;
+            // SAFETY: write is async-signal-safe; fd is our pipe's write end.
+            unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
+        }
+    }
+
+    pub(super) fn install() -> io::Result<()> {
+        if WAKE.load(Ordering::Relaxed) >= 0 {
+            return Ok(());
+        }
+        let mut fds = [0; 2];
+        // SAFETY: pipe2 fills two fds; O_CLOEXEC keeps them from bash.
+        if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: fds[0] is a fresh fd owned from here on.
+        let mut wake = unsafe { std::fs::File::from_raw_fd(fds[0]) };
+        WAKE.store(fds[1], Ordering::Relaxed);
+        std::thread::Builder::new()
+            .name("ostadix-bash-sigterm".into())
+            .spawn(move || {
+                let mut byte = [0u8; 1];
+                loop {
+                    match wake.read(&mut byte) {
+                        Ok(1) => terminate_now(),
+                        Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                        _ => return,
+                    }
+                }
+            })?;
+        // SAFETY: a zeroed sigaction with a plain handler and an empty mask.
+        let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+        action.sa_sigaction = on_sigterm as *const () as usize;
+        action.sa_flags = libc::SA_RESTART;
+        // SAFETY: sigemptyset and sigaction on a local struct.
+        unsafe { libc::sigemptyset(&mut action.sa_mask) };
+        if unsafe { libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut()) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    /// Stop the shell and every job, say what was left, and exit.
+    pub(super) fn terminate_now() -> ! {
+        let outcome = super::stop_backend_descendants(super::JOB_CLEANUP_WINDOW).report();
+        if let Err(error) = outcome {
+            eprintln!("{error:#}");
+        }
+        std::process::exit(128 + libc::SIGTERM)
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod bash_termination {
+    pub(super) fn install() -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 /// Persistent `sqlite3` CLI session.
@@ -737,7 +942,7 @@ impl RustBackend {
                     self.child_pid
                         .store(0, std::sync::atomic::Ordering::Relaxed);
                     if let Some(mut ended) = self.bash.take() {
-                        ended.shutdown();
+                        ended.shutdown()?;
                     }
                     // a shell killed by a signal lost its state without any
                     // block asking for that: fail this block and every later
@@ -820,7 +1025,7 @@ impl RustBackend {
 
     fn cleanup(&mut self) -> Result<()> {
         if let Some(mut bash) = self.bash.take() {
-            bash.shutdown();
+            bash.shutdown()?;
         }
         if let Some(mut sql) = self.sql.take() {
             sql.shutdown(crate::process::backend_shutdown_timeout()?)?;
@@ -985,7 +1190,7 @@ impl RustBackend {
         self.child_pid
             .store(0, std::sync::atomic::Ordering::Relaxed);
         if let Some(mut ended) = self.bash.take() {
-            ended.shutdown();
+            ended.shutdown()?;
         }
         use std::os::unix::process::ExitStatusExt;
         if !alive {
