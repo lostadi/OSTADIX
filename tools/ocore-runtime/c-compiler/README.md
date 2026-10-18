@@ -81,6 +81,28 @@ lowering for unresolved declared dependencies. The original reference
 compiler separately passed an `-S` smoke test; its generated x86-64 assembly
 remains reference output. This is not a fully O-core-built compiler.
 
+A fresh capture with the updated installed `olangc` also completed all nine
+units, inventory, and roles with no capture issues. Its driver SHA-256 is
+`18b458ff49b2e12b005c90ebefad66340d411d0165ddd03c6a7455213b597a29`;
+the embedded capture worker is
+`5a2d41eac94d024e7d9c3b7fbfe81c42a35d82c11e0c4a818d189a176c36136e`.
+The unchanged inventory helper remains
+`617f984603da21008370a1a10b001dbdab7bc3df7f8a2dbb4131cf559a521789`.
+The retained current report is
+`target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json`,
+SHA-256 `d7883256853bb11b7de7b9023242df5047be4d9dfa171b7c78fa2b732a9c6bf0`.
+The matching `source-recipe.json` in that product directory has SHA-256
+`a5d13f57e132bed45b1fb74e33f5f5c61c7fc10d00e3fc3587642be3fcfca1c1`:
+`capture_complete=true`, `stage=lowering`, and `lowering_complete=false`.
+The source remained clean, the original compiler's `-S` smoke passed, and the
+driver correctly exited nonzero for unresolved provider closure.
+
+0 of nine LLVM units have identical bytes across the earlier and current captures; the earlier matrix is retained as a control, and its coverage is not attributed to the new input bytes.
+The comparison is retained at
+`target/c-expansion-20261018/old-current-llvm-identity.json`.
+The combined language matrix will provide the current capture's whole-unit
+diagnostics separately.
+
 ## Execute a C program through O-core
 
 The opt-in language gate uses the same unchanged C fixture for a Clang
