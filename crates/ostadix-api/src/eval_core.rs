@@ -145,6 +145,24 @@ pub enum TraceEvent {
     },
 }
 
+/// bash drops a NUL in its script text without a word, so a bare splice that
+/// renders one is refused, naming the variable when the splice is a `$name`.
+/// shared by the serial and graph paths so both say the same thing.
+pub(crate) fn refuse_nul_in_bash_splice(
+    canonical: &str,
+    name: Option<&str>,
+    rendered: &str,
+) -> Result<()> {
+    if canonical == "bash" && rendered.contains('\0') {
+        let what = match name {
+            Some(name) => format!("`${name}`"),
+            None => "a spliced value".to_string(),
+        };
+        bail!("{what} contains a NUL byte, which a bash block cannot hold");
+    }
+    Ok(())
+}
+
 /// Materialized values and policy context for one graph evaluation.
 pub(crate) struct GraphEvalFrame {
     pub(crate) plan_index: ExecutionPlanIndex,
