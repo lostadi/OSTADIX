@@ -42,6 +42,9 @@ pub const NATIVE_LD_ENV: &str = "O_NATIVE_LD";
 pub const NATIVE_CLANG_SHA256_ENV: &str = "O_NATIVE_CLANG_SHA256";
 /// Expected SHA-256 of the ld bytes; a different ld is refused.
 pub const NATIVE_LD_SHA256_ENV: &str = "O_NATIVE_LD_SHA256";
+/// The library path the native leaf tools get, when a pinned toolchain needs
+/// one. the caller's own LD_LIBRARY_PATH never reaches them.
+pub const NATIVE_TOOL_LIBRARY_PATH_ENV: &str = "O_NATIVE_TOOL_LIBRARY_PATH";
 pub const PROFILE: &str = "linux-elf-i64-acyclic-v1";
 const MAGIC: u64 = u64::from_le_bytes(*b"OCI64v1\0");
 
@@ -700,7 +703,7 @@ pub(crate) fn prepare(text: &str) -> Result<Arc<PreparedLeaf>> {
                 image,
             ))
         }
-        let tool_library_path = std::env::var_os("LD_LIBRARY_PATH");
+        let tool_library_path = tool_library_path(std::env::var_os(NATIVE_TOOL_LIBRARY_PATH_ENV))?;
         fn tool_environment(command: &mut Command, library_path: &Option<std::ffi::OsString>) {
             command.env_clear().env("LC_ALL", "C");
             if let Some(path) = library_path {
@@ -902,6 +905,23 @@ fn locate_tool(
         "locate trusted native leaf {name}: {pin_env} is unset and no absolute PATH \
          entry has an executable {name}"
     )
+}
+
+/// The tools' LD_LIBRARY_PATH: only what `O_NATIVE_TOOL_LIBRARY_PATH` sets,
+/// and only absolute entries, so a hostile library dir in the caller's own
+/// LD_LIBRARY_PATH (or a relative entry resolved against the cwd) cannot
+/// load into the trusted assembler or linker.
+fn tool_library_path(configured: Option<std::ffi::OsString>) -> Result<Option<std::ffi::OsString>> {
+    let Some(configured) = configured else {
+        return Ok(None);
+    };
+    if let Some(entry) = std::env::split_paths(&configured).find(|entry| !entry.is_absolute()) {
+        bail!(
+            "{NATIVE_TOOL_LIBRARY_PATH_ENV} entries must be absolute, got {:?}",
+            entry.display().to_string()
+        );
+    }
+    Ok(Some(configured))
 }
 
 /// Refuse tool bytes whose SHA-256 differs from the pin in `sha_env`. a pin
@@ -1133,6 +1153,25 @@ mod tests {
             "{error:#}"
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn tools_never_inherit_the_callers_library_path() {
+        // the caller's LD_LIBRARY_PATH is not read at all; only the explicit
+        // knob reaches the tools, and only with absolute entries.
+        assert_eq!(tool_library_path(None).unwrap(), None);
+        let configured = std::ffi::OsString::from("/opt/llvm/lib:/opt/llvm/lib64");
+        assert_eq!(
+            tool_library_path(Some(configured.clone())).unwrap(),
+            Some(configured)
+        );
+        for relative in ["lib", "/opt/llvm/lib::/x", "./lib:/opt/llvm/lib"] {
+            let error = tool_library_path(Some(relative.into())).unwrap_err();
+            assert!(
+                format!("{error:#}").contains("must be absolute"),
+                "{relative}: {error:#}"
+            );
+        }
     }
 
     #[test]

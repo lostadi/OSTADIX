@@ -471,6 +471,10 @@ Package SemVer is only one of the independent coordinates documented in
   read, not only at spawn.
 - Isolated project workspaces are created private (0700, random name).
 - A NUL in a `$x` bash splice names `$x` under the graph executor too.
+- The caller's `LD_LIBRARY_PATH` is no longer passed to the native leaf
+  `clang` and `ld`. A toolchain that needs a library path sets
+  `O_NATIVE_TOOL_LIBRARY_PATH`, which accepts absolute entries only.
+
 - `O_NATIVE_CLANG_SHA256` and `O_NATIVE_LD_SHA256` pin the native leaf
   tools' bytes. A tool whose SHA-256 differs is refused before it runs.
   Previously the hash was recorded in the manifest but never compared.
