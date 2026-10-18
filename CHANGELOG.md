@@ -356,10 +356,11 @@ Package SemVer is only one of the independent coordinates documented in
   process is not). Each block runs in a fresh, pre-spawned bash that sees no
   earlier block's state; when the block ends the helper stops the shell and
   every job it left, within a bounded deadline, and prints
-  `bash block left N background job(s); they were stopped`. No backend is
+  `bash block left N background process(es); they were stopped`. No backend is
   forked per block. `bash[N]` jobs are stopped when their session ends.
-  N is the number of distinct process groups stopped, so it is the same on
-  every run, and jobs still alive after the window are named. The next
+  N is the number of distinct processes left, taken once before any kill, so
+  it is the same on every run, and jobs still alive after the window are named
+  and fail the block. The next
   block's shell is spawned only when the plan has another plain block, so a
   one-block program spawns exactly one shell.
 
