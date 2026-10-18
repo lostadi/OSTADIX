@@ -159,7 +159,10 @@ class NixOSTestBackend:
 
 def nixos_test_timeout_seconds():
     name = "O_NIXOS_TEST_TIMEOUT_SECONDS"
-    raw = os.environ.get(name, "600")
+    raw = os.environ.get(name)
+    # no default: a nixos test may build and boot for as long as it needs.
+    if raw is None:
+        return None
     try:
         seconds = float(raw)
     except ValueError as error:

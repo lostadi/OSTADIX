@@ -504,7 +504,9 @@ Package SemVer is only one of the independent coordinates documented in
 - No shim applies a fixed limit to running a step any more: every
   execution, including the Mathematica, MATLAB/Octave and Ubuntu VM shims
   (formerly 300 s, 120/300 s and 600 s), reads the opt-in
-  `O_BACKEND_STEP_TIMEOUT_MS` and has no default. Compiling a block still has
+  `O_BACKEND_STEP_TIMEOUT_MS` and has no default. The `nixos_test` shim's
+  `nix build` wait (formerly 600 s) has no default either; its own
+  `O_NIXOS_TEST_TIMEOUT_SECONDS` stays as the opt-in limit. Compiling a block still has
   a fixed bound in the C, C++, C#, Haskell, Java, OCaml and Rust shims
   (120 s) and in the WebAssembly text conversion (30 s).
 - The 30 s heartbeat warning can fire on a step that is still working when
