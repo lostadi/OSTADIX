@@ -923,6 +923,7 @@ fn kill_and_reap_process_group(child: &mut Child, timeout: Duration) -> Result<(
     let deadline = Instant::now()
         .checked_add(timeout)
         .ok_or_else(|| anyhow!("backend reap deadline overflowed"))?;
+    let mut waiter = ExitWaiter::new(child.id());
     loop {
         if child.try_wait()?.is_some() {
             return signal_result;
@@ -934,7 +935,7 @@ fn kill_and_reap_process_group(child: &mut Child, timeout: Duration) -> Result<(
                 timeout.as_millis()
             ));
         }
-        thread::sleep(Duration::from_millis(2));
+        waiter.wait(deadline.saturating_duration_since(Instant::now()));
     }
 }
 
@@ -2112,6 +2113,10 @@ impl BackendProcess {
     }
 
     fn wait_for_leader_exit_before(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
+        if self.leader_exited_without_reaping()? {
+            return Ok(());
+        }
+        let mut waiter = ExitWaiter::new(self.child.id());
         loop {
             if self.leader_exited_without_reaping()? {
                 return Ok(());
@@ -2125,7 +2130,7 @@ impl BackendProcess {
                 ));
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
-            thread::sleep(Duration::from_millis(2).min(remaining));
+            waiter.wait(remaining);
         }
     }
 
@@ -2171,6 +2176,7 @@ impl BackendProcess {
     ) -> Result<()> {
         let group = i32::try_from(self.child.id())
             .map_err(|_| anyhow!("backend pid does not fit process-group identifier"))?;
+        let mut backoff = EXIT_BACKOFF_START;
         loop {
             if owned_group_has_no_active_descendants(group).with_context(|| {
                 format!(
@@ -2189,7 +2195,8 @@ impl BackendProcess {
                 ));
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
-            thread::sleep(Duration::from_millis(2).min(remaining));
+            thread::sleep(backoff.min(remaining));
+            backoff = (backoff * 2).min(EXIT_BACKOFF_MAX);
         }
     }
 
@@ -2252,6 +2259,87 @@ fn unexpected_state_response(operation: &str, response: BackendWireResponseV2) -
         BackendWireResponseV2::StateErrorV1 { .. } => "state_error_v1",
     };
     anyhow!("backend returned `{kind}` while answering `{operation}`")
+}
+
+/// Waits for one child to exit, waking the moment it does.
+///
+/// why a pidfd: polling in 2 ms steps made every backend teardown wait up
+/// to 2 ms after the backend had already exited, which bash_hello paid at
+/// exit. poll on a pidfd (linux >= 5.3) wakes on the exit itself. each poll
+/// is bounded by the heartbeat interval, so a caller's loop keeps running
+/// (and the heartbeats keep being read) during a long wait. without a pidfd
+/// the wait backs off from 50 us to 2 ms, after a one-time stderr warning.
+struct ExitWaiter {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    pidfd: Option<std::os::fd::OwnedFd>,
+    backoff: Duration,
+    chunk: Duration,
+}
+
+const EXIT_BACKOFF_START: Duration = Duration::from_micros(50);
+const EXIT_BACKOFF_MAX: Duration = Duration::from_millis(2);
+
+impl ExitWaiter {
+    fn new(pid: u32) -> Self {
+        let chunk = heartbeat_interval().unwrap_or(crate::step_knobs::DEFAULT_HEARTBEAT_INTERVAL);
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            use std::os::fd::FromRawFd;
+            // SAFETY: pidfd_open takes a pid and flags and returns a new fd.
+            let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid as libc::pid_t, 0) };
+            let pidfd = if fd >= 0 {
+                // SAFETY: fd is a fresh descriptor owned from here on.
+                Some(unsafe { std::os::fd::OwnedFd::from_raw_fd(fd as libc::c_int) })
+            } else {
+                warn_no_pidfd(&io::Error::last_os_error());
+                None
+            };
+            Self {
+                pidfd,
+                backoff: EXIT_BACKOFF_START,
+                chunk,
+            }
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        {
+            let _ = pid;
+            Self {
+                backoff: EXIT_BACKOFF_START,
+                chunk,
+            }
+        }
+    }
+
+    /// Block until the child exits, `limit` passes, or one heartbeat
+    /// interval passes, whichever is first.
+    fn wait(&mut self, limit: Duration) {
+        let limit = limit.min(self.chunk);
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        if let Some(pidfd) = &self.pidfd {
+            use std::os::fd::AsRawFd;
+            let mut ready = libc::pollfd {
+                fd: pidfd.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            // round up so a sub-millisecond remainder does not spin.
+            let millis = limit.as_micros().div_ceil(1000).clamp(1, i32::MAX as u128) as libc::c_int;
+            // SAFETY: one valid pollfd owned by self. EINTR just returns early;
+            // the caller re-checks the child.
+            unsafe { libc::poll(&mut ready, 1, millis) };
+            return;
+        }
+        thread::sleep(self.backoff.min(limit));
+        self.backoff = (self.backoff * 2).min(EXIT_BACKOFF_MAX);
+    }
+}
+
+/// Said once per process: this kernel has no pidfd, so exits are polled.
+fn warn_no_pidfd(error: &io::Error) {
+    static WARNED: std::sync::Once = std::sync::Once::new();
+    WARNED.call_once(|| {
+        eprintln!("o: pidfd_open is not available ({error}); waiting for backend exits by polling");
+    });
 }
 
 /// Kill many actors against one shared budget: SIGKILL every group first so
@@ -3970,6 +4058,46 @@ impl Drop for ProcessRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // the host's exit wait is chunked by the heartbeat interval, so a long
+    // wait on a pidfd still returns to its caller once per interval to read
+    // heartbeats, and it wakes at once when the process exits.
+    #[test]
+    fn exit_wait_returns_each_heartbeat_interval_and_wakes_on_exit() -> Result<()> {
+        HEARTBEAT_OVERRIDE.with(|cell| {
+            cell.set(Some((
+                Duration::from_millis(50),
+                Duration::from_millis(400),
+            )))
+        });
+        let mut child = Command::new("sleep").arg("30").spawn()?;
+        let mut waiter = ExitWaiter::new(child.id());
+        let started = Instant::now();
+        let mut returns = 0;
+        while started.elapsed() < Duration::from_millis(600) {
+            // a long limit: only the heartbeat interval bounds each wait.
+            waiter.wait(Duration::from_secs(10));
+            returns += 1;
+        }
+        assert!(
+            returns >= 6,
+            "the wait returned only {returns} times in 600 ms"
+        );
+        assert!(child.try_wait()?.is_none());
+        child.kill()?;
+        let killed = Instant::now();
+        // waitid(WNOWAIT) is not needed here: the pidfd becomes readable on
+        // the exit itself, before any reap.
+        waiter.wait(Duration::from_secs(10));
+        assert!(
+            killed.elapsed() < Duration::from_millis(45),
+            "the wait did not wake on exit: {:?}",
+            killed.elapsed()
+        );
+        child.wait()?;
+        HEARTBEAT_OVERRIDE.with(|cell| cell.set(None));
+        Ok(())
+    }
 
     #[test]
     fn malformed_teardown_and_session_knobs_are_errors_not_defaults() {
