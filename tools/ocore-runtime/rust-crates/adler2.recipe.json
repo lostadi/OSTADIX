@@ -1,0 +1,36 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "adler2-2.0.1-original-default-library",
+  "source": {
+    "url": "https://github.com/oyvindln/adler2",
+    "revision": "89a031a0f42eeff31c70dc598b398cbf31f1680f",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6",
+    "rustc_release": "1.97.1",
+    "cargo_release": "1.97.1",
+    "rustc_commit": "8bab26f4f68e0e26f0bb7960be334d5b520ea452",
+    "rust_capture_policy": "rust-embedded-bc-v1"
+  },
+  "capture_profile": "original-configured-rust-library",
+  "intended_execution_profile": "hosted-library-unqualified",
+  "commands": [{
+    "name": "build-entire-default-rust-library",
+    "argv": ["python3", "{recipe_dir}/configured_library.py", "--source", "{source}", "--build", "{build}",
+             "--rustc", "{rustc}", "--rustc-wrapper", "{rustc_wrapper}"],
+    "cwd": "{build}"
+  }],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": ["{build}/native"],
+    "required_outputs": ["native/libadler2.rlib"],
+    "required_units": [{"id": "adler2-library", "kind": "rustc", "source": "src/lib.rs", "role": "runtime"}]
+  },
+  "dependencies": [{"name": "Rust-1.97.1-core-std-compiler-builtins-platform-providers", "source_pin": null, "status": "required-unresolved"}],
+  "blockers": [
+    "The original default-feature library is compiled in full with panic=unwind, opt-level=1 and two requested codegen units; generic future consumer instantiations are not a closed emitted-program inventory.",
+    "Every actual original rlib native member and embedded bitcode CGU must be retained and independently checked; no source function or cold body may be filtered.",
+    "Core, std, compiler-builtins, platform providers, ordered final linker selection, execution and the complete Rust compiler/bootstrap remain separate unresolved obligations."
+  ]
+}

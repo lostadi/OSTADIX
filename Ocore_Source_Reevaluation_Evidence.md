@@ -378,3 +378,62 @@ earlier compiler rather than being relabeled as a new run.
 This qualifies the bounded scalar leaf under the existing coordinator. General
 native orchestration, effectful native resource handles, machine-PC debugging
 and complete original-runtime dependency closure remain outside these results.
+
+## Python, C, and Rust source expansion (2026-10-18)
+
+The [original-source expansion evidence](evidence/original_python_c_rust_expansion_20261018.json)
+records complete configured source captures and a completed 370-unit diagnostic
+audit with the pinned LLVM 22.1.6 parser and installed O-core compiler. The
+matrix reconciles the complete selected build inventory, retains whole modules,
+checks tool and input hashes, independently verifies imported modules, and
+checks the actual emitted ELF objects. Raw Rust bitcode remains the compiler
+input; separately decoded text supplies independently checked metadata.
+
+| Original configured source profile | Units audited | Independently verified modules | Owned objects |
+|---|---:|---:|---:|
+| CPython runtime and extensions | 360 | 72 | 63 |
+| chibicc stage-one C compiler | 9 | 0 | 0 |
+| adler2 2.0.1 Rust library, default `std` feature | 1 emitted code-generation unit | 1 | 1 |
+
+These are complete diagnostic results, not complete runtime qualifications.
+All nine chibicc units first reject the unsupported variadic calling convention.
+In that baseline, Python has import blockers and nine explicit coherent-RAM
+execution-profile gates at object generation. Failure groups
+record the first rejection of each whole unit, rather than every unsupported
+feature that might occur behind it.
+
+The [separate atomic-profile follow-up](evidence/cpython_atomic_profile_followup_20261018.json)
+freshly imported those nine exact whole modules with the existing explicit
+`coherent-ram-v1` option. All nine independently verified and produced owned
+RV64 objects. Every semantic field and function body stayed equal to the
+baseline apart from the declared target profile and provenance. This profile
+requires ordinary coherent RAM, excludes device memory, and retains the
+RISC-V masked-word accessibility and LR/SC progress requirements. It supplies
+nine additional profile-qualified objects without relabeling the baseline
+audit or establishing runtime execution.
+
+The unchanged hosted CPython build separately passed its reference smoke checks.
+Its authenticated local dependency packages establish hosted build interfaces;
+they do not establish O-core-built dependency implementations. A separate C
+fixture passed actual reference/owned execution with positive and negative
+inputs. The complete Rust library unit was freshly imported, verified and
+emitted again before its API matched the original implementation on 12 payloads.
+A forged substitution of the original native object was rejected before linking.
+Those native checks qualify their recorded interfaces and Linux RV64 execution
+profile, not full C or Rust compiler/runtime support.
+
+All 154 focused source-expansion regression methods passed without skips. The
+[merged-source integration evidence](evidence/python_c_rust_integration_20261018.json)
+records 91 additional passing methods without skips, the successful Cargo check
+of `olangc` and `ocorec`, architecture and source inventories, and the complete
+101-document HTML export check. Complete native
+Python and chibicc lowering, dependency closure, compiler-generated program
+routing, other-ISA execution and general native graph orchestration remain
+separate required gates.
+
+The later LLVM importer refinement was checked through 20 complete memory-import
+regression methods using the pinned SDK. A freshly built compiler separately
+agreed on six accepted text/bitcode cases across the three ISAs, including
+independent verification and owned objects, and 18 intended rejections. Those
+checks bind their own merged source tree and compiler; they do not relabel the
+earlier whole-source audit or establish native runtime execution.
