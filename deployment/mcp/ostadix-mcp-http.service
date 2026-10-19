@@ -8,7 +8,7 @@ After=network.target
 Type=simple
 Environment="PATH=%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 WorkingDirectory=%h/.local/share/ostadix-mcp
-ExecStart=/usr/bin/python3 %h/.local/share/ostadix-mcp/controller/scripts/update_ostadix_mcp_http.py --state-dir %h/.local/share/ostadix-mcp/state run -- --transport http --bind 127.0.0.1:8787 --token-file %h/.config/ostadix-mcp/token --allowed-host mcp.example.com
+ExecStart=/usr/bin/python3 %h/.local/share/ostadix-mcp/controller/scripts/update_ostadix_mcp_http.py --state-dir %h/.local/share/ostadix-mcp/state run -- --transport http --bind 127.0.0.1:8787 --token-file %h/.config/ostadix-mcp/token --allowed-host mcp.example.com --oauth-public-url https://mcp.example.com/mcp --oauth-state-dir %h/.local/share/ostadix-mcp/oauth
 Restart=on-failure
 RestartSec=5
 KillMode=control-group

@@ -9,6 +9,7 @@ mod capabilities;
 mod execution;
 mod http;
 mod installation;
+mod oauth;
 mod operation;
 mod tool_schema;
 mod unified;

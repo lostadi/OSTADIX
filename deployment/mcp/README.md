@@ -13,6 +13,11 @@ backends. A chatbot must support remote MCP to use this URL; merely accepting a
 web link is insufficient. The server does not implement the older two-endpoint
 HTTP+SSE transport or a chatbot-specific REST API.
 
+For authenticated chat apps, enable native OAuth below and follow the
+[client connection guide](CLIENTS.md) for ChatGPT, Claude, Cursor, VS Code,
+Codex, Gemini, Grok and Perplexity. Static bearer headers remain available to
+clients that support them.
+
 ## Host requirements and reproducibility
 
 - Linux and macOS: Bash, Git, Python 3.10+, a native C linker and Rust through
@@ -182,10 +187,73 @@ configuration](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
 uses default header forwarding and immediate flushing. Do not add response
 caching or an interactive browser login redirect in front of `/mcp`.
 
+### Enable native OAuth for chat apps
+
+Add an exact public MCP URL and a persistent OAuth state directory to the
+server invocation. Keep that directory outside managed release trees:
+
+```bash
+mkdir -p "$HOME/.local/share/ostadix-mcp/oauth"
+chmod 700 "$HOME/.local/share/ostadix-mcp/oauth"
+mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp \
+  --transport http --bind 127.0.0.1:8787 \
+  --token-file "$HOME/.config/ostadix-mcp/token" \
+  --allowed-host mcp.example.com \
+  --oauth-public-url https://mcp.example.com/mcp \
+  --oauth-state-dir "$HOME/.local/share/ostadix-mcp/oauth"
+```
+
+Use the same arguments in the installed service. For Lee's website, replace
+the hostname with `leeostadi.com`, including in `--allowed-host`. Repeat
+`--oauth-public-url` for each deliberately supported public URL; each exact
+URL has its own resource identity and issuer. Do not silently redirect clients
+between public authorities during authorization.
+
+OAuth uses authorization code with S256 PKCE, Dynamic Client Registration,
+issuer-bound authorization responses (RFC 9207), and rotating refresh tokens.
+The approval page asks for the existing owner token on this server's own
+HTTPS origin. Enter that token only on the approval page, not in a chatbot
+message or URL. OAuth grants access to the same host tools as bearer mode;
+it does not create per-user operating-system isolation. This implementation
+uses DCR rather than advertising CIMD.
+
+Rotating the owner bearer token does not revoke existing OAuth grants. Clients
+can revoke their grants through `/mcp/oauth/revoke`. Keep the private OAuth
+state directory backed up and outside release trees. Removing a configured
+public URL while it still has stored clients requires a deliberate state
+migration; the server rejects that inconsistent configuration.
+
+When rolling back the first OAuth-enabled deployment to an older binary that
+lacks these options, remove its OAuth service arguments before restarting the
+old release. Preserve the OAuth state for a later upgrade. Subsequent releases
+that support OAuth can reuse the same state.
+
+For `https://mcp.example.com/mcp`, public discovery must return JSON at:
+
+```text
+https://mcp.example.com/.well-known/oauth-protected-resource/mcp
+https://mcp.example.com/.well-known/oauth-protected-resource
+https://mcp.example.com/.well-known/oauth-authorization-server/mcp/oauth
+https://mcp.example.com/.well-known/oauth-authorization-server
+```
+
+The resource is exactly `https://mcp.example.com/mcp`; its issuer is
+`https://mcp.example.com/mcp/oauth`. Authorization, token, registration and
+revocation endpoints are `/mcp/oauth/authorize`, `/mcp/oauth/token`,
+`/mcp/oauth/register` and `/mcp/oauth/revoke`. These paths must reach the native
+server, and metadata must be reachable without a bearer token. Unauthenticated
+MCP requests return `401` with `WWW-Authenticate` discovery information.
+Proxying only the `/mcp` path is insufficient for OAuth.
+
+The bundled Caddy proxy forwards the whole dedicated hostname. An existing
+website needs the additional OAuth routes below. Client-specific callback and
+account requirements are in [CLIENTS.md](CLIENTS.md); protocol conformance
+does not by itself prove a connection inside every app.
+
 ### Add `/mcp` to an existing nginx website
 
 Keep the website's existing HTTPS `server` block, certificate, document root
-and other locations. Add only this exact location inside that block, replacing
+and other locations. Add these locations inside that block, replacing
 `8787` if the native listener uses another port:
 
 ```nginx
@@ -205,27 +273,44 @@ location = /mcp {
     proxy_send_timeout 3600s;
     client_max_body_size 16m;
 }
+
+# OAuth endpoints and metadata only; preserve other /.well-known routes.
+location ~ ^/(mcp/oauth/(authorize|token|register|revoke)|\.well-known/oauth-(protected-resource(/mcp)?|authorization-server(/mcp/oauth)?))$ {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header Connection "";
+    proxy_pass_request_headers on;
+    proxy_pass_request_body on;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_next_upstream off;
+    client_max_body_size 1m;
+}
 ```
 
 There is deliberately no trailing slash or URI after the upstream port:
-nginx forwards `/mcp` unchanged. Header forwarding retains MCP session and
-protocol headers; methods including POST, GET, DELETE and OPTIONS reach the
-server unchanged. Buffering and caching are disabled for streaming, and
-upstream retries are disabled. See the [nginx proxy module
+nginx forwards the selected paths unchanged. Header forwarding retains MCP
+session and protocol headers; methods including POST, GET, DELETE and OPTIONS
+reach the server unchanged. Buffering and caching are disabled for streaming,
+and upstream retries are disabled. See the [nginx proxy module
 reference](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
 
 Add `--allowed-host website.example.com` to the native service. Use the
 connector URL `https://website.example.com/mcp` without a trailing slash.
 Check inherited site rules for redirects or method restrictions affecting this
-location. Validate the configuration before reloading the existing nginx
-service; on a Linux host with systemd:
+location, including earlier regex locations or `^~` prefixes that could take
+precedence over the OAuth routes. Validate the configuration before reloading
+the existing nginx service; on a Linux host with systemd:
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
 The native `/healthz` can remain loopback-only; it need not replace any website
-route. Recheck both the site's normal page and the MCP URL after reload.
+route. Recheck the site's normal page, the MCP URL and public OAuth metadata
+after reload.
 
 ### Persistent public URL with Tailscale Funnel
 
@@ -259,7 +344,8 @@ Use the reported URL with `/mcp` appended, for example
 `https://node.example-tailnet.ts.net:8443/mcp`. `--bg` retains the Funnel
 configuration across reboots; the Ostadix service must also be installed using
 the service instructions below. Funnel is publicly reachable and does not
-replace the MCP bearer token or OAuth gateway. See the [official Funnel CLI
+replace the MCP bearer or native OAuth authentication. Enable OAuth using the
+exact Funnel URL, including its port. See the [official Funnel CLI
 reference](https://tailscale.com/docs/reference/tailscale-cli/funnel).
 
 To remove only this dedicated listener:
@@ -297,18 +383,17 @@ format:
 | --- | --- |
 | Transport | Streamable HTTP / HTTP MCP |
 | URL | `https://mcp.example.com/mcp` |
+| Authentication for chat-app connector flows | OAuth with native OAuth enabled above |
 | Header, when the client supports custom headers | `Authorization: Bearer <contents of token file>` |
 
-**Authentication compatibility:** this server implements bearer-token
-authentication, not an OAuth authorization server. Chatbot connector UIs that
-only support OAuth and no-auth cannot use a bearer token unless they expose a
-custom-header option. For an authenticated OAuth-only UI such as ChatGPT's
-custom connector flow, place a compatible MCP OAuth gateway in front of this
-server and configure that gateway's issuer, client registration and token
-validation. The gateway must authenticate before forwarding, and either
-forward a configured backend bearer token or be the exclusive route to a
-backend explicitly started with `--allow-unauthenticated`. Caddy by itself
-does not add OAuth.
+**Authentication compatibility:** native OAuth is the common route for
+authenticated hosted chat apps. Enable it explicitly using
+`--oauth-public-url` and `--oauth-state-dir`; a token file alone supplies
+static bearer authentication. In a client's OAuth setup, choose automatic
+registration/DCR and leave optional client credentials empty. See the
+[per-app guide](CLIENTS.md) for current configuration examples, callbacks,
+account limits and direct-header alternatives. TLS proxies such as Caddy and
+nginx forward the native OAuth endpoints; they do not add OAuth themselves.
 
 The no-auth option works with no-auth remote MCP clients only when the server
 was explicitly started with `--allow-unauthenticated`; a publicly reachable
@@ -320,7 +405,7 @@ specific chatbot's UI registration or a real public TLS deployment.
 ## Upgrade manually or regularly
 
 The tracked updater builds each incoming Git commit in its own release
-checkout, runs the native HTTP smoke, then switches a `current` symlink. It
+checkout, runs the native HTTP and OAuth smokes, then switches a `current` symlink. It
 does not pull, reset or replace your development checkout. A failed build or
 smoke leaves the previous release selected. Credentials and scheduler files
 live outside these release directories.
@@ -390,8 +475,10 @@ git -C "$MCP_BASE/controller" pull --ff-only
 ### Linux: systemd user service and daily updates
 
 Create the token and initial release first. Copy the three unit templates,
-then edit `--allowed-host mcp.example.com` in the server unit and adjust the
-Python path or `PATH` if your dependencies are elsewhere:
+then replace both `--allowed-host mcp.example.com` and
+`--oauth-public-url https://mcp.example.com/mcp` in the server unit with your
+public hostname and exact MCP URL. Adjust the Python path or `PATH` if your
+dependencies are elsewhere:
 
 ```bash
 mkdir -p "$HOME/.config/systemd/user"
@@ -544,8 +631,11 @@ scp -p old-user@old-host:.config/ostadix-mcp/token \
 chmod 600 "$HOME/.config/ostadix-mcp/token"
 ```
 
-Keep credentials outside Git and release trees. An OAuth gateway has its own
-configuration and credentials to provision separately. Copy any required
+Keep credentials outside Git and release trees. Provision native OAuth's
+state directory separately. Starting with fresh OAuth state requires clients
+to reconnect; copying it requires a consistent backup with the old process
+stopped and the same public resource/issuer URLs. Do not run two independent
+issuers against one mutable state directory. Copy any required
 projects and durable data through your normal backup or transfer process,
 and update absolute project paths, environment variables and service-account
 permissions. Tools invoked through the new URL operate on the new host.

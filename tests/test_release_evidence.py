@@ -166,6 +166,42 @@ class AggregateOwnershipTests(unittest.TestCase):
         self.assertIn("test result: ok. 1 passed; 0 failed;", root_source)
 
 
+class InstalledCliClaimGuardTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        script = (ROOT / "scripts/check_release_claims.sh").read_text(encoding="utf-8")
+        function = "require_fixed() {" + script.split("require_fixed() {", 1)[1].split("\n}\n", 1)[0] + "\n}\n"
+        block = script.split("# INSTALLED_CLI_SMOKE_CLAIMS_BEGIN\n", 1)[1].split("# INSTALLED_CLI_SMOKE_CLAIMS_END", 1)[0]
+        cls.guard = "set -eu\nfail=0\n" + function + block + '\nexit "$fail"\n'
+        cls.smoke = (ROOT / "scripts/smoke-project-hgraph.sh").read_text(encoding="utf-8")
+
+    def run_guard(self, smoke):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scripts").mkdir()
+            (root / "scripts/smoke-project-hgraph.sh").write_text(smoke, encoding="utf-8")
+            return subprocess.run(["bash", "-c", self.guard], cwd=root,
+                                  text=True, capture_output=True, timeout=15)
+
+    def test_current_debug_install_smoke_satisfies_production_guard(self):
+        result = self.run_guard(self.smoke)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_release_build_dependencies_fail_the_production_guard(self):
+        changes = (
+            ('--bin O --bin olangc --bin o-cli', '--bin olangc --bin o-cli'),
+            ('--build-dir "$ROOT/target/debug"', '--build-dir "$ROOT/target/release"'),
+            ('PATH="$installed_local_bin:$installed_cargo_bin:/usr/bin:/bin"',
+             'PATH="$installed_local_bin:$installed_cargo_bin:$ROOT/target/release:/usr/bin:/bin"'),
+        )
+        for original, replacement in changes:
+            with self.subTest(original=original):
+                self.assertIn(original, self.smoke)
+                result = self.run_guard(self.smoke.replace(original, replacement))
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("WORLD CONTRACT DRIFT", result.stdout)
+
+
 class ProjectExecutionClaimGuardTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

@@ -655,7 +655,7 @@ import tempfile
 root = Path(sys.argv[1])
 install = runpy.run_path(str(root / "scripts/install_native_binaries.py"))["install"]
 with tempfile.TemporaryDirectory(prefix="ostadix-native-plan-") as directory:
-    fixture = Path(directory)
+    fixture = Path(directory).resolve()
     for suffix in ("", ".exe"):
         build = fixture / ("windows" if suffix else "posix")
         build.mkdir()
@@ -679,9 +679,17 @@ fi
 require_fixed AGENTS.md \
     'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$O_LANG_ROOT/target/release:$PATH"' \
     'the canonical PATH order lets the case-insensitive raw O binary shadow lowercase o'
+# INSTALLED_CLI_SMOKE_CLAIMS_BEGIN
 require_fixed scripts/smoke-project-hgraph.sh \
-    'PATH="$installed_local_bin:$installed_cargo_bin:$ROOT/target/release:/usr/bin:/bin"' \
-    'the installed o smoke no longer covers the documented target-release shadow path'
+    'run cargo build --locked --package o-lang --bin O --bin olangc --bin o-cli' \
+    'the installed o smoke must build every required debug executable'
+require_fixed scripts/smoke-project-hgraph.sh \
+    '--repo-root "$ROOT" --build-dir "$ROOT/target/debug"' \
+    'the installed o smoke must install its selected debug executables'
+require_fixed scripts/smoke-project-hgraph.sh \
+    'PATH="$installed_local_bin:$installed_cargo_bin:/usr/bin:/bin"' \
+    'the installed o smoke must exercise its installed front doors without a release-build PATH fallback'
+# INSTALLED_CLI_SMOKE_CLAIMS_END
 require_fixed scripts/smoke-project-hgraph.sh \
     'Generated project binary ordered hosted execution: PASS' \
     'the generated binary immediate short-circuit evidence marker is missing'

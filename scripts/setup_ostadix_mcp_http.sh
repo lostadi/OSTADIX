@@ -63,7 +63,8 @@ esac
 
 for required_path in rust-toolchain.toml Cargo.lock backends/python_shim.py \
   mcp/ostadix_lang_mcp_server/Cargo.toml mcp/ostadix_lang_mcp_server/Cargo.lock \
-  scripts/smoke_ostadix_mcp_http.py scripts/mcp_http_runtime_aliases.py; do
+  scripts/smoke_ostadix_mcp_http.py scripts/smoke_ostadix_mcp_oauth.py \
+  scripts/mcp_http_runtime_aliases.py; do
   [[ -f "$repo_root/$required_path" ]] || fail "missing $required_path in $repo_root"
 done
 command -v python3 >/dev/null || fail 'Python 3.10+ is required'
@@ -136,5 +137,6 @@ if $skip_smoke; then
 else
   [[ -x "$repo_root/target/release/O" ]] || fail 'same-checkout O binary missing; use --build-runtime or --with-runtime'
   python3 "$repo_root/scripts/smoke_ostadix_mcp_http.py" --root "$repo_root" --server "$server"
+  python3 "$repo_root/scripts/smoke_ostadix_mcp_oauth.py" --root "$repo_root" --server "$server"
 fi
 printf '\nServer: %s\nDeployment instructions: %s/deployment/mcp/README.md\n' "$server" "$repo_root"

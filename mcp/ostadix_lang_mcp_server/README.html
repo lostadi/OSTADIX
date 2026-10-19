@@ -15,8 +15,12 @@ capabilities as stdio to its clients.</p>
 <p>The <a href="../../deployment/mcp/README.md">portable deployment guide</a> includes the
 locked build, real protocol smoke test, TLS proxy, Linux/macOS services, Windows
 WSL2 path, manual upgrades, rollback, and optional daily updates. Client support
-for OAuth and custom headers varies; the server implements bearer and explicit
-no-auth modes, while OAuth login requires an MCP-compatible OAuth gateway.</p>
+for OAuth and custom headers varies. Enable native OAuth with
+<code>--oauth-public-url https://your-host/mcp</code> and an absolute persistent
+<code>--oauth-state-dir</code>, together with the owner token. It supports dynamic client
+registration, S256 PKCE, browser consent, and rotating refresh tokens. The
+<a href="../../deployment/mcp/CLIENTS.md">client guide</a> covers hosted chat apps and
+CLI/IDE clients; static bearer and explicit no-auth modes remain available.</p>
 <p>HTTP negotiates the initialized MCP lifecycle through <code>2025-11-25</code>; it does not
 advertise sessionless protocol support. Each session owns its jobs and intent
 handles. Clients must retain <code>Mcp-Session-Id</code> and the negotiated

@@ -1083,6 +1083,9 @@ for the complete contract and native placement boundaries.</p>
 locked build helper, real HTTP smoke tests, HTTPS proxy and service templates,
 and a candidate-build updater with rollback and optional daily scheduling.
 Follow the <a href="deployment/mcp/README.md">remote connector deployment guide</a>.
+Native OAuth enables browser authorization for hosted chat apps; the
+<a href="deployment/mcp/CLIENTS.md">client guide</a> covers ChatGPT, Claude, Cursor,
+VS Code, Codex, Gemini, Grok and Perplexity.
 The empty-argument command continues to use stdio.</p>
 <table>
 <thead>
@@ -6537,8 +6540,10 @@ arguments, concurrent managed jobs, capability guides, environment/runtime
 diagnostics, compiler, intent, search, and bounded Information inspection.
 Explicit <code>--transport http</code> exposes the same capabilities at <code>/mcp</code> with
 bearer authentication, host/origin validation, and separate session state.
-TLS belongs to the configured reverse proxy; OAuth requires a compatible
-gateway. <code>--allow-unauthenticated</code> explicitly removes the bearer check.
+TLS belongs to the configured reverse proxy; native OAuth is enabled with
+explicit public URLs and a persistent state directory. See the
+<a href="deployment/mcp/CLIENTS.md">client guide</a>. <code>--allow-unauthenticated</code>
+explicitly removes the bearer check.
 Neither transport creates a per-user sandbox. The
 <code>o_run</code> tool uses the unified local front door by default and can explicitly
 submit one complete document through the existing hosted-node client; the one-use

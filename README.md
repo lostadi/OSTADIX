@@ -1203,6 +1203,9 @@ http` and use its `/mcp` endpoint through HTTPS. The repository includes a
 locked build helper, real HTTP smoke tests, HTTPS proxy and service templates,
 and a candidate-build updater with rollback and optional daily scheduling.
 Follow the [remote connector deployment guide](deployment/mcp/README.md).
+Native OAuth enables browser authorization for hosted chat apps; the
+[client guide](deployment/mcp/CLIENTS.md) covers ChatGPT, Claude, Cursor,
+VS Code, Codex, Gemini, Grok and Perplexity.
 The empty-argument command continues to use stdio.
 
 | MCP tool | Current behavior |
@@ -6188,8 +6191,10 @@ confuse with the implemented mechanisms described above.
   diagnostics, compiler, intent, search, and bounded Information inspection.
   Explicit `--transport http` exposes the same capabilities at `/mcp` with
   bearer authentication, host/origin validation, and separate session state.
-  TLS belongs to the configured reverse proxy; OAuth requires a compatible
-  gateway. `--allow-unauthenticated` explicitly removes the bearer check.
+  TLS belongs to the configured reverse proxy; native OAuth is enabled with
+  explicit public URLs and a persistent state directory. See the
+  [client guide](deployment/mcp/CLIENTS.md). `--allow-unauthenticated`
+  explicitly removes the bearer check.
   Neither transport creates a per-user sandbox. The
   `o_run` tool uses the unified local front door by default and can explicitly
   submit one complete document through the existing hosted-node client; the one-use
