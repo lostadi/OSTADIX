@@ -397,10 +397,20 @@ input; separately decoded text supplies independently checked metadata.
 
 These are complete diagnostic results, not complete runtime qualifications.
 All nine chibicc units first reject the unsupported variadic calling convention.
-Python has import blockers and nine explicit coherent-RAM execution-profile
-gates at object generation. Failure groups
+In that baseline, Python has import blockers and nine explicit coherent-RAM
+execution-profile gates at object generation. Failure groups
 record the first rejection of each whole unit, rather than every unsupported
 feature that might occur behind it.
+
+The [separate atomic-profile follow-up](evidence/cpython_atomic_profile_followup_20261018.json)
+freshly imported those nine exact whole modules with the existing explicit
+`coherent-ram-v1` option. All nine independently verified and produced owned
+RV64 objects. Every semantic field and function body stayed equal to the
+baseline apart from the declared target profile and provenance. This profile
+requires ordinary coherent RAM, excludes device memory, and retains the
+RISC-V masked-word accessibility and LR/SC progress requirements. It supplies
+nine additional profile-qualified objects without relabeling the baseline
+audit or establishing runtime execution.
 
 The unchanged hosted CPython build separately passed its reference smoke checks.
 Its authenticated local dependency packages establish hosted build interfaces;
@@ -413,7 +423,17 @@ Those native checks qualify their recorded interfaces and Linux RV64 execution
 profile, not full C or Rust compiler/runtime support.
 
 All 154 focused source-expansion regression methods passed without skips. The
-merged-source Cargo check of `olangc` and `ocorec` also passed. Complete native
+[merged-source integration evidence](evidence/python_c_rust_integration_20261018.json)
+records 91 additional passing methods without skips, the successful Cargo check
+of `olangc` and `ocorec`, architecture and source inventories, and the complete
+101-document HTML export check. Complete native
 Python and chibicc lowering, dependency closure, compiler-generated program
 routing, other-ISA execution and general native graph orchestration remain
 separate required gates.
+
+The later LLVM importer refinement was checked through 20 complete memory-import
+regression methods using the pinned SDK. A freshly built compiler separately
+agreed on six accepted text/bitcode cases across the three ISAs, including
+independent verification and owned objects, and 18 intended rejections. Those
+checks bind their own merged source tree and compiler; they do not relabel the
+earlier whole-source audit or establish native runtime execution.

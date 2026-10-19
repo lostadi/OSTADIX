@@ -1,0 +1,1124 @@
+{
+  "schema": "ostadix-python-c-rust-source-integration-v1",
+  "incoming_master": "08fd479fddb6b3efdf5c07654c7fbae5c2e175ba",
+  "merged_source_tree": "1815f943f851d2463f6173b652a14c2266427e9b",
+  "recovery_checkpoint": "75e2ecad22577f4919416f4179bccc4df27df7fa",
+  "independent_checks": {
+    "schema": "ostadix.prepared-independent-integration-checks-v1",
+    "incoming_master": "7532659b1eb6bed4513a526e443fcd5c7a57e2de",
+    "recovery_head": "13f7ebc4f5e0e5a9a802978ad8903b5f9e1a72b1",
+    "merged_source_tree": "1815f943f851d2463f6173b652a14c2266427e9b",
+    "worktree": "/home/orangepi/ostadix-BM/target/upstream-integration-20261018",
+    "all_completed_checks_passed": true,
+    "independent_test_methods": 68,
+    "independent_test_skips": 0,
+    "steps": [
+      {
+        "name": "language-source-inventory",
+        "argv": [
+          "python3",
+          "scripts/check_language_sources.py",
+          "validate"
+        ],
+        "started_unix": 1792365179.8165247,
+        "log": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/language-source-inventory.log",
+        "pid": 848485,
+        "exit_code": 0,
+        "ended_unix": 1792365180.8267384,
+        "log_artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/language-source-inventory.log",
+          "bytes": 103,
+          "sha256": "2f2374595509975e28bd76255f145e5f78800eaf8d5ddb0dec494b7a8d316539"
+        },
+        "elapsed_seconds": 1.010214
+      },
+      {
+        "name": "mcp-regressions",
+        "argv": [
+          "python3",
+          "-m",
+          "unittest",
+          "tests.test_mcp_client",
+          "tests.test_mcp_http_updater",
+          "tests.test_configure_gemini_mcp",
+          "tests.test_language_sources",
+          "-v"
+        ],
+        "started_unix": 1792365180.8284664,
+        "log": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/mcp-regressions.log",
+        "pid": 848501,
+        "exit_code": 0,
+        "ended_unix": 1792365228.1937633,
+        "log_artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/mcp-regressions.log",
+          "bytes": 10216,
+          "sha256": "15bc6f90d9878e4dcf85fa7d5cd9fea7b0383baad2099b94addc29cfb61447f5"
+        },
+        "elapsed_seconds": 47.365297,
+        "tests": 64,
+        "skips": 0,
+        "all_passed": true
+      },
+      {
+        "name": "source-release-runtime-closure",
+        "argv": [
+          "python3",
+          "-c",
+          "import unittest,inspect; from tests import test_source_release as m; selected={'test_live_repository_metadata_is_consistent','test_live_workspace_engine_is_structurally_closed','test_olangc_embedded_runtime_source_closure_is_derived_from_compiler','test_archive_verifier_revalidates_olangc_embedded_runtime_closure'}; suite=unittest.TestSuite(cls(n) for _,cls in inspect.getmembers(m,inspect.isclass) if issubclass(cls,unittest.TestCase) for n in selected if hasattr(cls,n)); assert suite.countTestCases()==4; result=unittest.TextTestRunner(verbosity=2).run(suite); raise SystemExit(not result.wasSuccessful())"
+        ],
+        "started_unix": 1792365228.194672,
+        "log": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/source-release-runtime-closure.log",
+        "pid": 849955,
+        "exit_code": 0,
+        "ended_unix": 1792365252.3897393,
+        "log_artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/source-release-runtime-closure.log",
+          "bytes": 808,
+          "sha256": "cc7cb57b3d23e1bed82c6f019d6083693dabf7080244026a6fa82f77094b11e6"
+        },
+        "elapsed_seconds": 24.195067,
+        "tests": 4,
+        "skips": 0,
+        "all_passed": true
+      },
+      {
+        "name": "docs-export-inventory",
+        "argv": [
+          "python3",
+          "scripts/render_docs.py",
+          "validate"
+        ],
+        "started_unix": 1792365252.390882,
+        "log": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/docs-export-inventory.log",
+        "pid": 851545,
+        "exit_code": 0,
+        "ended_unix": 1792365253.0075517,
+        "log_artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/docs-export-inventory.log",
+          "bytes": 43,
+          "sha256": "2f54bea069c0c314dd76e97ea9367653d5eec0baf31830ebe8cb38421dad3e79"
+        },
+        "elapsed_seconds": 0.61667
+      }
+    ],
+    "architecture": {
+      "argv": [
+        "python3",
+        "-c",
+        "import faulthandler,runpy,sys; stream=open(sys.argv[1],'w'); faulthandler.dump_traceback_later(60,repeat=True,file=stream); sys.argv=[sys.argv[2]]; runpy.run_path(sys.argv[0],run_name='__main__')",
+        "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/architecture-stacks.log",
+        "/home/orangepi/ostadix-BM/target/upstream-integration-20261018/scripts/check_architecture_boundaries.py"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM/target/upstream-integration-20261018",
+      "started_unix": 1792365219.5721312,
+      "log": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/architecture-instrumented.log",
+      "periodic_stack_log": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/architecture-stacks.log",
+      "pid": 849529,
+      "exit_code": 0,
+      "ended_unix": 1792365615.6023164,
+      "complete": true,
+      "elapsed_seconds": 396.030185,
+      "production_files": 206,
+      "roots": 51,
+      "cross_root_edges": 256,
+      "log_artifact": {
+        "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/architecture-instrumented.log",
+        "bytes": 96,
+        "sha256": "da23782710e569a6a453cd162de21970734b144ce7e21e8c00acacededcf2e5c"
+      },
+      "stack_log_artifact": {
+        "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/architecture-stacks.log",
+        "bytes": 7005,
+        "sha256": "9cf861f8b6ab7e2891406add5a6f1003ca6fb3b7cf304541421f503e1ea46c48"
+      },
+      "checker_source": {
+        "path": "/home/orangepi/ostadix-BM/target/upstream-integration-20261018/scripts/check_architecture_boundaries.py",
+        "bytes": 134289,
+        "sha256": "0f41abd6c8be446b2461de79854f8920b4ea3ebe898db05ea17c1672b991bd89"
+      },
+      "earlier_attempt": {
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/integration-checks.json",
+          "bytes": 691,
+          "sha256": "b5d300ec79e7de29fee1262a058cca946f85bd00e33a8d150d249c828a721ada"
+        },
+        "wrapper_exit_code": 1,
+        "timeout_seconds": 300,
+        "actual_checker_exit_code_observed": false,
+        "interpretation": "inconclusive wait timeout, superseded by complete successful run; periodic stacks show CPU tokenization/production-source analysis, not Cargo execution"
+      }
+    },
+    "inventory_scope": {
+      "classified_language_sources": 235,
+      "o_sources": 86,
+      "oc_sources": 149,
+      "programs_parsed": 0,
+      "programs_executed": 0,
+      "registered_html_export_pairs": 101
+    },
+    "native_emitter_changes": false,
+    "cargo_started_by_this_agent": false,
+    "installed_binaries_changed_by_this_agent": false,
+    "object_closure": {
+      "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/complete-object-closure.json",
+      "bytes": 1012,
+      "sha256": "0363f6bbf35c10bc886ed2b8ef353eb18ff068536bcf4b2b6b89e6667fa83f3b"
+    },
+    "detached_merge": {
+      "path": "/home/orangepi/ostadix-BM/target/upstream-master-import-20261018/detached-merge.json",
+      "bytes": 5181,
+      "sha256": "21f801b8df6a6b5403e38461139602afa4838c9dbdbd241a68783215b8f5bd40"
+    }
+  },
+  "physical_checkout_cargo_check": {
+    "argv": [
+      "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+      "check",
+      "--offline",
+      "--locked",
+      "--bin",
+      "olangc",
+      "--bin",
+      "ocorec"
+    ],
+    "environment": {
+      "RUSTC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+      "RUSTDOC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustdoc",
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0"
+    },
+    "stage": "finished",
+    "started_epoch": 1792364567.210241,
+    "installed_binaries_changed": false,
+    "exit_code": 0,
+    "elapsed_seconds": 497.1588857349707,
+    "log_sha256": "ce8e851c92c20b618907c095256d70bf84f8f3924ba7162bccacd727ffb40050"
+  },
+  "generated_runtime_tests": {
+    "stage": "finished",
+    "commands": [
+      {
+        "argv": [
+          "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--bin",
+          "olangc",
+          "generated_runtime_includes_hgraph_modules"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 538.9215565249906,
+        "log": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/generated-runtime-0.log",
+        "log_sha256": "ead4be9ceb07657699a661ce3c143d8773493991b01ea781be8f41dac18c5e73"
+      },
+      {
+        "argv": [
+          "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--bin",
+          "olangc",
+          "generated_project_runtime_emits_every_embedded_source"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 2.8569803289719857,
+        "log": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/generated-runtime-1.log",
+        "log_sha256": "a1c556f975c511d2ce8ebb671ac96839e2a89d12c7373742a683b4c02eeabe46"
+      },
+      {
+        "argv": [
+          "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "--bin",
+          "olangc",
+          "generated_runtime_build_contract_projects_lock_and_toolchain"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 1.7544804599601775,
+        "log": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/generated-runtime-2.log",
+        "log_sha256": "6d260cff27d114c0fbdcc54a6fac3abc13945de79ae3516ae686f35bd7f47364"
+      }
+    ],
+    "installed_binaries_changed": false
+  },
+  "generated_runtime_extra_environment": {
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "PATH_prefix": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+    "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib"
+  },
+  "documentation_exports": {
+    "argv": [
+      "python3",
+      "scripts/render_docs.py",
+      "check",
+      "--jobs",
+      "2",
+      "--marked",
+      "/tmp/ostadix-doc-renderer/node_modules/.bin/marked"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 63.34229957702337,
+    "log": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/master-html-check.log",
+      "bytes": 63,
+      "sha256": "f2fb33141bf84236d97db1771cb4e2515765fb12ca234b9da668388823184a9a"
+    },
+    "renderer": "marked",
+    "version": "18.0.13",
+    "documents": 101
+  },
+  "installed_images_rechecked": [
+    {
+      "path": "/home/orangepi/.local/bin/O",
+      "bytes": 4543416,
+      "sha256": "bcc31afbb589442dd947470a728034b102d5e83b787f1566952e50bb6dba9e6c"
+    },
+    {
+      "path": "/home/orangepi/.local/bin/olangc",
+      "bytes": 12866560,
+      "sha256": "18b458ff49b2e12b005c90ebefad66340d411d0165ddd03c6a7455213b597a29"
+    },
+    {
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "bytes": 2388760,
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    }
+  ],
+  "source_expansion_evidence": {
+    "path": "/home/orangepi/ostadix-BM/evidence/original_python_c_rust_expansion_20261018.json",
+    "bytes": 166058,
+    "sha256": "6d435db47d408a69158d656391349a1e949d1fda09aef75c5976e4e103cfc409"
+  },
+  "atomic_profile_evidence": {
+    "path": "/home/orangepi/ostadix-BM/evidence/cpython_atomic_profile_followup_20261018.json",
+    "bytes": 181882,
+    "sha256": "c2a44b4d96398ffd2571cf1f1c6feb9f09ca952d995a28847bb045e6ea9917c5"
+  },
+  "regression_methods": {
+    "source_expansion": 154,
+    "independent_mcp_and_release": 68,
+    "generated_runtime": 3,
+    "total_passed": 245,
+    "skipped": 0,
+    "initial_total_passed": 225,
+    "latest_memory_import": 20
+  },
+  "installed_images_rebuilt_for_incoming_master": false,
+  "incoming_native_emitter_semantics_changed": false,
+  "qualification": {
+    "full_original_runtimes": false,
+    "dependency_closure": false,
+    "general_native_graph_orchestration": false
+  },
+  "initial_incoming_master": "7532659b1eb6bed4513a526e443fcd5c7a57e2de",
+  "latest_active_merge": {
+    "local_doc_checkpoint": "2e076b98442305424c1015785e1d996af5ef68e1",
+    "incoming_master": "08fd479fddb6b3efdf5c07654c7fbae5c2e175ba",
+    "merged_index_tree": "f2a33f01016e54de1a51963e2fddf54d27e0ab1c",
+    "staged_setup": ""
+  },
+  "latest_tracked_source_readback": {
+    "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-tracked-source-readback.json",
+    "bytes": 389017,
+    "sha256": "582ac14de0009c312a0943d73359f95576ff9287987009db77d847861ebfb704"
+  },
+  "latest_ocorec_build": {
+    "argv": [
+      "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/cargo",
+      "build",
+      "--offline",
+      "--locked",
+      "--bin",
+      "ocorec"
+    ],
+    "stage": "finished",
+    "source_master": "08fd479fddb6b3efdf5c07654c7fbae5c2e175ba",
+    "started_epoch": 1792367487.946952,
+    "environment": {
+      "RUSTC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustc",
+      "RUSTDOC": "/home/orangepi/.rustup/toolchains/1.97.1-riscv64gc-unknown-linux-gnu/bin/rustdoc",
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_PROFILE_DEV_OPT_LEVEL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0"
+    },
+    "installed_binaries_changed": false,
+    "exit_code": 0,
+    "elapsed_seconds": 453.2100085730199,
+    "log_sha256": "1b0abfa578c19f6b55b43eea3bd23c7851d1d1fe2e023b7e4e6a51981c4f7987",
+    "binary": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/ocorec",
+      "sha256": "d99c09f9e13fdf60d9552be12cfde6d5419c5ed201b628721fdcdd761c1a5947"
+    }
+  },
+  "latest_memory_import": {
+    "schema": "ostadix.prepared-latest-memory-import-v1",
+    "success": true,
+    "tests_passed": 20,
+    "skipped": 0,
+    "api_calls": 125,
+    "binary_cases": 24,
+    "accepted_cases": 6,
+    "rejected_cases": 18,
+    "verified_modules": 6,
+    "owned_objects": 6,
+    "upstream_anchor": "08fd479fddb6b3efdf5c07654c7fbae5c2e175ba",
+    "compiled_merged_source_tree": "f2a33f01016e54de1a51963e2fddf54d27e0ab1c",
+    "source_suite_seconds": 535.938,
+    "total_seconds": 651.443497,
+    "raw_report": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/report.json",
+      "bytes": 266770,
+      "sha256": "16df7c18d597ede1015487c94bf8df2d56047537473d7815efb78649cdb1f374"
+    },
+    "validated_report": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/validated-result.json",
+      "bytes": 18339,
+      "sha256": "1512d1235246dd7d2e4056047f7184ad9d579ac63b0bb50e44e3f12f407602a5"
+    },
+    "launch": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env-launch.json",
+      "bytes": 1314,
+      "sha256": "b8334b75bc4d314b6f9a23ecd853f455c629da4a833487b03b84921a4f9bcce2"
+    },
+    "build": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-ocorec-build.json",
+      "bytes": 966,
+      "sha256": "257c6d2c3deeaf16dc68b5627b26da796d51269aecd7229eb7ccfbaa4535af4a"
+    },
+    "source_readback": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-tracked-source-readback.json",
+      "bytes": 389017,
+      "sha256": "582ac14de0009c312a0943d73359f95576ff9287987009db77d847861ebfb704"
+    },
+    "active_merge": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-active-merge.json",
+      "bytes": 227,
+      "sha256": "2b6db03e36c952968bacee2d1a3ca24427bd45dbed64bb189cea39a75bd30e6b"
+    },
+    "suite_log": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/suite.log",
+      "bytes": 4669,
+      "sha256": "f0aadf64d789376cf62242b1dbb10b5242930b12a4615f343d841897f40edf84"
+    },
+    "source_pins": {
+      "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+        "bytes": 112834,
+        "sha256": "ac0684625d67e10980a45ec3311ef1aa4f8ad683ddcf044aa9e3f50e0aa6800c"
+      },
+      "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_memory_import.py": {
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_memory_import.py",
+        "bytes": 42430,
+        "sha256": "2671de97e132be117d869098e14e59d751aeb793e037df70d78a1cdef8db88a2"
+      },
+      "/home/orangepi/ostadix-BM/scripts/smoke-project-hgraph.sh": {
+        "path": "/home/orangepi/ostadix-BM/scripts/smoke-project-hgraph.sh",
+        "bytes": 17263,
+        "sha256": "719def7b95c7f88284c285cf2c0ef1ec8a176052540d858590c6c1ec1f06d343"
+      },
+      "/home/orangepi/ostadix-BM/scripts/ocore_llvm_bitcode.py": {
+        "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_bitcode.py",
+        "bytes": 20428,
+        "sha256": "022acd6c0c9629207dee72d53767edebdb051ec26d48b65ed1ca854346ca22cd"
+      },
+      "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py": {
+        "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+        "bytes": 166820,
+        "sha256": "6754ead715fac4c3ff113a6d6e5eaf75a6b463b879ce9552dbed14fda9e04c7f"
+      }
+    },
+    "compiler": {
+      "path": "/home/orangepi/ostadix-BM/target/debug/ocorec",
+      "bytes": 12435096,
+      "sha256": "d99c09f9e13fdf60d9552be12cfde6d5419c5ed201b628721fdcdd761c1a5947"
+    },
+    "compiler_snapshot": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/tools/ocorec",
+      "bytes": 12435096,
+      "sha256": "d99c09f9e13fdf60d9552be12cfde6d5419c5ed201b628721fdcdd761c1a5947"
+    },
+    "llvm_library": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "bytes": 132053720,
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+    },
+    "llvm_api_version": [
+      22,
+      1,
+      6
+    ],
+    "harness": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/run_latest_memory_import_sdk_env.py",
+      "bytes": 13175,
+      "sha256": "595fde8ce9f3a84507164e2dbe314c7d112c57306ffe2a8f5a67bdca86f9ab72"
+    },
+    "validator": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/validate_latest_memory_results.py",
+      "bytes": 5961,
+      "sha256": "07ccfaf8e57f9a015758be24ca58e9b08e877281cc0d3cc737a24aef0964335d"
+    },
+    "environment": {
+      "PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin:/home/orangepi/.local/bin:/home/orangepi/.local/bin:/home/orangepi/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games",
+      "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+      "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "OCORE_TEST_CLANG22": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang"
+    },
+    "pin_forwarding": "Only public import_module(expected_sha256=actual_sdk_digest) and standalone CLI --llvm-sha256 are supplied; production defaults are unchanged.",
+    "source_files_unchanged": true,
+    "compiler_unchanged": true,
+    "installed_ocorec_unchanged": {
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "bytes": 2388760,
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    },
+    "accepted_target_counts": {
+      "x86_64-unknown-linux-gnu": 2,
+      "aarch64-unknown-linux-gnu": 2,
+      "riscv64-unknown-linux-gnu": 2
+    },
+    "accepted_input_formats": {
+      "text": 3,
+      "bitcode": 3
+    },
+    "rejected_stages": {
+      "import": 13,
+      "llvm-verify": 4,
+      "bitcode-audit": 1
+    },
+    "negative_agreement": {
+      "ordinary_exit_code": 1,
+      "exact_diagnostics": 17,
+      "location_only_diagnostics": 1,
+      "normalization": "For the sole unsupported function partition on function #2 diagnostic, serialized bit location3876 versus4401 is retained as descriptive location; stage, feature, function index and every other message byte match. No general numeric/diagnostic normalization is allowed.",
+      "no_signals_tracebacks_loader_or_toolchain_failures": true,
+      "no_rejected_module_or_native_emission": true
+    },
+    "stage_commands": {
+      "imports": 24,
+      "api_canonicalizations": 6,
+      "independent_verifications": 6,
+      "owned_object_emissions": 6
+    },
+    "script_syntax": {
+      "name": "smoke-script-syntax",
+      "argv": [
+        "bash",
+        "-n",
+        "/home/orangepi/ostadix-BM/scripts/smoke-project-hgraph.sh"
+      ],
+      "cwd": "/home/orangepi/ostadix-BM",
+      "exit_code": 0,
+      "started_unix": 1792368180.8794973,
+      "ended_unix": 1792368180.891146,
+      "stdout": {
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/smoke-script-syntax.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/smoke-script-syntax.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "incoming_commit_and_patch_logs": [
+      {
+        "name": "commit-54e63c5c",
+        "argv": [
+          "git",
+          "show",
+          "--format=fuller",
+          "--stat",
+          "54e63c5c8d1689a44aa1a4049586e8f2a68f118c"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "started_unix": 1792368181.0035655,
+        "ended_unix": 1792368181.0238185,
+        "stdout": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/commit-54e63c5c.stdout",
+          "bytes": 493,
+          "sha256": "00511a90981cedfc9eb10a004b08a12844ad1a884c7c5876e313da93f01221d7"
+        },
+        "stderr": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/commit-54e63c5c.stderr",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "name": "patch-54e63c5c",
+        "argv": [
+          "git",
+          "show",
+          "--format=fuller",
+          "--binary",
+          "54e63c5c8d1689a44aa1a4049586e8f2a68f118c"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "started_unix": 1792368181.0272944,
+        "ended_unix": 1792368181.0513513,
+        "stdout": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/patch-54e63c5c.stdout",
+          "bytes": 13391,
+          "sha256": "39b6cdbf02e1a424f7cf7dcb4ebfffb91f32bb312582592205c9843205eb9a04"
+        },
+        "stderr": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/patch-54e63c5c.stderr",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "name": "commit-08fd479f",
+        "argv": [
+          "git",
+          "show",
+          "--format=fuller",
+          "--stat",
+          "08fd479fddb6b3efdf5c07654c7fbae5c2e175ba"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "started_unix": 1792368181.0548406,
+        "ended_unix": 1792368181.0732837,
+        "stdout": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/commit-08fd479f.stdout",
+          "bytes": 576,
+          "sha256": "0c14fa5f61c13ee2ba97ffe75322325e60919d937a98fa50a1833d6d27f0a63d"
+        },
+        "stderr": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/commit-08fd479f.stderr",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "name": "patch-08fd479f",
+        "argv": [
+          "git",
+          "show",
+          "--format=fuller",
+          "--binary",
+          "08fd479fddb6b3efdf5c07654c7fbae5c2e175ba"
+        ],
+        "cwd": "/home/orangepi/ostadix-BM",
+        "exit_code": 0,
+        "started_unix": 1792368181.0752852,
+        "ended_unix": 1792368181.095327,
+        "stdout": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/patch-08fd479f.stdout",
+          "bytes": 18297,
+          "sha256": "4528b8604bb55addde6134f810ed482597f958e5aff644c15b548115bb2d95cc"
+        },
+        "stderr": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/patch-08fd479f.stderr",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    "superseded_zero_test_environment_attempt": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import/report.json",
+      "bytes": 9894,
+      "sha256": "81a00220126cdf07323b78d0348a76b1e162a300ffb892339743673a88f8019d"
+    },
+    "runtime_complete": false,
+    "native_execution_qualified": false,
+    "installed_binaries_changed": false
+  },
+  "historical_source_audit_compiler": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915",
+  "latest_compiler_build_tree": "f2a33f01016e54de1a51963e2fddf54d27e0ab1c",
+  "latest_memory_import_independent_review": {
+    "receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-independent-review.json",
+      "bytes": 19865,
+      "sha256": "7d1e15dad6afd71e0b154a72ffd83ad3fd49c15c23f7a8af0b2d0b89060c0f50"
+    },
+    "review": {
+      "accepted_binary_cases": 6,
+      "accepted_objects": [
+        {
+          "input": {
+            "bytes": 518,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/api-0041/input.ll",
+            "sha256": "d2768b21d1d169e70790ebd49a8a7163a0cbff35e969101a9e1055ca17ddc90d"
+          },
+          "module": {
+            "bytes": 7912,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0018/module.json",
+            "sha256": "0fe38f7e7a5a8efd93be01cf5bd5bfb99c33ae657a76831fbd1af7ca4d972ec3"
+          },
+          "object": {
+            "bytes": 920,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0018/module.o",
+            "sha256": "d76b3c8ab2d9a72a08a6dd2cefc3e2a63e6b443930d3df455643954a510ae834"
+          },
+          "source_api_index": 41,
+          "target": "x86_64-unknown-linux-gnu",
+          "verification": {
+            "bytes": 935,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0018/verification.json",
+            "sha256": "1a7fbcf56b6214f96f314bcda3074da372e990588616b1fd362d942aad6e65dc"
+          }
+        },
+        {
+          "input": {
+            "bytes": 2188,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/api-0042/input.bc",
+            "sha256": "dbdaaf81dc0770df557aa9afcf56a13473ae2cd8cce77009eeafe8ef125b4360"
+          },
+          "module": {
+            "bytes": 7912,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0019/module.json",
+            "sha256": "689c1dc1472ef18073e57e8580fdd5c594d915610e6242abd8a11550ec874575"
+          },
+          "object": {
+            "bytes": 920,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0019/module.o",
+            "sha256": "d76b3c8ab2d9a72a08a6dd2cefc3e2a63e6b443930d3df455643954a510ae834"
+          },
+          "source_api_index": 42,
+          "target": "x86_64-unknown-linux-gnu",
+          "verification": {
+            "bytes": 935,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0019/verification.json",
+            "sha256": "08fea8d5a5e349edfec006a8891feb91e9079baa8ca5404264677ce283b66561"
+          }
+        },
+        {
+          "input": {
+            "bytes": 524,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/api-0045/input.ll",
+            "sha256": "07a80eb839e8cfe0c6627574e1a799325e3873f2a20f85e43c72d5e5fa11f840"
+          },
+          "module": {
+            "bytes": 7918,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0020/module.json",
+            "sha256": "432d9843ef596fd5f317e3dec37df23616a64f0a23ab10181e6f885fe511a5f2"
+          },
+          "object": {
+            "bytes": 1072,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0020/module.o",
+            "sha256": "6b2525182ad6b217beb9322943a934486d574eda93746b48efc96def22e36f79"
+          },
+          "source_api_index": 45,
+          "target": "aarch64-unknown-linux-gnu",
+          "verification": {
+            "bytes": 941,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0020/verification.json",
+            "sha256": "b3cd6c33e8989ef0d2a2ea32bf62185f3603d5830e29603ffdda5bbec2fb9f97"
+          }
+        },
+        {
+          "input": {
+            "bytes": 2196,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/api-0046/input.bc",
+            "sha256": "6917661ce0f5328d9e8ee126e98bd3bb4cab9765ce4e0cc1abb20a036c4e585d"
+          },
+          "module": {
+            "bytes": 7918,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0021/module.json",
+            "sha256": "cb1921910e68d71883596dfd02e1696f6f82b327d523803d5a9603884d1f9320"
+          },
+          "object": {
+            "bytes": 1072,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0021/module.o",
+            "sha256": "6b2525182ad6b217beb9322943a934486d574eda93746b48efc96def22e36f79"
+          },
+          "source_api_index": 46,
+          "target": "aarch64-unknown-linux-gnu",
+          "verification": {
+            "bytes": 941,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0021/verification.json",
+            "sha256": "a9157dd6d07a2837c140080d187f2e4822491de9b9f8bd79c893702e8bd15067"
+          }
+        },
+        {
+          "input": {
+            "bytes": 519,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/api-0049/input.ll",
+            "sha256": "bb2e294206b1d9aa8c00887b99637fd62c90d352725547a8963bb94fd89de207"
+          },
+          "module": {
+            "bytes": 7913,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0022/module.json",
+            "sha256": "7b4a6c0dc9daf865fc04ce0aa9bd207d64c292c86a545e1809f55cf5d630a096"
+          },
+          "object": {
+            "bytes": 1176,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0022/module.o",
+            "sha256": "430d5a2818e78788a5e5f402c10e9a7671d1b6797adbdf22c9ce6db05fe571a7"
+          },
+          "source_api_index": 49,
+          "target": "riscv64-unknown-linux-gnu",
+          "verification": {
+            "bytes": 936,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0022/verification.json",
+            "sha256": "10672b157e31a90310dfab5c64a5e674a47121d17e0c0d2d55bf40301251459f"
+          }
+        },
+        {
+          "input": {
+            "bytes": 2188,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/api-0050/input.bc",
+            "sha256": "78f21fe88903b17ee12c208b9ef60b85be2daf5baa3123c1e14c18778b8870d9"
+          },
+          "module": {
+            "bytes": 7913,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0023/module.json",
+            "sha256": "2dcc66795d9eedb3830752a5d884a0516d366f0588d3e55234ad56e9c8ba1681"
+          },
+          "object": {
+            "bytes": 1176,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0023/module.o",
+            "sha256": "430d5a2818e78788a5e5f402c10e9a7671d1b6797adbdf22c9ce6db05fe571a7"
+          },
+          "source_api_index": 50,
+          "target": "riscv64-unknown-linux-gnu",
+          "verification": {
+            "bytes": 936,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/binary-0023/verification.json",
+            "sha256": "81fa0cb1ba4ec0d3bedbda0400cfb3d665f766a1677dbd994a92fef431402f7d"
+          }
+        }
+      ],
+      "bound_artifact_records_rehashed": 322,
+      "build_receipt": {
+        "bytes": 966,
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-ocorec-build.json",
+        "sha256": "257c6d2c3deeaf16dc68b5627b26da796d51269aecd7229eb7ccfbaa4535af4a"
+      },
+      "compiler": {
+        "bytes": 12435096,
+        "path": "/home/orangepi/ostadix-BM/target/debug/ocorec",
+        "sha256": "d99c09f9e13fdf60d9552be12cfde6d5419c5ed201b628721fdcdd761c1a5947"
+      },
+      "compiler_snapshot": {
+        "bytes": 12435096,
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/tools/ocorec",
+        "sha256": "d99c09f9e13fdf60d9552be12cfde6d5419c5ed201b628721fdcdd761c1a5947"
+      },
+      "executed_native_code": false,
+      "fresh_binary_cases": 24,
+      "harness": {
+        "bytes": 13175,
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/run_latest_memory_import_sdk_env.py",
+        "sha256": "595fde8ce9f3a84507164e2dbe314c7d112c57306ffe2a8f5a67bdca86f9ab72"
+      },
+      "historical_installed_matrix_reused_as_fresh_result": false,
+      "installed_ocorec_unchanged": {
+        "bytes": 2388760,
+        "path": "/home/orangepi/.local/bin/ocorec",
+        "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+      },
+      "launch": {
+        "bytes": 1314,
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env-launch.json",
+        "sha256": "b8334b75bc4d314b6f9a23ecd853f455c629da4a833487b03b84921a4f9bcce2"
+      },
+      "llvm_library": {
+        "bytes": 132053720,
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+      },
+      "material_findings": [],
+      "native_execution_qualified": false,
+      "negative_diagnostics": [
+        {
+          "api_index": 23,
+          "case": 0,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0000-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 24,
+          "case": 1,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 404,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0001-import.stderr",
+            "sha256": "1ddeffbaf6093945e7efd7ea746703ece149abe2dd36963ddd3c2a4dcc844f7a"
+          }
+        },
+        {
+          "api_index": 25,
+          "case": 2,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0002-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 26,
+          "case": 3,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0003-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 27,
+          "case": 4,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0004-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 28,
+          "case": 5,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0005-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 29,
+          "case": 6,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0006-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 30,
+          "case": 7,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0007-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 31,
+          "case": 8,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0008-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 32,
+          "case": 9,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 406,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0009-import.stderr",
+            "sha256": "52e6a1321bae74e1aaf1434e3c8310944bd8c918a29605f1582926ef21d54174"
+          }
+        },
+        {
+          "api_index": 33,
+          "case": 10,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 318,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0010-import.stderr",
+            "sha256": "e44f1ae25f41ac612ab07046f7a62cad7b3c5f1c0d8d51dccc8e741bb1caffc6"
+          }
+        },
+        {
+          "api_index": 34,
+          "case": 11,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "llvm-verify",
+          "stderr": {
+            "bytes": 365,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0011-import.stderr",
+            "sha256": "85b0ad147642d67db4bfd40b15ecb8a350bca4ad446480723c4075e1eb037029"
+          }
+        },
+        {
+          "api_index": 35,
+          "case": 12,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "llvm-verify",
+          "stderr": {
+            "bytes": 299,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0012-import.stderr",
+            "sha256": "725427bca46ce4637013a0ac72e18cee8d841f89caef28828c8c4693ef8d880c"
+          }
+        },
+        {
+          "api_index": 36,
+          "case": 13,
+          "exit_code": 1,
+          "message_exact": false,
+          "sole_difference": "serialized bit offset3876 vs4401; same unsupported function partition on function#2",
+          "stage": "bitcode-audit",
+          "stderr": {
+            "bytes": 309,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0013-import.stderr",
+            "sha256": "2ed3f2259153dfd0e390e896c5ed57fad4594f96b773eff303d56a04a6ddbf19"
+          }
+        },
+        {
+          "api_index": 37,
+          "case": 14,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 301,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0014-import.stderr",
+            "sha256": "49620f9ffccb6c0a9ab7f689f9a75e321a9778c2ecb7cb70fcf6ab8a9545f1e2"
+          }
+        },
+        {
+          "api_index": 38,
+          "case": 15,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "llvm-verify",
+          "stderr": {
+            "bytes": 303,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0015-import.stderr",
+            "sha256": "e0927881ae464be56088d4d723108b3efe167c2cfd0f396da3e2fc5ed538f72d"
+          }
+        },
+        {
+          "api_index": 39,
+          "case": 16,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "import",
+          "stderr": {
+            "bytes": 349,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0016-import.stderr",
+            "sha256": "864563526365f9440203149723cbddc70e119505c2f1f8e83dc20753949d950e"
+          }
+        },
+        {
+          "api_index": 40,
+          "case": 17,
+          "exit_code": 1,
+          "message_exact": true,
+          "sole_difference": null,
+          "stage": "llvm-verify",
+          "stderr": {
+            "bytes": 320,
+            "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/commands/binary-0017-import.stderr",
+            "sha256": "409eb3ed9079797ea4c4b6ec902a8a7e6fb4a5d593cb8de3304471a6dc986f33"
+          }
+        }
+      ],
+      "negative_exact_message_count": 17,
+      "negative_stage_counts": {
+        "bitcode-audit": 1,
+        "import": 13,
+        "llvm-verify": 4
+      },
+      "owner_summary": {
+        "bytes": 11911,
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/prepared-latest-memory-import.json",
+        "sha256": "b8807f72a8b76cef51a5ab603102e18da806c3d9f9b3440a9abab8b474d49cf3"
+      },
+      "production_PINNED_SHA256_unchanged": "ed4f320c4e1ed6de7d2db6fd89faccf764d63186c2f877057ddf31065b1fac09",
+      "production_default_expected_sha256": "PINNED_SHA256",
+      "provider_closure_complete": false,
+      "public_test_expected_sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "rejected_binary_cases": 18,
+      "report": {
+        "bytes": 266770,
+        "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/report.json",
+        "sha256": "16df7c18d597ede1015487c94bf8df2d56047537473d7815efb78649cdb1f374"
+      },
+      "review_scope": "Independent retained-artifact validation only; no source suite, compiler, or program execution rerun",
+      "runtime_complete": false,
+      "schema": "ostadix.latest-memory-import-independent-review-v1",
+      "source_api_anchor": "f2a33f01016e54de1a51963e2fddf54d27e0ab1c",
+      "source_api_calls": 125,
+      "source_assertions_or_production_defaults_modified": false,
+      "source_cli_pin_forwarding_verified": true,
+      "source_files_match_merged_anchor": {
+        "scripts/ocore_java_inventory.py": true,
+        "scripts/ocore_llvm_bitcode.py": true,
+        "scripts/ocore_llvm_import.py": true,
+        "scripts/ocore_runtime_capture.py": true,
+        "scripts/smoke-project-hgraph.sh": true,
+        "tests/test_ocore_llvm_import.py": true,
+        "tests/test_ocore_llvm_memory_import.py": true
+      },
+      "source_suite": {
+        "errors": [],
+        "failures": [],
+        "log": {
+          "bytes": 4669,
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-final-integration-20261018/latest-memory-import-sdk-env/suite.log",
+          "sha256": "f0aadf64d789376cf62242b1dbb10b5242930b12a4615f343d841897f40edf84"
+        },
+        "skips": 0,
+        "success": true,
+        "tests_run": 20
+      },
+      "source_vs_binary_scope": "20 source-importer test methods and125 API calls are separate from24 selected lifetime fresh-debug-compiler cases.08fd is the upstream anchor; f2a33 is the merged source anchor. Exact compiled Rust source preservation is handled by root separate build/index evidence.",
+      "status": "pass"
+    }
+  }
+}

@@ -73,6 +73,15 @@ neither an atomic nor a TLS profile. Exact unit IDs, remaining diagnostics,
 tool/source hashes, and the hosted reference receipt are bound in the
 [completed expansion evidence](../../../evidence/original_python_c_rust_expansion_20261018.json).
 
+A separate follow-up reimported exactly those nine whole inputs with
+`--atomic-profile coherent-ram-v1`; all nine passed independent verification and
+produced RV64 objects. Complete function/global/alias inventories and instruction
+semantics remained unchanged. This contract excludes device memory, requires
+accessible containing words for masked subword atomics, and requires RV64 LR/SC
+eventuality. It establishes no native execution or provider qualification. The
+[atomic-profile evidence](../../../evidence/cpython_atomic_profile_followup_20261018.json)
+retains the separate result; the baseline above remains unchanged.
+
 This inventory establishes source-build accounting only. Complete imported
 functions/globals, dependency implementations, native OSTADIX platform services,
 linking, resources, compiler witnesses, and all-three-ISA execution remain
