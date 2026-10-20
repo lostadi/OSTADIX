@@ -652,6 +652,19 @@ pub enum Operation {
         lhs: Operand,
         rhs: Operand,
     },
+    /// Same-width leading-zero count. The original LLVM immediate poison flag
+    /// is retained; LlvmDefinedBehaviorV1 realizes zero as the source width even
+    /// when the source flag permits poison. No undefined target BSR is exposed.
+    IntegerCountLeadingZeros {
+        value: Operand,
+        zero_is_poison: bool,
+    },
+    /// Same-width wrapping magnitude. INT_MIN remains INT_MIN; a true source
+    /// poison flag permits this deterministic refinement, not overflow trapping.
+    IntegerAbs {
+        value: Operand,
+        int_min_is_poison: bool,
+    },
     ICmp {
         predicate: IntPredicate,
         lhs: Operand,
@@ -694,6 +707,13 @@ pub enum Operation {
         base: Operand,
         offset: Operand,
         inbounds: bool,
+    },
+    /// Mask address bits while preserving the original pointer's underlying
+    /// object/provenance. The current native profile is integral AS0 with
+    /// 64-bit pointer and index widths; this is not an integer round trip.
+    PtrMask {
+        pointer: Operand,
+        mask: Operand,
     },
     Load {
         pointer: Operand,

@@ -1,0 +1,44 @@
+{
+  "schema": "ocore-native-runtime-v5-work-in-progress-v1",
+  "status": "unqualified-prerequisite-integration",
+  "primary_objective": "Any pinned unchanged original language runtime/compiler through olangc-owned capture/build, whole-unit verification, original providers, complete artifact and behavior per ISA/profile",
+  "runtime_accepted": false,
+  "runtime_complete": false,
+  "hardware_execution_qualified": false,
+  "inputs": {
+    "fp_recovery": "fd55f87124ed55d1be082aaf951283bc6b76546b",
+    "reviewed_registry": "279f94572d23acaf5ea6e213c16aa97486a8ebc5",
+    "portable_harnesses": [
+      "44f26fb6fa3b9ba4863f807daaa51c71ded85fd7",
+      "4620e4b6ffcadd72cac35cedd15acf8b952891f4"
+    ]
+  },
+  "changes": [
+    "Typed integral AS0 64-bit PtrMask and conservative pointer/reference boundary",
+    "Typed scalar i32/i64 ctlz and abs with exact original poison flags",
+    "Owned x86-64/AArch64/RV64GC emission, verifier and operand accounting",
+    "Actual helper test fixture inventory repairs; source declaration normalization accounting"
+  ],
+  "verification_pending": [
+    "Merged262 Rust assertions after retained test failures",
+    "Fresh generated/bundled native source inclusion",
+    "All3 actual compiler binaries",
+    "Actual detached compiled olangc source recipe roundtrip",
+    "Actual per-ISA reference/owned PtrMask and integer unary behavior",
+    "Whole original provider bodies and complete original runtime/provider/program/resource artifact contracts"
+  ],
+  "retained_failures": [
+    "floating-owned-controls-v1",
+    "floating-owned-controls-v2",
+    "native-core-tests-v5-r1",
+    "native-core-tests-v5-r2",
+    "v5-focused-import-controls-r1",
+    "v5-focused-import-controls-r2 class skip",
+    "integer-unary-parser-controls-v2 declaration normalization negatives"
+  ],
+  "requirements_hashes": {
+    "AGENTS.md": "16578c80409fbbcaad2e3d24a54c3ccea629202408d4312b31820336dc4a2d20",
+    "tools/ocore-runtime/expansion.requirements.json": "cb64c6c83ea4e97ef079c906d4d53596e4f95eda53a2f3bc2a117bd67312e0a7",
+    "tools/ocore-runtime/isa.requirements.json": "01df1bd275712dbe4e020eef2056c23a7c2ce42958fbee550319cc02dfbac03f"
+  }
+}

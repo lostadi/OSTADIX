@@ -9,13 +9,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import platform
 import shutil
-import subprocess
 import tempfile
 import unittest
 
-from scripts.check_ocore_native_equivalence import TARGETS, elf
+from scripts.check_ocore_native_equivalence import TARGETS, RunEvidence, elf, execution_prefix, file_identity
 from scripts.check_ocore_foreign_frontends import HARNESS as EXISTING_LINUX_CARRIER
 from tests.test_ocore_native_import_backend import (
     ROOT, I64, I1, I8, I32, function, integer, instruction, module, value,
@@ -289,11 +287,13 @@ class NativeSwitchTests(unittest.TestCase):
         else:
             temporary=tempfile.TemporaryDirectory(prefix="ocore-native-switch-")
             self.addCleanup(temporary.cleanup);self.directory=Path(temporary.name)
+        self.evidence=RunEvidence([__file__],{"ocorec":self.compiler})
+        self.addCleanup(self.evidence.verify_unchanged)
 
     def command(self,argv,success=True):
-        result=subprocess.run([str(item) for item in argv],cwd=ROOT,capture_output=True,timeout=120)
+        result=self.evidence.run(argv)
         (self.directory/f"command-{len(list(self.directory.glob('command-*.json'))):03}.json").write_text(json.dumps({
-            "argv":[str(item) for item in argv],"exit_code":result.returncode,
+            **self.evidence.commands[-1],"exit_code":result.returncode,
             "stdout":result.stdout.decode(errors="replace"),"stderr":result.stderr.decode(errors="replace")},indent=2))
         if success:
             self.assertEqual(result.returncode,0,result.stdout.decode(errors="replace")+result.stderr.decode(errors="replace"))
@@ -301,6 +301,7 @@ class NativeSwitchTests(unittest.TestCase):
 
     def verify(self,native,name):
         path=self.directory/(name+".json");path.write_text(json.dumps(native))
+        self.evidence.watch_source(path)
         receipt=path.with_suffix(".verification.json")
         self.command([self.compiler,path,"--verify-native","--receipt",receipt])
         record=json.loads(receipt.read_text())
@@ -311,16 +312,25 @@ class NativeSwitchTests(unittest.TestCase):
 
     def test_actual_all_three_objects_match_independent_references_and_exact_bytes(self):
         tools={name:shutil.which(os.environ.get(variable,default)) for name,variable,default in (
-            ("clang","CLANG","clang"),("linker","LD_LLD","ld.lld"),
-            ("aarch64","OCORE_TEST_QEMU_AARCH64","qemu-aarch64"),
-            ("riscv64","OCORE_TEST_QEMU_RISCV64","qemu-riscv64"))}
+            ("clang","CLANG","clang"),("linker","LD_LLD","ld.lld"))}
         missing=[name for name,path in tools.items() if path is None]
-        if platform.machine() not in {"x86_64","AMD64"}:missing.append("native x86-64 host")
+        runners={}
+        for isa in TARGETS:
+            try:
+                runners[isa]=execution_prefix(isa,os.environ.get("OCORE_TEST_QEMU_"+isa.upper()))
+            except RuntimeError as error:
+                missing.append(str(error))
         if missing:
             reason="All three actual switch executions require: "+", ".join(missing)
             if os.environ.get("OCORE_TEST_REQUIRE_ALL_ISAS")=="1":self.fail(reason)
             self.skipTest(reason)
+        tools["assembler_clang"]=shutil.which(self.evidence.environment.get("OCORE_CLANG","clang"),
+                                               path=self.evidence.environment.get("PATH"))
+        self.assertIsNotNone(tools["assembler_clang"],"O-core assembler must resolve")
+        for name,path in {**tools,**{isa:runner[0] for isa,runner in runners.items() if runner}}.items():
+            self.evidence.watch_tool(name,path)
         carrier=self.directory/"reference.c";carrier.write_text(harness())
+        self.evidence.watch_source(carrier)
         expected=golden();outputs=[];report={"scope":"switch compiler conformance on Linux development carriers",
             "runtime_complete":False,"kernel_execution_verified":False,
             "expected_output":expected.decode(),"large_switch_cases":LARGE_COUNT,"targets":{}}
@@ -331,9 +341,9 @@ class NativeSwitchTests(unittest.TestCase):
                 self.command([self.compiler,path,"--input-kind","native-ir","--target",native,"--emit","obj","-o",obj])
                 elf(obj,machine,1)
                 link=[tools["clang"],"--target="+hosted,*flags,"-O2","-ffreestanding","-fno-builtin",
-                      "-fno-stack-protector","-fno-pic","-fno-pie","-nostdlib","-static","-fuse-ld=lld",
+                      "-fno-stack-protector","-fno-pic","-fno-pie","-nostdlib","-static","--ld-path="+tools["linker"],
                       "-Wl,-e,_start","-Wl,--build-id=none",carrier]
-                emulator=[] if isa=="x86_64" else [tools[isa]]
+                emulator=runners[isa]
                 reference=self.directory/(isa+".reference.elf")
                 self.command([*link,"-DREFERENCE_ONLY","-o",reference]);elf(reference,machine,2)
                 self.assertEqual(self.command([*emulator,reference]).stdout,expected)
@@ -346,13 +356,33 @@ class NativeSwitchTests(unittest.TestCase):
                 negative=self.command([*emulator,broken],success=False)
                 self.assertEqual(negative.returncode,31);self.assertEqual(negative.stdout,b"")
                 report["targets"][isa]={"output":actual.decode(),"negative_control_exit":31,
+                    "execution_argv_prefix":emulator,
+                    "profile":{"native_target":native,"hosted_target":hosted,"flags":flags},
+                    "artifacts":{name:file_identity(artifact) for name,artifact in
+                                 {"module":path,"verification":path.with_suffix(".verification.json"),
+                                  "object":obj,"reference":reference,"executable":exe,"corrupt_oracle":broken}.items()},
                     "module_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
                     "object_sha256":hashlib.sha256(obj.read_bytes()).hexdigest(),
                     "executable_sha256":hashlib.sha256(exe.read_bytes()).hexdigest()}
         self.assertEqual(len(outputs),3);self.assertEqual(len(set(outputs)),1)
         report["all_three_executions_passed"]=True
+        report["provenance"]=self.evidence.finish()
         (self.directory/"switch-conformance.json").write_text(json.dumps(report,indent=2))
         print("All three own switch objects: "+expected.decode().strip(),flush=True)
+
+    def test_provenance_rejects_changed_source_and_executed_tool(self):
+        source=self.directory/"watched-source.c";source.write_text("original source\n")
+        evidence=RunEvidence([source])
+        source.write_text("changed source\n")
+        with self.assertRaisesRegex(RuntimeError,"run input changed"):
+            evidence.finish()
+        executable=self.directory/"copied-true"
+        shutil.copy2(shutil.which("true"),executable)
+        evidence=RunEvidence()
+        self.assertEqual(evidence.run([executable]).returncode,0)
+        executable.write_bytes(executable.read_bytes()+b"changed after execution")
+        with self.assertRaisesRegex(RuntimeError,"run input changed"):
+            evidence.finish()
 
     def test_duplicate_case_decimal_aliases_reject_without_fresh_receipts(self):
         for width in WIDTH_TYPES:

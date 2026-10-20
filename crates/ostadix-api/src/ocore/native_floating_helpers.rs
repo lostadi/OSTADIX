@@ -374,7 +374,7 @@ mod tests {
                 "params":[],"entry":0,"blocks":[{"id":0,"instructions":[],"terminator":{"op":"return","value":null}}]}],
             "provenance":{"input_sha256":"0".repeat(64),"frontend":"LLVM22 reference",
                 "frontend_version":"22.1.6","importer":"fixture","importer_version":"1",
-                "source_function_count":1,"source_global_count":0}
+                "source_function_count":1,"source_global_count":0,"refinements":[]}
         })).unwrap()
     }
 
@@ -668,6 +668,7 @@ mod tests {
         declaration.entry = None;
         declaration.blocks.clear();
         declaration.signature.params = vec![6];
+        declaration.params = vec![Value { id: 0, ty: 6 }];
         declaration.signature.result = 1;
         m.functions.push(declaration);
         m.provenance.source_function_count = 2;

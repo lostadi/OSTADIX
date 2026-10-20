@@ -23,6 +23,10 @@ mod atomic_tests;
 #[path = "native_minmax_verify_tests.rs"]
 mod minmax_tests;
 
+#[cfg(test)]
+#[path = "native_integer_unary_verify_tests.rs"]
+mod integer_unary_tests;
+
 fn fail(context: &str, message: impl std::fmt::Display) -> Diagnostic {
     error_diagnostic(format!("{context}: {message}"))
 }
@@ -994,6 +998,8 @@ pub fn variadic_intrinsic(name: &str) -> Option<VariadicIntrinsic> {
     }
 }
 
+pub const POINTER_MASK_INTRINSIC: &str = "llvm.ptrmask.p0.i64";
+
 fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
     use IntrinsicArgument::{Integer, Metadata, Pointer};
     match name {
@@ -1005,6 +1011,7 @@ fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
         "llvm.va_copy.p0" => Some(&[Pointer, Pointer]),
         "llvm.load.relative.i32" => Some(&[Pointer, Integer(32)]),
         "llvm.load.relative.i64" => Some(&[Pointer, Integer(64)]),
+        POINTER_MASK_INTRINSIC => Some(&[Pointer, Integer(64)]),
         "llvm.assume" => Some(&[Integer(1)]),
         "llvm.lifetime.start.p0" | "llvm.lifetime.end.p0" => Some(&[Pointer]),
         "llvm.memset.p0.i32" => Some(&[Pointer, Integer(8), Integer(32), Integer(1)]),
@@ -1025,6 +1032,8 @@ pub fn is_builtin_intrinsic(name: &str) -> bool {
     builtin_signature(name).is_some()
         || integer_overflow_intrinsic(name).is_some()
         || integer_minmax_intrinsic(name).is_some()
+        || float_abs_intrinsic(name).is_some()
+        || integer_unary_intrinsic(name).is_some()
 }
 
 /// Compiler-only declarations have no ordinary native ABI or executable
@@ -1061,6 +1070,18 @@ pub fn float_abs_intrinsic(name: &str) -> Option<u16> {
         "llvm.fabs.f64" => Some(64),
         "llvm.fabs.f80" => Some(80),
         "llvm.fabs.f128" => Some(128),
+        _ => None,
+    }
+}
+
+/// Exact supported scalar ctlz/abs overloads; names never authorize a body or
+/// a mismatched declaration signature. The boolean distinguishes ctlz from abs.
+pub fn integer_unary_intrinsic(name: &str) -> Option<(bool, u16)> {
+    match name {
+        "llvm.ctlz.i32" => Some((true, 32)),
+        "llvm.ctlz.i64" => Some((true, 64)),
+        "llvm.abs.i32" => Some((false, 32)),
+        "llvm.abs.i64" => Some((false, 64)),
         _ => None,
     }
 }
@@ -2046,6 +2067,9 @@ impl<'a> Verifier<'a> {
                     "thread-local intrinsic requires an explicit native TLS profile",
                 ));
             }
+            if function.name == POINTER_MASK_INTRINSIC && !self.literal_pointer_profile {
+                return Err(fail(&context, "pointer mask requires integral AS0 64-bit pointers/indices and default address spaces"));
+            }
             let sig = &function.signature;
             let shape = if let Some((_, _, bits)) = integer_overflow_intrinsic(&function.name) {
                 sig.params.len() == 2
@@ -2056,6 +2080,14 @@ impl<'a> Verifier<'a> {
                         if fields.len() == 2
                         && matches!(self.module.types.get(fields[0]), Some(Type::Int { bits: actual }) if *actual == bits)
                         && matches!(self.module.types.get(fields[1]), Some(Type::Int { bits: 1 })))
+            } else if let Some((_, bits)) = integer_unary_intrinsic(&function.name) {
+                sig.params.len() == 2
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
+                    && matches!(
+                        self.module.types.get(sig.params[1]),
+                        Some(Type::Int { bits: 1 })
+                    )
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
             } else if let Some(bits) = float_abs_intrinsic(&function.name) {
                 sig.params.len() == 1
                     && matches!(self.module.types.get(sig.params[0]), Some(Type::Float { bits: actual }) if *actual == bits)
@@ -2078,7 +2110,8 @@ impl<'a> Verifier<'a> {
                         }
                         "llvm.load.relative.i32"
                         | "llvm.load.relative.i64"
-                        | "llvm.threadlocal.address.p0" => matches!(
+                        | "llvm.threadlocal.address.p0"
+                        | POINTER_MASK_INTRINSIC => matches!(
                             self.ty(sig.result, &context)?,
                             Type::Pointer { address_space: 0 }
                         ),
@@ -2810,6 +2843,17 @@ impl<'a> Verifier<'a> {
                     ));
                 }
             }
+            Operation::IntegerCountLeadingZeros { value, .. }
+            | Operation::IntegerAbs { value, .. } => {
+                let ty = operand(value)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(self.ty(ty, context)?, Type::Int { bits: 32 | 64 }) {
+                    return Err(fail(
+                        context,
+                        "integer ctlz/abs requires same-type scalar i32 or i64 operand and result",
+                    ));
+                }
+            }
             Operation::ICmp { lhs, rhs, .. } => {
                 let ty = operand(lhs)?;
                 self.same_type(ty, operand(rhs)?, context)?;
@@ -2900,6 +2944,17 @@ impl<'a> Verifier<'a> {
             } => {
                 self.pointer(result()?, context)?;
                 alignment(*align, true, context)?;
+            }
+            Operation::PtrMask { pointer, mask } => {
+                if !self.literal_pointer_profile {
+                    return Err(fail(context, "pointer mask requires integral AS0 64-bit pointers/indices and default address spaces"));
+                }
+                let ty = operand(pointer)?;
+                self.memory_pointer(ty, context)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(self.ty(operand(mask)?, context)?, Type::Int { bits: 64 }) {
+                    return Err(fail(context, "pointer mask requires an exact i64 mask"));
+                }
             }
             Operation::Gep { base, offset, .. } => {
                 let ty = operand(base)?;
@@ -3164,6 +3219,9 @@ impl<'a> Verifier<'a> {
         context: &str,
         ordinary: bool,
     ) -> Result<()> {
+        if matches!(callee, Operand::Symbol { name, .. } if name == POINTER_MASK_INTRINSIC) {
+            return Err(fail(context, "pointer-mask intrinsic requires the explicit typed PtrMask operation, never an ordinary call or invoke"));
+        }
         let fixed_signature = if signature.variadic {
             if signature.param_attributes.len() != args.len() {
                 return Err(fail(
@@ -3334,6 +3392,8 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
         Operation::Cast { value, .. }
         | Operation::FloatNeg { value, .. }
         | Operation::FloatAbs { value, .. }
+        | Operation::IntegerCountLeadingZeros { value, .. }
+        | Operation::IntegerAbs { value, .. }
         | Operation::Freeze { value } => vec![value],
         Operation::ExtractValue { aggregate, .. } => vec![aggregate],
         Operation::InsertValue {
@@ -3352,6 +3412,7 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
             vec![]
         }
         Operation::Gep { base, offset, .. } => vec![base, offset],
+        Operation::PtrMask { pointer, mask } => vec![pointer, mask],
         Operation::Load { pointer, .. } | Operation::AtomicLoad { pointer, .. } => vec![pointer],
         Operation::Store { pointer, value, .. }
         | Operation::AtomicStore { pointer, value, .. }
@@ -3568,6 +3629,120 @@ mod tests {
             }),
         });
         module.provenance.source_global_count += 1;
+    }
+
+    fn pointer_mask_module() -> NativeModule {
+        let mut m = module();
+        let f = &mut m.functions[0];
+        f.signature.params = vec![3, 2];
+        f.signature.result = 3;
+        f.params = vec![Value { id: 7, ty: 3 }, Value { id: 9, ty: 2 }];
+        f.blocks = vec![Block {
+            id: 10,
+            instructions: vec![Instruction {
+                result: Some(Value { id: 8, ty: 3 }),
+                operation: Operation::PtrMask {
+                    pointer: value(7),
+                    mask: value(9),
+                },
+            }],
+            terminator: Terminator::Return {
+                value: Some(value(8)),
+            },
+        }];
+        let mut declaration = builtin(POINTER_MASK_INTRINSIC, &[3, 2]);
+        declaration.signature.result = 3;
+        m.functions.push(declaration);
+        m.provenance.source_function_count += 1;
+        m
+    }
+
+    #[test]
+    fn pointer_mask_retains_one_pointer_leaf_and_exact_intrinsic_inventory() {
+        for triple in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            let mut m = pointer_mask_module();
+            m.target.triple = triple.into();
+            verify(&m).unwrap();
+            assert_eq!(value_leaf_layout(&m, 3).unwrap(), vec![(3, 0)]);
+            let parsed = NativeModule::from_json(&serde_json::to_vec(&m).unwrap()).unwrap();
+            assert_eq!(parsed.functions.len(), 2);
+            assert_eq!(
+                parsed.functions[1].intrinsic.as_deref(),
+                Some(POINTER_MASK_INTRINSIC)
+            );
+            assert!(is_builtin_intrinsic(POINTER_MASK_INTRINSIC));
+            let operands =
+                instruction_operands(&parsed.functions[0].blocks[0].instructions[0].operation);
+            assert_eq!(operands.len(), 2);
+            assert!(matches!(operands[0], Operand::Value { id: 7 }));
+            assert!(matches!(operands[1], Operand::Value { id: 9 }));
+            let error = crate::ocore::native_interpret::evaluate(&m, &m.functions[0].name, &[])
+                .unwrap_err();
+            assert!(error.message.contains("pointer masks"));
+        }
+        for name in [
+            "llvm.fabs.f32",
+            "llvm.fabs.f64",
+            "llvm.fabs.f80",
+            "llvm.fabs.f128",
+        ] {
+            assert!(
+                is_builtin_intrinsic(name),
+                "owned resolution does not remove its source declaration"
+            );
+        }
+    }
+
+    #[test]
+    fn pointer_mask_rejects_wrong_mask_pointer_profile_result_and_ordinary_call() {
+        for (layout, diagnostic) in [
+            ("e-p:64:64:64:32-i64:64", "pointer mask requires"),
+            ("e-p:64:64-i64:64-ni:0", "invalid non-integral address space"),
+            ("e-p:64:64-i64:64-A1", "pointer mask requires"),
+        ] {
+            let mut m = pointer_mask_module();
+            m.target.data_layout = layout.into();
+            rejects(&m, diagnostic);
+        }
+        let mut m = pointer_mask_module();
+        m.types[3] = Type::Pointer { address_space: 1 };
+        assert!(verify(&m).is_err());
+        let mut m = pointer_mask_module();
+        let narrow_mask = m.types.len();
+        m.types.push(Type::Int { bits: 32 });
+        m.functions[0].signature.params[1] = narrow_mask;
+        m.functions[0].params[1].ty = narrow_mask;
+        rejects(&m, "pointer mask requires an exact i64 mask");
+        let mut m = pointer_mask_module();
+        m.functions[0].blocks[0].instructions[0]
+            .result
+            .as_mut()
+            .unwrap()
+            .ty = 2;
+        assert!(verify(&m).is_err());
+        let mut m = pointer_mask_module();
+        m.functions[0].blocks[0].instructions[0].operation = Operation::Call {
+            callee: Operand::Symbol {
+                ty: 3,
+                name: POINTER_MASK_INTRINSIC.into(),
+            },
+            signature: m.functions[1].signature.clone(),
+            args: vec![value(7), value(9)],
+        };
+        rejects(&m, "explicit typed PtrMask");
+        let mut m = pointer_mask_module();
+        m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
+            pointer: value(7),
+            mask: value(999),
+        };
+        assert!(
+            verify(&m).is_err(),
+            "the mask must participate in dominance and use checking"
+        );
     }
 
     #[test]
