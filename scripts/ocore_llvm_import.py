@@ -290,7 +290,7 @@ class Importer:
         self.attribute_names = {}
         for name in self.ERASED | self.ERASED_RESTRICTIONS | {
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
-                "immarg", "dead_on_unwind", "allockind", "allocsize", "allocalign", "allocptr",
+                "immarg", "dead_on_unwind", "dead_on_return", "allockind", "allocsize", "allocalign", "allocptr",
                 "writable", "returned", "builtin", "sret",
                 "nocreateundeforpoison"}:
             kind = api.GetEnumAttributeKindForName(name.encode(), len(name))
@@ -668,6 +668,17 @@ class Importer:
                 else:
                     self.refinements.add(f"{self.symbol}: retained ordinary declaration uwtable={level} ({level_name}) at function attribute index 4294967295; no function body or consumer unwind-table entry emitted; source declaration, calls and dependencies retained; own native definitions emit instruction-precise CFI, external provider unwind realization and EH services are not inferred")
                 self.refinements.add("UWTable attributes validated after pinned LLVM parsing and attribute normalization; input_sha256 binds the original bytes")
+            elif name == "dead_on_return":
+                argument_count = (a.GetNumArgOperands(value) if call else
+                                  a.CountParamTypes(a.GlobalGetValueType(value)))
+                if (not 1 <= index <= argument_count or attribute_type is None
+                        or a.GetTypeKind(attribute_type) != 12
+                        or a.GetPointerAddressSpace(attribute_type) != 0
+                        or not a.IsEnumAttribute(attribute)
+                        or a.GetEnumAttributeValue(attribute) != 0):
+                    self.reject("dead_on_return requires an exact zero-payload AS0 pointer-argument promise")
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} argument index {index}: validated dead_on_return=0 from LLVM22.1.6; erased the poison-on-normal-or-unwind-return memory promise while retaining every original call, memory operation and operand; no synthesized poison, store elimination, aliasing assumption, ABI adaptation or hidden copy; original input_sha256 binds the attribute bytes")
             elif name in {"signext", "zeroext"} and index != 0xffffffff:
                 preserved.append(name)
             elif name in self.ERASED and a.IsEnumAttribute(attribute):

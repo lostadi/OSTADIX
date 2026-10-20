@@ -376,6 +376,17 @@ class NativeVariadicAbiTests(unittest.TestCase):
         self.assertEqual(result.returncode, expected, f"{argv!r}\n{result.stderr.decode(errors='replace')}")
         return result
 
+    def importer_error(self, result):
+        """Require a real importer rejection, never a loader/tool failure."""
+        self.assertEqual(result.returncode, 1)
+        stderr = result.stderr.decode()
+        self.assertIn('{"error":', stderr)
+        parsed, _ = json.JSONDecoder().raw_decode(stderr[stderr.index('{"error":'):])
+        error = parsed["error"]
+        self.assertEqual(error["stage"], "import")
+        self.assertTrue(error["message"])
+        return error
+
     def frontend_flags(self, profile):
         isa, _, _, flags = PROFILES[profile]
         return ["--target=" + isa + "-unknown-linux-gnu", *flags, "-O1", "-ffreestanding", "-fno-builtin",
@@ -534,7 +545,8 @@ class NativeVariadicAbiTests(unittest.TestCase):
                 output = llvm.with_suffix(".native.json")
                 result = self.command([self.compiler, llvm, "--input-kind", "llvm-ir", "--emit", "mir", "--target",
                     PROFILES[profile][0] + "-unknown-none", "--llvm-library", self.library, "--llvm-sha256", self.pin, "-o", output], expected=1)
-                self.assertIn("unsupported LLVM type kind 3", result.stderr.decode())
+                error = self.importer_error(result)
+                self.assertIn("unsupported LLVM type kind 3", error["message"])
                 self.assertFalse(output.exists())
         self.record["complete"] = True
         self.save()
@@ -553,7 +565,8 @@ u64 bad(u64 value){struct Big data={{value,value+1,value+2}};return sink(1,data)
         result = self.command([self.compiler, llvm, "--input-kind", "llvm-ir", "--emit", "mir",
             "--target", "x86_64-unknown-none", "--llvm-library", self.library,
             "--llvm-sha256", self.pin, "-o", output], expected=1)
-        self.assertIn("byval", result.stderr.decode())
+        error = self.importer_error(result)
+        self.assertEqual(error["message"], "unsupported attribute kind 84 at index 2")
         self.assertFalse(output.exists())
         self.record["complete"] = True
         self.save()

@@ -547,6 +547,71 @@ declare void @llvm.va_end.p0(ptr)
 define ptr @escape() { ret ptr @llvm.va_end.p0 }
 """, stage="llvm-verify")
 
+    def test_dead_on_return_refinement_preserves_every_original_call_and_memory_operation(self):
+        body = """
+declare void @foreign(ptr dead_on_return)
+declare void @variadic(i32, ...)
+define i64 @worker(ptr dead_on_return %pointer) {
+  store i64 17, ptr %pointer, align 8
+  call void @foreign(ptr dead_on_return %pointer)
+  call void (i32, ...) @variadic(i32 7, ptr dead_on_return %pointer)
+  %value = load i64, ptr %pointer, align 8
+  ret i64 %value
+}
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir(body, triple=triple)
+                worker = self.function(module, "worker")
+                operations = self.operations(worker)
+                self.assertEqual([op["op"] for op in operations], ["store", "call", "call", "load"])
+                self.assertEqual(operations[1]["callee"]["name"], "foreign")
+                self.assertEqual(operations[2]["callee"]["name"], "variadic")
+                self.assertEqual(operations[2]["signature"]["param_attributes"], [[], []])
+                self.assertEqual(len(operations[2]["args"]), 2)
+                self.assertEqual(self.function(module, "foreign")["signature"]["param_attributes"], [[]])
+                self.assertEqual(len(module["functions"]), 3)
+                self.assertEqual(module["provenance"]["source_function_count"], 3)
+                records = [text for text in module["provenance"]["refinements"] if "validated dead_on_return=0" in text]
+                self.assertEqual(len(records), 4)
+                self.assertTrue(any("callsite argument index 2" in text for text in records))
+                self.assertTrue(all("no synthesized poison, store elimination" in text for text in records))
+
+    def test_dead_on_return_invoke_keeps_edges_and_byval_is_still_not_erased(self):
+        body = """
+declare i32 @__gxx_personality_v0(...)
+declare void @foreign(ptr dead_on_return)
+define i64 @worker(ptr dead_on_return %pointer) personality ptr @__gxx_personality_v0 {
+entry:
+  store i64 17, ptr %pointer, align 8
+  invoke void @foreign(ptr dead_on_return %pointer) to label %normal unwind label %cleanup
+normal:
+  %value = load i64, ptr %pointer, align 8
+  ret i64 %value
+cleanup:
+  %exception = landingpad { ptr, i32 } cleanup
+  resume { ptr, i32 } %exception
+}
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir(body, triple=triple)
+                worker = self.function(module, "worker")
+                self.assertEqual(worker["blocks"][0]["terminator"]["op"], "invoke")
+                invoke = worker["blocks"][0]["terminator"]
+                self.assertEqual(invoke["callee"]["name"], "foreign")
+                self.assertEqual(invoke["signature"]["param_attributes"], [[]])
+                self.assertNotEqual(invoke["normal"], invoke["unwind"])
+                self.assertEqual([op["op"] for op in self.operations(worker)], ["store", "load", "landing_pad"])
+                self.assertTrue(any("callsite argument index 1: validated dead_on_return=0" in text
+                                    for text in module["provenance"]["refinements"]))
+        self.reject("define void @bad(i32 dead_on_return %value) { ret void }", stage="llvm-verify")
+        self.reject("define dead_on_return ptr @bad() { ret ptr null }", stage="parse")
+        with self.assertRaises(importer.ImportFailure) as raised:
+            self.import_ir("declare void @bad(ptr byval(i64))")
+        self.assertEqual(raised.exception.stage, "import")
+        self.assertIn("unsupported attribute kind 84", str(raised.exception))
+
     def test_static_alloca_and_memory_access_width_alignment_and_volatility_survive(self):
         module = self.import_ir("""
 define i32 @memory(ptr %pointer) {

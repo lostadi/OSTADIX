@@ -3045,7 +3045,7 @@ impl<'a> Verifier<'a> {
         context: &str,
         ordinary: bool,
     ) -> Result<()> {
-        if signature.variadic {
+        let fixed_signature = if signature.variadic {
             if signature.param_attributes.len() != args.len() {
                 return Err(fail(
                     context,
@@ -3054,10 +3054,12 @@ impl<'a> Verifier<'a> {
             }
             let mut fixed = signature.clone();
             fixed.param_attributes.truncate(fixed.params.len());
-            self.signature(&fixed, context)?;
+            Some(fixed)
         } else {
-            self.signature(signature, context)?;
-        }
+            None
+        };
+        let fixed = fixed_signature.as_ref().unwrap_or(signature);
+        self.signature(fixed, context)?;
         let owned_va = match callee {
             Operand::Symbol { ty, name } if variadic_intrinsic(name).is_some() => {
                 if !ordinary
@@ -3093,7 +3095,7 @@ impl<'a> Verifier<'a> {
             Type::Pointer { .. } => {}
             Type::Function {
                 signature: declared,
-            } if self.function_value_signature_matches(declared, signature) => {}
+            } if self.function_value_signature_matches(declared, fixed) => {}
             _ => {
                 return Err(fail(
                     context,
@@ -9941,6 +9943,32 @@ mod tests {
         let restored: NativeModule =
             serde_json::from_slice(&serde_json::to_vec(&m).unwrap()).unwrap();
         verify(&restored).unwrap();
+        // An attributed function value type still describes only the fixed
+        // prefix. Call-only trailing attributes must not be compared to it.
+        let mut typed = m.clone();
+        let function_type = typed.types.len();
+        typed.types.push(Type::Function {
+            signature: typed.functions[0].signature.clone(),
+        });
+        let Operation::Call { callee, .. } =
+            &mut typed.functions[1].blocks[0].instructions[0].operation
+        else {
+            panic!()
+        };
+        *callee = Operand::Symbol {
+            ty: function_type,
+            name: "variadic".into(),
+        };
+        verify(&typed).unwrap();
+        let Type::Function { signature } = &mut typed.types[function_type] else {
+            panic!()
+        };
+        signature.param_attributes[0] = vec!["signext".into()];
+        rejects(
+            &typed,
+            "function symbol type does not match its declaration",
+        );
+
         let Operation::Call {
             signature, args, ..
         } = &restored.functions[1].blocks[0].instructions[0].operation
