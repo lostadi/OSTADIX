@@ -976,6 +976,24 @@ enum IntrinsicArgument {
     Metadata,
 }
 
+/// Exact owned va_list operations. Their addresses are never native symbols;
+/// only a verified direct ordinary Call can request target-specific lowering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariadicIntrinsic {
+    Start,
+    End,
+    Copy,
+}
+
+pub fn variadic_intrinsic(name: &str) -> Option<VariadicIntrinsic> {
+    match name {
+        "llvm.va_start.p0" => Some(VariadicIntrinsic::Start),
+        "llvm.va_end.p0" => Some(VariadicIntrinsic::End),
+        "llvm.va_copy.p0" => Some(VariadicIntrinsic::Copy),
+        _ => None,
+    }
+}
+
 fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
     use IntrinsicArgument::{Integer, Metadata, Pointer};
     match name {
@@ -983,6 +1001,8 @@ fn builtin_signature(name: &str) -> Option<&'static [IntrinsicArgument]> {
         "llvm.trap" => Some(&[]),
         "llvm.eh.typeid.for" | "llvm.eh.typeid.for.p0" => Some(&[Pointer]),
         "llvm.threadlocal.address.p0" => Some(&[Pointer]),
+        "llvm.va_start.p0" | "llvm.va_end.p0" => Some(&[Pointer]),
+        "llvm.va_copy.p0" => Some(&[Pointer, Pointer]),
         "llvm.load.relative.i32" => Some(&[Pointer, Integer(32)]),
         "llvm.load.relative.i64" => Some(&[Pointer, Integer(64)]),
         "llvm.assume" => Some(&[Integer(1)]),
@@ -1090,6 +1110,12 @@ impl<'a> Verifier<'a> {
     fn signature(&self, sig: &Signature, context: &str) -> Result<()> {
         if sig.abi.is_empty() || sig.abi.as_bytes().contains(&0) {
             return Err(fail(context, "calling convention is missing or invalid"));
+        }
+        if sig.variadic && sig.abi != "c" {
+            return Err(fail(
+                context,
+                "variadic signatures require the C calling convention",
+            ));
         }
         let result = self.ty(sig.result, context)?;
         if !matches!(result, Type::Void) {
@@ -1423,6 +1449,17 @@ fn signatures_equal(lhs: &Signature, rhs: &Signature) -> bool {
         && attrs(lhs) == attrs(rhs)
         && lhs.result_attributes == rhs.result_attributes
         && lhs.return_storage == rhs.return_storage
+}
+
+// A variadic declaration describes only its fixed prefix; the call separately
+// retains every trailing argument attribute. No prefix/result ABI is relaxed.
+fn call_signature_matches(declared: &Signature, call: &Signature) -> bool {
+    if !call.variadic {
+        return signatures_equal(declared, call);
+    }
+    let mut fixed = call.clone();
+    fixed.param_attributes.truncate(fixed.params.len());
+    signatures_equal(declared, &fixed)
 }
 
 /// Narrow target-specific return refinement, never general ABI equality.
@@ -1901,6 +1938,14 @@ impl<'a> Verifier<'a> {
 
     fn function(&self, function: &Function) -> Result<()> {
         let context = format!("function {:?}", function.name);
+        if !function.signature.variadic
+            && function.blocks.iter().flat_map(|block| &block.instructions).any(|instruction| {
+                matches!(&instruction.operation, Operation::Call { callee: Operand::Symbol { name, .. }, .. }
+                    if variadic_intrinsic(name) == Some(VariadicIntrinsic::Start))
+            })
+        {
+            return Err(fail(&context, "va_start requires an enclosing variadic function definition"));
+        }
         alignment(function.alignment, true, &context)?;
         if function.name == NOALIAS_SCOPE_DECL {
             self.metadata_signature(&function.signature, &context)?;
@@ -3000,13 +3045,57 @@ impl<'a> Verifier<'a> {
         context: &str,
         ordinary: bool,
     ) -> Result<()> {
-        self.signature(signature, context)?;
-        let ty = self.ty(self.operand(callee, definitions, context)?, context)?;
+        let fixed_signature = if signature.variadic {
+            if signature.param_attributes.len() != args.len() {
+                return Err(fail(
+                    context,
+                    "variadic call attributes must cover every actual argument",
+                ));
+            }
+            let mut fixed = signature.clone();
+            fixed.param_attributes.truncate(fixed.params.len());
+            Some(fixed)
+        } else {
+            None
+        };
+        let fixed = fixed_signature.as_ref().unwrap_or(signature);
+        self.signature(fixed, context)?;
+        let owned_va = match callee {
+            Operand::Symbol { ty, name } if variadic_intrinsic(name).is_some() => {
+                if !ordinary
+                    || !matches!(self.ty(*ty, context)?, Type::Pointer { address_space: 0 })
+                {
+                    return Err(fail(
+                        context,
+                        "va_list intrinsic requires a direct ordinary AS0 call",
+                    ));
+                }
+                match self.symbols.get(name.as_str()) {
+                    Some(Symbol::Function(function))
+                        if function.name == *name
+                            && function.intrinsic.as_deref() == Some(name.as_str())
+                            && signatures_equal(&function.signature, signature) => {}
+                    _ => {
+                        return Err(fail(
+                            context,
+                            "va_list call requires its exact included intrinsic declaration",
+                        ))
+                    }
+                }
+                Some(*ty)
+            }
+            _ => None,
+        };
+        let callee_type = match owned_va {
+            Some(ty) => ty,
+            None => self.operand(callee, definitions, context)?,
+        };
+        let ty = self.ty(callee_type, context)?;
         match ty {
             Type::Pointer { .. } => {}
             Type::Function {
                 signature: declared,
-            } if self.function_value_signature_matches(declared, signature) => {}
+            } if self.function_value_signature_matches(declared, fixed) => {}
             _ => {
                 return Err(fail(
                     context,
@@ -3021,7 +3110,7 @@ impl<'a> Verifier<'a> {
         {
             match self.symbols.get(name.as_str()) {
                 Some(Symbol::Function(function))
-                    if signatures_equal(&function.signature, signature)
+                    if call_signature_matches(&function.signature, signature)
                         || (ordinary
                             && matches!(callee, Operand::Symbol { name, .. } if name == &function.name)
                             && matches!(ty, Type::Pointer { address_space: 0 })
@@ -3044,6 +3133,9 @@ impl<'a> Verifier<'a> {
         for (index, arg) in args.iter().enumerate() {
             let actual = self.operand(arg, definitions, context)?;
             self.sized(actual, context)?;
+            if signature.variadic {
+                self.attributes(&signature.param_attributes[index], actual, context)?;
+            }
             if let Some(expected) = signature.params.get(index) {
                 self.same_type(actual, *expected, context)?;
             }
@@ -3146,6 +3238,11 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
             replacement,
             ..
         } => vec![pointer, expected, replacement],
+        Operation::Call {
+            callee: Operand::Symbol { name, .. },
+            args,
+            ..
+        } if variadic_intrinsic(name).is_some() => args.iter().collect(),
         Operation::Call { callee, args, .. } => std::iter::once(callee).chain(args).collect(),
         Operation::EhTypeId { typeinfo } => vec![typeinfo],
         Operation::LandingPad { clauses, .. } => clauses
@@ -9815,5 +9912,186 @@ mod tests {
             }
             prop_assert_eq!(actual.is_ok(),valid);
         }
+    }
+    fn variadic_contract_fixture() -> NativeModule {
+        let mut raw = serde_json::to_value(module()).unwrap();
+        raw["types"] = json!([
+            {"kind":"void"}, {"kind":"int","bits":32},
+            {"kind":"pointer","address_space":0}
+        ]);
+        raw["functions"] = json!([
+            {"name":"variadic","linkage":"external",
+             "signature":{"params":[1],"result":0,"abi":"c","variadic":true,"param_attributes":[["zeroext"]]},
+             "params":[{"id":0,"ty":1}],"entry":null,"blocks":[]},
+            {"name":"caller","linkage":"external",
+             "signature":{"params":[1],"result":0,"abi":"c","variadic":false},
+             "params":[{"id":0,"ty":1}],"entry":0,"blocks":[{"id":0,"instructions":[
+                 {"result":null,"operation":{"op":"call","callee":{"kind":"symbol","ty":2,"name":"variadic"},
+                  "signature":{"params":[1],"result":0,"abi":"c","variadic":true,
+                               "param_attributes":[["zeroext"],["signext"],[]]},
+                  "args":[{"kind":"value","id":0},{"kind":"int","ty":1,"bits":"4294967295"},{"kind":"null","ty":2}]}}
+             ],"terminator":{"op":"return","value":null}}]}
+        ]);
+        raw["provenance"]["source_function_count"] = json!(2);
+        serde_json::from_value(raw).unwrap()
+    }
+
+    #[test]
+    fn variadic_calls_keep_tail_attributes_without_relaxing_the_fixed_prefix() {
+        let m = variadic_contract_fixture();
+        verify(&m).unwrap();
+        let restored: NativeModule =
+            serde_json::from_slice(&serde_json::to_vec(&m).unwrap()).unwrap();
+        verify(&restored).unwrap();
+        // An attributed function value type still describes only the fixed
+        // prefix. Call-only trailing attributes must not be compared to it.
+        let mut typed = m.clone();
+        let function_type = typed.types.len();
+        typed.types.push(Type::Function {
+            signature: typed.functions[0].signature.clone(),
+        });
+        let Operation::Call { callee, .. } =
+            &mut typed.functions[1].blocks[0].instructions[0].operation
+        else {
+            panic!()
+        };
+        *callee = Operand::Symbol {
+            ty: function_type,
+            name: "variadic".into(),
+        };
+        verify(&typed).unwrap();
+        let Type::Function { signature } = &mut typed.types[function_type] else {
+            panic!()
+        };
+        signature.param_attributes[0] = vec!["signext".into()];
+        rejects(
+            &typed,
+            "function symbol type does not match its declaration",
+        );
+
+        let Operation::Call {
+            signature, args, ..
+        } = &restored.functions[1].blocks[0].instructions[0].operation
+        else {
+            panic!()
+        };
+        assert_eq!(signature.params.len(), 1);
+        assert_eq!(signature.param_attributes.len(), args.len());
+        assert_eq!(
+            signature.param_attributes,
+            vec![vec!["zeroext"], vec!["signext"], vec![]]
+        );
+        for (case, message) in [
+            (
+                0,
+                "variadic call attributes must cover every actual argument",
+            ),
+            (1, "direct callee symbol/signature mismatch"),
+            (2, "integer extension attribute requires an integer"),
+            (3, "variadic signatures require the C calling convention"),
+        ] {
+            let mut invalid = m.clone();
+            let Operation::Call { signature, .. } =
+                &mut invalid.functions[1].blocks[0].instructions[0].operation
+            else {
+                panic!()
+            };
+            match case {
+                0 => {
+                    signature.param_attributes.pop();
+                }
+                1 => signature.param_attributes[0] = vec!["signext".into()],
+                2 => signature.param_attributes[2] = vec!["signext".into()],
+                3 => signature.abi = "fastcc".into(),
+                _ => unreachable!(),
+            }
+            rejects(&invalid, message);
+        }
+    }
+
+    fn variadic_list_fixture() -> NativeModule {
+        let mut raw = serde_json::to_value(module()).unwrap();
+        raw["types"] =
+            json!([{"kind":"void"},{"kind":"int","bits":32},{"kind":"pointer","address_space":0}]);
+        let mut functions = Vec::new();
+        for (name, count) in [
+            ("llvm.va_start.p0", 1),
+            ("llvm.va_end.p0", 1),
+            ("llvm.va_copy.p0", 2),
+        ] {
+            functions.push(json!({"name":name,"linkage":"external","intrinsic":name,
+                "signature":{"params":vec![2;count],"result":0,"abi":"c","variadic":false},
+                "params":(0..count).map(|id| json!({"id":id,"ty":2})).collect::<Vec<_>>(),
+                "entry":null,"blocks":[]}));
+        }
+        let calls = [("llvm.va_start.p0",vec![0]),("llvm.va_copy.p0",vec![1,0]),
+                     ("llvm.va_end.p0",vec![1]),("llvm.va_end.p0",vec![0])]
+            .into_iter().map(|(name, args)| json!({"result":null,"operation":{
+                "op":"call","callee":{"kind":"symbol","ty":2,"name":name},
+                "signature":{"params":vec![2;args.len()],"result":0,"abi":"c","variadic":false},
+                "args":args.into_iter().map(|id| json!({"kind":"value","id":id})).collect::<Vec<_>>()
+            }})).collect::<Vec<_>>();
+        functions.push(json!({"name":"forward","linkage":"external",
+            "signature":{"params":[2,2],"result":0,"abi":"c","variadic":true},
+            "params":[{"id":0,"ty":2},{"id":1,"ty":2}],"entry":0,
+            "blocks":[{"id":0,"instructions":calls,"terminator":{"op":"return","value":null}}]}));
+        raw["functions"] = json!(functions);
+        raw["provenance"]["source_function_count"] = json!(4);
+        serde_json::from_value(raw).unwrap()
+    }
+
+    #[test]
+    fn owned_variadic_list_calls_require_exact_declarations_and_cannot_escape() {
+        let m = variadic_list_fixture();
+        verify(&m).unwrap();
+        for (name, expected) in [
+            ("llvm.va_start.p0", VariadicIntrinsic::Start),
+            ("llvm.va_end.p0", VariadicIntrinsic::End),
+            ("llvm.va_copy.p0", VariadicIntrinsic::Copy),
+        ] {
+            assert_eq!(variadic_intrinsic(name), Some(expected));
+            assert!(is_builtin_intrinsic(name));
+        }
+        for name in [
+            "llvm.va_start",
+            "llvm.va_start.p1",
+            "llvm.va_copy.p0.p0",
+            "llvm.va_copy.p0.p1",
+        ] {
+            assert_eq!(variadic_intrinsic(name), None);
+            assert!(!is_builtin_intrinsic(name));
+        }
+        let mut invalid = m.clone();
+        invalid.functions[3].signature.variadic = false;
+        rejects(
+            &invalid,
+            "va_start requires an enclosing variadic function definition",
+        );
+        let mut invalid = m.clone();
+        invalid.functions[0].intrinsic = None;
+        rejects(&invalid, "invalid or unsupported intrinsic declaration");
+        let mut invalid = m.clone();
+        let Operation::Call { callee, .. } =
+            &mut invalid.functions[3].blocks[0].instructions[0].operation
+        else {
+            panic!()
+        };
+        *callee = Operand::SymbolOffset {
+            ty: 2,
+            name: "llvm.va_start.p0".into(),
+            addend: 0,
+        };
+        rejects(&invalid, "intrinsic address");
+        let mut invalid = m.clone();
+        let Operation::Call { args, .. } =
+            &mut invalid.functions[3].blocks[0].instructions[0].operation
+        else {
+            panic!()
+        };
+        args[0] = Operand::Symbol {
+            ty: 2,
+            name: "llvm.va_end.p0".into(),
+        };
+        rejects(&invalid, "intrinsic address");
     }
 }

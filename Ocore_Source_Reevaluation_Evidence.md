@@ -437,3 +437,65 @@ agreed on six accepted text/bitcode cases across the three ISAs, including
 independent verification and owned objects, and 18 intended rejections. Those
 checks bind their own merged source tree and compiler; they do not relabel the
 earlier whole-source audit or establish native runtime execution.
+
+## Imported C variadic execution (2026-10-20)
+
+The [variadic integration evidence](evidence/native_variadic_integration_20261020.json)
+records seven passing methods without skips against the cohesive v2 compiler.
+Imported C variadic signatures retain their original fixed prefix, while native
+call plans classify every actual trailing integer or AS0-pointer argument and
+check its attributes. Direct and indirect callers, zero tails, register
+exhaustion, named stack parameters, narrow default promotions, nested calls and
+conventional `va_list` forwarding run through the owned emitter. Canonical
+`va_start`, `va_copy` and `va_end` preserve target cursor state and raw incoming
+register banks. The `.oc` frontend's fixed `extern "C"` interface is unchanged.
+
+| ELF/Linux profile | Integer caller/callee pairings | Integer comparisons | Opaque FP wrapper pairings | Opaque comparisons |
+|---|---:|---:|---:|---:|
+| x86-64 | 4 | 2,784 | 2 | 192 |
+| AArch64 | 4 | 2,784 | 2 | 384 |
+| RV64 `lp64` | 4 | 2,784 | 2 | 384 |
+| RV64 `lp64d` | 4 | 2,784 | 2 | 384 |
+
+The four integer pairings combine reference/reference, owned/reference,
+reference/owned and owned/owned objects built from the same complete Clang22
+units. A Python oracle checks 87 cases across eight seeds in each pairing.
+Opaque FP gates keep the caller and `va_list` consumer as reference Clang
+objects and replace only the forwarding wrapper. That owned module contains no
+FP type. Double values cross register/stack boundaries; AArch64 and RV64 also
+forward both words of binary128 values. Across all pairings there are 12,480
+comparisons, including 9,024 involving at least one owned component.
+
+The initial cohesive run's three failures are retained separately. Two exposed
+the pinned LLVM22 `dead_on_return` pointer promise, attribute kind 9, at AArch64
+forwarding sites. The final importer records its conservative, nonexploited
+refinement without changing the calls or memory operations. The third corrected
+a test's numeric assumption: actual trailing typed `byval` is kind 84, not 9.
+The final guards require import-stage rejection, exact exit 1 and no native
+output for unsupported FP SSA and the actual `byval` form. No original C
+fixture was weakened.
+
+The [separate whole-source chibicc follow-up](evidence/chibicc_variadic_followup_20261020.json)
+attempted all nine original captured units with the final v2 compiler and
+unchanged tool/source hashes. `unicode`, `type`, `preprocess`, `hashmap`,
+`strings` and `main` independently verified and produced owned objects.
+`parse` first rejects a double-precision value; `tokenize` and `codegen` first
+reject binary128 values. The earlier v1 six-object result is retained
+separately. Neither follow-up revises the historical 2026-10-18 nine-unit,
+zero-object baseline above.
+
+The [complete original Python/C/Rust follow-up](evidence/python_c_rust_variadic_followup_20261020.json)
+attempted the same 370 original captured units with all inputs and tools pinned.
+CPython independently verified 152 units and emitted 140 default-profile objects,
+chibicc emitted six objects, and Rust retained its one object. The aggregate
+rose from 64 to 147 objects, with 83 additions and no object regressions. All
+223 rejected units returned exit 1 without crash or loader-failure markers.
+The original atomic profile remained in force; the separate coherent-RAM
+follow-up is excluded. These are whole-unit compilation results, not complete
+Python/C/Rust runtime or provider-closure qualification.
+
+Owned FP SSA/callers, general `byval`, exception execution through variadic
+frames, complete original-compiler/provider closure and general native graph
+or instruction-debugger execution remain separate required gates. Linux
+carriers and QEMU qualify their recorded development profiles. The scalar native
+reference interpreter's variadic rejection is unchanged.

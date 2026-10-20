@@ -510,8 +510,9 @@ original frontend's recursive integer/pointer parameter and result types,
 extension attributes, register-block placement, stack arguments and implicit
 result storage. Source-language aggregate coercions remain those of the
 original frontend; they are not reconstructed from a struct's byte size.
-`byval`, floating-point call classification and variadic calls remain explicit
-unsupported whole-unit contracts.
+`byval` and first-class floating-point call classification remain explicit
+unsupported whole-unit contracts. Imported C variadics have the separate
+integer/pointer realization described below.
 Typed LLVM `sret` keeps a void result and its original pointer parameter in the
 first or second position. The signature records the sized in-memory result type
 as `return_storage`; declarations, definitions, calls and alias bindings must
@@ -523,6 +524,44 @@ or memory access by itself, and sized empty result types remain valid.
 The scalar RV64 profile also preserves explicit `lp64d` frontend ABI metadata
 and the actual ELF double-float ABI flags; this admission does not qualify
 floating-point computation or aggregate register classification.
+
+Imported NativeModule C variadic declarations, definitions, direct calls and
+indirect calls retain the original fixed parameter prefix and actual trailing
+operand types. Every actual argument's ABI attributes are checked, including
+attributes outside the fixed prefix; declaration attributes are not inferred
+onto call sites. The supported profile is little-endian ELF LP64 with integer
+and AS0-pointer arguments. Clang's default promotions remain in its original
+LLVM input. Variadic `fastcc`, first-class FP arguments and unsupported aggregate
+or typed `byval` contracts reject the whole unit. `musttail` remains rejected;
+ordinary tail hints can use conventional calls.
+
+Canonical `llvm.va_start`, `llvm.va_copy` and `llvm.va_end` retain their actual
+operands and context requirements. Native prologues save the incoming argument
+register banks and preserve the target's register-save areas, stack overflow
+cursor and fixed-prefix offsets; copies retain independent cursor state.
+Raw vector-register preservation also permits an owned variadic wrapper to
+forward a `va_list` to an included fixed-signature foreign consumer without
+introducing FP SSA into the wrapper. This does not admit an owned FP caller.
+
+The [variadic integration gate](../evidence/native_variadic_integration_20261020.json)
+passes seven methods without skips on x86-64, AArch64, RV64 `lp64` and RV64
+`lp64d`. All four reference/owned caller/callee combinations compare 696
+integer/pointer results per profile: 16 pairings and 11,136 comparisons. Eight
+additional opaque-FP wrapper pairings compare 1,344 results, including double
+register overflow and AArch64/RV64 binary128 forwarding. Reference callers and
+FP consumers remain Clang objects; each owned wrapper is checked to contain no
+FP type. The original C units are retained whole. These are Linux development
+carrier gates, with QEMU for nonhost ISAs. General `byval`, owned FP SSA/callers,
+variadic exception-unwind execution and complete runtime closure remain
+separate qualifications. The scalar native reference interpreter retains its
+existing rejection of variadic signatures; this gate executes emitted objects.
+
+The [whole-source chibicc follow-up](../evidence/chibicc_variadic_followup_20261020.json)
+attempts all nine original captured units with the same final compiler: six
+independently verify and emit owned objects, while three first reject
+double-precision or binary128 values. The earlier nine-unit, zero-object
+2026-10-18 audit remains a separate historical result. Complete compiler and
+provider closure is not established by these six objects.
 
 PIC/PIE flags are admitted only under a recorded static, nonpreemptive image
 contract. Symbol visibility remains explicit: default, hidden and protected
@@ -651,7 +690,8 @@ Literal address bits do not establish mapping or dereference validity.
 
 Unsupported operations, ABI features or hidden bitcode fields reject the whole
 unit before code artifacts are written. Floating-point computation and call
-classification, `byval`, ordinary variadics, dynamic TLS/DSO loading, additional unwind models,
+classification, `byval`, variadic FP/aggregate ABI forms outside the profile above,
+dynamic TLS/DSO loading, additional unwind models,
 general dynamic stack allocation,
 managed execution and runtime-generated code publication remain required work.
 Weak/common/ODR linkage is not silently converted into strong linkage, and
@@ -1475,7 +1515,8 @@ for `u32`; unsigned SSA values remain zero-extended internally.
 `extern "sysv64"` explicitly selects the AMD64 convention and is rejected on
 other targets. Aggregate parameters and returns are forbidden across direct
 and indirect calls, including extern calls; pass pointers instead. Variadic
-calls and floating-point C ABI classification are not implemented.
+calls and floating-point C ABI classification are not implemented by the `.oc`
+frontend. Imported NativeModule C variadics use the separate route above.
 
 `extern "ocore"` is versioned with the compiler and is not a stable foreign
 ABI. Interrupt entries use the x86_64-only `@interrupt`; they have no ordinary
