@@ -9,13 +9,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import platform
 import shutil
 import subprocess
 import tempfile
 import unittest
 
-from scripts.check_ocore_native_equivalence import TARGETS, elf
+from scripts.check_ocore_native_equivalence import TARGETS, elf, execution_prefix
 from scripts.check_ocore_foreign_frontends import HARNESS as EXISTING_LINUX_CARRIER
 from tests.test_ocore_native_import_backend import (
     ROOT, I64, I1, I8, I32, function, integer, instruction, module, value,
@@ -311,11 +310,14 @@ class NativeSwitchTests(unittest.TestCase):
 
     def test_actual_all_three_objects_match_independent_references_and_exact_bytes(self):
         tools={name:shutil.which(os.environ.get(variable,default)) for name,variable,default in (
-            ("clang","CLANG","clang"),("linker","LD_LLD","ld.lld"),
-            ("aarch64","OCORE_TEST_QEMU_AARCH64","qemu-aarch64"),
-            ("riscv64","OCORE_TEST_QEMU_RISCV64","qemu-riscv64"))}
+            ("clang","CLANG","clang"),("linker","LD_LLD","ld.lld"))}
         missing=[name for name,path in tools.items() if path is None]
-        if platform.machine() not in {"x86_64","AMD64"}:missing.append("native x86-64 host")
+        runners={}
+        for isa in TARGETS:
+            try:
+                runners[isa]=execution_prefix(isa,os.environ.get("OCORE_TEST_QEMU_"+isa.upper()))
+            except RuntimeError as error:
+                missing.append(str(error))
         if missing:
             reason="All three actual switch executions require: "+", ".join(missing)
             if os.environ.get("OCORE_TEST_REQUIRE_ALL_ISAS")=="1":self.fail(reason)
@@ -333,7 +335,7 @@ class NativeSwitchTests(unittest.TestCase):
                 link=[tools["clang"],"--target="+hosted,*flags,"-O2","-ffreestanding","-fno-builtin",
                       "-fno-stack-protector","-fno-pic","-fno-pie","-nostdlib","-static","-fuse-ld=lld",
                       "-Wl,-e,_start","-Wl,--build-id=none",carrier]
-                emulator=[] if isa=="x86_64" else [tools[isa]]
+                emulator=runners[isa]
                 reference=self.directory/(isa+".reference.elf")
                 self.command([*link,"-DREFERENCE_ONLY","-o",reference]);elf(reference,machine,2)
                 self.assertEqual(self.command([*emulator,reference]).stdout,expected)
@@ -346,6 +348,7 @@ class NativeSwitchTests(unittest.TestCase):
                 negative=self.command([*emulator,broken],success=False)
                 self.assertEqual(negative.returncode,31);self.assertEqual(negative.stdout,b"")
                 report["targets"][isa]={"output":actual.decode(),"negative_control_exit":31,
+                    "execution_argv_prefix":emulator,
                     "module_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
                     "object_sha256":hashlib.sha256(obj.read_bytes()).hexdigest(),
                     "executable_sha256":hashlib.sha256(exe.read_bytes()).hexdigest()}

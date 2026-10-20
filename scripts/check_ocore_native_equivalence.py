@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import platform
 import re
 import resource
 import shutil
@@ -41,6 +42,17 @@ def tool(value: str, label: str) -> str:
     return resolved
 
 
+def host_isa() -> str:
+    machine = platform.machine().lower()
+    return {"amd64": "x86_64", "arm64": "aarch64"}.get(machine, machine)
+
+
+def execution_prefix(isa: str, emulator: str | None = None) -> list[str]:
+    if isa == host_isa():
+        return []
+    return [tool(emulator or "qemu-" + isa, f"{isa} user emulator; install qemu-user")]
+
+
 def elf(path: Path, machine: int, kind: int) -> None:
     data = path.read_bytes()
     if len(data) < 64 or data[:6] != b"\x7fELF\x02\x01":
@@ -60,11 +72,8 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
     clang = tool(args.clang, "clang")
     assembler = tool("clang", "O-core assembler")
     tool("ld.lld", "LLVM ELF linker")
-    emulators = {"x86_64": []}
-    for target in args.targets:
-        if target != "x86_64":
-            value = getattr(args, "qemu_" + target)
-            emulators[target] = [tool(value, f"{target} user emulator; install qemu-user")]
+    emulators = {target: execution_prefix(target, getattr(args, "qemu_" + target))
+                 for target in args.targets}
     report = {"schema": "ostadix.ocore-native-equivalence/v1", "targets": {}, "compiler": run([compiler, "--version"]).stdout.decode().strip(), "clang": run([clang, "--version"]).stdout.decode().splitlines()[0]}
     report["assembler_clang"] = run([assembler, "--version"]).stdout.decode().splitlines()[0]
     corpus = ROOT / "tests/fixtures/ocore_native_equivalence.oc"
@@ -109,7 +118,8 @@ def check(args: argparse.Namespace, directory: Path) -> dict:
             exited = subprocess.run([*emulators[target], str(diverging)], cwd=directory, capture_output=True, timeout=30, preexec_fn=no_core_dumps)
             if exited.returncode != 42 or exited.stdout:
                 raise RuntimeError(f"{target} never case {case} did not exit immediately: exit={exited.returncode}, stdout={exited.stdout!r}")
-        result = {"output": executed.stdout.decode().strip(), "object_sha256": hashlib.sha256(obj.read_bytes()).hexdigest(), "elf_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(), "faults": faults, "never_cases": 2, "reproducible": True}
+        result = {"output": executed.stdout.decode().strip(), "object_sha256": hashlib.sha256(obj.read_bytes()).hexdigest(), "elf_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(), "faults": faults, "never_cases": 2, "reproducible": True,
+                  "execution_argv_prefix": emulators[target]}
         if emulators[target]:
             result["emulator"] = run([emulators[target][0], "--version"]).stdout.decode().splitlines()[0]
         report["targets"][target] = result
@@ -122,6 +132,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ocorec", type=Path, default=ROOT / "target/debug/ocorec")
     parser.add_argument("--clang", default="clang")
+    parser.add_argument("--qemu-x86-64", "--qemu-x86_64", dest="qemu_x86_64", default="qemu-x86_64")
     parser.add_argument("--qemu-aarch64", default="qemu-aarch64")
     parser.add_argument("--qemu-riscv64", default="qemu-riscv64")
     parser.add_argument("--targets", nargs="+", choices=list(TARGETS), default=list(TARGETS))
