@@ -1034,6 +1034,7 @@ pub fn is_builtin_intrinsic(name: &str) -> bool {
         || integer_minmax_intrinsic(name).is_some()
         || float_abs_intrinsic(name).is_some()
         || integer_unary_intrinsic(name).is_some()
+        || integer_population_count_intrinsic(name).is_some()
 }
 
 /// Compiler-only declarations have no ordinary native ABI or executable
@@ -1070,6 +1071,15 @@ pub fn float_abs_intrinsic(name: &str) -> Option<u16> {
         "llvm.fabs.f64" => Some(64),
         "llvm.fabs.f80" => Some(80),
         "llvm.fabs.f128" => Some(128),
+        _ => None,
+    }
+}
+
+/// Exact supported scalar population-count overloads; one same-width operand, with no poison flag.
+pub fn integer_population_count_intrinsic(name: &str) -> Option<u16> {
+    match name {
+        "llvm.ctpop.i32" => Some(32),
+        "llvm.ctpop.i64" => Some(64),
         _ => None,
     }
 }
@@ -2080,6 +2090,10 @@ impl<'a> Verifier<'a> {
                         if fields.len() == 2
                         && matches!(self.module.types.get(fields[0]), Some(Type::Int { bits: actual }) if *actual == bits)
                         && matches!(self.module.types.get(fields[1]), Some(Type::Int { bits: 1 })))
+            } else if let Some(bits) = integer_population_count_intrinsic(&function.name) {
+                sig.params.len() == 1
+                    && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
             } else if let Some((_, bits)) = integer_unary_intrinsic(&function.name) {
                 sig.params.len() == 2
                     && matches!(self.module.types.get(sig.params[0]), Some(Type::Int { bits: actual }) if *actual == bits)
@@ -2843,6 +2857,13 @@ impl<'a> Verifier<'a> {
                     ));
                 }
             }
+            Operation::IntegerPopulationCount { value } => {
+                let ty = operand(value)?;
+                self.same_type(ty, result()?, context)?;
+                if !matches!(self.ty(ty, context)?, Type::Int { bits: 32 | 64 }) {
+                    return Err(fail(context, "integer population count requires same-type scalar i32 or i64 operand and result"));
+                }
+            }
             Operation::IntegerCountLeadingZeros { value, .. }
             | Operation::IntegerAbs { value, .. } => {
                 let ty = operand(value)?;
@@ -2945,7 +2966,11 @@ impl<'a> Verifier<'a> {
                 self.pointer(result()?, context)?;
                 alignment(*align, true, context)?;
             }
-            Operation::PtrMask { pointer, mask } => {
+            Operation::PtrMask {
+                pointer,
+                mask,
+                return_alignment,
+            } => {
                 if !self.literal_pointer_profile {
                     return Err(fail(context, "pointer mask requires integral AS0 64-bit pointers/indices and default address spaces"));
                 }
@@ -2954,6 +2979,31 @@ impl<'a> Verifier<'a> {
                 self.same_type(ty, result()?, context)?;
                 if !matches!(self.ty(operand(mask)?, context)?, Type::Int { bits: 64 }) {
                     return Err(fail(context, "pointer mask requires an exact i64 mask"));
+                }
+                if let Some(align) = return_alignment {
+                    if !align.is_power_of_two() || *align > (1u64 << 32) {
+                        return Err(fail(context, "pointer-mask return alignment must be a positive power of two at most 2^32"));
+                    }
+                    if *align > 1 {
+                        let Operand::Int { bits, .. } = mask else {
+                            return Err(fail(
+                                context,
+                                "pointer-mask return alignment requires a proving literal i64 mask",
+                            ));
+                        };
+                        let mask_bits = bits.parse::<u64>().map_err(|_| {
+                            fail(
+                                context,
+                                "pointer-mask alignment proof requires an exact uint64 mask",
+                            )
+                        })?;
+                        if mask_bits & (*align - 1) != 0 {
+                            return Err(fail(
+                                context,
+                                "pointer-mask literal does not prove the original return alignment",
+                            ));
+                        }
+                    }
                 }
             }
             Operation::Gep { base, offset, .. } => {
@@ -3392,6 +3442,7 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
         Operation::Cast { value, .. }
         | Operation::FloatNeg { value, .. }
         | Operation::FloatAbs { value, .. }
+        | Operation::IntegerPopulationCount { value }
         | Operation::IntegerCountLeadingZeros { value, .. }
         | Operation::IntegerAbs { value, .. }
         | Operation::Freeze { value } => vec![value],
@@ -3412,7 +3463,7 @@ pub(crate) fn instruction_operands(operation: &Operation) -> Vec<&Operand> {
             vec![]
         }
         Operation::Gep { base, offset, .. } => vec![base, offset],
-        Operation::PtrMask { pointer, mask } => vec![pointer, mask],
+        Operation::PtrMask { pointer, mask, .. } => vec![pointer, mask],
         Operation::Load { pointer, .. } | Operation::AtomicLoad { pointer, .. } => vec![pointer],
         Operation::Store { pointer, value, .. }
         | Operation::AtomicStore { pointer, value, .. }
@@ -3644,6 +3695,7 @@ mod tests {
                 operation: Operation::PtrMask {
                     pointer: value(7),
                     mask: value(9),
+                    return_alignment: None,
                 },
             }],
             terminator: Terminator::Return {
@@ -3701,7 +3753,10 @@ mod tests {
     fn pointer_mask_rejects_wrong_mask_pointer_profile_result_and_ordinary_call() {
         for (layout, diagnostic) in [
             ("e-p:64:64:64:32-i64:64", "pointer mask requires"),
-            ("e-p:64:64-i64:64-ni:0", "invalid non-integral address space"),
+            (
+                "e-p:64:64-i64:64-ni:0",
+                "invalid non-integral address space",
+            ),
             ("e-p:64:64-i64:64-A1", "pointer mask requires"),
         ] {
             let mut m = pointer_mask_module();
@@ -3738,11 +3793,72 @@ mod tests {
         m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
             pointer: value(7),
             mask: value(999),
+            return_alignment: None,
         };
         assert!(
             verify(&m).is_err(),
             "the mask must participate in dominance and use checking"
         );
+    }
+
+    #[test]
+    fn pointer_mask_return_alignment_is_explicit_and_requires_literal_low_bit_proof() {
+        for triple in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            for (align, bits) in [
+                (1, None),
+                (16, Some(u64::MAX - 15)),
+                (1u64 << 32, Some(u64::MAX - ((1u64 << 32) - 1))),
+            ] {
+                let mut m = pointer_mask_module();
+                m.target.triple = triple.into();
+                m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
+                    pointer: value(7),
+                    mask: bits
+                        .map(|bits| Operand::Int {
+                            ty: 2,
+                            bits: bits.to_string(),
+                        })
+                        .unwrap_or_else(|| value(9)),
+                    return_alignment: Some(align),
+                };
+                verify(&m).unwrap();
+                let encoded = serde_json::to_value(&m).unwrap();
+                assert_eq!(
+                    encoded["functions"][0]["blocks"][0]["instructions"][0]["operation"]
+                        ["return_alignment"]
+                        .as_u64(),
+                    Some(align)
+                );
+                verify(&NativeModule::from_json(&serde_json::to_vec(&m).unwrap()).unwrap())
+                    .unwrap();
+            }
+        }
+        for (align, mask, diagnostic) in [
+            (0, value(9), "positive power of two"),
+            (3, value(9), "positive power of two"),
+            (1u64 << 33, value(9), "positive power of two"),
+            (16, value(9), "proving literal i64 mask"),
+            (
+                32,
+                Operand::Int {
+                    ty: 2,
+                    bits: (u64::MAX - 15).to_string(),
+                },
+                "does not prove",
+            ),
+        ] {
+            let mut m = pointer_mask_module();
+            m.functions[0].blocks[0].instructions[0].operation = Operation::PtrMask {
+                pointer: value(7),
+                mask,
+                return_alignment: Some(align),
+            };
+            rejects(&m, diagnostic);
+        }
     }
 
     #[test]

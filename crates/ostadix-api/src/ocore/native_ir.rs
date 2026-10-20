@@ -652,6 +652,10 @@ pub enum Operation {
         lhs: Operand,
         rhs: Operand,
     },
+    /// Same-width population count; one original scalar operand and no poison flag.
+    IntegerPopulationCount {
+        value: Operand,
+    },
     /// Same-width leading-zero count. The original LLVM immediate poison flag
     /// is retained; LlvmDefinedBehaviorV1 realizes zero as the source width even
     /// when the source flag permits poison. No undefined target BSR is exposed.
@@ -714,6 +718,10 @@ pub enum Operation {
     PtrMask {
         pointer: Operand,
         mask: Operand,
+        /// Original LLVM call-result pointer alignment. A present constraint
+        /// must be independently proved from the literal mask (or be 1).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        return_alignment: Option<u64>,
     },
     Load {
         pointer: Operand,
