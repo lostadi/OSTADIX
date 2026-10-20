@@ -483,14 +483,69 @@ define i32 @dispatch(ptr %callback, i32 %value) {
         self.assertEqual(len(call["signature"]["params"]), 1)
         self.assertEqual(module["types"][call["signature"]["result"]], {"kind": "int", "bits": 32})
 
-    def test_variadic_call_is_rejected_until_variadic_abi_lowering_exists(self):
-        self.reject("""
+    def test_variadic_call_retains_complete_actual_types_and_independent_tail_attributes(self):
+        body = """
 declare i32 @format(ptr, ...)
-define i32 @caller(ptr %pattern) {
-  %result = call i32 (ptr, ...) @format(ptr %pattern, i32 7)
+define i32 @caller(ptr %pattern, i32 %number) {
+  %result = call i32 (ptr, ...) @format(ptr %pattern, i32 signext %number, i64 7, ptr %pattern)
   ret i32 %result
 }
-""")
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir(body, triple=triple)
+                declaration = self.function(module, "format")["signature"]
+                call = self.operations(self.function(module, "caller"))[0]
+                self.assertTrue(declaration["variadic"])
+                self.assertEqual(len(declaration["params"]), 1)
+                self.assertEqual(declaration["param_attributes"], [[]])
+                self.assertEqual(len(call["signature"]["params"]), 1)
+                self.assertEqual(len(call["args"]), 4)
+                self.assertEqual(call["signature"]["param_attributes"], [[], ["signext"], [], []])
+                self.assertEqual(module["types"][call["args"][2]["ty"]], {"kind": "int", "bits": 64})
+                self.assertEqual(module["provenance"]["source_function_count"], 2)
+
+    def test_variadic_list_lifecycle_retains_exact_owned_calls_and_declarations(self):
+        body = """
+declare void @llvm.va_start.p0(ptr)
+declare void @llvm.va_end.p0(ptr)
+declare void @llvm.va_copy.p0(ptr, ptr)
+define void @forward(ptr %list, ptr %copy, ...) {
+  call void @llvm.va_start.p0(ptr %list)
+  call void @llvm.va_copy.p0(ptr %copy, ptr %list)
+  call void @llvm.va_end.p0(ptr %copy)
+  call void @llvm.va_end.p0(ptr %list)
+  ret void
+}
+"""
+        for triple in TRIPLES:
+            with self.subTest(triple=triple):
+                module = self.import_ir(body, triple=triple)
+                calls = self.operations(self.function(module, "forward"))
+                names = ["llvm.va_start.p0", "llvm.va_copy.p0", "llvm.va_end.p0", "llvm.va_end.p0"]
+                self.assertEqual([call["op"] for call in calls], ["call"] * 4)
+                self.assertEqual([call["callee"]["name"] for call in calls], names)
+                self.assertEqual([len(call["args"]) for call in calls], [1, 2, 1, 1])
+                self.assertEqual(len(module["functions"]), 4)
+                for name in set(names):
+                    declaration = self.function(module, name)
+                    self.assertEqual(declaration["intrinsic"], name)
+                    self.assertIsNone(declaration["entry"])
+                    self.assertFalse(declaration["signature"]["variadic"])
+                    self.assertEqual(module["types"][declaration["signature"]["result"]], {"kind": "void"})
+
+    def test_variadic_list_addresses_and_fixed_function_start_remain_rejected(self):
+        self.reject("""
+declare void @llvm.va_start.p0(ptr)
+define void @fixed(ptr %list) {
+  call void @llvm.va_start.p0(ptr %list)
+  ret void
+}
+""", stage="llvm-verify")
+        self.reject("""
+declare void @llvm.va_end.p0(ptr)
+define ptr @escape() { ret ptr @llvm.va_end.p0 }
+""", stage="llvm-verify")
 
     def test_static_alloca_and_memory_access_width_alignment_and_volatility_survive(self):
         module = self.import_ir("""

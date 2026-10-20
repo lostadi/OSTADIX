@@ -234,8 +234,9 @@ class Importer:
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
                          for kind, intrinsic_id in MINMAX_IDS.items() for bits in range(1, 65)}
     RELATIVE_INTRINSICS = {"llvm.load.relative.i32", "llvm.load.relative.i64"}
+    VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | set(MINMAX_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
@@ -721,8 +722,8 @@ class Importer:
         result_type = a.GetReturnType(llvm_type)
         variadic = bool(a.IsFunctionVarArg(llvm_type))
         metadata_personality = bool(owner and not call and owner in self.metadata_personalities)
-        if variadic and not metadata_personality:
-            self.reject("variadic calling convention is unsupported")
+        if variadic and abi != "c":
+            self.reject("variadic signatures require the exact C calling convention")
         result = self.ty(result_type) if a.GetTypeKind(result_type) == 0 else self.value_type(result_type)
         if intrinsic == self.NOALIAS_INTRINSIC:
             if count != 1 or a.GetTypeKind(params[0]) != 14 or a.GetTypeKind(result_type) != 0:
@@ -745,8 +746,19 @@ class Importer:
                 signature["return_storage"] = storage
             self.attrs(owner, 0xffffffff, call, intrinsic)
             signature["result_attributes"] = self.attrs(owner, 0, call, intrinsic, result_type)
+            attribute_types = list(params)
+            if call and variadic:
+                argument_count = a.GetNumArgOperands(owner)
+                if argument_count < count:
+                    self.reject("variadic call has fewer arguments than its fixed prefix")
+                attribute_types = [a.TypeOf(a.GetOperand(owner, i)) for i in range(argument_count)]
+                for i in range(count, argument_count):
+                    if any(self.attribute_names.get(a.GetEnumAttributeKind(attr)) == "sret"
+                           for attr in self.attribute_records(owner, i + 1, True)):
+                        self.reject("return storage cannot annotate a variadic trailing argument")
+                self.refinements.add(f"{self.symbol}: variadic call retains the original fixed parameter prefix, every actual operand type and each actual argument's independent ABI attributes, including the unnamed tail; no default promotion, declaration attribute inheritance or argument filtering")
             signature["param_attributes"] = [self.attrs(owner, i + 1, call, intrinsic, param)
-                                             for i, param in enumerate(params)]
+                                             for i, param in enumerate(attribute_types)]
             if metadata_personality:
                 if (signature["param_attributes"] or signature["result_attributes"]
                         or signature.get("return_storage") is not None):
@@ -818,6 +830,8 @@ class Importer:
             return
         if name == "llvm.assume":
             expected = [integer(1)]
+        elif name in self.VARIADIC_INTRINSICS:
+            expected = [pointer, pointer] if name == "llvm.va_copy.p0" else [pointer]
         elif name == "llvm.trap":
             expected = []
         elif name in self.LIFETIME_INTRINSICS:
@@ -830,6 +844,8 @@ class Importer:
             self.reject(f"intrinsic {name} requires explicit lowering")
         if (self.types[signature["result"]] != {"kind": "void"}
                 or [self.types[ty] for ty in signature["params"]] != expected
+                or signature["abi"] != "c" or signature["variadic"]
+                or signature.get("return_storage") is not None
                 or signature["result_attributes"] or any(signature["param_attributes"])):
             self.reject(f"intrinsic {name} requires its exact void signature without ABI extension attributes")
 
@@ -1694,6 +1710,12 @@ class Importer:
                              "source_instruction": self.instruction_positions[value][1]}
                 self.refinements.add(f"{self.symbol}: retained llvm.experimental.noalias.scope.decl as an exact compiler-only scope marker; original list/scope/domain identity and declaration placement retained; no runtime instruction, metadata ABI, alias-based optimization, purity or memory-effect inference")
                 self.refinements.add("scoped alias metadata graph uses actual parsed metadata identity and deterministic module-local traversal IDs; trusted LLVM printer records attest post-parse storage only; raw pointer fallback labels remain provenance bytes, never graph IDs; input_sha256 binds original spelling and bytes; no associated alias assumptions are used for optimization")
+            elif intrinsic in self.VARIADIC_INTRINSICS:
+                if intrinsic == "llvm.va_start.p0" and not self.current_variadic:
+                    self.reject("llvm.va_start requires an enclosing variadic function definition")
+                operation = {"op": "call", "callee": {"kind": "symbol", "ty": self.value_type(a.TypeOf(callee)),
+                             "name": intrinsic}, "signature": signature, "args": args}
+                self.refinements.add(f"{self.symbol}: {intrinsic} retains its exact owned declaration, direct intrinsic identity and original AS0 pointer operands; target-native variadic register-save/va_list initialization, copy and end realization is required; no ordinary unresolved intrinsic symbol, guessed va_list layout or erased effect")
             elif intrinsic == "llvm.assume":
                 operation = {"op": "assume", "condition": args[0]}
                 self.refinements.add("llvm.assume with empty operand bundles retained as an explicit assumption; defined true has no effect, false/poison are UB; own no-opt emitter may erase it")
@@ -1862,6 +1884,7 @@ class Importer:
                                        "personality": self.exception_pointer(a.GetPersonalityFn(value), personality=True)}
             self.refinements.add(f"{self.symbol}: retained original Itanium/DWARF personality identity without callback substitution; native instruction-precise CFI/LSDA, unwind services and complete included provider closure require independent realization")
         signature = self.signature(a.GlobalGetValueType(value), value, intrinsic=intrinsic)
+        self.current_variadic = signature["variadic"]
         if intrinsic:
             if visibility != "default":
                 self.reject("owned intrinsic requires default symbol visibility")
