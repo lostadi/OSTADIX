@@ -68,6 +68,14 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         "native_floating_transport.rs",
         include_str!("../ocore/native_floating_transport.rs"),
     ),
+    (
+        "native_wide_integer_codegen.rs",
+        include_str!("../ocore/native_wide_integer_codegen.rs"),
+    ),
+    (
+        "native_wide_volatile_codegen.rs",
+        include_str!("../ocore/native_wide_volatile_codegen.rs"),
+    ),
 ];
 pub const RUNTIME_BACKEND_CATALOG_MODULE_RS: &str = include_str!("../backend_catalog.rs");
 pub const RUNTIME_BACKEND_CATALOG_DATA_RS: &str = include_str!("../backend_catalog.inc.rs");

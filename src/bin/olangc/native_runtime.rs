@@ -3,7 +3,7 @@
 
 use anyhow::{bail, Context, Result};
 use o_lang::ocore::native_ir::{
-    AtomicProfile, NativeModule, Signature, TlsProfile, Type, Visibility,
+    AtomicProfile, NativeModule, Signature, TlsProfile, Type, Visibility, WideVolatileProfile,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -2090,6 +2090,7 @@ pub(super) struct NativeImportOptions<'a> {
     pub(super) llvm_sha256: Option<&'a str>,
     pub(super) tls_profile: Option<&'a str>,
     pub(super) atomic_profile: Option<&'a str>,
+    pub(super) wide_volatile_profile: Option<&'a str>,
     pub(super) dependencies: &'a [PathBuf],
 }
 
@@ -2106,6 +2107,7 @@ fn compile_with_compiler(
         llvm_sha256,
         tls_profile,
         atomic_profile,
+        wide_volatile_profile,
         dependencies: dependency_paths,
     } = import_options;
     let expected_tls_profile = match tls_profile {
@@ -2119,6 +2121,11 @@ fn compile_with_compiler(
         None => None,
         Some("coherent-ram-v1") => Some(AtomicProfile::CoherentRamV1),
         Some(_) => bail!("unsupported native atomic realization profile"),
+    };
+    let expected_wide_volatile_profile = match wide_volatile_profile {
+        None => None,
+        Some("ordinary-ram-split-v1") => Some(WideVolatileProfile::OrdinaryRamSplitV1),
+        Some(_) => bail!("unsupported native wide volatile realization profile"),
     };
     let arch = architecture(target)?;
     if !matches!(output_kind, "ir" | "obj") {
@@ -2134,6 +2141,7 @@ fn compile_with_compiler(
         if llvm_library.is_some()
             || tls_profile.is_some()
             || atomic_profile.is_some()
+            || wide_volatile_profile.is_some()
             || !dependency_paths.is_empty()
         {
             bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
@@ -2246,6 +2254,9 @@ fn compile_with_compiler(
             if let Some(profile) = atomic_profile {
                 arguments.extend(["--atomic-profile".into(), profile.into()]);
             }
+            if let Some(profile) = wide_volatile_profile {
+                arguments.extend(["--wide-volatile-profile".into(), profile.into()]);
+            }
             record["import_argv"] = json!(arguments);
             invoke(compiler, &arguments, &directory.join("import.log"))?;
             let imported_bytes = fs::read(&imported)?;
@@ -2257,6 +2268,7 @@ fn compile_with_compiler(
                 || module.target.data_layout != string(&unit["ir"], "data_layout")?
                 || module.target.tls_profile != expected_tls_profile
                 || module.target.atomic_profile != expected_atomic_profile
+                || module.target.wide_volatile_profile != expected_wide_volatile_profile
             {
                 bail!("imported module provenance/target differs from the captured input");
             }
@@ -2485,6 +2497,7 @@ fn compile_with_compiler(
     let receipt = json!({"schema":RECEIPT_FORMAT,"capture_report":report,"capture_sha256":digest(&bytes),
         "tls_profile":expected_tls_profile,"tls_platform_execution_qualified":false,
         "atomic_profile":expected_atomic_profile,"atomic_hardware_memory_order_qualified":false,
+        "wide_volatile_profile":expected_wide_volatile_profile,"wide_volatile_platform_execution_qualified":false,
         "name":capture["name"],"requested_target":target,"architecture":arch,"output_kind":output_kind,
         "compiler":compiler,"compiler_sha256":compiler_digest,"source":capture["source"],"manifest":capture["manifest"],
         "capture_reverification":capture_reverification,
@@ -3269,6 +3282,7 @@ mod tests {
                 llvm_sha256: None,
                 tls_profile: None,
                 atomic_profile: None,
+                wide_volatile_profile: None,
                 dependencies: &[],
             },
             Path::new("/compiler-must-not-run")

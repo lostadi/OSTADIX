@@ -56,6 +56,11 @@ struct Cli {
     #[arg(long, value_parser = ["coherent-ram-v1"], conflicts_with_all = ["verify_native", "check"])]
     atomic_profile: Option<String>,
 
+    /// Explicit wide volatile ordinary-RAM access contract. Target-sized
+    /// ordered parts are permitted; MMIO and atomicity are excluded.
+    #[arg(long, value_parser = ["ordinary-ram-split-v1"], conflicts_with_all = ["verify_native", "check"])]
+    wide_volatile_profile: Option<String>,
+
     /// Verify a complete native module without generating machine code.
     #[arg(long, conflicts_with = "check")]
     verify_native: bool,
@@ -129,6 +134,10 @@ fn main() {
     }
     if cli.atomic_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
         eprintln!("ocorec: --atomic-profile selects LLVM import; native IR preserves its own explicit profile");
+        std::process::exit(2);
+    }
+    if cli.wide_volatile_profile.is_some() && cli.input_kind != InputKind::LlvmIr {
+        eprintln!("ocorec: --wide-volatile-profile selects LLVM import; native IR preserves its own explicit profile");
         std::process::exit(2);
     }
     if cli.verify_native {
@@ -332,6 +341,9 @@ fn import_llvm(cli: &Cli) -> anyhow::Result<ImportedFile> {
     }
     if let Some(profile) = &cli.atomic_profile {
         command.arg("--atomic-profile").arg(profile);
+    }
+    if let Some(profile) = &cli.wide_volatile_profile {
+        command.arg("--wide-volatile-profile").arg(profile);
     }
     let mut child = command
         .stdin(std::process::Stdio::piped())

@@ -36,6 +36,14 @@ mod floating {
     use super::*;
     include!("native_floating_codegen.rs");
 }
+mod wide_integer {
+    use super::*;
+    include!("native_wide_integer_codegen.rs");
+}
+mod wide_volatile {
+    use super::*;
+    include!("native_wide_volatile_codegen.rs");
+}
 
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
     emit_impl(module, target, None)
@@ -467,7 +475,7 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     }
     for ty in &module.types {
         match ty {
-            Type::Int { bits: 1..=64 }
+            Type::Int { bits: 1..=64 | 128 }
             | Type::Pointer { address_space: 0 }
             | Type::Void
             | Type::Metadata {}
@@ -665,9 +673,20 @@ fn volatile_audit(
         alignment
     };
     if scalar_bits(module, ty)? > 64 {
-        return Err(error_diagnostic(
-            "wide volatile floating accesses require a single-access target contract",
-        ));
+        if module.target.wide_volatile_profile != Some(WideVolatileProfile::OrdinaryRamSplitV1) {
+            return Err(error_diagnostic(
+                "wide volatile accesses require the explicit ordinary-RAM wide-volatile profile; generic and MMIO accesses remain unsupported",
+            ));
+        }
+        // No byte splitting or widened external access is hidden in this
+        // profile. x86 uses one f128/x87 memory operation where applicable;
+        // scalar i128 and non-native f128 use ordered low/high64 RAM accesses.
+        if target != Target::X86_64UnknownNone && alignment < 8 {
+            return Err(error_diagnostic(
+                "wide volatile RAM accesses require at least eight-byte alignment on this target",
+            ));
+        }
+        return Ok(());
     }
     let bytes = u64::from(scalar_bits(module, ty)?.div_ceil(8));
     if !bytes.is_power_of_two() {
@@ -682,7 +701,7 @@ fn volatile_audit(
 fn scalar_bits(module: &NativeModule, ty: TypeId) -> Result<u16, Diagnostic> {
     match module.types[ty] {
         Type::Int {
-            bits: bits @ 1..=64,
+            bits: bits @ (1..=64 | 128),
         } => Ok(bits),
         Type::Pointer { address_space: 0 } => Ok(64),
         Type::Float {
@@ -701,6 +720,7 @@ struct Emitter<'a> {
     index: usize,
     target: Target,
     slots: BTreeMap<ValueId, i64>,
+    leaf_spill_offsets: BTreeMap<TypeId, Vec<i64>>,
     types: BTreeMap<ValueId, TypeId>,
     allocations: BTreeMap<ValueId, i64>,
     call_return_storage: BTreeMap<ValueId, i64>,
@@ -739,6 +759,7 @@ impl<'a> Emitter<'a> {
             index,
             target,
             slots: BTreeMap::new(),
+            leaf_spill_offsets: BTreeMap::new(),
             types: BTreeMap::new(),
             allocations: BTreeMap::new(),
             call_return_storage: BTreeMap::new(),
@@ -765,6 +786,17 @@ impl<'a> Emitter<'a> {
             call_sites: Vec::new(),
         };
         for value in function_values(function) {
+            if !result.leaf_spill_offsets.contains_key(&value.ty) {
+                let mut cursor = 0i64;
+                let mut offsets = Vec::new();
+                for (field, _) in &leaf_layouts[&value.ty] {
+                    offsets.push(cursor);
+                    cursor = cursor
+                        .checked_add(i64::from(scalar_bits(module, *field)?.div_ceil(64)) * 8)
+                        .ok_or_else(|| error_diagnostic("aggregate spill offset overflow"))?;
+                }
+                result.leaf_spill_offsets.insert(value.ty, offsets);
+            }
             result.frame = result
                 .frame
                 .checked_add(
@@ -1054,7 +1086,9 @@ impl<'a> Emitter<'a> {
             Operand::Value { id } => self.stack_load(
                 out,
                 reg,
-                self.slots[id] + leaf as i64 * 8 + i64::from(bit_offset / 8),
+                self.slots[id]
+                    + self.leaf_spill_offsets[&self.types[id]][leaf]
+                    + i64::from(bit_offset / 8),
             ),
             Operand::Float { bits, .. } => self.immediate(
                 out,
@@ -1063,7 +1097,11 @@ impl<'a> Emitter<'a> {
             ),
             Operand::Aggregate { .. } => unreachable!("aggregate descent completed"),
             Operand::Int { bits, .. } | Operand::PointerBits { bits, .. } => {
-                self.immediate(out, reg, bits.parse().unwrap());
+                self.immediate(
+                    out,
+                    reg,
+                    (bits.parse::<u128>().unwrap() >> bit_offset) as u64,
+                );
             }
             Operand::Null { .. }
             | Operand::AggregateZero { .. }
@@ -1122,7 +1160,9 @@ impl<'a> Emitter<'a> {
         self.stack_store(
             out,
             0,
-            self.slots[&result.id] + leaf as i64 * 8 + i64::from(bit_offset / 8),
+            self.slots[&result.id]
+                + self.leaf_spill_offsets[&result.ty][leaf]
+                + i64::from(bit_offset / 8),
         );
     }
 
@@ -1475,18 +1515,24 @@ impl<'a> Emitter<'a> {
                 } => {
                     self.operand(out, 0, condition);
                     for case in cases {
-                        self.operand(out, 1, &case.value);
                         let matched = self.label();
                         let next = self.label();
-                        match self.target {
-                            Target::X86_64UnknownNone => {
-                                writeln!(out, "  cmp rax, rcx\n  je {matched}").unwrap()
-                            }
-                            Target::Aarch64UnknownNone => {
-                                writeln!(out, "  cmp x9, x10\n  b.eq {matched}").unwrap()
-                            }
-                            Target::Riscv64UnknownNone => {
-                                writeln!(out, "  beq t0, t1, {matched}").unwrap()
+                        if self.is_i128(condition) {
+                            self.wide_inputs(out, condition, &case.value);
+                            self.wide_compare(out, IntPredicate::Eq);
+                            self.zero_jump(out, 0, &matched, false);
+                        } else {
+                            self.operand(out, 1, &case.value);
+                            match self.target {
+                                Target::X86_64UnknownNone => {
+                                    writeln!(out, "  cmp rax, rcx\n  je {matched}").unwrap()
+                                }
+                                Target::Aarch64UnknownNone => {
+                                    writeln!(out, "  cmp x9, x10\n  b.eq {matched}").unwrap()
+                                }
+                                Target::Riscv64UnknownNone => {
+                                    writeln!(out, "  beq t0, t1, {matched}").unwrap()
+                                }
                             }
                         }
                         // Keep conditional reach independent of the edge-copy size.
@@ -1790,11 +1836,17 @@ impl<'a> Emitter<'a> {
         out: &mut String,
         instruction: &Instruction,
     ) -> Result<(), Diagnostic> {
-        if self.floating_instruction(out, instruction)? {
+        if self.wide_volatile_instruction(out, instruction)?
+            || self.floating_instruction(out, instruction)?
+            || self.wide_integer_instruction(out, instruction)?
+        {
             return Ok(());
         }
         match &instruction.operation {
-            Operation::FloatBinary { .. } | Operation::FloatNeg { .. } | Operation::FCmp { .. } => {
+            Operation::FloatBinary { .. }
+            | Operation::FloatNeg { .. }
+            | Operation::FloatAbs { .. }
+            | Operation::FCmp { .. } => {
                 unreachable!("floating instruction handled")
             }
             Operation::AtomicLoad { .. }
@@ -1874,10 +1926,10 @@ impl<'a> Emitter<'a> {
             }
             Operation::ExtractValue { aggregate, indices } => {
                 let result = instruction.result.unwrap();
-                let (first, count) = self.aggregate_span(self.ty(aggregate), indices);
-                for leaf in 0..count {
-                    self.operand_leaf(out, 0, aggregate, first + leaf);
-                    self.spill_leaf(out, result, leaf);
+                let (first, _) = self.aggregate_span(self.ty(aggregate), indices);
+                for (leaf, bit) in self.value_chunks(result.ty) {
+                    self.operand_chunk(out, 0, aggregate, first + leaf, bit);
+                    self.spill_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1888,13 +1940,13 @@ impl<'a> Emitter<'a> {
             } => {
                 let result = instruction.result.unwrap();
                 let (first, count) = self.aggregate_span(self.ty(aggregate), indices);
-                for leaf in 0..self.leaf_layouts[&result.ty].len() {
+                for (leaf, bit) in self.value_chunks(result.ty) {
                     if (first..first + count).contains(&leaf) {
-                        self.operand_leaf(out, 0, value, leaf - first);
+                        self.operand_chunk(out, 0, value, leaf - first, bit);
                     } else {
-                        self.operand_leaf(out, 0, aggregate, leaf);
+                        self.operand_chunk(out, 0, aggregate, leaf, bit);
                     }
-                    self.spill_leaf(out, result, leaf);
+                    self.spill_chunk(out, result, leaf, bit);
                 }
                 return Ok(());
             }
@@ -1906,7 +1958,10 @@ impl<'a> Emitter<'a> {
                 let result = instruction.result.unwrap();
                 let aggregate = matches!(
                     self.module.types[result.ty],
-                    Type::Array { .. } | Type::Struct { .. } | Type::Float { bits: 80 | 128 }
+                    Type::Array { .. }
+                        | Type::Struct { .. }
+                        | Type::Float { bits: 80 | 128 }
+                        | Type::Int { bits: 128 }
                 );
                 self.operand(out, 0, condition);
                 let no = self.label();

@@ -1676,6 +1676,30 @@ pub fn verify(module: &NativeModule) -> Result<()> {
     if module.target.atomic_profile.is_some() && !atomic_pointer_profile {
         return Err(fail("target", "coherent RAM atomic profile requires integral AS0 little-endian 64-bit pointers/indices and default address spaces"));
     }
+    if module.target.wide_volatile_profile.is_some() {
+        let parts: Vec<_> = module.target.triple.split('-').collect();
+        let elf = (parts.len() == 3 || parts.len() == 4)
+            && parts.get(1).is_some_and(|vendor| !vendor.is_empty())
+            && ((parts.get(2) == Some(&"linux")
+                && parts.len() == 4
+                && matches!(parts.get(3), Some(&"gnu" | &"musl")))
+                || (parts.get(2) == Some(&"none")
+                    && (parts.len() == 3 || matches!(parts.get(3), Some(&"elf" | &"eabi")))));
+        let bare_rv = module.target.triple == "riscv64"
+            && matches!(module.target.abi.as_deref(), Some("lp64" | "lp64d"));
+        if !literal_pointer_profile
+            || !matches!(
+                parts.first().copied(),
+                Some("x86_64" | "aarch64" | "riscv64")
+            )
+            || !(elf || bare_rv)
+            || (parts.first().copied() == Some("riscv64")
+                && !matches!(module.target.abi.as_deref(), None | Some("lp64" | "lp64d")))
+            || (parts.first().copied() != Some("riscv64") && module.target.abi.is_some())
+        {
+            return Err(fail("target", "ordinary-RAM wide volatile profile requires a supported LP64 little-endian ELF target with integral AS0 64-bit pointers/indices and default address spaces"));
+        }
+    }
     if native_tls_profile {
         // Source access models may be specialized to local-exec only within
         // this declared static Linux image. The declaration is not evidence
@@ -3544,6 +3568,44 @@ mod tests {
             }),
         });
         module.provenance.source_global_count += 1;
+    }
+
+    #[test]
+    fn wide_volatile_profile_is_explicit_roundtrips_and_rejects_foreign_or_non_lp64_targets() {
+        let original = module();
+        let old_target = serde_json::to_value(&original.target).unwrap();
+        assert!(old_target.get("wide_volatile_profile").is_none());
+        for triple in [
+            "x86_64-unknown-linux-gnu",
+            "aarch64-unknown-linux-gnu",
+            "riscv64-unknown-linux-gnu",
+        ] {
+            let mut m = original.clone();
+            m.target.triple = triple.into();
+            m.target.wide_volatile_profile = Some(WideVolatileProfile::OrdinaryRamSplitV1);
+            let encoded = serde_json::to_vec(&m).unwrap();
+            let parsed = NativeModule::from_json(&encoded).unwrap();
+            assert_eq!(
+                parsed.target.wide_volatile_profile,
+                m.target.wide_volatile_profile
+            );
+            let mut invalid = m.clone();
+            invalid.target.triple = "x86_64-pc-windows-msvc".into();
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut invalid = m.clone();
+            invalid.target.pointer_bits = 32;
+            invalid.target.data_layout = "e-p:32:32-i64:64-i128:128".into();
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut invalid = m.clone();
+            invalid.target.data_layout = "e-p:64:64:64:32-i64:64-i128:128".into();
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut invalid = m.clone();
+            invalid.target.abi = Some("ilp32".into());
+            rejects(&invalid, "ordinary-RAM wide volatile profile");
+            let mut value = serde_json::to_value(&m).unwrap();
+            value["target"]["wide_volatile_profile"] = serde_json::json!("ordinary_mmio");
+            assert!(NativeModule::from_json(&serde_json::to_vec(&value).unwrap()).is_err());
+        }
     }
 
     #[test]

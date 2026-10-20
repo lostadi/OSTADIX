@@ -401,6 +401,9 @@ def variadic_sources(profile, reverse=False):
 class NativeFloatingAbiTests(support.NativeVariadicAbiTests):
     @classmethod
     def setUpClass(cls):
+        cls.wide_volatile_profile = os.environ.get("OCORE_FP_WIDE_VOLATILE_PROFILE")
+        if cls.wide_volatile_profile not in (None, "ordinary-ram-split-v1"):
+            raise AssertionError("wide volatile tests require the explicit ordinary-ram-split-v1 profile")
         cls.compiler = os.environ.get("OCORE_TEST_OCOREC", os.environ.get("OCOREC", str(ROOT / "target/debug/ocorec")))
         cls.clang = os.environ.get("OCORE_TEST_CLANG22", str(support.SDK / "llvm-22/bin/clang"))
         cls.linker = os.environ.get("OCORE_TEST_LLD", shutil.which("ld.lld"))
@@ -438,7 +441,21 @@ class NativeFloatingAbiTests(support.NativeVariadicAbiTests):
                        "reference_only": REFERENCE_ONLY, "runtime_complete": False,
                        "provider_closure_complete": False, "native_execution_qualified": False,
                        "execution_profile": "Linux development ELF carrier; native host or explicit QEMU"}
+        self.record["wide_volatile_profile"] = self.wide_volatile_profile
+        self.record["wide_volatile_assumption"] = (
+            "Ordinary RAM with explicitly permitted split accesses; no MMIO or atomicity claim"
+            if self.wide_volatile_profile else None)
         self.save()
+
+    def command(self, argv, expected=0, timeout=120):
+        argv = list(argv)
+        strings = list(map(str, argv))
+        if (self.wide_volatile_profile and strings and strings[0] == str(self.compiler)
+                and "--input-kind" in strings
+                and strings[strings.index("--input-kind") + 1] == "llvm-ir"):
+            self.assertNotIn("--wide-volatile-profile", strings)
+            argv += ["--wide-volatile-profile", self.wide_volatile_profile]
+        return super().command(argv, expected=expected, timeout=timeout)
 
     def frontend_flags(self, profile):
         return super().frontend_flags(profile) + ["-ffp-contract=off"]

@@ -220,6 +220,7 @@ class Importer:
     VISIBILITY = {0: "default", 1: "hidden", 2: "protected"}
     TLS_PROFILE = "linux-elf-static-nonpreemptive-v1"
     ATOMIC_PROFILE = "coherent-ram-v1"
+    WIDE_VOLATILE_PROFILE = "ordinary-ram-split-v1"
     ATOMIC_ORDERINGS = {1: "unordered", 2: "monotonic", 4: "acquire", 5: "release",
                         6: "acq_rel", 7: "seq_cst"}
     # Public LLVMAtomicRMWBinOp differs from the internal C++ enum after14.
@@ -268,7 +269,7 @@ class Importer:
                 "nontemporal", "invariant.load", "invariant.group", "llvm.loop", "prof",
                 "align", "dereferenceable", "dereferenceable_or_null", "unpredictable"}
 
-    def __init__(self, api: LLVM, context, module, tls_profile=None, atomic_profile=None):
+    def __init__(self, api: LLVM, context, module, tls_profile=None, atomic_profile=None, wide_volatile_profile=None):
         self.a, self.context, self.module = api, context, module
         if tls_profile not in {None, self.TLS_PROFILE}:
             raise ImportFailure(f"unsupported TLS profile {tls_profile}")
@@ -276,6 +277,9 @@ class Importer:
         if atomic_profile not in {None, self.ATOMIC_PROFILE}:
             raise ImportFailure(f"unsupported atomic profile {atomic_profile}")
         self.atomic_profile = atomic_profile
+        if wide_volatile_profile not in {None, self.WIDE_VOLATILE_PROFILE}:
+            raise ImportFailure(f"unsupported wide volatile profile {wide_volatile_profile}")
+        self.wide_volatile_profile = wide_volatile_profile
         self.atomic_sync_scope_names = None
         self.atomic_sync_scope_ids = set()
         self.types, self.type_ids, self.refinements = [], {}, set()
@@ -664,6 +668,14 @@ class Importer:
                     and a.GetEnumAttributeValue(attribute) == 0):
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned integer-min/max operation; defined integer operands select a defined original-width input; input poison/undef remain represented; no input noundef, ordinary function purity or optimization inferred")
+            elif (intrinsic in self.FLOAT_ABS_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                # llvmorg-22.1.6 LangRef: defined arguments produce a defined
+                # result before return attributes. Exact sign-bit clearing
+                # realizes this promise without inferring ordinary purity.
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar-fabs sign-bit clear; defined operand bits yield a defined same-format result; input poison/undef and all fast-math flags remain represented; no input noundef, ordinary function purity or optimization inferred")
             elif (intrinsic in self.MEMORY_INTRINSICS and name == "immarg" and index == 4
                     and not call and a.IsEnumAttribute(attribute) and a.GetEnumAttributeValue(attribute) == 0):
                 self.refinements.add(f"{intrinsic}: volatile immarg contract retained by validating every direct call's constant i1 operand")
@@ -2172,6 +2184,16 @@ class Importer:
                 len(parts) == 4 and bool(parts[1]) and parts[2] == "linux"
                 and parts[3] in {"gnu", "musl"}):
             self.reject("native TLS profile requires a qualified Linux GNU/musl target triple")
+        if self.wide_volatile_profile is not None:
+            for token in layout.split("-"):
+                if token.startswith(("p:", "p0:")):
+                    fields = token.split(":")
+                    if fields[1] != "64" or (len(fields) >= 5 and fields[4] != "64"):
+                        self.reject("ordinary-RAM wide volatile profile requires 64-bit AS0 pointers and indices")
+                if token.startswith("ni:") and "0" in token.split(":")[1:]:
+                    self.reject("ordinary-RAM wide volatile profile requires integral AS0 pointers")
+                if token[:1] in {"A", "G", "P"} and token[1:] != "0":
+                    self.reject("ordinary-RAM wide volatile profile requires default address spaces")
         return triple, layout
 
     def run(self, input_digest, frontend, frontend_version):
@@ -2246,6 +2268,9 @@ class Importer:
             if self.atomic_profile is not None:
                 target["atomic_profile"] = "coherent_ram_v1"
                 self.refinements.add("explicit coherent-ram-v1 atomic realization profile retained independently of source orderings, synchronization scopes and volatility; ordinary coherent RAM only, no MMIO; masked subword realization requires the complete containing word mapped as coherent RAM; RV LR/SC realization requires the platform's eventuality-region property, and a constrained loop alone does not establish liveness or starvation freedom; native realization, threading providers and dependency closure are not inferred")
+            if self.wide_volatile_profile is not None:
+                target["wide_volatile_profile"] = "ordinary_ram_split_v1"
+                self.refinements.add("explicit ordinary-ram-split-v1 wide volatile realization contract retained independently of each original operation's type, volatility, width and alignment; ordinary RAM only, no MMIO, no indivisibility or atomicity promise; target-sized ordered parts may realize one source access; no native execution, provider closure or platform qualification inferred")
             if self.atomic_sync_scope_ids:
                 self.refinements.add("atomic synchronization scopes retain exact parsed LLVM context-local IDs and arbitrary name bytes from verified LLVM bitcode serialization; original input_sha256 binds reader scope-ID normalization; IDs are not global linkage or capability identities")
                 if self.atomic_profile is None:
@@ -2508,7 +2533,7 @@ def normalize_legacy_lifetime_artifacts(a, context, module, audit):
 
 def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
                   frontend="LLVM IR", frontend_version="producer version not declared", tls_profile=None,
-                  atomic_profile=None):
+                  atomic_profile=None, wide_volatile_profile=None):
     """Return a fully traversed supported module; reject unsupported whole units."""
     path = Path(path)
     data = path.read_bytes()
@@ -2530,7 +2555,7 @@ def import_module(path, library_path=None, *, expected_sha256=PINNED_SHA256,
             a.DisposeMessage(message)
         if invalid:
             raise ImportFailure(detail or "LLVM verification failed", "llvm-verify")
-        importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile)
+        importer = Importer(a, context, module, tls_profile=tls_profile, atomic_profile=atomic_profile, wide_volatile_profile=wide_volatile_profile)
         importer.module_metadata()
         importer.check_target_profile()
         audit = audit_verified_module(a, module)
@@ -2589,11 +2614,13 @@ def main():
     parser.add_argument("--frontend-version", default="producer version not declared")
     parser.add_argument("--tls-profile")
     parser.add_argument("--atomic-profile")
+    parser.add_argument("--wide-volatile-profile")
     args = parser.parse_args()
     try:
         module = import_module(args.input, args.llvm_library, expected_sha256=args.llvm_sha256,
                                frontend=args.frontend, frontend_version=args.frontend_version,
-                               tls_profile=args.tls_profile, atomic_profile=args.atomic_profile)
+                               tls_profile=args.tls_profile, atomic_profile=args.atomic_profile,
+                               wide_volatile_profile=args.wide_volatile_profile)
         encoded = json.dumps(module, indent=2) + "\n"
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
