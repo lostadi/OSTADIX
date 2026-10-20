@@ -347,6 +347,8 @@ pub(super) fn compile_package(
             let imported = directory.join("module.native-ir.json");
             fs::write(&imported, embedded.native_ir.as_bytes())?;
             record["module"] = json!({"path":imported,"sha256":embedded.sha256});
+            record["generated_floating_helper_requirements"] =
+                json!(floating_requirements(&module)?);
             if output_kind == "obj" {
                 let object = directory.join("module.o");
                 invoke(

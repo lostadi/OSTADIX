@@ -403,6 +403,82 @@ fn object_cannot_introduce_an_ambient_undefined_symbol() {
     assert!(error.to_string().contains("undeclared native dependency"));
 }
 
+pub(super) fn floating_helper_module(arch: &str) -> NativeModule {
+    use o_lang::ocore::native_ir::{
+        FastMathFlags, FloatBinaryOp, Instruction, Operand, Operation, Value,
+    };
+    let mut source = module();
+    source.target.triple = format!("{arch}-unknown-linux-gnu");
+    source.target.abi = (arch == "riscv64").then(|| "lp64d".into());
+    source.target.data_layout = "e-p:64:64-i64:64-f128:128-S128".into();
+    source.types.push(Type::Float { bits: 128 });
+    source.functions[0].blocks[0]
+        .instructions
+        .push(Instruction {
+            result: Some(Value { id: 0, ty: 2 }),
+            operation: Operation::FloatBinary {
+                kind: FloatBinaryOp::Add,
+                lhs: Operand::Float {
+                    ty: 2,
+                    bits: "0".into(),
+                },
+                rhs: Operand::Float {
+                    ty: 2,
+                    bits: "0".into(),
+                },
+                flags: FastMathFlags::default(),
+            },
+        });
+    NativeModule::from_json(&serde_json::to_vec(&source).unwrap()).unwrap()
+}
+
+#[test]
+fn generated_floating_dependencies_require_exact_operation_derived_function_inventory_all_isas() {
+    for (machine, arch) in [(62, "x86_64"), (183, "aarch64"), (243, "riscv64")] {
+        let source = floating_helper_module(arch);
+        let mut elf = Elf::new(machine, 8, 8);
+        let names = b"\0f\0g\0__addtf3\0";
+        elf.strings = aligned_payload(&mut elf.bytes, names, 1);
+        elf.section64(STRINGS, 24, elf.strings as u64);
+        elf.section64(STRINGS, 32, names.len() as u64);
+        elf.append_undefined(5, 1);
+        let inventory = object_inventory(&elf.bytes, arch, &source).unwrap();
+        assert_eq!(inventory["undefined_symbols"], json!(["__addtf3"]));
+        assert_eq!(
+            inventory["generated_floating_helper_requirements"],
+            json!([{
+            "name":"__addtf3","result":{"kind":"float","bits":128},
+            "params":[{"kind":"float","bits":128},{"kind":"float","bits":128}]}])
+        );
+        let mut unneeded = source.clone();
+        unneeded.functions[0].blocks[0].instructions.clear();
+        assert!(object_inventory(&elf.bytes, arch, &unneeded)
+            .unwrap_err()
+            .to_string()
+            .contains("undeclared native dependency: __addtf3"));
+        let mut wrong_name = elf.clone();
+        wrong_name.bytes[wrong_name.strings + 5..wrong_name.strings + 13]
+            .copy_from_slice(b"__subtf3");
+        assert!(object_inventory(&wrong_name.bytes, arch, &source)
+            .unwrap_err()
+            .to_string()
+            .contains("undeclared native dependency: __subtf3"));
+        let mut storage = elf.clone();
+        storage.symbol8(3, 4, 0x11);
+        assert!(object_inventory(&storage.bytes, arch, &source)
+            .unwrap_err()
+            .to_string()
+            .contains("not an ordinary function"));
+        let mut invented_definition = elf.clone();
+        invented_definition.symbol8(3, 4, 0x12);
+        invented_definition.symbol16(3, 6, TEXT as u16);
+        assert!(object_inventory(&invented_definition.bytes, arch, &source)
+            .unwrap_err()
+            .to_string()
+            .contains("without a verified source body"));
+    }
+}
+
 #[test]
 fn object_cannot_hide_an_export_as_an_untyped_assembler_symbol() {
     let mut elf = Elf::new(62, 8, 8);

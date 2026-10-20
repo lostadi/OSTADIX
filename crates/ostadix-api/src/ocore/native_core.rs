@@ -13,6 +13,8 @@ pub mod native_codegen;
 pub mod native_eh;
 #[path = "native_exception_codegen.rs"]
 mod native_exception_codegen;
+#[path = "native_floating_helpers.rs"]
+pub mod native_floating_helpers;
 #[path = "native_ir.rs"]
 pub mod native_ir;
 #[path = "native_map.rs"]

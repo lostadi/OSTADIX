@@ -499,6 +499,12 @@ pub enum Operand {
         ty: TypeId,
         bits: String,
     },
+    /// Unsigned decimal encoding of the exact IEEE32/64/128 or x87 extended80
+    /// significant bits. No host floating-point conversion or ABI padding.
+    Float {
+        ty: TypeId,
+        bits: String,
+    },
     /// Literal unsigned address bits for an integral, little-endian 64-bit
     /// address-space-zero pointer. This is neither a symbol nor a relocation,
     /// and does not establish that the address is dereferenceable.
@@ -591,6 +597,32 @@ pub enum Operation {
         lhs: Operand,
         rhs: Operand,
         flags: Vec<String>,
+    },
+    FloatBinary {
+        kind: FloatBinaryOp,
+        lhs: Operand,
+        rhs: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
+    FloatNeg {
+        value: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
+    /// Exact significant-bit sign clearing, including signed zeros and NaN
+    /// payloads. This is LLVM fabs, not comparison or host floating arithmetic.
+    FloatAbs {
+        value: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
+    },
+    FCmp {
+        predicate: FloatPredicate,
+        lhs: Operand,
+        rhs: Operand,
+        #[serde(default)]
+        flags: FastMathFlags,
     },
     /// Exact modular arithmetic and representability flag, as returned by
     /// LLVM's scalar `[su]{add,sub,mul}.with.overflow` intrinsics. Overflow is
@@ -748,6 +780,51 @@ pub enum BinaryOp {
     Xor,
 }
 
+/// Retained LLVM fast-math promises. The strict realization does not exploit
+/// these permissions; it must not invent reassociation, contraction or NaNs.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct FastMathFlags {
+    pub reassoc: bool,
+    pub nnan: bool,
+    pub ninf: bool,
+    pub nsz: bool,
+    pub arcp: bool,
+    pub contract: bool,
+    pub afn: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FloatBinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FloatPredicate {
+    False,
+    Oeq,
+    Ogt,
+    Oge,
+    Olt,
+    Ole,
+    One,
+    Ord,
+    Uno,
+    Ueq,
+    Ugt,
+    Uge,
+    Ult,
+    Ule,
+    Une,
+    True,
+}
+
 /// Distinct from floating-point min/max and the atomic read-modify-write kinds.
 /// In particular, signed i1 orders true (-1) before false (0).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -783,6 +860,12 @@ pub enum CastOp {
     PtrToInt,
     IntToPtr,
     Bitcast,
+    FpTrunc,
+    FpExt,
+    FpToUi,
+    FpToSi,
+    UiToFp,
+    SiToFp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
