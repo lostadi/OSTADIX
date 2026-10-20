@@ -124,6 +124,50 @@ class SourceInventoryControls(unittest.TestCase):
         self.assertEqual(len(self.receipt["mappings"]["intrinsic_sites"]), 4)
         self.assertEqual(set(self.receipt["mappings"]["external_declarations"]), {"external", "unused_declaration"})
 
+    def test_original_fastcc_is_retained_and_well_typed_convention_change_rejects(self):
+        llvm = self.directory / "fastcc-authored-unit.ll"
+        native = self.directory / "fastcc-authored-unit.native.json"
+        llvm.write_text(SOURCE + """
+define fastcc i64 @original_fastcc(i64 %value) {
+entry:
+  %result = add i64 %value, 1
+  ret i64 %result
+}
+""")
+        self.run_compiler([self.compiler, llvm, "--input-kind", "llvm-ir", "--emit", "mir",
+                           "--target", "riscv64-unknown-none", "--llvm-library", self.library,
+                           "--llvm-sha256", self.pin, "-o", native])
+        verification = self.directory / "fastcc-original-verification.json"
+        self.run_compiler([self.compiler, native, "--input-kind", "native-ir", "--verify-native",
+                           "--receipt", verification])
+        self.assertTrue(json.loads(verification.read_text())["verified"])
+        source = Reader(self.library, self.pin).read(llvm)
+        module = json.loads(native.read_text())
+        original = source["functions"]["original_fastcc"]
+        translated = next(f for f in module["functions"] if f["name"] == "original_fastcc")
+        self.assertEqual(original["calling_convention"], 8)
+        self.assertEqual(translated["signature"]["abi"], "fastcc")
+        preservation = self.directory / "fastcc-preservation.json"
+        preservation.write_text(json.dumps(check_inventory(source, module), indent=2) + "\n")
+
+        # Both conventions are valid for this unchanged scalar body/signature.
+        # Independent MIR verification must pass while source comparison fails.
+        translated["signature"]["abi"] = "c"
+        mutant = self.directory / "fastcc-to-c.native.json"
+        mutant_verification = self.directory / "fastcc-to-c.verification.json"
+        mutant.write_text(json.dumps(module, indent=2) + "\n")
+        self.run_compiler([self.compiler, mutant, "--input-kind", "native-ir", "--verify-native",
+                           "--receipt", mutant_verification])
+        self.assertTrue(json.loads(mutant_verification.read_text())["verified"])
+        with self.assertRaisesRegex(InventoryMismatch, "calling convention changed: original_fastcc") as caught:
+            check_inventory(source, module)
+        self.faults.append({"fault": "well-typed-fastcc-to-c-convention-change",
+                            "diagnostic": str(caught.exception), "original_llvm": artifact(llvm),
+                            "original_native_module": artifact(native),
+                            "original_native_verification": artifact(verification),
+                            "preservation": artifact(preservation), "well_typed_mutant": artifact(mutant),
+                            "independent_native_verification": artifact(mutant_verification)})
+
     def test_missing_observable_global(self):
         self.rejected("unused-public-global-omission", lambda m: m["globals"].__setitem__(slice(None), [g for g in m["globals"] if g["name"] != "observable"]), "globals source/native inventory mismatch")
 

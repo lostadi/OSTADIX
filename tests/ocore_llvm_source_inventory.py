@@ -290,6 +290,9 @@ class Reader:
                                 intrinsic_name = self.name(callee)
                                 sites.append({"name": intrinsic_name, "block": block_id, "source_instruction": ordinal,
                                     "result_id": values.get(instruction),
+                                    "result_type": self.shape(self.TypeOf(instruction)),
+                                    "arg_types": [self.shape(self.TypeOf(self.GetOperand(instruction, index)))
+                                                  for index in range(self.GetNumArgOperands(instruction))],
                                     "args": [self.operand(self.GetOperand(instruction, index), values)
                                              for index in range(self.GetNumArgOperands(instruction))],
                                     "fast_math": self.GetFastMathFlags(instruction) if intrinsic_name.startswith("llvm.fabs.") else 0})
@@ -347,6 +350,16 @@ def intrinsic_mapping(site, function, types):
     dispatch table. Compiler-only metadata identity remains a separate gate.
     """
     name, args = site["name"], site["args"]
+    value_types = {value["id"]: native_shape(types, value["ty"]) for value in function["params"]}
+    value_types.update({instruction["result"]["id"]: native_shape(types, instruction["result"]["ty"])
+                        for original_block in function["blocks"] for instruction in original_block["instructions"]
+                        if instruction.get("result")})
+
+    def operand_type(operand):
+        if operand.get("kind") == "value":
+            return value_types.get(operand["id"])
+        return native_shape(types, operand["ty"]) if "ty" in operand else None
+
     block = next((block for block in function["blocks"] if block["id"] == site["block"]), None)
     if block is None:
         raise InventoryMismatch(f"missing original block for intrinsic {name}")
@@ -356,9 +369,31 @@ def intrinsic_mapping(site, function, types):
         candidates = [(index, instruction) for index, instruction in enumerate(block["instructions"])
                       if instruction.get("result") and instruction["result"]["id"] == site["result_id"]]
 
-    def matches(operation):
+    def matches(operation, result):
         op = operation["op"]
         same = lambda field, index: native_operand(operation[field], types) == args[index]
+        if name == "llvm.ptrmask.p0.i64":
+            pointer, integer = {"kind": "pointer", "address_space": 0}, {"kind": "int", "bits": 64}
+            return (len(args) == 2 and site.get("arg_types") == [pointer, integer]
+                    and site.get("result_type") == pointer
+                    and result is not None and native_shape(types, result["ty"]) == pointer
+                    and op == "ptr_mask" and same("pointer", 0) and same("mask", 1)
+                    and operand_type(operation["pointer"]) == pointer
+                    and operand_type(operation["mask"]) == integer)
+        if name in ("llvm.ctlz.i32", "llvm.ctlz.i64", "llvm.abs.i32", "llvm.abs.i64"):
+            integer = {"kind": "int", "bits": int(name.rsplit("i", 1)[1])}
+            boolean = {"kind": "int", "bits": 1}
+            leading = name.startswith("llvm.ctlz.")
+            flag = "zero_is_poison" if leading else "int_min_is_poison"
+            return (len(args) == 2 and site.get("arg_types") == [integer, boolean]
+                    and site.get("result_type") == integer
+                    and result is not None and native_shape(types, result["ty"]) == integer
+                    and args[1].get("kind") == "int" and args[1].get("type") == boolean
+                    and args[1].get("bits") in ("0", "1")
+                    and op == ("integer_count_leading_zeros" if leading else "integer_abs")
+                    and same("value", 0) and operand_type(operation["value"]) == integer
+                    and type(operation.get(flag)) is bool
+                    and operation[flag] is (args[1]["bits"] == "1"))
         if name in ("llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"):
             return (op == "call" and operation["callee"].get("name") == name
                     and [native_operand(value, types) for value in operation["args"]] == args)
@@ -422,7 +457,8 @@ def intrinsic_mapping(site, function, types):
             return native_operand(index, types) == args[1]
         raise InventoryMismatch(f"independent intrinsic mapping is unavailable: {name}")
 
-    found = [(index, instruction) for index, instruction in candidates if matches(instruction["operation"])]
+    found = [(index, instruction) for index, instruction in candidates
+             if matches(instruction["operation"], instruction.get("result"))]
     if not found:
         raise InventoryMismatch(f"missing/changed intrinsic operation {name} in {function['name']}")
     return found
@@ -456,7 +492,7 @@ def check_inventory(source, module):
                          "result": native_shape(types, signature["result"]), "variadic": signature["variadic"]}
                 require(shape == original["type"], f"function signature changed: {name}")
                 require((translated["entry"] is not None) == original["defined"], f"function definition/declaration changed: {name}")
-                require(signature["abi"] == {0: "c", 8: "fast"}.get(original["calling_convention"]), f"calling convention changed: {name}")
+                require(signature["abi"] == {0: "c", 8: "fastcc"}.get(original["calling_convention"]), f"calling convention changed: {name}")
                 if original["intrinsic_id"]:
                     require(translated.get("intrinsic") == name, f"missing intrinsic semantic binding: {name}")
                     mappings["intrinsic_bindings"].append({"name": name, "llvm_id": original["intrinsic_id"], "mapping": "retained typed intrinsic binding; not an ordinary external provider"})
@@ -476,6 +512,15 @@ def check_inventory(source, module):
                         "native_block": site["block"], "native_instruction": match[0],
                         "native_operation": match[1]["operation"], "ordinary_external_provider_required": False,
                         "metadata_graph_identity_qualified_here": False})
+                # These operations are one-to-one translations of source calls.
+                # An extra well-typed unused operation must not evade accounting
+                # merely because every required source site was also retained.
+                for block in translated["blocks"]:
+                    for index, instruction in enumerate(block["instructions"]):
+                        if instruction["operation"]["op"] in {
+                                "ptr_mask", "integer_count_leading_zeros", "integer_abs"}:
+                            require((block["id"], index) in consumed,
+                                    f"unaccounted scalar intrinsic operation: {name}")
                 intrinsic_names = {symbol for symbol, item in source["functions"].items() if item["intrinsic_id"]}
                 original_refs = set(original["symbol_references"]) - intrinsic_names
                 native_refs, pending = set(), [translated["blocks"], translated.get("exception_handling")]
