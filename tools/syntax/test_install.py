@@ -68,6 +68,11 @@ class ConfigTests(unittest.TestCase):
 
 class EditorInstallerTests(unittest.TestCase):
     def setUp(self):
+        # Most fixtures model XDG paths and fake PATH executables. Do not let
+        # an actual macOS application leak into those isolated installations.
+        platform = patch.object(install.sys, "platform", "linux")
+        platform.start()
+        self.addCleanup(platform.stop)
         self.temporary = tempfile.TemporaryDirectory(prefix="ostadix syntax test ")
         self.addCleanup(self.temporary.cleanup)
         self.home = Path(self.temporary.name)
@@ -173,7 +178,8 @@ class EditorInstallerTests(unittest.TestCase):
         app_cli.parent.mkdir(parents=True)
         app_cli.write_text('#!/bin/sh\nprintf "%s\\n" "$0 $*" >> "$SYNTAX_COMMAND_LOG"\n')
         app_cli.chmod(0o755)
-        with patch.object(install.sys, "platform", "darwin"):
+        is_file = Path.is_file
+        with patch.object(install.sys, "platform", "darwin"), patch.object(Path, "is_file", autospec=True, side_effect=lambda path: False if path.is_relative_to("/Applications") else is_file(path)):
             status, output = self.run_installer("--only", "vscode")
         self.assertEqual(status, 0, output)
         self.assertIn(str(app_cli), self.log.read_text())

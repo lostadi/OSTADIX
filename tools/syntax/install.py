@@ -362,6 +362,10 @@ class Installer:
         print(f"Activate in existing zsh sessions: source {quoted}")
 
     def vscode(self):
+        # Load by path so embedding this installer with importlib also works.
+        spec = importlib.util.spec_from_file_location("ostadix_vscode_settings", SOURCE / "vscode_settings.py")
+        run_settings = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(run_settings)
         package = json.loads((SOURCE / "vscode/package.json").read_text())
         identity = f"{package['publisher']}.{package['name']}"
         manifest = ET.Element("PackageManifest", Version="2.0.0", xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011")
@@ -397,6 +401,7 @@ class Installer:
             for label, binary in editors:
                 print(f"{label}: install local Ostadix grammar")
                 self.command([binary, "--install-extension", str(vsix), "--force"])
+                run_settings.install_settings(self, label, binary, SOURCE.parents[1])
             return
         self.data.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(vsix, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -412,7 +417,8 @@ class Installer:
             try:
                 print(f"{label}: install local Ostadix grammar")
                 self.command([binary, "--install-extension", str(vsix), "--force"])
-            except subprocess.SubprocessError as error:
+                run_settings.install_settings(self, label, binary, SOURCE.parents[1])
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
                 failures.append(f"{label}: {error}")
         if failures:
             raise RuntimeError("; ".join(failures))
