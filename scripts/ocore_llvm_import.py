@@ -242,6 +242,8 @@ class Importer:
     INTEGER_FUNNEL_INTRINSICS = {f"llvm.{kind}.i{bits}": (kind, bits)
                                  for kind in ("fshl", "fshr")
                                  for bits in (1, 2, 4, 8, 16, 32, 64, 128)}
+    INTEGER_SATURATING_SUB_INTRINSICS = {f"llvm.usub.sat.i{bits}": bits
+                                         for bits in (*range(1, 65), 128)}
     FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
@@ -250,7 +252,7 @@ class Importer:
     POINTER_MASK_INTRINSIC = "llvm.ptrmask.p0.i64"
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS) | set(INTEGER_SATURATING_SUB_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
@@ -704,6 +706,11 @@ class Importer:
                     and a.GetEnumAttributeValue(attribute) == 0):
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar population-count operation; defined i32/i64 bits yield a defined same-width count from zero through the operand width; original poison/undef operands remain represented; no input noundef, ordinary-function purity or optimization inferred")
+            elif (intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                site = "callsite" if call else "function"
+                self.refinements.add(f"{self.symbol}: {site} exact scalar unsigned-saturating subtraction creates no undef/poison from defined inputs; per-source-argument freeze is an explicit permitted stable undef/poison refinement, not poison equivalence or assumed noundef; no ordinary-function promise inferred")
             elif (intrinsic in self.FLOAT_ABS_INTRINSICS and name == "nocreateundeforpoison"
                     and index == 0xffffffff and a.IsEnumAttribute(attribute)
                     and a.GetEnumAttributeValue(attribute) == 0):
@@ -882,6 +889,16 @@ class Importer:
                 or a.GetFirstBasicBlock(value)):
             self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar funnel-shift declaration identity")
 
+    def integer_saturating_sub_identity(self, value, name):
+        a = self.a
+        base = b"llvm.usub.sat"
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (name not in self.INTEGER_SATURATING_SUB_INTRINSICS or not expected
+                or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar unsigned-saturation declaration identity")
+
     def pointer_mask_identity(self, value, name):
         a = self.a
         expected = a.LookupIntrinsicID(b"llvm.ptrmask", len(b"llvm.ptrmask"))
@@ -924,6 +941,15 @@ class Importer:
                     or signature["result_attributes"] or any(signature["param_attributes"])
                     or signature.get("return_storage") is not None):
                 self.reject(f"intrinsic {name} requires exact i{width}(i{width}) C signature without ABI extension attributes")
+            return
+        if name in self.INTEGER_SATURATING_SUB_INTRINSICS:
+            width = self.INTEGER_SATURATING_SUB_INTRINSICS[name]
+            if (self.types[signature["result"]] != integer(width)
+                    or [self.types[ty] for ty in signature["params"]] != [integer(width)] * 2
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires exact i{width}(i{width},i{width}) C signature without ABI attributes")
             return
         if name in self.INTEGER_FUNNEL_INTRINSICS:
             _, width = self.INTEGER_FUNNEL_INTRINSICS[name]
@@ -1562,6 +1588,19 @@ class Importer:
         instructions.append({"result": {"id": ident, "ty": ty}, "operation": operation})
         return {"kind": "value", "id": ident}
 
+    def integer_saturating_sub(self, name, args, ty, instructions):
+        """Five-node defined-exact graph; one permitted stable choice per argument."""
+        lhs, rhs = [self.synthetic({"op": "freeze", "value": value}, ty, instructions)
+                    for value in args]
+        difference = self.synthetic({"op": "binary", "kind": "sub", "lhs": lhs,
+                                     "rhs": rhs, "flags": []}, ty, instructions)
+        underflow = self.synthetic({"op": "i_cmp", "predicate": "ult", "lhs": lhs,
+                                    "rhs": rhs}, self.integer_type(1), instructions)
+        width = self.INTEGER_SATURATING_SUB_INTRINSICS[name]
+        self.refinements.add(f"{name}: original complete declaration/result and both typed input occurrences retained; distinct per-source-argument freeze chooses a stable permitted undef/poison refinement without assuming noundef; flag-free subtraction and unsigned comparison select zero on underflow, exact max(a-b,0) for defined i{width} inputs; no helper/provider or implementation-IR interpreter")
+        return {"op": "select", "condition": underflow,
+                "on_true": self.literal(0, width), "on_false": difference}
+
     def integer_funnel(self, name, args, ty, instructions):
         """Expand the scalar funnel without a width-sized or poisoned shift.
 
@@ -1988,6 +2027,8 @@ class Importer:
                     self.integer_unary_identity(callee, intrinsic)
                 if intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
                     self.integer_funnel_identity(callee, intrinsic)
+                if intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS:
+                    self.integer_saturating_sub_identity(callee, intrinsic)
                 if intrinsic in self.MINMAX_INTRINSICS:
                     self.minmax_identity(callee, intrinsic)
                 if intrinsic in self.FLOAT_ABS_INTRINSICS:
@@ -2023,6 +2064,8 @@ class Importer:
             elif intrinsic in self.INTEGER_POPULATION_COUNT_INTRINSICS:
                 operation = {"op": "integer_population_count", "value": args[0]}
                 self.refinements.add(f"{intrinsic}: original same-width single scalar operand/result retained as owned population count; zero is defined as zero and no poison-control flag, helper dependency, vector operation or optional target instruction is introduced")
+            elif intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS:
+                operation = self.integer_saturating_sub(intrinsic, args, signature["result"], instructions)
             elif intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
                 operation = self.integer_funnel(intrinsic, args, signature["result"], instructions)
             elif intrinsic in self.INTEGER_UNARY_INTRINSICS:
@@ -2212,6 +2255,8 @@ class Importer:
                 self.integer_unary_identity(value, intrinsic)
             if intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
                 self.integer_funnel_identity(value, intrinsic)
+            if intrinsic in self.INTEGER_SATURATING_SUB_INTRINSICS:
+                self.integer_saturating_sub_identity(value, intrinsic)
             if intrinsic in self.MINMAX_INTRINSICS:
                 self.minmax_identity(value, intrinsic)
             if intrinsic in self.FLOAT_ABS_INTRINSICS:
