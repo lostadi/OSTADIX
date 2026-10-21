@@ -1,0 +1,152 @@
+//! Authored structural fixtures exercise the real constructor/read path. They
+//! do not qualify upstream source builds or executable behavior.
+use super::*;
+fn native(name: &str, reference: &str, input: &[u8]) -> Vec<u8> {
+    serde_json::to_vec(&json!({"format":"ocore-native-module-v1","name":name,
+        "target":{"triple":"x86_64-unknown-none","data_layout":"e-p:64:64-i64:64","pointer_bits":64,"little_endian":true},
+        "semantics":"llvm_defined_behavior_v1","types":[{"kind":"void"}],"globals":[],
+        "functions":[{"name":name,"linkage":"external","signature":{"params":[],"result":0,"abi":"c","variadic":false},
+            "params":[],"entry":0,"blocks":[{"id":0,"instructions":[],"terminator":{"op":"return","value":null}}]},
+            {"name":reference,"linkage":"external","signature":{"params":[],"result":0,"abi":"c","variadic":false},"params":[],"entry":null,"blocks":[]}],
+        "provenance":{"input_sha256":digest(input),"frontend":"authored-test","frontend_version":"1","importer":"test","importer_version":"1","source_function_count":2,"source_global_count":0,"refinements":[]}})).unwrap()
+}
+fn component(name: &str, other: &str) -> (SourceComponent, artifact::GroupComponent) {
+    let input=format!("target datalayout = \"e-p:64:64-i64:64\"\ntarget triple = \"x86_64-unknown-none\"\ndefine void @{name}() {{ ret void }}\ndeclare void @{other}()\n").into_bytes();
+    let unit = json!({"path":"/authored/original.ll","sha256":digest(&input),"bytes":input.len(),"format":"llvm-text","target_triple":"x86_64-unknown-none","data_layout":"e-p:64:64-i64:64"});
+    let floor = json!({"id":"floor","kind":"clang","source":"original.c","role":"runtime"});
+    let extra =
+        json!({"id":"inventory:original","kind":"clang","source":"original.c","role":"runtime"});
+    let inventory =
+        json!({"schema":"ocore-runtime-unit-inventory-v1","complete":true,"units":[extra.clone()]});
+    let inventory_bytes = serde_json::to_vec(&inventory).unwrap();
+    let mut floor_bound = floor.clone();
+    let mut extra_bound = extra;
+    for rule in [&mut floor_bound, &mut extra_bound] {
+        rule["complete"] = json!(true);
+        rule["failed_invocation_ids"] = json!([]);
+        rule["captured_unit_ids"] = json!(["u"]);
+    }
+    let capture = json!({"schema":CAPTURE_FORMAT,"name":name,"lowering_unit_ids":["u"],"units":[{"id":"u","ir":unit}],
+        "required_units":[floor_bound,extra_bound],"unit_inventory":{"definition":inventory,"file":{"path":"/authored/inventory.json","sha256":digest(&inventory_bytes),"bytes":inventory_bytes.len()}}});
+    let recipe = json!({"schema":source_recipe::RECIPE_FORMAT,"name":name,"coverage":{"required_units":[floor]},"source":{"revision":"authored"},"dependencies":[{"name":"other"}]});
+    let capture_bytes = serde_json::to_vec(&capture).unwrap();
+    let recipe_bytes = serde_json::to_vec(&recipe).unwrap();
+    let module = native(name, other, &input);
+    (
+        SourceComponent {
+            name: name.into(),
+            recipe_json: String::from_utf8(recipe_bytes.clone()).unwrap(),
+            recipe_sha256: digest(&recipe_bytes),
+            capture_json: String::from_utf8(capture_bytes.clone()).unwrap(),
+            capture_sha256: digest(&capture_bytes),
+            inventory_json: String::from_utf8(inventory_bytes).unwrap(),
+            dependencies: BTreeMap::from([("other".into(), other.into())]),
+            units: vec![SourceUnit {
+                id: "u".into(),
+                original_ir_hex: hex::encode(input),
+                input: unit,
+            }],
+        },
+        artifact::GroupComponent {
+            name: name.into(),
+            capture_sha256: digest(&capture_bytes),
+            modules: vec![("u".into(), module)],
+            dependencies: Vec::new(),
+        },
+    )
+}
+fn group() -> SourceGroup {
+    let (a, mut ga) = component("alpha", "beta");
+    let (b, mut gb) = component("beta", "alpha");
+    ga.dependencies = vec![("beta".into(), b.capture_sha256.clone())];
+    gb.dependencies = vec![("alpha".into(), a.capture_sha256.clone())];
+    let modules = artifact::Artifact::build_group("alpha", &[ga, gb]).unwrap();
+    SourceGroup::new("alpha", "a".repeat(64), modules, vec![a, b]).unwrap()
+}
+#[test]
+fn source_group_constructs_a_closed_mutual_source_library_group() {
+    let group = group();
+    let bytes = serde_json::to_vec(&group).unwrap();
+    let imported = SourceGroup::from_bytes(&bytes).unwrap();
+    assert_eq!(imported.module_set.modules.len(), 2);
+}
+#[test]
+fn source_group_preserves_recipe_floor_and_finalized_inventory_additions() {
+    let group = group();
+    let component = &group.components[0];
+    let recipe: Value = serde_json::from_str(&component.recipe_json).unwrap();
+    let capture: Value = serde_json::from_str(&component.capture_json).unwrap();
+    let finalized: Value = serde_json::from_str(&component.inventory_json).unwrap();
+    check_original_selection(&recipe, &finalized, &capture).unwrap();
+    let mut omitted = capture.clone();
+    omitted["required_units"].as_array_mut().unwrap().pop();
+    assert!(check_original_selection(&recipe, &finalized, &omitted).is_err());
+    let mut omitted = capture;
+    omitted["required_units"][0]["captured_unit_ids"] = json!([]);
+    assert!(check_original_selection(&recipe, &finalized, &omitted).is_err());
+}
+#[test]
+fn source_group_rejects_partial_units_and_changed_finalized_inventory() {
+    for case in 0..3 {
+        let mut value = serde_json::to_value(group()).unwrap();
+        match case {
+            0 => value["components"][0]["units"] = json!([]),
+            1 => value["components"][0]["inventory_json"] = json!("{}"),
+            _ => {
+                value["module_set"]["modules"].as_array_mut().unwrap().pop();
+            }
+        }
+        assert!(
+            SourceGroup::from_bytes(&serde_json::to_vec(&value).unwrap()).is_err(),
+            "case {case}"
+        );
+    }
+}
+#[test]
+fn source_group_rejects_changed_source_edges_and_target_profiles() {
+    for case in 0..3 {
+        let mut value = serde_json::to_value(group()).unwrap();
+        match case {
+            0 => value["components"][0]["dependencies"]["other"] = json!("alpha"),
+            1 => value["module_set"]["components"][0]["dependencies"] = json!([]),
+            _ => value["module_set"]["target"]["abi"] = json!("lp64d"),
+        }
+        assert!(
+            SourceGroup::from_bytes(&serde_json::to_vec(&value).unwrap()).is_err(),
+            "case {case}"
+        );
+    }
+}
+#[test]
+fn source_group_requires_independently_selected_recipe_policy() {
+    let group = group();
+    let recipes = group
+        .components
+        .iter()
+        .map(|c| {
+            (
+                c.name.clone(),
+                (c.recipe_sha256.clone(), c.dependencies.clone()),
+            )
+        })
+        .collect();
+    group
+        .check_policy("alpha", &"a".repeat(64), &recipes)
+        .unwrap();
+    assert!(group
+        .check_policy("beta", &"a".repeat(64), &recipes)
+        .is_err());
+    assert!(group
+        .check_policy("alpha", &"b".repeat(64), &recipes)
+        .is_err());
+    assert!(group
+        .check_policy("alpha", &"a".repeat(64), &BTreeMap::new())
+        .is_err());
+}
+#[test]
+fn source_group_cannot_admit_opaque_executables_or_claimed_completion_flags() {
+    assert!(SourceGroup::from_bytes(b"\x7fELFopaque engine").is_err());
+    let mut value = serde_json::to_value(group()).unwrap();
+    value["runtime_complete"] = json!(true);
+    assert!(SourceGroup::from_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
+}

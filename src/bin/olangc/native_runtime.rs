@@ -21,6 +21,11 @@ mod artifact;
 #[path = "native_runtime/source_recipe.rs"]
 mod source_recipe;
 
+#[path = "native_runtime/provider_group.rs"]
+mod provider_group;
+#[path = "native_runtime/whole_artifact.rs"]
+mod whole_artifact;
+
 pub(super) use source_recipe::NativeSourceOptions;
 
 #[cfg(test)]
@@ -260,7 +265,7 @@ fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
     }
     if !glob_checks.is_empty() {
         use std::io::Write;
-        let mut child = Command::new("python3").args(["-I", "-c",
+        let mut child = Command::new(python).args(["-I", "-c",
             "import fnmatch,json,sys; pairs=json.load(sys.stdin); sys.exit(0 if all(fnmatch.fnmatchcase(s,p) for s,p in pairs) else 1)"])
             .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).spawn()?;
         child
@@ -360,6 +365,15 @@ fn capture_admission(capture: &Value) -> Result<BTreeSet<String>> {
 /// Reconstruct the partition from the original journal and hashed build artifacts.
 /// The embedded verifier only reads evidence; it never reruns the runtime build.
 fn reverify_capture(report: &Path, bytes: &[u8], output: &Path) -> Result<Value> {
+    reverify_capture_with_python(report, bytes, output, Path::new("python3"))
+}
+
+fn reverify_capture_with_python(
+    report: &Path,
+    bytes: &[u8],
+    output: &Path,
+    python: &Path,
+) -> Result<Value> {
     use std::io::Write;
     let source = include_str!("../../../scripts/ocore_runtime_capture.py");
     // Keep argv bounded even as the verifier grows. The exact original report
@@ -2061,6 +2075,7 @@ pub(super) fn compile_runtime(
     #[derive(serde::Deserialize)]
     struct InputSchema {
         schema: Option<String>,
+        format: Option<String>,
     }
     // Probe only the dispatch tag; large embedded packages are independently
     // parsed by their existing importer without retaining another full copy.
@@ -2075,9 +2090,37 @@ pub(super) fn compile_runtime(
             .parent()
             .context("olangc executable has no parent")?
             .join("ocorec");
+        if let Some(plan) = source_options.provider_plan {
+            return provider_group::compile(
+                plan,
+                input,
+                &bytes,
+                target,
+                output_kind,
+                output,
+                import_options,
+                source_options,
+                &compiler,
+            );
+        }
         return source_recipe::compile(
             input,
             &bytes,
+            target,
+            output_kind,
+            output,
+            import_options,
+            source_options,
+            &compiler,
+        );
+    }
+    if document.format.as_deref() == Some(whole_artifact::FORMAT) {
+        let compiler = std::env::current_exe()?
+            .parent()
+            .context("olangc executable has no parent")?
+            .join("ocorec");
+        return provider_group::read_package(
+            input,
             target,
             output_kind,
             output,
@@ -2101,6 +2144,22 @@ pub(super) struct NativeImportOptions<'a> {
     pub(super) dependencies: &'a [PathBuf],
 }
 
+/// Private result of actual capture replay/import/verification. This type cannot
+/// be deserialized from a claimed coverage receipt. Provider groups finalize it
+/// only after the independent original-source inventory and whole-group closure.
+pub(super) struct StagedComponent {
+    pub(super) capture_path: PathBuf,
+    pub(super) capture_bytes: Vec<u8>,
+    pub(super) capture: Value,
+    pub(super) selected: BTreeSet<String>,
+    pub(super) modules: Vec<(String, Vec<u8>)>,
+    pub(super) original_inputs: BTreeMap<String, (Value, Vec<u8>)>,
+    pub(super) source_capture_complete: bool,
+    pub(super) unit_lowering_complete: bool,
+    pub(super) compiler_sha256: Option<String>,
+    pub(super) coverage_path: PathBuf,
+}
+
 fn compile_with_compiler(
     report: &Path,
     target: &str,
@@ -2109,6 +2168,57 @@ fn compile_with_compiler(
     import_options: NativeImportOptions<'_>,
     compiler: &Path,
 ) -> Result<()> {
+    if import_options.llvm_library.is_some() != import_options.llvm_sha256.is_some() {
+        bail!("explicit LLVM parser library and SHA-256 must be supplied together");
+    }
+    #[derive(serde::Deserialize)]
+    struct PackageTag {
+        format: Option<String>,
+    }
+    let tag: PackageTag = serde_json::from_reader(std::io::BufReader::new(
+        fs::File::open(report).context("read native runtime input")?,
+    ))?;
+    if tag.format.as_deref() == Some(artifact::FORMAT) {
+        if import_options.llvm_library.is_some()
+            || import_options.tls_profile.is_some()
+            || import_options.atomic_profile.is_some()
+            || import_options.wide_volatile_profile.is_some()
+            || !import_options.dependencies.is_empty()
+        {
+            bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
+        }
+        return artifact::compile_package(
+            &fs::read(report)?,
+            target,
+            output_kind,
+            output,
+            compiler,
+        );
+    }
+    lower_with_compiler(
+        report,
+        target,
+        output_kind,
+        output,
+        import_options,
+        compiler,
+        false,
+        None,
+    )?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn lower_with_compiler(
+    report: &Path,
+    target: &str,
+    output_kind: &str,
+    output: &Path,
+    import_options: NativeImportOptions<'_>,
+    compiler: &Path,
+    stage_only: bool,
+    selected_python: Option<&Path>,
+) -> Result<StagedComponent> {
     let NativeImportOptions {
         llvm_library,
         llvm_sha256,
@@ -2144,17 +2254,6 @@ fn compile_with_compiler(
     let bytes =
         fs::read(report).with_context(|| format!("read runtime capture {}", report.display()))?;
     let capture: Value = serde_json::from_slice(&bytes).context("decode runtime capture report")?;
-    if capture["format"] == artifact::FORMAT {
-        if llvm_library.is_some()
-            || tls_profile.is_some()
-            || atomic_profile.is_some()
-            || wide_volatile_profile.is_some()
-            || !dependency_paths.is_empty()
-        {
-            bail!("native module-set input already binds its dependencies and execution profiles; import-only options are not accepted");
-        }
-        return artifact::compile_package(&bytes, target, output_kind, output, compiler);
-    }
     fs::create_dir(output).with_context(|| {
         format!(
             "native runtime output must be a new directory: {}",
@@ -2179,7 +2278,12 @@ fn compile_with_compiler(
         .unwrap_or_default();
     let mut preflight_ok = issues.is_empty();
     let capture_reverification = if preflight_ok {
-        match reverify_capture(report, &bytes, &output) {
+        match reverify_capture_with_python(
+            report,
+            &bytes,
+            &output,
+            selected_python.unwrap_or_else(|| Path::new("python3")),
+        ) {
             Ok(receipt) => Some(receipt),
             Err(error) => {
                 issues.push(error.to_string());
@@ -2207,7 +2311,7 @@ fn compile_with_compiler(
     };
     let mut provider_admission_complete = false;
     let mut provider_admission_issue = None;
-    let dependencies = if preflight_ok {
+    let dependencies = if preflight_ok && !stage_only {
         match artifact::load_dependencies(&capture, dependency_paths) {
             Ok(dependencies) => {
                 provider_admission_complete = true;
@@ -2471,7 +2575,12 @@ fn compile_with_compiler(
     }
     let (mut closure, closure_issues) = resolve_symbols(&collected_symbols);
     let symbol_closure_complete = closure_issues.is_empty();
-    issues.extend(closure_issues);
+    let deferred_symbol_issues = if stage_only {
+        closure_issues
+    } else {
+        issues.extend(closure_issues);
+        Vec::new()
+    };
     issues.sort();
     issues.dedup();
     let unit_complete = !selected.is_empty()
@@ -2546,6 +2655,8 @@ fn compile_with_compiler(
         ("capture_complete".to_owned(), json!(source_capture_complete)),
         ("source_lowering_preflight_complete".to_owned(), json!(preflight_ok)),
         ("provider_admission_complete".to_owned(), json!(provider_admission_complete)),
+        ("provider_group_finalization_deferred".to_owned(), json!(stage_only)),
+        ("deferred_symbol_issues".to_owned(), json!(deferred_symbol_issues)),
         ("provider_admission_issue".to_owned(), json!(provider_admission_issue)),
         ("declared_dependencies".to_owned(), json!(capture["dependencies"])),
         ("captured_unit_count".to_owned(), json!(units.len())),
@@ -2573,7 +2684,7 @@ fn compile_with_compiler(
     ]);
     let receipt_path = output.join("coverage.json");
     fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
-    if !complete {
+    if !complete && !stage_only {
         bail!(
             "native runtime lowering incomplete; {} units lowered of {}; see {}",
             unit_ids.len(),
@@ -2581,12 +2692,38 @@ fn compile_with_compiler(
             receipt_path.display()
         );
     }
-    eprintln!(
-        "olangc: lowered {} complete captured units; receipt {}",
-        unit_ids.len(),
-        receipt_path.display()
-    );
-    Ok(())
+    if !stage_only {
+        eprintln!(
+            "olangc: lowered {} complete captured units; receipt {}",
+            unit_ids.len(),
+            receipt_path.display()
+        );
+    }
+    let mut original_inputs = BTreeMap::new();
+    if stage_only {
+        for (id, _) in &imported_modules {
+            let unit = units
+                .iter()
+                .find(|unit| unit["id"].as_str() == Some(id.as_str()))
+                .context("staged module lost its original capture unit")?;
+            original_inputs.insert(
+                id.clone(),
+                (unit["ir"].clone(), checked_evidence(&unit["ir"])?),
+            );
+        }
+    }
+    Ok(StagedComponent {
+        capture_path: report.to_path_buf(),
+        capture_bytes: bytes,
+        capture,
+        selected,
+        modules: imported_modules,
+        original_inputs,
+        source_capture_complete,
+        unit_lowering_complete: preflight_ok && unit_complete,
+        compiler_sha256: compiler_digest,
+        coverage_path: receipt_path,
+    })
 }
 
 #[cfg(test)]
