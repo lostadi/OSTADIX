@@ -243,6 +243,8 @@ class Importer:
                                  for kind in ("fshl", "fshr")
                                  for bits in (1, 2, 4, 8, 16, 32, 64, 128)}
     FLOAT_ABS_INTRINSICS = {f"llvm.fabs.f{bits}": bits for bits in (32, 64, 80, 128)}
+    FLOAT_INTEGRAL_INTRINSICS = {f"llvm.{kind}.f{bits}": (kind, bits)
+                                 for kind in ("floor", "ceil", "trunc") for bits in (32, 64, 128)}
     MINMAX_IDS = {"smin": 343, "smax": 342, "umin": 380, "umax": 379}
     MINMAX_INTRINSICS = {f"llvm.{kind}.i{bits}": intrinsic_id
                          for kind, intrinsic_id in MINMAX_IDS.items() for bits in range(1, 65)}
@@ -250,7 +252,7 @@ class Importer:
     POINTER_MASK_INTRINSIC = "llvm.ptrmask.p0.i64"
     VARIADIC_INTRINSICS = {"llvm.va_start.p0", "llvm.va_end.p0", "llvm.va_copy.p0"}
     NOALIAS_INTRINSIC = "llvm.experimental.noalias.scope.decl"
-    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS)
+    INTRINSICS = {"llvm.assume", "llvm.trap", "llvm.eh.typeid.for.p0", "llvm.threadlocal.address.p0", NOALIAS_INTRINSIC} | LIFETIME_INTRINSICS | MEMORY_INTRINSICS | OVERFLOW_INTRINSICS | RELATIVE_INTRINSICS | VARIADIC_INTRINSICS | set(MINMAX_INTRINSICS) | set(FLOAT_ABS_INTRINSICS) | {POINTER_MASK_INTRINSIC} | set(INTEGER_UNARY_INTRINSICS) | set(INTEGER_POPULATION_COUNT_INTRINSICS) | set(INTEGER_FUNNEL_INTRINSICS) | set(FLOAT_INTEGRAL_INTRINSICS)
     BIN = {8: "add", 10: "sub", 12: "mul", 14: "u_div", 15: "s_div", 17: "u_rem", 18: "s_rem",
            20: "shl", 21: "l_shr", 22: "a_shr", 23: "and", 24: "or", 25: "xor"}
     FLOAT_BIN = {9: "add", 11: "sub", 13: "mul", 16: "div", 19: "rem"}
@@ -704,6 +706,10 @@ class Importer:
                     and a.GetEnumAttributeValue(attribute) == 0):
                 site = "callsite" if call else "function"
                 self.refinements.add(f"{self.symbol}: {site} nocreateundeforpoison=0 realized by the exact owned scalar population-count operation; defined i32/i64 bits yield a defined same-width count from zero through the operand width; original poison/undef operands remain represented; no input noundef, ordinary-function purity or optimization inferred")
+            elif (intrinsic in self.FLOAT_INTEGRAL_INTRINSICS and name == "nocreateundeforpoison"
+                    and index == 0xffffffff and a.IsEnumAttribute(attribute)
+                    and a.GetEnumAttributeValue(attribute) == 0):
+                self.refinements.add(f"{self.symbol}: exact scalar rounding nocreateundeforpoison=0 promise realized by defined bit operations with all shift counts in range; no input noundef or ordinary-function promise inferred")
             elif (intrinsic in self.FLOAT_ABS_INTRINSICS and name == "nocreateundeforpoison"
                     and index == 0xffffffff and a.IsEnumAttribute(attribute)
                     and a.GetEnumAttributeValue(attribute) == 0):
@@ -882,6 +888,16 @@ class Importer:
                 or a.GetFirstBasicBlock(value)):
             self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar funnel-shift declaration identity")
 
+    def float_integral_identity(self, value, name):
+        a = self.a
+        kind, _ = self.FLOAT_INTEGRAL_INTRINSICS[name]
+        base = f"llvm.{kind}".encode("ascii")
+        expected = a.LookupIntrinsicID(base, len(base))
+        if (not expected or not a.IsAFunction(value) or a.GetIntrinsicID(value) != expected
+                or a.GetLinkage(value) != 0 or a.GetPointerAddressSpace(a.TypeOf(value)) != 0
+                or a.GetFirstBasicBlock(value)):
+            self.reject(f"intrinsic {name} requires its exact pinned LLVM scalar integral-rounding declaration identity")
+
     def pointer_mask_identity(self, value, name):
         a = self.a
         expected = a.LookupIntrinsicID(b"llvm.ptrmask", len(b"llvm.ptrmask"))
@@ -916,6 +932,16 @@ class Importer:
     def intrinsic_signature(self, name, signature):
         pointer = {"kind": "pointer", "address_space": 0}
         integer = lambda bits: {"kind": "int", "bits": bits}
+        if name in self.FLOAT_INTEGRAL_INTRINSICS:
+            _, width = self.FLOAT_INTEGRAL_INTRINSICS[name]
+            expected = {"kind": "float", "bits": width}
+            if (self.types[signature["result"]] != expected
+                    or [self.types[ty] for ty in signature["params"]] != [expected]
+                    or signature["abi"] != "c" or signature["variadic"]
+                    or signature["result_attributes"] or any(signature["param_attributes"])
+                    or signature.get("return_storage") is not None):
+                self.reject(f"intrinsic {name} requires its exact scalar floating unary C signature without ABI attributes")
+            return
         if name in self.INTEGER_POPULATION_COUNT_INTRINSICS:
             width = self.INTEGER_POPULATION_COUNT_INTRINSICS[name]
             if (self.types[signature["result"]] != integer(width)
@@ -1590,6 +1616,71 @@ class Importer:
         return {"op": "select", "condition": is_zero,
                 "on_true": high if kind == "fshl" else low, "on_false": joined}
 
+    def float_integral(self, name, argument, ty, instructions):
+        """Round IEEE binary32/64/128 via existing typed integer primitives.
+
+        Only default LLVM FP semantics are admitted: strictfp, constrained
+        intrinsics and nondefault denormal attributes remain rejected. No
+        ambient rounding mode, target optional instruction or helper is used.
+        Freeze chooses one stable permitted undef/poison refinement before
+        reusing the argument; it is not an input noundef assumption.
+        """
+        kind, width = self.FLOAT_INTEGRAL_INTRINSICS[name]
+        fraction, exponent, bias = {32: (23, 8, 127), 64: (52, 11, 1023),
+                                    128: (112, 15, 16383)}[width]
+        integer, boolean = self.integer_type(width), self.integer_type(1)
+        const = lambda n: self.literal(n, width)
+
+        def binary(kind, lhs, rhs):
+            return self.synthetic({"op": "binary", "kind": kind, "lhs": lhs,
+                                   "rhs": rhs, "flags": []}, integer, instructions)
+
+        def compare(predicate, lhs, rhs):
+            return self.synthetic({"op": "i_cmp", "predicate": predicate,
+                                   "lhs": lhs, "rhs": rhs}, boolean, instructions)
+
+        def select(condition, on_true, on_false):
+            return self.synthetic({"op": "select", "condition": condition,
+                                   "on_true": on_true, "on_false": on_false}, integer, instructions)
+
+        frozen = self.synthetic({"op": "freeze", "value": argument}, ty, instructions)
+        bits = self.synthetic({"op": "cast", "kind": "bitcast", "value": frozen}, integer, instructions)
+        sign = binary("and", bits, const(1 << (width - 1)))
+        magnitude = binary("and", bits, const((1 << (width - 1)) - 1)) if kind != "trunc" else None
+        negative = compare("ne", sign, const(0)) if kind != "trunc" else None
+        is_zero = compare("eq", magnitude, const(0)) if kind != "trunc" else None
+        exp = binary("and", binary("l_shr", bits, const(fraction)), const((1 << exponent) - 1))
+        small = compare("ult", exp, const(bias))
+        # The middle range alone needs a variable mask. Clamp BEFORE every
+        # shift, including for zero, NaN, infinity and huge finite exponents.
+        below_integral = compare("ult", exp, const(bias + fraction))
+        middle = self.synthetic({"op": "binary", "kind": "and", "lhs": below_integral,
+                                 "rhs": compare("uge", exp, const(bias)), "flags": []}, boolean, instructions)
+        shift = select(middle, binary("sub", const(bias + fraction), exp), const(1))
+        unit = binary("shl", const(1), shift)
+        mask = binary("sub", unit, const(1))
+        whole = binary("and", bits, binary("xor", mask, const((1 << width) - 1)))
+        if kind == "trunc":
+            rounded, tiny = whole, sign
+        else:
+            non_integral = compare("ne", binary("and", bits, mask), const(0))
+            direction = negative if kind == "floor" else compare("eq", sign, const(0))
+            increment = self.synthetic({"op": "binary", "kind": "and", "lhs": direction,
+                                        "rhs": non_integral, "flags": []}, boolean, instructions)
+            rounded = select(increment, binary("add", whole, unit), whole)
+            one = const(bias << fraction)
+            tiny_nonzero = (select(negative, const((1 << (width - 1)) | (bias << fraction)), const(0))
+                            if kind == "floor" else select(negative, sign, one))
+            tiny = select(is_zero, bits, tiny_nonzero)
+        finite_or_inf = select(small, tiny, select(middle, rounded, bits))
+        is_nan = self.synthetic({"op": "binary", "kind": "and",
+            "lhs": compare("eq", exp, const((1 << exponent) - 1)),
+            "rhs": compare("ne", binary("and", bits, const((1 << fraction) - 1)), const(0)),
+            "flags": []}, boolean, instructions)
+        result = select(is_nan, binary("or", bits, const(1 << (fraction - 1))), finite_or_inf)
+        self.refinements.add(f"{name}: exact original format/input/result retained through a per-argument freeze and IEEE sign/exponent/fraction integer graph; default LLVM FP environment only; exact directed integral rounding, signed zero, infinity and subnormal behavior; deterministic permitted quieted input NaN payload, not arbitrary NaN/strict or dynamic-fenv equivalence; no target rounding-mode change, float-to-int conversion, runtime helper or implementation-IR interpreter")
+        return {"op": "cast", "kind": "bitcast", "value": result}
+
     def gep_offset(self, value, instructions=None):
         a, total, current = self.a, 0, self.a.GetGEPSourceElementType(value)
         self.ty(current)
@@ -1988,6 +2079,8 @@ class Importer:
                     self.integer_unary_identity(callee, intrinsic)
                 if intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
                     self.integer_funnel_identity(callee, intrinsic)
+                if intrinsic in self.FLOAT_INTEGRAL_INTRINSICS:
+                    self.float_integral_identity(callee, intrinsic)
                 if intrinsic in self.MINMAX_INTRINSICS:
                     self.minmax_identity(callee, intrinsic)
                 if intrinsic in self.FLOAT_ABS_INTRINSICS:
@@ -2025,6 +2118,10 @@ class Importer:
                 self.refinements.add(f"{intrinsic}: original same-width single scalar operand/result retained as owned population count; zero is defined as zero and no poison-control flag, helper dependency, vector operation or optional target instruction is introduced")
             elif intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
                 operation = self.integer_funnel(intrinsic, args, signature["result"], instructions)
+            elif intrinsic in self.FLOAT_INTEGRAL_INTRINSICS:
+                if any(self.fast_math(value).values()):
+                    self.reject("integral-rounding fast-math constraints require explicit supported transport")
+                operation = self.float_integral(intrinsic, args[0], signature["result"], instructions)
             elif intrinsic in self.INTEGER_UNARY_INTRINSICS:
                 control = a.GetOperand(value, 1)
                 if (not a.IsAConstantInt(control) or a.GetTypeKind(a.TypeOf(control)) != 8
@@ -2212,6 +2309,8 @@ class Importer:
                 self.integer_unary_identity(value, intrinsic)
             if intrinsic in self.INTEGER_FUNNEL_INTRINSICS:
                 self.integer_funnel_identity(value, intrinsic)
+            if intrinsic in self.FLOAT_INTEGRAL_INTRINSICS:
+                self.float_integral_identity(value, intrinsic)
             if intrinsic in self.MINMAX_INTRINSICS:
                 self.minmax_identity(value, intrinsic)
             if intrinsic in self.FLOAT_ABS_INTRINSICS:
