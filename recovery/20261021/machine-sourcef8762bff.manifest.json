@@ -1,0 +1,66 @@
+{
+  "author_and_committer": "Lee Daghlar Ostadi <ostadi.lee@gmail.com>",
+  "bundle": {
+    "decoded_bytes": 26613,
+    "decoded_sha256": "387d057e4e557887b98beee4f34d8c38e9613b2b34914856a3c81132a5742f58",
+    "git_bundle_prerequisite": "3c85e64b0b5b4805cbc8b245d74d441605c98c52"
+  },
+  "qualification": {
+    "Python_controls_passed": 25,
+    "Rust_tests_UNRUN": 13,
+    "all_ISA_qualified": false,
+    "native_execution": false,
+    "provider_closure": false,
+    "runtime_accepted": false,
+    "shared_integration": false,
+    "source_only": true
+  },
+  "recovery_note": "Bundle applies on source3c85e64b; prior recovery archive747b3d0f retains its constructor-repair bundle and preceding0cf source chain. No master/source merge or installed compiler update.",
+  "schema": "ostadix-source-only-private-recovery-manifest-v1",
+  "six_source_pins": [
+    {
+      "bytes": 21221,
+      "mode": "0o664",
+      "path": "/tmp/ostadix-native-machine-assembly-worktree-20261021/scripts/ocore_assembly_import.py",
+      "sha256": "0a3a0b090e022c75acf1cf393a6c8e1680cda6d9e08a64d5c448d5b67901a938"
+    },
+    {
+      "bytes": 5680,
+      "mode": "0o664",
+      "path": "/tmp/ostadix-native-machine-assembly-worktree-20261021/crates/ostadix-api/src/ocore/native_machine_ir.rs",
+      "sha256": "79a52bceeb6f944cf6151986e0302c45e0cc4126d834150d20d9585ad19ea040"
+    },
+    {
+      "bytes": 18255,
+      "mode": "0o664",
+      "path": "/tmp/ostadix-native-machine-assembly-worktree-20261021/crates/ostadix-api/src/ocore/native_machine_verify.rs",
+      "sha256": "6843f27187d2b4e85afbdc3af238c1035cc9e8a914a68836584b4534ffb05afc"
+    },
+    {
+      "bytes": 5287,
+      "mode": "0o664",
+      "path": "/tmp/ostadix-native-machine-assembly-worktree-20261021/crates/ostadix-api/src/ocore/native_machine_codegen.rs",
+      "sha256": "69fe5100403ba0e1fbe13ded9bf652ffe2ef9dca91e9723f0f12b561008c0e2f"
+    },
+    {
+      "bytes": 13668,
+      "mode": "0o664",
+      "path": "/tmp/ostadix-native-machine-assembly-worktree-20261021/tests/ocore_assembly_source_inventory.py",
+      "sha256": "0bb00ca5b0e7d329c51aa0f1fe85bc70af9e3568ee21fe4e8ce80979e0011540"
+    },
+    {
+      "bytes": 16024,
+      "mode": "0o664",
+      "path": "/tmp/ostadix-native-machine-assembly-worktree-20261021/tests/test_ocore_assembly_import.py",
+      "sha256": "035d1b8015cc30043e8bec40f0c6a734d2b229825ef2a040e63485beb7f98e0e"
+    }
+  ],
+  "source_branch": "work/native-machine-assembly-reviewed-source-20261021",
+  "source_commit": "f8762bff9f8a65ef587dc206cb9e2a9a535a87f5",
+  "source_parent": "3c85e64b0b5b4805cbc8b245d74d441605c98c52",
+  "source_receipt": {
+    "bytes": 177649,
+    "sha256": "cd47c5fed1024124d05a34f4efde3a7dd7be048e5773070cacce44b1d26fa8aa"
+  },
+  "source_tree": "9a10281d80b6493cf732423f1cfa2b592ecf4556"
+}
