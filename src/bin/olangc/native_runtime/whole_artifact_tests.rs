@@ -150,3 +150,83 @@ fn source_group_cannot_admit_opaque_executables_or_claimed_completion_flags() {
     value["runtime_complete"] = json!(true);
     assert!(SourceGroup::from_bytes(&serde_json::to_vec(&value).unwrap()).is_err());
 }
+
+#[test]
+fn source_group_preserves_compatible_repeated_requirement_records() {
+    let group = group();
+    let component = &group.components[0];
+    let recipe: Value = serde_json::from_str(&component.recipe_json).unwrap();
+    let mut finalized: Value = serde_json::from_str(&component.inventory_json).unwrap();
+    let mut capture: Value = serde_json::from_str(&component.capture_json).unwrap();
+    finalized["units"][0]["id"] = json!("floor");
+    finalized["units"][0]["build_step"] = json!("compile");
+    capture["required_units"][1]["id"] = json!("floor");
+    capture["required_units"][1]["build_step"] = json!("compile");
+    check_original_selection(&recipe, &finalized, &capture).unwrap();
+    let mut omitted = capture.clone();
+    omitted["required_units"].as_array_mut().unwrap().pop();
+    assert!(check_original_selection(&recipe, &finalized, &omitted).is_err());
+    let mut changed = capture;
+    changed["required_units"][1]["build_step"] = json!("other");
+    assert!(check_original_selection(&recipe, &finalized, &changed).is_err());
+}
+
+#[test]
+fn source_group_rejects_contradictory_repeated_requirement_conditions() {
+    let group = group();
+    let component = &group.components[0];
+    let recipe: Value = serde_json::from_str(&component.recipe_json).unwrap();
+    let mut finalized: Value = serde_json::from_str(&component.inventory_json).unwrap();
+    let mut capture: Value = serde_json::from_str(&component.capture_json).unwrap();
+    finalized["units"][0]["id"] = json!("floor");
+    finalized["units"][0]["source"] = json!("contradictory.c");
+    capture["required_units"][1]["id"] = json!("floor");
+    capture["required_units"][1]["source"] = json!("contradictory.c");
+    assert!(check_original_selection(&recipe, &finalized, &capture)
+        .unwrap_err()
+        .to_string()
+        .contains("ambiguous original source requirement"));
+}
+
+#[test]
+fn source_group_deduplicates_physical_edges_without_dropping_labels_or_pins() {
+    let (mut a, mut ga) = component("alpha", "beta");
+    let (b, mut gb) = component("beta", "alpha");
+    let provider_recipe: Value = serde_json::from_str(&b.recipe_json).unwrap();
+    let mut recipe: Value = serde_json::from_str(&a.recipe_json).unwrap();
+    recipe["dependencies"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"name":"other-alias","source_pin":provider_recipe["source"]}));
+    a.recipe_json = serde_json::to_string(&recipe).unwrap();
+    a.recipe_sha256 = digest(a.recipe_json.as_bytes());
+    a.dependencies.insert("other-alias".into(), "beta".into());
+    ga.capture_sha256 = a.capture_sha256.clone();
+    ga.dependencies = vec![("beta".into(), b.capture_sha256.clone()); 2];
+    gb.dependencies = vec![("alpha".into(), a.capture_sha256.clone())];
+    let modules = artifact::Artifact::build_group("alpha", &[ga, gb]).unwrap();
+    let group = SourceGroup::new("alpha", "a".repeat(64), modules, vec![a, b]).unwrap();
+    assert_eq!(group.components[0].dependencies.len(), 2);
+    let value = serde_json::to_value(&group).unwrap();
+    assert_eq!(
+        value["module_set"]["components"][0]["dependencies"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let mut wrong_pin = group;
+    let component = &mut wrong_pin.components[0];
+    let mut recipe: Value = serde_json::from_str(&component.recipe_json).unwrap();
+    recipe["dependencies"][1]["source_pin"] = json!({"revision":"wrong"});
+    component.recipe_json = serde_json::to_string(&recipe).unwrap();
+    component.recipe_sha256 = digest(component.recipe_json.as_bytes());
+    assert!(SourceGroup::from_bytes(&serde_json::to_vec(&wrong_pin).unwrap()).is_err());
+    let (_, mut a) = self::component("alpha", "beta");
+    let (_, b) = self::component("beta", "alpha");
+    a.dependencies = vec![
+        ("beta".into(), b.capture_sha256.clone()),
+        ("beta".into(), "f".repeat(64)),
+    ];
+    assert!(artifact::Artifact::build_group("alpha", &[a, b]).is_err());
+}

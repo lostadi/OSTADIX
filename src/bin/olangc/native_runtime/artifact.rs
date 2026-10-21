@@ -239,7 +239,9 @@ impl Artifact {
             .iter()
             .map(|d| (d.name.clone(), d.capture_sha256.clone()))
             .collect();
-        if actual != expected.iter().cloned().collect() || actual.len() != expected.len() {
+        // Original logical labels remain in SourceComponent and its pinned
+        // recipe. Multiple labels may name the same physical provider edge.
+        if actual != expected.iter().cloned().collect() {
             bail!("source dependency graph differs from original recipe/policy");
         }
         Ok(())
@@ -291,9 +293,12 @@ impl Artifact {
                 dependencies: source
                     .dependencies
                     .iter()
-                    .map(|(name, sha)| Dependency {
-                        name: name.clone(),
-                        capture_sha256: sha.clone(),
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .map(|(name, capture_sha256)| Dependency {
+                        name,
+                        capture_sha256,
                     })
                     .collect(),
             });

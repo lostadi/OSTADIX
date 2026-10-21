@@ -94,8 +94,15 @@ fn checked_evidence(record: &Value) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Construct both evidence subprocesses from the explicitly selected interpreter.
+fn python_command(python: &Path) -> Command {
+    let mut command = Command::new(python);
+    command.arg("-I");
+    command
+}
+
 /// Independently recheck the exact runtime/probe partition before skipping units.
-fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
+fn lowering_partition(capture: &Value, python: &Path) -> Result<BTreeSet<String>> {
     if capture["unit_roles_complete"] != true
         || !array(capture, "unclassified_unit_ids")?.is_empty()
     {
@@ -265,7 +272,7 @@ fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
     }
     if !glob_checks.is_empty() {
         use std::io::Write;
-        let mut child = Command::new(python).args(["-I", "-c",
+        let mut child = python_command(python).args(["-c",
             "import fnmatch,json,sys; pairs=json.load(sys.stdin); sys.exit(0 if all(fnmatch.fnmatchcase(s,p) for s,p in pairs) else 1)"])
             .stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::null()).spawn()?;
         child
@@ -281,6 +288,10 @@ fn lowering_partition(capture: &Value) -> Result<BTreeSet<String>> {
 }
 
 fn capture_admission(capture: &Value) -> Result<BTreeSet<String>> {
+    capture_admission_with_python(capture, Path::new("python3"))
+}
+
+fn capture_admission_with_python(capture: &Value, python: &Path) -> Result<BTreeSet<String>> {
     if capture.get("schema").and_then(Value::as_str) != Some(CAPTURE_FORMAT) {
         bail!("expected {CAPTURE_FORMAT}");
     }
@@ -359,7 +370,7 @@ fn capture_admission(capture: &Value) -> Result<BTreeSet<String>> {
     {
         bail!("capture unit list does not match the complete compiler invocation inventory");
     }
-    lowering_partition(capture)
+    lowering_partition(capture, python)
 }
 
 /// Reconstruct the partition from the original journal and hashed build artifacts.
@@ -384,8 +395,8 @@ fn reverify_capture_with_python(
         serde_json::to_string(source)?,
         serde_json::to_string(&digest(source.as_bytes()))?
     );
-    let mut child = Command::new("python3")
-        .args(["-I", "-c", program])
+    let mut child = python_command(python)
+        .args(["-c", program])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -2261,7 +2272,10 @@ fn lower_with_compiler(
         )
     })?;
     let output = output.canonicalize()?;
-    let (selected, mut issues) = match capture_admission(&capture) {
+    let (selected, mut issues) = match capture_admission_with_python(
+        &capture,
+        selected_python.unwrap_or_else(|| Path::new("python3")),
+    ) {
         Ok(selected) => (selected, Vec::new()),
         Err(error) => (BTreeSet::new(), vec![error.to_string()]),
     };
@@ -3491,5 +3505,39 @@ mod tests {
         assert_eq!(receipt["lowered_unit_count"], 0);
         assert_eq!(receipt["artifact_complete"], false);
         assert_eq!(receipt["runtime_complete"], false);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn explicitly_selected_python_ignores_hostile_path() {
+        use std::os::unix::fs::PermissionsExt;
+        let python = which::which("python3").expect("Python required by capture admission");
+        let python = python.canonicalize().unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let sentinel = directory.path().join("python3");
+        fs::write(&sentinel, "#!/bin/sh\nexit 97\n").unwrap();
+        fs::set_permissions(&sentinel, fs::Permissions::from_mode(0o755)).unwrap();
+        let default = Command::new("python3")
+            .env("PATH", directory.path())
+            .args(["-I", "-c", "raise SystemExit(0)"])
+            .status()
+            .unwrap();
+        assert_eq!(
+            default.code(),
+            Some(97),
+            "hostile PATH control did not fire"
+        );
+        let selected = python_command(&python)
+            .env("PATH", directory.path())
+            .args(["-c", "import sys; print(sys.executable)"])
+            .output()
+            .unwrap();
+        assert!(selected.status.success(), "{:?}", selected);
+        assert_eq!(
+            Path::new(String::from_utf8(selected.stdout).unwrap().trim())
+                .canonicalize()
+                .unwrap(),
+            python
+        );
     }
 }
