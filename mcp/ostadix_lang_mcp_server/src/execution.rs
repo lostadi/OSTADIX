@@ -1018,7 +1018,9 @@ mod terminal {
         if unsafe { libc::fcntl(master.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK) } < 0 {
             return Err(io::Error::last_os_error());
         }
-        let master = Arc::new(AsyncFd::new(master)?);
+        // SAFETY: AsyncFd owns the File. Master only borrows its descriptor for
+        // I/O and never closes or replaces it, so it stays valid and unchanged.
+        let master = Arc::new(unsafe { AsyncFd::register(master)? });
         command
             .stdin(Stdio::from(slave.try_clone()?))
             .stdout(Stdio::from(slave.try_clone()?))
