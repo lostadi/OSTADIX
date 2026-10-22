@@ -1,0 +1,132 @@
+{
+  "schema": "ostadix-byte-swap-isolated-source-freeze-v2",
+  "base_commit": "008ce734fd08d658d61b8644cc474fbfc96481d9",
+  "base_tree": "93d6f47ddeba4f08a8bc3e9c3e33caf2a8655ec7",
+  "base_git": "/run/screen/ostadix-build-space-1000-20261021-r1/opaque-nine-commit.git",
+  "sources": [
+    {
+      "relative_path": "scripts/ocore_llvm_import.py",
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/scripts/ocore_llvm_import.py",
+      "bytes": 222848,
+      "sha256": "93d166152d12400d966693cad800961f73ef426b6458ffd1b1449cb0db2e01fd"
+    },
+    {
+      "relative_path": "crates/ostadix-api/src/ocore/native_verify.rs",
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/crates/ostadix-api/src/ocore/native_verify.rs",
+      "bytes": 491946,
+      "sha256": "33e89f352404310a4be5dbcc497cade4cd6493bf701a965c401682ec430ab046"
+    },
+    {
+      "relative_path": "tests/ocore_llvm_source_inventory.py",
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/ocore_llvm_source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    },
+    {
+      "relative_path": "src/bin/olangc/native_runtime/source_inventory.py",
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/src/bin/olangc/native_runtime/source_inventory.py",
+      "bytes": 97252,
+      "sha256": "73c0eb8dde7343f5192d049aa3abb58660bf31819bb6eba1220fa401abb2e699"
+    },
+    {
+      "relative_path": "tests/test_ocore_llvm_byte_swap_graph.py",
+      "path": "/dev/shm/ostadix-bswap-source-20261021-r2/tests/test_ocore_llvm_byte_swap_graph.py",
+      "bytes": 11567,
+      "sha256": "2a4beaba6c43e6ef67b29640a59c678e60f9f1971377b864293fd9b2a9e05703"
+    }
+  ],
+  "source_patch": {
+    "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r2/source.patch",
+    "bytes": 40281,
+    "sha256": "a51b4ddb24469ab0821cd0aff1ce7e515939549af9cff367ce535067483cb699"
+  },
+  "shared_evidence_copies": [
+    {
+      "historical_root_source": {
+        "path": "/dev/shm/ostadix-bswap-source-20261021-r2/pure-controls-r1/receipt.json",
+        "bytes": 4046,
+        "sha256": "f10059bbab3f138f293457488b73a202de180544c7c65fc34609507354749586"
+      },
+      "shared_exact_copy": {
+        "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r2/receipt.json",
+        "bytes": 4046,
+        "sha256": "f10059bbab3f138f293457488b73a202de180544c7c65fc34609507354749586"
+      }
+    },
+    {
+      "historical_root_source": {
+        "path": "/dev/shm/ostadix-bswap-source-20261021-r2/pure-controls-r1/unittest.log",
+        "bytes": 1633,
+        "sha256": "4764cbf4405db7e27f1558d944a92c300f6b6c43e36563752541367e827127b8"
+      },
+      "shared_exact_copy": {
+        "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r2/unittest.log",
+        "bytes": 1633,
+        "sha256": "4764cbf4405db7e27f1558d944a92c300f6b6c43e36563752541367e827127b8"
+      }
+    },
+    {
+      "historical_root_source": {
+        "path": "/dev/shm/ostadix-bswap-source-20261021-r2/pure-launch-r2-receipt.json",
+        "bytes": 1493,
+        "sha256": "c9b7f34402c37c3456df47b49917aaba6fbdddaae7218b599f16c1095a8f1ace"
+      },
+      "shared_exact_copy": {
+        "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r2/pure-launch-r2-receipt.json",
+        "bytes": 1493,
+        "sha256": "c9b7f34402c37c3456df47b49917aaba6fbdddaae7218b599f16c1095a8f1ace"
+      }
+    },
+    {
+      "historical_root_source": {
+        "path": "/dev/shm/ostadix-bswap-source-20261021-r2/pure-launch-r2.py",
+        "bytes": 2419,
+        "sha256": "fd389da70b3be546022c33f4865e88e6490e72440a8c46c664560b822006e57b"
+      },
+      "shared_exact_copy": {
+        "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r2/pure-launch-r2.py",
+        "bytes": 2419,
+        "sha256": "fd389da70b3be546022c33f4865e88e6490e72440a8c46c664560b822006e57b"
+      }
+    },
+    {
+      "historical_root_source": {
+        "path": "/dev/shm/ostadix-bswap-source-20261021-r2/custody-repair.json",
+        "bytes": 886,
+        "sha256": "eabfb9cb7daa0a31012db0ce1eaf7e5935379f5e4b7db48c419d193a0f85f363"
+      },
+      "shared_exact_copy": {
+        "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r2/custody-repair.json",
+        "bytes": 886,
+        "sha256": "eabfb9cb7daa0a31012db0ce1eaf7e5935379f5e4b7db48c419d193a0f85f363"
+      }
+    }
+  ],
+  "prior_source_freeze": {
+    "path": "/run/screen/ostadix-build-space-1000-20261021-r1/byte-swap-source-candidate-r1/source-freeze.json",
+    "bytes": 3494,
+    "sha256": "540a7f62a3cdc093140245672b40fe3e6091f32fff15b3d7d52917883f405deb"
+  },
+  "source_widths": [
+    16,
+    32,
+    48,
+    64,
+    128
+  ],
+  "pinned_upstream_contract": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-22.1.6/llvm/docs/LangRef.rst#int-bswap",
+  "pure_controls_passed": 9,
+  "pure_AST_buffer_identity_checked": true,
+  "production_sources_equal_r1": true,
+  "LLVM_parser_run": false,
+  "native_verifier_run": false,
+  "Rust_method_added": 1,
+  "Rust_methods_run": 0,
+  "original_units_imported": 0,
+  "new_compiler_built": false,
+  "native_execution_qualified": false,
+  "runtime_accepted": false,
+  "provider_closure_complete": false,
+  "all_ISA_qualified": false,
+  "independent_review_pending": true
+}
