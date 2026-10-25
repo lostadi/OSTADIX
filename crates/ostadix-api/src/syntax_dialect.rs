@@ -40,3 +40,6 @@ pub trait SyntaxDialect {
     /// children. This controls source-origin suppression only.
     fn owns_quoted_syntax(&self, canonical_name: &str) -> bool;
 }
+
+/// Builtin call name for the statically typed native scalar leaf (`ocore_i64`).
+pub const NATIVE_LEAF_BUILTIN: &str = "ocore_i64";

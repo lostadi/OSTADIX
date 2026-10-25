@@ -22,7 +22,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use crate::environment::EnvironmentRefV2;
-use crate::native_leaf_identity::{digest as native_leaf_digest, BUILTIN as NATIVE_LEAF_BUILTIN};
+pub(crate) use crate::native_leaf_identity::{
+    digest as native_leaf_digest, BUILTIN as NATIVE_LEAF_BUILTIN,
+};
 use crate::parser::ONode;
 use crate::value::GroupMode;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -35,20 +37,41 @@ pub use crate::backend_catalog::{
     BACKEND_CATALOG_SCHEMA_V4, BACKEND_CATALOG_SCHEMA_V5, BACKEND_CATALOG_SCHEMA_V6,
 };
 
-/// Only an eager call and a literal, attribute-free text descriptor qualify.
-/// A missing/static-shape error remains a NativeI64 plan node and fails closed.
-pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
-    let OIr::Invoke {
-        fn_name,
-        mode: InvokeMode::Eager,
-        args,
-    } = oir
-    else {
-        return None;
-    };
-    if fn_name != NATIVE_LEAF_BUILTIN {
-        return None;
+/// Typed kind of a native scalar leaf in executable OIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeLeafKind {
+    OcoreI64,
+}
+
+impl NativeLeafKind {
+    pub const fn builtin_name(self) -> &'static str {
+        match self {
+            Self::OcoreI64 => NATIVE_LEAF_BUILTIN,
+        }
     }
+}
+
+/// Typed ABI and calling interface of a native leaf instruction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeLeafInterface {
+    ScalarI64AcyclicV1 { parameter_count: usize },
+}
+
+impl NativeLeafInterface {
+    pub const fn parameter_count(self) -> usize {
+        match self {
+            Self::ScalarI64AcyclicV1 { parameter_count } => parameter_count,
+        }
+    }
+}
+
+/// Static provenance of a native leaf instruction frozen during OIR lowering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeLeafProvenance {
+    pub descriptor_sha256: Option<String>,
+}
+
+fn extract_static_text_descriptor(args: &[OIr]) -> Option<&str> {
     match args.first()? {
         OIr::Exec {
             backend,
@@ -63,8 +86,45 @@ pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
     }
 }
 
+/// Only a typed `OIr::NativeLeaf` whose static descriptor matches its first
+/// literal, attribute-free text argument qualifies. A missing/static-shape
+/// error remains a `NativeI64` plan node and fails closed.
+pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
+    let OIr::NativeLeaf {
+        kind: NativeLeafKind::OcoreI64,
+        interface: NativeLeafInterface::ScalarI64AcyclicV1 { parameter_count },
+        provenance,
+        descriptor: Some(descriptor),
+        args,
+    } = oir
+    else {
+        return None;
+    };
+    if *parameter_count != args.len().saturating_sub(1) {
+        return None;
+    }
+    let arg_text = extract_static_text_descriptor(args)?;
+    if arg_text != descriptor {
+        return None;
+    }
+    let expected_sha = native_leaf_digest(descriptor.as_bytes());
+    if provenance.descriptor_sha256.as_deref() != Some(expected_sha.as_str()) {
+        return None;
+    }
+    Some(descriptor)
+}
+
+pub(crate) fn native_leaf_source_descriptor_sha256(oir: &OIr) -> Option<&str> {
+    let _ = native_leaf_source_descriptor(oir)?;
+    let OIr::NativeLeaf { provenance, .. } = oir else {
+        return None;
+    };
+    provenance.descriptor_sha256.as_deref()
+}
+
+#[cfg(test)]
 pub(crate) fn is_native_leaf_call(oir: &OIr) -> bool {
-    matches!(oir, OIr::Invoke {fn_name, mode: InvokeMode::Eager, ..} if fn_name == NATIVE_LEAF_BUILTIN)
+    matches!(oir, OIr::NativeLeaf { .. })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -129,6 +189,15 @@ pub enum OIr {
     Invoke {
         fn_name: String,
         mode: InvokeMode,
+        args: Vec<OIr>,
+    },
+
+    /// Execute a typed native scalar leaf (`ocore_i64(...)`).
+    NativeLeaf {
+        kind: NativeLeafKind,
+        interface: NativeLeafInterface,
+        provenance: NativeLeafProvenance,
+        descriptor: Option<String>,
         args: Vec<OIr>,
     },
 
@@ -216,7 +285,7 @@ fn flatten_node_for_plan<'a>(node: &'a OIr, out: &mut Vec<&'a OIr>) {
     match node {
         OIr::Text(_) | OIr::Load(_) => {}
         OIr::Store { expr, .. } => flatten_node_for_plan(expr, out),
-        OIr::Invoke { args, .. } => {
+        OIr::Invoke { args, .. } | OIr::NativeLeaf { args, .. } => {
             for arg in args {
                 flatten_node_for_plan(arg, out);
             }
@@ -249,11 +318,30 @@ pub fn lower_node(node: &ONode) -> OIr {
             name: name.clone(),
             expr: Box::new(lower_node(expr)),
         },
-        ONode::Call { fn_name, args } => OIr::Invoke {
-            fn_name: fn_name.clone(),
-            mode: InvokeMode::for_name(fn_name),
-            args: args.iter().map(lower_node).collect(),
-        },
+        ONode::Call { fn_name, args } => {
+            let lowered_args: Vec<OIr> = args.iter().map(lower_node).collect();
+            if fn_name == NATIVE_LEAF_BUILTIN {
+                let descriptor = extract_static_text_descriptor(&lowered_args).map(str::to_owned);
+                let descriptor_sha256 = descriptor
+                    .as_deref()
+                    .map(|text| native_leaf_digest(text.as_bytes()));
+                OIr::NativeLeaf {
+                    kind: NativeLeafKind::OcoreI64,
+                    interface: NativeLeafInterface::ScalarI64AcyclicV1 {
+                        parameter_count: lowered_args.len().saturating_sub(1),
+                    },
+                    provenance: NativeLeafProvenance { descriptor_sha256 },
+                    descriptor,
+                    args: lowered_args,
+                }
+            } else {
+                OIr::Invoke {
+                    fn_name: fn_name.clone(),
+                    mode: InvokeMode::for_name(fn_name),
+                    args: lowered_args,
+                }
+            }
+        }
         ONode::TypedExpr {
             lang,
             env_id,
@@ -294,6 +382,17 @@ fn reconstruct_node(node: &OIr, out: &mut String) {
         }
         OIr::Invoke { fn_name, args, .. } => {
             out.push_str(fn_name);
+            out.push('(');
+            for (index, arg) in args.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                reconstruct_node(arg, out);
+            }
+            out.push(')');
+        }
+        OIr::NativeLeaf { kind, args, .. } => {
+            out.push_str(kind.builtin_name());
             out.push('(');
             for (index, arg) in args.iter().enumerate() {
                 if index > 0 {
@@ -360,6 +459,16 @@ fn dump_node(node: &OIr, depth: usize, out: &mut String) {
                 "{indent}invoke {fn_name}/{} [{}]\n",
                 args.len(),
                 mode.label()
+            ));
+            for arg in args {
+                dump_node(arg, depth + 1, out);
+            }
+        }
+        OIr::NativeLeaf { kind, args, .. } => {
+            out.push_str(&format!(
+                "{indent}invoke {}/{} [eager]\n",
+                kind.builtin_name(),
+                args.len()
             ));
             for arg in args {
                 dump_node(arg, depth + 1, out);
@@ -993,6 +1102,14 @@ impl PlanBuilder {
                 }
                 scope_stack.pop();
             }
+            OIr::NativeLeaf { args, .. } => {
+                scope_stack.push(std::collections::HashMap::new());
+                let mut prev = None;
+                for arg in args {
+                    prev = Some(self.add_node(arg, scope_stack, Some(id), prev));
+                }
+                scope_stack.pop();
+            }
             OIr::Exec {
                 attr,
                 backend,
@@ -1066,10 +1183,6 @@ impl PlanBuilder {
                     arg_count: args.len(),
                 },
                 InvokeMode::Eager => match fn_name.as_str() {
-                    NATIVE_LEAF_BUILTIN => PlanNodeKind::NativeI64 {
-                        descriptor: native_leaf_source_descriptor(node).map(str::to_owned),
-                        argument_count: args.len().saturating_sub(1),
-                    },
                     "instantiate" => PlanNodeKind::Request {
                         fn_name: fn_name.clone(),
                         kind: PlanRequestKind::Instantiate,
@@ -1101,6 +1214,10 @@ impl PlanBuilder {
                         arg_count: args.len(),
                     },
                 },
+            },
+            OIr::NativeLeaf { args, .. } => PlanNodeKind::NativeI64 {
+                descriptor: native_leaf_source_descriptor(node).map(str::to_owned),
+                argument_count: args.len().saturating_sub(1),
             },
             OIr::Exec {
                 lang,
@@ -1244,6 +1361,9 @@ fn collect_exec_references(
                 if matches!(fn_name.as_str(), "eval" | "quote") {
                     dynamic = true;
                 }
+                dynamic |= collect_exec_references(args, tokens, o_scope);
+            }
+            OIr::NativeLeaf { args, .. } => {
                 dynamic |= collect_exec_references(args, tokens, o_scope);
             }
             OIr::Exec { backend, body, .. } => {
@@ -2128,18 +2248,19 @@ mod tests {
             ));
         }
         let mut attributed = node.clone();
-        if let OIr::Invoke { args, .. } = &mut attributed {
+        if let OIr::NativeLeaf { args, .. } = &mut attributed {
             if let OIr::Exec { attr, .. } = &mut args[0] {
                 *attr = Some("cache".into());
             }
         }
         assert_eq!(native_leaf_source_descriptor(&attributed), None);
-        let mut lazy = node.clone();
-        if let OIr::Invoke { mode, .. } = &mut lazy {
-            *mode = InvokeMode::Lazy;
-        }
-        assert!(!is_native_leaf_call(&lazy));
-        assert_eq!(native_leaf_source_descriptor(&lazy), None);
+        let forged_invoke = OIr::Invoke {
+            fn_name: NATIVE_LEAF_BUILTIN.into(),
+            mode: InvokeMode::Eager,
+            args: vec![],
+        };
+        assert!(!is_native_leaf_call(&forged_invoke));
+        assert_eq!(native_leaf_source_descriptor(&forged_invoke), None);
     }
 
     #[test]

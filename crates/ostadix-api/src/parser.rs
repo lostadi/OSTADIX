@@ -695,6 +695,25 @@ impl<'a> Parser<'a> {
             }
         }
 
+        if name == crate::syntax_dialect::NATIVE_LEAF_BUILTIN {
+            let valid_descriptor = matches!(
+                args.first(),
+                Some(ONode::TypedExpr {
+                    lang,
+                    attr: None,
+                    body,
+                    ..
+                }) if lang == "text"
+                    && body.iter().all(|child| matches!(child, ONode::RawText(_)))
+            );
+            if !valid_descriptor {
+                bail!(
+                    "Line {}: ocore_i64 requires a static literal text descriptor",
+                    self.line
+                );
+            }
+        }
+
         self.finish_origin(origin, self.pos);
         Ok(Some(ONode::Call {
             fn_name: name,
@@ -1886,5 +1905,25 @@ mod tests {
         // Only the let binding; the comment line is stripped.
         assert_eq!(nodes.len(), 1);
         assert!(matches!(&nodes[0], ONode::LetBinding { name, .. } if name == "here"));
+    }
+
+    #[test]
+    fn ocore_i64_requires_static_literal_text_descriptor_at_parse_time() {
+        let backends = make_backends(&["text", "python"]);
+        for invalid in [
+            "let y = ocore_i64()",
+            "let y = ocore_i64($descriptor, $x)",
+            "let y = ocore_i64(python^(1)_python, $x)",
+            "let y = ocore_i64(text{lazy}^(desc)_text{lazy}, $x)",
+            "let y = ocore_i64(text^($descriptor)_text, $x)",
+        ] {
+            let error = Parser::new(invalid, &backends).parse().unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("ocore_i64 requires a static literal text descriptor"),
+                "unexpected error for `{invalid}`: {error:#}"
+            );
+        }
     }
 }

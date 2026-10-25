@@ -173,6 +173,11 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                 mode,
                 args,
             } => {
+                if fn_name == crate::ir::NATIVE_LEAF_BUILTIN {
+                    bail!(
+                        "OIR invocation `{fn_name}` must be lowered as a typed OIr::NativeLeaf node"
+                    );
+                }
                 let canonical_mode = InvokeMode::for_name(fn_name);
                 if *mode != canonical_mode {
                     bail!(
@@ -201,6 +206,17 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                         }
                     }
                     InvokeMode::Eager => {}
+                }
+            }
+            OIr::NativeLeaf {
+                interface, args, ..
+            } => {
+                if interface.parameter_count() != args.len().saturating_sub(1) {
+                    bail!(
+                        "OIR NativeLeaf interface parameter count {} does not match argument count {}",
+                        interface.parameter_count(),
+                        args.len().saturating_sub(1)
+                    );
                 }
             }
             OIr::Exec {

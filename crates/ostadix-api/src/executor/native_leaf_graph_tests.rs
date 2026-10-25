@@ -4,8 +4,29 @@ use crate::eval::{Evaluator, TraceEvent};
 use crate::hgraph::from_oir::build_program;
 use crate::hgraph::solve::solve_types;
 use crate::hgraph::HNodeKind;
-use crate::ir::{InvokeMode, OIr};
+use crate::ir::{InvokeMode, NativeLeafInterface, NativeLeafKind, NativeLeafProvenance, OIr};
 use crate::value::GroupMode;
+
+fn native_leaf_node(trap: bool) -> OIr {
+    let descriptor = crate::native_leaf::test_descriptor(1, trap);
+    let descriptor_sha256 = Some(crate::native_leaf::digest(descriptor.as_bytes()));
+    OIr::NativeLeaf {
+        kind: NativeLeafKind::OcoreI64,
+        interface: NativeLeafInterface::ScalarI64AcyclicV1 { parameter_count: 1 },
+        provenance: NativeLeafProvenance { descriptor_sha256 },
+        descriptor: Some(descriptor.clone()),
+        args: vec![
+            OIr::Exec {
+                lang: "text".into(),
+                env_id: u32::MAX,
+                attr: None,
+                backend: BackendRegistry::global().interface_for("text"),
+                body: vec![OIr::Text(descriptor)],
+            },
+            OIr::Load("x".into()),
+        ],
+    }
+}
 
 fn program(trap: bool) -> OIrProgram {
     OIrProgram {
@@ -16,20 +37,7 @@ fn program(trap: bool) -> OIrProgram {
             },
             OIr::Store {
                 name: "x".into(),
-                expr: Box::new(OIr::Invoke {
-                    fn_name: crate::native_leaf::BUILTIN.into(),
-                    mode: InvokeMode::Eager,
-                    args: vec![
-                        OIr::Exec {
-                            lang: "text".into(),
-                            env_id: u32::MAX,
-                            attr: None,
-                            backend: BackendRegistry::global().interface_for("text"),
-                            body: vec![OIr::Text(crate::native_leaf::test_descriptor(1, trap))],
-                        },
-                        OIr::Load("x".into()),
-                    ],
-                }),
+                expr: Box::new(native_leaf_node(trap)),
             },
             OIr::Load("x".into()),
         ],
@@ -179,7 +187,7 @@ fn native_leaf_graph_invalid_descriptor_never_acquires_execution_authority() {
     let OIr::Store { expr, .. } = &mut program.nodes[1] else {
         unreachable!()
     };
-    let OIr::Invoke { args, .. } = expr.as_mut() else {
+    let OIr::NativeLeaf { args, .. } = expr.as_mut() else {
         unreachable!()
     };
     args[0] = OIr::Load("descriptor-must-not-be-dynamic".into());
@@ -234,20 +242,7 @@ fn native_leaf_trap_inside_a_batch_is_a_member_error_and_never_a_publication() {
                 fn_name: "batch".into(),
                 mode: InvokeMode::Group(GroupMode::Batch),
                 args: vec![
-                    OIr::Invoke {
-                        fn_name: crate::native_leaf::BUILTIN.into(),
-                        mode: InvokeMode::Eager,
-                        args: vec![
-                            OIr::Exec {
-                                lang: "text".into(),
-                                env_id: u32::MAX,
-                                attr: None,
-                                backend: text.clone(),
-                                body: vec![OIr::Text(crate::native_leaf::test_descriptor(1, true))],
-                            },
-                            OIr::Load("x".into()),
-                        ],
-                    },
+                    native_leaf_node(true),
                     OIr::Exec {
                         lang: "text".into(),
                         env_id: u32::MAX,

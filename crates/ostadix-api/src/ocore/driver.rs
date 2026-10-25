@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+#[cfg(test)]
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
@@ -512,6 +513,7 @@ fn hir_text(hir: &HirProgram) -> String {
     out
 }
 
+#[cfg(test)]
 static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
 
 // ############################################################################
@@ -572,6 +574,7 @@ fn write_new_private(path: &Path, text: &str) -> Result<(), Diagnostic> {
         .map_err(|e| driver_error(format!("failed to write {}: {e}", path.display())))
 }
 
+#[cfg(test)]
 fn monotonic_nonce() -> String {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

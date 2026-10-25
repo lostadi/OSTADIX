@@ -3181,6 +3181,22 @@ impl Evaluator {
                 mode,
                 args,
             } => self.execute_ready_invoke(fn_name, *mode, args, node_id, plan, frame),
+            OIr::NativeLeaf { .. } => {
+                let descriptor_sha = crate::ir::native_leaf_source_descriptor_sha256(node)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("native scalar source descriptor is not static")
+                    })?;
+                let leaf = self.executable_leases()?.native_leaf(descriptor_sha)?;
+                let task =
+                    crate::executor::parallel::prepare_native(leaf, frame, plan, node_id, node)?;
+                let (events, _rx) = std::sync::mpsc::channel();
+                let context = crate::executor::task::TaskContext::new(
+                    crate::executor::task::TaskToken(node_id.0),
+                    events,
+                    self.active_request_cancellation.clone(),
+                );
+                task.execute(&context)
+            }
             OIr::Exec {
                 lang,
                 env_id,
@@ -3378,7 +3394,7 @@ impl Evaluator {
                     buf.push_str(text);
                 }
 
-                OIr::Load(_) | OIr::Exec { .. } | OIr::Invoke { .. } => {
+                OIr::Load(_) | OIr::Exec { .. } | OIr::Invoke { .. } | OIr::NativeLeaf { .. } => {
                     let raw = frame.value(*child_id)?.clone();
                     let resolved = self.resolve_for_splice(raw)?;
                     if backend.execution == ExecutionMode::Shim {
@@ -4134,7 +4150,7 @@ fn program_contains_obvious_o_eval(program: &OIrProgram) -> bool {
             }
             OIr::Load(_) => false,
             OIr::Store { expr, .. } => visit(expr),
-            OIr::Invoke { args, .. } => args.iter().any(visit),
+            OIr::Invoke { args, .. } | OIr::NativeLeaf { args, .. } => args.iter().any(visit),
             OIr::Exec { body, .. } => body.iter().any(visit),
         }
     }

@@ -327,14 +327,14 @@ fn renderer_input_statically_preparable(input: &OIr) -> bool {
         OIr::Text(_) => true,
         OIr::Store { expr, .. } => renderer_input_statically_preparable(expr),
         OIr::Exec { .. } => renderer_inputs_statically_preparable(input),
-        OIr::Load(_) | OIr::Invoke { .. } => false,
+        OIr::Load(_) | OIr::Invoke { .. } | OIr::NativeLeaf { .. } => false,
     }
 }
 
 /// Hard effect/failure predicate shared by evidence and runtime verification.
 pub(crate) fn effect_contract_worker_safe(summary: &EffectSummary, oir: &OIr) -> bool {
     match oir {
-        native if crate::ir::is_native_leaf_call(native) => {
+        OIr::NativeLeaf { .. } => {
             summary.confidence == EffectConfidence::Verified
                 && summary.deterministic
                 && summary.fallibility == Fallibility::MayFail
