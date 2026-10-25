@@ -16,6 +16,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 import zipfile
 import plistlib
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("syntax_install", ROOT / "install.py")
@@ -122,6 +123,15 @@ class EditorInstallerTests(unittest.TestCase):
             package = json.loads(archive.read("extension/package.json"))
             self.assertEqual(package["contributes"]["languages"][0]["id"], "ostadix")
             self.assertIn("extension/syntaxes/ostadix.tmLanguage.json", archive.namelist())
+            self.assertIn("extension/extension.cjs", archive.namelist())
+            self.assertIn("extension/runtime/vscode-oniguruma/onig.wasm", archive.namelist())
+            manifest = ET.fromstring(archive.read("extension.vsixmanifest"))
+            properties = {item.attrib["Id"]: item.attrib["Value"] for item in manifest.iter() if item.tag.endswith("}Property")}
+            self.assertEqual(properties["Microsoft.VisualStudio.Code.ExecutesCode"], "true")
+            content_types = ET.fromstring(archive.read("[Content_Types].xml"))
+            types = {item.attrib["Extension"]: item.attrib["ContentType"] for item in content_types}
+            for extension, mime in (("js", "application/javascript"), ("cjs", "application/javascript"), ("wasm", "application/wasm"), ("html", "text/html")):
+                self.assertEqual(types[extension], mime)
         status, output = self.run_installer("--only", "nano")
         self.assertEqual(status, 0, output)
         self.assertEqual(nanorc.read_text().count(install.BEGIN), 1)
