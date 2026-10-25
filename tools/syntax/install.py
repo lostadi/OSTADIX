@@ -381,7 +381,7 @@ class Installer:
             "Microsoft.VisualStudio.Code.ExtensionPack": "",
             "Microsoft.VisualStudio.Code.LocalizedLanguages": "",
             "Microsoft.VisualStudio.Code.EnabledApiProposals": "",
-            "Microsoft.VisualStudio.Code.ExecutesCode": "false",
+            "Microsoft.VisualStudio.Code.ExecutesCode": "true" if package.get("main") or package.get("browser") else "false",
         }.items():
             ET.SubElement(properties, "Property", Id=key, Value=value)
         installation = ET.SubElement(manifest, "Installation")
@@ -390,7 +390,7 @@ class Installer:
         assets = ET.SubElement(manifest, "Assets")
         ET.SubElement(assets, "Asset", Type="Microsoft.VisualStudio.Code.Manifest", Path="extension/package.json", Addressable="true")
         types = ET.Element("Types", xmlns="http://schemas.openxmlformats.org/package/2006/content-types")
-        for extension, mime in [("json", "application/json"), ("vsixmanifest", "text/xml"), ("md", "text/markdown"), ("txt", "text/plain")]:
+        for extension, mime in [("json", "application/json"), ("vsixmanifest", "text/xml"), ("md", "text/markdown"), ("txt", "text/plain"), ("js", "application/javascript"), ("cjs", "application/javascript"), ("wasm", "application/wasm"), ("html", "text/html")]:
             ET.SubElement(types, "Default", Extension=extension, ContentType=mime)
         vsix = self.data / f"{identity}-{package['version']}.vsix"
         editors = self.code_editors()
