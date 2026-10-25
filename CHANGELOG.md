@@ -476,6 +476,9 @@ Package SemVer is only one of the independent coordinates documented in
   and is never opened through a symlink. The directory is removed even if
   `ocorec` panics. The old `ocorec-<pid>-<nanos>.s` temp file was predictable,
   0644 and followed symlinks.
+- `ocorec` now rejects `.O` orchestration files and `lang^(...)_lang` blocks
+  up front with a message pointing to `olangc` and `O`, instead of failing in
+  the `.oc` lexer or with a bare `expected module declaration` error.
 
 - When the native leaf `clang` or `ld` is missing, the error now lists the
   `PATH` directories that were searched and the empty or relative entries
