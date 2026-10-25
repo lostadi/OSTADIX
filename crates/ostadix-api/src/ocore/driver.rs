@@ -290,12 +290,13 @@ pub fn compile_with_function_sections(
     }
     let mut parsed = Vec::new();
     for path in inputs {
+        let file = path.display().to_string();
+        parser::reject_orchestration_input(&file, None)?;
         let source = fs::read_to_string(path).map_err(|error| Diagnostic {
-            file: path.display().to_string(),
+            file: file.clone(),
             span: Span::default(),
             message: format!("failed to read source: {error}"),
         })?;
-        let file = path.display().to_string();
         parsed.push((file.clone(), parser::parse(&file, &source)?));
     }
 
