@@ -79,36 +79,41 @@ pub fn has_native_backend(lang: &str) -> bool {
 pub fn run_backend(lang: &str) -> Result<()> {
     let tools = BackendToolchain::from_env(lang)?;
     tools.verify_all()?;
-    if !has_native_backend(lang) {
-        return proxy_legacy_backend(lang, &tools);
-    }
-
     if lang == "bash" {
         // fail closed: without the subreaper bit a setsid or double-forked
         // job escapes to init and outlives its block.
         become_bash_subreaper()
             .context("the bash backend could not become the subreaper of its jobs")?;
-        // a SIGTERM, from the host's cancel or from our parent's death, stops
-        // the shell and its jobs before this process exits.
-        install_bash_termination()
-            .context("could not install the bash backend's SIGTERM cleanup")?;
-        // armed only after the handler: from here our parent's death runs
-        // the cleanup. a parent already gone sent no signal, so stop now.
-        #[cfg(target_os = "linux")]
-        if let Some(parent) = std::env::var_os(crate::process::BACKEND_PARENT_PID_ENV) {
-            let parent = parent
-                .to_str()
-                .and_then(|text| text.parse::<libc::pid_t>().ok())
-                .context("O_BACKEND_PARENT_PID is not a pid")?;
-            match crate::process::arm_parent_death_signal(parent) {
-                Ok(()) => {}
-                Err(error) if error.raw_os_error() == Some(libc::ESRCH) => terminate_bash_now(),
-                Err(error) => {
-                    return Err(error)
-                        .context("could not arm the bash backend's parent death signal")
+    }
+    // a SIGTERM, from the host's cancel or from our parent's death, stops
+    // the backend's children (and for bash, its shell and reparented jobs)
+    // before this process exits.
+    install_backend_termination(lang == "bash")
+        .context("could not install the backend's SIGTERM cleanup")?;
+    // armed only after the handler: from here our parent's death runs
+    // the cleanup. a parent already gone sent no signal, so stop now.
+    #[cfg(target_os = "linux")]
+    if let Some(parent) = std::env::var_os(crate::process::BACKEND_PARENT_PID_ENV) {
+        let parent = parent
+            .to_str()
+            .and_then(|text| text.parse::<libc::pid_t>().ok())
+            .context("O_BACKEND_PARENT_PID is not a pid")?;
+        match crate::process::arm_parent_death_signal(parent) {
+            Ok(()) => {}
+            Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {
+                if lang == "bash" {
+                    terminate_bash_now();
+                } else {
+                    terminate_non_bash_backend_now();
                 }
             }
+            Err(error) => {
+                return Err(error).context("could not arm the backend's parent death signal")
+            }
         }
+    }
+    if !has_native_backend(lang) {
+        return proxy_legacy_backend(lang, &tools);
     }
     let mut backend = RustBackend::new(tools);
     if lang == "bash" {
@@ -723,7 +728,11 @@ fn children_of(pid: Option<i32>) -> io::Result<Vec<i32>> {
 fn children_by_scan(parent: i32) -> io::Result<Vec<i32>> {
     let mut children = Vec::new();
     for entry in fs::read_dir("/proc")? {
-        let entry = entry?;
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) if crate::process::linux_process_observation_disappeared(&error) => continue,
+            Err(error) => return Err(error),
+        };
         let Some(pid) = entry
             .file_name()
             .to_str()
@@ -731,8 +740,10 @@ fn children_by_scan(parent: i32) -> io::Result<Vec<i32>> {
         else {
             continue;
         };
-        let Ok(stat) = fs::read_to_string(entry.path().join("stat")) else {
-            continue;
+        let stat = match fs::read_to_string(entry.path().join("stat")) {
+            Ok(stat) => stat,
+            Err(error) if crate::process::linux_process_observation_disappeared(&error) => continue,
+            Err(error) => return Err(error),
         };
         // fields after the parenthesised command: state, ppid.
         let ppid = stat
@@ -839,13 +850,25 @@ fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
     let mut sweep = JobSweep::default();
     // a snapshot that cannot be read fails the cleanup, but the kill loop
     // still runs: it kills what it can list.
+    let mut initial_empty = false;
     match live_descendant_tree() {
         Ok(tree) => {
+            initial_empty = tree.is_empty();
             sweep.stopped = tree.iter().filter(|pid| Some(**pid) != shell).count();
         }
         Err(error) => sweep.error = Some(format!("cannot list the jobs: {error}")),
     }
     let mut walk_error = None;
+    // when the initial snapshot saw no live children at all and waitpid(-1)
+    // confirms ECHILD, no child or zombie exists, saving a second /proc walk
+    // on every plain bash block exit.
+    if initial_empty {
+        let mut status = 0;
+        let reaped = unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) };
+        if reaped < 0 && io::Error::last_os_error().raw_os_error() == Some(libc::ECHILD) {
+            return finish_walk(sweep);
+        }
+    }
     loop {
         let live = match backend_descendants() {
             Ok(live) => live,
@@ -998,7 +1021,7 @@ extern "C" fn on_bash_sigterm(_: libc::c_int) {
 }
 
 #[cfg(target_os = "linux")]
-fn install_bash_termination() -> io::Result<()> {
+fn install_backend_termination(bash_subreaper: bool) -> io::Result<()> {
     use std::io::Read;
     use std::os::fd::FromRawFd;
     use std::sync::atomic::Ordering;
@@ -1006,7 +1029,7 @@ fn install_bash_termination() -> io::Result<()> {
         return Ok(());
     }
     let mut fds = [0; 2];
-    // SAFETY: pipe2 fills two fds; O_CLOEXEC keeps them from bash.
+    // SAFETY: pipe2 fills two fds; O_CLOEXEC keeps them from child processes.
     if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } != 0 {
         return Err(io::Error::last_os_error());
     }
@@ -1014,12 +1037,18 @@ fn install_bash_termination() -> io::Result<()> {
     let mut wake = unsafe { std::fs::File::from_raw_fd(fds[0]) };
     BASH_SIGTERM_WAKE.store(fds[1], Ordering::Relaxed);
     std::thread::Builder::new()
-        .name("ostadix-bash-sigterm".into())
+        .name("ostadix-backend-sigterm".into())
         .spawn(move || {
             let mut byte = [0u8; 1];
             loop {
                 match wake.read(&mut byte) {
-                    Ok(1) => terminate_bash_now(),
+                    Ok(1) => {
+                        if bash_subreaper {
+                            terminate_bash_now()
+                        } else {
+                            terminate_non_bash_backend_now()
+                        }
+                    }
                     Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                     _ => return,
                 }
@@ -1050,8 +1079,20 @@ fn terminate_bash_now() -> ! {
     std::process::exit(128 + libc::SIGTERM)
 }
 
+/// Stop a non-bash backend and its owned process group when its parent dies.
+#[cfg(target_os = "linux")]
+fn terminate_non_bash_backend_now() -> ! {
+    // every backend runs in its own process group (`process_group(0)`), so
+    // killing group 0 takes down any legacy shim (`python3`) or tool child
+    // in the group as well as this proxy process.
+    unsafe {
+        libc::kill(0, libc::SIGKILL);
+        libc::_exit(128 + libc::SIGTERM);
+    }
+}
+
 #[cfg(not(target_os = "linux"))]
-fn install_bash_termination() -> std::io::Result<()> {
+fn install_backend_termination(_bash_subreaper: bool) -> std::io::Result<()> {
     Ok(())
 }
 
@@ -1760,6 +1801,10 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
     }
 
     let mut command = tools.command("python3")?;
+    command.env(
+        crate::process::BACKEND_PARENT_PID_ENV,
+        std::process::id().to_string(),
+    );
     let mut child = command
         .arg(&shim)
         .stdin(Stdio::piped())
