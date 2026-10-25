@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# Compatibility entrypoint; the root setup owns all platform policy.
-set -euo pipefail
-
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/../../setup.sh" "$@"

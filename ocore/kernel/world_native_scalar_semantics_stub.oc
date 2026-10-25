@@ -1,6 +1,0 @@
-module kernel::world_native_scalar_semantics;
-
-pub unsafe fn start(mode: u64) -> never {
-    disable_interrupts();
-    loop { halt(); }
-}

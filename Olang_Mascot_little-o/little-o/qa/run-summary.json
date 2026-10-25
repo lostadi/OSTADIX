@@ -1,8 +1,0 @@
-{
-  "ok": true,
-  "run_dir": ".",
-  "spritesheet": "final/spritesheet.webp",
-  "validation": "final/validation.json",
-  "contact_sheet": "qa/contact-sheet.png",
-  "review": "qa/review.json"
-}

@@ -1,4 +1,0 @@
-python[0]^(
-literal = "\python^(1)_python and \)_python[0]"
-shell = "\$HOME ${not_an_o_binding}"
-)_python[0]

@@ -1,5 +1,0 @@
-O^(
-sql^(
-SELECT 1 + 1 AS result
-)_sql
-)_O
