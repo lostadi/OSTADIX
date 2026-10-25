@@ -43,6 +43,38 @@ file; Vim, Neovim, and Emacs load the installed association on the next launch.
 Explicit Vim/Neovim syntax disables and `VIMINIT` settings are preserved; these
 configurations may require enabling filetype detection and syntax manually.
 
+## Run O files in VS Code
+
+On macOS and Linux, the Code-family installer also configures the editor's
+user settings with **Ostadix: Run Current File**. Select it once in **Run and
+Debug** or **Debug: Select and Start Debugging**, then use **F5** to run the
+active saved `.O` or `.olang` file. Output appears in the integrated terminal.
+The configuration also works when a file is open without a workspace folder.
+
+This uses VS Code's built-in terminal launcher to execute O. It does not add
+O-language breakpoints, variable inspection, or stepping. The terminal session
+can remain open after the program exits; **Shift+F5** closes that launch session.
+
+When Code Runner is installed, the same installer supplies its `ostadix`, `.O`,
+and `.olang` executor mappings for **Run Code**. Code Runner is optional and is
+not installed by this script. Avoid enabling two Code Runner extensions that
+register the same commands. A workspace's own runner settings take precedence
+over these user settings, so remove or update old workspace-specific paths if
+they still select another checkout.
+Use **Run and Debug** for filenames containing shell substitutions or quotes:
+that action passes the filename through an environment variable, while Code
+Runner substitutes filenames into a shell command using its own quoting.
+
+The runtime and backend paths come from the checkout running the installer.
+Running it from another checkout updates the managed launch to that checkout.
+Build O with `setup.sh` before using the action; editor-only installation does
+not build the runtime. Existing unrelated launch configurations, executor
+mappings, JSONC comments, and trailing commas are preserved. Invalid settings
+are reported without overwriting the file. The run configuration targets the
+default user profile; separately configured profiles may need their own setup.
+Windows retains syntax installation, with automatic execution configuration
+reported as unsupported.
+
 ## Language selection
 
 The shared [language routing map](languages.json) covers every registered
