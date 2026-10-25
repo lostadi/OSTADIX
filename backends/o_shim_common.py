@@ -603,10 +603,41 @@ def _state_error_response(backend, code, error):
     }
 
 
+_PR_SET_PDEATHSIG = 1
+_BACKEND_PARENT_PID_ENV = "O_BACKEND_PARENT_PID"
+
+
+def _arm_parent_death_signal():
+    """Arm PR_SET_PDEATHSIG(SIGTERM) on Linux and check that the expected
+    parent is still alive, so a shim or its parent proxy never outlives O."""
+    if not sys.platform.startswith("linux"):
+        return
+    raw = os.environ.pop(_BACKEND_PARENT_PID_ENV, None)
+    if not raw:
+        return
+    expected_parent = int(raw)
+    try:
+        import ctypes
+        import signal
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(_PR_SET_PDEATHSIG, signal.SIGTERM, 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
+    except PermissionError:
+        # Under a restricted Python audit policy ctypes.dlopen is denied; the
+        # parent Rust proxy (`--o-backend`) already armed PR_SET_PDEATHSIG and
+        # kills its process group when O dies.
+        return
+    if os.getppid() != expected_parent:
+        import signal
+        os.kill(os.getpid(), signal.SIGTERM)
+        os._exit(128 + signal.SIGTERM)
+
+
 def command_loop(handle_exec, handle_cleanup=None, handle_ping=None,
                  handle_state_capabilities=None, handle_checkpoint=None,
                  handle_restore=None, state_backend=None,
                  handle_exec_morphism=None, handle_native_operation=None):
+    _arm_parent_death_signal()
     state_backend = state_backend or backend_name_from_argv()
     send_hello()
     while True:
