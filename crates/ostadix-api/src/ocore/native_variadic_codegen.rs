@@ -1,7 +1,8 @@
 // Target ABI realization of LLVM va_start/va_end/va_copy. The importer and
 // independent verifier retain and validate the exact intrinsic declarations.
 use super::super::native_verify::VariadicIntrinsic;
-use super::*;
+use super::{error_diagnostic, Diagnostic, Emitter, Operand, Target};
+use std::fmt::Write;
 
 impl Emitter<'_> {
     pub(super) fn incoming_stack_base(&self) -> i64 {

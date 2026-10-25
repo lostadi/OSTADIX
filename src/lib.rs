@@ -6,6 +6,7 @@
 
 pub mod cli_diagnostics;
 pub mod cli_paths;
+pub mod runtime_provenance;
 
 pub use ostadix_api::{
     api, backend, backend_morphism, backend_state, boot_objects, cancellation, computation,

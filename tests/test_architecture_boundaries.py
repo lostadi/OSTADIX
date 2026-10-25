@@ -1363,9 +1363,10 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             write_minimal_tree(root)
             shell = root / "src/lib.rs"
             original = shell.read_text(encoding="utf-8")
-            for name in ("cli_diagnostics", "cli_paths"):
+            names = ("cli_diagnostics", "cli_paths", "runtime_provenance")
+            for name in names:
                 (root / f"src/{name}.rs").write_text("// CLI-only helper\n", encoding="utf-8")
-            declarations = "pub mod cli_diagnostics;\npub mod cli_paths;\n"
+            declarations = "".join(f"pub mod {name};\n" for name in names)
             shell.write_text(declarations + original, encoding="utf-8")
             self.assertEqual(run_checker(root).returncode, 0)
             shell.write_text(declarations + declarations + original, encoding="utf-8")

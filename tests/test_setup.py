@@ -18,6 +18,34 @@ SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 class SetupScriptTests(unittest.TestCase):
     maxDiff = None
 
+    def test_runtime_only_selects_four_core_bins_and_mcp_without_alternate_editions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            result = self.run_setup("--runtime-only", "--dry-run", "--no-env", "--verify", home=home)
+            self.assertEqual(result.returncode, 0, self.combined_output(result))
+            cargo = next(line for line in result.stdout.splitlines() if line.startswith("[DRY] cargo build") and "--package o-lang" in line)
+            words = shlex.split(cargo)
+            self.assertEqual([words[i + 1] for i, word in enumerate(words) if word == "--bin"], ["O", "o-cli", "olangc", "ocorec"])
+            self.assertIn("Building ostadix-mcp", result.stdout)
+            self.assertIn("Verify runtime-only", result.stdout)
+            self.assertIn("runtime_only=true", result.stdout)
+            self.assertNotIn("Building C17 edition", result.stdout)
+            self.assertNotIn("--features notebook", result.stdout)
+            self.assertIn("editor_support=false", result.stdout)
+            self.assertNotIn("--package ostadix --bins", result.stdout)
+            self.assertFalse((home / ".config").exists())
+
+    def test_runtime_only_no_mcp_and_mutually_exclusive_profile_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            result = self.run_setup("--runtime-only", "--no-mcp", "--dry-run", "--no-env", home=home)
+            self.assertEqual(result.returncode, 0, self.combined_output(result))
+            self.assertNotIn("Building ostadix-mcp", result.stdout)
+            for incompatible in ["--minimal", "--full"]:
+                result = self.run_setup("--runtime-only", incompatible, "--dry-run", "--no-env", home=home)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("cannot be combined", self.combined_output(result))
+
     def test_native_install_dispatch_keeps_required_argv_under_system_bash_nounset(self) -> None:
         # Execute the real function bodies, not setup's global installation
         # flow. On macOS /bin/bash is 3.2, whose nounset rejects empty arrays.

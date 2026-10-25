@@ -11,8 +11,11 @@ mod http;
 mod installation;
 mod oauth;
 mod operation;
+#[path = "../../../src/runtime_provenance.rs"]
+mod runtime_provenance;
 mod tool_schema;
 mod unified;
+mod watcher_resources;
 
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
@@ -1199,6 +1202,58 @@ fn text_ok(s: impl Into<String>) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::success(vec![ContentBlock::text(s.into())]))
 }
 
+fn text_with_provenance(
+    mut text: String,
+    provenance: serde_json::Value,
+) -> Result<CallToolResult, McpError> {
+    text.push_str(&runtime_provenance::summary(&provenance));
+    let content = vec![ContentBlock::text(text)];
+    let failed = provenance["executionCheck"]["requested"] == true
+        && provenance["executionCheck"]["status"] != "passed";
+    let mut response = if failed {
+        CallToolResult::error(content)
+    } else {
+        CallToolResult::success(content)
+    };
+    response.structured_content = Some(provenance);
+    Ok(response)
+}
+
+async fn environment_provenance(
+    root: PathBuf,
+    backends: PathBuf,
+    evaluator: PathBuf,
+    compiler: PathBuf,
+    execution_check: bool,
+    timeout_secs: u64,
+    http_mode: bool,
+) -> Result<serde_json::Value, McpError> {
+    tokio::task::spawn_blocking(move || {
+        let mut report = runtime_provenance::collect(
+            Some(&root),
+            Some(&backends),
+            &[("O", evaluator.clone()), ("olangc", compiler)],
+            Some(&home_dir()),
+        );
+        report["transport"] = if http_mode {
+            "streamable-http"
+        } else {
+            "stdio"
+        }
+        .into();
+        if execution_check {
+            report["executionCheck"] = runtime_provenance::python_probe(
+                &evaluator,
+                &backends,
+                Duration::from_secs(timeout_secs),
+            );
+        }
+        report
+    })
+    .await
+    .map_err(|_| McpError::internal_error("runtime provenance task failed", None))
+}
+
 fn text_err(s: impl Into<String>) -> Result<CallToolResult, McpError> {
     Ok(CallToolResult::error(vec![ContentBlock::text(s.into())]))
 }
@@ -1870,6 +1925,15 @@ fn format_run(code: i32, stdout: &str, stderr: &str) -> String {
 // clients (OpenCode, TS SDK) accept tools/list instead of rejecting `{}`.
 #[derive(Debug, Default, Deserialize)]
 struct EmptyArgs {}
+
+#[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct DoctorArgs {
+    /// Explicitly run only the fixed Python 1 + 1 smoke. Default false: inventory only.
+    execution_check: Option<bool>,
+    /// Fixed smoke deadline in seconds (1..10); default 5. No arbitrary source or command is accepted.
+    timeout_secs: Option<u64>,
+}
 
 impl schemars::JsonSchema for EmptyArgs {
     fn schema_name() -> std::borrow::Cow<'static, str> {
@@ -2592,7 +2656,12 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Report O-lang / Ostadix-lang environment: roots, tools, shim presence, and all-runtime summary"
+        description = "Report exact running MCP binary hash/architecture, compiled source identity, independently observed source root/commit/dirty state, selected tools/backends, client configuration file hashes and all-runtime inventory. Read-only; no execution health claim. Returns legacy text plus structured runtime provenance.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            open_world_hint = false
+        )
     )]
     async fn o_env(
         &self,
@@ -2614,7 +2683,9 @@ impl OstadixMcp {
             if shim.is_file() { "ok" } else { "MISSING" },
             runtimes.summary()
         );
-        text_ok(msg)
+        let provenance =
+            environment_provenance(root, backends, o_bin, olangc, false, 5, self.http_mode).await?;
+        text_with_provenance(msg, provenance)
     }
 
     #[tool(
@@ -3223,16 +3294,25 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Toolchain doctor: check O, olangc, backends, shims, all backend runtimes, and optional a18re search/o-run"
+        description = "Toolchain doctor with exact runtime provenance and client configuration file hashes. Default inventory only; execution_check explicitly runs a fixed Python 1+1 program with a 1..10 second deadline and bounded output. It does not qualify every runtime or native execution.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            open_world_hint = false
+        )
     )]
     async fn o_doctor(
         &self,
-        Parameters(_args): Parameters<EmptyArgs>,
+        Parameters(args): Parameters<DoctorArgs>,
     ) -> Result<CallToolResult, McpError> {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
         let o_bin = resolve_o_bin(&root);
         let olangc = resolve_olangc(&root);
+        let timeout = args.timeout_secs.unwrap_or(5);
+        if !(1..=10).contains(&timeout) {
+            return text_err("doctor timeout_secs must be between 1 and 10");
+        }
         let mut lines = vec![
             format!("O_LANG_ROOT={} exists={}", root.display(), root.is_dir()),
             format!(
@@ -3268,7 +3348,17 @@ impl OstadixMcp {
                 .trim_end()
                 .to_string(),
         );
-        text_ok(lines.join("\n") + "\n")
+        let provenance = environment_provenance(
+            root,
+            backends,
+            o_bin,
+            olangc,
+            args.execution_check.unwrap_or(false),
+            timeout,
+            self.http_mode,
+        )
+        .await?;
+        text_with_provenance(lines.join("\n") + "\n", provenance)
     }
 
     #[tool(
@@ -3386,6 +3476,9 @@ Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (
                 format!("Ostadix {topic} guide"),
             ));
         }
+        for &(uri, name) in watcher_resources::RESOURCES {
+            resources.push(Resource::new(uri, name).with_mime_type("application/json"));
+        }
         Ok(ListResourcesResult::with_all_items(resources))
     }
 
@@ -3396,6 +3489,8 @@ Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (
     ) -> Result<ReadResourceResponse, McpError> {
         let text = if request.uri == "ostadix://capabilities" {
             capabilities::catalog(&resolve_lang_root(), None).to_string()
+        } else if let Some(value) = watcher_resources::read_resource(&request.uri) {
+            value.to_string()
         } else if let Some(topic) = request.uri.strip_prefix("ostadix://guide/") {
             capabilities::guide(topic)
                 .ok_or_else(|| McpError::invalid_params("unknown Ostadix guide", None))?
@@ -3403,7 +3498,14 @@ Never pass the literal string O_BACKENDS_DIR; never put $VAR inside .O sources (
         } else {
             return Err(McpError::invalid_params("unknown Ostadix resource", None));
         };
-        Ok(ReadResourceResult::new(vec![ResourceContents::text(text, request.uri)]).into())
+        let watcher = request.uri.starts_with("ostadix://watcher/");
+        let contents = ResourceContents::text(text, request.uri);
+        let contents = if watcher {
+            contents.with_mime_type("application/json")
+        } else {
+            contents
+        };
+        Ok(ReadResourceResult::new(vec![contents]).into())
     }
 }
 
@@ -3438,6 +3540,108 @@ async fn main() -> anyhow::Result<()> {
     jobs.shutdown().await.map_err(anyhow::Error::msg)?;
     outcome?;
     Ok(())
+}
+
+#[cfg(test)]
+mod provenance_contract_tests {
+    use super::*;
+    use crate::tests::Fixture;
+
+    #[cfg(unix)]
+    fn script(path: &Path, source: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::write(path, source).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn environment_inventory_does_not_execute_selected_evaluator_and_retains_legacy_text() {
+        let fixture = Fixture::new();
+        let marker = fixture.0.join("must-not-execute");
+        let evaluator = fixture.0.join("O");
+        script(
+            &evaluator,
+            &format!("#!/bin/sh\ntouch '{}'\nexit 9\n", marker.display()),
+        );
+        let report = environment_provenance(
+            fixture.0.clone(),
+            fixture.0.join("backends"),
+            evaluator.clone(),
+            evaluator,
+            false,
+            5,
+            false,
+        )
+        .await
+        .unwrap();
+        assert!(!marker.exists());
+        assert_eq!(report["schema"], runtime_provenance::SCHEMA);
+        assert_eq!(report["executionCheck"]["status"], "not_requested");
+        let response =
+            text_with_provenance("O_LANG_ROOT=legacy-compatible\n".into(), report).unwrap();
+        assert_ne!(response.is_error, Some(true));
+        let value = serde_json::to_value(response).unwrap();
+        let text = value["content"][0]["text"].as_str().unwrap();
+        assert!(text.starts_with("O_LANG_ROOT=legacy-compatible\n"));
+        assert!(text.contains("runtime-binary="));
+        assert!(text.contains("build-source="));
+        assert!(text.contains("runtime-source="));
+        assert_eq!(
+            value["structuredContent"]["executionCheck"]["executed"],
+            false
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn explicit_doctor_probe_has_a_bounded_result_and_never_returns_child_diagnostics() {
+        let fixture = Fixture::new();
+        let evaluator = fixture.0.join("O");
+        script(
+            &evaluator,
+            "#!/bin/sh\nprintf PRIVATE_DOCTOR_DIAGNOSTIC >&2\nsleep 5\n",
+        );
+        let report = environment_provenance(
+            fixture.0.clone(),
+            fixture.0.join("backends"),
+            evaluator.clone(),
+            evaluator,
+            true,
+            1,
+            true,
+        )
+        .await
+        .unwrap();
+        assert_eq!(report["executionCheck"]["status"], "timed_out");
+        assert_eq!(report["executionCheck"]["timeoutMs"], 1000);
+        let response = text_with_provenance("doctor\n".into(), report).unwrap();
+        assert_eq!(response.is_error, Some(true));
+        let text = serde_json::to_string(&response).unwrap();
+        assert!(!text.contains("PRIVATE_DOCTOR_DIAGNOSTIC"));
+    }
+
+    #[tokio::test]
+    async fn doctor_rejects_unbounded_timeouts_and_arbitrary_source_parameters() {
+        assert!(serde_json::from_value::<DoctorArgs>(
+            serde_json::json!({"source":"python^(anything)_python"})
+        )
+        .is_err());
+        let server = OstadixMcp::new(
+            RuntimeSearchPath::new(RuntimePathMode::InheritedOnly, vec![]).unwrap(),
+        );
+        for timeout in [0, 11, u64::MAX] {
+            let response = server
+                .o_doctor(Parameters(DoctorArgs {
+                    execution_check: Some(true),
+                    timeout_secs: Some(timeout),
+                }))
+                .await
+                .unwrap();
+            assert_eq!(response.is_error, Some(true));
+            assert!(response.structured_content.is_none());
+        }
+    }
 }
 
 #[cfg(test)]

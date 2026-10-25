@@ -567,6 +567,19 @@ fn real_evaluator_smoke_and_relocated_bundled_shims_use_typed_value_protocol() {
     let doctor = invoke(&["doctor", "--json"]);
     let report: serde_json::Value = serde_json::from_slice(&doctor.stdout).unwrap();
     assert_eq!(report["backends"]["python_smoke_passed"], true, "{report}");
+    assert_eq!(
+        report["provenance"]["schema"],
+        "ostadix.runtime-provenance/v1"
+    );
+    assert_eq!(report["executionCheck"]["status"], "passed");
+    assert_eq!(report["executionCheck"]["timeoutMs"], 5000);
+    {
+        use sha2::Digest;
+        assert_eq!(
+            report["provenance"]["binary"]["sha256"],
+            format!("{:x}", sha2::Sha256::digest(fs::read(&front).unwrap()))
+        );
+    }
     let extracted = std::path::Path::new(report["backends"]["directory"].as_str().unwrap());
     assert!(extracted
         .file_name()
@@ -577,4 +590,58 @@ fn real_evaluator_smoke_and_relocated_bundled_shims_use_typed_value_protocol() {
         !extracted.exists(),
         "temporary bundled shims were not cleaned up"
     );
+}
+
+#[test]
+fn doctor_runtime_only_profile_distinguishes_required_tools_from_optional_specialists() {
+    let dir = tempfile::tempdir().unwrap();
+    let front = dir.path().join("o");
+    fs::copy(FRONT, &front).unwrap();
+    let backends = dir.path().join("backends");
+    fs::create_dir(&backends).unwrap();
+    fs::write(backends.join("python_shim.py"), "# fixture\n").unwrap();
+    executable(&dir.path().join("ostadix-evaluator"),"#!/bin/sh\nprintf '%s' '{\"ok\":true,\"value\":{\"t\":\"number\",\"v\":{\"kind\":\"int\",\"v\":\"2\"}}}'\n");
+    for name in ["olangc", "ocorec"] {
+        executable(&dir.path().join(name), "#!/bin/sh\nexit 0\n");
+    }
+    let metadata = serde_json::json!({"schema":1,"repo_root":dir.path(),"backends_dir":backends,"profile":"runtime-only"});
+    fs::write(
+        dir.path().join("ostadix-install.json"),
+        serde_json::to_vec(&metadata).unwrap(),
+    )
+    .unwrap();
+    let invoke = || {
+        Command::new(&front)
+            .args(["doctor", "--json"])
+            .current_dir(dir.path())
+            .env_remove("O_LANG_ROOT")
+            .env_remove("O_BACKENDS_DIR")
+            .env_remove("BACKENDS_DIR")
+            .env_remove("O_LANG_EVALUATOR_BIN")
+            .env_remove("O_LANG_OLANGC_BIN")
+            .env_remove("O_LANG_OCOREC_BIN")
+            .output()
+            .unwrap()
+    };
+    let output = invoke();
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(output.status.success(), "{report}");
+    assert_eq!(report["ready"], true);
+    assert_eq!(report["installationProfile"], "runtime-only");
+    assert!(report["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|tool| tool["name"] == "o-info" && tool["required"] == false));
+    let mut legacy = metadata;
+    legacy.as_object_mut().unwrap().remove("profile");
+    fs::write(
+        dir.path().join("ostadix-install.json"),
+        serde_json::to_vec(&legacy).unwrap(),
+    )
+    .unwrap();
+    let output = invoke();
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(!output.status.success());
+    assert_eq!(report["ready"], false);
 }

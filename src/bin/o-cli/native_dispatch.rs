@@ -16,6 +16,8 @@ struct Installation {
     repo_root: PathBuf,
     #[serde(default)]
     backends_dir: Option<PathBuf>,
+    #[serde(default)]
+    profile: Option<String>,
 }
 
 fn installation(executable: &Path) -> Option<Installation> {
@@ -280,7 +282,7 @@ fn smoke_passed(output: &std::process::Output) -> bool {
 
 fn inspect_installation(mode: &str, arguments: &[OsString]) -> Result<()> {
     if arguments == [OsString::from("--help")] || arguments == [OsString::from("-h")] {
-        println!("Usage: o {mode} [--json]\nInspect installed native tools. Doctor also runs the Python backend smoke; other runtimes are not probed.");
+        println!("Usage: o {mode} [--json]\nInspect installed native tools and exact runtime provenance. Doctor also runs a fixed Python backend smoke with a five-second deadline and bounded output; other runtimes are not probed.");
         std::process::exit(0);
     }
     let json = arguments == [OsString::from("--json")];
@@ -289,42 +291,77 @@ fn inspect_installation(mode: &str, arguments: &[OsString]) -> Result<()> {
     }
     let mut ready = true;
     let mut rows = Vec::new();
+    let mut selected_tools = Vec::new();
+    let profile = env::current_exe()
+        .ok()
+        .and_then(|path| installation(&path))
+        .and_then(|value| value.profile);
+    let runtime_only = profile.as_deref() == Some("runtime-only");
     for (name, override_name) in TOOLS {
         let resolved = tool(name, override_name);
-        ready &= resolved.is_ok();
+        let required = !runtime_only || matches!(*name, "ostadix-evaluator" | "olangc" | "ocorec");
+        ready &= !required || resolved.is_ok();
         rows.push(match resolved {
-            Ok(path) => serde_json::json!({"name": name, "path": path, "available": true}),
+            Ok(path) => {
+                selected_tools.push((*name,path.clone()));
+                serde_json::json!({"name": name, "path": path, "available": true,"required":required})
+            },
             Err(error) => {
-                serde_json::json!({"name": name, "available": false, "detail": error.to_string()})
+                serde_json::json!({"name": name, "available": false,"required":required, "detail": error.to_string()})
             }
         });
     }
     let mut report = serde_json::json!({"schema": "ostadix.installation-check/v1", "root": repository_root(), "tools": rows});
+    let mut backend_root = o_lang::cli_paths::configured_shim_dir()
+        .or_else(|| repository_root().map(|root| root.join("backends")));
+    report["installationProfile"] = profile.as_deref().unwrap_or("unspecified").into();
     if mode == "doctor" {
-        let shims = default_shim_dir()?;
-        let shim_count = fs::read_dir(&shims)
-            .with_context(|| format!("backend directory is unavailable: {}", shims.display()))?
-            .filter_map(std::result::Result::ok)
-            .filter(|entry| entry.file_name().to_string_lossy().ends_with("_shim.py"))
-            .count();
-        let probe = python_smoke(&shims);
-        let (passed, detail) = match probe {
-            Ok(output) => (
-                smoke_passed(&output),
-                format!(
-                    "exit={}; stdout={:?}; stderr={:?}",
-                    output.status,
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                ),
+        let shims = default_shim_dir().ok();
+        backend_root = shims.clone();
+        let shim_count = shims
+            .as_ref()
+            .and_then(|path| fs::read_dir(path).ok())
+            .map(|entries| {
+                entries
+                    .filter_map(std::result::Result::ok)
+                    .filter(|entry| entry.file_name().to_string_lossy().ends_with("_shim.py"))
+                    .count()
+            })
+            .unwrap_or(0);
+        let probe = match (
+            tool("ostadix-evaluator", "O_LANG_EVALUATOR_BIN"),
+            shims.as_ref(),
+        ) {
+            (Ok(evaluator), Some(shims)) => o_lang::runtime_provenance::python_probe(
+                &evaluator,
+                shims,
+                std::time::Duration::from_secs(5),
             ),
-            Err(error) => (false, error.to_string()),
+            _ => serde_json::json!({"status":"unavailable","executed":false,"passed":false}),
         };
+        let passed = probe["passed"] == true;
+        let detail = format!(
+            "status={}; elapsedMs={}; timeoutMs=5000; diagnostic contents omitted",
+            probe["status"].as_str().unwrap_or("unavailable"),
+            probe["elapsedMs"]
+        );
         ready &= passed && shim_count > 0;
         report["backends"] = serde_json::json!({"directory": shims, "shim_count": shim_count, "python_smoke_passed": passed, "probe_detail": detail, "other_runtimes": "not probed"});
+        report["executionCheck"] = probe;
         report["ready"] = ready.into();
     } else if mode == "editions" {
         report["editions"] = serde_json::json!({"rust": true, "c17": repository_root().is_some_and(|root| executable(&root.join("c_cpp/O"))), "python_source": repository_root().is_some_and(|root| root.join("o_lang/__init__.py").is_file())});
+    }
+    let root = repository_root();
+    let home = env::var_os("HOME").map(PathBuf::from);
+    report["provenance"] = o_lang::runtime_provenance::collect(
+        root.as_deref(),
+        backend_root.as_deref(),
+        &selected_tools,
+        home.as_deref(),
+    );
+    if mode == "doctor" {
+        report["provenance"]["executionCheck"] = report["executionCheck"].clone();
     }
     if json {
         println!("{}", serde_json::to_string_pretty(&report)?);
@@ -335,6 +372,10 @@ fn inspect_installation(mode: &str, arguments: &[OsString]) -> Result<()> {
             report["root"]
                 .as_str()
                 .unwrap_or("not configured; bundled runtime remains available")
+        );
+        print!(
+            "{}",
+            o_lang::runtime_provenance::summary(&report["provenance"])
         );
         for row in report["tools"].as_array().expect("tools array") {
             println!(

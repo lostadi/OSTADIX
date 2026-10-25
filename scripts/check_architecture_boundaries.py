@@ -2399,6 +2399,7 @@ def _cargo_dependency_entries(
 # source_structure describes canonical engine output and backend syntax;
 # command_catalog is shared discovery data and read-only executable resolution.
 # run_signals owns invocation-scoped native frontend handlers, not engine signals.
+# runtime_provenance reports the invoking frontend's host/source identity.
 # No binary-only helper is a public compatibility-library module or an
 # engine root. Engine source/import and shell re-export checks remain separate.
 CLI_SHELL_SUPPORT_SOURCES = frozenset({
@@ -2407,6 +2408,7 @@ CLI_SHELL_SUPPORT_SOURCES = frozenset({
     "cli_source_structure.rs",
     "command_catalog.rs",
     "run_signals.rs",
+    "runtime_provenance.rs",
 })
 
 
@@ -2418,7 +2420,7 @@ def _compatibility_shell_reexports(path: Path) -> tuple[set[str] | None, str | N
         tokens = _tokens(source)
         # Shared command presentation/path helpers are CLI code, never engine
         # implementations. Only these exact external declarations are allowed.
-        cli_names = {"cli_diagnostics", "cli_paths"}
+        cli_names = {"cli_diagnostics", "cli_paths", "runtime_provenance"}
         filtered = []
         seen = set()
         index = 0

@@ -5,6 +5,9 @@ computation to <code>o_execute</code>, or pass an existing program/project path.
 command arguments, and concurrent or interactive jobs.
 The server supplies an <strong>absolute</strong> <code>O_BACKENDS_DIR</code>, so relative <code>backends</code>
 and bare <code>$O_BACKENDS_DIR</code> splice mistakes do not break runs.</p>
+<p>For a smaller editor/MCP installation, use <code>./setup.sh --runtime-only --verify</code>.
+The <a href="../../docs/MCP_RUNTIME_ONBOARDING.md">onboarding guide</a> covers exact runtime
+provenance, platform-specific bundles, and the opt-in watcher resource contract.</p>
 <h2>URL connectors</h2>
 <p>Run <code>ostadix-mcp --transport http --token-file /path/to/token</code> to serve the same
 21 tools at <code>http://127.0.0.1:8787/mcp</code>. Clients send <code>Authorization: Bearer TOKEN</code>.
@@ -87,7 +90,7 @@ introduced by this transport.</p>
 </tr>
 <tr>
 <td><code>o_env</code></td>
-<td>Print roots, <code>O</code> / <code>olangc</code> paths, shim presence, and the 30-backend runtime summary</td>
+<td>Report roots, tools, shim/runtime inventory, and structured identity of the actual process, compiled source, resolved checkout, and client configuration metadata</td>
 </tr>
 <tr>
 <td><code>o_runtimes</code></td>
@@ -95,7 +98,7 @@ introduced by this transport.</p>
 </tr>
 <tr>
 <td><code>o_doctor</code></td>
-<td>Existence checks + shim inventory + complete runtime report + resolved external or bundled search corpus</td>
+<td>Inventory and structured runtime provenance; execution requires the explicit bounded check parameter</td>
 </tr>
 <tr>
 <td><code>o_smoke</code></td>

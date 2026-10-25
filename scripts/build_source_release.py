@@ -153,6 +153,7 @@ ALLOWED_TOP_LEVEL_FILES = frozenset(
         "SECURITY.md",
         "SPEC.md",
         "boot-and-test.sh",
+        "build.rs",
         "rust-toolchain.toml",
         "setup.sh",
         "test_o_lang_examples.sh",
@@ -350,7 +351,11 @@ OSTADIX_API_ENGINE_ONLY_PUBLIC_MODULES = frozenset({"native_leaf"})
 # release validation as well as the generally allowed mcp/docs directories.
 HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
     {
+        "build.rs",
         "src/command_catalog.rs",
+        "src/runtime_provenance.rs",
+        "scripts/capture_build_identity.rs",
+        "mcp/ostadix_lang_mcp_server/build.rs",
         "mcp/ostadix_lang_mcp_server/src/capabilities.rs",
         "mcp/ostadix_lang_mcp_server/src/execution.rs",
         "mcp/ostadix_lang_mcp_server/src/http.rs",
@@ -361,6 +366,15 @@ HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
         "mcp/ostadix_lang_mcp_server/src/operation.rs",
         "mcp/ostadix_lang_mcp_server/src/selected_node.rs",
         "mcp/ostadix_lang_mcp_server/src/unified.rs",
+        "mcp/ostadix_lang_mcp_server/src/watcher_resources.rs",
+        "scripts/runtime_bundle.py",
+        "tests/test_runtime_bundle.py",
+        "docs/MCP_RUNTIME_ONBOARDING.md",
+        "docs/NATIVE_RUNTIME_BUNDLES.md",
+        "docs/RUNTIME_PROVENANCE.md",
+        "docs/WATCHER_MCP_RESOURCES.md",
+        "tests/fixtures/watcher-snapshot-v1.json",
+        ".github/workflows/native-runtime-release.yml",
         "scripts/setup_ostadix_mcp_http.sh",
         "scripts/mcp_http_runtime_aliases.py",
         "scripts/smoke_ostadix_mcp_http.py",
@@ -1351,7 +1365,11 @@ def _validate_release_path(path: str) -> PurePosixPath:
 
 # CLI presentation and installed-path resolution belong to the command package,
 # not the independently distributable runtime engine or its AOT source closure.
-CLI_MODULE_PATHS = {"cli_diagnostics": "src/cli_diagnostics.rs", "cli_paths": "src/cli_paths.rs"}
+CLI_MODULE_PATHS = {
+    "cli_diagnostics": "src/cli_diagnostics.rs",
+    "cli_paths": "src/cli_paths.rs",
+    "runtime_provenance": "src/runtime_provenance.rs",
+}
 
 
 def is_allowed_release_path(path: str) -> bool:

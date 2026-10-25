@@ -117,6 +117,32 @@ class NativeInstallTests(unittest.TestCase):
         self.assertTrue(os.access(self.destination / "ostadix-evaluator", os.X_OK))
         self.assertFalse((self.destination / "octl").exists())
 
+    def test_runtime_only_installs_four_core_tools_without_picking_up_old_optional_binaries(self):
+        optional = self.build / "o-notebook"
+        optional.write_bytes(b"\x7fELFoptional"); optional.chmod(0o755)
+        installer.install(self.repo, self.build, self.destination, runtime_only=True)
+        for name in installer.RUNTIME_TOOLS:
+            self.assertTrue((self.destination / name).is_file())
+        for name in ["o-node", "octl", "o-notebook", "o-c"]:
+            self.assertFalse((self.destination / name).exists())
+        metadata = json.loads((self.destination / "ostadix-install.json").read_text())
+        self.assertEqual(metadata["profile"], "runtime-only")
+        self.assertEqual((self.destination / "ostadix-evaluator").read_bytes(), (self.build / "O").read_bytes())
+
+    def test_runtime_only_does_not_require_or_remove_full_installation_tools(self):
+        for name in set(installer.RUST_TOOLS) - set(installer.RUNTIME_TOOLS):
+            (self.build / name).unlink()
+        self.destination.mkdir()
+        previous = self.destination / "o-node"; previous.write_bytes(b"previous full installation")
+        installer.install(self.repo, self.build, self.destination, runtime_only=True)
+        self.assertEqual(previous.read_bytes(), b"previous full installation")
+
+    def test_runtime_only_refuses_conflicting_profiles_before_any_install(self):
+        for arguments in [{"include_c": True}, {"include_notebook": True}, {"include_workspace_tools": True}, {"front_door_only": True}]:
+            with self.subTest(arguments=arguments), self.assertRaisesRegex(ValueError, "runtime-only"):
+                installer.install(self.repo, self.build, self.destination, runtime_only=True, **arguments)
+        self.assertFalse(self.destination.exists())
+
     def test_external_c_build_uses_the_selected_installed_source_root(self):
         build = self.repo / "cmake build"
         build.mkdir()
