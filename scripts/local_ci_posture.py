@@ -10,6 +10,7 @@ started internally by cargo-deny is confined to a temporary repository mirror.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -48,6 +49,33 @@ RISKY_TRIGGERS = frozenset(
         "workflow_run",
     }
 )
+# This is an exact, source-bound contract, not a workflow-name exemption.
+# Updating the digest alone cannot broaden its event, permission, dependency,
+# or hosted-runner boundary. Any change outside these explicit forms falls
+# back to the ordinary posture findings below.
+NATIVE_RUNTIME_CONTRACT = {
+    "path": ".github/workflows/native-runtime-release.yml",
+    "workflow_sha256": "4e02eddb556fae2731ea14c602267f78e7d9cde1c0c1f23928d8f59fa4e7f1e3",
+    "triggers": ("workflow_dispatch", "release", "pull_request"),
+    "release_types": "[published]",
+    "workflow_permissions": {"contents": "read"},
+    "native": {
+        "needs": ["installer-contract"],
+        "condition": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository",
+        "runner": "${{ matrix.runner }}",
+        "permissions": {},
+        "matrix": (
+            ("ubuntu-24.04-arm", "aarch64-unknown-linux-gnu"),
+            ("macos-15", "aarch64-apple-darwin"),
+        ),
+    },
+    "publish": {
+        "needs": ["native"],
+        "condition": "github.event_name == 'release' && github.event.action == 'published'",
+        "runner": "ubuntu-24.04",
+        "permissions": {"actions": "read", "contents": "write"},
+    },
+}
 RELEASE_SURFACE_PATHS = (
     "docs/CI_POSTURE.md",
     "scripts/check_attribution.py",
@@ -333,13 +361,103 @@ def _permission_requires_review(scope: str, access: str) -> bool:
     ) is not None
 
 
+def _exact_field(body: str, indent: int, name: str) -> tuple[str, str] | None:
+    """Read one known indentation-bound field, rejecting duplicate declarations.
+
+    This deliberately does not parse arbitrary YAML. Recognition is available
+    only for the complete pinned workflow, then checks its explicit boundary.
+    """
+    lines = body.splitlines()
+    pattern = re.compile(rf"^{' ' * indent}{re.escape(name)}:\s*(.*?)\s*$")
+    found = [(index, match) for index, line in enumerate(lines) if (match := pattern.match(line))]
+    if len(found) != 1:
+        return None
+    index, match = found[0]
+    end = index + 1
+    while end < len(lines):
+        line = lines[end]
+        if line.strip() and len(line) - len(line.lstrip(" ")) <= indent:
+            break
+        end += 1
+    return _strip_yaml_scalar(match.group(1)), "\n".join(lines[index + 1:end]).rstrip()
+
+
+def _contract_permissions(body: str, indent: int) -> dict[str, str] | None:
+    blocks = _permission_blocks(body)
+    if not blocks:
+        return {}
+    if len(blocks) != 1:
+        return None
+    actual_indent, _, inline, entries = blocks[0]
+    if actual_indent != indent or inline or len({scope for scope, _, _ in entries}) != len(entries):
+        return None
+    return {scope: access for scope, access, _ in entries}
+
+
+def _native_runtime_contract_lines(relative: str, text: str) -> tuple[set[int], set[int]]:
+    """Return only the runner/write lines covered by the exact release contract."""
+    policy = NATIVE_RUNTIME_CONTRACT
+    if (relative != policy["path"]
+            or hashlib.sha256(text.encode("utf-8")).hexdigest() != policy["workflow_sha256"]
+            or tuple(trigger for trigger, _ in _workflow_triggers(text)) != policy["triggers"]):
+        return set(), set()
+    top_permissions = _exact_field(text, 0, "permissions")
+    if top_permissions is None or _contract_permissions("permissions:\n" + top_permissions[1], 0) != policy["workflow_permissions"]:
+        return set(), set()
+    if _exact_field(text, 2, "release") != ("", f"    types: {policy['release_types']}"):
+        return set(), set()
+    lines = text.splitlines()
+    spans = {}
+    for job in ("native", "publish"):
+        headers = [index for index, line in enumerate(lines) if line == f"  {job}:"]
+        if len(headers) != 1:
+            return set(), set()
+        start = headers[0]
+        end = next((index for index in range(start + 1, len(lines))
+                    if re.fullmatch(r"  [A-Za-z0-9_-]+:", lines[index])), len(lines))
+        body = "\n".join(lines[start + 1:end]) + "\n"
+        expected = policy[job]
+        if (_workflow_job_needs(body) != expected["needs"]
+                or _exact_field(body, 4, "if") != (expected["condition"], "")
+                or _exact_field(body, 4, "runs-on") != (expected["runner"], "")
+                or _contract_permissions(body, 4) != expected["permissions"]):
+            return set(), set()
+        spans[job] = (start, end, body)
+    matrix = _exact_field(spans["native"][2], 6, "matrix")
+    expected_matrix = "        include:\n" + "\n".join(
+        f"          - runner: {runner}\n            target: {target}"
+        for runner, target in policy["native"]["matrix"]
+    )
+    if matrix != ("", expected_matrix):
+        return set(), set()
+    native_start, native_end, _ = spans["native"]
+    publish_start, publish_end, _ = spans["publish"]
+    runner_lines = {index + 1 for index in range(native_start + 1, native_end)
+                    if lines[index] == f"    runs-on: {policy['native']['runner']}"}
+    write_lines = {index + 1 for index in range(publish_start + 1, publish_end)
+                   if lines[index] == "      contents: write"}
+    if len(runner_lines) != 1 or len(write_lines) != 1:
+        return set(), set()
+    return runner_lines, write_lines
+
+
 def audit_workflow_safety(report: PostureReport, root: Path, workflows: Sequence[Path]) -> None:
     trigger_findings = 0
     permission_findings = 0
     runner_findings = 0
+    recognized_contracts = 0
     for path in workflows:
         relative = _relative(root, path)
-        text = path.read_text(encoding="utf-8")
+        # Preserve physical newlines for the complete-workflow byte digest.
+        text = path.read_bytes().decode("utf-8")
+        contract_runners, contract_writes = _native_runtime_contract_lines(relative, text)
+        if contract_runners and contract_writes:
+            recognized_contracts += 1
+            report.passed(
+                "baseline.workflows.native-runtime-contract",
+                "pinned native-runtime contract: two finite hosted ARM64 targets; "
+                "contents:write only in the release-published publisher after native qualification",
+            )
         triggers = _workflow_triggers(text)
         if not triggers:
             trigger_findings += 1
@@ -378,6 +496,8 @@ def audit_workflow_safety(report: PostureReport, root: Path, workflows: Sequence
                 continue
             for scope, access, entry_line in entries:
                 if _permission_requires_review(scope, access):
+                    if scope == "contents" and access == "write" and entry_line in contract_writes:
+                        continue
                     permission_findings += 1
                     report.finding(
                         "baseline.workflows.permissions",
@@ -402,6 +522,8 @@ def audit_workflow_safety(report: PostureReport, root: Path, workflows: Sequence
                     candidate_lines.append((child.strip(), child_index + 1))
             for candidate, candidate_line in candidate_lines:
                 if "self-hosted" in candidate or "${{" in candidate:
+                    if candidate_line in contract_runners:
+                        continue
                     runner_findings += 1
                     report.finding(
                         "baseline.workflows.self-hosted",
@@ -418,12 +540,16 @@ def audit_workflow_safety(report: PostureReport, root: Path, workflows: Sequence
     if permission_findings == 0:
         report.passed(
             "baseline.workflows.permissions",
-            "all workflows declare read-only or empty explicit permissions",
+            "all workflows declare read-only or empty explicit permissions"
+            if not recognized_contracts else
+            "permissions are read-only/empty or match the pinned release-only native publisher",
         )
     if runner_findings == 0:
         report.passed(
             "baseline.workflows.self-hosted",
-            "no workflow selects a self-hosted or dynamic runner",
+            "no workflow selects a self-hosted or dynamic runner"
+            if not recognized_contracts else
+            "runners are static or match the pinned finite hosted ARM64 matrix",
         )
 
 
