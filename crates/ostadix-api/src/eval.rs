@@ -1466,8 +1466,9 @@ impl Evaluator {
     /// Dispatch a Request to the right performer.
     ///
     /// Routing rules:
-    ///   - `RequestKind::Eval` always goes to `exec_eval` (needs ProcessRegistry,
-    ///     which is !Send and not accessible to the scheduler).
+    ///   - `RequestKind::Eval` always goes to `exec_eval` (needs exclusive `&mut`
+    ///     access to the ProcessRegistry, which is `Send + !Sync` and not shared
+    ///     with scheduler worker threads).
     ///   - All other kinds under `Policy::Autonomous` go to the
     ///     `AutonomousScheduler`, which checks its two-level cache and, on a
     ///     miss, executes the request (and its source chain) using concurrent
@@ -1640,8 +1641,9 @@ impl Evaluator {
 
     /// Returns `true` if `m` is a Nix-family Request (Instantiate, Realise, or
     /// Activate) that can be dispatched to a background thread during concurrent
-    /// group resolution. Eval Requests are excluded because they require the
-    /// ProcessRegistry (which is !Send) and must stay on the evaluator thread.
+    /// group resolution. Eval Requests are excluded because they require
+    /// exclusive `&mut` access to the ProcessRegistry (`Send + !Sync`) on the
+    /// evaluator thread.
     fn is_threadable_member(m: &OValue) -> bool {
         Self::is_schedulable_request(m)
     }
@@ -1717,7 +1719,8 @@ impl Evaluator {
     ///   Nix-family Request, members are dispatched concurrently (up to
     ///   `self.scheduler.parallelism` threads at a time). Eval Requests and
     ///   plain values always resolve serially on the evaluator thread (Eval
-    ///   needs the ProcessRegistry which is !Send).
+    ///   needs exclusive `&mut` access to the ProcessRegistry, which is
+    ///   `Send + !Sync`).
     ///
     ///   Under `Strict` after an autonomous flush, results are already in L1
     ///   memory and sequential cache reads are used.
