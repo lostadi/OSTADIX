@@ -198,7 +198,15 @@ console.log('expired');
             &mut scope,
         )
         .unwrap_err();
-    fixture.eval(&mut evaluator, "python[7]^(42)_python[7]", &mut scope)?;
+    let session_error = fixture
+        .eval(&mut evaluator, "python[7]^(42)_python[7]", &mut scope)
+        .unwrap_err();
+    assert!(
+        format!("{session_error:#}").contains(
+            "session python[7] was terminated after its backend exited; its state is gone"
+        ),
+        "{session_error:#}"
+    );
     let error = fixture
         .eval(
             &mut evaluator,

@@ -47,9 +47,10 @@ pub enum Policy {
     /// independent requests as concurrent threads (up to `parallelism` at a
     /// time). Results are stored in a two-level cache (L1 memory + L2 disk).
     ///
-    /// `RequestKind::Eval` is excluded from buffering — Eval needs the
-    /// ProcessRegistry (which is !Send) and is executed eagerly even under
-    /// this policy. Full Eval parallelism is a STEP5 goal.
+    /// `RequestKind::Eval` is excluded from buffering — Eval needs exclusive
+    /// `&mut` access to the ProcessRegistry (`Send + !Sync`) on the evaluator
+    /// thread and is executed eagerly even under this policy. Full Eval
+    /// parallelism is a STEP5 goal.
     ///
     /// Activated via the `autonomous(expr)` built-in function, which evaluates
     /// `expr` under this policy, flushes the buffer on exit, and returns the

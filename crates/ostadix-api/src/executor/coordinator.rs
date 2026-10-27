@@ -10,8 +10,9 @@
 //! execute as owned tasks on one bounded worker pool reused for the entire
 //! coordinator run. Each physical completion immediately reopens scheduling;
 //! semantic settlement remains ordinal and deterministic. Every other
-//! operation — anything that needs the evaluator's `!Send` process registry or
-//! mutable state — runs on the coordinator thread. State/control inputs,
+//! operation — anything that needs exclusive `&mut` access to the evaluator's
+//! `Send + !Sync` process registry or mutable state — runs on the coordinator
+//! thread. State/control inputs,
 //! rather than commit order, preserve externally observable effect ordering.
 
 use std::collections::{HashMap, HashSet};

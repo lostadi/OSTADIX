@@ -6,8 +6,8 @@
 //! are preserved, but hidden host effects among already-started members are
 //! unordered. Ordinary ephemeral shims remain coordinator-owned and strict.
 //! Every task receives owned materialized inputs, so no reference to the
-//! `!Send` evaluator crosses a thread boundary. Results and failures still
-//! settle through the coordinator in deterministic O order.
+//! `Send + !Sync` evaluator crosses a thread boundary. Results and failures
+//! still settle through the coordinator in deterministic O order.
 
 use anyhow::{bail, Result};
 

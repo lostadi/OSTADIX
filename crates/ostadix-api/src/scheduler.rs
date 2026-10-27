@@ -20,12 +20,12 @@
 //        independent nodes as concurrent std::threads (up to `parallelism`
 //        at a time per wave).
 //
-//   RequestKind::Eval is excluded from this path. Eval requests need the
-//   ProcessRegistry (which lives in the Evaluator and is !Send). They are
-//   executed eagerly even under Autonomous policy, bypassing the buffer. Full
-//   Eval-level parallelism is a STEP5 goal; an `eval_fn` callback parameter
-//   is provided on execute_batch so the wiring can be added later without
-//   changing the public API.
+//   RequestKind::Eval is excluded from this path. Eval requests need exclusive
+//   `&mut` access to the Evaluator's ProcessRegistry (`Send + !Sync`) via the
+//   non-`Send` `eval_fn` callback. They are executed eagerly even under
+//   Autonomous policy, bypassing the buffer. Full Eval-level parallelism is a
+//   STEP5 goal; an `eval_fn` callback parameter is provided on execute_batch
+//   so the wiring can be added later without changing the public API.
 //
 // Cache layout:
 //   {cache_dir}/{cache-key}.json — canonical lowercase SHA-256 fingerprints
@@ -178,6 +178,18 @@ impl DiskCache {
 ///
 /// Terminates when the source is not a Request (NixExpr, Derivation, etc.).
 pub fn collect_transitive_requests(req: &OValue, out: &mut HashMap<String, OValue>) {
+    let mut unused_order = Vec::new();
+    collect_transitive_requests_ordered(req, out, &mut unused_order);
+}
+
+// collect unique requests in deterministic post-order (dependencies before
+// dependents, roots in slice order) so ready waves and serial eval picks never
+// depend on HashMap/HashSet hash seeds.
+fn collect_transitive_requests_ordered(
+    req: &OValue,
+    out: &mut HashMap<String, OValue>,
+    order: &mut Vec<String>,
+) {
     if let OValue::Request {
         fingerprint,
         source,
@@ -188,7 +200,8 @@ pub fn collect_transitive_requests(req: &OValue, out: &mut HashMap<String, OValu
             return; // already visited
         }
         out.insert(fingerprint.clone(), req.clone());
-        collect_transitive_requests(source, out);
+        collect_transitive_requests_ordered(source, out, order);
+        order.push(fingerprint.clone());
     }
 }
 
@@ -379,20 +392,35 @@ impl AutonomousScheduler {
         roots: &[OValue],
         mut eval_fn: Option<&mut EvalRequestCallback<'_>>,
     ) -> Result<HashMap<String, OValue>> {
-        // 1. Collect all unique requests (transitive closure of all roots).
+        // 1. Collect all unique requests in canonical post-order (dependencies
+        //    before dependents, roots in slice order).
         let mut all: HashMap<String, OValue> = HashMap::new();
+        let mut canonical_order: Vec<String> = Vec::new();
         for root in roots {
-            collect_transitive_requests(root, &mut all);
+            collect_transitive_requests_ordered(root, &mut all, &mut canonical_order);
         }
         if all.is_empty() {
             return Ok(HashMap::new());
         }
 
-        // 2. Pre-populate from caches.
+        // 2. Pre-populate from caches (skipping non-cacheable Eval requests so
+        //    impure evals are never satisfied from L1/L2 across batches).
         let mut resolved: HashMap<String, OValue> = HashMap::new();
-        for fp in all.keys() {
-            if let Some(v) = self.cache_get(fp) {
-                resolved.insert(fp.clone(), v);
+        for fp in &canonical_order {
+            let is_cacheable = !matches!(
+                all.get(fp),
+                Some(OValue::Request {
+                    kind: RequestKind::Eval {
+                        cacheable: false,
+                        ..
+                    },
+                    ..
+                })
+            );
+            if is_cacheable {
+                if let Some(v) = self.cache_get(fp) {
+                    resolved.insert(fp.clone(), v);
+                }
             }
         }
 
@@ -400,8 +428,8 @@ impl AutonomousScheduler {
         let dep_graph = build_dep_graph(&all);
 
         // 4. Topological dispatch loop.
-        let mut pending: HashSet<String> = all
-            .keys()
+        let mut pending: HashSet<String> = canonical_order
+            .iter()
             .filter(|fp| !resolved.contains_key(*fp))
             .cloned()
             .collect();
@@ -409,14 +437,15 @@ impl AutonomousScheduler {
         let mut first_failure: Option<anyhow::Error> = None;
 
         while !pending.is_empty() {
-            // Find nodes whose deps are all resolved.
-            let ready: Vec<String> = pending
+            // Find nodes whose deps are all resolved, preserving canonical order.
+            let ready: Vec<String> = canonical_order
                 .iter()
                 .filter(|fp| {
-                    dep_graph
-                        .get(*fp)
-                        .map(|deps| deps.iter().all(|d| resolved.contains_key(d)))
-                        .unwrap_or(true)
+                    pending.contains(*fp)
+                        && dep_graph
+                            .get(*fp)
+                            .map(|deps| deps.iter().all(|d| resolved.contains_key(d)))
+                            .unwrap_or(true)
                 })
                 .cloned()
                 .collect();
@@ -425,11 +454,16 @@ impl AutonomousScheduler {
                 if let Some(error) = first_failure {
                     return Err(error);
                 }
+                let sample_pending: Vec<&String> = canonical_order
+                    .iter()
+                    .filter(|fp| pending.contains(*fp))
+                    .take(3)
+                    .collect();
                 bail!(
                     "autonomous scheduler: dependency stall ({} pending, 0 ready). \
                      Possible cycle. Pending fingerprints: {:?}",
                     pending.len(),
-                    pending.iter().take(3).collect::<Vec<_>>()
+                    sample_pending
                 );
             }
 
@@ -454,9 +488,11 @@ impl AutonomousScheduler {
 
             // ── Concurrent dispatch for Nix-family requests ───────────────────
             // Dispatch one wave of up to `parallelism` threadable requests.
-            // We use a wave (rather than a streaming work-queue) to keep the
-            // borrow structure simple: all threads complete before we write
-            // results back to `resolved`.
+            // We use a wave (rather than a streaming work-queue) so the receiver
+            // loop drains all spawned worker channels (`drop(tx)` followed by
+            // `for (fp, result) in rx`) before the next topological iteration or
+            // `eval_fn` callback runs, and settles wave outcomes in canonical
+            // wave order rather than thread arrival order.
             let wave: Vec<String> = threadable.into_iter().take(self.parallelism).collect();
             if !wave.is_empty() {
                 let (tx, rx) = mpsc::channel::<(String, Result<OValue>)>();
@@ -519,26 +555,35 @@ impl AutonomousScheduler {
                         let _ = tx_c.send((fp_c, result));
                     });
                 }
-                drop(tx); // close; receiver loop below terminates when all senders drop
+                drop(tx); // close; receiver loop below drains all wave senders
 
+                let mut wave_outcomes: HashMap<String, Result<OValue>> =
+                    HashMap::with_capacity(wave.len());
                 for (fp, result) in rx {
-                    match result.with_context(|| {
+                    let outcome = result.with_context(|| {
                         format!(
                             "autonomous scheduler: request {} failed",
                             fingerprint_preview(&fp)
                         )
-                    }) {
-                        Ok(value) => {
-                            self.cache_put(&fp, value.clone());
-                            resolved.insert(fp.clone(), value);
-                        }
-                        Err(error) => {
-                            if first_failure.is_none() {
-                                first_failure = Some(error);
+                    });
+                    wave_outcomes.insert(fp, outcome);
+                }
+
+                for fp in &wave {
+                    if let Some(outcome) = wave_outcomes.remove(fp) {
+                        match outcome {
+                            Ok(value) => {
+                                self.cache_put(fp, value.clone());
+                                resolved.insert(fp.clone(), value);
+                            }
+                            Err(error) => {
+                                if first_failure.is_none() {
+                                    first_failure = Some(error);
+                                }
                             }
                         }
                     }
-                    pending.remove(&fp);
+                    pending.remove(fp);
                 }
             }
 
@@ -550,7 +595,7 @@ impl AutonomousScheduler {
             // the next wave.
             //
             // `eval_fn` is an independent mutable reference from the caller and
-            // does not borrow from `self`, so it can be reborrowred here while
+            // does not borrow from `self`, so it can be reborrowed here while
             // `self` is used for cache_put / mem_cache.insert below.
             if let Some(fp) = serial.into_iter().next() {
                 let req = all[&fp].clone();
@@ -565,10 +610,19 @@ impl AutonomousScheduler {
                         fingerprint_preview(&fp)
                     )
                 };
-                // Eval results are stored only in mem_cache (the Evaluator's
-                // eval_cache is the canonical store for {lazy} results; writing
-                // to disk would duplicate that cache with different semantics).
-                self.mem_cache.insert(fp.clone(), result.clone());
+                // Only cache Eval results in mem_cache when explicitly marked
+                // cacheable (`{lazy}`); non-cacheable Eval requests must re-run
+                // on subsequent batches while still resolving within this batch.
+                let is_cacheable = match &req {
+                    OValue::Request {
+                        kind: RequestKind::Eval { cacheable, .. },
+                        ..
+                    } => *cacheable,
+                    _ => true,
+                };
+                if is_cacheable {
+                    self.mem_cache.insert(fp.clone(), result.clone());
+                }
                 resolved.insert(fp.clone(), result);
                 pending.remove(&fp);
             }
@@ -999,5 +1053,161 @@ mod tests {
         let mut sched = AutonomousScheduler::no_disk();
         let err = sched.execute(&OValue::int(42)).unwrap_err();
         assert!(err.to_string().contains("Request"));
+    }
+
+    #[test]
+    fn execute_batch_only_caches_eval_in_mem_cache_when_cacheable() {
+        let mut sched = AutonomousScheduler::no_disk();
+
+        let impure_req = OValue::request(
+            RequestKind::Eval {
+                lang: "python".to_string(),
+                env_id: u32::MAX,
+                cacheable: false,
+                authority: None,
+                permissions: vec![],
+            },
+            OValue::thunk("impure()", vec![]),
+        );
+        let impure_fp = match &impure_req {
+            OValue::Request { fingerprint, .. } => fingerprint.clone(),
+            _ => panic!(),
+        };
+
+        let mut impure_calls = 0usize;
+        {
+            let mut eval_fn = |_req: &OValue| -> Result<OValue> {
+                impure_calls += 1;
+                Ok(OValue::int(impure_calls as i64))
+            };
+            let first = sched
+                .execute_batch(std::slice::from_ref(&impure_req), Some(&mut eval_fn))
+                .unwrap();
+            assert_eq!(first[&impure_fp], OValue::int(1));
+            assert!(
+                !sched.mem_cache.contains_key(&impure_fp),
+                "non-cacheable Eval must not populate mem_cache"
+            );
+
+            let second = sched
+                .execute_batch(std::slice::from_ref(&impure_req), Some(&mut eval_fn))
+                .unwrap();
+            assert_eq!(second[&impure_fp], OValue::int(2));
+        }
+        assert_eq!(impure_calls, 2);
+
+        let cacheable_req = OValue::request(
+            RequestKind::Eval {
+                lang: "python".to_string(),
+                env_id: u32::MAX,
+                cacheable: true,
+                authority: None,
+                permissions: vec![],
+            },
+            OValue::thunk("pure()", vec![]),
+        );
+        let cacheable_fp = match &cacheable_req {
+            OValue::Request { fingerprint, .. } => fingerprint.clone(),
+            _ => panic!(),
+        };
+
+        let mut cacheable_calls = 0usize;
+        {
+            let mut eval_fn = |_req: &OValue| -> Result<OValue> {
+                cacheable_calls += 1;
+                Ok(OValue::int(99))
+            };
+            let first = sched
+                .execute_batch(std::slice::from_ref(&cacheable_req), Some(&mut eval_fn))
+                .unwrap();
+            assert_eq!(first[&cacheable_fp], OValue::int(99));
+            assert!(
+                sched.mem_cache.contains_key(&cacheable_fp),
+                "cacheable Eval must populate mem_cache"
+            );
+
+            let second = sched
+                .execute_batch(std::slice::from_ref(&cacheable_req), Some(&mut eval_fn))
+                .unwrap();
+            assert_eq!(second[&cacheable_fp], OValue::int(99));
+        }
+        assert_eq!(cacheable_calls, 1);
+    }
+
+    #[test]
+    fn execute_batch_dispatches_serial_eval_in_canonical_root_order() {
+        let mut sched = AutonomousScheduler::no_disk();
+        let roots: Vec<OValue> = (0..8)
+            .map(|i| {
+                OValue::request(
+                    RequestKind::Eval {
+                        lang: "python".to_string(),
+                        env_id: i,
+                        cacheable: false,
+                        authority: None,
+                        permissions: vec![],
+                    },
+                    OValue::thunk(&format!("step_{i}"), vec![]),
+                )
+            })
+            .collect();
+        let expected_fps: Vec<String> = roots
+            .iter()
+            .map(|r| match r {
+                OValue::Request { fingerprint, .. } => fingerprint.clone(),
+                _ => panic!(),
+            })
+            .collect();
+
+        let mut seen_fps: Vec<String> = Vec::new();
+        {
+            let mut eval_fn = |req: &OValue| -> Result<OValue> {
+                if let OValue::Request { fingerprint, .. } = req {
+                    seen_fps.push(fingerprint.clone());
+                }
+                Ok(OValue::int(1))
+            };
+            sched.execute_batch(&roots, Some(&mut eval_fn)).unwrap();
+        }
+        assert_eq!(seen_fps, expected_fps);
+    }
+
+    #[test]
+    fn execute_batch_selects_first_wave_failure_in_canonical_order() {
+        let mut sched = AutonomousScheduler::no_disk().with_parallelism(4);
+        sched.nix_lease_capture = || Arc::new(Err("synthetic nix lease failure".to_string()));
+
+        let req_a = OValue::request(
+            RequestKind::Instantiate,
+            OValue::nix_expr("pkgs.alpha", vec![]),
+        );
+        let req_b = OValue::request(
+            RequestKind::Instantiate,
+            OValue::nix_expr("pkgs.beta", vec![]),
+        );
+        let fp_a = match &req_a {
+            OValue::Request { fingerprint, .. } => fingerprint.clone(),
+            _ => panic!(),
+        };
+        let fp_b = match &req_b {
+            OValue::Request { fingerprint, .. } => fingerprint.clone(),
+            _ => panic!(),
+        };
+
+        let err_ab = sched
+            .execute_batch(&[req_a.clone(), req_b.clone()], None)
+            .unwrap_err();
+        assert!(
+            err_ab.to_string().contains(&fingerprint_preview(&fp_a)),
+            "expected first root fp {} in error: {err_ab:#}",
+            fingerprint_preview(&fp_a)
+        );
+
+        let err_ba = sched.execute_batch(&[req_b, req_a], None).unwrap_err();
+        assert!(
+            err_ba.to_string().contains(&fingerprint_preview(&fp_b)),
+            "expected first root fp {} in error: {err_ba:#}",
+            fingerprint_preview(&fp_b)
+        );
     }
 }
