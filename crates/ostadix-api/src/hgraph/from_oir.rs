@@ -92,6 +92,17 @@ pub fn build_program_with_plan(
     for edge in &plan.edges {
         graph.add_edge(HEdge::constraint(
             match edge.kind {
+                PlanEdgeKind::Structural
+                    if matches!(plan.nodes[edge.to.0].kind, PlanNodeKind::Store { .. })
+                        && index
+                            .incoming(edge.to)
+                            .iter()
+                            .filter(|incoming| incoming.kind == PlanEdgeKind::Structural)
+                            .count()
+                            == 1 =>
+                {
+                    OpKind::DataFlow
+                }
                 PlanEdgeKind::Structural => OpKind::StructuralBarrier,
                 PlanEdgeKind::Sequence => OpKind::Sequence,
                 PlanEdgeKind::Data
@@ -581,7 +592,7 @@ fn add_plan_semantics(
         let inputs = structural_inputs(index, node_map, plan_node.id);
 
         match &plan_node.kind {
-            PlanNodeKind::Exec { backend, .. } => {
+            PlanNodeKind::Exec { backend, attr, .. } => {
                 if let Some((dom, rep)) = backend_output_constraints(backend) {
                     graph.add_edge(HEdge::constraint(
                         OpKind::AbiFixed { dom, rep },
@@ -592,7 +603,9 @@ fn add_plan_semantics(
                     ));
                 }
 
-                for input in &inputs {
+                let crossing_inputs =
+                    exec_crossing_inputs(plan, index, node_map, plan_node.id, attr.as_deref());
+                for input in &crossing_inputs {
                     graph.add_edge(HEdge::constraint(
                         OpKind::BackendCrossing {
                             from_lang: "O".to_string(),
@@ -673,6 +686,37 @@ fn add_plan_semantics(
             | PlanNodeKind::NativeI64 { .. } => {}
         }
     }
+}
+
+fn exec_crossing_inputs(
+    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
+    node_map: &HashMap<PlanNodeId, NodeId>,
+    parent: PlanNodeId,
+    attr: Option<&str>,
+) -> Vec<NodeId> {
+    let cap_binding = attr
+        .into_iter()
+        .flat_map(|attr| attr.split(','))
+        .map(str::trim)
+        .find_map(|entry| entry.strip_prefix("cap=").filter(|name| !name.is_empty()));
+    let mut seen = HashSet::new();
+    let mut ordered: Vec<(usize, NodeId)> = Vec::new();
+    for edge in index.incoming(parent) {
+        let is_crossing = match edge.kind {
+            PlanEdgeKind::Structural => true,
+            PlanEdgeKind::Data => !matches!(
+                (&plan.nodes[edge.from.0].kind, cap_binding),
+                (PlanNodeKind::Store { name }, Some(cap)) if name == cap
+            ),
+            PlanEdgeKind::Sequence => false,
+        };
+        if is_crossing && seen.insert(edge.from) {
+            ordered.push((edge.from.0, node_map[&edge.from]));
+        }
+    }
+    ordered.sort_by_key(|(source, _)| *source);
+    ordered.into_iter().map(|(_, node)| node).collect()
 }
 
 fn structural_inputs(
@@ -887,5 +931,70 @@ mod world_resource_key_tests {
                 }
             )
         }));
+    }
+
+    #[test]
+    fn bound_let_variable_emits_backend_crossing_and_store_dataflow() {
+        use crate::backend_catalog::BackendRegistry;
+        use crate::hgraph::solve::{fidelity_for_value, solve_types};
+        use crate::ir::OIr;
+        use crate::value::OValue;
+
+        let js = BackendRegistry::global().interface_for("javascript");
+        let program = OIrProgram {
+            nodes: vec![
+                OIr::Store {
+                    name: "big".into(),
+                    expr: Box::new(OIr::Text("hello".into())),
+                },
+                OIr::Exec {
+                    lang: "javascript".into(),
+                    env_id: u32::MAX,
+                    attr: None,
+                    backend: js,
+                    body: vec![OIr::Text("console.log(big);".into())],
+                },
+            ],
+        };
+        let mut graph = build_program(&program);
+        let has_crossing = graph.edges.values().any(|edge| {
+            matches!(
+                &edge.kind,
+                OpKind::BackendCrossing { to_lang, .. } if to_lang == "javascript"
+            )
+        });
+        assert!(
+            has_crossing,
+            "bare let binding referenced in Exec must emit an OpKind::BackendCrossing edge"
+        );
+        let literal_id = graph
+            .nodes
+            .iter()
+            .find_map(|(id, node)| (node.value == Some(OValue::str_("hello"))).then_some(*id))
+            .unwrap();
+        graph.node_mut(literal_id).unwrap().value = Some(OValue::int(9007199254740993_i64));
+        solve_types(&mut graph).unwrap();
+        let crossing_edge = graph
+            .edges
+            .values()
+            .find(|edge| {
+                matches!(
+                    &edge.kind,
+                    OpKind::BackendCrossing { to_lang, .. } if to_lang == "javascript"
+                )
+            })
+            .unwrap();
+        let out_id = crossing_edge
+            .ports
+            .iter()
+            .find(|port| port.role == PortRole::Output)
+            .unwrap()
+            .node;
+        let exec_node = graph.node(out_id).unwrap();
+        assert_eq!(
+            exec_node.fidelity,
+            Some(fidelity_for_value(&OValue::int(9007199254740993_i64), "javascript")),
+            "Store DataFlow + Exec BackendCrossing must propagate precision loss across let bindings"
+        );
     }
 }
