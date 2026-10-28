@@ -132,3 +132,12 @@ big_iron_to_my_texas_red*
 /session-*.md
 /ostadix-lang-info.pdf
 /src/bin/*.before-*
+
+# Whitepaper build intermediates; the two published PDFs remain tracked.
+/output/pdf/*.aux
+/output/pdf/*.fdb_latexmk
+/output/pdf/*.fls
+/output/pdf/*.log
+/output/pdf/*.out
+/output/pdf/*.synctex.gz
+/output/pdf/*.toc

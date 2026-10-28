@@ -1,7 +1,7 @@
 \documentclass[11pt,oneside]{article}
 
-\pdfinfoomitdate=1
-\pdfsuppressptexinfo=15
+\ifdefined\pdfinfoomitdate\pdfinfoomitdate=1\fi
+\ifdefined\pdfsuppressptexinfo\pdfsuppressptexinfo=15\fi
 
 \usepackage[letterpaper,top=0.78in,bottom=0.82in,left=0.82in,right=0.82in]{geometry}
 \usepackage[T1]{fontenc}
@@ -52,7 +52,7 @@
   pdfcreator={},
   pdfproducer={},
   pdftitle={Ostadix-lang: Structural Polyglot Orchestration, Native O-core, and World Execution},
-  pdfsubject={Creator-authored technical whitepaper for Ostadix-lang 0.4.0 Unreleased at d13814df},
+  pdfsubject={Creator-authored technical whitepaper for Ostadix-lang 0.4.0 Unreleased at f472c983},
   pdfkeywords={Ostadix-lang, O-lang, O-core, OIR, HGraph, polyglot programming}
 }
 
@@ -78,7 +78,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\color{OSlate}Ostadix-lang Technical Whitepaper}
-\fancyhead[R]{\small\color{OSlate}\texttt{0.4.0 Unreleased / d13814df}}
+\fancyhead[R]{\small\color{OSlate}\texttt{0.4.0 Unreleased / f472c983}}
 \fancyfoot[L]{\small\color{OSlate}Lee Daghlar Ostadi}
 \fancyfoot[R]{\small\color{OSlate}\thepage\ /\ \pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -126,7 +126,7 @@
 \newcommand{\oir}{{\mdseries\textsc{OIR}}}
 \newcommand{\hgraph}{{\mdseries\textsc{HGraph}}}
 \newcommand{\ocore}{{\mdseries\textsc{O-core}}}
-\newcommand{\src}[1]{\textcolor{OSlate}{\scriptsize[\href{https://github.com/lostadi/OSTADIX/blob/d13814df25cac143b688160c3c969dc814614b1a/#1}{\nolinkurl{#1}}]}\allowbreak}
+\newcommand{\src}[1]{\textcolor{OSlate}{\scriptsize[\href{https://github.com/lostadi/OSTADIX/blob/f472c983deb83d260d4d52e77aa4dd8740710dc5/#1}{\nolinkurl{#1}}]}\allowbreak}
 \newcommand{\status}[2]{\textbf{\textcolor{#1}{#2}}}
 \newcommand{\breakcode}[1]{\texttt{\seqsplit{#1}}}
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
@@ -174,7 +174,7 @@
   \centering
   \textbf{Implementation snapshot}\\
   \href{https://github.com/lostadi/OSTADIX}{github.com/lostadi/OSTADIX}\\
-  Source snapshot \texttt{d13814df25cac143b688160c3c969dc814614b1a}\\
+  Source snapshot \texttt{f472c983deb83d260d4d52e77aa4dd8740710dc5}\\
   Package coordinate \texttt{0.4.0 Unreleased}
   \end{tcolorbox}
 
@@ -183,7 +183,7 @@
   \vspace{0.08in}
   {\normalsize ORCID 0009-0001-6380-9558\par}
   \vspace{0.12in}
-  {\normalsize 3 October 2026\par}
+  {\normalsize 28 October 2026\par}
 \end{center}
 \end{titlepage}
 
@@ -208,8 +208,13 @@ groups, project lifting, and hosted live-system supervision make evaluator
 composition a complete execution model.
 
 I developed \ocore{} as the native systems lineage of this architecture. It is
-a statically typed freestanding language whose AST--typed HIR--SSA
-MIR--x86-64 assembly/object pipeline supplies code used by the Ostadix kernel.
+a statically typed freestanding language whose AST--typed HIR--SSA MIR
+pipeline emits owned x86-64, AArch64 and RV64GC assembly and ELF objects.
+A separate native-module pipeline imports original frontend LLVM, verifies
+the entire normalized module, and emits supported integer/pointer, variadic,
+atomic, TLS and exception profiles. Compiler-owned source recipes and reusable
+module sets advance the original-engine lowering objective; complete linked
+runtime/compiler closure remains a separate, unfinished qualification.
 Its compiler, runtime modules, capability system, and World-admission machinery
 carry the architecture from evaluator orchestration into native systems
 construction. Together, the hosted and native lineages span polyglot
@@ -226,8 +231,9 @@ constitution through Graph V2, Evidence V6, Admission V6, Why V2, the unified
 lowercase \texttt{o} front door, reciprocal node pairing, Project Mesh,
 Information, Registry V1, and the canonical World formats. This revision
 also covers operation realization planning, physical execution profiles,
-native object ownership, supported actor migration, and the shared
-source-first human/MCP interface. The central result
+native object ownership, supported actor migration, the shared
+source-first human/MCP interface, and the fixes that restore hosted edition
+agreement and the 26-gate portable native aggregate. The central result
 is a coherent architecture in which evaluator identity is syntax,
 cross-language state is typed, effects become explicit graph resources, and
 execution authority is admitted through exact verified records.
@@ -255,9 +261,11 @@ freestanding systems language, multikernel research.
   \item \textbf{Whole-project composition.} Deterministic project bundles
         preserve files, routes, guards, artifacts, and alternative policies in
         a reversible language artifact.
-  \item \textbf{Native World construction.} \ocore{}, the kernel runtime, and
-        KernelWorld carry the same explicit-structure philosophy into
-        freestanding compilation and authority-bearing admission.
+  \item \textbf{Native compilation and World construction.} Three owned
+        ISA backends, verified original-module import and compiler-owned
+        source recipes connect implementation code to native artifacts.
+        The kernel and KernelWorld extend explicit structure into
+        freestanding services and authority-bearing admission.
   \item \textbf{Execution constituted by evidence.} Graph V2 binds the solved
         typed program; Evidence V6 binds its executable environment; Admission
         V6 rederives and materializes the authority consumed by execution.
@@ -350,33 +358,35 @@ evidence without changing terminology.
 
 \subsection{Source coordinate}
 
-This revision describes the committed Ostadix-lang implementation at
-\texttt{d13814df}, package coordinate \texttt{0.4.0 Unreleased}, reviewed
-on 3 October 2026. The title page records the full commit identity.
-The revision brings the August edition forward through shared native
-human/agent interfaces, computation and realization records, execution
-profiles, actor migration, packaging, cancellation, and typed grounding.
-The source coordinate describes committed implementation; installed
-binaries and historical execution evidence carry their own coordinates.
-The local checkout also contains work in progress in the Cargo manifest,
-lockfile, and an additional core package. Those changes are outside the
-committed implementation described here.
+This revision describes the published canonical OSTADIX commit
+\texttt{f472c983}, package coordinate \texttt{0.4.0 Unreleased}, reviewed
+on 28 October 2026. The title page and all source links pin the full commit.
+The development repository's \texttt{62c7f8f0} and the canonical publication
+have distinct histories and the identical tracked tree
+\breakcode{627afd3ee65c829a3edce3e3bd6ba86db4660017}. Both histories retain
+prior remote work. Runtime source identity, installed binary identity, and
+execution evidence retain their own coordinates.
 
-At review time this commit was five local commits ahead of the fetched public
-branch. The source links identify the exact reviewed commit; remote links
-become resolvable when that commit is published. A local checkout containing
-the coordinate provides the same cited files.
+The revision covers three native compiler targets, original LLVM-module
+import, compiler-owned source recipes, reusable native module sets, variadic
+ABI support, explicit atomic/TLS/exception profiles, hosted reference-edition
+repairs, MCP HTTP and OAuth interfaces, and native image repair. It reports
+the retained 28 October host and portable-native validation separately from
+older compiler-development evidence. Section~\ref{sec:validation} gives the
+source and execution scope of each result.
 
-The workspace contains two synchronized Rust packages. The root
-\texttt{o-lang} package owns compatibility reexports and command-line
-programs. The independently packageable \texttt{ostadix-api} package owns the
-parser, IR, evaluator, graph, evidence, scheduler, project, networking,
-Information, Registry, World, Live-World, KernelWorld, and O-core runtime
-modules. The MCP server is a separately locked Rust package excluded from the
-main workspace so its protocol dependencies remain outside the runtime
-dependency graph. \src{Cargo.toml}
+The Rust workspace has three members. The root \texttt{o-lang} package owns
+compatibility reexports and command-line programs. The independently
+packageable \texttt{ostadix-api} owns the parser, IR, evaluator, graph,
+evidence, scheduler, project, networking, Information, Registry, World,
+Live-World, KernelWorld and O-core modules. These two default members share
+version 0.4.0. The \texttt{ostadix-core} member supplies the separately
+versioned \texttt{ostadix} command. The MCP server remains a separately
+locked package outside the workspace, keeping its protocol dependencies out
+of the engine's dependency graph.
+\src{Cargo.toml}
 \src{crates/ostadix-api/Cargo.toml}
-\src{CHANGELOG.md}
+\src{ostadix-core/Cargo.toml}
 
 \subsection{Contribution map}
 
@@ -459,7 +469,7 @@ several execution substrates.
   \node[native,below=0.62in of osrc] (ocsrc) {\texttt{.oc} source};
   \node[native,right=of ocsrc] (hir) {typed HIR};
   \node[native,right=of hir] (mir) {SSA MIR};
-  \node[native,right=of mir] (elf) {x86-64 ELF\\and kernel};
+  \node[native,right=of mir] (elf) {target assembly\\and ELF64 objects};
 
   \draw[arr] (osrc) -- (oir);
   \draw[arr] (oir) -- (hg);
@@ -735,7 +745,7 @@ particular option must be checked against the selected installation.
 \src{src/command_catalog.rs}
 \src{src/bin/o-cli/native_dispatch.rs}
 
-The separately locked Rust/\texttt{rmcp} stdio server has 21 tool methods in
+The separately locked Rust/\texttt{rmcp} stdio and Streamable HTTP server has 21 tool methods in
 this source snapshot. \texttt{setup.sh} builds and installs it, and the
 repository's \path{.mcp.json} registers it for MCP clients.
 \begin{longtable}{P{0.39\textwidth} P{0.53\textwidth}}
@@ -757,7 +767,7 @@ human/agent workflows. \\
 lossless base64 reads, interactive input, and owned-process cleanup. \\
 \texttt{o\_env}, \texttt{o\_runtimes}, \texttt{o\_doctor},
 \texttt{o\_smoke} & Resolved installation, backend requirements,
-diagnostics, and the canonical smoke program. \\
+diagnostics, and a private fixed Python arithmetic smoke program. \\
 \texttt{o\_analyze\_intent}, \texttt{o\_execute\_intent} & One-use binding
 of exact source and stable intent before fresh runtime admission. \\
 \texttt{o\_olangc}, \texttt{o\_information\_inspect},
@@ -830,6 +840,32 @@ into a fresh root-runtime admission.}
 \label{fig:mcp-handle}
 \end{figure}
 
+\paragraph{HTTP transport and client authorization.}
+The same 21-tool implementation is available over stdio and Streamable HTTP.
+The HTTP endpoint retains the initialized MCP lifecycle and associates jobs
+and intent handles with a session. Subsequent requests retain the negotiated
+protocol version and session identifier. Explicit session deletion,
+inactivity expiry, or server shutdown ends the session and cancels its jobs.
+The transport accepts configured static bearer authentication, explicit
+unauthenticated gateway deployment, or the native single-owner OAuth mode.
+\src{mcp/ostadix_lang_mcp_server/src/http.rs}
+\src{mcp/ostadix_lang_mcp_server/README.md}
+
+The OAuth implementation provides resource and authorization-server metadata,
+dynamic client registration, S256 PKCE authorization-code exchange,
+owner-token confirmation in browser consent, and rotating refresh tokens.
+Persisted grant state binds client identity and token families; replay of a
+used refresh token revokes its grant family. The consent screen states that
+an authorized client obtains host tool access, including native commands,
+program execution, and files. OAuth authorizes access to this MCP service;
+it does not establish per-tool isolation or replace the runtime's admission,
+World, capability, or execution-receipt mechanisms.
+\src{mcp/ostadix_lang_mcp_server/src/oauth.rs}
+\src{mcp/ostadix_lang_mcp_server/src/oauth/model.rs}
+\src{mcp/ostadix_lang_mcp_server/src/oauth/handlers.rs}
+\src{mcp/ostadix_lang_mcp_server/src/oauth/handlers/exchange.rs}
+\src{deployment/mcp/CLIENTS.md}
+
 \subsection{Computation identity and declared realization planning}
 \label{sec:computation-planning}
 
@@ -886,8 +922,7 @@ its explicit native subcommands.
 
 \subsection{Physical operation and transfer graphs}
 
-An additive embedding API composes these single-operation closures into a
-multi-operation \texttt{LogicalHGraphV2}. Each logical edge has one supplied
+An embedding API combines operation closures in a \texttt{LogicalHGraphV2}. Each logical edge has one supplied
 transfer offer with exact target and representation coordinates. Planning
 filters compatible operation offers and derives an executable DAG in which
 the consumer waits for its transfer, and the transfer waits for its producer.
@@ -2828,7 +2863,7 @@ operation planning and observation, and durable run records. \\
 \texttt{olangc} &
 Hosted packaging/compiler front end: binary, WASM, script, IR, and DOT. \\
 \texttt{ocorec} &
-\ocore{} compiler: AST, HIR, MIR, assembly, or relocatable object. \\
+\ocore{} source and verified native-module compiler: inspect source IR, import supported LLVM and emit owned ISA assembly or objects. \\
 \texttt{o-link} / \texttt{o-unlink} &
 Literal linking and safe project bundle lift/restoration. \\
 \texttt{o-notebook} &
@@ -2977,22 +3012,64 @@ REPL, notebook, O-Git, Live-World, KernelWorld records, and \ocore{}. \\
 Python 0.4.0 &
 \texttt{python}, \texttt{markdown}, \texttt{html}, \texttt{latex},
 \texttt{text}, \texttt{O}, \texttt{quote}, \texttt{nix},
-\texttt{nix\_store}, \texttt{nixos\_test}; aliases \texttt{py},
-\texttt{md}, \texttt{tex}, \texttt{plain}, \texttt{o}. &
-Direct execution, AST dump, text/HTML/Markdown/LaTeX/JSON projections,
-file output, the typed root API below, parser tests, and evaluator tests. \\
-C17 interpreter &
-\texttt{O}, \texttt{python}, \texttt{html}, \texttt{latex},
-\texttt{markdown}, \texttt{bash}, \texttt{shell}, \texttt{rust},
-\texttt{racket}, \texttt{nix}, \texttt{nix\_expr},
-\texttt{nix\_store}, \texttt{nixos\_test}, \texttt{quote}. &
-Portable hosted parsing, evaluation, embedding headers, and backend-process
-execution through the C17 test corpus. \\
-C17 AOT &
-The interpreter registry plus \texttt{text}. &
-Generated C, host compilation, hello execution, and meta-evaluation. \\
+\texttt{nix\_store}, \texttt{nixos\_test}, \texttt{common\_lisp},
+\texttt{javascript}; aliases \texttt{py}, \texttt{md}, \texttt{tex},
+\texttt{plain}, \texttt{o}. &
+Recursive evaluation, AST and output projections, a small typed embedding
+API, and stateless Common Lisp/JavaScript shim crossings. \\
+C17 interpreter and AOT &
+One registry shared by the interpreter, meta-evaluator, and generated C:
+22 shipped shim tags, together with \texttt{O}, \texttt{html},
+\texttt{latex}, \texttt{markdown}, \texttt{text}, \texttt{quote},
+and \texttt{nix\_expr}. &
+Hosted evaluation and generated-C AOT; AOT packaging includes every
+advertised shim and both imported support modules. Runtime discovery and
+value support remain distinct from parser registration. \\
 \bottomrule
 \end{longtable}
+
+The Python reference evaluator retains its in-process Python environments,
+but environment lifetime is backend-specific. Its added
+\texttt{common\_lisp} and \texttt{javascript} adapters invoke the shipped
+framed-CBOR shims in a fresh process for each block, including blocks with
+numeric environment labels. They supply executable coverage for the nested
+Python--Common Lisp--JavaScript greeting without claiming the Rust runtime's
+native-object ownership or admitted-execution protocols.
+\src{o_lang/backends/__init__.py}
+\src{o_lang/backends/shim_backend.py}
+\src{tests/test_python_shim_backend.py}
+
+The C17 shim registry contains \texttt{python}, \texttt{nix},
+\texttt{nix\_store}, \texttt{nixos\_test}, \texttt{bash},
+\texttt{shell}, \texttt{rust}, \texttt{racket}, \texttt{javascript},
+\texttt{common\_lisp}, \texttt{lisp}, \texttt{cpp}, \texttt{csharp},
+\texttt{haskell}, \texttt{java}, \texttt{mathematica}, \texttt{matlab},
+\texttt{ocaml}, \texttt{ruby}, \texttt{sql}, \texttt{ubuntu\_vm}, and
+\texttt{webassembly}. The \texttt{OLANG\_SHIM\_BACKENDS} definition
+constructs the parser registry and the AOT shim-file inventory. This removes
+the earlier divergence in which an evaluator could implement a backend while
+the parser did not recognize a typed binding on its right-hand side. The
+registration test uses deterministic wire peers, then removes the original
+source and shim directory before running the packaged executable; it tests
+routing and packaging independently of installed language engines.
+\src{c_cpp/include/backends.h}
+\src{c_cpp/src/main.c}
+\src{c_cpp/src/eval.c}
+\src{c_cpp/src/olangc.c}
+\src{c_cpp/tests/test_backend_registration.py}
+
+The Python shim adapter accepts one response frame and rejects trailing data,
+malformed responses, unsupported value variants, and failed child processes.
+Its lifting subset includes null, booleans, arbitrary-size integers,
+IEEE-754 binary64 values, strings and HTML, lists, string-keyed maps, blobs,
+and store paths. Binary64 decoding preserves finite bit patterns and signed
+zero; no conversion to arbitrary binary formats or native handles is implied.
+Child values use the generic source-splice representation; the adapter does
+not infer a JavaScript or Lisp quoting context. A bounded subprocess timeout
+terminates the owned POSIX process group, including an engine descendant,
+without silently retrying a failed computation.
+\src{o_lang/backends/shim_backend.py}
+\src{tests/test_python_shim_backend.py}
 
 The Python package root exposes its complete small embedding vocabulary:
 
@@ -3014,13 +3091,14 @@ Conversion and rendering & \texttt{from\_python}, \texttt{to\_python},
 \end{longtable}
 \src{o_lang/__init__.py}
 
-The C17 edition publishes six headers as an embedding ABI:
+The C17 edition publishes embedding headers and a shared backend registry:
 
 \begin{longtable}{P{0.17\textwidth} P{0.75\textwidth}}
 \toprule
 \textbf{Header} & \textbf{Public integration surface} \\
 \midrule
 \endhead
+\texttt{backends.h} & Shared parser registry and shim inventory for the interpreter, meta-evaluation and generated-C AOT. \\
 \texttt{value.h} & Tagged OValue union, constructors, reference counting,
 maps, content identity, JSON, length-prefixed CBOR frames, SHA-256, and base64. \\
 \texttt{parser.h} & AST storage, registered-language sets, parser lifecycle,
@@ -3041,6 +3119,37 @@ and current-system transitions. \\
 \src{c_cpp/include/process.h}
 \src{c_cpp/include/scheduler.h}
 \src{c_cpp/include/nix_ops.h}
+
+\paragraph{Demonstration and infrastructure fixtures.}
+The public \texttt{examples/hello.O} now constructs a greeting through
+Python, Common Lisp, and JavaScript bindings. It exercises actual language
+composition and therefore requires the corresponding hosted engines. Setup
+verification and the MCP \texttt{o\_smoke} tool instead materialize a private,
+fixed Python computation of $1+1$, whose expected result is $2$; those checks
+remain stable when the public example changes. The hosted boot harness still
+runs the public greeting. It compares captured graph and serial output bytes,
+including trailing newlines, and reports an installed reference edition's
+execution failure as a failure rather than a successful skip. These fixtures
+separate engine-composition regressions from infrastructure readiness.
+\src{examples/hello.O}
+\src{setup.sh}
+\src{boot-and-test.sh}
+\src{mcp/ostadix_lang_mcp_server/src/main.rs}
+
+\paragraph{Editor execution paths.}
+The editor installer distributes locally packaged syntax support and, on
+macOS and Linux Code-family editors, a managed \emph{Ostadix: Run Current
+File} launch configuration. The launch selects the runtime and backend paths
+from the checkout that ran the installer and passes the active filename
+through an environment variable to the terminal launcher. Optional Code
+Runner mappings use that extension's own filename substitution. Installation
+preserves unrelated settings and JSONC comments, backs up changed files, and
+supports read-only check and dry-run modes. This integration invokes the
+native runtime; it supplies neither language-level breakpoints nor stepping,
+and installing syntax alone does not build the executable.
+\src{tools/syntax/install.py}
+\src{tools/syntax/vscode_settings.py}
+\src{tools/syntax/README.md}
 
 \subsection{REPL and notebook state}
 
@@ -3135,12 +3244,12 @@ pub fn add(left: u64, right: u64) -> u64 {
 
 The module declaration names the unit, \texttt{@export} fixes external
 visibility, \texttt{pub} admits cross-module lookup, the signature fixes every
-machine type, and the explicit return becomes typed SSA before x86-64 lowering.
+machine type, and the explicit return becomes typed SSA before ISA lowering.
 Structures, enums, imports, statics, constants, extern declarations, unsafe
 blocks, volatile and atomic intrinsics, and \texttt{asm!} use the same direct
-item-and-expression grammar across the current 144-file O-core source corpus:
-81 runtime files, 51 kernel files, 11 World files, and one example
-in the tracked native source inventory.
+item-and-expression grammar across the 149 tracked O-core source files.
+The complete tracked language inventory also contains 86 hosted O files;
+the current parser check accepts all 235 without executing them.
 \src{docs/OCORE.md}
 
 \subsection{Static semantics}
@@ -3272,40 +3381,333 @@ static placed in an executable section. \src{docs/OCORE.md}
   \node[font=\scriptsize\color{OSlate}] at (2.60,1.18)
     {\texttt{ocorec}: inspectable AST, HIR, MIR, assembly, and object stages};
 \end{tikzpicture}
-\caption{The native build has two feeders. \texttt{ocorec} compiles O-core
+\caption{The x86-64 kernel build has two feeders. \texttt{ocorec} compiles O-core
 modules into a freestanding object; boot assembly, embedded mode artifacts,
 and the linker script complete the Multiboot2/Xen-PVH kernel image.}
 \label{fig:ocore-kernel-build}
 \end{figure}
 
 MIR is typed SSA, while mutable locals and statics remain explicit memory
-places. The code generator emits Intel-syntax x86-64 and gives every local
-and SSA value stack storage. Clang assembles with
+places. In the x86-64 kernel profile shown here, the code generator emits
+Intel-syntax assembly and gives every local and SSA value stack storage.
+Clang assembles with
 \texttt{x86\_64-unknown-none-elf}, freestanding settings, and the stack
 protector disabled. \src{crates/ostadix-api/src/ocore/mir.rs}
 \src{crates/ostadix-api/src/ocore/codegen.rs}
 \src{crates/ostadix-api/src/ocore/driver.rs}
 
-\subsection{Current compiler profile}
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+ x=1in,y=1in,
+ n/.style={draw=OPurple,rounded corners=2pt,fill=purple!4,
+ text width=1.05in,minimum height=0.6in,align=center,font=\scriptsize},
+ a/.style={-{Latex[length=1.8mm]},thick,color=OSlate}]
+ \node[n] (oc) at (0,0.6) {O-core \texttt{.oc}\\source};
+ \node[n] (hir) at (1.65,0.6) {resolved HIR\\typed SSA MIR};
+ \node[n] (emit) at (3.3,0.6) {owned source\\ISA emitters};
+ \node[n] (llvm) at (0,-0.6) {original frontend\\LLVM / bitcode};
+ \node[n] (verify) at (1.65,-0.6) {NativeModule\\whole-unit verifier};
+ \node[n] (native) at (3.3,-0.6) {owned imported\\ISA emitters};
+ \node[n,draw=OCyan,fill=cyan!4] (elf) at (5,0) {ELF64 objects\\x86-64 / AArch64\\RV64GC};
+ \foreach \x/\y in {oc/hir,hir/emit,llvm/verify,verify/native,emit/elf,native/elf}
+  {\draw[a] (\x) -- (\y);}
+\end{tikzpicture}
+\caption{Two native inputs retain distinct invariants. Source HIR/MIR and
+imported NativeModule have separate verification and ABI boundaries; both
+use O-core-owned instruction emission. OIR remains the orchestration layer.}
+\label{fig:two-native-routes}
+\end{figure}
 
-The primary backend targets freestanding x86-64 under the System V AMD64
-ABI. A separate bounded AArch64 scalar backend uses the compiler-versioned
-\texttt{extern "ocore"} convention with scalar AAPCS64 register placement;
-\texttt{extern "sysv64"} and its \texttt{extern "C"} alias remain AMD64-only. Both emit little-endian ELF64
-with an LP64 data model. \src{crates/ostadix-api/src/ocore/codegen_aarch64.rs}
-The x86-64 lowering uses stack storage for locals and SSA values, direct calls,
-explicit aggregate layouts, integer and pointer operations, volatile memory,
-and inline assembly. Programs manage memory through statics, stack objects,
-pointers, and explicitly linked runtime facilities. The bounded AArch64
-backend rejects inline assembly, atomics, and unsupported call shapes. \src{docs/OCORE.md}
+\subsection{Current native compiler profile}
 
-\begin{claimbox}[Native compiler substance]
-\ocore{} has a complete parser, layout-aware type checker, typed SSA MIR,
-defensive ABI rules, deterministic x86-64 assembly, and reproducible ELF
-object tests. That pipeline makes the language executable at the machine
-boundary and provides the source language for the Ostadix freestanding runtime
-and kernel.
-\end{claimbox}
+\ocore{} has owned assembly emitters for
+\texttt{x86\_64-unknown-none}, \texttt{aarch64-unknown-none}, and
+\texttt{riscv64-unknown-none} (RV64GC). All three produce little-endian
+ELF64 objects with an LP64 data model. The source route is
+\texttt{.oc} $\rightarrow$ parsed AST $\rightarrow$ resolved, typed HIR
+$\rightarrow$ SSA MIR $\rightarrow$ target assembly $\rightarrow$ object.
+Initial source type checking precedes MIR lowering. The assemblers translate
+O-core's emitted assembly; they do not select the imported implementation's
+machine instructions.
+\src{crates/ostadix-api/src/ocore/driver.rs}
+\src{crates/ostadix-api/src/ocore/codegen.rs}
+\src{crates/ostadix-api/src/ocore/codegen_aarch64.rs}
+\src{crates/ostadix-api/src/ocore/codegen_riscv64.rs}
+
+The three \texttt{.oc} backends share typed HIR and MIR and use stack-spill
+code generation, without an optimizing pipeline or general register allocator.
+They implement scalar locals and pointers, integer operations and casts,
+direct and unsafe indirect calls with stack arguments, branches and parallel
+phi transfers, volatile memory, supported integer atomics, aligned local
+frames, and overlap-safe aggregate copies. Aggregate layout, construction,
+fields, indexing, locals and statics are implemented; \texttt{.oc} call
+boundaries still pass aggregates through explicit pointers. Floating-point
+computation and full C ABI classification remain outside this source profile.
+\src{docs/OCORE.md}
+
+\texttt{extern "C"} selects the target's scalar integer C convention:
+System V AMD64, AAPCS64, or RISC-V LP64. The default, compiler-versioned
+\texttt{extern "ocore"} uses the corresponding scalar register and stack
+placement. Explicit \texttt{extern "sysv64"} remains AMD64-only. AArch64 and
+RISC-V now support their own inline assembly, operand-free naked functions,
+interrupt-mask operations, wait instructions, translation invalidation and
+syscall interfaces. They reject x86 port I/O and the x86 interrupt-entry ABI.
+A RISC-V compiler backend does not by itself establish a RISC-V kernel port.
+\src{docs/OCORE.md}
+
+The same-source native-equivalence harness compiles the real \texttt{.oc}
+CLI path for all three targets, links an independent freestanding C oracle,
+and compares values, traps, memory operations and C crossings. Its declared
+corpus covers 4,096 vectors over three arithmetic functions, twelve-argument
+direct and indirect calls, packed and aligned memory, large local storage,
+volatile operations, supported atomic widths and six fault programs per ISA.
+The harness also compares objects emitted in separate output directories.
+These are scoped compiler-conformance checks; execution through QEMU user
+emulation does not establish physical-machine behavior.
+\src{scripts/check_ocore_native_equivalence.py}
+\src{docs/OCORE.md}
+
+\subsection{Importing original implementation code}
+\label{sec:native-import}
+
+A second native route accepts original frontend LLVM text or bitcode and
+normalizes it into \breakcode{ocore-native-module-v1}. This representation is
+separate from both orchestration \oir{} and the \texttt{.oc} source AST/HIR.
+It records target layout, types, functions, globals, aliases, COMDAT groups,
+initializers, relocations, control-flow graphs, SSA values, execution contracts
+and source/tool provenance. The importer uses a digest-pinned LLVM parser and
+a bitcode-record audit; an independent Rust verifier checks the complete
+normalized module before any owned ISA emitter receives it. Verification
+includes unused functions and cold blocks, type and signature consistency,
+dominance, exact phi predecessors, layout and relocation contracts. A
+verification receipt binds the module bytes. It establishes structural
+validity, with code-generation coverage and execution checked separately.
+\src{scripts/ocore_llvm_import.py}
+\src{crates/ostadix-api/src/ocore/native_ir.rs}
+\src{crates/ostadix-api/src/ocore/native_verify.rs}
+
+The implemented integer/pointer profile includes widths 1--64, typed
+structure and array values, ordinary memory, static entry allocations,
+switches, parallel phi moves, indirect calls, memory fill/copy/move and
+supported intrinsics. Fixed C and LLVM \texttt{fastcc} calls preserve the
+frontend's aggregate decomposition, argument attributes, register placement,
+stack arguments and result-storage contract. Typed \texttt{sret} retains its
+original pointer parameter and target placement, including AArch64's
+\texttt{x8}. This imported ABI support is broader than the \texttt{.oc}
+aggregate-call surface. It does not reconstruct a source-language ABI merely
+from a structure's byte size.
+\src{crates/ostadix-api/src/ocore/native_abi.rs}
+\src{crates/ostadix-api/src/ocore/native_codegen.rs}
+\src{docs/OCORE.md}
+
+Imported execution uses the explicit
+\texttt{llvm\_defined\_behavior\_v1} contract. Original integer widths and
+operation predicates remain meaningful; \texttt{.oc} division and shift rules
+are not silently substituted. The contract records deterministic refinements
+of poison and undef and conservatively erased optimizer promises. The
+nonoptimizing emitter does not infer purity from LLVM attributes or from a
+runtime's name. Unsupported operations, ABI features or hidden bitcode fields
+reject the whole unit. Each ISA requires input with the matching original
+frontend triple, DataLayout and ABI; changing the requested output ISA does
+not retarget an x86 LLVM module to AArch64 or RISC-V.
+\src{docs/OCORE.md}
+\src{crates/ostadix-api/src/ocore/native_verify.rs}
+
+\subsection{C variadics and explicit execution profiles}
+
+Imported C variadic declarations, definitions and direct or indirect calls
+preserve the fixed signature prefix and the actual trailing operand types.
+Call-site attributes are checked independently, including attributes after
+the fixed prefix. The implemented profile uses integer and address-space-zero
+pointer arguments in little-endian ELF LP64; default argument promotions
+remain the original frontend's responsibility. Canonical
+\texttt{llvm.va\_start}, \texttt{llvm.va\_copy} and \texttt{llvm.va\_end}
+preserve their operands and context. Target prologues save the incoming
+register banks, and the emitted cursor operations preserve register-save
+areas, stack overflow positions, fixed-prefix offsets and independent copied
+cursors. RV64 LP64 and LP64D frontend ABI metadata and object flags remain
+distinct.
+\src{crates/ostadix-api/src/ocore/native_variadic_codegen.rs}
+\src{crates/ostadix-api/src/ocore/native_abi.rs}
+\src{tests/test_ocore_native_variadic_abi.py}
+
+The retained 20 October variadic qualification records seven test methods
+without skips across x86-64, AArch64, RV64 LP64 and RV64 LP64D. Four combinations
+of reference/owned caller and callee per profile compare 11,136 integer/pointer
+results. Eight additional opaque-\texttt{va\_list} forwarding pairings compare
+1,344 results, including floating-point register overflow and AArch64/RV64
+binary128 transport. Saving raw incoming vector registers lets an owned
+integer wrapper forward an opaque list to a foreign fixed-signature consumer;
+it does not introduce floating-point SSA or an owned floating-point caller.
+Of the 12,480 total comparisons, 9,024 include at least one owned component.
+These are retained Linux development-carrier results, with QEMU for nonhost
+ISAs. General \texttt{byval}, first-class floating-point calls, generic LLVM
+\texttt{va\_arg} and exception execution through owned variadic frames remain
+separate qualifications.
+\src{evidence/native_variadic_integration_20261020.json}
+
+Other imported operations require named execution profiles. Coherent-RAM
+atomics preserve ordering and supported integer/pointer operations while
+excluding device memory; RV64 masked subword operations additionally require
+accessible containing words and LR/SC eventuality. The static, nonpreemptive
+Linux ELF TLS profile preserves original TLS model metadata and realizes
+current-thread addresses through local-exec accesses. The static
+\texttt{itanium\_dwarf\_v1} exception profile preserves \texttt{invoke}, normal
+and unwind edges, landing pads, catch/filter order, selector queries and
+\texttt{resume}, together with call-frame and LSDA metadata. The implementation
+has independent malformed-object controls and Linux execution witnesses for
+TLS and exception consumers. Their original musl, unwind and C++ ABI providers
+remain explicit reference dependencies. These witnesses do not establish
+O-core lowering of those providers, native OSTADIX platform services, dynamic
+loading or JIT publication.
+\src{crates/ostadix-api/src/ocore/native_atomic_codegen.rs}
+\src{crates/ostadix-api/src/ocore/native_exception_codegen.rs}
+\src{tests/test_ocore_native_eh_execution.py}
+\src{tests/test_ocore_native_tls_execution.py}
+\src{docs/OCORE.md}
+
+\subsection{Compiler-owned source recipes and module closure}
+
+\texttt{olangc --native-runtime} accepts a pinned original-source recipe, a
+capture report, or an already verified native module-set package. With
+\texttt{--native-runtime-source}, the compiler runs the declared original
+build in a new output directory, retains its generated unit inventory and
+frontend inputs, independently re-admits the capture, and invokes native
+lowering. The original source revision, build configuration, producer tools,
+selected units and emitted artifacts remain bound by hashes. The source is
+not rewritten to remove unsupported bodies. The generated inventory must
+account for the complete configured output graph, including required archive
+members and extension roots; required recipe entries are a minimum inventory,
+not permission to omit additional build-generated units.
+\src{src/bin/olangc/native_runtime/source_recipe.rs}
+\src{scripts/ocore_runtime_capture.py}
+\src{tools/ocore-runtime/README.md}
+
+The driver distinguishes capture from independently admitted capture and from
+successful lowering. Its stage receipt retains failure diagnostics as well
+as successful artifact identities. Declared dependencies are supplied as
+verified \breakcode{ocore-native-module-set-v1} packages. The loader checks
+embedded module hashes and structural validity, reconstructs component and
+unit identities, recomputes symbol/ABI/COMDAT closure, and requires matching
+target and execution profiles. Private symbols remain unit-scoped; identical
+transitive components are shared, and complete cyclic dependency graphs are
+permitted. Missing packages, unresolved source-identity constraints, conflicting
+components and forged closure summaries reject. Reloading a successful
+self-contained package needs no original source or LLVM files, while object
+emission still requires the owned compiler and an assembler.
+\src{src/bin/olangc/native_runtime/artifact.rs}
+\src{tools/ocore-runtime/README.md}
+
+The resulting module-set establishes native-module dependency closure for its
+included profile. The current source route does not perform the final runtime
+link, attach an ordinary \texttt{.O} program, supply platform services or qualify
+a complete native runtime. Accordingly, its receipts keep
+\texttt{runtime\_complete}, whole-runtime dependency closure and native execution
+qualification false. These fields prevent a successful source capture or a
+collection of emitted objects from being mistaken for a linked language engine.
+\src{src/bin/olangc/native_runtime/source_recipe.rs}
+
+\subsection{Measured original-source progress}
+
+The following observations are dated retained development evidence. They
+qualify the listed input and host profiles, and were not recreated by the
+whitepaper's source review.
+
+\begin{longtable}{P{0.19\textwidth} P{0.73\textwidth}}
+\toprule
+\textbf{Original source} & \textbf{Recorded result and remaining boundary} \\
+\midrule
+\endhead
+CPython, 18 October &
+The RV64 capture retained 876 LLVM units and accounted for all 360 configured
+implementation units. The whole-unit baseline independently verified 72 units
+and emitted 63 owned objects. A separate explicit coherent-RAM atomic retry
+verified and emitted the nine object-stage failures. The baseline and retry
+are distinct reports. Other units and provider implementations remain
+unfinished; the original hosted CPython smoke is reference evidence. \\
+\addlinespace
+chibicc, 20 October &
+The variadic follow-up attempted all nine unchanged captured units. Six
+independently verified and emitted owned objects; three first rejected
+double-precision or binary128 values. This advances the earlier nine-unit
+variadic rejection result, without qualifying a linked or executed complete
+compiler or its providers. \\
+\addlinespace
+adler2 2.0.1 &
+The pinned original configured Rust library and its emitted CGU were freshly
+re-imported, verified and emitted. Its concrete \texttt{adler32\_slice} API ran
+on Linux RV64 LP64D against original-object and independent C/Python controls
+for twelve cases, including a 1 MiB payload. This does not establish all
+future generic instantiations, Rust standard-library ownership, complete
+provider closure or \texttt{rustc}/Cargo compilation. \\
+\bottomrule
+\end{longtable}
+\src{evidence/original_python_c_rust_expansion_20261018.json}
+\src{evidence/cpython_atomic_profile_followup_20261018.json}
+\src{evidence/chibicc_variadic_followup_20261020.json}
+\src{tools/ocore-runtime/rust-crates/README.md}
+
+\subsection{Native computation within the ordinary O graph}
+
+The eager \texttt{ocore\_i64} builtin connects a complete verified native module
+to ordinary \oir{} and \hgraph{} through a literal descriptor and an explicit
+adapter. The admitted entry has fixed \texttt{i64} C parameters and result.
+Static plan inspection performs no assembly, linking or execution. Fresh graph
+admission audits the whole module against the separate
+\breakcode{linux-elf-i64-acyclic-v1} profile, including unused functions and
+unreachable blocks. This profile permits acyclic scalar arithmetic and control
+flow but rejects memory, pointers, calls, globals, aliases, TLS, atomics,
+exception handling and unresolved providers. It has no arbitrary graph,
+module or instruction-count ceiling.
+\src{crates/ostadix-api/src/native_leaf.rs}
+\src{docs/OCORE.md}
+
+On a matching Linux ISA, the owned emitter and a libc-free wrapper produce a
+statically linked process using an exact binary input/output protocol. Signed
+integer arguments enter the native computation and its result returns as an
+O integer. Traps and malformed output fail the operation without a hosted
+fallback. This is an implemented bridge from a bounded native operation to
+the hosted graph; it does not lower the entire graph coordinator or implement
+a complete runtime-bearing OIR artifact.
+\src{crates/ostadix-api/src/native_leaf.rs}
+\src{tests/test_ocore_native_hgraph_cli.py}
+
+\subsection{Complete external-runtime and compiler objective}
+
+The larger compiler objective is automatic preservation and lowering of
+existing runtime and compiler implementations, including interpreters, AOT
+compilers and JITs. The intended complete pipeline makes \texttt{olangc} own
+source/build recipes, frontend invocation, import, verification, ABI adaptation,
+dependency resolution, linking and artifact construction. A resulting binary
+or complete IR artifact must contain the required native implementation,
+\texttt{.O} orchestration, scripts, resources, adapters and declared dependency
+closure. Included native references must resolve within that closure. Merely
+embedding an original executable, staging a manually rewritten interpreter in
+\texttt{.oc}, or interpreting unchanged imported IR does not establish this
+source-lowering objective.
+\src{docs/OCORE.md}
+
+Completeness includes functions, globals, initializers, relocations, libraries,
+compiler helpers, modules and platform interfaces. Compiling a compiler's own
+implementation and routing the programs that compiler generates through
+O-core are distinct required capabilities. A JIT additionally needs an
+explicit supported generated-code lowering and publication path. The current
+source recipes, reusable module-sets and scalar graph leaves implement parts
+of this architecture; complete runtime-bearing OIR artifacts and full original
+engine acceptance remain work in progress.
+
+Cross-ISA equivalence is qualified per execution profile, comparing observable
+values, faults and required effects under common inputs. Pure deterministic
+profiles require explicit numerical and library behavior; clocks, entropy,
+filesystems and scheduling do not become replayable merely because a runtime
+was compiled. Full runtime acceptance also requires actual O-core-generated
+engine execution with its complete dependency closure and native OSTADIX
+services on each ISA, after the ambient original engine is unavailable.
+Linux carriers, reference provider objects and QEMU development tests retain
+their narrower evidential scope.
+\src{docs/OCORE.md}
+
 
 \section{Kernel, capabilities, and native execution}
 \label{sec:kernel}
@@ -3322,6 +3724,82 @@ process/domain, scheduler, capability, mapping, and IPC state.
 \src{ocore/kernel/build.sh}
 \src{ocore/kernel/linker.ld}
 \src{ocore/kernel/main.oc}
+
+\subsection{Keeping native images within their declared bounds}
+\label{sec:image-repair}
+
+The 28 October repair addresses three distinct failure modes visible in the
+Linux portable aggregate: linked kernels exceeded probe headroom; linked
+personality files exhausted the bounded OVFS image; and rebuilt payloads no
+longer matched the previously admitted identities. These are failures at
+three different layers: linked reachability, file representation, and content
+identity. The repair retains the existing kernel and OVFS limits.
+
+\paragraph{Reachability and kernel headroom.}
+For the affected probe modes, the compiler places emitted functions in
+individually collectable ELF sections and the linker uses
+\texttt{--gc-sections}. Reachable code and explicitly retained user sections
+remain in the image. Unreachable helpers from the shared runtime no longer
+consume each probe's reserved area. The linker assertions continue to enforce
+the original memory boundary, including mode 18's \texttt{0x380000}
+headroom limit. This is reachability-based removal; it preserves execution
+semantics and the existing kernel-size constraint.
+\src{src/bin/ocorec.rs}
+\src{crates/ostadix-api/src/ocore/codegen.rs}
+\src{ocore/kernel/build.sh}
+\src{ocore/kernel/linker.ld}
+
+\src{ocore/kernel/boot.S}
+
+\paragraph{File padding and loaded semantics.}
+The M6A and live M6B personality builders use the linker's \texttt{--nmagic}
+layout to avoid unnecessary file-alignment padding. The resulting native
+OVFS images again fit their unchanged 64 KiB admission bound. A synthetic regression fixture compares the padded and compact linked
+forms by entry point, mapped file bytes, zero-filled memory and page
+permissions. The repaired real payloads are then qualified by their native
+QEMU gates. Let $L(E)$ denote those load-visible properties of an
+ELF file $E$. The regression requires
+\[
+ L(E_{\mathrm{compact}})=L(E_{\mathrm{padded}}),
+ \qquad |E_{\mathrm{compact}}|<|E_{\mathrm{padded}}|.
+\]
+A smaller file is therefore not interpreted as a reduction in the program's
+required memory or capability surface. The test compares complete load segments, their permissions and zero-fill
+as well as the executable entry point.
+\src{tests/test_ocore_payload_layout.py}
+\src{ocore/kernel/build-m6-artifacts.sh}
+\src{ocore/kernel/build-m6b-live-artifacts.sh}
+
+\paragraph{Explicit artifact identities.}
+After rebuilding and checking the payloads, the corresponding fixed SHA-256
+pins and path records are updated together. Host preflight recomputes the
+actual image digest and checks it against the native admission record before
+boot. Negative controls reject a changed build digest and drift in the
+embedded path records. Runtime admission still compares exact bytes; the
+repair does not learn or trust an arbitrary digest during boot.
+\src{tests/test_ocore_ovfs_pins.py}
+\src{ocore/kernel/smoke-loader-qemu.sh}
+
+\begin{longtable}{P{0.30\textwidth} P{0.18\textwidth} P{0.44\textwidth}}
+\toprule
+\textbf{Rebuilt image} & \textbf{Bytes} & \textbf{Admission consequence} \\
+\midrule
+\endhead
+M4 loader & 57,960 & Refreshed image and native path identities. \\
+M5 live system & 57,960 & Refreshed immutable package image identity. \\
+M6A personality & 58,320 & Compact payloads fit the 65,536-byte bound. \\
+M6B live personality & 61,576 & Compact payloads fit the same bound. \\
+Live Linux personality & 60,648 & Refreshed exact embedded OVFS identity. \\
+M7 Linux/Plan 9 & 97,512 & Refreshed identity within its 98,304-byte profile. \\
+M7B logical read & 82,400 & Refreshed identity within its 98,304-byte profile. \\
+\bottomrule
+\end{longtable}
+
+The complete portable run subsequently passed all 26 required gates. That
+aggregate executes the repaired receipt, project-receipt, loader, live,
+personality and logical-read paths alongside the previously passing native
+checks. Section~\ref{sec:validation} records its exact source coordinate and
+preserves the distinction between emulated execution and physical hardware.
 
 \subsection{Native capability model}
 
@@ -4127,100 +4605,187 @@ executed Project HGraph path.
 \section{Reproducibility and dated evidence}
 \label{sec:validation}
 
-The source reviewed for this edition is
-\texttt{d13814df25cac143b688160c3c969dc814614b1a}. Evidence is attached to
-its actual source, binary, artifact, and execution substrate. A source-defined
-test is a reproducible gate; a passing transcript establishes that gate only
-for the coordinate it records. Installed binaries can lag the checkout.
+The implementation described by this edition is the source tree
+\breakcode{627afd3ee65c829a3edce3e3bd6ba86db4660017}, published as
+\texttt{f472c983} in the canonical OSTADIX repository and as
+\texttt{62c7f8f0} in the development repository. These commits have distinct
+history but identical tracked trees. A tree identity relates the published
+sources; it does not retroactively change the source coordinate of a test.
+The portable native run below records \texttt{d9af173f}; the final Linux host
+suite was run at \texttt{62c7f8f0}. The Mac logs record the 28 October repair
+validation, and are reported separately instead of being assigned an
+unrecorded exact commit.
 
-\subsection{Checks performed for the 3 October revision}
+A defining source, a successful build, a parser check, a runtime transcript,
+and an emulated native gate establish different facts. The counts below
+retain those distinctions. Source-defined optional tests may return without
+executing an external runtime when their prerequisite is absent; the Cargo
+passing count alone therefore does not establish execution of every language
+engine or external backend.
 
-\begin{longtable}{P{0.25\textwidth} P{0.32\textwidth} P{0.35\textwidth}}
+\subsection{Retained checks for the 28 October revision}
+
+\begin{longtable}{P{0.23\textwidth} P{0.33\textwidth} P{0.36\textwidth}}
 \toprule
-\textbf{Check} & \textbf{Observed result} & \textbf{Scope} \\
+\textbf{Check} & \textbf{Observed result} & \textbf{Scope and coordinate} \\
 \midrule
 \endhead
-Repository identity & Canonical \texttt{OSTADIX}, branch \texttt{master},
-\texttt{d13814df}; fetched origin has no newer commits. & Committed source
-basis. Existing local Cargo/core development is excluded. \\
-O MCP environment & 30 catalog backends: 7 builtin, 22 located, 1 missing. &
-Local discovery, with runtime availability distinct from execution. \\
-O MCP smoke & \texttt{SMOKE\_OK}, exit 0, \texttt{[number] 2}. &
-Installed evaluator and Python-backed canonical hello program. \\
-Source-first execution & Inline Python through \texttt{o\_execute} completed
-with exit 0 and native execution evidence. & Exercises the installed managed
-execution path while auditing source references. \\
-Portable registry validation & \texttt{release evidence: PASS
-(26 required portable QEMU gates)}. & Registry and required projection
-validation. QEMU gates were not rerun for this document revision. \\
-Language-source classification & 231 classified: 85 hosted \texttt{.O},
-146 native \texttt{.oc}; zero failures. & Manifest classification only;
-this command parsed and executed zero programs. \\
-Installed project grounding & Both installed front doors reject
-\texttt{--grounding} for the project fixture with their older deferred-view
-diagnostics. & The current source report and parity tests are present;
-installed-version parity was not established by this run. \\
-Document production & TeX rebuild, source/asset reference checks, PDF text and
-structure inspection. & Document checks are reported with the delivered
-artifact; they do not qualify the full runtime or physical substrates. \\
+Portable native aggregate & 26 required gates present; 26 passed; zero
+failed. Per-gate validation accepted 202 required exact transcript markers. &
+Linux A51, QEMU/TCG with OVMF where selected; source \texttt{d9af173f}.
+Includes bounded x86-64 and AArch64 gates. \\
+Final Linux Rust workspace & 2,359 passed; zero failed; five ignored. &
+A51 at \texttt{62c7f8f0}; the three workspace packages. The aggregate script
+then repeated two parser property tests and one reproducibility test,
+producing 2,362 passing test invocations in the complete log. \\
+Linux example manifest & 42 passed; zero failed; ten skipped. &
+The skips preserve interactive, opt-in guest/NixOS, manual, and missing
+WebAssembly-tool prerequisites; they are not runtime passes. \\
+Mac Rust root package & 921 passed; zero failed; one ignored. &
+Separate \texttt{o-lang} package run on the development Mac during the
+28 October repair validation. \\
+Mac Rust engine package & 1,414 passed; zero failed; three ignored. &
+Separate \texttt{ostadix-api} run, including 1,392 library tests and 22
+integration tests. Homebrew LLVM supplied the exercised compiler path. \\
+Mac combined package result & 2,335 passed; zero failed; four ignored. &
+Sum of the preceding two independently retained package logs, not a new
+whole-workspace run or proof that every optional runtime executed. \\
+CLI suite & 108 passed; zero failed. &
+Current debug command binaries on the Mac; the isolated arithmetic fixture
+includes interpreter and AOT front-door checks. \\
+Live MCP stdio smoke & PASS. &
+A private installed-layout staging directory used freshly built server and
+command binaries. The harness's historical ``release smoke'' message does
+not establish a release-optimized build. \\
+Tracked language-source check & 235 sources passed: 86 hosted \texttt{.O}
+and 149 native \texttt{.oc}; zero programs executed. &
+The retained JSON identifies every source digest and both parser binaries.
+This is complete tracked parser coverage, not runtime coverage. \\
+HTML exports & 101 declared exports; whole-byte check reported zero drift. &
+Generated with the pinned \texttt{marked} 18.0.13 renderer. Document parity
+is independent of runtime and native qualification. \\
 \bottomrule
 \end{longtable}
 
-The previous edition's aggregate Rust, MCP, container, compiler, and QEMU
-results belong to its August source and artifacts. They are not carried
-forward as passes for this October coordinate. This revision uses current
-source contracts, explicitly dated retained evidence, and the focused checks
-above; it does not assert a new complete platform qualification.
+The portable registry also declares one supplemental hardware-KVM gate,
+\breakcode{kernel-world-mode21-svm-kvm}, outside the 26-gate aggregate.
+No result for that supplemental gate is implied by the portable pass.
+The exact four-vCPU x86-64 SMP gate is an emulated startup/barrier experiment;
+it is not a general SMP scheduler or physical-machine qualification.
+The AArch64 G2 gate retains its bounded MMU-off execution profile.
+The separate World-alpha registry has fourteen gates with its own evidence
+classes and dependencies; the portable aggregate does not discharge that
+larger contract.
+\src{evidence/gates.toml}
+\src{evidence/world_alpha_gates.toml}
+
+The final Linux example skips comprised one interactive program, two
+opt-in group-pipeline programs, three opt-in Guix/WASM or guest programs,
+two NixOS programs, one manual Plan 9 browser example, and one program
+requiring unavailable WebAssembly tools. The five ignored Linux Rust checks comprise two Nix/network tests, one
+NixOS test, one Linux-namespace root-filesystem test, and one retained-artifact
+packaging hook. The Mac count omits the Linux-only root-filesystem test.
+Prerequisite-sensitive tests remain separately scoped. No installer-wide
+rerun, physical-machine boot, arbitrary-topology SMP qualification, or
+universal external-runtime lowering result is inferred from these records.
+
+\paragraph{Portable host-test construction.}
+The test phase defaults to debug-information level zero and disables
+incremental compilation for its build subprocesses, while respecting explicit
+profile overrides. This reduces the isolated workspace's disk requirement;
+it neither removes test targets nor imposes a worker-count limit. The retained
+A51 run selected two Cargo build jobs and used the current debug evaluator.
+The complete workspace tests, parser/reproducibility reruns and example
+manifest still executed. Setup's read-only check and dry-run modes also
+suppress Python bytecode cache creation. Platform tests resolve canonical
+filesystem paths and qualify the actual compiler features they require.
+\src{boot-and-test.sh}
+\src{setup.sh}
+\src{src/bin/olangc/native_runtime/source_recipe.rs}
 
 \subsection{Evidence classes and retained records}
 
 \begin{enumerate}
   \item \textbf{Defining source} establishes the implemented mechanism at the
-        pinned coordinate.
+        published tree and the cited source coordinate.
   \item \textbf{Generated structure} instantiates that mechanism for a named
         program and compiler. Section~\ref{sec:linked-project-dot} retains the
         August project graph as a dated illustration.
-  \item \textbf{Registry validation} checks the declared gate inventory and
+  \item \textbf{Registry validation} checks declared gate membership and the
         required release projection without substituting for gate execution.
-  \item \textbf{Execution transcripts} establish behavior on the exact
-        artifacts and substrates they identify.
+  \item \textbf{Execution transcripts} establish behavior on the actual
+        binaries, artifacts, toolchain, prerequisites, and execution substrate.
 \end{enumerate}
 
-The September 17 G0 continuity attestation and transcript retain a passing
-repository-conformance observation. That supporting evidence advances its
-named gate; it does not qualify every World-alpha requirement. Native and
-distributed Linux status retains separate qualifications for its embedded
-guest, hypervisor, hardware, and distributed execution profiles.
+The accompanying \path{evidence/whitepaper_revision_20261028.json} records
+the source census, retained-log byte lengths and SHA-256 identities used by
+this edition. It is a summary of retained observations, not a fresh gate run.
+The raw 28 October records are in \path{target/validation-logs/}. This directory is local build evidence, not a
+tracked source publication. Its important records are
+\path{a51-final-smoke-20261028.log},
+\path{a51-host-tests-20261028.log},
+\path{mac-cargo-root-20261028.log},
+\path{mac-cargo-api-20261028.log},
+\path{mac-cli-20261028.log},
+\path{mac-mcp-live-20261028.log}, and
+\path{language-source-check.json}. Repository source links identify committed
+implementation files; the companion inventory identifies these local logs
+by their byte lengths and SHA-256 digests. Reproducing an observation requires
+the recorded execution substrate as well as the named source.
+
+The September 17 G0 continuity attestation and transcript retain their dated
+repository-conformance observation; they are not relabelled as October
+execution. Native and distributed Linux status retains separate
+qualifications for embedded guests, hypervisors, hardware, and distributed
+execution profiles.
 \src{evidence/world/g0-attribution-history-continuity-2026-09-17.toml}
 \src{evidence/world/transcripts/g0-attribution-history-continuity-2026-09-17.log}
 \src{docs/NATIVE_DISTRIBUTED_LINUX_STATUS.md}
 
-\subsection{Reproduction and coverage accounting}
+\subsection{Source inventory and coverage accounting}
 
-The public surface has fifteen root binaries, one independent engine, and a
-separately locked MCP package. The shared catalog accounts for 23 commands and
-11 guide topics; the server declares 21 tools. These are source inventories,
-not a count of installed or qualified runtimes. The portable native registry
-contains 26 required gates; the World-alpha registry has its own larger
-requirements and evidence dependencies.
+The workspace has three members: the root \texttt{o-lang} package,
+\texttt{ostadix-api}, and \texttt{ostadix-core}. The first two are the default
+members and share version 0.4.0; the third declares the package
+\texttt{ostadix} at version 0.1.0. The root manifest declares fifteen binaries,
+including the feature-gated notebook command; the third package also provides
+its own \texttt{ostadix} binary. The MCP server remains a separately locked
+package outside the root workspace.
+
+The engine module root declares 51 top-level modules: 43 public and eight
+nonpublic. The root library reexports 42 engine modules and declares two
+local CLI helper modules. These are module declarations, not counts of
+runtime implementations. The shared catalog contains 23 commands and eleven
+guide topics; the MCP server declares 21 tools. Catalog membership does not
+prove installation, health, admission, or execution of a capability.
 \src{Cargo.toml}
+\src{ostadix-core/Cargo.toml}
+\src{crates/ostadix-api/src/lib.rs}
+\src{src/lib.rs}
 \src{src/command_catalog.rs}
 \src{mcp/ostadix_lang_mcp_server/src/main.rs}
-\src{evidence/gates.toml}
-\src{evidence/world_alpha_gates.toml}
 
 \begin{lstlisting}[style=plaincode]
-git rev-parse HEAD
-# d13814df25cac143b688160c3c969dc814614b1a
+# Capture the actual source and tracked tree before testing:
+git rev-parse HEAD HEAD^{tree}
 python3 scripts/check_language_sources.py validate
+python3 scripts/check_language_sources.py check \
+  --o-bin target/debug/O --ocorec target/debug/ocorec
 python3 scripts/release_evidence.py validate
-# Execute separately on a prepared substrate:
+python3 scripts/render_docs.py check
+# Execute separately on prepared host/native substrates:
+./boot-and-test.sh hosted
+./boot-and-test.sh tests
 ./boot-and-test.sh smoke
 \end{lstlisting}
 
-The reproduction appendix lists build and execution commands as procedures.
-Record the resulting commit, binary identities, complete output, skipped
-prerequisites, and substrate before promoting any result to current evidence.
+The reproduction appendix gives build and execution procedures, not promised
+results. Record the actual revision, binary identities, complete output,
+skipped prerequisites, and substrate for each new run. Same-source trees,
+identical artifact bytes, semantic agreement across editions, and cross-ISA
+execution are separate reproducibility properties and require their own
+comparisons.
+
 
 \section{Implemented capabilities}
 \label{sec:claims}
@@ -4247,9 +4812,12 @@ prerequisites, and substrate before promoting any result to current evidence.
         Project Mesh placement.
   \item Hosted packaging to native host executables and WASI modules, plus
         separate Python and C17 reference/subset editions.
-  \item A distinct freestanding \ocore{} compiler and native x86-64/AArch64
-        kernel substrates, including challenged x86-64 BootInfo and bounded
-        four-CPU startup.
+  \item Owned x86-64, AArch64 and RV64GC O-core compilers; whole-module LLVM
+        import, explicit ABI/execution profiles, and compiler-owned source
+        capture with reusable native module sets.
+  \item Native x86-64/AArch64 kernel substrates, including challenged x86-64
+        BootInfo and bounded four-CPU startup; the compiler's third ISA does
+        not imply a third kernel port.
   \item Hosted Live-World supervision and a strict KernelWorld record/admission
         contract.
   \item An independently packageable \texttt{ostadix-api} engine, an exact
@@ -4350,11 +4918,18 @@ objects retain their live owners, checkpoint protocols move supported actor
 state, and cancellation follows the ownership of already-started work.
 
 \ocore{} carries the architecture to the machine boundary. Typed source lowers
-through HIR and SSA MIR into freestanding x86-64 objects, which compose into a
-kernel with generation-tagged capabilities, isolated native services, strict
-KernelWorld records, and staged VM admission and entry. Hosted Live-World
+through HIR and SSA MIR into owned x86-64, AArch64 and RV64GC objects.
+Whole-module import brings original frontend output into a separate verified
+native representation, while source recipes and module sets make the
+implementation inventory and dependency closure explicit. Existing kernel
+profiles compose native code into generation-tagged capabilities, isolated
+services, strict KernelWorld records, and staged VM admission and entry. Hosted Live-World
 supplies executable lifecycle semantics for immutable packages, service
-generations, revocation, rollback, and reconstruction.
+generations, revocation, rollback, and reconstruction. The October repairs
+restore the portable kernel aggregate without enlarging its memory limits
+or treating stale artifact hashes as valid. The remaining compiler objective
+is complete original-runtime and compiler lowering, linking, platform closure
+and qualified execution across all three ISAs.
 
 The result is one language system spanning recursive polyglot programming,
 state-complete graph execution, whole-project composition, native compilation,
@@ -4487,9 +5062,12 @@ Package, execute, or inspect the hosted graph. Script target executes
 immediately inside the compiler process. \\
 \texttt{ocorec} & One or more input modules; \texttt{--emit
 ast|hir|mir|asm|obj}; \texttt{--target x86\_64-unknown-none[-elf]} or
-\texttt{aarch64-unknown-none[-elf]}; \texttt{-o}/\texttt{--output};
+\texttt{aarch64-unknown-none[-elf]} or
+\texttt{riscv64-unknown-none[-elf]}; \texttt{--input-kind};
+\texttt{--verify-native}; \texttt{--native-map};
+\texttt{-o}/\texttt{--output};
 \texttt{--keep-asm}; \texttt{-V}/\texttt{--version} &
-Inspect or compile the complete O-core pipeline. \\
+Inspect source HIR/MIR or import, verify and emit a supported native module; see Section~\ref{sec:native-import}. \\
 \texttt{o-link} & Bare single-directory literal run; explicit
 \texttt{--literal} link; explicit \texttt{--project} project lift;
 \texttt{-o}/\texttt{--output};
@@ -4592,8 +5170,8 @@ demo --state STATE
 
 \section{Example atlas}
 
-The example atlas has ten families. The 42 tracked top-level
-\texttt{examples/*.O} files form nine executable teaching families. Companion
+The repository contains 47 tracked top-level \texttt{examples/*.O} files.
+This atlas groups representative programs into nine teaching families. Companion
 fixtures in \path{examples/group_pipeline/},
 \path{tests/fixtures/project_hgraph/}, and
 \path{tests/fixtures/project_hgraph_exec/} form the tenth through semantic
@@ -4847,38 +5425,42 @@ verified host intent into native admission.
 
 \section{Reproduction commands}
 
-The commands below begin at a prepared checkout of the pinned source.
+The commands below begin at a prepared checkout of the pinned runtime source.
+The hosted greeting requires Python, a supported Common Lisp engine and
+Node.js. The document-build helper is distributed with this paper revision.
 They are reproduction procedures; successful execution must be recorded
 separately. Use an isolated checkout when local development changes the
 workspace or lockfile.
 
 \subsection{Build the whitepaper artifact}
 
-Compile from the document directory so figure paths resolve. The final qpdf
-pass normalizes PDF dictionaries after repeated embedding of the retained
-Graphviz figure; validate its output before distributing it.
+The distributed \path{scripts/build_whitepaper.py} invokes Tectonic with the
+source directory as its working directory, normalizes the result with qpdf,
+and retains the title, subject, keywords and Lee Daghlar Ostadi author field.
+It removes tool identity, timestamps, XMP and imported source-path metadata.
+Build products stay under \path{target/whitepaper/}; installation copies the
+checked PDF to both published artifact locations. Tectonic and qpdf must be
+available on PATH. Its first build may fetch TeX bundle resources; use
+\texttt{--only-cached} after populating the cache for an offline build.
 
 \begin{lstlisting}[style=plaincode]
-mkdir -p output/pdf
-cd docs
-latexmk -norc -pdf -interaction=nonstopmode -halt-on-error \
-  -outdir=../output/pdf Ostadix-lang_Technical_Whitepaper.tex
-cd ..
-qpdf --warning-exit-0 output/pdf/Ostadix-lang_Technical_Whitepaper.pdf \
-  Ostadix-lang_Technical_Whitepaper.pdf
+python3 scripts/build_whitepaper.py --install
 qpdf --check Ostadix-lang_Technical_Whitepaper.pdf
+pdfinfo Ostadix-lang_Technical_Whitepaper.pdf
 \end{lstlisting}
 
 \subsection{Pin the source and qualify the Rust workspace}
 
 \begin{lstlisting}[style=plaincode]
-git rev-parse HEAD
-# d13814df25cac143b688160c3c969dc814614b1a
+git rev-parse HEAD HEAD^{tree}
+# Runtime source basis: f472c983deb83d260d4d52e77aa4dd8740710dc5
+# Tree: 627afd3ee65c829a3edce3e3bd6ba86db4660017
 
 cargo fmt --all --check
 cargo check --workspace --all-targets --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-OSTADIX_TEST_RUNTIME_POLICY=required \
+CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+CARGO_INCREMENTAL=0 OSTADIX_TEST_RUNTIME_POLICY=required \
   cargo test --workspace --all-targets --all-features --locked
 cargo build --release --workspace --bins --all-features --locked
 \end{lstlisting}
