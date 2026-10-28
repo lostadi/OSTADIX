@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m5-native}"
 TIMEOUT_SECONDS=30
+DIGEST="a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4"
+IMAGE_BYTES=57960
 
 if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
   echo "error: qemu-system-x86_64 is not installed" >&2
@@ -19,15 +21,15 @@ IMAGE="$(
     | sed -n 's/^m5-image: //p' \
     | tail -n 1
 )"
-DIGEST="$(
+BUILD_DIGEST="$(
   printf '%s\n' "$BUILD_OUTPUT" \
     | sed -n 's/^m5-sha256: //p' \
     | tail -n 1
 )"
 
-if [[ -z "$IMAGE" || -z "$DIGEST" || ! -f "$IMAGE" ]] \
+if [[ -z "$IMAGE" || "$BUILD_DIGEST" != "$DIGEST" || ! -f "$IMAGE" ]] \
   || [[ "$(basename "$IMAGE")" != "root-${DIGEST}.ovfs" ]] \
-  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != 62056 ]] \
+  || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
   echo "error: M5 build-produced OVFS artifact identity is not canonical" >&2
   exit 1

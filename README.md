@@ -2320,9 +2320,9 @@ mode-17 rollback, denial, stale-generation, restart, and parser corpus.
 M6A is gated separately by `smoke-personality-qemu.sh` in mode 18. A
 deterministic digest-pinned read-only OVFS image supplies a test client, native
 personality daemon, native supervisor daemon, and unrelated observer as four
-independently loaded CPL3 ELFs. Its canonical image is 62,104 bytes with
+independently loaded CPL3 ELFs. Its canonical image is 58,320 bytes with
 SHA-256
-`f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417`;
+`bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d`;
 the gate verifies that identity, the exact four `/sbin/m6-*.elf` paths, and the
 absence of their module symbols from the kernel. The supervisor health-gates
 publication and chooses cancellation, one crash-driven generation restart, and
@@ -2364,8 +2364,8 @@ device service.
 
 Mode 24 adds a separately gated live composition without broadening that claim
 to a general foreign ABI. `build-m6b-live-artifacts.sh` deterministically packs
-four independently linked CPL3 ELFs into a 65,152-byte OVFS image with SHA-256
-`5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887`.
+four independently linked CPL3 ELFs into a 61,576-byte OVFS image with SHA-256
+`9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0`.
 The client issues each bounded call once; one exact four-byte `INOUT` request
 crosses the public call, view lookup/read/write, and reply syscalls. The
 generation-1 daemon is fault-contained, the unrelated observer survives, and
@@ -6049,9 +6049,9 @@ stopped.
   exact health-gated activation, one contained package-daemon fault and
   health-gated fresh-generation restart, final control-plane deactivation,
   control revocation, namespace/process teardown, reclamation, and
-  post-lifecycle timer survival. Its canonical embedded OVFS image is 62,056
+  post-lifecycle timer survival. Its canonical embedded OVFS image is 57,960
   bytes with SHA-256
-  `388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a`,
+  `a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4`,
   checked independently by the host and kernel before import.
 - A bounded M6A gate for four package-loaded CPL3 principals: a test client,
   native personality daemon, native supervisor daemon, and unrelated observer.

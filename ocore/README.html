@@ -300,7 +300,7 @@ internal delegated lease rather than a physical device. It also does not cover
 the post-reply/pre-consume process-exit or unmap race, pinned windows,
 signal/restart integration, a Linux oracle, or concrete services.</p>
 <p>Mode 25 separately packages one exact 8,520-byte static Linux x86-64 ELF with
-three native service principals in a 60,104-byte digest-pinned OVFS image. The
+three native service principals in a 60,648-byte digest-pinned OVFS image. The
 foreign ELF enters at CPL3, performs exact fd 1/fd 2 writes through
 request-scoped bounded <code>IN</code> views, observes Linux <code>-ENOSYS</code>, and exits with
 status 42. Its generation-1 daemon completes stdout before faulting; the closed
@@ -318,8 +318,8 @@ physical-device evidence.</p>
 wire path. <code>build-m7-linux-plan9-artifacts.sh</code> deterministically packages
 <code>/bin/linux-minimal.elf</code>, <code>/sbin/linux-9pd.elf</code>,
 <code>/sbin/linux-supervisord.elf</code>, and <code>/bin/plan9-namespace-client.elf</code> into a
-92,872-byte immutable OVFS image with SHA-256
-<code>920b014cfb133f033b6761da6fe5b1d22be613bf88112c05ec0af982e1beebd9</code>.
+97,512-byte immutable OVFS image with SHA-256
+<code>c1501f633640d92a8b7d84baaa8afbeeca9a40d4f79138cc08f73c0e678f0ac3</code>.
 All four principals load as data into isolated W^X CPL3 address spaces and
 CSpaces. The Linux ELF produces the exact generation-1 stdout and generation-2
 stderr snapshots; the unprivileged native 9P server exposes only the

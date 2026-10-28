@@ -10,9 +10,9 @@ TIMEOUT_SECONDS="${OCORE_M6A_TIMEOUT_SECONDS:-180}"
 # Optional QEMU instruction-counted virtual-time exercise. CI pins shift 1 to
 # retain a bounded cadence that distinguished the periodic-timer starvation.
 QEMU_ICOUNT="${OCORE_M6A_QEMU_ICOUNT:-}"
-DIGEST="f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417"
-IMAGE_BYTES=62104
-IMAGE="$ROOT/target/ocore-m6-artifacts/images/root-${DIGEST}.ovfs"
+DIGEST="bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d"
+IMAGE_BYTES=58320
+IMAGE_RECORD="$BUILD_DIR/m6-image.path"
 
 if command -v llvm-nm >/dev/null 2>&1; then
   NM_TOOL="$(command -v llvm-nm)"
@@ -36,7 +36,13 @@ done
 OCORE_PROBE_MODE=18 OCORE_BUILD_DIR="$BUILD_DIR" \
   "$ROOT/ocore/kernel/build.sh" >/dev/null
 
-if [[ ! -f "$IMAGE" ]] \
+if [[ ! -f "$IMAGE_RECORD" ]] \
+  || [[ "$(wc -l < "$IMAGE_RECORD" | tr -d ' ')" != 1 ]]; then
+  echo "error: M6A build did not record one exact embedded OVFS path" >&2
+  exit 1
+fi
+IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
+if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
   echo "error: M6A embedded OVFS artifact identity is not canonical" >&2

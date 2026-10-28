@@ -766,8 +766,8 @@
 - Milestone 5 has a bounded native live-system gate in
   `ocore/kernel/smoke-live-qemu.sh`. `build-m5-artifacts.sh` deterministically
   builds separate static `init`, supervisor, package-daemon, and REPL ELF files
-  into a 62,056-byte content-addressed read-only OVFS image whose pinned SHA-256
-  is `388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a`.
+  into a 57,960-byte content-addressed read-only OVFS image whose pinned SHA-256
+  is `a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4`.
   The host verifies that identity and the kernel recomputes it before import.
   The fresh-QEMU gate proves four isolated loaded CSpaces and a real CPL3 serial
   loop whose only serial-read and control-submit authority is a typed control
@@ -796,8 +796,8 @@
   four static ELFs at `/sbin/m6-client.elf`,
   `/sbin/m6-personalityd.elf`, `/sbin/m6-supervisord.elf`, and
   `/sbin/m6-observer.elf`, requires byte identity, and packs exactly those paths
-  into a 62,104-byte read-only OVFS image with SHA-256
-  `f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417`.
+  into a 58,320-byte read-only OVFS image with SHA-256
+  `bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d`.
   The host gate checks that identity and proves the user modules are not linked
   as kernel code; the kernel verifies the complete image before import. Mode 18
   loads all four into isolated W^X address spaces and CSpaces. The unprivileged
@@ -839,9 +839,9 @@
   timer, or device implementation.
 - Mode 24 adds a bounded live M6B composition gate in
   `ocore/kernel/smoke-live-bounded-personality-qemu.sh`. Four independently
-  linked CPL3 principals are rebuilt into a 65,152-byte OVFS image with
+  linked CPL3 principals are rebuilt into a 61,576-byte OVFS image with
   SHA-256
-  `5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887`.
+  `9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0`.
   One exact four-byte `INOUT` request shape crosses the public bounded-call,
   view lookup/read/write, and bounded-reply syscalls without client reissue.
   The gate contains a generation-1 daemon fault, preserves the unrelated
@@ -857,7 +857,7 @@
 - Mode 25 adds the first bounded live foreign-ABI composition gate in
   `ocore/kernel/smoke-live-linux-personality-qemu.sh`. One exact 8,520-byte
   static Linux x86-64 ELF and three native service principals are rebuilt into
-  a 60,104-byte OVFS image, pinned independently by SHA-256, loaded as data,
+  a 60,648-byte OVFS image, pinned independently by SHA-256, loaded as data,
   and entered at CPL3. The foreign corpus performs exact stdout/stderr writes
   through request-scoped bounded `IN` views, observes Linux `-ENOSYS`, and
   exits with status 42. The gate contains one personality-daemon fault,
@@ -870,7 +870,7 @@
 - Mode 26 adds a bounded live Linux-to-9P2000 service composition gate in
   `ocore/kernel/smoke-live-linux-plan9-qemu.sh`. The exact Mode 25 Linux ELF,
   an unprivileged native 9P2000 server, a native supervisor, and an independently
-  linked native Plan-9-style client are rebuilt into a 92,872-byte immutable
+  linked native Plan-9-style client are rebuilt into a 97,512-byte immutable
   OVFS image and loaded into isolated CPL3 address spaces. The Linux stdout and
   stderr results are read at `/srv/linux/status` through exact bounded 9P2000
   version, attach, walk, open, read, and clunk exchanges across one contained

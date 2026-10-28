@@ -26,8 +26,8 @@ esac
 
 LINK_GC_FLAGS=()
 OCOREC_FUNCTION_SECTION_FLAGS=()
-if (( PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 )); then
-  # These three M6 live-personality probes carry the largest reachable kernels.
+if (( PROBE_MODE == 19 || PROBE_MODE == 24 || PROBE_MODE == 25 || PROBE_MODE == 26 || PROBE_MODE == 30 || PROBE_MODE == 32 )); then
+  # The bounded-personality and receipt probes carry the largest kernels.
   # Keep the fixed bootstrap reserve intact by discarding only unreachable,
   # separately sectioned helpers; ordinary builds retain monolithic .text.
   LINK_GC_FLAGS=(--gc-sections)
@@ -575,10 +575,18 @@ case "$(basename "$LLD")" in
     ;;
 esac
 
+# Record the exact content-addressed image path passed to boot.S's .incbin,
+# only after linking succeeds. Smoke gates inspect this build's artifact.
+if (( PROBE_MODE == 15 )); then
+  printf '%s\n' "$M4_IMAGE_PATH" > "$BUILD_DIR/m4-image.path"
+fi
+if (( PROBE_MODE == 18 )); then
+  printf '%s\n' "$M6_IMAGE_PATH" > "$BUILD_DIR/m6-image.path"
+fi
+if (( PROBE_MODE == 24 )); then
+  printf '%s\n' "$M6B_LIVE_IMAGE_PATH" > "$BUILD_DIR/m6b-live-image.path"
+fi
 if (( PROBE_MODE == 25 )); then
-  # Record the exact content-addressed image path passed to boot.S's .incbin.
-  # The live gate hashes this resolved build output rather than a possibly
-  # stale artifact that merely has the previously expected filename.
   printf '%s\n' "$M6_LINUX_IMAGE_PATH" > "$BUILD_DIR/m6-linux-image.path"
 fi
 if (( PROBE_MODE == 26 )); then

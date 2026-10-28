@@ -127,7 +127,7 @@ const PROCESS_COUNT: usize = 4;
 const REPL_INDEX: usize = 3;
 const PKGD_INDEX: usize = 2;
 const QUOTA: usize = 16;
-const IMAGE_LENGTH: usize = 62056;
+const IMAGE_LENGTH: usize = 57960;
 
 static PATH_IDS: [u64; 4] = [
     0x8129_9235_8b0f_e974,
@@ -136,21 +136,21 @@ static PATH_IDS: [u64; 4] = [
     0x019b_1ef8_4028_a90f,
 ];
 
-const IMAGE_ID: u64 = 0x388b_9253_ce6f_92be;
-const IMAGE_DIGEST_0: u64 = 0xbe92_6fce_5392_8b38;
-const IMAGE_DIGEST_1: u64 = 0xbeab_6ab4_86f9_e1f1;
-const IMAGE_DIGEST_2: u64 = 0xd189_35c7_4c60_28b7;
-const IMAGE_DIGEST_3: u64 = 0x0a78_6b5f_1f03_0521;
+const IMAGE_ID: u64 = 0xa5f0_711d_e037_892a;
+const IMAGE_DIGEST_0: u64 = 0x2a89_37e0_1d71_f0a5;
+const IMAGE_DIGEST_1: u64 = 0x57e0_be27_44a3_c047;
+const IMAGE_DIGEST_2: u64 = 0x130a_a7de_aa94_a32b;
+const IMAGE_DIGEST_3: u64 = 0xb467_fec2_817c_e113;
 
 // The OVFS registry stores the digest's raw bytes in native u64 words. The
 // serial command parser instead consumes the canonical hexadecimal SHA-256
 // spelling as four big-endian numeric chunks. Keep the trust-boundary
 // representations explicit so the same digest cannot be byte-swapped by
 // accident at activation time.
-const COMMAND_DIGEST_0: u64 = 0x388b_9253_ce6f_92be;
-const COMMAND_DIGEST_1: u64 = 0xf1e1_f986_b46a_abbe;
-const COMMAND_DIGEST_2: u64 = 0xb728_604c_c735_89d1;
-const COMMAND_DIGEST_3: u64 = 0x2105_031f_5f6b_780a;
+const COMMAND_DIGEST_0: u64 = 0xa5f0_711d_e037_892a;
+const COMMAND_DIGEST_1: u64 = 0x47c0_a344_27be_e057;
+const COMMAND_DIGEST_2: u64 = 0x2ba3_94aa_dea7_0a13;
+const COMMAND_DIGEST_3: u64 = 0x13e1_7c81_c2fe_67b4;
 
 static COMPLETION_VALUES: [u64; 4] = [
     0x4d35_0000_0000_0001,
