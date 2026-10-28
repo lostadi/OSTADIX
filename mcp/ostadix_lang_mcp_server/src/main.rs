@@ -9,6 +9,7 @@ mod capabilities;
 mod execution;
 mod http;
 mod installation;
+mod oauth;
 mod operation;
 mod tool_schema;
 mod unified;
@@ -2178,6 +2179,36 @@ async fn stage_source(source: &str) -> Result<(StagedSource, PathBuf), String> {
     Ok((guard, program))
 }
 
+const PYTHON_SMOKE_SOURCE: &str = "O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n";
+
+fn python_smoke_succeeded(code: i32, stdout: &str) -> bool {
+    code == 0 && matches!(stdout.trim(), "2" | "[number] 2")
+}
+
+async fn run_python_smoke(
+    root: &Path,
+    backends: &Path,
+    o_bin: &Path,
+) -> Result<(i32, String, String), String> {
+    // This fixed Python-only source is independent of user-edited examples.
+    // Hold the guard across execution so every completion path removes it.
+    let (_staged, program) = stage_source(PYTHON_SMOKE_SOURCE).await?;
+    run_cmd(
+        o_bin,
+        &[
+            program.to_str().ok_or("smoke source path is not UTF-8")?,
+            backends.to_str().ok_or("backends path is not UTF-8")?,
+        ],
+        Some(root),
+        &[
+            ("O_LANG_ROOT", root.display().to_string()),
+            ("O_BACKENDS_DIR", backends.display().to_string()),
+        ],
+        60,
+    )
+    .await
+}
+
 async fn private_staging_directory(kind: &str) -> Result<(StagedSource, PathBuf), String> {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -2696,7 +2727,7 @@ impl OstadixMcp {
     }
 
     #[tool(
-        description = "Smoke-test O toolchain: run examples/hello.O (expect 2) with correct backends path"
+        description = "Smoke-test O toolchain with a fixed Python-only computation (expect 2) and correct backends path"
     )]
     async fn o_smoke(
         &self,
@@ -2705,34 +2736,16 @@ impl OstadixMcp {
         let root = resolve_lang_root();
         let backends = resolve_backends(&root);
         let o_bin = resolve_o_bin(&root);
-        let hello = root.join("examples/hello.O");
-        if !hello.is_file() {
-            return text_err(format!("missing {}", hello.display()));
-        }
         if !backends.join("python_shim.py").is_file() {
             return text_err(format!(
                 "backends invalid: {} (no python_shim.py)",
                 backends.display()
             ));
         }
-        match run_cmd(
-            &o_bin,
-            &[
-                hello.to_str().unwrap_or(""),
-                backends.to_str().unwrap_or(""),
-            ],
-            Some(&root),
-            &[
-                ("O_LANG_ROOT", root.display().to_string()),
-                ("O_BACKENDS_DIR", backends.display().to_string()),
-            ],
-            60,
-        )
-        .await
-        {
+        match run_python_smoke(&root, &backends, &o_bin).await {
             Ok((code, stdout, stderr)) => {
                 let body = format_run(code, &stdout, &stderr);
-                if code == 0 && stdout.contains('2') {
+                if python_smoke_succeeded(code, &stdout) {
                     text_ok(format!("SMOKE_OK\n{body}"))
                 } else {
                     text_err(format!("SMOKE_FAIL\n{body}"))
@@ -3443,17 +3456,18 @@ async fn main() -> anyhow::Result<()> {
 mod tests {
     use super::{
         catalog_backends_for, discover_runtimes, is_lang_root, parse_execution_intent,
-        random_intent_handle, resolve_directory, resolve_file, resolve_information_state,
-        resolve_new_directory_under, resolve_o_info_with_override, resolve_run_target,
-        resolve_search_corpus, resolve_search_program, run_cmd, run_information_inspect_bounded,
-        run_structured_cmd, runtime_search_path_with_mode,
-        runtime_search_path_with_mode_and_manager_environment, sanitize_information_head_output,
-        stage_source, structured_runner_error, validate_information_head_name,
-        validate_intent_target, EmptyArgs, InformationInspectRunError, IntentLease,
-        IntentReservation, IntentStore, OstadixMcp, RuntimePathMode, RuntimeSearchPath,
-        CATALOG_BACKEND_RUNTIMES, CATALOG_LEGACY_SCHEMA_V3, CATALOG_LEGACY_SCHEMA_V4,
-        CATALOG_LEGACY_SCHEMA_V5, CATALOG_RUNTIME_REQUIREMENTS, CATALOG_SCHEMA, INTENT_SCHEMA_V1,
-        MAX_COMMAND_STDERR_BYTES, MAX_COMMAND_STDOUT_BYTES, MAX_LIVE_INTENTS,
+        python_smoke_succeeded, random_intent_handle, resolve_directory, resolve_file,
+        resolve_information_state, resolve_new_directory_under, resolve_o_info_with_override,
+        resolve_run_target, resolve_search_corpus, resolve_search_program, run_cmd,
+        run_information_inspect_bounded, run_python_smoke, run_structured_cmd,
+        runtime_search_path_with_mode, runtime_search_path_with_mode_and_manager_environment,
+        sanitize_information_head_output, stage_source, structured_runner_error,
+        validate_information_head_name, validate_intent_target, EmptyArgs,
+        InformationInspectRunError, IntentLease, IntentReservation, IntentStore, OstadixMcp,
+        RuntimePathMode, RuntimeSearchPath, CATALOG_BACKEND_RUNTIMES, CATALOG_LEGACY_SCHEMA_V3,
+        CATALOG_LEGACY_SCHEMA_V4, CATALOG_LEGACY_SCHEMA_V5, CATALOG_RUNTIME_REQUIREMENTS,
+        CATALOG_SCHEMA, INTENT_SCHEMA_V1, MAX_COMMAND_STDERR_BYTES, MAX_COMMAND_STDOUT_BYTES,
+        MAX_LIVE_INTENTS, PYTHON_SMOKE_SOURCE,
     };
     use std::collections::BTreeSet;
     use std::ffi::OsStr;
@@ -4277,6 +4291,63 @@ mod tests {
         );
         drop(guard);
         assert!(!directory.exists());
+    }
+
+    #[test]
+    fn python_smoke_requires_the_complete_expected_scalar() {
+        for output in ["2", "2\n", "[number] 2\n"] {
+            assert!(python_smoke_succeeded(0, output));
+            assert!(!python_smoke_succeeded(1, output));
+        }
+        for output in ["12", "[number] 12", "Int", "hello 2", "2\nextra", ""] {
+            assert!(!python_smoke_succeeded(0, output), "{output:?}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn python_smoke_uses_private_fixed_source_and_cleans_it_after_execution() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let fixture = Fixture::new();
+        fs::write(
+            fixture.0.join("examples/hello.O"),
+            "not the smoke computation",
+        )
+        .unwrap();
+        let executable = fixture.0.join("fake-O");
+        fs::write(
+            &executable,
+            "#!/bin/sh\nset -eu\nprintf '%s' \"$1\" > smoke-path\ncp \"$1\" smoke-source\n[ \"$2\" = \"$O_BACKENDS_DIR\" ]\nprintf '[number] 2\\n'\n",
+        )
+        .unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o700)).unwrap();
+        let (code, stdout, _) =
+            run_python_smoke(&fixture.0, &fixture.0.join("backends"), &executable)
+                .await
+                .unwrap();
+        assert!(python_smoke_succeeded(code, &stdout));
+        assert_eq!(
+            fs::read_to_string(fixture.0.join("smoke-source")).unwrap(),
+            PYTHON_SMOKE_SOURCE
+        );
+        let path = PathBuf::from(fs::read_to_string(fixture.0.join("smoke-path")).unwrap());
+        assert_ne!(path, fixture.0.join("examples/hello.O"));
+        assert!(!path.exists());
+        assert!(!path.parent().unwrap().exists());
+
+        // A nonzero runner still drops the same private staging guard.
+        fs::write(
+            &executable,
+            "#!/bin/sh\nprintf '%s' \"$1\" > smoke-path\nexit 7\n",
+        )
+        .unwrap();
+        let (code, _, _) = run_python_smoke(&fixture.0, &fixture.0.join("backends"), &executable)
+            .await
+            .unwrap();
+        assert_eq!(code, 7);
+        let path = PathBuf::from(fs::read_to_string(fixture.0.join("smoke-path")).unwrap());
+        assert!(!path.parent().unwrap().exists());
     }
 
     #[cfg(unix)]

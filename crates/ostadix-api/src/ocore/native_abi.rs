@@ -1,4 +1,5 @@
-//! Shared placement of original fixed LLVM C/fastcc integer aggregate values.
+//! Shared placement of original LLVM C/fastcc integer aggregate values and
+//! scalar integer/AS0-pointer C variadic arguments.
 //!
 //! These are LLVM IR lowering rules, after the source frontend has performed
 //! its language ABI classification. They do not reclassify a C source struct.
@@ -56,7 +57,29 @@ pub struct AbiPlan {
     pub storage: Option<ReturnStoragePlan>,
     pub stack_bytes: u64,
     pub stack_alignment: u64,
+    pub variadic: Option<VariadicPlan>,
 }
+
+/// State after the named arguments, before any unnamed arguments or final
+/// caller stack padding. Hidden result pointers consume a GP slot except for
+/// AAPCS64's dedicated x8. The callee must preserve unknown incoming FP/SIMD
+/// registers too when a va_list can escape to a foreign consumer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariadicPlan {
+    pub named_gp: usize,
+    pub named_stack_bytes: u64,
+    pub gp_registers: &'static [&'static str],
+    /// SysV %al's vector-register upper bound. This integer-only profile uses
+    /// no vector argument registers; it does not describe the callee save area.
+    pub vector_register_count: u8,
+}
+
+// Integer tails use the ordinary GP allocation on all supported profiles:
+// https://gitlab.com/x86-psABIs/x86-64-ABI/-/blob/master/x86-64-ABI/low-level-sys-info.tex
+// https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst
+// https://riscv-non-isa.github.io/riscv-elf-psabi-doc/#_integer_calling_convention
+// Wider/aligned RISC-V register pairs, FP arguments, and unnamed aggregates
+// require additional classification and are rejected before leaf expansion.
 
 /// Borrow the emitter's once-per-module original DataLayout and leaf caches.
 /// Planning calls does not parse the layout or walk the complete type graph.
@@ -149,6 +172,40 @@ impl<'a> AbiContext<'a> {
 
     pub fn plan(&self, signature: &Signature) -> Result<AbiPlan, Diagnostic> {
         audit_signature(self.module, self.target, signature)?;
+        self.plan_arguments(
+            signature,
+            &signature.params,
+            &signature.param_attributes,
+            signature.params.len(),
+        )
+    }
+
+    /// Plan the original fixed prefix and every actually supplied argument.
+    /// Variadic call attributes cover all actual arguments, including an
+    /// explicit empty vector for an argument without extension attributes.
+    pub fn plan_call(
+        &self,
+        signature: &Signature,
+        actual_types: &[TypeId],
+        actual_attrs: &[Vec<String>],
+    ) -> Result<AbiPlan, Diagnostic> {
+        let fixed = prepare_call_signature(
+            self.module,
+            self.target,
+            signature,
+            actual_types,
+            actual_attrs,
+        )?;
+        self.plan_arguments(&fixed, actual_types, actual_attrs, signature.params.len())
+    }
+
+    fn plan_arguments(
+        &self,
+        signature: &Signature,
+        actual_types: &[TypeId],
+        actual_attrs: &[Vec<String>],
+        named_count: usize,
+    ) -> Result<AbiPlan, Diagnostic> {
         let result_leaves = if matches!(self.ty(signature.result)?, Type::Void) {
             &[][..]
         } else {
@@ -196,12 +253,13 @@ impl<'a> AbiContext<'a> {
             None
         };
         let mut args = Vec::new();
-        for (param, ty) in signature.params.iter().copied().enumerate() {
+        let mut variadic = None;
+        for (param, ty) in actual_types.iter().copied().enumerate() {
+            if signature.variadic && param == named_count {
+                variadic = Some(placement.variadic());
+            }
             let leaves = self.value_leaves(ty)?;
-            let attrs = signature
-                .param_attributes
-                .get(param)
-                .map_or(&[][..], Vec::as_slice);
+            let attrs = actual_attrs.get(param).map_or(&[][..], Vec::as_slice);
             let explicit_sret = signature
                 .return_storage
                 .as_ref()
@@ -249,6 +307,9 @@ impl<'a> AbiContext<'a> {
                 });
             }
         }
+        if signature.variadic && variadic.is_none() {
+            variadic = Some(placement.variadic());
+        }
         let mut results = Vec::new();
         results
             .try_reserve(result_leaves.len())
@@ -285,6 +346,7 @@ impl<'a> AbiContext<'a> {
             storage,
             stack_bytes: align_up(placement.stack, 16)?,
             stack_alignment: 16,
+            variadic,
         })
     }
 
@@ -457,6 +519,15 @@ impl Placement {
         }
     }
 
+    fn variadic(&self) -> VariadicPlan {
+        VariadicPlan {
+            named_gp: self.next,
+            named_stack_bytes: self.stack,
+            gp_registers: self.registers,
+            vector_register_count: 0,
+        }
+    }
+
     fn block(&mut self, leaves: usize, alignment: u64) -> Result<u64, Diagnostic> {
         let base = align_up(self.stack, alignment)?;
         self.stack = add(base, mul(leaves as u64, 8)?)?;
@@ -503,9 +574,9 @@ pub fn audit_signature(
     sig: &Signature,
 ) -> Result<(), Diagnostic> {
     profile(module, target)?;
-    if !matches!(sig.abi.as_str(), "c" | "fastcc") || sig.variadic {
+    if !matches!(sig.abi.as_str(), "c" | "fastcc") || (sig.variadic && sig.abi != "c") {
         return Err(fail(
-            "only fixed LLVM C and fastcc signatures are supported",
+            "only LLVM C signatures and fixed fastcc signatures are supported",
         ));
     }
     if !sig.param_attributes.is_empty() && sig.param_attributes.len() != sig.params.len() {
@@ -519,26 +590,10 @@ pub fn audit_signature(
             .get(id)
             .ok_or_else(|| fail(format!("type {id} is out of bounds")))
     };
-    let attributes = |attrs: &[String], id: TypeId| -> Result<(), Diagnostic> {
-        let mut seen = HashSet::new();
-        for attr in attrs {
-            if !matches!(attr.as_str(), "signext" | "zeroext")
-                || !matches!(ty(id)?, Type::Int { .. })
-                || !seen.insert(attr.as_str())
-            {
-                return Err(fail(format!(
-                    "unsupported, duplicate or misplaced ABI attribute `{attr}`"
-                )));
-            }
-        }
-        if seen.len() > 1 {
-            return Err(fail("conflicting integer extension attributes"));
-        }
-        Ok(())
-    };
-    attributes(&sig.result_attributes, sig.result)?;
+    audit_attributes(module, &sig.result_attributes, sig.result)?;
     for (index, param) in sig.params.iter().copied().enumerate() {
-        attributes(
+        audit_attributes(
+            module,
             sig.param_attributes
                 .get(index)
                 .map_or(&[][..], Vec::as_slice),
@@ -578,6 +633,148 @@ pub fn audit_signature(
     Ok(())
 }
 
+fn audit_attributes(module: &NativeModule, attrs: &[String], ty: TypeId) -> Result<(), Diagnostic> {
+    let ty = module
+        .types
+        .get(ty)
+        .ok_or_else(|| fail(format!("type {ty} is out of bounds")))?;
+    let mut seen = HashSet::new();
+    for attr in attrs {
+        if !matches!(attr.as_str(), "signext" | "zeroext")
+            || !matches!(ty, Type::Int { .. })
+            || !seen.insert(attr.as_str())
+        {
+            return Err(fail(format!(
+                "unsupported, duplicate or misplaced ABI attribute `{attr}`"
+            )));
+        }
+    }
+    if seen.len() > 1 {
+        return Err(fail("conflicting integer extension attributes"));
+    }
+    Ok(())
+}
+
+/// Match the supported structural ABI types without expanding arrays. Duplicate
+/// type IDs with identical definitions must not change argument placement.
+fn same_abi_type(module: &NativeModule, lhs: TypeId, rhs: TypeId) -> Result<bool, Diagnostic> {
+    let mut pending = vec![(lhs, rhs)];
+    let mut seen = HashSet::new();
+    while let Some((left, right)) = pending.pop() {
+        if !seen.insert((left, right)) {
+            continue;
+        }
+        let a = module
+            .types
+            .get(left)
+            .ok_or_else(|| fail("actual argument type is out of bounds"))?;
+        let b = module
+            .types
+            .get(right)
+            .ok_or_else(|| fail("actual argument type is out of bounds"))?;
+        match (a, b) {
+            (Type::Int { bits: a }, Type::Int { bits: b }) if a == b => {}
+            (Type::Pointer { address_space: a }, Type::Pointer { address_space: b }) if a == b => {}
+            (
+                Type::Array {
+                    element: a,
+                    len: al,
+                },
+                Type::Array {
+                    element: b,
+                    len: bl,
+                },
+            ) if al == bl => {
+                pending.push((*a, *b));
+            }
+            (
+                Type::Struct {
+                    fields: a,
+                    packed: ap,
+                },
+                Type::Struct {
+                    fields: b,
+                    packed: bp,
+                },
+            ) if ap == bp && a.len() == b.len() => {
+                pending.extend(a.iter().copied().zip(b.iter().copied()))
+            }
+            _ => return Ok(false),
+        }
+    }
+    Ok(true)
+}
+
+fn prepare_call_signature(
+    module: &NativeModule,
+    target: Target,
+    signature: &Signature,
+    actual_types: &[TypeId],
+    actual_attrs: &[Vec<String>],
+) -> Result<Signature, Diagnostic> {
+    let named = signature.params.len();
+    if actual_types.len() < named || (!signature.variadic && actual_types.len() != named) {
+        return Err(fail(
+            "actual argument count does not match the fixed prefix",
+        ));
+    }
+    if actual_attrs.len() != actual_types.len() && !(actual_attrs.is_empty() && !signature.variadic)
+    {
+        return Err(fail(
+            "actual ABI attribute inventory must cover every argument",
+        ));
+    }
+    let stored = signature.param_attributes.len();
+    if stored != 0 && stored != named && !(signature.variadic && stored == actual_types.len()) {
+        return Err(fail(
+            "call signature attribute inventory does not match fixed or actual arguments",
+        ));
+    }
+    if stored > named && signature.param_attributes != actual_attrs {
+        return Err(fail(
+            "call signature and actual trailing ABI attributes disagree",
+        ));
+    }
+    let mut fixed = signature.clone();
+    fixed.param_attributes.truncate(named);
+    audit_signature(module, target, &fixed)?;
+    for (index, ty) in actual_types.iter().copied().enumerate() {
+        let attrs = actual_attrs.get(index).map_or(&[][..], Vec::as_slice);
+        audit_attributes(module, attrs, ty)?;
+        if index < named {
+            if !same_abi_type(module, signature.params[index], ty)? {
+                return Err(fail("actual argument type disagrees with the fixed prefix"));
+            }
+            let original = fixed
+                .param_attributes
+                .get(index)
+                .map_or(&[][..], Vec::as_slice);
+            if original != attrs {
+                return Err(fail("actual ABI attributes disagree with the fixed prefix"));
+            }
+        } else if !matches!(
+            module.types.get(ty),
+            Some(Type::Int { bits: 1..=64 } | Type::Pointer { address_space: 0 })
+        ) {
+            return Err(fail("variadic arguments currently require scalar integers up to 64 bits or AS0 pointers; aggregates and floating-point require additional ABI lowering"));
+        }
+    }
+    Ok(fixed)
+}
+
+/// Reject unsupported original call contracts before allocating layout caches.
+/// In particular, a variadic aggregate must not be expanded into scalar leaves
+/// before the scalar-only trailing-argument profile has rejected it.
+pub fn audit_call_signature(
+    module: &NativeModule,
+    target: Target,
+    signature: &Signature,
+    actual_types: &[TypeId],
+    actual_attrs: &[Vec<String>],
+) -> Result<(), Diagnostic> {
+    prepare_call_signature(module, target, signature, actual_types, actual_attrs).map(|_| ())
+}
+
 /// Convenience form. Emitters should reuse AbiContext and both module caches.
 pub fn plan(module: &NativeModule, target: Target, sig: &Signature) -> Result<AbiPlan, Diagnostic> {
     audit_signature(module, target, sig)?;
@@ -588,6 +785,28 @@ pub fn plan(module: &NativeModule, target: Target, sig: &Signature) -> Result<Ab
     let layouts = type_layouts(module)?;
     let leaves = value_leaf_layouts(module, &roots)?;
     AbiContext::new(module, target, &leaves, &layouts)?.plan(sig)
+}
+
+/// Convenience call planner. Unsupported trailing types are audited before any
+/// aggregate leaf allocation, including empty or enormous unsupported arrays.
+pub fn plan_call(
+    module: &NativeModule,
+    target: Target,
+    sig: &Signature,
+    actual_types: &[TypeId],
+    actual_attrs: &[Vec<String>],
+) -> Result<AbiPlan, Diagnostic> {
+    let fixed = prepare_call_signature(module, target, sig, actual_types, actual_attrs)?;
+    let mut roots = actual_types.to_vec();
+    roots.push(sig.result);
+    let layouts = type_layouts(module)?;
+    let leaves = value_leaf_layouts(module, &roots)?;
+    AbiContext::new(module, target, &leaves, &layouts)?.plan_arguments(
+        &fixed,
+        actual_types,
+        actual_attrs,
+        sig.params.len(),
+    )
 }
 
 #[cfg(test)]
@@ -1155,6 +1374,7 @@ mod tests {
         }
         let mut sig = signature(vec![1], 1, "c");
         sig.variadic = true;
+        sig.abi = "fastcc".into();
         assert!(audit_signature(&m, target, &sig).is_err());
         sig.variadic = false;
         sig.abi = "win64".into();
@@ -1167,5 +1387,278 @@ mod tests {
         assert!(audit_signature(&m, target, &sig).is_err());
         m.target.triple = "x86_64-apple-darwin".into();
         assert!(plan(&m, target, &signature(vec![1], 1, "c")).is_err());
+    }
+
+    #[test]
+    fn variadic_named_boundary_and_scalar_tails_cover_register_exhaustion_all_three() {
+        for target in [
+            Target::X86_64UnknownNone,
+            Target::Aarch64UnknownNone,
+            Target::Riscv64UnknownNone,
+        ] {
+            let m = module(target);
+            let registers = Placement::new(target, "c").registers;
+            for named in [
+                0,
+                registers.len() - 1,
+                registers.len(),
+                registers.len() + 1,
+                registers.len() + 2,
+            ] {
+                let mut sig = signature(vec![1; named], 1, "c");
+                sig.variadic = true;
+                let callee = plan(&m, target, &sig).unwrap();
+                let mut types = sig.params.clone();
+                types.extend([2, 3, 4, 1]);
+                let mut attrs = vec![vec![]; types.len()];
+                attrs[named + 2] = vec!["signext".into()];
+                sig.param_attributes = attrs.clone();
+                let call = plan_call(&m, target, &sig, &types, &attrs).unwrap();
+                assert_eq!(call.variadic, callee.variadic);
+                let boundary = call.variadic.as_ref().unwrap();
+                assert_eq!(boundary.named_gp, named.min(registers.len()));
+                assert_eq!(
+                    boundary.named_stack_bytes,
+                    named.saturating_sub(registers.len()) as u64 * 8
+                );
+                assert_eq!(boundary.gp_registers, registers);
+                assert_eq!(boundary.vector_register_count, 0);
+                for (index, part) in call.args.iter().enumerate() {
+                    assert_eq!(part.param, Some(index));
+                    assert_eq!(part.ty, types[index]);
+                    assert_eq!(
+                        part.location,
+                        registers.get(index).map_or(
+                            AbiLocation::Stack {
+                                offset: index.saturating_sub(registers.len()) as u64 * 8
+                            },
+                            |name| AbiLocation::Register(name),
+                        )
+                    );
+                }
+                assert_eq!(call.args[named + 2].extension, Extension::Sign);
+                assert_eq!(
+                    call.stack_bytes,
+                    (types.len().saturating_sub(registers.len()) as u64 * 8 + 15) & !15
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn variadic_actual_extension_attributes_are_exact_and_do_not_mutate_signatures() {
+        for target in [
+            Target::X86_64UnknownNone,
+            Target::Aarch64UnknownNone,
+            Target::Riscv64UnknownNone,
+        ] {
+            let m = module(target);
+            let mut sig = signature(vec![4], 1, "c");
+            sig.variadic = true;
+            sig.param_attributes = vec![vec!["signext".into()]];
+            let before = sig.clone();
+            let types = [4, 5, 2];
+            let attrs = vec![vec!["signext".into()], vec!["zeroext".into()], vec![]];
+            let planned = plan_call(&m, target, &sig, &types, &attrs).unwrap();
+            assert_eq!(sig, before);
+            assert_eq!(planned.args[0].extension, Extension::Sign);
+            assert_eq!(planned.args[1].extension, Extension::Zero);
+            assert_eq!(planned.args[2].extension, Extension::None);
+            for wrong in [
+                vec![vec![], vec!["zeroext".into()], vec![]],
+                vec![
+                    vec!["signext".into()],
+                    vec!["signext".into(), "zeroext".into()],
+                    vec![],
+                ],
+                vec![
+                    vec!["signext".into()],
+                    vec!["zeroext".into(), "zeroext".into()],
+                    vec![],
+                ],
+                vec![vec!["signext".into()], vec!["byval".into()], vec![]],
+                vec![vec!["signext".into()], vec![], vec!["signext".into()]],
+            ] {
+                assert!(plan_call(&m, target, &sig, &types, &wrong).is_err());
+            }
+            sig.param_attributes = attrs.clone();
+            let mut wrong = attrs.clone();
+            wrong[1].clear();
+            assert!(plan_call(&m, target, &sig, &types, &wrong).is_err());
+            assert_eq!(
+                plan_call(&m, target, &sig, &types, &attrs).unwrap(),
+                planned
+            );
+        }
+    }
+
+    #[test]
+    fn variadic_fixed_type_equivalence_preserves_actual_type_ids() {
+        let target = Target::Riscv64UnknownNone;
+        let mut m = module(target);
+        let duplicate = push(&mut m, Type::Int { bits: 64 });
+        let mut sig = signature(vec![1], 1, "c");
+        sig.variadic = true;
+        let planned = plan_call(&m, target, &sig, &[duplicate, 2], &[vec![], vec![]]).unwrap();
+        assert_eq!(planned.args[0].ty, duplicate);
+        assert_eq!(planned.args[1].ty, 2);
+        assert!(plan_call(&m, target, &sig, &[3, 2], &[vec![], vec![]]).is_err());
+    }
+
+    #[test]
+    fn variadic_sret_boundary_counts_hidden_gp_but_not_aarch64_x8() {
+        for target in [
+            Target::X86_64UnknownNone,
+            Target::Aarch64UnknownNone,
+            Target::Riscv64UnknownNone,
+        ] {
+            let mut m = module(target);
+            let result = push(
+                &mut m,
+                Type::Struct {
+                    fields: vec![1; 9],
+                    packed: false,
+                },
+            );
+            let mut sig = signature(vec![1; 8], result, "c");
+            sig.variadic = true;
+            let planned = plan(&m, target, &sig).unwrap();
+            let boundary = planned.variadic.as_ref().unwrap();
+            let expected_stack = match target {
+                Target::X86_64UnknownNone => 24,
+                Target::Aarch64UnknownNone => 0,
+                Target::Riscv64UnknownNone => 8,
+            };
+            assert_eq!(boundary.named_gp, boundary.gp_registers.len());
+            assert_eq!(boundary.named_stack_bytes, expected_stack);
+            assert_eq!(
+                planned.storage.as_ref().unwrap().pointer_location,
+                AbiLocation::Register(match target {
+                    Target::X86_64UnknownNone => "rdi",
+                    Target::Aarch64UnknownNone => "x8",
+                    Target::Riscv64UnknownNone => "a0",
+                })
+            );
+            for param in [0, 1] {
+                let mut params = vec![1; 2];
+                params[param] = 2;
+                let mut explicit = signature(params, 0, "c");
+                explicit.variadic = true;
+                explicit.return_storage = Some(ReturnStorage { param, ty: result });
+                let plan = plan(&m, target, &explicit).unwrap();
+                assert_eq!(
+                    plan.variadic.unwrap().named_gp,
+                    if target == Target::Aarch64UnknownNone {
+                        1
+                    } else {
+                        2
+                    }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn variadic_named_aggregate_block_and_zero_sized_parameters_keep_existing_placement() {
+        let target = Target::Aarch64UnknownNone;
+        let mut m = module(target);
+        let pair = push(&mut m, Type::Array { element: 1, len: 2 });
+        let mut params = vec![1; 7];
+        params.push(pair);
+        let mut sig = signature(params, 1, "c");
+        sig.variadic = true;
+        let mut actual = sig.params.clone();
+        actual.push(1);
+        let plan = plan_call(&m, target, &sig, &actual, &vec![vec![]; actual.len()]).unwrap();
+        let boundary = plan.variadic.unwrap();
+        assert_eq!((boundary.named_gp, boundary.named_stack_bytes), (8, 16));
+        assert_eq!(
+            plan.args.last().unwrap().location,
+            AbiLocation::Stack { offset: 16 }
+        );
+        let empty = push(
+            &mut m,
+            Type::Struct {
+                fields: vec![],
+                packed: false,
+            },
+        );
+        let huge_empty = push(
+            &mut m,
+            Type::Array {
+                element: empty,
+                len: u64::MAX,
+            },
+        );
+        let mut sig = signature(vec![huge_empty], 1, "c");
+        sig.variadic = true;
+        let plan = plan_call(&m, target, &sig, &[huge_empty, 1], &[vec![], vec![]]).unwrap();
+        assert_eq!(plan.variadic.unwrap().named_gp, 0);
+        assert_eq!(plan.args[0].param, Some(1));
+        assert_eq!(plan.args[0].location, AbiLocation::Register("x0"));
+    }
+
+    #[test]
+    fn unsupported_variadic_tails_reject_before_any_aggregate_leaf_expansion() {
+        for target in [
+            Target::X86_64UnknownNone,
+            Target::Aarch64UnknownNone,
+            Target::Riscv64UnknownNone,
+        ] {
+            let mut m = module(target);
+            let float = push(&mut m, Type::Float { bits: 128 });
+            let empty_float = push(
+                &mut m,
+                Type::Array {
+                    element: float,
+                    len: 0,
+                },
+            );
+            let huge = push(
+                &mut m,
+                Type::Array {
+                    element: 1,
+                    len: u64::MAX,
+                },
+            );
+            let empty = push(
+                &mut m,
+                Type::Struct {
+                    fields: vec![],
+                    packed: false,
+                },
+            );
+            let wide = push(&mut m, Type::Int { bits: 128 });
+            let other_as = push(&mut m, Type::Pointer { address_space: 1 });
+            let mut sig = signature(vec![], 1, "c");
+            sig.variadic = true;
+            for tail in [float, empty_float, huge, empty, wide, other_as, 0] {
+                let error = plan_call(&m, target, &sig, &[tail], &[vec![]]).unwrap_err();
+                assert!(format!("{error:?}").contains("variadic arguments"));
+            }
+        }
+    }
+
+    #[test]
+    fn variadic_call_counts_attribute_inventories_and_fixed_call_contracts_stay_closed() {
+        let target = Target::X86_64UnknownNone;
+        let m = module(target);
+        let mut sig = signature(vec![1], 1, "c");
+        sig.variadic = true;
+        assert!(plan_call(&m, target, &sig, &[], &[]).is_err());
+        assert!(plan_call(&m, target, &sig, &[1, 1], &[]).is_err());
+        assert!(plan_call(&m, target, &sig, &[1, 1], &[vec![]]).is_err());
+        sig.param_attributes = vec![vec![], vec![]];
+        assert!(plan_call(&m, target, &sig, &[1, 1, 1], &[vec![], vec![], vec![]]).is_err());
+        sig.param_attributes.clear();
+        sig.abi = "fastcc".into();
+        assert!(plan_call(&m, target, &sig, &[1], &[vec![]]).is_err());
+        sig.abi = "c".into();
+        sig.variadic = false;
+        assert!(plan_call(&m, target, &sig, &[1, 1], &[vec![], vec![]]).is_err());
+        assert!(plan_call(&m, target, &sig, &[1], &[])
+            .unwrap()
+            .variadic
+            .is_none());
     }
 }

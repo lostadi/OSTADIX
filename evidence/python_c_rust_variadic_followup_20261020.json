@@ -1,0 +1,1928 @@
+{
+  "schema": "ocore-python-c-rust-variadic-followup-v1",
+  "date": "2026-10-20",
+  "audit_complete": true,
+  "same_original370_unit_cohort": true,
+  "input_count": 370,
+  "baseline": {
+    "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/report.json",
+    "bytes": 46452,
+    "sha256": "8248983fb5c88cd95ac207ce544cc56082d360639816fbb4f6926b1b14a9a246"
+  },
+  "manifest": {
+    "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/matrix-manifest-uuidfix.json",
+    "bytes": 844,
+    "sha256": "f35bd65f056158966f9e67316dd4c9a19fb9c9dd8321b74da550ac5fcb986fe6"
+  },
+  "compiler": {
+    "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/ocorec",
+    "bytes": 12543616,
+    "sha256": "e521a88ff18e606bbaec6480856318369548783d60ab29c1ff353ede59e9ba1d"
+  },
+  "compiler_source_build": {
+    "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/receipt.json",
+    "bytes": 3072,
+    "sha256": "50bc7af42c15b20975392aef8f490d004ec26c4e4edd6d839c453b1c8d9ee2a9"
+  },
+  "llvm_library": {
+    "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+    "bytes": 132053720,
+    "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+  },
+  "llvm_dis": {
+    "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-dis",
+    "bytes": 34560,
+    "sha256": "f4627dba95c7db30807c4f90e8fbbc2473a2847a5620e056bbb61abbc576c9cd"
+  },
+  "runner": {
+    "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_source_matrix.py",
+    "bytes": 18613,
+    "sha256": "2be82467c6d50af0aa0304d17917d11889f93ff46a94ceee5a2d63a63b82cb3b"
+  },
+  "worker": {
+    "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+    "bytes": 18965,
+    "sha256": "11125d04123f5cb6f30a9d9d9d1465d43bd4c4b8fedb79c630499748d49e577d"
+  },
+  "fresh_matrix_report": {
+    "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/python-c-rust-whole-matrix-v2/report.json",
+    "bytes": 43678,
+    "sha256": "72f99d05fd8b574f648a9dd1a6255301201ef86f723f688f46961d4ae48f5292"
+  },
+  "launch_receipt": {
+    "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/python-c-rust-whole-matrix-v2-launch/receipt.json",
+    "bytes": 26102,
+    "sha256": "52d3aa8b4963d58cf3997b8f3cae3dbf6bcbe4bb4e72f90ed564f2ed575788d8"
+  },
+  "independent_artifact_validation": {
+    "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/python-c-rust-whole-matrix-v2-launch/independent-artifact-validation.json",
+    "bytes": 414961,
+    "sha256": "e945cba7a61a117debee237b1a8d9db0e0fb85868305ef11a132e5e72737b9e5"
+  },
+  "profiles": [
+    {
+      "name": "cpython-full-hosted-profile",
+      "language": "python",
+      "source": {
+        "clean_at_start": true,
+        "commit_timestamp": "1791544954",
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython",
+        "revision": "c35ca4cb6e296d1770fe45f9414b58eb06242e02",
+        "submodules": [],
+        "url": "https://github.com/python/cpython.git"
+      },
+      "capture": {
+        "bytes": 246349049,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/report.json",
+        "sha256": "fb9f04225d02f9925c8a8341da14de740a0324f6622974430ed8dfc37586e9d1"
+      },
+      "step": "build-runtime-and-extensions",
+      "whole_unit_ids": [
+        "012d5d313c6d4f238b20851c12d1c30c:0",
+        "01323c1975674a1a9d99d852589461a3:0",
+        "03025b21ecbf4418b54c8a112035f144:0",
+        "03ab59564f52450eb1364e3c1a3f89ca:0",
+        "047a88e9b388487a922a8e69980e8449:0",
+        "051634843e4843a8af066b6d34ab0b0a:0",
+        "0884cafdf0364a048438c6859ab3459c:0",
+        "09911e8dfd48405183c7376f119bf35e:0",
+        "0a106d6b99d34ea398ce57432771e161:0",
+        "0a813c0a783e4106b8bc16fb708e5899:0",
+        "0acfbaf63a054abcb3f973c607ae9885:0",
+        "0cfb8d6119044fe2af1eb2c129bb80ce:0",
+        "0d789601b8c84da89c5df5da43dc72bf:0",
+        "0ddbb20d743e4901987117ade73bdb0b:0",
+        "0df797378025425e85009b272ca6e59d:0",
+        "1043884a25cb42dc8367e4e5fa390c11:0",
+        "1243a8a166b34137b63030cf7b5c294a:0",
+        "1297969d1bcf4292a2c357a73a42cbc1:0",
+        "1572c869de4347298bdf0d467db8954a:0",
+        "15e8a0f8378f467295fe2fd73fee4ef8:0",
+        "15f6688755724de59a8069c98b7fdb37:0",
+        "160f8f87eba7442ca889c8c27be3ba1a:0",
+        "16bfe9e6e61647de9e13b4fa35470e8d:0",
+        "16cb83f5e2d3487cb2b2cdf29da95c04:0",
+        "1862b68a09344524a453019948a241db:0",
+        "194452c4f9004dcda729a894ef592c53:0",
+        "1a6862d2a9804e949da74aaddccca4ba:0",
+        "1ad58eeeaaae40e9907b96b1011fe91d:0",
+        "1ae045f3e9fe4070aaec40bd4690f21f:0",
+        "1bfccf0849534116be2d0e8edb36b063:0",
+        "1c0552860bdf4105bb61f441fb1eed28:0",
+        "1cf23c78adce414d849a92411dca71ce:0",
+        "1d5135a308e14835827108a1fc4d6218:0",
+        "1d71a8d4a5a94bbabbe21d7bf1571c76:0",
+        "1db50e49552e47e4a7db39111adaaee9:0",
+        "1dfcc5f7697f4552ad17776bc5275547:0",
+        "1e0192a820a143ca8519dce40fcf67ea:0",
+        "1fdf9cc313614a92a05aa2182226461e:0",
+        "22128f6034944b259f0dcc7425137cfe:0",
+        "23930bd0e3184ad7877e0526179bf317:0",
+        "23ca17ce2d2e48dc945d14b0cf13a822:0",
+        "25f38dc20a4c4f77ae6841446aba2b70:0",
+        "2623046356224c0f92bab89f45c8779e:0",
+        "271e00da151c4a0c87333afc45507106:0",
+        "283b26f6391c48cc96b055cdb3910d5f:0",
+        "2856e06de93e46a18f6f944c109b9c51:0",
+        "2863686e2c8e47a1a0c353cd904439bb:0",
+        "28ab9a98613f4464bd71e19f21ab67ff:0",
+        "28e06e460e004f8daef4b7ca8133b2c9:0",
+        "2cd1825f905d4b118eacfc3124192291:0",
+        "2d6ef387315e47dfa2730f13fe72f063:0",
+        "2e4950dcfacc4619ad201702cf2a7886:0",
+        "2ffc641b27bf45d6a4e424634d817761:0",
+        "30100d1ff4d041c597dfe7dd67d9b77f:0",
+        "31d74078c77642f794f054d6359a341f:0",
+        "321fc155f5d2478289f8b4caa7cd2df1:0",
+        "322ad58e238143cd94607c2384f64147:0",
+        "32381c2aa45f41159bc1b22662610537:0",
+        "32f6e1b9a66242b3a2bfee383d50dc99:0",
+        "32fb5876784844988e186fa99cff935b:0",
+        "343594b46d4a4fcbaa82199012004edc:0",
+        "35220b5f99dc46ccb82b62105507b8a5:0",
+        "3567d6a9484c4a9e96b4430b4f775cdf:0",
+        "35b83cff464348be89398ffabc1ff80b:0",
+        "363afad5b7514c5b8275156cc8f83881:0",
+        "37019699eda14896b274b92ff6c27142:0",
+        "37f55774b6ea413d85f424723ec4eb73:0",
+        "381407693a5c41538c38c79341199a66:0",
+        "393ea09a319647f5ad4e817df6362659:0",
+        "3947264ca19a4cb6b11aeb9d555ada88:0",
+        "3aaff99926e848c2b674e18f73dce96d:0",
+        "3af5f7c4c4154b3c832a2adb4a3ea7b0:0",
+        "3c3e4854e3e54464b2570d719bee6f6d:0",
+        "3c4bd54c626d4dbe8296e473ee6dcae9:0",
+        "3ca07b6a3e834ba7bc0a32af9160965f:0",
+        "3d0ffe20a0dd4775a4a4eff8ea8740f5:0",
+        "3e7f471f17a04f4986376503bd2bab1d:0",
+        "3f06d05632cf4e6187a8ebcd65d31022:0",
+        "403b808b644c458b962eedb2267948c7:0",
+        "417b1f71561448bba1190328fe88c710:0",
+        "41bd6f25bc464ca89ce071f48b3e4fcf:0",
+        "425e47a91c9d43b9921d6af8247a6242:0",
+        "42b3691c8906422b867634a992c36257:0",
+        "4428f6f85e5147bab322d1a3f79278b2:0",
+        "4499d16e52f54a2484b12630da5e5bb6:0",
+        "44d564583a984b588095bfb383129bbe:0",
+        "45256854c7bc456490ab0225f66757d2:0",
+        "453365fb2f194632b2579fd9e77e61c0:0",
+        "4561a213306a4d15b6828364d2f2b9d4:0",
+        "46219687def94955a3b4f76374237ec9:0",
+        "46a0d5f117b24165a6252cecf97e1abc:0",
+        "475f0fb3a52f494a8ddbd194caa2c894:0",
+        "4767b3e10d3c407bbb1128fad5dda570:0",
+        "4833d0b1fdc84eeaa1c3c7d21352194b:0",
+        "4b299a4214774345b65301bdb816e572:0",
+        "4b3637b10ece4faf9eab7519c171bf19:0",
+        "4c32d384968e4ff4826db8b1d8c00546:0",
+        "4c79d70f22b145e1b0145572212060a1:0",
+        "4cac4cb6064942e0a7472637d6e3968c:0",
+        "4ce6a606e99b4e54906848d1cf98c655:0",
+        "4ceac47df8d94e269648517741f9cf1d:0",
+        "4d94b0f074b147ae9cb62eb6266b696f:0",
+        "4dab6a706fab4d7db4fdc8fdc9284613:0",
+        "4e579ec31a7e48dfb1969e5295ec9f63:0",
+        "4f8755f5b5654d24b30e99d1ce400088:0",
+        "50293356865d47c796c6f728915c320a:0",
+        "506a857e512a439b8d8ddd0c8fac7f3d:0",
+        "508b9c29d7e247b4bc19f3ac2caf62c6:0",
+        "511564b4db9049ca80f696b29124277a:0",
+        "51832023683d44018b60434dc348dbe1:0",
+        "51d21c67d6f246289e483e7ccb172945:0",
+        "52d08fef74414582a8ea4bfe98b67cf0:0",
+        "541c6f8c4f214e47be059164d456d2a1:0",
+        "54a189cd00cc437bafcf1a5d910c5f81:0",
+        "54e86c70cc5c4d4b9263560a43782a46:0",
+        "54f5e728ce374cf480f586808af2136b:0",
+        "563fb321e9f14489838bde8ec77aa3af:0",
+        "56f5d8db269448658841b18f2e8f795e:0",
+        "57366a26c6494b94b9bd4ac4a17dba7b:0",
+        "58da8e3a522c4cca85cc9e7465da17a3:0",
+        "5942fa9e9468445bbd27498d7bf59c97:0",
+        "594e1349971e4e01bac0e06a6e789249:0",
+        "5a9434d007ec41c78b3f653e7bec9069:0",
+        "5aff22dcd6b149028a920ffe91eed8c1:0",
+        "5b7663f6b7a04568b9ff3656d16ff102:0",
+        "5bf892d462944cc785b834d4aa6b8ef1:0",
+        "5e47600a73e3457fad483d383160d87a:0",
+        "5f69f143645544429bb337353be73431:0",
+        "5f7a643aae674402bb298fcad1c5a303:0",
+        "5fd6f1b464e84e99a4da826de8157c27:0",
+        "607c3fee0aab424c9a70d7c737a5a2cc:0",
+        "609abab104c4449dada12872f2f9763c:0",
+        "610b17bae6e14376bc92c5c6f4c6698c:0",
+        "61de55b5dc604011af4e4a486df43395:0",
+        "62b4ab39f1734938944ab6222db39b4b:0",
+        "63a6a0c22509455e9c92f6884493f2c0:0",
+        "64344c519ce94722a5c499b7a42dce43:0",
+        "64da7080c5424346aa39b46c8548e4b1:0",
+        "6522827a7092474da2e3ce9dabd6a04e:0",
+        "654d726a58af4f268fb70ac8fa07e353:0",
+        "65bb8bcea88e4626bb6b40e88a409681:0",
+        "665d9530356e4030941b5139c3de97c8:0",
+        "66ae9c1bef864709b66c162e292ac0f7:0",
+        "679f2a44608f45808b430947c20c6f24:0",
+        "67f36c51489b4c858cecc48faaeac813:0",
+        "6975d22cd5c54bb3a79fff3caebfd2af:0",
+        "69b057ea94a64327b22abdc9a898b3ba:0",
+        "69f6afacdeb945b5b81aa04964ba5dac:0",
+        "6b09ea5d74924b88a56551c6d20d0ec1:0",
+        "6b30d7183f8d4d7e88bc490cd5e9be71:0",
+        "6bec469463a146f2ba2cd4671367541a:0",
+        "6d56d4b10b484651af70b64f7a21d105:0",
+        "6ea45d4cc7d74f11a8625c723908eb2c:0",
+        "6ee0e4266c484b00814f712843baa949:0",
+        "6f3ab10931944be18ff4da5b99513502:0",
+        "700b0af1a52440e9abcc0fa204d7f96d:0",
+        "702518ae19484bc79968ae7c45a66c8c:0",
+        "704921d8b45149afbe348148c284742a:0",
+        "709bce82c2f545409edd8220e71cac57:0",
+        "70defa5420a2425584e145500e74158f:0",
+        "7147f9344b9d4e7ea0d6581e1d103e97:0",
+        "71d89deaaee94ddda3ceb2188a69c50e:0",
+        "721ca9776d304daeaa4c9140291063d3:0",
+        "725f20ee55b34cb8aadbe6f69c2882f7:0",
+        "72a97950efc045bdba04f1f54a2cc24d:0",
+        "72edf262acfa4ce3a5e85494aac9b11d:0",
+        "72f190a782c44ac99451a2ae514bb5e4:0",
+        "7327e71343f8420baae05096abc0c96b:0",
+        "746040ba10194a77a848efa0b30633a0:0",
+        "74b9cbbf9e1c4569b4d930f758752038:0",
+        "7516610cc7624612bddfc0254cf42b31:0",
+        "754ab66301cc4be8aa5c43c4a567f1a4:0",
+        "759c8a40663d4e48b045f7288caeec55:0",
+        "75ad070d509646538a4b60babbd7ea6d:0",
+        "75ea0d1bced44be2b6c98650e31d1999:0",
+        "791abe8322af4476ba1cfae6e3815067:0",
+        "7930bfc6af674be1bf2d78d5d607bf1d:0",
+        "794110ceda8240bb807bab6d95620239:0",
+        "79cff8ec90f94905bde73c173b0d5505:0",
+        "79dfb3a4c0ec448ea2865bca394dec85:0",
+        "79e37c7eadc944b88ec94652f124a393:0",
+        "7a0870f800e04245a7d541afac1cfbd2:0",
+        "7abd356878de4497b48c27e8199ef595:0",
+        "7b917cc0c70c45869da38caa75007d94:0",
+        "7d460ed3c5a44a38af8eff16be4f816f:0",
+        "7db417e3323c442185d8ea659264a026:0",
+        "7dc1d968d38546f08bea386bbdc499f3:0",
+        "7dedeab33d904fc29736ee1ea6ed20ff:0",
+        "7dfa919480644a03be0257634ecc43ef:0",
+        "814f02433a324abc892485247f8b442d:0",
+        "82244973073d413aab46cc01748fcaa7:0",
+        "8409354c674748628fb47653acb370b0:0",
+        "8467017248944c96a241c02edfd4474f:0",
+        "84866b2283124daeb22a40b0ce7d2997:0",
+        "860a16abf6a247cfbe52dc116e03c4d9:0",
+        "870d1e824e0a44c885ea5acf91951a54:0",
+        "892d8279865047de91f132f47c575690:0",
+        "89d09739c8a641eabdffd218439a546e:0",
+        "8aa71ed4e3884287af02c7f6790ce398:0",
+        "8b6e83e9ea914d618abad14dc838439b:0",
+        "8bf7ff1105154d648c5216bb27a7eab7:0",
+        "8cdfbcc4d7124629888a2c3bd5e14691:0",
+        "8d82f1df3b344e7f946f2dc57f0fd997:0",
+        "8dd72c93a1aa40ae9aac92cab10f8010:0",
+        "8f2bb6e7ed1146829cc4f59adf1531ae:0",
+        "8f4ce78bbcb6457fb725761961bbe4f4:0",
+        "8f7aab79088a45ad82e228bb9365a7b9:0",
+        "915125a3c2bc486888de81064b4940f1:0",
+        "928caa1a8c48415ab9d4bd9a007655eb:0",
+        "93429e140c5446b0878f05879aaf78ce:0",
+        "93bbb19f0a7d40d8955956bc2d9463b1:0",
+        "93bcf320b3014fddb0ceb012869e14c9:0",
+        "949974137d2648a8b745cf8700dfda40:0",
+        "94e922475c2f4c768a3b57c5231b41df:0",
+        "9564ebc112a24c2dab71d42308785c30:0",
+        "95c0c293bd7048d5ba13b9b83b034dbe:0",
+        "97cf00162c0f47c9b147d546bc18e743:0",
+        "982a472b6d6a4d10bb72fd0e7e7a9527:0",
+        "98464c9222324d97a0c2c77f1e371379:0",
+        "9935cf5647654d03b2890b772d4e7238:0",
+        "99585a2bfa9249d1b60070813bdfa0ff:0",
+        "9a5cb102dee344eba55f50ceb6fb5a53:0",
+        "9a77a89a26af4d15962b449b59ee448b:0",
+        "9a7dcaa0967447abba6d6c4834638fcf:0",
+        "9bbb56422cfc43b89fc59a26f13c3b38:0",
+        "9c1555c8a1c444e9b1ea294f4c219a20:0",
+        "9c336a45a94c47f189dad1ccdc4e2830:0",
+        "9c3ea5d769d945aba97229e6d97deee0:0",
+        "9d72462d64e242fe87a372abff4bae36:0",
+        "9e668e1499ca4915bc1ba189e3fb375f:0",
+        "9ed54b365c714918843372ae67c5888b:0",
+        "9efeb46967ea4ea0a228b3229bc6421e:0",
+        "a369968b76e0479a8dec9c0e6fa82a85:0",
+        "a43e77972f6b4c3e8730bfe5da7a7d96:0",
+        "a62ab4b2c6b2402389b67e26d2de44f4:0",
+        "a7e16aa1e09b461f9a611d45b714a3ef:0",
+        "a80f7bb4df9640829b1d028c3531f597:0",
+        "a87b99f07eab432ba4325137c4d8d931:0",
+        "a8874eb91033452ea0420dc784f5d0f8:0",
+        "a9df7bbe08ca4087b587c225dfbaeed8:0",
+        "ab67bdead0c746fd88eeea64a933e207:0",
+        "ab7565cc525f466f839b34dd3edd690b:0",
+        "adbf60a2a9e24fe8a43c0e1b290a836d:0",
+        "ade822ec99374ace90e802d689e512df:0",
+        "ae49e56bc00c47269dcd3475782b637e:0",
+        "aeb68d6768f7451f899224d3d534485c:0",
+        "aedcab5052b54a40a0d32f2de1d6c2a2:0",
+        "b15ba3c3bf2e494d9062a917992ed290:0",
+        "b16957225dfd46ce857f694ae925e32f:0",
+        "b1c5588bc7fb421eb0e311fe3f26635d:0",
+        "b2904dd1727a4476844be24582238f4b:0",
+        "b3abc028413f4bbb9b6f8d7275db2d21:0",
+        "b3e979fbf80446cd900139336be963a9:0",
+        "b45886de6dec424ea788afcc01018196:0",
+        "b5681ddadb9d480a8145ff8222a047d0:0",
+        "b64ccf955fa14ae1aa541c74a1ee9260:0",
+        "b7ce08d935454f3d84947cd4472a7fd4:0",
+        "b7d83e4e090e45df9e71813d3029ad23:0",
+        "b883639bcaef4fc6bc0b88582c6e6528:0",
+        "b8a12f113ad3446db97f8129eab4962c:0",
+        "b95e74edebab4c2d936e7851abd8e244:0",
+        "b9c4e7d177b3453896fce8fcdff30e55:0",
+        "babfe285e43449e4bebacdbd538b7e1f:0",
+        "bade574f49584595ae17ea6d8d19d66f:0",
+        "bb951fe0e6274fea863ed83fed1a733b:0",
+        "bcd6af5dc065450dba0516d1469fb017:0",
+        "bdc6999bba8b4398982fad864c9d7fa1:0",
+        "bdf0f93a7752418a8bd18b9fc60f5000:0",
+        "be71b92fb3e140d18c48eddd312c41c0:0",
+        "bf308b4846f9492996f21be5eea3779d:0",
+        "c1186977bd2a415588e4efca902be6fd:0",
+        "c21aec8ca3134430a7e8d3e069b59cc3:0",
+        "c2cffcfd7ceb432b8395dd94b9dcbf99:0",
+        "c32a577b753348499642f80394e8d4cc:0",
+        "c3ddcb6f0a5a493a942e790017116afe:0",
+        "c58038f7a44b4ed797dccc1eb4a7a8da:0",
+        "c66ebcef60c54a6b93c5b4d7710f1cd2:0",
+        "c6c6cab1013644faaee04222dd8384f5:0",
+        "c732a93ca5fc4e43aba71637175510f0:0",
+        "ca3beafb7f8f435f91cf20350dac8784:0",
+        "cd5071252dce4ee6956e4ea96d7d1a88:0",
+        "cdef564f627d459eacc62993220d3a2e:0",
+        "cf489acce1584b50b448365cf5ec01c0:0",
+        "d05645eb652b45c98572da6bdeed2272:0",
+        "d0812a9b3fa84bd386c305075e4d8ace:0",
+        "d0a0a0b3e7a542088e85212d664fcfb2:0",
+        "d0c77cec9a8442aa884dab7e611734a8:0",
+        "d10f27813f4d42f5b693f0133d4b8f76:0",
+        "d3ed82362a8a400c8af856694a27b156:0",
+        "d3f0e38f0f51413a95d0a55b48f11f32:0",
+        "d72d795ccb684335b7032d4801582c45:0",
+        "d766cf924c734a68bce7799a8794da6e:0",
+        "d9b721513a5145ed8d6870a6f1a5e834:0",
+        "d9d9e458441a40df88652802127360f8:0",
+        "db4f01d26a7a4ca1b45e43320831367e:0",
+        "dd744912922b464cb56aa45252190cff:0",
+        "de07004fbfae482c93dcf74f4ec18626:0",
+        "de3585f416d14871a4dfd3a04cb90b65:0",
+        "de458d3a6bfe4e6d8d6509aea9d78dc1:0",
+        "de559cbcf6d2496685a839314a73a7c3:0",
+        "df8a07a5cbe84a398c4c084fdfd79584:0",
+        "dff8e2c878484c07aa1b18c80bd9199b:0",
+        "e007a11301c143db9aa672bf864f9d04:0",
+        "e06933840aeb44d1985bf0a6d75b96e7:0",
+        "e1c9709bb1fc4e429de396fb76a9a360:0",
+        "e2b4a9d23a5a4667bf8760c0c0d10874:0",
+        "e33c14bdfe164d66b8f548f45b3aa691:0",
+        "e3f29a6cacd54267a482527f38f24242:0",
+        "e489f44e5c5e4a3b9b2fa0b3c35520fa:0",
+        "e50029104cd548ddb2435d9d3eebbe7e:0",
+        "e6035f1bc00145579438cd611b54acb0:0",
+        "e68d1dbeabe94ca38a006de3c92ff6e3:0",
+        "e7488459f23e4f228e317bc726c213a3:0",
+        "e754a103d18e423cb16f2c088c79b387:0",
+        "e797ec8fb34642a5bf02144a0d547c26:0",
+        "e80662417f714fd685635ceaf1ddc174:0",
+        "e84da1b6bfcb4e898c18f0fbc85e1616:0",
+        "e8a166392908435b9458024a3307cefe:0",
+        "e8c1e3ceb13c46b5abea5df83fd1f08c:0",
+        "eb14853e69f74337a30b3f79c27dee60:0",
+        "eb46f203b5a3434da164eafa05e1977a:0",
+        "eb60d18b2ac54cf5bc85f380f9a377bc:0",
+        "ebbcfeff305d49989b4273515f6e10ed:0",
+        "ebd2439a499b4d63a312b0d9d7ce044d:0",
+        "ebe3e74d0e454ea4a34a0dc9695fc038:0",
+        "ed2d60d6e0aa45ffaae12d5ed4dc0408:0",
+        "ede8294e2a824f85aae6b1ee5b616e91:0",
+        "ee5746fa5d304be99555ec5832682e2a:0",
+        "ee6cf303a4f846288f329e8277423470:0",
+        "ef09e95fe15e489ea57b6a1021977072:0",
+        "efd7588cf2d84263b5cf9cf69a064b35:0",
+        "f073d2820bf74d00998de80f9c5234ec:0",
+        "f16c6305968746d2a480c0fe20240e05:0",
+        "f1755a962027435d8016ec3c131317ca:0",
+        "f20439e649174587a27e32695fd51cd3:0",
+        "f2355ac09b5e48938ee730290870aed5:0",
+        "f517d31656b5499b867d346bcbfbd633:0",
+        "f56ca531c23a479fb45d3db2efbc5e1c:0",
+        "f61bf4c143434c7c8f258ecfd3cdfedb:0",
+        "f6d17184b9564e549f837c0bc96dc459:0",
+        "f6e21eac3c8b417086e205e4bb869d2a:0",
+        "f767e626c530407db7601506ec3269e8:0",
+        "f7b0e0cef34641228197dcbd3b5c29bf:0",
+        "f7db62ffae034d87a578aca758402939:0",
+        "f82f5688c72a4f4d899728b2bd4f3949:0",
+        "f83862e07f9c4c00b962ee7b9a3ef1c8:0",
+        "f87341c990a64f6cbf6773e68e3e6abb:0",
+        "f903af90c28b437789ddfc2d387292fc:0",
+        "f9920e7de21e4dd1893dc4a07bddaaa8:0",
+        "f9c13b45bf894b539fb7b57c04270160:0",
+        "fa3f221fda5846ee972bcf0d91c02789:0",
+        "faba15296ab749afa0a1f6a4615b8fc6:0",
+        "fb3f93375c164476ae34b0a921aaf6b0:0",
+        "fbf9d536aca34109831190a3a82cbe19:0",
+        "fc9574176de14872b0b132896ca27248:0",
+        "fd5f5c82c0f54b08b9d1cb7dca8c7767:0",
+        "fe104255a7d3455eadd3f997f1cbdad5:0",
+        "fe44bab22be64e00b886e9182fdeef93:0",
+        "fe64077294c241cfa101a460f6d0f1a6:0",
+        "fed356676ace461aade85e2ea27afb6b:0"
+      ],
+      "selected_units": 360,
+      "baseline_verified_object_count": 63,
+      "imported_unit_count": 152,
+      "independently_verified_unit_count": 152,
+      "verified_object_count": 140,
+      "verified_object_unit_ids": [
+        "03ab59564f52450eb1364e3c1a3f89ca:0",
+        "047a88e9b388487a922a8e69980e8449:0",
+        "051634843e4843a8af066b6d34ab0b0a:0",
+        "0a106d6b99d34ea398ce57432771e161:0",
+        "0acfbaf63a054abcb3f973c607ae9885:0",
+        "194452c4f9004dcda729a894ef592c53:0",
+        "1a6862d2a9804e949da74aaddccca4ba:0",
+        "1ad58eeeaaae40e9907b96b1011fe91d:0",
+        "1c0552860bdf4105bb61f441fb1eed28:0",
+        "1d5135a308e14835827108a1fc4d6218:0",
+        "1dfcc5f7697f4552ad17776bc5275547:0",
+        "23ca17ce2d2e48dc945d14b0cf13a822:0",
+        "2623046356224c0f92bab89f45c8779e:0",
+        "271e00da151c4a0c87333afc45507106:0",
+        "2863686e2c8e47a1a0c353cd904439bb:0",
+        "28ab9a98613f4464bd71e19f21ab67ff:0",
+        "28e06e460e004f8daef4b7ca8133b2c9:0",
+        "2ffc641b27bf45d6a4e424634d817761:0",
+        "30100d1ff4d041c597dfe7dd67d9b77f:0",
+        "343594b46d4a4fcbaa82199012004edc:0",
+        "3567d6a9484c4a9e96b4430b4f775cdf:0",
+        "381407693a5c41538c38c79341199a66:0",
+        "393ea09a319647f5ad4e817df6362659:0",
+        "3947264ca19a4cb6b11aeb9d555ada88:0",
+        "3c4bd54c626d4dbe8296e473ee6dcae9:0",
+        "3f06d05632cf4e6187a8ebcd65d31022:0",
+        "403b808b644c458b962eedb2267948c7:0",
+        "4499d16e52f54a2484b12630da5e5bb6:0",
+        "44d564583a984b588095bfb383129bbe:0",
+        "45256854c7bc456490ab0225f66757d2:0",
+        "4561a213306a4d15b6828364d2f2b9d4:0",
+        "46a0d5f117b24165a6252cecf97e1abc:0",
+        "4833d0b1fdc84eeaa1c3c7d21352194b:0",
+        "4b299a4214774345b65301bdb816e572:0",
+        "4ce6a606e99b4e54906848d1cf98c655:0",
+        "4ceac47df8d94e269648517741f9cf1d:0",
+        "4d94b0f074b147ae9cb62eb6266b696f:0",
+        "4dab6a706fab4d7db4fdc8fdc9284613:0",
+        "508b9c29d7e247b4bc19f3ac2caf62c6:0",
+        "511564b4db9049ca80f696b29124277a:0",
+        "51d21c67d6f246289e483e7ccb172945:0",
+        "54a189cd00cc437bafcf1a5d910c5f81:0",
+        "54e86c70cc5c4d4b9263560a43782a46:0",
+        "54f5e728ce374cf480f586808af2136b:0",
+        "563fb321e9f14489838bde8ec77aa3af:0",
+        "56f5d8db269448658841b18f2e8f795e:0",
+        "57366a26c6494b94b9bd4ac4a17dba7b:0",
+        "594e1349971e4e01bac0e06a6e789249:0",
+        "5a9434d007ec41c78b3f653e7bec9069:0",
+        "5e47600a73e3457fad483d383160d87a:0",
+        "607c3fee0aab424c9a70d7c737a5a2cc:0",
+        "609abab104c4449dada12872f2f9763c:0",
+        "64da7080c5424346aa39b46c8548e4b1:0",
+        "665d9530356e4030941b5139c3de97c8:0",
+        "66ae9c1bef864709b66c162e292ac0f7:0",
+        "6ee0e4266c484b00814f712843baa949:0",
+        "6f3ab10931944be18ff4da5b99513502:0",
+        "700b0af1a52440e9abcc0fa204d7f96d:0",
+        "704921d8b45149afbe348148c284742a:0",
+        "709bce82c2f545409edd8220e71cac57:0",
+        "72a97950efc045bdba04f1f54a2cc24d:0",
+        "72f190a782c44ac99451a2ae514bb5e4:0",
+        "7327e71343f8420baae05096abc0c96b:0",
+        "746040ba10194a77a848efa0b30633a0:0",
+        "74b9cbbf9e1c4569b4d930f758752038:0",
+        "7516610cc7624612bddfc0254cf42b31:0",
+        "754ab66301cc4be8aa5c43c4a567f1a4:0",
+        "75ea0d1bced44be2b6c98650e31d1999:0",
+        "791abe8322af4476ba1cfae6e3815067:0",
+        "79dfb3a4c0ec448ea2865bca394dec85:0",
+        "7abd356878de4497b48c27e8199ef595:0",
+        "7b917cc0c70c45869da38caa75007d94:0",
+        "7db417e3323c442185d8ea659264a026:0",
+        "814f02433a324abc892485247f8b442d:0",
+        "82244973073d413aab46cc01748fcaa7:0",
+        "8409354c674748628fb47653acb370b0:0",
+        "89d09739c8a641eabdffd218439a546e:0",
+        "8b6e83e9ea914d618abad14dc838439b:0",
+        "8d82f1df3b344e7f946f2dc57f0fd997:0",
+        "8f2bb6e7ed1146829cc4f59adf1531ae:0",
+        "8f7aab79088a45ad82e228bb9365a7b9:0",
+        "93bbb19f0a7d40d8955956bc2d9463b1:0",
+        "949974137d2648a8b745cf8700dfda40:0",
+        "95c0c293bd7048d5ba13b9b83b034dbe:0",
+        "98464c9222324d97a0c2c77f1e371379:0",
+        "9bbb56422cfc43b89fc59a26f13c3b38:0",
+        "9d72462d64e242fe87a372abff4bae36:0",
+        "9e668e1499ca4915bc1ba189e3fb375f:0",
+        "9ed54b365c714918843372ae67c5888b:0",
+        "9efeb46967ea4ea0a228b3229bc6421e:0",
+        "a369968b76e0479a8dec9c0e6fa82a85:0",
+        "a7e16aa1e09b461f9a611d45b714a3ef:0",
+        "a87b99f07eab432ba4325137c4d8d931:0",
+        "ab7565cc525f466f839b34dd3edd690b:0",
+        "adbf60a2a9e24fe8a43c0e1b290a836d:0",
+        "aeb68d6768f7451f899224d3d534485c:0",
+        "aedcab5052b54a40a0d32f2de1d6c2a2:0",
+        "b15ba3c3bf2e494d9062a917992ed290:0",
+        "b16957225dfd46ce857f694ae925e32f:0",
+        "b3abc028413f4bbb9b6f8d7275db2d21:0",
+        "b45886de6dec424ea788afcc01018196:0",
+        "b5681ddadb9d480a8145ff8222a047d0:0",
+        "b64ccf955fa14ae1aa541c74a1ee9260:0",
+        "b7ce08d935454f3d84947cd4472a7fd4:0",
+        "b7d83e4e090e45df9e71813d3029ad23:0",
+        "b8a12f113ad3446db97f8129eab4962c:0",
+        "b95e74edebab4c2d936e7851abd8e244:0",
+        "bb951fe0e6274fea863ed83fed1a733b:0",
+        "bcd6af5dc065450dba0516d1469fb017:0",
+        "bf308b4846f9492996f21be5eea3779d:0",
+        "c1186977bd2a415588e4efca902be6fd:0",
+        "c6c6cab1013644faaee04222dd8384f5:0",
+        "c732a93ca5fc4e43aba71637175510f0:0",
+        "cd5071252dce4ee6956e4ea96d7d1a88:0",
+        "cdef564f627d459eacc62993220d3a2e:0",
+        "d10f27813f4d42f5b693f0133d4b8f76:0",
+        "d72d795ccb684335b7032d4801582c45:0",
+        "d766cf924c734a68bce7799a8794da6e:0",
+        "d9b721513a5145ed8d6870a6f1a5e834:0",
+        "dd744912922b464cb56aa45252190cff:0",
+        "e2b4a9d23a5a4667bf8760c0c0d10874:0",
+        "e33c14bdfe164d66b8f548f45b3aa691:0",
+        "e50029104cd548ddb2435d9d3eebbe7e:0",
+        "e84da1b6bfcb4e898c18f0fbc85e1616:0",
+        "e8a166392908435b9458024a3307cefe:0",
+        "eb14853e69f74337a30b3f79c27dee60:0",
+        "eb46f203b5a3434da164eafa05e1977a:0",
+        "ee5746fa5d304be99555ec5832682e2a:0",
+        "efd7588cf2d84263b5cf9cf69a064b35:0",
+        "f16c6305968746d2a480c0fe20240e05:0",
+        "f517d31656b5499b867d346bcbfbd633:0",
+        "f61bf4c143434c7c8f258ecfd3cdfedb:0",
+        "f7b0e0cef34641228197dcbd3b5c29bf:0",
+        "f82f5688c72a4f4d899728b2bd4f3949:0",
+        "f87341c990a64f6cbf6773e68e3e6abb:0",
+        "f903af90c28b437789ddfc2d387292fc:0",
+        "f9920e7de21e4dd1893dc4a07bddaaa8:0",
+        "fb3f93375c164476ae34b0a921aaf6b0:0",
+        "fbf9d536aca34109831190a3a82cbe19:0",
+        "fed356676ace461aade85e2ea27afb6b:0"
+      ],
+      "newly_verified_object_units": [
+        {
+          "id": "047a88e9b388487a922a8e69980e8449:0",
+          "source": {
+            "bytes": 3031,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Programs/_bootstrap_python.c",
+            "sha256": "6dfda921d2128b66fa9b814c7e3feb0c6238b306e45c51e67255ebaebddd632a"
+          },
+          "input_sha256": "7a59a75f382236a5225b4736597a2ad5bea4c1930c971e654b977670935f772d"
+        },
+        {
+          "id": "0a106d6b99d34ea398ce57432771e161:0",
+          "source": {
+            "bytes": 2822,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/tuple.c",
+            "sha256": "d85d449c1135f1faed72296288fe6c6273a04ddedb65e1d9dace933951e254eb"
+          },
+          "input_sha256": "b65bc76b28a112034d7d72220e2306514aaefaf1bb430c8e11f27eaba9a4c3d7"
+        },
+        {
+          "id": "194452c4f9004dcda729a894ef592c53:0",
+          "source": {
+            "bytes": 8141,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_sqlite/row.c",
+            "sha256": "5269d5838bcda756f3c40993e5c8b6b82edc5ebe892e7487ef0e0fc243a8a565"
+          },
+          "input_sha256": "79ecb25e38dc4186cfbde5f26eb94758cf2a8d6bcc166e87fafa477654d74fc9"
+        },
+        {
+          "id": "1ad58eeeaaae40e9907b96b1011fe91d:0",
+          "source": {
+            "bytes": 11528,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/vectorcall.c",
+            "sha256": "572f96d5ecda682b5d808599b086e3a4eba2b20a468ba4db87e2f0d36c298d95"
+          },
+          "input_sha256": "b7d5b38309ffb4d99aa17c77eed46a8bc3b05a0a363cbf4a3c17f3bff79a1ccf"
+        },
+        {
+          "id": "1d5135a308e14835827108a1fc4d6218:0",
+          "source": {
+            "bytes": 19819,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/watchers.c",
+            "sha256": "67c2f2a6213e2a2d1efe633754a538af4f6c6fa89c50ede155fbca6dcc0d9c82"
+          },
+          "input_sha256": "c08c60251bff25dccbfb4ab772194caf500e80b461d7c54414f9326da666f85c"
+        },
+        {
+          "id": "1dfcc5f7697f4552ad17776bc5275547:0",
+          "source": {
+            "bytes": 62638,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/cjkcodecs/multibytecodec.c",
+            "sha256": "1f42e2a7d5d46978c31ad2a97c7cc6935f1f92543f80f7514c86d6238b6e9a3a"
+          },
+          "input_sha256": "d555d04a655c55e880469771e946a45f927077a866578ed85a227d7173accde3"
+        },
+        {
+          "id": "23ca17ce2d2e48dc945d14b0cf13a822:0",
+          "source": {
+            "bytes": 6582,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/numbers.c",
+            "sha256": "37c2c60256ad769a21900bed3976a8900df82854922d57ad01908a0dd46926fe"
+          },
+          "input_sha256": "53f276cdc74e6027b29b3af3e69371cdccf649886f2d320a08d465936504cdcb"
+        },
+        {
+          "id": "2863686e2c8e47a1a0c353cd904439bb:0",
+          "source": {
+            "bytes": 733,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/getversion.c",
+            "sha256": "aaf83e1023f2c70c3869f0a09bbd67ab022386ab2b1df73913cd43f7a7ce51d5"
+          },
+          "input_sha256": "8882cd72271d89b349bdc62ea8e2c0310a64edcd72907d08d628d0ad95b51b40"
+        },
+        {
+          "id": "28ab9a98613f4464bd71e19f21ab67ff:0",
+          "source": {
+            "bytes": 10578,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_opcode.c",
+            "sha256": "eeb27e6027d9afd5d66aad063f2e080bdbf9fc09187a66385fcbd4d1b1bf1c6f"
+          },
+          "input_sha256": "05efe3255e1ca367afa25dc243a7846fa54303f11e56022179535027fc7831a1"
+        },
+        {
+          "id": "28e06e460e004f8daef4b7ca8133b2c9:0",
+          "source": {
+            "bytes": 64450,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/unicode.c",
+            "sha256": "6b277d0d94eb01e3076254bc2f8c680ade2def6a69ccf12151ed84a84f16743b"
+          },
+          "input_sha256": "db00320c26a84c125ef22e0afe598dc358eb0c7e50780308f9111e2c15347fa0"
+        },
+        {
+          "id": "2ffc641b27bf45d6a4e424634d817761:0",
+          "source": {
+            "bytes": 43693,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/readline.c",
+            "sha256": "a2b94b7ee6acb94693aaa284524beb7059407b9c9cf430179254d3af41b3eeb0"
+          },
+          "input_sha256": "4284173957d7e732f5bd974369c91361232469a80fbe11f3142b25a3c2ebe845"
+        },
+        {
+          "id": "30100d1ff4d041c597dfe7dd67d9b77f:0",
+          "source": {
+            "bytes": 34932,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/heaptype.c",
+            "sha256": "a3291ccd8375ec9d7d6a4e35235da56bd1f173df126014a996992831bac1d1b2"
+          },
+          "input_sha256": "81f0a033b132704595d8193da619797bdc56ff17813090a8b787bfdbb502a470"
+        },
+        {
+          "id": "343594b46d4a4fcbaa82199012004edc:0",
+          "source": {
+            "bytes": 6547,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testinternalcapi/pytime.c",
+            "sha256": "2db2739753e5eb30c81cacec3d3ba114a94c0a05a8a885a93fa84ccf5f39061f"
+          },
+          "input_sha256": "47cd78fa7887fd2ebfc957b5b15413decd5448ea8efc74cfbcd83470b2246c0e"
+        },
+        {
+          "id": "381407693a5c41538c38c79341199a66:0",
+          "source": {
+            "bytes": 6058,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/unicode.c",
+            "sha256": "cf9026cc41f8fe96a842a0fae6632b177a536783cb6c1e9f45134940e58842aa"
+          },
+          "input_sha256": "552d077bd21abd03d99d0736c98558dbda1f1c093ec2f02bee8105dc54e766bc"
+        },
+        {
+          "id": "393ea09a319647f5ad4e817df6362659:0",
+          "source": {
+            "bytes": 23943,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/fcntlmodule.c",
+            "sha256": "5bfdf5ec2ad77e1e262e32fdd37f56df11de56cdd53b953b9dca5d99fb7f5113"
+          },
+          "input_sha256": "583213da0efed623bca14111b2734343a6157be971b963e067529e40e7978cc1"
+        },
+        {
+          "id": "3c4bd54c626d4dbe8296e473ee6dcae9:0",
+          "source": {
+            "bytes": 1078,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/bytes.c",
+            "sha256": "cfa0cc1d649bf42f0f29d9ae1ac853392896bca4282dcef3abda2f4f8a861386"
+          },
+          "input_sha256": "8ffd6652a7765fe65c024270745457adfbab905a68138afebc007fb265557015"
+        },
+        {
+          "id": "3f06d05632cf4e6187a8ebcd65d31022:0",
+          "source": {
+            "bytes": 5651,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/dict.c",
+            "sha256": "388e6abc87274bebdf03194dfdfa8abd702ee8295549451cf6743c6aafbef1d2"
+          },
+          "input_sha256": "bec317eab6257c8c29a4067f6171a829f3db844a2edae88320c07a24aca0034b"
+        },
+        {
+          "id": "403b808b644c458b962eedb2267948c7:0",
+          "source": {
+            "bytes": 9084,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/structmember.c",
+            "sha256": "0e94027a880c477ac3c75662bd3ec52b014c4dedcf000108241f1746603ee1d7"
+          },
+          "input_sha256": "aad45b211dcd0011c373947e3297e94476f9608dd76d9f7f93d089d240e09a6d"
+        },
+        {
+          "id": "45256854c7bc456490ab0225f66757d2:0",
+          "source": {
+            "bytes": 1651,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/capsule.c",
+            "sha256": "ff162d565fb55365f9defa977d546c96a93eefe5e64e08e458ecf3f9e706099b"
+          },
+          "input_sha256": "852b03b35a5610487972fd40f6a0121d1f759a72221069907745911003e6ee84"
+        },
+        {
+          "id": "4561a213306a4d15b6828364d2f2b9d4:0",
+          "source": {
+            "bytes": 2429,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/eval.c",
+            "sha256": "7d53a8bd410d36a8f21062047572122f9263033874ab69a841054e8a97c10d11"
+          },
+          "input_sha256": "babaca1e0cc80af4f7883401bebacf1bdcc0d4fd8a1ff38aa63073c5c02ac100"
+        },
+        {
+          "id": "4833d0b1fdc84eeaa1c3c7d21352194b:0",
+          "source": {
+            "bytes": 18334,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testexternalinspection.c",
+            "sha256": "f5a1220533807560bbbb277150f2cdcff365671235d6646e2ed7adbbab940d6c"
+          },
+          "input_sha256": "4bdd296bf67f84e14777260202c6e6aff3c9f6f73d3f42374b479fa38c3dea9d"
+        },
+        {
+          "id": "4ce6a606e99b4e54906848d1cf98c655:0",
+          "source": {
+            "bytes": 618,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/run.c",
+            "sha256": "75a2bd88b095fe531cdd33054cb9ecbc40f3afab182f6012f8dd2eef93f2c7f8"
+          },
+          "input_sha256": "2437092c9e141bae83b9f64859dff190260da189d6b857926f78d191b6970a64"
+        },
+        {
+          "id": "4d94b0f074b147ae9cb62eb6266b696f:0",
+          "source": {
+            "bytes": 11906,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/exceptions.c",
+            "sha256": "1d071e22d46bf4c123644d5270e41a3c350102d6e827b6a13698ad8af87ba59d"
+          },
+          "input_sha256": "3b0db8bfe22db1f7e6506c4cf60142323f7d46924008b013984efbf34e4fd667"
+        },
+        {
+          "id": "4dab6a706fab4d7db4fdc8fdc9284613:0",
+          "source": {
+            "bytes": 1533,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/getbuildinfo.c",
+            "sha256": "0da696d7d7b47ef6a310ed8f199ce71998f1a3a6d3a31010a7079b637e5b22ce"
+          },
+          "input_sha256": "c5d4e64d0150e39669c87349fd25fb1a4fc36918d7b0af1bc8fc350307dc336d"
+        },
+        {
+          "id": "508b9c29d7e247b4bc19f3ac2caf62c6:0",
+          "source": {
+            "bytes": 8331,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/import.c",
+            "sha256": "d03e68145bb31920abf6c555e2af16a9cbb8998150a5078b12ce1ae3ffa9c511"
+          },
+          "input_sha256": "52bf46eb64d48bedc50744a204968bb1afc1e06d806e047534af89f5d0df29a3"
+        },
+        {
+          "id": "51d21c67d6f246289e483e7ccb172945:0",
+          "source": {
+            "bytes": 4312,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_sqlite/microprotocols.c",
+            "sha256": "2b43a7620580175f5641c149619a1e0c0d8e3185ab7dced9748e6f089862b879"
+          },
+          "input_sha256": "6fd44fc63613d1b9bc66df339c7acace0c9b258c8b26f017b2e62205da58f10b"
+        },
+        {
+          "id": "54e86c70cc5c4d4b9263560a43782a46:0",
+          "source": {
+            "bytes": 52042,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Parser/lexer/lexer.c",
+            "sha256": "9a13d9f4e7dfaf272101809024b8c0e1e58d2a00b1f1331446c64e4f9b003db4"
+          },
+          "input_sha256": "2f5ae5ad5593af04840dd45c4c0040042e3a7d2ce5cf69f807fe505bf5a8a60f"
+        },
+        {
+          "id": "54f5e728ce374cf480f586808af2136b:0",
+          "source": {
+            "bytes": 9550,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/heaptype_relative.c",
+            "sha256": "2c4ba6d330c9738ae01f499719e909c1fb7738df8c91fcfda2fd8956937efd7e"
+          },
+          "input_sha256": "a0bfae3cdc1db8b953f4396fd55b9e9104003f7e0ff05233e623920dba016119"
+        },
+        {
+          "id": "57366a26c6494b94b9bd4ac4a17dba7b:0",
+          "source": {
+            "bytes": 3987,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/future.c",
+            "sha256": "f1912ba00b2467ce75db2937e7f0d64b4446a5c869e96145232d329bf6a9b99b"
+          },
+          "input_sha256": "1cfab1ab9a32d4661d510c0d560f5fc9512b994bfc5444b807d2c051194c7b6c"
+        },
+        {
+          "id": "594e1349971e4e01bac0e06a6e789249:0",
+          "source": {
+            "bytes": 19980,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/run.c",
+            "sha256": "6155829d582d2fb695b7b130ef7c367711c1e09b5e37c750b32a2e30bd8eb4bd"
+          },
+          "input_sha256": "4171b98a9d426a9a5958c35f63f881a3a933c832b019ac2fadb869b4e1b31939"
+        },
+        {
+          "id": "607c3fee0aab424c9a70d7c737a5a2cc:0",
+          "source": {
+            "bytes": 3223,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/long.c",
+            "sha256": "ab66ea6d309fb862f679fd213d7eb4e63ac217e847c616eb73f003ccb0ba3834"
+          },
+          "input_sha256": "9fef2401c8753d177d2a082c6d2bcc87f99d0ecc9154a9ae3fa0d3855d14d907"
+        },
+        {
+          "id": "609abab104c4449dada12872f2f9763c:0",
+          "source": {
+            "bytes": 45479,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/binascii.c",
+            "sha256": "b5919586319f5e28f9a4c1754691908af77489aadcbde97ca1ca998af2fcd1d2"
+          },
+          "input_sha256": "6c1c16d0fe3c8593fecb7ca97ce68ffafc29568acc57a437baa107ce32951897"
+        },
+        {
+          "id": "665d9530356e4030941b5139c3de97c8:0",
+          "source": {
+            "bytes": 8192,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/interpconfig.c",
+            "sha256": "9888c872dda3256926f381c71b1b53782fd426e43994387c7fdc01e8a0711fe7"
+          },
+          "input_sha256": "3d39a9bee8f633d5d01de772c09102da1eb9669fcbe48ba9f7d41d34beb8c332"
+        },
+        {
+          "id": "66ae9c1bef864709b66c162e292ac0f7:0",
+          "source": {
+            "bytes": 22177,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_curses_panel.c",
+            "sha256": "601a85955af33fe2a6983eab826390167b251eec03e8c11f1617ec34eeef0723"
+          },
+          "input_sha256": "b159308e1f962e5391519f4057103a84d5d227ef7149d9b61286d8cc6345fd06"
+        },
+        {
+          "id": "6ee0e4266c484b00814f712843baa949:0",
+          "source": {
+            "bytes": 63755,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/mmapmodule.c",
+            "sha256": "61ea513ab0ad80e3791ca20ca5276f618a3f556b593c0abd37c6ff2bb0c90101"
+          },
+          "input_sha256": "40ef1ca28d7d2b712f78cee5544ded3fd7a33f959e985f317f4cbf5effd78d29"
+        },
+        {
+          "id": "709bce82c2f545409edd8220e71cac57:0",
+          "source": {
+            "bytes": 2250,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/frozenmain.c",
+            "sha256": "bf1bd37e7e13913864cc6212ecc9229b86780554a45cd86c70e55ed67a9555c6"
+          },
+          "input_sha256": "b15b4ba401ed7582fbb2e9a920089aea894d0f360cc9508d59860ea6a3219727"
+        },
+        {
+          "id": "72a97950efc045bdba04f1f54a2cc24d:0",
+          "source": {
+            "bytes": 3166,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/object.c",
+            "sha256": "5e791c6851fc73c697fa7a1db0cbe3b4c419cbbbd2136a19b1c4f32c8e680834"
+          },
+          "input_sha256": "a3644ab62a5622fb26bddb161d722d1c0f0bc1a17c1930899e96ac17567bd2d3"
+        },
+        {
+          "id": "746040ba10194a77a848efa0b30633a0:0",
+          "source": {
+            "bytes": 14502,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/monitoring.c",
+            "sha256": "0cadce6c70824154d0c3d49755ce63a47ba98064f3d3bfb1967374b9c7f53c9a"
+          },
+          "input_sha256": "efffc8b0020cb0b6406cbc049050103dbf096ab43e38f58b3dd61561d2b649e3"
+        },
+        {
+          "id": "74b9cbbf9e1c4569b4d930f758752038:0",
+          "source": {
+            "bytes": 51749,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_csv.c",
+            "sha256": "0bbc2a06be40ad6cfcbcba79872cdba5b782f3868a915c994ff9ef76e1cd63c0"
+          },
+          "input_sha256": "36fd20caec756bfc01f70a177666643103eb678ad96a176e3472685a8a4632da"
+        },
+        {
+          "id": "7516610cc7624612bddfc0254cf42b31:0",
+          "source": {
+            "bytes": 1214,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/sys.c",
+            "sha256": "68d6c9c0981190fb96fde8d23a9b893c936b8c895771957a5b40fbdb11929280"
+          },
+          "input_sha256": "244257e79899d9c051abf80504a94227df700ad0edcbc37f07289a71d08f4233"
+        },
+        {
+          "id": "754ab66301cc4be8aa5c43c4a567f1a4:0",
+          "source": {
+            "bytes": 16350,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Parser/tokenizer/helpers.c",
+            "sha256": "817f4844a5bb7426df90aec399ad792bc41ab2b529c31a05b7565473d04d5453"
+          },
+          "input_sha256": "79d277396618838271566b6c2f04ae21a432fff82c0c811d513da88e7feae81a"
+        },
+        {
+          "id": "75ea0d1bced44be2b6c98650e31d1999:0",
+          "source": {
+            "bytes": 13542,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_bisectmodule.c",
+            "sha256": "ee3bd4708f40759be85100c5f352a7b9fe611cf045610b732642f089c13cb751"
+          },
+          "input_sha256": "5af5618aeb447946221aa27645f3eac7a4059a659344564aa153b4d968647100"
+        },
+        {
+          "id": "791abe8322af4476ba1cfae6e3815067:0",
+          "source": {
+            "bytes": 24109,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_bz2module.c",
+            "sha256": "04285b796a2ebeac73e66839551a8cf67b642d1a3c549fc8e9c6a26107a11682"
+          },
+          "input_sha256": "9d458f54b675bf6ea6592c8d2f2bffe972862a01d1c7e94ed1f4edf22128ab2c"
+        },
+        {
+          "id": "7abd356878de4497b48c27e8199ef595:0",
+          "source": {
+            "bytes": 50080,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_lzmamodule.c",
+            "sha256": "8a4a5123482ff7190081766a135c0f010b7c20934cde388e34bf8aa2c8bf0784"
+          },
+          "input_sha256": "0142102d98f35a33a27e31fc3efe88bf55d770b635bb2adeaeddb10662ed9abb"
+        },
+        {
+          "id": "7b917cc0c70c45869da38caa75007d94:0",
+          "source": {
+            "bytes": 30163,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/termios.c",
+            "sha256": "c35f786bf1eab8cba8163f645ce5d0b36a05e0fd9ce09e89918d69dbf556cffd"
+          },
+          "input_sha256": "f145d56ac1d11e15c62628348e390c536b3f3ff180df8ae8d742877d4f7d909b"
+        },
+        {
+          "id": "7db417e3323c442185d8ea659264a026:0",
+          "source": {
+            "bytes": 1942,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/hash.c",
+            "sha256": "cafa4e2ca3cd38793118e6ef82524533446aefa0f8bebe4217e13a1433f7b3e9"
+          },
+          "input_sha256": "306f321cfe15428a3dfddbd28f214acee94f9b9deb21ca5f48f7908d2fcc08aa"
+        },
+        {
+          "id": "814f02433a324abc892485247f8b442d:0",
+          "source": {
+            "bytes": 1596,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/list.c",
+            "sha256": "68444cb790e84bcefc6fdaf6f2894898c75f242ae6cda24a6823b45dc5ef02b0"
+          },
+          "input_sha256": "084125ab3f2e3dd96e7974026ea2dcaa57961ab3aacd30b957d9417370168695"
+        },
+        {
+          "id": "82244973073d413aab46cc01748fcaa7:0",
+          "source": {
+            "bytes": 4104,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_uuidmodule.c",
+            "sha256": "f7eb7174d94f5ee091947f67c09188d9e0582dcea2cce3bdf038d7b3eea5f755"
+          },
+          "input_sha256": "3825afd50b90a5ade85d42cf010ac41a8714ffb124e0ca4a7a8b0c8c7d623030"
+        },
+        {
+          "id": "8409354c674748628fb47653acb370b0:0",
+          "source": {
+            "bytes": 12853,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/syslogmodule.c",
+            "sha256": "53a34b3ec27f3e3c989b07728d1cda0355d56bc904f350f2ff24bbd635e9f1b1"
+          },
+          "input_sha256": "d6827885734794322569907e82eb3f3b8188f3453c357f3b9090601dcf93e3f8"
+        },
+        {
+          "id": "8d82f1df3b344e7f946f2dc57f0fd997:0",
+          "source": {
+            "bytes": 7394,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_multiprocessing/multiprocessing.c",
+            "sha256": "35a2e24897a8bc9ddc1f4118de313978454a251f4e3849d3f54728b34313a55d"
+          },
+          "input_sha256": "8e328153e7a07d810da34f6451d5c54e6d7d72943c0c46b0636351edfd35db58"
+        },
+        {
+          "id": "949974137d2648a8b745cf8700dfda40:0",
+          "source": {
+            "bytes": 2079,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/object.c",
+            "sha256": "9e7ed3ee6cc6c11cccbbf1d2049da29b9828d30f705d28868bb2734a9399b299"
+          },
+          "input_sha256": "a79d453d481547ad5733e675d424851fdd7ae6533f41565656e477d718019d2b"
+        },
+        {
+          "id": "95c0c293bd7048d5ba13b9b83b034dbe:0",
+          "source": {
+            "bytes": 3691,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_multiprocessing/posixshmem.c",
+            "sha256": "4a91c901ebba5f41e6e7867438d6c7e034c8f4f53a7d0eba86d9271fb0be0dfe"
+          },
+          "input_sha256": "d0c54feadda4aad8012f029ba96bf4760ca03e14b998897d6ff53f0bf21ed3e4"
+        },
+        {
+          "id": "9bbb56422cfc43b89fc59a26f13c3b38:0",
+          "source": {
+            "bytes": 684,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/weakref.c",
+            "sha256": "c9742d196a5ba40bbb18d847a028500540a671eff99271dd200400ae77ce769b"
+          },
+          "input_sha256": "3326f86daba67dca4651c12312ed5a9518aa0efbb29cfddf361da8f53bc3a28a"
+        },
+        {
+          "id": "9e668e1499ca4915bc1ba189e3fb375f:0",
+          "source": {
+            "bytes": 23905,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_gdbmmodule.c",
+            "sha256": "a88da3ef78356eb8de84a7e5cc29e147e56f3566bc0169f67129b048eff648de"
+          },
+          "input_sha256": "a18f728a3b1f5041fa423a2ad9f27551ecb2481c98d5900f4274a9e9b2bf8335"
+        },
+        {
+          "id": "9efeb46967ea4ea0a228b3229bc6421e:0",
+          "source": {
+            "bytes": 1162,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_xxtestfuzz/_xxtestfuzz.c",
+            "sha256": "68af65e52c3af580ec321100b80533481e509943dcda5a4b89a973adb6079557"
+          },
+          "input_sha256": "0cb475eb5d7fbb812ca571d3fb7e51aea8e117e297df6320f88f0c53022d935d"
+        },
+        {
+          "id": "a87b99f07eab432ba4325137c4d8d931:0",
+          "source": {
+            "bytes": 25274,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_sqlite/module.c",
+            "sha256": "1e62fbeffb05046986f4df2347198e06057d5297b31b4ffbf3f5b47d0f796843"
+          },
+          "input_sha256": "32c6cd27e7c6775000fb596344e1b663f2d9447d6c982844f381edf67dce443b"
+        },
+        {
+          "id": "ab7565cc525f466f839b34dd3edd690b:0",
+          "source": {
+            "bytes": 15270,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_sqlite/blob.c",
+            "sha256": "52d4a22f0fbbafe41cf02824ed41881c06f25ccab530d8bd8dcc532d8836f0f5"
+          },
+          "input_sha256": "aacf2c2e42755be1e2e5bf1cbe3d5680ea3ee60b15c771ad66d17fbe420c7ae5"
+        },
+        {
+          "id": "adbf60a2a9e24fe8a43c0e1b290a836d:0",
+          "source": {
+            "bytes": 3782,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Parser/tokenizer/readline_tokenizer.c",
+            "sha256": "bf06f921615a518d14660c4403fb59f7dbec4d4e1ccb33edeff137f33ccf9a39"
+          },
+          "input_sha256": "903d3cb62435c963b4067d1290b2710e27e0f6fe6d9bd93eb97c7111d6d04d71"
+        },
+        {
+          "id": "aeb68d6768f7451f899224d3d534485c:0",
+          "source": {
+            "bytes": 90739,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/flowgraph.c",
+            "sha256": "702f9effb2b89ede2614972c7827c06beec2c7aac67d02816db5d7750e35a6cc"
+          },
+          "input_sha256": "d903e26a53cfefbfe929a1db64b0d56d5634ea08f4e9b50317e075c50dc7e523"
+        },
+        {
+          "id": "aedcab5052b54a40a0d32f2de1d6c2a2:0",
+          "source": {
+            "bytes": 2546,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/mysnprintf.c",
+            "sha256": "9e6454473126467a5c20be90388fa1fd3b3329605313624464d8e0661ba34608"
+          },
+          "input_sha256": "1e51da867f5543ab3a95df6f28b02eba2909d0a2ca5d0fdb03c400b077c799ea"
+        },
+        {
+          "id": "b15ba3c3bf2e494d9062a917992ed290:0",
+          "source": {
+            "bytes": 1446,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Parser/peg_api.c",
+            "sha256": "14f9872ee37591f7c5e12cd4344007e0c4eb894c21196e8b0cc9166b84198bbb"
+          },
+          "input_sha256": "8677839bfcd84708468853a40f837a6bb76e73485f00ea6c7345dd8de3964e9a"
+        },
+        {
+          "id": "b3abc028413f4bbb9b6f8d7275db2d21:0",
+          "source": {
+            "bytes": 6180,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Objects/picklebufobject.c",
+            "sha256": "693e48728c7963c053b18cb23ab8bb7fd743d77fc6c8ded15fb1b8c8af7aa327"
+          },
+          "input_sha256": "10c9d10a5c1ad02cbc5541301dea02ae6e14145542f85ab45efda0462427eab5"
+        },
+        {
+          "id": "b45886de6dec424ea788afcc01018196:0",
+          "source": {
+            "bytes": 76765,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/selectmodule.c",
+            "sha256": "0a40cdb1d3c8edb0ef41061b65f92e83493dcc644bfbe606dc5691a096f82fa7"
+          },
+          "input_sha256": "59b4afa47ae08a2f3c46fdd9114df803805068ef72dbba888e600ba8f8c78f55"
+        },
+        {
+          "id": "b5681ddadb9d480a8145ff8222a047d0:0",
+          "source": {
+            "bytes": 4817,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/getopt.c",
+            "sha256": "65f0db353ec829f73eb09af141fcd551f2e2cc169d6f6313f69af12cc42c8670"
+          },
+          "input_sha256": "0061f70008f4f6388d2de332718059bbc7520288f8fc441d8c5a4f0646dde3d4"
+        },
+        {
+          "id": "b64ccf955fa14ae1aa541c74a1ee9260:0",
+          "source": {
+            "bytes": 1449,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testinternalcapi/set.c",
+            "sha256": "4a56c132fbc4d8585362b1bd068bb662553be903673100d97ce5b8a339c5a7bf"
+          },
+          "input_sha256": "6ac372775f9e26146586ab1810613220fc2d13f70a1e59c282d3cf38f6543b6e"
+        },
+        {
+          "id": "bcd6af5dc065450dba0516d1469fb017:0",
+          "source": {
+            "bytes": 27125,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testmultiphase.c",
+            "sha256": "6a89846fa9418805a1873d0f7f67c5ee4707f17a7eab5b7871fc64bb88c79bdb"
+          },
+          "input_sha256": "9e1d54a92f3fe00a98b078c13f472fa71fb201e4914345369d4cad460fd2b1d6"
+        },
+        {
+          "id": "c1186977bd2a415588e4efca902be6fd:0",
+          "source": {
+            "bytes": 9595,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Objects/namespaceobject.c",
+            "sha256": "f063d13d2b08d4171111b75039263340b45d98c320e6c663919b9f1b578249dd"
+          },
+          "input_sha256": "36ab5182827344ae2c0edeca6ccc8471add20a3375c82df1b8fa31a011be2a13"
+        },
+        {
+          "id": "c6c6cab1013644faaee04222dd8384f5:0",
+          "source": {
+            "bytes": 8463,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/gc.c",
+            "sha256": "6aff1293bbaabe414662ecc11ffbdd005d827f734f4466e9f0c9bbf657478e9c"
+          },
+          "input_sha256": "4bf2922cbdc075e676d7b6d6297453c560d166844ff2f00ab37b39ac716d3901"
+        },
+        {
+          "id": "d10f27813f4d42f5b693f0133d4b8f76:0",
+          "source": {
+            "bytes": 15247,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/mem.c",
+            "sha256": "123a7419f0a1cb2c56e17e9c7bf9f12f08fd58cb0babecc8f7c10ecdca2f4181"
+          },
+          "input_sha256": "570873eb4f7630a915b6796e5b561badce6ea46f0cb657a30851419b75b08da0"
+        },
+        {
+          "id": "d9b721513a5145ed8d6870a6f1a5e834:0",
+          "source": {
+            "bytes": 16881,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_dbmmodule.c",
+            "sha256": "3a5b604e4af198a752ee9f3b6805f88c279a2e289ae552f5a08e7628a32ed05f"
+          },
+          "input_sha256": "55af00b5ea1b14a5b19f26abdd2892541d478a99b1414f6f050ca7fcd133d198"
+        },
+        {
+          "id": "dd744912922b464cb56aa45252190cff:0",
+          "source": {
+            "bytes": 4141,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/abstract.c",
+            "sha256": "f8085bede4f4e6d5689a56975060a4b99e49006e7d41cde4afb6ff6f87297f74"
+          },
+          "input_sha256": "5297099f83f53e48ecfa90342b1ab7070010c1c6be0485d5cac5155b9057b017"
+        },
+        {
+          "id": "e33c14bdfe164d66b8f548f45b3aa691:0",
+          "source": {
+            "bytes": 10142,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Parser/string_parser.c",
+            "sha256": "18ff5130b7c1821a1378072702bfd0cade7ae45b166a48a8bc6b8c4c43d04ed5"
+          },
+          "input_sha256": "b4ac71dfee0f7d1e6c04b1de7f2d846f033bd9eb2b2d1e1c96aae4158c6b43f9"
+        },
+        {
+          "id": "e8a166392908435b9458024a3307cefe:0",
+          "source": {
+            "bytes": 15256,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/datetime.c",
+            "sha256": "77ee4d1fb662ed8349e89101606aa062af1a1f8e9aab8e7393e0676c6d60e2aa"
+          },
+          "input_sha256": "53f7c8183bc41045a81ceb8e016e34abafcf96f0181671ebf7667eaaf03b8d7e"
+        },
+        {
+          "id": "efd7588cf2d84263b5cf9cf69a064b35:0",
+          "source": {
+            "bytes": 6051,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_decimal/libmpdec/context.c",
+            "sha256": "9a265d366f31894aad78bca7fcdc1457bc4a3aa3887ca231b7d78e41f79541c0"
+          },
+          "input_sha256": "bb7aa0361d9a097f956f1442e95b11ec9dca71b6f4a36b4573c2ce93836cedc1"
+        },
+        {
+          "id": "f7b0e0cef34641228197dcbd3b5c29bf:0",
+          "source": {
+            "bytes": 13937,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/abstract.c",
+            "sha256": "1d32d34feb8fd33a07f6231a7a08a1db806b4ccdb1647796c35d56596786a454"
+          },
+          "input_sha256": "85966833ace420f204b4ba2a84b087c73f5c03182b6fd2b98a33ff3320225cfe"
+        },
+        {
+          "id": "f87341c990a64f6cbf6773e68e3e6abb:0",
+          "source": {
+            "bytes": 9578,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/pwdmodule.c",
+            "sha256": "11841fe008240d3ffb955d0c700da1d96c07f18679ab09b93b16c3c81707a261"
+          },
+          "input_sha256": "fe69dcc216d1462e23613edad5c5c6dfba8dc6d4b1ec634a3f855f09e9693b5e"
+        },
+        {
+          "id": "fed356676ace461aade85e2ea27afb6b:0",
+          "source": {
+            "bytes": 2925,
+            "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testlimitedcapi/file.c",
+            "sha256": "78598bd57d4c8a8d5638fa639f49f786d72937c2dbf62d7619ae4063c2375fe7"
+          },
+          "input_sha256": "b69d64421276e2da8166c436be82511a0e491e9b119e10d81891f6ca70150b63"
+        }
+      ],
+      "regressed_object_unit_ids": [],
+      "first_failure_groups": [
+        {
+          "diagnostic_origin": "bound-driver-cause",
+          "diagnostic_stage": null,
+          "driver_phase": "native compilation",
+          "message": "atomic lowering requires the explicit coherent_ram_v1 execution profile; it does not cover device memory",
+          "stage": "object",
+          "count": 12,
+          "unit_ids": [
+            "2d6ef387315e47dfa2730f13fe72f063:0",
+            "5bf892d462944cc785b834d4aa6b8ef1:0",
+            "65bb8bcea88e4626bb6b40e88a409681:0",
+            "69f6afacdeb945b5b81aa04964ba5dac:0",
+            "702518ae19484bc79968ae7c45a66c8c:0",
+            "94e922475c2f4c768a3b57c5231b41df:0",
+            "9564ebc112a24c2dab71d42308785c30:0",
+            "97cf00162c0f47c9b147d546bc18e743:0",
+            "9c3ea5d769d945aba97229e6d97deee0:0",
+            "e007a11301c143db9aa672bf864f9d04:0",
+            "ede8294e2a824f85aae6b1ee5b616e91:0",
+            "f6d17184b9564e549f837c0bc96dc459:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "bound-driver-cause",
+          "diagnostic_stage": null,
+          "driver_phase": "native compilation",
+          "message": "function \"main\", block 34: direct callee symbol/signature mismatch",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "3e7f471f17a04f4986376503bd2bab1d:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "TLS globals require explicit --tls-profile linux-elf-static-nonpreemptive-v1",
+          "stage": "import",
+          "count": 33,
+          "unit_ids": [
+            "03025b21ecbf4418b54c8a112035f144:0",
+            "09911e8dfd48405183c7376f119bf35e:0",
+            "0ddbb20d743e4901987117ade73bdb0b:0",
+            "1043884a25cb42dc8367e4e5fa390c11:0",
+            "23930bd0e3184ad7877e0526179bf317:0",
+            "2856e06de93e46a18f6f944c109b9c51:0",
+            "32381c2aa45f41159bc1b22662610537:0",
+            "32f6e1b9a66242b3a2bfee383d50dc99:0",
+            "35b83cff464348be89398ffabc1ff80b:0",
+            "363afad5b7514c5b8275156cc8f83881:0",
+            "5942fa9e9468445bbd27498d7bf59c97:0",
+            "61de55b5dc604011af4e4a486df43395:0",
+            "63a6a0c22509455e9c92f6884493f2c0:0",
+            "6bec469463a146f2ba2cd4671367541a:0",
+            "75ad070d509646538a4b60babbd7ea6d:0",
+            "8bf7ff1105154d648c5216bb27a7eab7:0",
+            "982a472b6d6a4d10bb72fd0e7e7a9527:0",
+            "99585a2bfa9249d1b60070813bdfa0ff:0",
+            "a62ab4b2c6b2402389b67e26d2de44f4:0",
+            "b9c4e7d177b3453896fce8fcdff30e55:0",
+            "bade574f49584595ae17ea6d8d19d66f:0",
+            "bdf0f93a7752418a8bd18b9fc60f5000:0",
+            "c32a577b753348499642f80394e8d4cc:0",
+            "c58038f7a44b4ed797dccc1eb4a7a8da:0",
+            "de3585f416d14871a4dfd3a04cb90b65:0",
+            "e1c9709bb1fc4e429de396fb76a9a360:0",
+            "e68d1dbeabe94ca38a006de3c92ff6e3:0",
+            "ebbcfeff305d49989b4273515f6e10ed:0",
+            "ebe3e74d0e454ea4a34a0dc9695fc038:0",
+            "f20439e649174587a27e32695fd51cd3:0",
+            "f6e21eac3c8b417086e205e4bb869d2a:0",
+            "f83862e07f9c4c00b962ee7b9a3ef1c8:0",
+            "f9c13b45bf894b539fb7b57c04270160:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "dynamic alloca is unsupported",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "93429e140c5446b0878f05879aaf78ce:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.abs.i32 requires explicit call lowering",
+          "stage": "import",
+          "count": 2,
+          "unit_ids": [
+            "5b7663f6b7a04568b9ff3656d16ff102:0",
+            "e06933840aeb44d1985bf0a6d75b96e7:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.abs.i64 requires explicit call lowering",
+          "stage": "import",
+          "count": 4,
+          "unit_ids": [
+            "22128f6034944b259f0dcc7425137cfe:0",
+            "5f69f143645544429bb337353be73431:0",
+            "be71b92fb3e140d18c48eddd312c41c0:0",
+            "d0812a9b3fa84bd386c305075e4d8ace:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.bswap.i16 requires explicit call lowering",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "321fc155f5d2478289f8b4caa7cd2df1:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.bswap.i32 requires explicit call lowering",
+          "stage": "import",
+          "count": 2,
+          "unit_ids": [
+            "425e47a91c9d43b9921d6af8247a6242:0",
+            "5aff22dcd6b149028a920ffe91eed8c1:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.ctpop.i64 requires explicit call lowering",
+          "stage": "import",
+          "count": 2,
+          "unit_ids": [
+            "93bcf320b3014fddb0ceb012869e14c9:0",
+            "d3f0e38f0f51413a95d0a55b48f11f32:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.fshl.i32 requires explicit call lowering",
+          "stage": "import",
+          "count": 4,
+          "unit_ids": [
+            "0884cafdf0364a048438c6859ab3459c:0",
+            "506a857e512a439b8d8ddd0c8fac7f3d:0",
+            "7dc1d968d38546f08bea386bbdc499f3:0",
+            "84866b2283124daeb22a40b0ce7d2997:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.fshl.i64 requires explicit call lowering",
+          "stage": "import",
+          "count": 3,
+          "unit_ids": [
+            "654d726a58af4f268fb70ac8fa07e353:0",
+            "e3f29a6cacd54267a482527f38f24242:0",
+            "e7488459f23e4f228e317bc726c213a3:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.sadd.sat.i64 requires explicit call lowering",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "70defa5420a2425584e145500e74158f:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "intrinsic llvm.uadd.sat.i32 requires explicit call lowering",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "ef09e95fe15e489ea57b6a1021977072:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "opaque structure has no importable layout",
+          "stage": "import",
+          "count": 13,
+          "unit_ids": [
+            "3aaff99926e848c2b674e18f73dce96d:0",
+            "3d0ffe20a0dd4775a4a4eff8ea8740f5:0",
+            "4c32d384968e4ff4826db8b1d8c00546:0",
+            "4f8755f5b5654d24b30e99d1ce400088:0",
+            "5f7a643aae674402bb298fcad1c5a303:0",
+            "71d89deaaee94ddda3ceb2188a69c50e:0",
+            "759c8a40663d4e48b045f7288caeec55:0",
+            "8dd72c93a1aa40ae9aac92cab10f8010:0",
+            "9a7dcaa0967447abba6d6c4834638fcf:0",
+            "ade822ec99374ace90e802d689e512df:0",
+            "c3ddcb6f0a5a493a942e790017116afe:0",
+            "d05645eb652b45c98572da6bdeed2272:0",
+            "dff8e2c878484c07aa1b18c80bd9199b:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported DLL storage or explicit section",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "c2cffcfd7ceb432b8395dd94b9dcbf99:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported LLVM type kind 2 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "count": 2,
+          "unit_ids": [
+            "1fdf9cc313614a92a05aa2182226461e:0",
+            "de07004fbfae482c93dcf74f4ec18626:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "count": 124,
+          "unit_ids": [
+            "012d5d313c6d4f238b20851c12d1c30c:0",
+            "01323c1975674a1a9d99d852589461a3:0",
+            "0a813c0a783e4106b8bc16fb708e5899:0",
+            "0cfb8d6119044fe2af1eb2c129bb80ce:0",
+            "0d789601b8c84da89c5df5da43dc72bf:0",
+            "0df797378025425e85009b272ca6e59d:0",
+            "1243a8a166b34137b63030cf7b5c294a:0",
+            "1297969d1bcf4292a2c357a73a42cbc1:0",
+            "1572c869de4347298bdf0d467db8954a:0",
+            "15e8a0f8378f467295fe2fd73fee4ef8:0",
+            "15f6688755724de59a8069c98b7fdb37:0",
+            "160f8f87eba7442ca889c8c27be3ba1a:0",
+            "16bfe9e6e61647de9e13b4fa35470e8d:0",
+            "16cb83f5e2d3487cb2b2cdf29da95c04:0",
+            "1862b68a09344524a453019948a241db:0",
+            "1ae045f3e9fe4070aaec40bd4690f21f:0",
+            "1bfccf0849534116be2d0e8edb36b063:0",
+            "1cf23c78adce414d849a92411dca71ce:0",
+            "1d71a8d4a5a94bbabbe21d7bf1571c76:0",
+            "1db50e49552e47e4a7db39111adaaee9:0",
+            "1e0192a820a143ca8519dce40fcf67ea:0",
+            "25f38dc20a4c4f77ae6841446aba2b70:0",
+            "283b26f6391c48cc96b055cdb3910d5f:0",
+            "2cd1825f905d4b118eacfc3124192291:0",
+            "31d74078c77642f794f054d6359a341f:0",
+            "322ad58e238143cd94607c2384f64147:0",
+            "32fb5876784844988e186fa99cff935b:0",
+            "35220b5f99dc46ccb82b62105507b8a5:0",
+            "37019699eda14896b274b92ff6c27142:0",
+            "3af5f7c4c4154b3c832a2adb4a3ea7b0:0",
+            "3ca07b6a3e834ba7bc0a32af9160965f:0",
+            "417b1f71561448bba1190328fe88c710:0",
+            "42b3691c8906422b867634a992c36257:0",
+            "4428f6f85e5147bab322d1a3f79278b2:0",
+            "453365fb2f194632b2579fd9e77e61c0:0",
+            "46219687def94955a3b4f76374237ec9:0",
+            "475f0fb3a52f494a8ddbd194caa2c894:0",
+            "4767b3e10d3c407bbb1128fad5dda570:0",
+            "4b3637b10ece4faf9eab7519c171bf19:0",
+            "4c79d70f22b145e1b0145572212060a1:0",
+            "4cac4cb6064942e0a7472637d6e3968c:0",
+            "4e579ec31a7e48dfb1969e5295ec9f63:0",
+            "50293356865d47c796c6f728915c320a:0",
+            "51832023683d44018b60434dc348dbe1:0",
+            "52d08fef74414582a8ea4bfe98b67cf0:0",
+            "541c6f8c4f214e47be059164d456d2a1:0",
+            "58da8e3a522c4cca85cc9e7465da17a3:0",
+            "5fd6f1b464e84e99a4da826de8157c27:0",
+            "610b17bae6e14376bc92c5c6f4c6698c:0",
+            "62b4ab39f1734938944ab6222db39b4b:0",
+            "64344c519ce94722a5c499b7a42dce43:0",
+            "6522827a7092474da2e3ce9dabd6a04e:0",
+            "679f2a44608f45808b430947c20c6f24:0",
+            "67f36c51489b4c858cecc48faaeac813:0",
+            "6975d22cd5c54bb3a79fff3caebfd2af:0",
+            "69b057ea94a64327b22abdc9a898b3ba:0",
+            "6b09ea5d74924b88a56551c6d20d0ec1:0",
+            "6d56d4b10b484651af70b64f7a21d105:0",
+            "6ea45d4cc7d74f11a8625c723908eb2c:0",
+            "721ca9776d304daeaa4c9140291063d3:0",
+            "72edf262acfa4ce3a5e85494aac9b11d:0",
+            "7930bfc6af674be1bf2d78d5d607bf1d:0",
+            "794110ceda8240bb807bab6d95620239:0",
+            "79cff8ec90f94905bde73c173b0d5505:0",
+            "79e37c7eadc944b88ec94652f124a393:0",
+            "7a0870f800e04245a7d541afac1cfbd2:0",
+            "7dedeab33d904fc29736ee1ea6ed20ff:0",
+            "7dfa919480644a03be0257634ecc43ef:0",
+            "8467017248944c96a241c02edfd4474f:0",
+            "860a16abf6a247cfbe52dc116e03c4d9:0",
+            "892d8279865047de91f132f47c575690:0",
+            "8aa71ed4e3884287af02c7f6790ce398:0",
+            "8cdfbcc4d7124629888a2c3bd5e14691:0",
+            "8f4ce78bbcb6457fb725761961bbe4f4:0",
+            "915125a3c2bc486888de81064b4940f1:0",
+            "928caa1a8c48415ab9d4bd9a007655eb:0",
+            "9935cf5647654d03b2890b772d4e7238:0",
+            "9a5cb102dee344eba55f50ceb6fb5a53:0",
+            "9c1555c8a1c444e9b1ea294f4c219a20:0",
+            "9c336a45a94c47f189dad1ccdc4e2830:0",
+            "a43e77972f6b4c3e8730bfe5da7a7d96:0",
+            "a80f7bb4df9640829b1d028c3531f597:0",
+            "a8874eb91033452ea0420dc784f5d0f8:0",
+            "a9df7bbe08ca4087b587c225dfbaeed8:0",
+            "ab67bdead0c746fd88eeea64a933e207:0",
+            "ae49e56bc00c47269dcd3475782b637e:0",
+            "b1c5588bc7fb421eb0e311fe3f26635d:0",
+            "b2904dd1727a4476844be24582238f4b:0",
+            "b883639bcaef4fc6bc0b88582c6e6528:0",
+            "babfe285e43449e4bebacdbd538b7e1f:0",
+            "bdc6999bba8b4398982fad864c9d7fa1:0",
+            "c21aec8ca3134430a7e8d3e069b59cc3:0",
+            "c66ebcef60c54a6b93c5b4d7710f1cd2:0",
+            "ca3beafb7f8f435f91cf20350dac8784:0",
+            "cf489acce1584b50b448365cf5ec01c0:0",
+            "d0a0a0b3e7a542088e85212d664fcfb2:0",
+            "d0c77cec9a8442aa884dab7e611734a8:0",
+            "d9d9e458441a40df88652802127360f8:0",
+            "db4f01d26a7a4ca1b45e43320831367e:0",
+            "de458d3a6bfe4e6d8d6509aea9d78dc1:0",
+            "df8a07a5cbe84a398c4c084fdfd79584:0",
+            "e489f44e5c5e4a3b9b2fa0b3c35520fa:0",
+            "e6035f1bc00145579438cd611b54acb0:0",
+            "e754a103d18e423cb16f2c088c79b387:0",
+            "e797ec8fb34642a5bf02144a0d547c26:0",
+            "e80662417f714fd685635ceaf1ddc174:0",
+            "e8c1e3ceb13c46b5abea5df83fd1f08c:0",
+            "eb60d18b2ac54cf5bc85f380f9a377bc:0",
+            "ebd2439a499b4d63a312b0d9d7ce044d:0",
+            "ed2d60d6e0aa45ffaae12d5ed4dc0408:0",
+            "ee6cf303a4f846288f329e8277423470:0",
+            "f073d2820bf74d00998de80f9c5234ec:0",
+            "f1755a962027435d8016ec3c131317ca:0",
+            "f2355ac09b5e48938ee730290870aed5:0",
+            "f56ca531c23a479fb45d3db2efbc5e1c:0",
+            "f767e626c530407db7601506ec3269e8:0",
+            "f7db62ffae034d87a578aca758402939:0",
+            "fa3f221fda5846ee972bcf0d91c02789:0",
+            "faba15296ab749afa0a1f6a4615b8fc6:0",
+            "fc9574176de14872b0b132896ca27248:0",
+            "fd5f5c82c0f54b08b9d1cb7dca8c7767:0",
+            "fe104255a7d3455eadd3f997f1cbdad5:0",
+            "fe44bab22be64e00b886e9182fdeef93:0",
+            "fe64077294c241cfa101a460f6d0f1a6:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported attribute kind 55 at index 4294967295",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "41bd6f25bc464ca89ce071f48b3e4fcf:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported constant expression or non-scalar operand",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "725f20ee55b34cb8aadbe6f69c2882f7:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported integer width i128",
+          "stage": "import",
+          "count": 7,
+          "unit_ids": [
+            "2e4950dcfacc4619ad201702cf2a7886:0",
+            "37f55774b6ea413d85f424723ec4eb73:0",
+            "6b30d7183f8d4d7e88bc490cd5e9be71:0",
+            "7d460ed3c5a44a38af8eff16be4f816f:0",
+            "870d1e824e0a44c885ea5acf91951a54:0",
+            "9a77a89a26af4d15962b449b59ee448b:0",
+            "de559cbcf6d2496685a839314a73a7c3:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported metadata kind 23",
+          "stage": "import",
+          "count": 3,
+          "unit_ids": [
+            "3c3e4854e3e54464b2570d719bee6f6d:0",
+            "7147f9344b9d4e7ea0d6581e1d103e97:0",
+            "d3ed82362a8a400c8af856694a27b156:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported string attribute function-inline-cost-multiplier=2",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "b3e979fbf80446cd900139336be963a9:0"
+          ]
+        }
+      ],
+      "raw_report": {
+        "bytes": 2332206,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/python-c-rust-whole-matrix-v2/cpython-full-hosted-profile/report.json",
+        "sha256": "d7af6c3552cf34a61b607ce5774a05391e0d207d7cc2685a54d6f859f138b4b1"
+      },
+      "baseline_report": {
+        "bytes": 2072129,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/report.json",
+        "sha256": "4b9c3d36c1371feefbb8f9aee76fe121d11eb8a15ef51a7fb194e5b7c13c643d"
+      },
+      "audit_complete": true,
+      "all_units_lowered": false,
+      "dependency_closure_complete": false,
+      "runtime_complete": false,
+      "native_execution_qualified": false
+    },
+    {
+      "name": "c-chibicc",
+      "language": "c",
+      "source": {
+        "clean_at_start": true,
+        "commit_timestamp": "1607310006",
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source",
+        "revision": "90d1f7f199cc55b13c7fdb5839d1409806633fdb",
+        "submodules": [],
+        "url": "https://github.com/rui314/chibicc.git"
+      },
+      "capture": {
+        "bytes": 2315388,
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+        "sha256": "d7883256853bb11b7de7b9023242df5047be4d9dfa171b7c78fa2b732a9c6bf0"
+      },
+      "step": "build-original-chibicc",
+      "whole_unit_ids": [
+        "0f23a2b15e424800a86d600b31b979af:0",
+        "2b292d7eeeaf400cb8c0abcba0d727ac:0",
+        "4273617f98ba4b45991b37b213e4ab3e:0",
+        "653d5f958f0a474ba2f617b6d04af1ea:0",
+        "78f8ddc92c2b4d75a7f3278435d9de59:0",
+        "7922559172174b999fe6cb6b6ff24960:0",
+        "d3b2cacf94644bb384bbddb70601692f:0",
+        "e19dfffc732d4323a82e6a70f8d73db8:0",
+        "e5eaed1862764144ae2f877d323b4407:0"
+      ],
+      "selected_units": 9,
+      "baseline_verified_object_count": 0,
+      "imported_unit_count": 6,
+      "independently_verified_unit_count": 6,
+      "verified_object_count": 6,
+      "verified_object_unit_ids": [
+        "0f23a2b15e424800a86d600b31b979af:0",
+        "4273617f98ba4b45991b37b213e4ab3e:0",
+        "653d5f958f0a474ba2f617b6d04af1ea:0",
+        "78f8ddc92c2b4d75a7f3278435d9de59:0",
+        "7922559172174b999fe6cb6b6ff24960:0",
+        "e5eaed1862764144ae2f877d323b4407:0"
+      ],
+      "newly_verified_object_units": [
+        {
+          "id": "0f23a2b15e424800a86d600b31b979af:0",
+          "source": {
+            "bytes": 6980,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/unicode.c",
+            "sha256": "67311a3aab39522bc7555a8318840c971dfd01b0e92943da62d8b28d2091f953"
+          },
+          "input_sha256": "2d4722165a46206fe2808e72bce1c8d6575dda1f20c137222bf6c0f7cf3e5620"
+        },
+        {
+          "id": "4273617f98ba4b45991b37b213e4ab3e:0",
+          "source": {
+            "bytes": 7503,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/type.c",
+            "sha256": "a8756271f3be4bceb3cd4820ce3251f55a1fbee241a428ba24e2c7e003feb327"
+          },
+          "input_sha256": "4519db210ab27f71ee5d854b6eeb72ecff927adb85744b22374fe3c5c6b8dd9b"
+        },
+        {
+          "id": "653d5f958f0a474ba2f617b6d04af1ea:0",
+          "source": {
+            "bytes": 33021,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/preprocess.c",
+            "sha256": "9fec813839210036d772eb8ba40980e3af70bf7166ba81b8e3814a659d83b3f1"
+          },
+          "input_sha256": "80146c4292b5b615179b377ec9ac05dafb35d28f01d060d6371650fbb048e15e"
+        },
+        {
+          "id": "78f8ddc92c2b4d75a7f3278435d9de59:0",
+          "source": {
+            "bytes": 4564,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/hashmap.c",
+            "sha256": "3c34396d0bf6df362dbdec740580c2b8fdd54dd74a1624ffcb8824bd1f1bcbdb"
+          },
+          "input_sha256": "a3d706531cbb5fa36192e4be707773b0d62ff4897f96eeae0b5ee0f183d32e90"
+        },
+        {
+          "id": "7922559172174b999fe6cb6b6ff24960:0",
+          "source": {
+            "bytes": 690,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/strings.c",
+            "sha256": "e7e413d70e6f1d3582eb783999132a0a7fb9cd7b370f6320d73886a2fa6e8c5e"
+          },
+          "input_sha256": "b50104f5d089e3483285c0722c6195d65d3e79d1733caf6679458ad06677ff03"
+        },
+        {
+          "id": "e5eaed1862764144ae2f877d323b4407:0",
+          "source": {
+            "bytes": 18392,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/main.c",
+            "sha256": "b2b6570363dd7ebdd4d456e555501639422b410bbcd4d1eb3150bc18a675e46c"
+          },
+          "input_sha256": "8d2eb5f3cceb73dd2d9ebf6def1e3fecb2e83dfd1bc861608b86b541b61cbe2f"
+        }
+      ],
+      "regressed_object_unit_ids": [],
+      "first_failure_groups": [
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "binary128 is supported only for storage layout, not first-class SSA or ABI values",
+          "stage": "import",
+          "count": 2,
+          "unit_ids": [
+            "d3b2cacf94644bb384bbddb70601692f:0",
+            "e19dfffc732d4323a82e6a70f8d73db8:0"
+          ]
+        },
+        {
+          "diagnostic_origin": "structured-importer",
+          "diagnostic_stage": "import",
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "count": 1,
+          "unit_ids": [
+            "2b292d7eeeaf400cb8c0abcba0d727ac:0"
+          ]
+        }
+      ],
+      "raw_report": {
+        "bytes": 55759,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/python-c-rust-whole-matrix-v2/c-chibicc/report.json",
+        "sha256": "370be96876fd24ea13813154a7efb079dae9fe9f89002eae464344f62dc44e0c"
+      },
+      "baseline_report": {
+        "bytes": 36583,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/c-chibicc/report.json",
+        "sha256": "e7e9565e289bfa6b98c8e438808f50a01d9dd1d9733f79ac40dfd96ea4773f12"
+      },
+      "audit_complete": true,
+      "all_units_lowered": false,
+      "dependency_closure_complete": false,
+      "runtime_complete": false,
+      "native_execution_qualified": false
+    },
+    {
+      "name": "rust-adler2-default",
+      "language": "rust",
+      "source": {
+        "clean_at_start": true,
+        "commit_timestamp": "1749508274",
+        "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-source",
+        "revision": "89a031a0f42eeff31c70dc598b398cbf31f1680f",
+        "submodules": [],
+        "url": "https://github.com/oyvindln/adler2"
+      },
+      "capture": {
+        "bytes": 52543,
+        "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+        "sha256": "31b6c7cf6a506d3327673dedc686d7b8f340dff309ba827d07c56babcd054408"
+      },
+      "step": "build-entire-default-rust-library",
+      "whole_unit_ids": [
+        "9892501c3a7149c5a9f67b3d087b9680:0"
+      ],
+      "selected_units": 1,
+      "baseline_verified_object_count": 1,
+      "imported_unit_count": 1,
+      "independently_verified_unit_count": 1,
+      "verified_object_count": 1,
+      "verified_object_unit_ids": [
+        "9892501c3a7149c5a9f67b3d087b9680:0"
+      ],
+      "newly_verified_object_units": [],
+      "regressed_object_unit_ids": [],
+      "first_failure_groups": [],
+      "raw_report": {
+        "bytes": 14382,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/python-c-rust-whole-matrix-v2/rust-adler2-default/report.json",
+        "sha256": "da59345582632497c103ef0ecc4da1ca81842e4bfb0a5aa6c5ab7ccb54fb2e82"
+      },
+      "baseline_report": {
+        "bytes": 14521,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default/report.json",
+        "sha256": "bf25c1203ae2adb54a9717b37aebc4a48969d3a93d4acea96e76cb10bfa41055"
+      },
+      "audit_complete": true,
+      "all_units_lowered": true,
+      "dependency_closure_complete": false,
+      "runtime_complete": false,
+      "native_execution_qualified": false
+    }
+  ],
+  "baseline_verified_object_count": 64,
+  "verified_object_count": 147,
+  "newly_verified_object_count": 83,
+  "regressed_object_count": 0,
+  "negative_compiler_exits_are_1_without_crash_or_loader_markers": true,
+  "source_tool_and_all370_input_pins_stable": true,
+  "diagnostic_normalization": "Structured importer diagnostics remain unchanged. Native CLI generic first lines are refined only from exact bound exit1 phase: native compilation / cause: envelopes; raw reports and stderr hashes remain retained.",
+  "normal_baseline_atomic_profile": true,
+  "coherent_ram_followup_included": false,
+  "all_units_lowered": false,
+  "dependency_closure_complete": false,
+  "runtime_complete": false,
+  "native_execution_qualified": false,
+  "scope": "Complete unchanged saved frontend units: CPython360, chibicc9 and original defaultadler2 fullrlib1CGU. This diagnostic audit neither links nor executes these whole runtimes, and does not qualify Python generally, a complete native C compiler, Ruststd, or rustc. No function filtering, frontend regeneration, input substitution, or runtime rewrite.",
+  "git_preflight_before_evidence_write": {
+    "head": "e0aa16a6427f120cbdd2547a55ab2399d35400c9",
+    "branch": "master",
+    "remote": "https://github.com/lostadi/ostadix-BM",
+    "status": "M Ocore_Source_Reevaluation_Evidence.html\n M Ocore_Source_Reevaluation_Evidence.md\n M crates/ostadix-api/src/ocore/native_abi.rs\n M crates/ostadix-api/src/ocore/native_codegen.rs\n M crates/ostadix-api/src/ocore/native_ir.rs\n M crates/ostadix-api/src/ocore/native_verify.rs\n M docs/OCORE.html\n M docs/OCORE.md\n M scripts/ocore_llvm_import.py\n M setup.sh\n M tests/test_ocore_llvm_import.py\n?? crates/ostadix-api/src/ocore/native_variadic_codegen.rs\n?? evidence/chibicc_variadic_followup_20261020.json\n?? evidence/native_variadic_integration_20261020.json\n?? evidence/native_variadic_progress_20261020.json\n?? ostadix-runtime-census/\n?? setup.sh.bak\n?? tests/test_ocore_native_variadic_abi.py\n?? tests/test_ocore_native_variadic_source_recipe.py"
+  }
+}

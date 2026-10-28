@@ -108,6 +108,9 @@ class RuntimeAliasTests(unittest.TestCase):
             assert Path(args.server).is_file()
             print("fixture HTTP smoke preserved evaluator")
         '''))
+        (scripts / "smoke_ostadix_mcp_oauth.py").write_text(
+            (scripts / "smoke_ostadix_mcp_http.py").read_text()
+        )
         tools = self.build / "fake-tools"
         tools.mkdir()
         cargo = tools / "cargo"

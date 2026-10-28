@@ -33,6 +33,10 @@ pub const RUNTIME_OCORE_NATIVE_SOURCES: &[(&str, &str)] = &[
         "native_codegen.rs",
         include_str!("../ocore/native_codegen.rs"),
     ),
+    (
+        "native_variadic_codegen.rs",
+        include_str!("../ocore/native_variadic_codegen.rs"),
+    ),
     ("native_eh.rs", include_str!("../ocore/native_eh.rs")),
     (
         "native_exception_codegen.rs",

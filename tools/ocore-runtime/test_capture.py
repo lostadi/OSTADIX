@@ -476,6 +476,8 @@ print(json.dumps(namespace["verify_report"](payload["report"], expected_worker_s
     def test_frozen_worker_survives_repository_source_copy_changes(self):
         mutable = self.root / "mutable-capture.py"
         shutil.copyfile(SCRIPT, mutable)
+        shutil.copyfile(SCRIPT.with_name(capture.PRODUCER_REGISTRY_FILE),
+                        mutable.with_name(capture.PRODUCER_REGISTRY_FILE))
         result, report = self.execute(script=mutable)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         worker = report["capture_worker"]

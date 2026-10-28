@@ -1,0 +1,5698 @@
+{
+  "audit_complete": true,
+  "baseline_child": {
+    "bytes": 2072129,
+    "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/report.json",
+    "sha256": "4b9c3d36c1371feefbb8f9aee76fe121d11eb8a15ef51a7fb194e5b7c13c643d"
+  },
+  "capture": {
+    "bytes": 246349049,
+    "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/report.json",
+    "sha256": "fb9f04225d02f9925c8a8341da14de740a0324f6622974430ed8dfc37586e9d1"
+  },
+  "dependency_closure_complete": false,
+  "evidence_representation": "Complete actual unit/stage/inventory records; detailed provenance refinements remain in the SHA-bound raw report and exact module JSON records.",
+  "executed_native_code": false,
+  "finished_at_utc": "2026-10-18T23:39:21.475174+00:00",
+  "full_python_runtime_ocore_lowered": false,
+  "imported_unit_count": 9,
+  "independently_verified_unit_count": 9,
+  "issues": [],
+  "llvm_health": {
+    "actual_version": [
+      22,
+      1,
+      6
+    ],
+    "library_digest_verified": true
+  },
+  "native_execution_qualified": false,
+  "profile": {
+    "cli": [
+      "--atomic-profile",
+      "coherent-ram-v1"
+    ],
+    "contract": {
+      "device_memory_excluded": true,
+      "liveness_or_starvation_freedom_inferred": false,
+      "masked_subword_entire_containing_word_accessible_as_coherent_ram": true,
+      "ordinary_coherent_ram_only": true,
+      "riscv_lr_sc_eventuality_region_required": true,
+      "threading_or_tls_provider_admission_inferred": false
+    },
+    "native_ir": "coherent_ram_v1"
+  },
+  "provider_closure_complete": false,
+  "raw_report": {
+    "bytes": 1313861,
+    "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/report.json",
+    "sha256": "6fcbf6848cd9b62eeac7a0af1576d6dd6bfe4341aee658d543ea3d9b26bb384b"
+  },
+  "runtime_complete": false,
+  "schema": "ostadix.cpython-atomic-profile-followup-v1",
+  "scope": "The exact nine whole original CPython modules whose baseline object stage required an explicit coherent-RAM atomic profile",
+  "selected_environment": {
+    "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib:/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib",
+    "PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin:/home/orangepi/.local/bin:/home/orangepi/.local/bin:/home/orangepi/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
+  },
+  "selected_unit_count": 9,
+  "selected_unit_ids": [
+    "2d6ef387315e47dfa2730f13fe72f063:0",
+    "5bf892d462944cc785b834d4aa6b8ef1:0",
+    "702518ae19484bc79968ae7c45a66c8c:0",
+    "9564ebc112a24c2dab71d42308785c30:0",
+    "97cf00162c0f47c9b147d546bc18e743:0",
+    "9c3ea5d769d945aba97229e6d97deee0:0",
+    "e007a11301c143db9aa672bf864f9d04:0",
+    "ede8294e2a824f85aae6b1ee5b616e91:0",
+    "f6d17184b9564e549f837c0bc96dc459:0"
+  ],
+  "selection": {
+    "function_filtering": false,
+    "mode": "all-baseline-object-stage-coherent-ram-profile-gates",
+    "source_or_ir_rewritten": false
+  },
+  "source_head": "75e2ecad22577f4919416f4179bccc4df27df7fa",
+  "started_at_utc": "2026-10-18T23:38:05.377715+00:00",
+  "target": "riscv64-unknown-none",
+  "tool_and_baseline_hashes_stable": true,
+  "tools_after": {
+    "audit_helper": {
+      "bytes": 18965,
+      "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+      "sha256": "11125d04123f5cb6f30a9d9d9d1465d43bd4c4b8fedb79c630499748d49e577d"
+    },
+    "baseline": {
+      "bytes": 166058,
+      "path": "/home/orangepi/ostadix-BM/evidence/original_python_c_rust_expansion_20261018.json",
+      "sha256": "6d435db47d408a69158d656391349a1e949d1fda09aef75c5976e4e103cfc409"
+    },
+    "clang": {
+      "bytes": 111688,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+      "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+    },
+    "llvm_capi_bindings": {
+      "bytes": 159343,
+      "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+      "sha256": "3cc3692e8bff44b23bfd35164ddf5a0d5f2ac3bb316ffc46967901f29435fa38"
+    },
+    "llvm_library": {
+      "bytes": 132053720,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+    },
+    "llvm_nm": {
+      "bytes": 107328,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+      "sha256": "cea2a545e0b35eaa7733785bccdfb35739c5117b1380f677e9437031d92bf3a8"
+    },
+    "ocorec": {
+      "bytes": 2388760,
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    },
+    "runner": {
+      "bytes": 10374,
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/run_atomic_profile_followup.py",
+      "sha256": "7f3133e2f1d380f2a94b416454edb55a54733e7b8027395900ce0a71d63608ab"
+    }
+  },
+  "tools_before": {
+    "audit_helper": {
+      "bytes": 18965,
+      "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+      "sha256": "11125d04123f5cb6f30a9d9d9d1465d43bd4c4b8fedb79c630499748d49e577d"
+    },
+    "baseline": {
+      "bytes": 166058,
+      "path": "/home/orangepi/ostadix-BM/evidence/original_python_c_rust_expansion_20261018.json",
+      "sha256": "6d435db47d408a69158d656391349a1e949d1fda09aef75c5976e4e103cfc409"
+    },
+    "clang": {
+      "bytes": 111688,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+      "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+    },
+    "llvm_capi_bindings": {
+      "bytes": 159343,
+      "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+      "sha256": "3cc3692e8bff44b23bfd35164ddf5a0d5f2ac3bb316ffc46967901f29435fa38"
+    },
+    "llvm_library": {
+      "bytes": 132053720,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+    },
+    "llvm_nm": {
+      "bytes": 107328,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+      "sha256": "cea2a545e0b35eaa7733785bccdfb35739c5117b1380f677e9437031d92bf3a8"
+    },
+    "ocorec": {
+      "bytes": 2388760,
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    },
+    "runner": {
+      "bytes": 10374,
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/run_atomic_profile_followup.py",
+      "sha256": "7f3133e2f1d380f2a94b416454edb55a54733e7b8027395900ce0a71d63608ab"
+    }
+  },
+  "units": [
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0050/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 819099,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0050/module.json",
+        "sha256": "0b876faa7b4f0f386772c81d7294d9c8633a54e93730c64f74b4ca2bff9acfcd"
+      },
+      "definition_counts": {
+        "function_declarations": 37,
+        "functions": 28,
+        "globals": 60
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "2d6ef387315e47dfa2730f13fe72f063:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 103721,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/2d6ef387315e47dfa2730f13fe72f063/unit-0.ll",
+        "sha256": "2fb0be7d8d105883e03108ad1d750bea1735ac0ffae7b7ca7280a65a70802494",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 103721,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/2d6ef387315e47dfa2730f13fe72f063/unit-0.ll",
+        "sha256": "2fb0be7d8d105883e03108ad1d750bea1735ac0ffae7b7ca7280a65a70802494"
+      },
+      "module": {
+        "bytes": 819444,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.json",
+        "sha256": "6df98ba700ef6bd7c7c15ed3545c4db7101da2524c8a93252b47caad7878dc7b"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 71176,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.o",
+        "sha256": "30c477104f5ad34fa0525bfd6277f348dc59ef80fa901d45b2ef59482ce1876f"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "PyInit__sha2"
+          },
+          {
+            "definition": false,
+            "name": "PyModuleDef_Init"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_traverse"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_clear"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_free"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha256"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha224"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha512"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha384"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "_PyArg_UnpackKeywords"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_IsTrue"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_SetString"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_CheckBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GetBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyBuffer_Release"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_malloc_256"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_Occurred"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_SaveThread"
+          },
+          {
+            "definition": true,
+            "name": "update_256"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_RestoreThread"
+          },
+          {
+            "definition": false,
+            "name": "_PyObject_GC_New"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_Track"
+          },
+          {
+            "definition": false,
+            "name": "_Py_Dealloc"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_update_256"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_malloc_224"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_malloc_512"
+          },
+          {
+            "definition": true,
+            "name": "update_512"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_update_512"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_malloc_384"
+          },
+          {
+            "definition": true,
+            "name": "sha2_exec"
+          },
+          {
+            "definition": false,
+            "name": "PyType_FromModuleAndSpec"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddType"
+          },
+          {
+            "definition": true,
+            "name": "SHA256_dealloc"
+          },
+          {
+            "definition": true,
+            "name": "SHA2_traverse"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_free_256"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_UnTrack"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_Del"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_copy"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_digest"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_hexdigest"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_update"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_copy_256"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_digest_256"
+          },
+          {
+            "definition": false,
+            "name": "PyBytes_FromStringAndSize"
+          },
+          {
+            "definition": false,
+            "name": "_Py_strhex"
+          },
+          {
+            "definition": true,
+            "name": "SHA256_get_block_size"
+          },
+          {
+            "definition": true,
+            "name": "SHA256_get_name"
+          },
+          {
+            "definition": true,
+            "name": "SHA256_get_digest_size"
+          },
+          {
+            "definition": false,
+            "name": "PyLong_FromLong"
+          },
+          {
+            "definition": false,
+            "name": "PyUnicode_FromStringAndSize"
+          },
+          {
+            "definition": true,
+            "name": "SHA512_dealloc"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_free_512"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_copy"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_digest"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_hexdigest"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_update"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_copy_512"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA2_digest_512"
+          },
+          {
+            "definition": true,
+            "name": "SHA512_get_block_size"
+          },
+          {
+            "definition": true,
+            "name": "SHA512_get_name"
+          },
+          {
+            "definition": true,
+            "name": "SHA512_get_digest_size"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": "_sha2module"
+          },
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": ".str.1"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha256__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.2"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha224__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.3"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha512__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.4"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha384__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA2_functions"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha256._keywords"
+          },
+          {
+            "definition": true,
+            "name": ".str.6"
+          },
+          {
+            "definition": true,
+            "name": ".str.7"
+          },
+          {
+            "definition": true,
+            "name": ".str.8"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha256._parser"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_TypeError"
+          },
+          {
+            "definition": true,
+            "name": ".str.9"
+          },
+          {
+            "definition": true,
+            "name": ".str.10"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_BufferError"
+          },
+          {
+            "definition": true,
+            "name": ".str.11"
+          },
+          {
+            "definition": true,
+            "name": ".str.12"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha224._keywords"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha224._parser"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha512._keywords"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha512._parser"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha384._keywords"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_sha384._parser"
+          },
+          {
+            "definition": true,
+            "name": "_sha2_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.14"
+          },
+          {
+            "definition": true,
+            "name": "sha224_type_spec"
+          },
+          {
+            "definition": true,
+            "name": "SHA256_getseters"
+          },
+          {
+            "definition": true,
+            "name": "sha256_types_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.17"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_copy__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.18"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_digest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.19"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_hexdigest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.20"
+          },
+          {
+            "definition": true,
+            "name": "SHA256Type_update__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA256_methods"
+          },
+          {
+            "definition": true,
+            "name": ".str.22"
+          },
+          {
+            "definition": false,
+            "name": "_Py_NoneStruct"
+          },
+          {
+            "definition": true,
+            "name": ".str.23"
+          },
+          {
+            "definition": true,
+            "name": ".str.24"
+          },
+          {
+            "definition": true,
+            "name": ".str.25"
+          },
+          {
+            "definition": true,
+            "name": ".str.26"
+          },
+          {
+            "definition": true,
+            "name": "sha256_type_spec"
+          },
+          {
+            "definition": true,
+            "name": ".str.28"
+          },
+          {
+            "definition": true,
+            "name": "sha384_type_spec"
+          },
+          {
+            "definition": true,
+            "name": "SHA512_getseters"
+          },
+          {
+            "definition": true,
+            "name": "sha512_type_slots"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_copy__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_digest__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_hexdigest__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA512Type_update__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA512_methods"
+          },
+          {
+            "definition": true,
+            "name": ".str.32"
+          },
+          {
+            "definition": true,
+            "name": "sha512_type_spec"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 65,
+        "source_global_count": 60
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "658f9572fa45aad51c7dba2aba4b0454b584a329cf2e674e5f48c8502374ad52",
+        "baseline_semantic_fields_sha256": "658f9572fa45aad51c7dba2aba4b0454b584a329cf2e674e5f48c8502374ad52",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "78a8fbb149873e71f2daabe26084c89abf44ed0989c372671d283f6fd9364366",
+          "module_file": {
+            "bytes": 819444,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.json",
+            "sha256": "6df98ba700ef6bd7c7c15ed3545c4db7101da2524c8a93252b47caad7878dc7b"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "50ddcccc0520280f6c0708ae379b57d4d402bd61275a7e3cf8f68cad399965ae",
+          "module_file": {
+            "bytes": 819099,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0050/module.json",
+            "sha256": "0b876faa7b4f0f386772c81d7294d9c8633a54e93730c64f74b4ca2bff9acfcd"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 23871,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/sha2module.c",
+        "sha256": "f2b8783ffcdc1941b8d3c1e1f708df94f472511c1ba3148f5315f2dc040b1047"
+      },
+      "source_after": {
+        "bytes": 23871,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/sha2module.c",
+        "sha256": "f2b8783ffcdc1941b8d3c1e1f708df94f472511c1ba3148f5315f2dc040b1047"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/2d6ef387315e47dfa2730f13fe72f063/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 5.31565,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/import.stderr",
+            "sha256": "86cd73f6e323073b418a49fe9c4e53931bc1a657f2bfab34b40721350c511c9a"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.061156,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/verify.stdout",
+            "sha256": "c713a1824ece5eeed10c75cabf2bfb281e725bab2a729fdfbda351fd91dfcc5a"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.365182,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/object.stderr",
+            "sha256": "b06b23f4a79bba7e1ab1b40697b057d0cec6c66849cc309278732bca3da9c363"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 9148,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-00/verification.json",
+        "sha256": "317a1ab6a50b07f3b93bd1d4194c48580fdd93202e17b4452c7068579220f6b8"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0125/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 332830,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0125/module.json",
+        "sha256": "7e3d17cd79b0230eb565a4196f122eb9b3b27800d13a40de233a34f38d1b9268"
+      },
+      "definition_counts": {
+        "function_declarations": 31,
+        "functions": 16,
+        "globals": 36
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "5bf892d462944cc785b834d4aa6b8ef1:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 46002,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/5bf892d462944cc785b834d4aa6b8ef1/unit-0.ll",
+        "sha256": "66efba8894cdaec33d75a534ea3cd1178b2c30beb6a6b3ed143de6c9aa28a6bf",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 46002,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/5bf892d462944cc785b834d4aa6b8ef1/unit-0.ll",
+        "sha256": "66efba8894cdaec33d75a534ea3cd1178b2c30beb6a6b3ed143de6c9aa28a6bf"
+      },
+      "module": {
+        "bytes": 333175,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.json",
+        "sha256": "86254935852a68aa0682fc1693683a3baaf618dfc76a55e5604506aa03206eb7"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 28640,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.o",
+        "sha256": "921d7d060b36017b09526716bd6cf7567318cbad47cb453fa2173df66f0de5b1"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "PyInit__sha1"
+          },
+          {
+            "definition": false,
+            "name": "PyModuleDef_Init"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_traverse"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_clear"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_free"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_sha1"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "_PyArg_UnpackKeywords"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_IsTrue"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_SetString"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_CheckBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GetBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyBuffer_Release"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA1_malloc"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_Occurred"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_SaveThread"
+          },
+          {
+            "definition": true,
+            "name": "update"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_RestoreThread"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_GetState"
+          },
+          {
+            "definition": false,
+            "name": "_PyObject_GC_New"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_Track"
+          },
+          {
+            "definition": false,
+            "name": "_Py_Dealloc"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA1_update"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_exec"
+          },
+          {
+            "definition": false,
+            "name": "PyType_FromModuleAndSpec"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddObjectRef"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_dealloc"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_traverse"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA1_free"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_UnTrack"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_Del"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_copy"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_digest"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_hexdigest"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_update"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA1_copy"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA1_digest"
+          },
+          {
+            "definition": false,
+            "name": "PyBytes_FromStringAndSize"
+          },
+          {
+            "definition": false,
+            "name": "_Py_strhex"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_get_block_size"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_get_name"
+          },
+          {
+            "definition": true,
+            "name": "sha1_get_digest_size"
+          },
+          {
+            "definition": false,
+            "name": "PyLong_FromLong"
+          },
+          {
+            "definition": false,
+            "name": "PyUnicode_FromStringAndSize"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": "_sha1module"
+          },
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": ".str.1"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_sha1__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_functions"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_sha1._keywords"
+          },
+          {
+            "definition": true,
+            "name": ".str.3"
+          },
+          {
+            "definition": true,
+            "name": ".str.4"
+          },
+          {
+            "definition": true,
+            "name": ".str.5"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_sha1._parser"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_TypeError"
+          },
+          {
+            "definition": true,
+            "name": ".str.6"
+          },
+          {
+            "definition": true,
+            "name": ".str.7"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_BufferError"
+          },
+          {
+            "definition": true,
+            "name": ".str.8"
+          },
+          {
+            "definition": true,
+            "name": ".str.9"
+          },
+          {
+            "definition": true,
+            "name": "_sha1_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.11"
+          },
+          {
+            "definition": true,
+            "name": ".str.12"
+          },
+          {
+            "definition": true,
+            "name": "sha1_type_spec"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_getseters"
+          },
+          {
+            "definition": true,
+            "name": "sha1_type_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.15"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_copy__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.16"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_digest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.17"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_hexdigest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.18"
+          },
+          {
+            "definition": true,
+            "name": "SHA1Type_update__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA1_methods"
+          },
+          {
+            "definition": true,
+            "name": ".str.20"
+          },
+          {
+            "definition": false,
+            "name": "_Py_NoneStruct"
+          },
+          {
+            "definition": true,
+            "name": ".str.21"
+          },
+          {
+            "definition": true,
+            "name": ".str.22"
+          },
+          {
+            "definition": true,
+            "name": ".str.23"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 47,
+        "source_global_count": 36
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "87e98dcf6bd18d330edda5d0a779a96abddf0efda0315ebf0d2f77394d20a563",
+        "baseline_semantic_fields_sha256": "87e98dcf6bd18d330edda5d0a779a96abddf0efda0315ebf0d2f77394d20a563",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "be1c524eaf5457c194b446506649d83d3589a85ce7350222f919b7e489d48ca0",
+          "module_file": {
+            "bytes": 333175,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.json",
+            "sha256": "86254935852a68aa0682fc1693683a3baaf618dfc76a55e5604506aa03206eb7"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "d3bc32336fe2ad2563a0a3288e3022ea3fbf787a28d100d6689a9230543052fb",
+          "module_file": {
+            "bytes": 332830,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0125/module.json",
+            "sha256": "7e3d17cd79b0230eb565a4196f122eb9b3b27800d13a40de233a34f38d1b9268"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 9284,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/sha1module.c",
+        "sha256": "5899de3326839508d80054ed71ec3864a0bd78410f63ee2be652f2e9033906a7"
+      },
+      "source_after": {
+        "bytes": 9284,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/sha1module.c",
+        "sha256": "5899de3326839508d80054ed71ec3864a0bd78410f63ee2be652f2e9033906a7"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/5bf892d462944cc785b834d4aa6b8ef1/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 4.771859,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/import.stderr",
+            "sha256": "55887fa18db5229cc282bc14a9609e26638eef1d8e06574d5051f981b82b029b"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.028051,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/verify.stdout",
+            "sha256": "8d950cefa2587941c377979cecceed0ad2d5f861e06fdc364946c2d70f5e7f2e"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.207197,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/object.stderr",
+            "sha256": "7e568b790dc61c38caebd83ae8a5434989c3179e0f29426436f8bfe4bea4505a"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 6662,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-01/verification.json",
+        "sha256": "4d9f72c26110fa77b75a6056963ba84274d744c69045f0454187a196982f9ccc"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0156/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 344818,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0156/module.json",
+        "sha256": "d67d6857dcb19c3092cf616f79193380d66214114e97140dd9da6fdf23c36e98"
+      },
+      "definition_counts": {
+        "function_declarations": 31,
+        "functions": 16,
+        "globals": 37
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "702518ae19484bc79968ae7c45a66c8c:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 45927,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/702518ae19484bc79968ae7c45a66c8c/unit-0.ll",
+        "sha256": "9bdc27a1186807168a791561514d30cced357f1dd94fcfa23b0757c92430cd0e",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 45927,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/702518ae19484bc79968ae7c45a66c8c/unit-0.ll",
+        "sha256": "9bdc27a1186807168a791561514d30cced357f1dd94fcfa23b0757c92430cd0e"
+      },
+      "module": {
+        "bytes": 345163,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.json",
+        "sha256": "3f4f12be102a8bfa645f55f259e1a84cefc75792f1f13e5b319b205564dba119"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 29648,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.o",
+        "sha256": "e24dbf40c7b23acdc0541e0710375d686d49a4951de297ff14474bd6b99c7673"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "PyInit__md5"
+          },
+          {
+            "definition": false,
+            "name": "PyModuleDef_Init"
+          },
+          {
+            "definition": true,
+            "name": "_md5_traverse"
+          },
+          {
+            "definition": true,
+            "name": "_md5_clear"
+          },
+          {
+            "definition": true,
+            "name": "_md5_free"
+          },
+          {
+            "definition": true,
+            "name": "_md5_md5"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "_PyArg_UnpackKeywords"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_IsTrue"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_SetString"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_CheckBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GetBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyBuffer_Release"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_MD5_malloc"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_Occurred"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_SaveThread"
+          },
+          {
+            "definition": true,
+            "name": "update"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_RestoreThread"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_GetState"
+          },
+          {
+            "definition": false,
+            "name": "_PyObject_GC_New"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_Track"
+          },
+          {
+            "definition": false,
+            "name": "_Py_Dealloc"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_MD5_update"
+          },
+          {
+            "definition": true,
+            "name": "md5_exec"
+          },
+          {
+            "definition": false,
+            "name": "PyType_FromModuleAndSpec"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddObjectRef"
+          },
+          {
+            "definition": true,
+            "name": "MD5_dealloc"
+          },
+          {
+            "definition": true,
+            "name": "MD5_traverse"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_MD5_free"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_UnTrack"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GC_Del"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_copy"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_digest"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_hexdigest"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_update"
+          },
+          {
+            "definition": false,
+            "name": "PyType_GetModuleState"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_MD5_copy"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_MD5_digest"
+          },
+          {
+            "definition": false,
+            "name": "PyBytes_FromStringAndSize"
+          },
+          {
+            "definition": false,
+            "name": "PyUnicode_FromStringAndSize"
+          },
+          {
+            "definition": true,
+            "name": "MD5_get_block_size"
+          },
+          {
+            "definition": true,
+            "name": "MD5_get_name"
+          },
+          {
+            "definition": true,
+            "name": "md5_get_digest_size"
+          },
+          {
+            "definition": false,
+            "name": "PyLong_FromLong"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": "_md5module"
+          },
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": ".str.1"
+          },
+          {
+            "definition": true,
+            "name": "_md5_md5__doc__"
+          },
+          {
+            "definition": true,
+            "name": "MD5_functions"
+          },
+          {
+            "definition": true,
+            "name": "_md5_md5._keywords"
+          },
+          {
+            "definition": true,
+            "name": ".str.3"
+          },
+          {
+            "definition": true,
+            "name": ".str.4"
+          },
+          {
+            "definition": true,
+            "name": ".str.5"
+          },
+          {
+            "definition": true,
+            "name": "_md5_md5._parser"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_TypeError"
+          },
+          {
+            "definition": true,
+            "name": ".str.6"
+          },
+          {
+            "definition": true,
+            "name": ".str.7"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_BufferError"
+          },
+          {
+            "definition": true,
+            "name": ".str.8"
+          },
+          {
+            "definition": true,
+            "name": ".str.9"
+          },
+          {
+            "definition": true,
+            "name": "_md5_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.11"
+          },
+          {
+            "definition": true,
+            "name": ".str.12"
+          },
+          {
+            "definition": true,
+            "name": "md5_type_spec"
+          },
+          {
+            "definition": true,
+            "name": "MD5_getseters"
+          },
+          {
+            "definition": true,
+            "name": "md5_type_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.15"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_copy__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.16"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_digest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.17"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_hexdigest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.18"
+          },
+          {
+            "definition": true,
+            "name": "MD5Type_update__doc__"
+          },
+          {
+            "definition": true,
+            "name": "MD5_methods"
+          },
+          {
+            "definition": true,
+            "name": ".str.20"
+          },
+          {
+            "definition": true,
+            "name": ".str.21"
+          },
+          {
+            "definition": false,
+            "name": "_Py_NoneStruct"
+          },
+          {
+            "definition": true,
+            "name": ".str.22"
+          },
+          {
+            "definition": true,
+            "name": ".str.23"
+          },
+          {
+            "definition": true,
+            "name": ".str.24"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 47,
+        "source_global_count": 37
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "12076a8af70b5bbb24281f892baf5d29b135a8793aeb1501d91a6f84521ec6e2",
+        "baseline_semantic_fields_sha256": "12076a8af70b5bbb24281f892baf5d29b135a8793aeb1501d91a6f84521ec6e2",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "ff138a2d9485bc227f29977ad806fa85774f6d7b37a82a87dc11934746c4923c",
+          "module_file": {
+            "bytes": 345163,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.json",
+            "sha256": "3f4f12be102a8bfa645f55f259e1a84cefc75792f1f13e5b319b205564dba119"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "812b0ad4c13ffc6e1a37d798a2273c6cb9828194ee7c9b7bfd192b359499c435",
+          "module_file": {
+            "bytes": 344818,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0156/module.json",
+            "sha256": "d67d6857dcb19c3092cf616f79193380d66214114e97140dd9da6fdf23c36e98"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 9329,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/md5module.c",
+        "sha256": "f83572f1867b5c02c4045b275a610901ac9d9a1344831cf5d49213ec081f540a"
+      },
+      "source_after": {
+        "bytes": 9329,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/md5module.c",
+        "sha256": "f83572f1867b5c02c4045b275a610901ac9d9a1344831cf5d49213ec081f540a"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/702518ae19484bc79968ae7c45a66c8c/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 4.744926,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/import.stderr",
+            "sha256": "c089fa53bc45fe58396a9269177c5ccc12abfc183ed90bbc8e5076ccbedafda4"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.028095,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/verify.stdout",
+            "sha256": "9aec004f9fc1a43916eb3a75e7781aa99198f739660f1b742b7f4b0f1b2bbf8c"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.203094,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/object.stderr",
+            "sha256": "64cdf5d323ed605cc14470d9a6a2d819dee9a1f76881c6a007c33e8e3fd08f8d"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 6651,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-02/verification.json",
+        "sha256": "8690a1636b85a6b8b36e533f859a4613ab3ba730a857e33165b4aff15cd55de6"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0214/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 81545,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0214/module.json",
+        "sha256": "54b352205dd09a6bb7bb8228e912e8d2185acfefe78cd56d1de87ecbca32bca1"
+      },
+      "definition_counts": {
+        "function_declarations": 3,
+        "functions": 3,
+        "globals": 3
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "9564ebc112a24c2dab71d42308785c30:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 17675,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/9564ebc112a24c2dab71d42308785c30/unit-0.ll",
+        "sha256": "ee6224e5da27980e03df32ec19d2949f3154653f726f3ab96b88f3a4191ea37e",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 17675,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/9564ebc112a24c2dab71d42308785c30/unit-0.ll",
+        "sha256": "ee6224e5da27980e03df32ec19d2949f3154653f726f3ab96b88f3a4191ea37e"
+      },
+      "module": {
+        "bytes": 81890,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.json",
+        "sha256": "3daef2b884ca6161d36d19abf492ee1620684bdb799c6561c218808edb392ca4"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 8752,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.o",
+        "sha256": "3a06c817f1db220280d9fb92bb4730ef27b5b5cd09c629b8603e72675b0f6c50"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "RotatingTree_Add"
+          },
+          {
+            "definition": true,
+            "name": "RotatingTree_Get"
+          },
+          {
+            "definition": true,
+            "name": "RotatingTree_Enum"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "llvm.memset.p0.i64"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": "random_mutex"
+          },
+          {
+            "definition": true,
+            "name": "random_stream"
+          },
+          {
+            "definition": true,
+            "name": "random_value"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 6,
+        "source_global_count": 3
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "a6a38fb6c971c5eff40d45270f3e2eb9aee34f5b2c7adbdfc888f1f954dcbd7e",
+        "baseline_semantic_fields_sha256": "a6a38fb6c971c5eff40d45270f3e2eb9aee34f5b2c7adbdfc888f1f954dcbd7e",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "6a1d2b5ccd04600c71a723939031a06b7040c7c39219f4bafea3baa136146c8d",
+          "module_file": {
+            "bytes": 81890,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.json",
+            "sha256": "3daef2b884ca6161d36d19abf492ee1620684bdb799c6561c218808edb392ca4"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "5c2f275c8770487048c89ce494fd65724a345fdb3203b59734c5d8e22168cd45",
+          "module_file": {
+            "bytes": 81545,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0214/module.json",
+            "sha256": "54b352205dd09a6bb7bb8228e912e8d2185acfefe78cd56d1de87ecbca32bca1"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 3590,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/rotatingtree.c",
+        "sha256": "ebcb74cf825bf80de2bba3fa3f33dd9de2d537910ef50a196986eb7b1caf6bdb"
+      },
+      "source_after": {
+        "bytes": 3590,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/rotatingtree.c",
+        "sha256": "ebcb74cf825bf80de2bba3fa3f33dd9de2d537910ef50a196986eb7b1caf6bdb"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/9564ebc112a24c2dab71d42308785c30/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 4.499718,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/import.stderr",
+            "sha256": "873b521f6f6796d55fd43ef34742d84d9334674b3ea832eeb40c9e13c39e1217"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.018729,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/verify.stdout",
+            "sha256": "0347ab029cb9395b0b89a1d00b5fafb5c694e1d25e7bd81944e382a8ea58dc69"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.136934,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/object.stderr",
+            "sha256": "242e74d25564fbece26aa2e1ffa7ceb2126abb6c0e8bcf126b5ff35e5464522d"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 1309,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-03/verification.json",
+        "sha256": "e1e7cdf15228120da86aa48513147a722ff240563109b93a8e4a751e2b1415f1"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0216/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 588266,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0216/module.json",
+        "sha256": "6b2235b3ec4d16da3f6ea45fa848f409ce2fe9e4b7060a60f40bf37b7b71214f"
+      },
+      "definition_counts": {
+        "function_declarations": 39,
+        "functions": 22,
+        "globals": 75
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "97cf00162c0f47c9b147d546bc18e743:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 77810,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/97cf00162c0f47c9b147d546bc18e743/unit-0.ll",
+        "sha256": "5ad2a4d78de9daf9172fc989e25a940b0eb91618e6c2e670d8f431bb3a93e000",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 77810,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/97cf00162c0f47c9b147d546bc18e743/unit-0.ll",
+        "sha256": "5ad2a4d78de9daf9172fc989e25a940b0eb91618e6c2e670d8f431bb3a93e000"
+      },
+      "module": {
+        "bytes": 588611,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.json",
+        "sha256": "e09fe9853fe1e1110ea3bf4e11a9bd053c9bb1b2a051db481543a3675f406145"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 50784,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.o",
+        "sha256": "aaaa75801ae7930359eaa832ebfc16cb9db0e65afe37c88505c86455abfd4a8f"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "PyInit__sha3"
+          },
+          {
+            "definition": false,
+            "name": "PyModuleDef_Init"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_traverse"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_clear"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_free"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_exec"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyType_FromModuleAndSpec"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddType"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddStringConstant"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_GetState"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_dealloc"
+          },
+          {
+            "definition": true,
+            "name": "py_sha3_new"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_free"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_Free"
+          },
+          {
+            "definition": false,
+            "name": "_Py_Dealloc"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_copy"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_digest"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_hexdigest"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_update"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_copy"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_NoMemory"
+          },
+          {
+            "definition": false,
+            "name": "_PyObject_New"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_digest"
+          },
+          {
+            "definition": false,
+            "name": "PyBytes_FromStringAndSize"
+          },
+          {
+            "definition": false,
+            "name": "_Py_strhex"
+          },
+          {
+            "definition": false,
+            "name": "PyErr_SetString"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_CheckBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_GetBuffer"
+          },
+          {
+            "definition": false,
+            "name": "PyBuffer_Release"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_SaveThread"
+          },
+          {
+            "definition": true,
+            "name": "sha3_update"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_RestoreThread"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_update"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_get_block_size"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_get_name"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_get_digest_size"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_get_capacity_bits"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_get_rate_bits"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_get_suffix"
+          },
+          {
+            "definition": false,
+            "name": "PyLong_FromLong"
+          },
+          {
+            "definition": false,
+            "name": "PyUnicode_FromString"
+          },
+          {
+            "definition": false,
+            "name": "_PyErr_BadInternalCall"
+          },
+          {
+            "definition": false,
+            "name": "_PyArg_UnpackKeywords"
+          },
+          {
+            "definition": false,
+            "name": "PyObject_IsTrue"
+          },
+          {
+            "definition": false,
+            "name": "llvm.memset.p0.i64"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_malloc"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_is_shake"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_hash_len"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_block_len"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_digest"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_hexdigest"
+          },
+          {
+            "definition": false,
+            "name": "_PyLong_UnsignedLong_Converter"
+          },
+          {
+            "definition": false,
+            "name": "PyMem_Malloc"
+          },
+          {
+            "definition": false,
+            "name": "python_hashlib_Hacl_Hash_SHA3_squeeze"
+          },
+          {
+            "definition": false,
+            "name": "PyMem_Free"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE_get_digest_size"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE_get_suffix"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": "_sha3module"
+          },
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.2"
+          },
+          {
+            "definition": true,
+            "name": ".str.3"
+          },
+          {
+            "definition": true,
+            "name": ".str.4"
+          },
+          {
+            "definition": true,
+            "name": "sha3_224_spec"
+          },
+          {
+            "definition": true,
+            "name": "sha3_224__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_getseters"
+          },
+          {
+            "definition": true,
+            "name": "sha3_224_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.7"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_copy__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.8"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_digest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.9"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_hexdigest__doc__"
+          },
+          {
+            "definition": true,
+            "name": ".str.10"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_sha3_224_update__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHA3_methods"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_TypeError"
+          },
+          {
+            "definition": true,
+            "name": ".str.12"
+          },
+          {
+            "definition": true,
+            "name": ".str.13"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_BufferError"
+          },
+          {
+            "definition": true,
+            "name": ".str.14"
+          },
+          {
+            "definition": false,
+            "name": "_Py_NoneStruct"
+          },
+          {
+            "definition": true,
+            "name": ".str.15"
+          },
+          {
+            "definition": true,
+            "name": ".str.16"
+          },
+          {
+            "definition": true,
+            "name": ".str.17"
+          },
+          {
+            "definition": true,
+            "name": ".str.18"
+          },
+          {
+            "definition": true,
+            "name": ".str.19"
+          },
+          {
+            "definition": true,
+            "name": ".str.20"
+          },
+          {
+            "definition": true,
+            "name": ".str.21"
+          },
+          {
+            "definition": true,
+            "name": ".str.22"
+          },
+          {
+            "definition": true,
+            "name": ".str.23"
+          },
+          {
+            "definition": true,
+            "name": ".str.24"
+          },
+          {
+            "definition": true,
+            "name": ".str.25"
+          },
+          {
+            "definition": true,
+            "name": ".str.26"
+          },
+          {
+            "definition": true,
+            "name": ".str.27"
+          },
+          {
+            "definition": true,
+            "name": "py_sha3_new._keywords"
+          },
+          {
+            "definition": true,
+            "name": ".str.28"
+          },
+          {
+            "definition": true,
+            "name": ".str.29"
+          },
+          {
+            "definition": true,
+            "name": ".str.30"
+          },
+          {
+            "definition": true,
+            "name": "py_sha3_new._parser"
+          },
+          {
+            "definition": true,
+            "name": ".str.31"
+          },
+          {
+            "definition": true,
+            "name": ".str.32"
+          },
+          {
+            "definition": true,
+            "name": "sha3_256_spec"
+          },
+          {
+            "definition": true,
+            "name": "sha3_256__doc__"
+          },
+          {
+            "definition": true,
+            "name": "sha3_256_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.35"
+          },
+          {
+            "definition": true,
+            "name": "sha3_384_spec"
+          },
+          {
+            "definition": true,
+            "name": "sha3_384__doc__"
+          },
+          {
+            "definition": true,
+            "name": "sha3_384_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.38"
+          },
+          {
+            "definition": true,
+            "name": "sha3_512_spec"
+          },
+          {
+            "definition": true,
+            "name": "sha3_512__doc__"
+          },
+          {
+            "definition": true,
+            "name": "sha3_512_slots"
+          },
+          {
+            "definition": true,
+            "name": ".str.41"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE128_spec"
+          },
+          {
+            "definition": true,
+            "name": "shake_128__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE_getseters"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE128slots"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_digest__doc__"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_hexdigest__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE_methods"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_digest._keywords"
+          },
+          {
+            "definition": true,
+            "name": ".str.45"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_digest._parser"
+          },
+          {
+            "definition": false,
+            "name": "PyExc_ValueError"
+          },
+          {
+            "definition": true,
+            "name": ".str.46"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_hexdigest._keywords"
+          },
+          {
+            "definition": true,
+            "name": "_sha3_shake_128_hexdigest._parser"
+          },
+          {
+            "definition": true,
+            "name": ".str.47"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE256_spec"
+          },
+          {
+            "definition": true,
+            "name": "shake_256__doc__"
+          },
+          {
+            "definition": true,
+            "name": "SHAKE256slots"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 61,
+        "source_global_count": 75
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "376e81730c2763037ddd9e4fa08ef710df443eb5633feeb24052fb28f485805d",
+        "baseline_semantic_fields_sha256": "376e81730c2763037ddd9e4fa08ef710df443eb5633feeb24052fb28f485805d",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "5eabed1260e9c29cc4440db0f7b7ac21e05fe749378c3979d9abd304a9b0d857",
+          "module_file": {
+            "bytes": 588611,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.json",
+            "sha256": "e09fe9853fe1e1110ea3bf4e11a9bd053c9bb1b2a051db481543a3675f406145"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "9811cc2c671a4ced6b8ac96c54ec1f4d53a9aeb44c4501352a7d423c61183868",
+          "module_file": {
+            "bytes": 588266,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0216/module.json",
+            "sha256": "6b2235b3ec4d16da3f6ea45fa848f409ce2fe9e4b7060a60f40bf37b7b71214f"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 18938,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/sha3module.c",
+        "sha256": "be5298a4733a0c950ddf9b979d15bdbe9fe5ab2a97145d83908ee66cad2d9e2e"
+      },
+      "source_after": {
+        "bytes": 18938,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/sha3module.c",
+        "sha256": "be5298a4733a0c950ddf9b979d15bdbe9fe5ab2a97145d83908ee66cad2d9e2e"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/97cf00162c0f47c9b147d546bc18e743/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 5.072356,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/import.stderr",
+            "sha256": "76c5266558914e16a9c54ad61f88451c2fce4a77c8f753acedfca5d8ff40eec2"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.044874,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/verify.stdout",
+            "sha256": "8767f61f5e5ccb869ddef6e965a527f2aadafbd231294b107545dbec4d4412ec"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.278846,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/object.stderr",
+            "sha256": "90c136220413dd77cf0c73832e4213e90ad1b761911be41783149400f50cd55c"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 8613,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-04/verification.json",
+        "sha256": "0a6609fbcd13846b8e2062214206806fc869b1e485075af87516da07caf399ed"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0227/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 334013,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0227/module.json",
+        "sha256": "84ab036e9eb94eb6acad3b6cbbf1a61c5f9fc449d6bba6a0534c5b394f471569"
+      },
+      "definition_counts": {
+        "function_declarations": 17,
+        "functions": 25,
+        "globals": 7
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "9c3ea5d769d945aba97229e6d97deee0:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 52409,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/9c3ea5d769d945aba97229e6d97deee0/unit-0.ll",
+        "sha256": "68916bbd260758670bd72e67d230a511b54a5baadff75d787c2ea98163053920",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 52409,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/9c3ea5d769d945aba97229e6d97deee0/unit-0.ll",
+        "sha256": "68916bbd260758670bd72e67d230a511b54a5baadff75d787c2ea98163053920"
+      },
+      "module": {
+        "bytes": 334358,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.json",
+        "sha256": "f7cb27aa3b52aa72e55db41a8ad30b9cbec2b7d104dc37b899ad0bc2620576d9"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 27824,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.o",
+        "sha256": "39fa383d3f25e769e5a2a4fe8b2412ed86eb93195f2da23367156fde0969612c"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "_PyMutex_LockTimed"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyTime_MonotonicRaw"
+          },
+          {
+            "definition": false,
+            "name": "_PyTime_Add"
+          },
+          {
+            "definition": false,
+            "name": "_PyParkingLot_Park"
+          },
+          {
+            "definition": false,
+            "name": "Py_MakePendingCalls"
+          },
+          {
+            "definition": false,
+            "name": "_PyDeadline_Get"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          },
+          {
+            "definition": true,
+            "name": "_PyMutex_TryUnlock"
+          },
+          {
+            "definition": false,
+            "name": "_PyParkingLot_Unpark"
+          },
+          {
+            "definition": true,
+            "name": "mutex_unpark"
+          },
+          {
+            "definition": true,
+            "name": "_PyRawMutex_LockSlow"
+          },
+          {
+            "definition": false,
+            "name": "_PySemaphore_Init"
+          },
+          {
+            "definition": false,
+            "name": "_PySemaphore_Wait"
+          },
+          {
+            "definition": false,
+            "name": "_PySemaphore_Destroy"
+          },
+          {
+            "definition": true,
+            "name": "_PyRawMutex_UnlockSlow"
+          },
+          {
+            "definition": false,
+            "name": "_Py_FatalErrorFunc"
+          },
+          {
+            "definition": false,
+            "name": "_PySemaphore_Wakeup"
+          },
+          {
+            "definition": true,
+            "name": "_PyEvent_IsSet"
+          },
+          {
+            "definition": true,
+            "name": "_PyEvent_Notify"
+          },
+          {
+            "definition": false,
+            "name": "_PyParkingLot_UnparkAll"
+          },
+          {
+            "definition": true,
+            "name": "PyEvent_Wait"
+          },
+          {
+            "definition": true,
+            "name": "PyEvent_WaitTimed"
+          },
+          {
+            "definition": true,
+            "name": "_PyOnceFlag_CallOnceSlow"
+          },
+          {
+            "definition": true,
+            "name": "_PyRecursiveMutex_IsLockedByCurrentThread"
+          },
+          {
+            "definition": false,
+            "name": "PyThread_get_thread_ident_ex"
+          },
+          {
+            "definition": true,
+            "name": "_PyRecursiveMutex_Lock"
+          },
+          {
+            "definition": true,
+            "name": "_PyRecursiveMutex_Unlock"
+          },
+          {
+            "definition": true,
+            "name": "_PyRWMutex_RLock"
+          },
+          {
+            "definition": true,
+            "name": "_PyRWMutex_RUnlock"
+          },
+          {
+            "definition": true,
+            "name": "_PyRWMutex_Lock"
+          },
+          {
+            "definition": true,
+            "name": "_PyRWMutex_Unlock"
+          },
+          {
+            "definition": true,
+            "name": "_PySeqLock_LockWrite"
+          },
+          {
+            "definition": true,
+            "name": "_PySeqLock_AbandonWrite"
+          },
+          {
+            "definition": true,
+            "name": "_PySeqLock_UnlockWrite"
+          },
+          {
+            "definition": true,
+            "name": "_PySeqLock_BeginRead"
+          },
+          {
+            "definition": true,
+            "name": "_PySeqLock_EndRead"
+          },
+          {
+            "definition": true,
+            "name": "_PySeqLock_AfterFork"
+          },
+          {
+            "definition": true,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": true,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "sched_yield"
+          },
+          {
+            "definition": false,
+            "name": "llvm.smax.i64"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": "__func__._PyRawMutex_UnlockSlow"
+          },
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": "__func__._PyRecursiveMutex_Unlock"
+          },
+          {
+            "definition": true,
+            "name": ".str.1"
+          },
+          {
+            "definition": true,
+            "name": "__func__.PyMutex_Unlock"
+          },
+          {
+            "definition": true,
+            "name": "__func__.unlock_once"
+          },
+          {
+            "definition": true,
+            "name": ".str.2"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 42,
+        "source_global_count": 7
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "b0c42298b846bde98a563224793edd1026094f82b265032f22d244622c5843b0",
+        "baseline_semantic_fields_sha256": "b0c42298b846bde98a563224793edd1026094f82b265032f22d244622c5843b0",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "68ceccd47fd1a3ef9db06b499a24cec96ff02c2bfcc388b80bd625b029a9b918",
+          "module_file": {
+            "bytes": 334358,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.json",
+            "sha256": "f7cb27aa3b52aa72e55db41a8ad30b9cbec2b7d104dc37b899ad0bc2620576d9"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "cd04a2a45e156f7909558fc6a64c74fd2f3b300e3aa9f44d20cadbbb5432066b",
+          "module_file": {
+            "bytes": 334013,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0227/module.json",
+            "sha256": "84ab036e9eb94eb6acad3b6cbbf1a61c5f9fc449d6bba6a0534c5b394f471569"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 17367,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/lock.c",
+        "sha256": "6b284126f40117806f92a930ae93b39492c0f8dac2a59d96475b0d85cff16a16"
+      },
+      "source_after": {
+        "bytes": 17367,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/lock.c",
+        "sha256": "6b284126f40117806f92a930ae93b39492c0f8dac2a59d96475b0d85cff16a16"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/9c3ea5d769d945aba97229e6d97deee0/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 4.841581,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/import.stderr",
+            "sha256": "f7fd01a6c0fbce1f6cb5a3c0714a6d6debca3634f71b358b0698e181c3449f65"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.040496,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/verify.stdout",
+            "sha256": "a9453c6373d221cf6151337e52912c36114f00c91db22d1777d6959e937493b0"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.214652,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/object.stderr",
+            "sha256": "d9629fb1c80235ea64a79f9c9873894fd47e277393e9d3892e1e478eceb09440"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 6043,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-05/verification.json",
+        "sha256": "c8bad2885f3f88753e0e622ddefdd85ade8eab453e44e35671ca735cdc08288e"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0302/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 189795,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0302/module.json",
+        "sha256": "b76114c2f4bc24afe198125411a0f2e4dcd2315a6a05a618e1642cc0f888c608"
+      },
+      "definition_counts": {
+        "function_declarations": 16,
+        "functions": 8,
+        "globals": 22
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "e007a11301c143db9aa672bf864f9d04:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 30898,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/e007a11301c143db9aa672bf864f9d04/unit-0.ll",
+        "sha256": "5be45ebfbaaf3349acdeebb883ac49bf4d7dff4427196144017dd32bb5c35038",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 30898,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/e007a11301c143db9aa672bf864f9d04/unit-0.ll",
+        "sha256": "5be45ebfbaaf3349acdeebb883ac49bf4d7dff4427196144017dd32bb5c35038"
+      },
+      "module": {
+        "bytes": 190140,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.json",
+        "sha256": "2c0736feeab27c7ee528c36bc0609dc5c2c6c17dcf3f2972daac87826246fd0a"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 16624,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.o",
+        "sha256": "e6a44dd60e5a9d87bca797a00b0bad7850e998788eac091aa3b7f368054c4f4e"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "_PyTestInternalCapi_Init_CriticalSection"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddFunctions"
+          },
+          {
+            "definition": true,
+            "name": "test_critical_sections"
+          },
+          {
+            "definition": true,
+            "name": "test_critical_sections_nest"
+          },
+          {
+            "definition": true,
+            "name": "test_critical_sections_suspend"
+          },
+          {
+            "definition": true,
+            "name": "test_critical_sections_threads"
+          },
+          {
+            "definition": true,
+            "name": "test_critical_sections_gc"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "PyDict_New"
+          },
+          {
+            "definition": false,
+            "name": "__assert_fail"
+          },
+          {
+            "definition": false,
+            "name": "PyThreadState_Get"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          },
+          {
+            "definition": false,
+            "name": "_Py_Dealloc"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_SaveThread"
+          },
+          {
+            "definition": false,
+            "name": "PyEval_RestoreThread"
+          },
+          {
+            "definition": false,
+            "name": "PyThread_start_new_thread"
+          },
+          {
+            "definition": true,
+            "name": "thread_critical_sections"
+          },
+          {
+            "definition": false,
+            "name": "PyEvent_Wait"
+          },
+          {
+            "definition": false,
+            "name": "PyGILState_Ensure"
+          },
+          {
+            "definition": false,
+            "name": "PyGILState_Release"
+          },
+          {
+            "definition": false,
+            "name": "_PyEvent_Notify"
+          },
+          {
+            "definition": true,
+            "name": "thread_gc"
+          },
+          {
+            "definition": false,
+            "name": "PyGC_Collect"
+          },
+          {
+            "definition": false,
+            "name": "usleep"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": ".str.1"
+          },
+          {
+            "definition": true,
+            "name": ".str.2"
+          },
+          {
+            "definition": true,
+            "name": ".str.3"
+          },
+          {
+            "definition": true,
+            "name": ".str.4"
+          },
+          {
+            "definition": true,
+            "name": "test_methods"
+          },
+          {
+            "definition": true,
+            "name": ".str.6"
+          },
+          {
+            "definition": true,
+            "name": ".str.7"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_critical_sections"
+          },
+          {
+            "definition": true,
+            "name": ".str.8"
+          },
+          {
+            "definition": true,
+            "name": ".str.9"
+          },
+          {
+            "definition": false,
+            "name": "_Py_NoneStruct"
+          },
+          {
+            "definition": true,
+            "name": ".str.10"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_critical_sections_nest"
+          },
+          {
+            "definition": true,
+            "name": ".str.11"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_critical_sections_suspend"
+          },
+          {
+            "definition": true,
+            "name": ".str.12"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_critical_sections_threads"
+          },
+          {
+            "definition": true,
+            "name": ".str.13"
+          },
+          {
+            "definition": true,
+            "name": ".str.14"
+          },
+          {
+            "definition": true,
+            "name": ".str.15"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_critical_sections_gc"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 24,
+        "source_global_count": 22
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "57de98bd3792faae59db07e01e2bb19fd6f1ea6150137645ec18486834de60b1",
+        "baseline_semantic_fields_sha256": "57de98bd3792faae59db07e01e2bb19fd6f1ea6150137645ec18486834de60b1",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "7858298bfa5e8a938c439e8eee0f59bb71efe5dc0097b907d1e25b30b3ee8849",
+          "module_file": {
+            "bytes": 190140,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.json",
+            "sha256": "2c0736feeab27c7ee528c36bc0609dc5c2c6c17dcf3f2972daac87826246fd0a"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "62cd023338a67d9724e5b34fbd94ce30f85b6eca0cf83fd0cf1447b1412cd160",
+          "module_file": {
+            "bytes": 189795,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0302/module.json",
+            "sha256": "b76114c2f4bc24afe198125411a0f2e4dcd2315a6a05a618e1642cc0f888c608"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 8448,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testinternalcapi/test_critical_sections.c",
+        "sha256": "5ae196cf75ea74aad3ea779f0e83ff8bb8c44a8d41aace1d70972f9e5aa4e96a"
+      },
+      "source_after": {
+        "bytes": 8448,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testinternalcapi/test_critical_sections.c",
+        "sha256": "5ae196cf75ea74aad3ea779f0e83ff8bb8c44a8d41aace1d70972f9e5aa4e96a"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/e007a11301c143db9aa672bf864f9d04/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 4.637555,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/import.stderr",
+            "sha256": "5e2839024c98751af29d977d94ab76717196cadabff0aae0a0b1b58f731e5067"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.017561,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/verify.stdout",
+            "sha256": "8e4f47c9d093f68ed09255f9de52c7808465092dbc1b700171c35d4ef743961d"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.15498,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/object.stderr",
+            "sha256": "ad9c329b8f141de21cfaf4b08484e1a093100eabf37118186354d8644f38db36"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 3713,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-06/verification.json",
+        "sha256": "3cf9d14112b67cbc9bf67f22041bcbd17962ce27b31c131a4c3f12ce3c70cadf"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0326/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 152613,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0326/module.json",
+        "sha256": "498de8e032c968393b9d679465d5265961fb0f6af3f7a33347a6c01c63f9b707"
+      },
+      "definition_counts": {
+        "function_declarations": 9,
+        "functions": 10,
+        "globals": 0
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "ede8294e2a824f85aae6b1ee5b616e91:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 43945,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/ede8294e2a824f85aae6b1ee5b616e91/unit-0.ll",
+        "sha256": "707f88ad4815d4545a70ffa6b8a216973df6dc1160f4927e85016da922a5b755",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 43945,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/ede8294e2a824f85aae6b1ee5b616e91/unit-0.ll",
+        "sha256": "707f88ad4815d4545a70ffa6b8a216973df6dc1160f4927e85016da922a5b755"
+      },
+      "module": {
+        "bytes": 152958,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.json",
+        "sha256": "6ef00b3a2b38ed24248eda9eeb81e3a349bf9eba9bebd875e26b2a151c516406"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 11080,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.o",
+        "sha256": "b1b18bf802647b5ce542dd0ac60fbb9e50914d49c9349c6e90a0c23e60c59797"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "_Py_qsbr_advance"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_shared_next"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_poll"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_attach"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_detach"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_reserve"
+          },
+          {
+            "definition": false,
+            "name": "_PyEval_StopTheWorld"
+          },
+          {
+            "definition": false,
+            "name": "_PyEval_StartTheWorld"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_register"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_unregister"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_fini"
+          },
+          {
+            "definition": false,
+            "name": "PyMem_RawFree"
+          },
+          {
+            "definition": true,
+            "name": "_Py_qsbr_after_fork"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Lock"
+          },
+          {
+            "definition": false,
+            "name": "PyMem_RawCalloc"
+          },
+          {
+            "definition": false,
+            "name": "llvm.memcpy.p0.p0.i64"
+          },
+          {
+            "definition": false,
+            "name": "PyMutex_Unlock"
+          },
+          {
+            "definition": false,
+            "name": "llvm.memset.p0.i64"
+          },
+          {
+            "definition": false,
+            "name": "llvm.smax.i64"
+          }
+        ],
+        "globals": [],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 19,
+        "source_global_count": 0
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "11ed555bfb3cc216205971559905e2d97b1068ff8e47c038fa12575414642480",
+        "baseline_semantic_fields_sha256": "11ed555bfb3cc216205971559905e2d97b1068ff8e47c038fa12575414642480",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "789196c1d5fa5a8bdae94c45cfc6a2da1a94d71511635ab984817c0ddd14f1d0",
+          "module_file": {
+            "bytes": 152958,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.json",
+            "sha256": "6ef00b3a2b38ed24248eda9eeb81e3a349bf9eba9bebd875e26b2a151c516406"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "63825c79d4f34e49631212db42eb4f790e1a8532bf51e893913025305c672e22",
+          "module_file": {
+            "bytes": 152613,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0326/module.json",
+            "sha256": "498de8e032c968393b9d679465d5265961fb0f6af3f7a33347a6c01c63f9b707"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 9250,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/qsbr.c",
+        "sha256": "5a282b1c932020dc44df9e46b9960dd7dee9d21ec4c6604967bb19c840ce25f7"
+      },
+      "source_after": {
+        "bytes": 9250,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Python/qsbr.c",
+        "sha256": "5a282b1c932020dc44df9e46b9960dd7dee9d21ec4c6604967bb19c840ce25f7"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/ede8294e2a824f85aae6b1ee5b616e91/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 4.694863,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/import.stderr",
+            "sha256": "91892898f1421b9733355cd69f68ea351304a5c51663155689ceea864f07282a"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.024295,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/verify.stdout",
+            "sha256": "cea5a6247c13304ef271d025c6e4d533bd6f8b9cded560293c2835058cb91eb8"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.147552,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/object.stderr",
+            "sha256": "c44d40350b3bf394c93ac2c30e0555397507be78cd6b587247f2225332c64c5a"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 3005,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-07/verification.json",
+        "sha256": "b2571ed7c8418004ad4f698e9a88999e4dc2429b1bfee5e6f47cc97655a05a04"
+      }
+    },
+    {
+      "baseline_failure_stderr": {
+        "bytes": 460,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0339/object.stderr",
+        "sha256": "f8e730366a18cdd3cb35cd38285e52b5509ef716321552ec70a813cf0c8d90d4"
+      },
+      "baseline_module": {
+        "bytes": 1888329,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0339/module.json",
+        "sha256": "7502b6b6683734129162318417b85b07a93ae7dc6cdec61a9cf38bdee36eee11"
+      },
+      "definition_counts": {
+        "function_declarations": 4,
+        "functions": 64,
+        "globals": 348
+      },
+      "frontend_version": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+      "id": "f6d17184b9564e549f837c0bc96dc459:0",
+      "independent_verifier_inventory_equal": true,
+      "input": {
+        "bytes": 256900,
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "format": "llvm-text",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/f6d17184b9564e549f837c0bc96dc459/unit-0.ll",
+        "sha256": "136af822c4f6053f84eefd1f6f2537308a114d8142e3a82fd91fd2a56f82c10b",
+        "target_triple": "riscv64-unknown-linux-gnu"
+      },
+      "input_after": {
+        "bytes": 256900,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/f6d17184b9564e549f837c0bc96dc459/unit-0.ll",
+        "sha256": "136af822c4f6053f84eefd1f6f2537308a114d8142e3a82fd91fd2a56f82c10b"
+      },
+      "module": {
+        "bytes": 1888674,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.json",
+        "sha256": "bb10d1a516d03318962d5d400b8b0ded2ea415947e35d32b2dfc805eb783a304"
+      },
+      "native_execution_qualified": false,
+      "object": {
+        "bytes": 239152,
+        "elf_type": 1,
+        "machine": 243,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.o",
+        "sha256": "cefde37b5a35b39a6d036c01630e58187e1a53286df9790f1bb1d08d80639261"
+      },
+      "original_llvm_inventory": {
+        "aliases": [],
+        "functions": [
+          {
+            "definition": true,
+            "name": "_PyTestCapi_Init_PyAtomic"
+          },
+          {
+            "definition": false,
+            "name": "PyModule_AddFunctions"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_uint8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_uint16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_uint32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_uint64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_uintptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_int"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_uint"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_int8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_int16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_int32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_int64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_intptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_add_ssize"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_uint8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_uint16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_uint32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_uint64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_uintptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_int"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_uint"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_int8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_int16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_int32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_int64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_intptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_ssize"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_compare_exchange_ptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_uint8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_uint16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_uint32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_uint64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_uintptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_int"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_uint"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_int8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_int16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_int32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_int64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_intptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_ssize"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_exchange_ptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_uint8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_uint16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_uint32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_uint64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_uintptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_int"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_uint"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_int8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_int16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_int32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_int64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_intptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_ssize"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_ptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_and_or_uint8"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_and_or_uint16"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_and_or_uint32"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_and_or_uint64"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_and_or_uintptr"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_fences"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_release_acquire"
+          },
+          {
+            "definition": true,
+            "name": "test_atomic_load_store_int_release_acquire"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.start.p0"
+          },
+          {
+            "definition": false,
+            "name": "__assert_fail"
+          },
+          {
+            "definition": false,
+            "name": "llvm.lifetime.end.p0"
+          }
+        ],
+        "globals": [
+          {
+            "definition": true,
+            "name": ".str"
+          },
+          {
+            "definition": true,
+            "name": ".str.1"
+          },
+          {
+            "definition": true,
+            "name": ".str.2"
+          },
+          {
+            "definition": true,
+            "name": ".str.3"
+          },
+          {
+            "definition": true,
+            "name": ".str.4"
+          },
+          {
+            "definition": true,
+            "name": ".str.5"
+          },
+          {
+            "definition": true,
+            "name": ".str.6"
+          },
+          {
+            "definition": true,
+            "name": ".str.7"
+          },
+          {
+            "definition": true,
+            "name": ".str.8"
+          },
+          {
+            "definition": true,
+            "name": ".str.9"
+          },
+          {
+            "definition": true,
+            "name": ".str.10"
+          },
+          {
+            "definition": true,
+            "name": ".str.11"
+          },
+          {
+            "definition": true,
+            "name": ".str.12"
+          },
+          {
+            "definition": true,
+            "name": ".str.13"
+          },
+          {
+            "definition": true,
+            "name": ".str.14"
+          },
+          {
+            "definition": true,
+            "name": ".str.15"
+          },
+          {
+            "definition": true,
+            "name": ".str.16"
+          },
+          {
+            "definition": true,
+            "name": ".str.17"
+          },
+          {
+            "definition": true,
+            "name": ".str.18"
+          },
+          {
+            "definition": true,
+            "name": ".str.19"
+          },
+          {
+            "definition": true,
+            "name": ".str.20"
+          },
+          {
+            "definition": true,
+            "name": ".str.21"
+          },
+          {
+            "definition": true,
+            "name": ".str.22"
+          },
+          {
+            "definition": true,
+            "name": ".str.23"
+          },
+          {
+            "definition": true,
+            "name": ".str.24"
+          },
+          {
+            "definition": true,
+            "name": ".str.25"
+          },
+          {
+            "definition": true,
+            "name": ".str.26"
+          },
+          {
+            "definition": true,
+            "name": ".str.27"
+          },
+          {
+            "definition": true,
+            "name": ".str.28"
+          },
+          {
+            "definition": true,
+            "name": ".str.29"
+          },
+          {
+            "definition": true,
+            "name": ".str.30"
+          },
+          {
+            "definition": true,
+            "name": ".str.31"
+          },
+          {
+            "definition": true,
+            "name": ".str.32"
+          },
+          {
+            "definition": true,
+            "name": ".str.33"
+          },
+          {
+            "definition": true,
+            "name": ".str.34"
+          },
+          {
+            "definition": true,
+            "name": ".str.35"
+          },
+          {
+            "definition": true,
+            "name": ".str.36"
+          },
+          {
+            "definition": true,
+            "name": ".str.37"
+          },
+          {
+            "definition": true,
+            "name": ".str.38"
+          },
+          {
+            "definition": true,
+            "name": ".str.39"
+          },
+          {
+            "definition": true,
+            "name": ".str.40"
+          },
+          {
+            "definition": true,
+            "name": ".str.41"
+          },
+          {
+            "definition": true,
+            "name": ".str.42"
+          },
+          {
+            "definition": true,
+            "name": ".str.43"
+          },
+          {
+            "definition": true,
+            "name": ".str.44"
+          },
+          {
+            "definition": true,
+            "name": ".str.45"
+          },
+          {
+            "definition": true,
+            "name": ".str.46"
+          },
+          {
+            "definition": true,
+            "name": ".str.47"
+          },
+          {
+            "definition": true,
+            "name": ".str.48"
+          },
+          {
+            "definition": true,
+            "name": ".str.49"
+          },
+          {
+            "definition": true,
+            "name": ".str.50"
+          },
+          {
+            "definition": true,
+            "name": ".str.51"
+          },
+          {
+            "definition": true,
+            "name": ".str.52"
+          },
+          {
+            "definition": true,
+            "name": ".str.53"
+          },
+          {
+            "definition": true,
+            "name": ".str.54"
+          },
+          {
+            "definition": true,
+            "name": ".str.55"
+          },
+          {
+            "definition": true,
+            "name": ".str.56"
+          },
+          {
+            "definition": true,
+            "name": ".str.57"
+          },
+          {
+            "definition": true,
+            "name": ".str.58"
+          },
+          {
+            "definition": true,
+            "name": ".str.59"
+          },
+          {
+            "definition": true,
+            "name": ".str.60"
+          },
+          {
+            "definition": true,
+            "name": ".str.61"
+          },
+          {
+            "definition": true,
+            "name": ".str.62"
+          },
+          {
+            "definition": true,
+            "name": "test_methods"
+          },
+          {
+            "definition": true,
+            "name": ".str.64"
+          },
+          {
+            "definition": true,
+            "name": ".str.65"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_uint8"
+          },
+          {
+            "definition": true,
+            "name": ".str.66"
+          },
+          {
+            "definition": true,
+            "name": ".str.67"
+          },
+          {
+            "definition": true,
+            "name": ".str.68"
+          },
+          {
+            "definition": true,
+            "name": ".str.69"
+          },
+          {
+            "definition": true,
+            "name": ".str.70"
+          },
+          {
+            "definition": true,
+            "name": ".str.71"
+          },
+          {
+            "definition": true,
+            "name": ".str.72"
+          },
+          {
+            "definition": true,
+            "name": ".str.73"
+          },
+          {
+            "definition": true,
+            "name": ".str.74"
+          },
+          {
+            "definition": true,
+            "name": ".str.75"
+          },
+          {
+            "definition": true,
+            "name": ".str.76"
+          },
+          {
+            "definition": false,
+            "name": "_Py_NoneStruct"
+          },
+          {
+            "definition": true,
+            "name": ".str.77"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_uint16"
+          },
+          {
+            "definition": true,
+            "name": ".str.78"
+          },
+          {
+            "definition": true,
+            "name": ".str.79"
+          },
+          {
+            "definition": true,
+            "name": ".str.80"
+          },
+          {
+            "definition": true,
+            "name": ".str.81"
+          },
+          {
+            "definition": true,
+            "name": ".str.82"
+          },
+          {
+            "definition": true,
+            "name": ".str.83"
+          },
+          {
+            "definition": true,
+            "name": ".str.84"
+          },
+          {
+            "definition": true,
+            "name": ".str.85"
+          },
+          {
+            "definition": true,
+            "name": ".str.86"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_uint32"
+          },
+          {
+            "definition": true,
+            "name": ".str.87"
+          },
+          {
+            "definition": true,
+            "name": ".str.88"
+          },
+          {
+            "definition": true,
+            "name": ".str.89"
+          },
+          {
+            "definition": true,
+            "name": ".str.90"
+          },
+          {
+            "definition": true,
+            "name": ".str.91"
+          },
+          {
+            "definition": true,
+            "name": ".str.92"
+          },
+          {
+            "definition": true,
+            "name": ".str.93"
+          },
+          {
+            "definition": true,
+            "name": ".str.94"
+          },
+          {
+            "definition": true,
+            "name": ".str.95"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_uint64"
+          },
+          {
+            "definition": true,
+            "name": ".str.96"
+          },
+          {
+            "definition": true,
+            "name": ".str.97"
+          },
+          {
+            "definition": true,
+            "name": ".str.98"
+          },
+          {
+            "definition": true,
+            "name": ".str.99"
+          },
+          {
+            "definition": true,
+            "name": ".str.100"
+          },
+          {
+            "definition": true,
+            "name": ".str.101"
+          },
+          {
+            "definition": true,
+            "name": ".str.102"
+          },
+          {
+            "definition": true,
+            "name": ".str.103"
+          },
+          {
+            "definition": true,
+            "name": ".str.104"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_uintptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.105"
+          },
+          {
+            "definition": true,
+            "name": ".str.106"
+          },
+          {
+            "definition": true,
+            "name": ".str.107"
+          },
+          {
+            "definition": true,
+            "name": ".str.108"
+          },
+          {
+            "definition": true,
+            "name": ".str.109"
+          },
+          {
+            "definition": true,
+            "name": ".str.110"
+          },
+          {
+            "definition": true,
+            "name": ".str.111"
+          },
+          {
+            "definition": true,
+            "name": ".str.112"
+          },
+          {
+            "definition": true,
+            "name": ".str.113"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_int"
+          },
+          {
+            "definition": true,
+            "name": ".str.114"
+          },
+          {
+            "definition": true,
+            "name": ".str.115"
+          },
+          {
+            "definition": true,
+            "name": ".str.116"
+          },
+          {
+            "definition": true,
+            "name": ".str.117"
+          },
+          {
+            "definition": true,
+            "name": ".str.118"
+          },
+          {
+            "definition": true,
+            "name": ".str.119"
+          },
+          {
+            "definition": true,
+            "name": ".str.120"
+          },
+          {
+            "definition": true,
+            "name": ".str.121"
+          },
+          {
+            "definition": true,
+            "name": ".str.122"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_uint"
+          },
+          {
+            "definition": true,
+            "name": ".str.123"
+          },
+          {
+            "definition": true,
+            "name": ".str.124"
+          },
+          {
+            "definition": true,
+            "name": ".str.125"
+          },
+          {
+            "definition": true,
+            "name": ".str.126"
+          },
+          {
+            "definition": true,
+            "name": ".str.127"
+          },
+          {
+            "definition": true,
+            "name": ".str.128"
+          },
+          {
+            "definition": true,
+            "name": ".str.129"
+          },
+          {
+            "definition": true,
+            "name": ".str.130"
+          },
+          {
+            "definition": true,
+            "name": ".str.131"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_int8"
+          },
+          {
+            "definition": true,
+            "name": ".str.132"
+          },
+          {
+            "definition": true,
+            "name": ".str.133"
+          },
+          {
+            "definition": true,
+            "name": ".str.134"
+          },
+          {
+            "definition": true,
+            "name": ".str.135"
+          },
+          {
+            "definition": true,
+            "name": ".str.136"
+          },
+          {
+            "definition": true,
+            "name": ".str.137"
+          },
+          {
+            "definition": true,
+            "name": ".str.138"
+          },
+          {
+            "definition": true,
+            "name": ".str.139"
+          },
+          {
+            "definition": true,
+            "name": ".str.140"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_int16"
+          },
+          {
+            "definition": true,
+            "name": ".str.141"
+          },
+          {
+            "definition": true,
+            "name": ".str.142"
+          },
+          {
+            "definition": true,
+            "name": ".str.143"
+          },
+          {
+            "definition": true,
+            "name": ".str.144"
+          },
+          {
+            "definition": true,
+            "name": ".str.145"
+          },
+          {
+            "definition": true,
+            "name": ".str.146"
+          },
+          {
+            "definition": true,
+            "name": ".str.147"
+          },
+          {
+            "definition": true,
+            "name": ".str.148"
+          },
+          {
+            "definition": true,
+            "name": ".str.149"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_int32"
+          },
+          {
+            "definition": true,
+            "name": ".str.150"
+          },
+          {
+            "definition": true,
+            "name": ".str.151"
+          },
+          {
+            "definition": true,
+            "name": ".str.152"
+          },
+          {
+            "definition": true,
+            "name": ".str.153"
+          },
+          {
+            "definition": true,
+            "name": ".str.154"
+          },
+          {
+            "definition": true,
+            "name": ".str.155"
+          },
+          {
+            "definition": true,
+            "name": ".str.156"
+          },
+          {
+            "definition": true,
+            "name": ".str.157"
+          },
+          {
+            "definition": true,
+            "name": ".str.158"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_int64"
+          },
+          {
+            "definition": true,
+            "name": ".str.159"
+          },
+          {
+            "definition": true,
+            "name": ".str.160"
+          },
+          {
+            "definition": true,
+            "name": ".str.161"
+          },
+          {
+            "definition": true,
+            "name": ".str.162"
+          },
+          {
+            "definition": true,
+            "name": ".str.163"
+          },
+          {
+            "definition": true,
+            "name": ".str.164"
+          },
+          {
+            "definition": true,
+            "name": ".str.165"
+          },
+          {
+            "definition": true,
+            "name": ".str.166"
+          },
+          {
+            "definition": true,
+            "name": ".str.167"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_intptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.168"
+          },
+          {
+            "definition": true,
+            "name": ".str.169"
+          },
+          {
+            "definition": true,
+            "name": ".str.170"
+          },
+          {
+            "definition": true,
+            "name": ".str.171"
+          },
+          {
+            "definition": true,
+            "name": ".str.172"
+          },
+          {
+            "definition": true,
+            "name": ".str.173"
+          },
+          {
+            "definition": true,
+            "name": ".str.174"
+          },
+          {
+            "definition": true,
+            "name": ".str.175"
+          },
+          {
+            "definition": true,
+            "name": ".str.176"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_add_ssize"
+          },
+          {
+            "definition": true,
+            "name": ".str.177"
+          },
+          {
+            "definition": true,
+            "name": ".str.178"
+          },
+          {
+            "definition": true,
+            "name": ".str.179"
+          },
+          {
+            "definition": true,
+            "name": ".str.180"
+          },
+          {
+            "definition": true,
+            "name": ".str.181"
+          },
+          {
+            "definition": true,
+            "name": ".str.182"
+          },
+          {
+            "definition": true,
+            "name": ".str.183"
+          },
+          {
+            "definition": true,
+            "name": ".str.184"
+          },
+          {
+            "definition": true,
+            "name": ".str.185"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_uint8"
+          },
+          {
+            "definition": true,
+            "name": ".str.186"
+          },
+          {
+            "definition": true,
+            "name": ".str.187"
+          },
+          {
+            "definition": true,
+            "name": ".str.188"
+          },
+          {
+            "definition": true,
+            "name": ".str.189"
+          },
+          {
+            "definition": true,
+            "name": ".str.190"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_uint16"
+          },
+          {
+            "definition": true,
+            "name": ".str.191"
+          },
+          {
+            "definition": true,
+            "name": ".str.192"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_uint32"
+          },
+          {
+            "definition": true,
+            "name": ".str.193"
+          },
+          {
+            "definition": true,
+            "name": ".str.194"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_uint64"
+          },
+          {
+            "definition": true,
+            "name": ".str.195"
+          },
+          {
+            "definition": true,
+            "name": ".str.196"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_uintptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.197"
+          },
+          {
+            "definition": true,
+            "name": ".str.198"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_int"
+          },
+          {
+            "definition": true,
+            "name": ".str.199"
+          },
+          {
+            "definition": true,
+            "name": ".str.200"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_uint"
+          },
+          {
+            "definition": true,
+            "name": ".str.201"
+          },
+          {
+            "definition": true,
+            "name": ".str.202"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_int8"
+          },
+          {
+            "definition": true,
+            "name": ".str.203"
+          },
+          {
+            "definition": true,
+            "name": ".str.204"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_int16"
+          },
+          {
+            "definition": true,
+            "name": ".str.205"
+          },
+          {
+            "definition": true,
+            "name": ".str.206"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_int32"
+          },
+          {
+            "definition": true,
+            "name": ".str.207"
+          },
+          {
+            "definition": true,
+            "name": ".str.208"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_int64"
+          },
+          {
+            "definition": true,
+            "name": ".str.209"
+          },
+          {
+            "definition": true,
+            "name": ".str.210"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_intptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.211"
+          },
+          {
+            "definition": true,
+            "name": ".str.212"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_ssize"
+          },
+          {
+            "definition": true,
+            "name": ".str.213"
+          },
+          {
+            "definition": true,
+            "name": ".str.214"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_compare_exchange_ptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.215"
+          },
+          {
+            "definition": true,
+            "name": ".str.216"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_uint8"
+          },
+          {
+            "definition": true,
+            "name": ".str.217"
+          },
+          {
+            "definition": true,
+            "name": ".str.218"
+          },
+          {
+            "definition": true,
+            "name": ".str.219"
+          },
+          {
+            "definition": true,
+            "name": ".str.220"
+          },
+          {
+            "definition": true,
+            "name": ".str.221"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_uint16"
+          },
+          {
+            "definition": true,
+            "name": ".str.222"
+          },
+          {
+            "definition": true,
+            "name": ".str.223"
+          },
+          {
+            "definition": true,
+            "name": ".str.224"
+          },
+          {
+            "definition": true,
+            "name": ".str.225"
+          },
+          {
+            "definition": true,
+            "name": ".str.226"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_uint32"
+          },
+          {
+            "definition": true,
+            "name": ".str.227"
+          },
+          {
+            "definition": true,
+            "name": ".str.228"
+          },
+          {
+            "definition": true,
+            "name": ".str.229"
+          },
+          {
+            "definition": true,
+            "name": ".str.230"
+          },
+          {
+            "definition": true,
+            "name": ".str.231"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_uint64"
+          },
+          {
+            "definition": true,
+            "name": ".str.232"
+          },
+          {
+            "definition": true,
+            "name": ".str.233"
+          },
+          {
+            "definition": true,
+            "name": ".str.234"
+          },
+          {
+            "definition": true,
+            "name": ".str.235"
+          },
+          {
+            "definition": true,
+            "name": ".str.236"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_uintptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.237"
+          },
+          {
+            "definition": true,
+            "name": ".str.238"
+          },
+          {
+            "definition": true,
+            "name": ".str.239"
+          },
+          {
+            "definition": true,
+            "name": ".str.240"
+          },
+          {
+            "definition": true,
+            "name": ".str.241"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_int"
+          },
+          {
+            "definition": true,
+            "name": ".str.242"
+          },
+          {
+            "definition": true,
+            "name": ".str.243"
+          },
+          {
+            "definition": true,
+            "name": ".str.244"
+          },
+          {
+            "definition": true,
+            "name": ".str.245"
+          },
+          {
+            "definition": true,
+            "name": ".str.246"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_uint"
+          },
+          {
+            "definition": true,
+            "name": ".str.247"
+          },
+          {
+            "definition": true,
+            "name": ".str.248"
+          },
+          {
+            "definition": true,
+            "name": ".str.249"
+          },
+          {
+            "definition": true,
+            "name": ".str.250"
+          },
+          {
+            "definition": true,
+            "name": ".str.251"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_int8"
+          },
+          {
+            "definition": true,
+            "name": ".str.252"
+          },
+          {
+            "definition": true,
+            "name": ".str.253"
+          },
+          {
+            "definition": true,
+            "name": ".str.254"
+          },
+          {
+            "definition": true,
+            "name": ".str.255"
+          },
+          {
+            "definition": true,
+            "name": ".str.256"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_int16"
+          },
+          {
+            "definition": true,
+            "name": ".str.257"
+          },
+          {
+            "definition": true,
+            "name": ".str.258"
+          },
+          {
+            "definition": true,
+            "name": ".str.259"
+          },
+          {
+            "definition": true,
+            "name": ".str.260"
+          },
+          {
+            "definition": true,
+            "name": ".str.261"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_int32"
+          },
+          {
+            "definition": true,
+            "name": ".str.262"
+          },
+          {
+            "definition": true,
+            "name": ".str.263"
+          },
+          {
+            "definition": true,
+            "name": ".str.264"
+          },
+          {
+            "definition": true,
+            "name": ".str.265"
+          },
+          {
+            "definition": true,
+            "name": ".str.266"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_int64"
+          },
+          {
+            "definition": true,
+            "name": ".str.267"
+          },
+          {
+            "definition": true,
+            "name": ".str.268"
+          },
+          {
+            "definition": true,
+            "name": ".str.269"
+          },
+          {
+            "definition": true,
+            "name": ".str.270"
+          },
+          {
+            "definition": true,
+            "name": ".str.271"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_intptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.272"
+          },
+          {
+            "definition": true,
+            "name": ".str.273"
+          },
+          {
+            "definition": true,
+            "name": ".str.274"
+          },
+          {
+            "definition": true,
+            "name": ".str.275"
+          },
+          {
+            "definition": true,
+            "name": ".str.276"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_ssize"
+          },
+          {
+            "definition": true,
+            "name": ".str.277"
+          },
+          {
+            "definition": true,
+            "name": ".str.278"
+          },
+          {
+            "definition": true,
+            "name": ".str.279"
+          },
+          {
+            "definition": true,
+            "name": ".str.280"
+          },
+          {
+            "definition": true,
+            "name": ".str.281"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_exchange_ptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.282"
+          },
+          {
+            "definition": true,
+            "name": ".str.283"
+          },
+          {
+            "definition": true,
+            "name": ".str.284"
+          },
+          {
+            "definition": true,
+            "name": ".str.285"
+          },
+          {
+            "definition": true,
+            "name": ".str.342"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_and_or_uint8"
+          },
+          {
+            "definition": true,
+            "name": ".str.343"
+          },
+          {
+            "definition": true,
+            "name": ".str.344"
+          },
+          {
+            "definition": true,
+            "name": ".str.345"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_and_or_uint16"
+          },
+          {
+            "definition": true,
+            "name": ".str.346"
+          },
+          {
+            "definition": true,
+            "name": ".str.347"
+          },
+          {
+            "definition": true,
+            "name": ".str.348"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_and_or_uint32"
+          },
+          {
+            "definition": true,
+            "name": ".str.349"
+          },
+          {
+            "definition": true,
+            "name": ".str.350"
+          },
+          {
+            "definition": true,
+            "name": ".str.351"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_and_or_uint64"
+          },
+          {
+            "definition": true,
+            "name": ".str.352"
+          },
+          {
+            "definition": true,
+            "name": ".str.353"
+          },
+          {
+            "definition": true,
+            "name": ".str.354"
+          },
+          {
+            "definition": true,
+            "name": "__PRETTY_FUNCTION__.test_atomic_and_or_uintptr"
+          },
+          {
+            "definition": true,
+            "name": ".str.355"
+          },
+          {
+            "definition": true,
+            "name": ".str.356"
+          }
+        ],
+        "llvm_verified": true,
+        "method": "LLVM22.1.6 C API whole original input, independently enumerated functions/globals/aliases",
+        "source_function_count": 68,
+        "source_global_count": 348
+      },
+      "preservation": {
+        "all_semantic_fields_sha256": "75c9fdd7cdb1447e9590cbdf8424e76f98c92eccd9ff167520a1081024f2a1ca",
+        "baseline_semantic_fields_sha256": "75c9fdd7cdb1447e9590cbdf8424e76f98c92eccd9ff167520a1081024f2a1ca",
+        "complete_module_equal_to_baseline_except_explicit_target_profile_and_provenance": true,
+        "complete_original_function_global_alias_inventory_equal": true,
+        "function_bodies_including_atomic_order_scope_volatility_unchanged": true,
+        "original_input_hash_unchanged": true,
+        "provenance_after": {
+          "canonical_json_sha256": "a38deb37a66378c4099337a38cae822fef057c6e9726f325acd7088817fcd53e",
+          "module_file": {
+            "bytes": 1888674,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.json",
+            "sha256": "bb10d1a516d03318962d5d400b8b0ded2ea415947e35d32b2dfc805eb783a304"
+          }
+        },
+        "provenance_before": {
+          "canonical_json_sha256": "f81d6ec163c8f4ee7b2163d193248d406a9c904e7756d08d0f9466a955d889ca",
+          "module_file": {
+            "bytes": 1888329,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/unit-0339/module.json",
+            "sha256": "7502b6b6683734129162318417b85b07a93ae7dc6cdec61a9cf38bdee36eee11"
+          }
+        },
+        "source_hash_unchanged": true
+      },
+      "runtime_complete": false,
+      "source": {
+        "bytes": 6371,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/pyatomic.c",
+        "sha256": "06943fbb1ccc08e2a619024d2bfe0ea74428a55f6cf4d15885532ffbb6da5554"
+      },
+      "source_after": {
+        "bytes": 6371,
+        "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython/Modules/_testcapi/pyatomic.c",
+        "sha256": "06943fbb1ccc08e2a619024d2bfe0ea74428a55f6cf4d15885532ffbb6da5554"
+      },
+      "stages": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/units/f6d17184b9564e549f837c0bc96dc459/unit-0.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "mir",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.json",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--atomic-profile",
+            "coherent-ram-v1"
+          ],
+          "exit_code": 0,
+          "seconds": 7.169549,
+          "stage": "import",
+          "stderr": {
+            "bytes": 130,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/import.stderr",
+            "sha256": "abe843bd4626933b9b20fed3d76c155a811da94a06dcd42170e28f0350d1af46"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/import.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.json",
+            "--input-kind",
+            "native-ir",
+            "--verify-native",
+            "--receipt",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/verification.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.151538,
+          "stage": "verify",
+          "stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/verify.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "stdout": {
+            "bytes": 68,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/verify.stdout",
+            "sha256": "2769e0ee3f461f878ef3591ec5414d2176879f3a991114eb66cab16b9e275b3a"
+          }
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.json",
+            "--input-kind",
+            "native-ir",
+            "--emit",
+            "obj",
+            "--target",
+            "riscv64-unknown-none",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/module.o"
+          ],
+          "exit_code": 0,
+          "seconds": 0.621876,
+          "stage": "object",
+          "stderr": {
+            "bytes": 127,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/object.stderr",
+            "sha256": "6693a497301f7948a2704fb4f17bf0e5b008e7ef640a47bdeaae38fdd2c2b05e"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/object.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "status": "verified-object",
+      "verification": {
+        "bytes": 9943,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/atomic-profile-followup-20261018-v2/unit-08/verification.json",
+        "sha256": "3da1bb9f52f182bbfa659a300fbcdd3deff5d3fb4bca8291195bf7aa1ab2b9e1"
+      }
+    }
+  ],
+  "verified_object_count": 9
+}

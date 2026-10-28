@@ -144,7 +144,9 @@ class Client:
             outgoing["Content-Type"] = "application/json"
             body = json.dumps(payload).encode("utf-8")
         outgoing.update(headers or {})
-        connection = http.client.HTTPConnection(self.url.hostname, self.url.port, timeout=self.timeout)
+        connection_type = (http.client.HTTPSConnection if self.url.scheme == "https"
+                           else http.client.HTTPConnection)
+        connection = connection_type(self.url.hostname, self.url.port, timeout=self.timeout)
         try:
             connection.request(method, path, body=body, headers=outgoing)
             response = connection.getresponse()

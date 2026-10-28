@@ -96,7 +96,9 @@ relative_wrapper="$case_dir/relative compiler"
 
 mkdir -p "$build_tmp" "$out_dir"
 ln -s "$c_root/../backends" "$shim_dir"
-cp "$c_root/../examples/hello.O" "$input"
+cat > "$input" <<'EOF'
+python^(1 + 1)_python
+EOF
 
 cat > "$compiler_wrapper" <<'EOF'
 #!/bin/sh

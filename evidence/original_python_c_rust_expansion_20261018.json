@@ -1,0 +1,3740 @@
+{
+  "schema": "ostadix.original-python-c-rust-expansion-evidence-v1",
+  "generated_at_utc": "2026-10-18T23:09:12.232023+00:00",
+  "scope": "Actual unchanged original source captures, complete whole-unit diagnostics, and bounded Linux RV64 API/program execution controls",
+  "final_matrix": {
+    "artifact": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/report.json",
+      "bytes": 46452,
+      "sha256": "8248983fb5c88cd95ac207ce544cc56082d360639816fbb4f6926b1b14a9a246"
+    },
+    "manifest": {
+      "bytes": 844,
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/matrix-manifest-uuidfix.json",
+      "sha256": "f35bd65f056158966f9e67316dd4c9a19fb9c9dd8321b74da550ac5fcb986fe6"
+    },
+    "runner": {
+      "bytes": 18613,
+      "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_source_matrix.py",
+      "sha256": "2be82467c6d50af0aa0304d17917d11889f93ff46a94ceee5a2d63a63b82cb3b"
+    },
+    "worker": {
+      "bytes": 18965,
+      "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+      "sha256": "11125d04123f5cb6f30a9d9d9d1465d43bd4c4b8fedb79c630499748d49e577d"
+    },
+    "compiler": {
+      "bytes": 2388760,
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    },
+    "frozen_compiler": {
+      "bytes": 2388760,
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/ocorec",
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    },
+    "llvm_library": {
+      "bytes": 132053720,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+    },
+    "llvm_dis": {
+      "bytes": 34560,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-dis",
+      "sha256": "f4627dba95c7db30807c4f90e8fbbc2473a2847a5620e056bbb61abbc576c9cd",
+      "snapshot": {
+        "bytes": 34560,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/llvm-dis",
+        "sha256": "f4627dba95c7db30807c4f90e8fbbc2473a2847a5620e056bbb61abbc576c9cd"
+      }
+    },
+    "target": "riscv64-unknown-none",
+    "jobs": 1,
+    "audit_complete": true,
+    "all_units_lowered": false,
+    "totals": {
+      "selected_units": 370,
+      "imported_unit_count": 73,
+      "independently_verified_unit_count": 73,
+      "verified_object_count": 64
+    },
+    "profiles": [
+      {
+        "all_units_lowered": false,
+        "attempted_unit_ids": [
+          "012d5d313c6d4f238b20851c12d1c30c:0",
+          "01323c1975674a1a9d99d852589461a3:0",
+          "03025b21ecbf4418b54c8a112035f144:0",
+          "03ab59564f52450eb1364e3c1a3f89ca:0",
+          "047a88e9b388487a922a8e69980e8449:0",
+          "051634843e4843a8af066b6d34ab0b0a:0",
+          "0884cafdf0364a048438c6859ab3459c:0",
+          "09911e8dfd48405183c7376f119bf35e:0",
+          "0a106d6b99d34ea398ce57432771e161:0",
+          "0a813c0a783e4106b8bc16fb708e5899:0",
+          "0acfbaf63a054abcb3f973c607ae9885:0",
+          "0cfb8d6119044fe2af1eb2c129bb80ce:0",
+          "0d789601b8c84da89c5df5da43dc72bf:0",
+          "0ddbb20d743e4901987117ade73bdb0b:0",
+          "0df797378025425e85009b272ca6e59d:0",
+          "1043884a25cb42dc8367e4e5fa390c11:0",
+          "1243a8a166b34137b63030cf7b5c294a:0",
+          "1297969d1bcf4292a2c357a73a42cbc1:0",
+          "1572c869de4347298bdf0d467db8954a:0",
+          "15e8a0f8378f467295fe2fd73fee4ef8:0",
+          "15f6688755724de59a8069c98b7fdb37:0",
+          "160f8f87eba7442ca889c8c27be3ba1a:0",
+          "16bfe9e6e61647de9e13b4fa35470e8d:0",
+          "16cb83f5e2d3487cb2b2cdf29da95c04:0",
+          "1862b68a09344524a453019948a241db:0",
+          "194452c4f9004dcda729a894ef592c53:0",
+          "1a6862d2a9804e949da74aaddccca4ba:0",
+          "1ad58eeeaaae40e9907b96b1011fe91d:0",
+          "1ae045f3e9fe4070aaec40bd4690f21f:0",
+          "1bfccf0849534116be2d0e8edb36b063:0",
+          "1c0552860bdf4105bb61f441fb1eed28:0",
+          "1cf23c78adce414d849a92411dca71ce:0",
+          "1d5135a308e14835827108a1fc4d6218:0",
+          "1d71a8d4a5a94bbabbe21d7bf1571c76:0",
+          "1db50e49552e47e4a7db39111adaaee9:0",
+          "1dfcc5f7697f4552ad17776bc5275547:0",
+          "1e0192a820a143ca8519dce40fcf67ea:0",
+          "1fdf9cc313614a92a05aa2182226461e:0",
+          "22128f6034944b259f0dcc7425137cfe:0",
+          "23930bd0e3184ad7877e0526179bf317:0",
+          "23ca17ce2d2e48dc945d14b0cf13a822:0",
+          "25f38dc20a4c4f77ae6841446aba2b70:0",
+          "2623046356224c0f92bab89f45c8779e:0",
+          "271e00da151c4a0c87333afc45507106:0",
+          "283b26f6391c48cc96b055cdb3910d5f:0",
+          "2856e06de93e46a18f6f944c109b9c51:0",
+          "2863686e2c8e47a1a0c353cd904439bb:0",
+          "28ab9a98613f4464bd71e19f21ab67ff:0",
+          "28e06e460e004f8daef4b7ca8133b2c9:0",
+          "2cd1825f905d4b118eacfc3124192291:0",
+          "2d6ef387315e47dfa2730f13fe72f063:0",
+          "2e4950dcfacc4619ad201702cf2a7886:0",
+          "2ffc641b27bf45d6a4e424634d817761:0",
+          "30100d1ff4d041c597dfe7dd67d9b77f:0",
+          "31d74078c77642f794f054d6359a341f:0",
+          "321fc155f5d2478289f8b4caa7cd2df1:0",
+          "322ad58e238143cd94607c2384f64147:0",
+          "32381c2aa45f41159bc1b22662610537:0",
+          "32f6e1b9a66242b3a2bfee383d50dc99:0",
+          "32fb5876784844988e186fa99cff935b:0",
+          "343594b46d4a4fcbaa82199012004edc:0",
+          "35220b5f99dc46ccb82b62105507b8a5:0",
+          "3567d6a9484c4a9e96b4430b4f775cdf:0",
+          "35b83cff464348be89398ffabc1ff80b:0",
+          "363afad5b7514c5b8275156cc8f83881:0",
+          "37019699eda14896b274b92ff6c27142:0",
+          "37f55774b6ea413d85f424723ec4eb73:0",
+          "381407693a5c41538c38c79341199a66:0",
+          "393ea09a319647f5ad4e817df6362659:0",
+          "3947264ca19a4cb6b11aeb9d555ada88:0",
+          "3aaff99926e848c2b674e18f73dce96d:0",
+          "3af5f7c4c4154b3c832a2adb4a3ea7b0:0",
+          "3c3e4854e3e54464b2570d719bee6f6d:0",
+          "3c4bd54c626d4dbe8296e473ee6dcae9:0",
+          "3ca07b6a3e834ba7bc0a32af9160965f:0",
+          "3d0ffe20a0dd4775a4a4eff8ea8740f5:0",
+          "3e7f471f17a04f4986376503bd2bab1d:0",
+          "3f06d05632cf4e6187a8ebcd65d31022:0",
+          "403b808b644c458b962eedb2267948c7:0",
+          "417b1f71561448bba1190328fe88c710:0",
+          "41bd6f25bc464ca89ce071f48b3e4fcf:0",
+          "425e47a91c9d43b9921d6af8247a6242:0",
+          "42b3691c8906422b867634a992c36257:0",
+          "4428f6f85e5147bab322d1a3f79278b2:0",
+          "4499d16e52f54a2484b12630da5e5bb6:0",
+          "44d564583a984b588095bfb383129bbe:0",
+          "45256854c7bc456490ab0225f66757d2:0",
+          "453365fb2f194632b2579fd9e77e61c0:0",
+          "4561a213306a4d15b6828364d2f2b9d4:0",
+          "46219687def94955a3b4f76374237ec9:0",
+          "46a0d5f117b24165a6252cecf97e1abc:0",
+          "475f0fb3a52f494a8ddbd194caa2c894:0",
+          "4767b3e10d3c407bbb1128fad5dda570:0",
+          "4833d0b1fdc84eeaa1c3c7d21352194b:0",
+          "4b299a4214774345b65301bdb816e572:0",
+          "4b3637b10ece4faf9eab7519c171bf19:0",
+          "4c32d384968e4ff4826db8b1d8c00546:0",
+          "4c79d70f22b145e1b0145572212060a1:0",
+          "4cac4cb6064942e0a7472637d6e3968c:0",
+          "4ce6a606e99b4e54906848d1cf98c655:0",
+          "4ceac47df8d94e269648517741f9cf1d:0",
+          "4d94b0f074b147ae9cb62eb6266b696f:0",
+          "4dab6a706fab4d7db4fdc8fdc9284613:0",
+          "4e579ec31a7e48dfb1969e5295ec9f63:0",
+          "4f8755f5b5654d24b30e99d1ce400088:0",
+          "50293356865d47c796c6f728915c320a:0",
+          "506a857e512a439b8d8ddd0c8fac7f3d:0",
+          "508b9c29d7e247b4bc19f3ac2caf62c6:0",
+          "511564b4db9049ca80f696b29124277a:0",
+          "51832023683d44018b60434dc348dbe1:0",
+          "51d21c67d6f246289e483e7ccb172945:0",
+          "52d08fef74414582a8ea4bfe98b67cf0:0",
+          "541c6f8c4f214e47be059164d456d2a1:0",
+          "54a189cd00cc437bafcf1a5d910c5f81:0",
+          "54e86c70cc5c4d4b9263560a43782a46:0",
+          "54f5e728ce374cf480f586808af2136b:0",
+          "563fb321e9f14489838bde8ec77aa3af:0",
+          "56f5d8db269448658841b18f2e8f795e:0",
+          "57366a26c6494b94b9bd4ac4a17dba7b:0",
+          "58da8e3a522c4cca85cc9e7465da17a3:0",
+          "5942fa9e9468445bbd27498d7bf59c97:0",
+          "594e1349971e4e01bac0e06a6e789249:0",
+          "5a9434d007ec41c78b3f653e7bec9069:0",
+          "5aff22dcd6b149028a920ffe91eed8c1:0",
+          "5b7663f6b7a04568b9ff3656d16ff102:0",
+          "5bf892d462944cc785b834d4aa6b8ef1:0",
+          "5e47600a73e3457fad483d383160d87a:0",
+          "5f69f143645544429bb337353be73431:0",
+          "5f7a643aae674402bb298fcad1c5a303:0",
+          "5fd6f1b464e84e99a4da826de8157c27:0",
+          "607c3fee0aab424c9a70d7c737a5a2cc:0",
+          "609abab104c4449dada12872f2f9763c:0",
+          "610b17bae6e14376bc92c5c6f4c6698c:0",
+          "61de55b5dc604011af4e4a486df43395:0",
+          "62b4ab39f1734938944ab6222db39b4b:0",
+          "63a6a0c22509455e9c92f6884493f2c0:0",
+          "64344c519ce94722a5c499b7a42dce43:0",
+          "64da7080c5424346aa39b46c8548e4b1:0",
+          "6522827a7092474da2e3ce9dabd6a04e:0",
+          "654d726a58af4f268fb70ac8fa07e353:0",
+          "65bb8bcea88e4626bb6b40e88a409681:0",
+          "665d9530356e4030941b5139c3de97c8:0",
+          "66ae9c1bef864709b66c162e292ac0f7:0",
+          "679f2a44608f45808b430947c20c6f24:0",
+          "67f36c51489b4c858cecc48faaeac813:0",
+          "6975d22cd5c54bb3a79fff3caebfd2af:0",
+          "69b057ea94a64327b22abdc9a898b3ba:0",
+          "69f6afacdeb945b5b81aa04964ba5dac:0",
+          "6b09ea5d74924b88a56551c6d20d0ec1:0",
+          "6b30d7183f8d4d7e88bc490cd5e9be71:0",
+          "6bec469463a146f2ba2cd4671367541a:0",
+          "6d56d4b10b484651af70b64f7a21d105:0",
+          "6ea45d4cc7d74f11a8625c723908eb2c:0",
+          "6ee0e4266c484b00814f712843baa949:0",
+          "6f3ab10931944be18ff4da5b99513502:0",
+          "700b0af1a52440e9abcc0fa204d7f96d:0",
+          "702518ae19484bc79968ae7c45a66c8c:0",
+          "704921d8b45149afbe348148c284742a:0",
+          "709bce82c2f545409edd8220e71cac57:0",
+          "70defa5420a2425584e145500e74158f:0",
+          "7147f9344b9d4e7ea0d6581e1d103e97:0",
+          "71d89deaaee94ddda3ceb2188a69c50e:0",
+          "721ca9776d304daeaa4c9140291063d3:0",
+          "725f20ee55b34cb8aadbe6f69c2882f7:0",
+          "72a97950efc045bdba04f1f54a2cc24d:0",
+          "72edf262acfa4ce3a5e85494aac9b11d:0",
+          "72f190a782c44ac99451a2ae514bb5e4:0",
+          "7327e71343f8420baae05096abc0c96b:0",
+          "746040ba10194a77a848efa0b30633a0:0",
+          "74b9cbbf9e1c4569b4d930f758752038:0",
+          "7516610cc7624612bddfc0254cf42b31:0",
+          "754ab66301cc4be8aa5c43c4a567f1a4:0",
+          "759c8a40663d4e48b045f7288caeec55:0",
+          "75ad070d509646538a4b60babbd7ea6d:0",
+          "75ea0d1bced44be2b6c98650e31d1999:0",
+          "791abe8322af4476ba1cfae6e3815067:0",
+          "7930bfc6af674be1bf2d78d5d607bf1d:0",
+          "794110ceda8240bb807bab6d95620239:0",
+          "79cff8ec90f94905bde73c173b0d5505:0",
+          "79dfb3a4c0ec448ea2865bca394dec85:0",
+          "79e37c7eadc944b88ec94652f124a393:0",
+          "7a0870f800e04245a7d541afac1cfbd2:0",
+          "7abd356878de4497b48c27e8199ef595:0",
+          "7b917cc0c70c45869da38caa75007d94:0",
+          "7d460ed3c5a44a38af8eff16be4f816f:0",
+          "7db417e3323c442185d8ea659264a026:0",
+          "7dc1d968d38546f08bea386bbdc499f3:0",
+          "7dedeab33d904fc29736ee1ea6ed20ff:0",
+          "7dfa919480644a03be0257634ecc43ef:0",
+          "814f02433a324abc892485247f8b442d:0",
+          "82244973073d413aab46cc01748fcaa7:0",
+          "8409354c674748628fb47653acb370b0:0",
+          "8467017248944c96a241c02edfd4474f:0",
+          "84866b2283124daeb22a40b0ce7d2997:0",
+          "860a16abf6a247cfbe52dc116e03c4d9:0",
+          "870d1e824e0a44c885ea5acf91951a54:0",
+          "892d8279865047de91f132f47c575690:0",
+          "89d09739c8a641eabdffd218439a546e:0",
+          "8aa71ed4e3884287af02c7f6790ce398:0",
+          "8b6e83e9ea914d618abad14dc838439b:0",
+          "8bf7ff1105154d648c5216bb27a7eab7:0",
+          "8cdfbcc4d7124629888a2c3bd5e14691:0",
+          "8d82f1df3b344e7f946f2dc57f0fd997:0",
+          "8dd72c93a1aa40ae9aac92cab10f8010:0",
+          "8f2bb6e7ed1146829cc4f59adf1531ae:0",
+          "8f4ce78bbcb6457fb725761961bbe4f4:0",
+          "8f7aab79088a45ad82e228bb9365a7b9:0",
+          "915125a3c2bc486888de81064b4940f1:0",
+          "928caa1a8c48415ab9d4bd9a007655eb:0",
+          "93429e140c5446b0878f05879aaf78ce:0",
+          "93bbb19f0a7d40d8955956bc2d9463b1:0",
+          "93bcf320b3014fddb0ceb012869e14c9:0",
+          "949974137d2648a8b745cf8700dfda40:0",
+          "94e922475c2f4c768a3b57c5231b41df:0",
+          "9564ebc112a24c2dab71d42308785c30:0",
+          "95c0c293bd7048d5ba13b9b83b034dbe:0",
+          "97cf00162c0f47c9b147d546bc18e743:0",
+          "982a472b6d6a4d10bb72fd0e7e7a9527:0",
+          "98464c9222324d97a0c2c77f1e371379:0",
+          "9935cf5647654d03b2890b772d4e7238:0",
+          "99585a2bfa9249d1b60070813bdfa0ff:0",
+          "9a5cb102dee344eba55f50ceb6fb5a53:0",
+          "9a77a89a26af4d15962b449b59ee448b:0",
+          "9a7dcaa0967447abba6d6c4834638fcf:0",
+          "9bbb56422cfc43b89fc59a26f13c3b38:0",
+          "9c1555c8a1c444e9b1ea294f4c219a20:0",
+          "9c336a45a94c47f189dad1ccdc4e2830:0",
+          "9c3ea5d769d945aba97229e6d97deee0:0",
+          "9d72462d64e242fe87a372abff4bae36:0",
+          "9e668e1499ca4915bc1ba189e3fb375f:0",
+          "9ed54b365c714918843372ae67c5888b:0",
+          "9efeb46967ea4ea0a228b3229bc6421e:0",
+          "a369968b76e0479a8dec9c0e6fa82a85:0",
+          "a43e77972f6b4c3e8730bfe5da7a7d96:0",
+          "a62ab4b2c6b2402389b67e26d2de44f4:0",
+          "a7e16aa1e09b461f9a611d45b714a3ef:0",
+          "a80f7bb4df9640829b1d028c3531f597:0",
+          "a87b99f07eab432ba4325137c4d8d931:0",
+          "a8874eb91033452ea0420dc784f5d0f8:0",
+          "a9df7bbe08ca4087b587c225dfbaeed8:0",
+          "ab67bdead0c746fd88eeea64a933e207:0",
+          "ab7565cc525f466f839b34dd3edd690b:0",
+          "adbf60a2a9e24fe8a43c0e1b290a836d:0",
+          "ade822ec99374ace90e802d689e512df:0",
+          "ae49e56bc00c47269dcd3475782b637e:0",
+          "aeb68d6768f7451f899224d3d534485c:0",
+          "aedcab5052b54a40a0d32f2de1d6c2a2:0",
+          "b15ba3c3bf2e494d9062a917992ed290:0",
+          "b16957225dfd46ce857f694ae925e32f:0",
+          "b1c5588bc7fb421eb0e311fe3f26635d:0",
+          "b2904dd1727a4476844be24582238f4b:0",
+          "b3abc028413f4bbb9b6f8d7275db2d21:0",
+          "b3e979fbf80446cd900139336be963a9:0",
+          "b45886de6dec424ea788afcc01018196:0",
+          "b5681ddadb9d480a8145ff8222a047d0:0",
+          "b64ccf955fa14ae1aa541c74a1ee9260:0",
+          "b7ce08d935454f3d84947cd4472a7fd4:0",
+          "b7d83e4e090e45df9e71813d3029ad23:0",
+          "b883639bcaef4fc6bc0b88582c6e6528:0",
+          "b8a12f113ad3446db97f8129eab4962c:0",
+          "b95e74edebab4c2d936e7851abd8e244:0",
+          "b9c4e7d177b3453896fce8fcdff30e55:0",
+          "babfe285e43449e4bebacdbd538b7e1f:0",
+          "bade574f49584595ae17ea6d8d19d66f:0",
+          "bb951fe0e6274fea863ed83fed1a733b:0",
+          "bcd6af5dc065450dba0516d1469fb017:0",
+          "bdc6999bba8b4398982fad864c9d7fa1:0",
+          "bdf0f93a7752418a8bd18b9fc60f5000:0",
+          "be71b92fb3e140d18c48eddd312c41c0:0",
+          "bf308b4846f9492996f21be5eea3779d:0",
+          "c1186977bd2a415588e4efca902be6fd:0",
+          "c21aec8ca3134430a7e8d3e069b59cc3:0",
+          "c2cffcfd7ceb432b8395dd94b9dcbf99:0",
+          "c32a577b753348499642f80394e8d4cc:0",
+          "c3ddcb6f0a5a493a942e790017116afe:0",
+          "c58038f7a44b4ed797dccc1eb4a7a8da:0",
+          "c66ebcef60c54a6b93c5b4d7710f1cd2:0",
+          "c6c6cab1013644faaee04222dd8384f5:0",
+          "c732a93ca5fc4e43aba71637175510f0:0",
+          "ca3beafb7f8f435f91cf20350dac8784:0",
+          "cd5071252dce4ee6956e4ea96d7d1a88:0",
+          "cdef564f627d459eacc62993220d3a2e:0",
+          "cf489acce1584b50b448365cf5ec01c0:0",
+          "d05645eb652b45c98572da6bdeed2272:0",
+          "d0812a9b3fa84bd386c305075e4d8ace:0",
+          "d0a0a0b3e7a542088e85212d664fcfb2:0",
+          "d0c77cec9a8442aa884dab7e611734a8:0",
+          "d10f27813f4d42f5b693f0133d4b8f76:0",
+          "d3ed82362a8a400c8af856694a27b156:0",
+          "d3f0e38f0f51413a95d0a55b48f11f32:0",
+          "d72d795ccb684335b7032d4801582c45:0",
+          "d766cf924c734a68bce7799a8794da6e:0",
+          "d9b721513a5145ed8d6870a6f1a5e834:0",
+          "d9d9e458441a40df88652802127360f8:0",
+          "db4f01d26a7a4ca1b45e43320831367e:0",
+          "dd744912922b464cb56aa45252190cff:0",
+          "de07004fbfae482c93dcf74f4ec18626:0",
+          "de3585f416d14871a4dfd3a04cb90b65:0",
+          "de458d3a6bfe4e6d8d6509aea9d78dc1:0",
+          "de559cbcf6d2496685a839314a73a7c3:0",
+          "df8a07a5cbe84a398c4c084fdfd79584:0",
+          "dff8e2c878484c07aa1b18c80bd9199b:0",
+          "e007a11301c143db9aa672bf864f9d04:0",
+          "e06933840aeb44d1985bf0a6d75b96e7:0",
+          "e1c9709bb1fc4e429de396fb76a9a360:0",
+          "e2b4a9d23a5a4667bf8760c0c0d10874:0",
+          "e33c14bdfe164d66b8f548f45b3aa691:0",
+          "e3f29a6cacd54267a482527f38f24242:0",
+          "e489f44e5c5e4a3b9b2fa0b3c35520fa:0",
+          "e50029104cd548ddb2435d9d3eebbe7e:0",
+          "e6035f1bc00145579438cd611b54acb0:0",
+          "e68d1dbeabe94ca38a006de3c92ff6e3:0",
+          "e7488459f23e4f228e317bc726c213a3:0",
+          "e754a103d18e423cb16f2c088c79b387:0",
+          "e797ec8fb34642a5bf02144a0d547c26:0",
+          "e80662417f714fd685635ceaf1ddc174:0",
+          "e84da1b6bfcb4e898c18f0fbc85e1616:0",
+          "e8a166392908435b9458024a3307cefe:0",
+          "e8c1e3ceb13c46b5abea5df83fd1f08c:0",
+          "eb14853e69f74337a30b3f79c27dee60:0",
+          "eb46f203b5a3434da164eafa05e1977a:0",
+          "eb60d18b2ac54cf5bc85f380f9a377bc:0",
+          "ebbcfeff305d49989b4273515f6e10ed:0",
+          "ebd2439a499b4d63a312b0d9d7ce044d:0",
+          "ebe3e74d0e454ea4a34a0dc9695fc038:0",
+          "ed2d60d6e0aa45ffaae12d5ed4dc0408:0",
+          "ede8294e2a824f85aae6b1ee5b616e91:0",
+          "ee5746fa5d304be99555ec5832682e2a:0",
+          "ee6cf303a4f846288f329e8277423470:0",
+          "ef09e95fe15e489ea57b6a1021977072:0",
+          "efd7588cf2d84263b5cf9cf69a064b35:0",
+          "f073d2820bf74d00998de80f9c5234ec:0",
+          "f16c6305968746d2a480c0fe20240e05:0",
+          "f1755a962027435d8016ec3c131317ca:0",
+          "f20439e649174587a27e32695fd51cd3:0",
+          "f2355ac09b5e48938ee730290870aed5:0",
+          "f517d31656b5499b867d346bcbfbd633:0",
+          "f56ca531c23a479fb45d3db2efbc5e1c:0",
+          "f61bf4c143434c7c8f258ecfd3cdfedb:0",
+          "f6d17184b9564e549f837c0bc96dc459:0",
+          "f6e21eac3c8b417086e205e4bb869d2a:0",
+          "f767e626c530407db7601506ec3269e8:0",
+          "f7b0e0cef34641228197dcbd3b5c29bf:0",
+          "f7db62ffae034d87a578aca758402939:0",
+          "f82f5688c72a4f4d899728b2bd4f3949:0",
+          "f83862e07f9c4c00b962ee7b9a3ef1c8:0",
+          "f87341c990a64f6cbf6773e68e3e6abb:0",
+          "f903af90c28b437789ddfc2d387292fc:0",
+          "f9920e7de21e4dd1893dc4a07bddaaa8:0",
+          "f9c13b45bf894b539fb7b57c04270160:0",
+          "fa3f221fda5846ee972bcf0d91c02789:0",
+          "faba15296ab749afa0a1f6a4615b8fc6:0",
+          "fb3f93375c164476ae34b0a921aaf6b0:0",
+          "fbf9d536aca34109831190a3a82cbe19:0",
+          "fc9574176de14872b0b132896ca27248:0",
+          "fd5f5c82c0f54b08b9d1cb7dca8c7767:0",
+          "fe104255a7d3455eadd3f997f1cbdad5:0",
+          "fe44bab22be64e00b886e9182fdeef93:0",
+          "fe64077294c241cfa101a460f6d0f1a6:0",
+          "fed356676ace461aade85e2ea27afb6b:0"
+        ],
+        "audit_complete": true,
+        "capture": {
+          "bytes": 246349049,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/report.json",
+          "sha256": "fb9f04225d02f9925c8a8341da14de740a0324f6622974430ed8dfc37586e9d1"
+        },
+        "capture_complete": true,
+        "command": [
+          "/usr/bin/python3",
+          "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/report.json",
+          "--step",
+          "build-runtime-and-extensions",
+          "--ocorec",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/ocorec",
+          "--target",
+          "riscv64-unknown-none",
+          "--jobs",
+          "1",
+          "--output",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile",
+          "--llvm-library",
+          "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "--llvm-sha256",
+          "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+          "--llvm-dis",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/llvm-dis"
+        ],
+        "exit_code": 1,
+        "first_failure_groups": [
+          {
+            "count": 113,
+            "diagnostic_stage": "import",
+            "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+            "stage": "import",
+            "unit_ids": [
+              "012d5d313c6d4f238b20851c12d1c30c:0",
+              "01323c1975674a1a9d99d852589461a3:0",
+              "0cfb8d6119044fe2af1eb2c129bb80ce:0",
+              "0d789601b8c84da89c5df5da43dc72bf:0",
+              "0df797378025425e85009b272ca6e59d:0",
+              "1243a8a166b34137b63030cf7b5c294a:0",
+              "1297969d1bcf4292a2c357a73a42cbc1:0",
+              "1572c869de4347298bdf0d467db8954a:0",
+              "15e8a0f8378f467295fe2fd73fee4ef8:0",
+              "15f6688755724de59a8069c98b7fdb37:0",
+              "16bfe9e6e61647de9e13b4fa35470e8d:0",
+              "16cb83f5e2d3487cb2b2cdf29da95c04:0",
+              "1862b68a09344524a453019948a241db:0",
+              "1ae045f3e9fe4070aaec40bd4690f21f:0",
+              "1bfccf0849534116be2d0e8edb36b063:0",
+              "1cf23c78adce414d849a92411dca71ce:0",
+              "1d71a8d4a5a94bbabbe21d7bf1571c76:0",
+              "1db50e49552e47e4a7db39111adaaee9:0",
+              "1e0192a820a143ca8519dce40fcf67ea:0",
+              "25f38dc20a4c4f77ae6841446aba2b70:0",
+              "283b26f6391c48cc96b055cdb3910d5f:0",
+              "31d74078c77642f794f054d6359a341f:0",
+              "322ad58e238143cd94607c2384f64147:0",
+              "32fb5876784844988e186fa99cff935b:0",
+              "35220b5f99dc46ccb82b62105507b8a5:0",
+              "3af5f7c4c4154b3c832a2adb4a3ea7b0:0",
+              "42b3691c8906422b867634a992c36257:0",
+              "4428f6f85e5147bab322d1a3f79278b2:0",
+              "453365fb2f194632b2579fd9e77e61c0:0",
+              "46219687def94955a3b4f76374237ec9:0",
+              "475f0fb3a52f494a8ddbd194caa2c894:0",
+              "4767b3e10d3c407bbb1128fad5dda570:0",
+              "4b3637b10ece4faf9eab7519c171bf19:0",
+              "4c79d70f22b145e1b0145572212060a1:0",
+              "4cac4cb6064942e0a7472637d6e3968c:0",
+              "4e579ec31a7e48dfb1969e5295ec9f63:0",
+              "50293356865d47c796c6f728915c320a:0",
+              "51832023683d44018b60434dc348dbe1:0",
+              "52d08fef74414582a8ea4bfe98b67cf0:0",
+              "541c6f8c4f214e47be059164d456d2a1:0",
+              "58da8e3a522c4cca85cc9e7465da17a3:0",
+              "5fd6f1b464e84e99a4da826de8157c27:0",
+              "610b17bae6e14376bc92c5c6f4c6698c:0",
+              "62b4ab39f1734938944ab6222db39b4b:0",
+              "64344c519ce94722a5c499b7a42dce43:0",
+              "6522827a7092474da2e3ce9dabd6a04e:0",
+              "679f2a44608f45808b430947c20c6f24:0",
+              "67f36c51489b4c858cecc48faaeac813:0",
+              "6975d22cd5c54bb3a79fff3caebfd2af:0",
+              "69b057ea94a64327b22abdc9a898b3ba:0",
+              "6b09ea5d74924b88a56551c6d20d0ec1:0",
+              "6d56d4b10b484651af70b64f7a21d105:0",
+              "721ca9776d304daeaa4c9140291063d3:0",
+              "72edf262acfa4ce3a5e85494aac9b11d:0",
+              "7930bfc6af674be1bf2d78d5d607bf1d:0",
+              "794110ceda8240bb807bab6d95620239:0",
+              "79cff8ec90f94905bde73c173b0d5505:0",
+              "79e37c7eadc944b88ec94652f124a393:0",
+              "7a0870f800e04245a7d541afac1cfbd2:0",
+              "7dedeab33d904fc29736ee1ea6ed20ff:0",
+              "7dfa919480644a03be0257634ecc43ef:0",
+              "8467017248944c96a241c02edfd4474f:0",
+              "860a16abf6a247cfbe52dc116e03c4d9:0",
+              "892d8279865047de91f132f47c575690:0",
+              "8aa71ed4e3884287af02c7f6790ce398:0",
+              "8cdfbcc4d7124629888a2c3bd5e14691:0",
+              "8f4ce78bbcb6457fb725761961bbe4f4:0",
+              "915125a3c2bc486888de81064b4940f1:0",
+              "928caa1a8c48415ab9d4bd9a007655eb:0",
+              "9935cf5647654d03b2890b772d4e7238:0",
+              "9c1555c8a1c444e9b1ea294f4c219a20:0",
+              "a43e77972f6b4c3e8730bfe5da7a7d96:0",
+              "a80f7bb4df9640829b1d028c3531f597:0",
+              "a8874eb91033452ea0420dc784f5d0f8:0",
+              "a9df7bbe08ca4087b587c225dfbaeed8:0",
+              "ab67bdead0c746fd88eeea64a933e207:0",
+              "ae49e56bc00c47269dcd3475782b637e:0",
+              "b1c5588bc7fb421eb0e311fe3f26635d:0",
+              "b2904dd1727a4476844be24582238f4b:0",
+              "b883639bcaef4fc6bc0b88582c6e6528:0",
+              "babfe285e43449e4bebacdbd538b7e1f:0",
+              "bdc6999bba8b4398982fad864c9d7fa1:0",
+              "c21aec8ca3134430a7e8d3e069b59cc3:0",
+              "c66ebcef60c54a6b93c5b4d7710f1cd2:0",
+              "ca3beafb7f8f435f91cf20350dac8784:0",
+              "d0a0a0b3e7a542088e85212d664fcfb2:0",
+              "d0c77cec9a8442aa884dab7e611734a8:0",
+              "d9d9e458441a40df88652802127360f8:0",
+              "de458d3a6bfe4e6d8d6509aea9d78dc1:0",
+              "df8a07a5cbe84a398c4c084fdfd79584:0",
+              "e489f44e5c5e4a3b9b2fa0b3c35520fa:0",
+              "e6035f1bc00145579438cd611b54acb0:0",
+              "e754a103d18e423cb16f2c088c79b387:0",
+              "e797ec8fb34642a5bf02144a0d547c26:0",
+              "e80662417f714fd685635ceaf1ddc174:0",
+              "e8c1e3ceb13c46b5abea5df83fd1f08c:0",
+              "eb60d18b2ac54cf5bc85f380f9a377bc:0",
+              "ebd2439a499b4d63a312b0d9d7ce044d:0",
+              "ed2d60d6e0aa45ffaae12d5ed4dc0408:0",
+              "ee6cf303a4f846288f329e8277423470:0",
+              "f073d2820bf74d00998de80f9c5234ec:0",
+              "f1755a962027435d8016ec3c131317ca:0",
+              "f2355ac09b5e48938ee730290870aed5:0",
+              "f56ca531c23a479fb45d3db2efbc5e1c:0",
+              "f767e626c530407db7601506ec3269e8:0",
+              "f7db62ffae034d87a578aca758402939:0",
+              "fa3f221fda5846ee972bcf0d91c02789:0",
+              "faba15296ab749afa0a1f6a4615b8fc6:0",
+              "fc9574176de14872b0b132896ca27248:0",
+              "fd5f5c82c0f54b08b9d1cb7dca8c7767:0",
+              "fe104255a7d3455eadd3f997f1cbdad5:0",
+              "fe44bab22be64e00b886e9182fdeef93:0",
+              "fe64077294c241cfa101a460f6d0f1a6:0"
+            ]
+          },
+          {
+            "count": 101,
+            "diagnostic_stage": "import",
+            "message": "variadic calling convention is unsupported",
+            "stage": "import",
+            "unit_ids": [
+              "0a106d6b99d34ea398ce57432771e161:0",
+              "0a813c0a783e4106b8bc16fb708e5899:0",
+              "160f8f87eba7442ca889c8c27be3ba1a:0",
+              "194452c4f9004dcda729a894ef592c53:0",
+              "1ad58eeeaaae40e9907b96b1011fe91d:0",
+              "1d5135a308e14835827108a1fc4d6218:0",
+              "1dfcc5f7697f4552ad17776bc5275547:0",
+              "23ca17ce2d2e48dc945d14b0cf13a822:0",
+              "2863686e2c8e47a1a0c353cd904439bb:0",
+              "28ab9a98613f4464bd71e19f21ab67ff:0",
+              "28e06e460e004f8daef4b7ca8133b2c9:0",
+              "2cd1825f905d4b118eacfc3124192291:0",
+              "2ffc641b27bf45d6a4e424634d817761:0",
+              "30100d1ff4d041c597dfe7dd67d9b77f:0",
+              "321fc155f5d2478289f8b4caa7cd2df1:0",
+              "343594b46d4a4fcbaa82199012004edc:0",
+              "37019699eda14896b274b92ff6c27142:0",
+              "381407693a5c41538c38c79341199a66:0",
+              "393ea09a319647f5ad4e817df6362659:0",
+              "3c3e4854e3e54464b2570d719bee6f6d:0",
+              "3c4bd54c626d4dbe8296e473ee6dcae9:0",
+              "3ca07b6a3e834ba7bc0a32af9160965f:0",
+              "3f06d05632cf4e6187a8ebcd65d31022:0",
+              "403b808b644c458b962eedb2267948c7:0",
+              "417b1f71561448bba1190328fe88c710:0",
+              "45256854c7bc456490ab0225f66757d2:0",
+              "4561a213306a4d15b6828364d2f2b9d4:0",
+              "4833d0b1fdc84eeaa1c3c7d21352194b:0",
+              "4ce6a606e99b4e54906848d1cf98c655:0",
+              "4d94b0f074b147ae9cb62eb6266b696f:0",
+              "4dab6a706fab4d7db4fdc8fdc9284613:0",
+              "508b9c29d7e247b4bc19f3ac2caf62c6:0",
+              "51d21c67d6f246289e483e7ccb172945:0",
+              "54e86c70cc5c4d4b9263560a43782a46:0",
+              "54f5e728ce374cf480f586808af2136b:0",
+              "57366a26c6494b94b9bd4ac4a17dba7b:0",
+              "594e1349971e4e01bac0e06a6e789249:0",
+              "607c3fee0aab424c9a70d7c737a5a2cc:0",
+              "609abab104c4449dada12872f2f9763c:0",
+              "654d726a58af4f268fb70ac8fa07e353:0",
+              "65bb8bcea88e4626bb6b40e88a409681:0",
+              "665d9530356e4030941b5139c3de97c8:0",
+              "66ae9c1bef864709b66c162e292ac0f7:0",
+              "69f6afacdeb945b5b81aa04964ba5dac:0",
+              "6ea45d4cc7d74f11a8625c723908eb2c:0",
+              "6ee0e4266c484b00814f712843baa949:0",
+              "70defa5420a2425584e145500e74158f:0",
+              "725f20ee55b34cb8aadbe6f69c2882f7:0",
+              "72a97950efc045bdba04f1f54a2cc24d:0",
+              "746040ba10194a77a848efa0b30633a0:0",
+              "74b9cbbf9e1c4569b4d930f758752038:0",
+              "7516610cc7624612bddfc0254cf42b31:0",
+              "754ab66301cc4be8aa5c43c4a567f1a4:0",
+              "75ea0d1bced44be2b6c98650e31d1999:0",
+              "791abe8322af4476ba1cfae6e3815067:0",
+              "7abd356878de4497b48c27e8199ef595:0",
+              "7b917cc0c70c45869da38caa75007d94:0",
+              "7db417e3323c442185d8ea659264a026:0",
+              "814f02433a324abc892485247f8b442d:0",
+              "82244973073d413aab46cc01748fcaa7:0",
+              "8409354c674748628fb47653acb370b0:0",
+              "8d82f1df3b344e7f946f2dc57f0fd997:0",
+              "93429e140c5446b0878f05879aaf78ce:0",
+              "949974137d2648a8b745cf8700dfda40:0",
+              "94e922475c2f4c768a3b57c5231b41df:0",
+              "95c0c293bd7048d5ba13b9b83b034dbe:0",
+              "9a5cb102dee344eba55f50ceb6fb5a53:0",
+              "9bbb56422cfc43b89fc59a26f13c3b38:0",
+              "9c336a45a94c47f189dad1ccdc4e2830:0",
+              "9e668e1499ca4915bc1ba189e3fb375f:0",
+              "9efeb46967ea4ea0a228b3229bc6421e:0",
+              "a87b99f07eab432ba4325137c4d8d931:0",
+              "ab7565cc525f466f839b34dd3edd690b:0",
+              "adbf60a2a9e24fe8a43c0e1b290a836d:0",
+              "aeb68d6768f7451f899224d3d534485c:0",
+              "aedcab5052b54a40a0d32f2de1d6c2a2:0",
+              "b15ba3c3bf2e494d9062a917992ed290:0",
+              "b3abc028413f4bbb9b6f8d7275db2d21:0",
+              "b3e979fbf80446cd900139336be963a9:0",
+              "b45886de6dec424ea788afcc01018196:0",
+              "b5681ddadb9d480a8145ff8222a047d0:0",
+              "b64ccf955fa14ae1aa541c74a1ee9260:0",
+              "bcd6af5dc065450dba0516d1469fb017:0",
+              "be71b92fb3e140d18c48eddd312c41c0:0",
+              "c1186977bd2a415588e4efca902be6fd:0",
+              "c6c6cab1013644faaee04222dd8384f5:0",
+              "cf489acce1584b50b448365cf5ec01c0:0",
+              "d0812a9b3fa84bd386c305075e4d8ace:0",
+              "d10f27813f4d42f5b693f0133d4b8f76:0",
+              "d3f0e38f0f51413a95d0a55b48f11f32:0",
+              "d9b721513a5145ed8d6870a6f1a5e834:0",
+              "db4f01d26a7a4ca1b45e43320831367e:0",
+              "dd744912922b464cb56aa45252190cff:0",
+              "de559cbcf6d2496685a839314a73a7c3:0",
+              "e33c14bdfe164d66b8f548f45b3aa691:0",
+              "e8a166392908435b9458024a3307cefe:0",
+              "ef09e95fe15e489ea57b6a1021977072:0",
+              "efd7588cf2d84263b5cf9cf69a064b35:0",
+              "f7b0e0cef34641228197dcbd3b5c29bf:0",
+              "f87341c990a64f6cbf6773e68e3e6abb:0",
+              "fed356676ace461aade85e2ea27afb6b:0"
+            ]
+          },
+          {
+            "count": 33,
+            "diagnostic_stage": "import",
+            "message": "TLS globals require explicit --tls-profile linux-elf-static-nonpreemptive-v1",
+            "stage": "import",
+            "unit_ids": [
+              "03025b21ecbf4418b54c8a112035f144:0",
+              "09911e8dfd48405183c7376f119bf35e:0",
+              "0ddbb20d743e4901987117ade73bdb0b:0",
+              "1043884a25cb42dc8367e4e5fa390c11:0",
+              "23930bd0e3184ad7877e0526179bf317:0",
+              "2856e06de93e46a18f6f944c109b9c51:0",
+              "32381c2aa45f41159bc1b22662610537:0",
+              "32f6e1b9a66242b3a2bfee383d50dc99:0",
+              "35b83cff464348be89398ffabc1ff80b:0",
+              "363afad5b7514c5b8275156cc8f83881:0",
+              "5942fa9e9468445bbd27498d7bf59c97:0",
+              "61de55b5dc604011af4e4a486df43395:0",
+              "63a6a0c22509455e9c92f6884493f2c0:0",
+              "6bec469463a146f2ba2cd4671367541a:0",
+              "75ad070d509646538a4b60babbd7ea6d:0",
+              "8bf7ff1105154d648c5216bb27a7eab7:0",
+              "982a472b6d6a4d10bb72fd0e7e7a9527:0",
+              "99585a2bfa9249d1b60070813bdfa0ff:0",
+              "a62ab4b2c6b2402389b67e26d2de44f4:0",
+              "b9c4e7d177b3453896fce8fcdff30e55:0",
+              "bade574f49584595ae17ea6d8d19d66f:0",
+              "bdf0f93a7752418a8bd18b9fc60f5000:0",
+              "c32a577b753348499642f80394e8d4cc:0",
+              "c58038f7a44b4ed797dccc1eb4a7a8da:0",
+              "de3585f416d14871a4dfd3a04cb90b65:0",
+              "e1c9709bb1fc4e429de396fb76a9a360:0",
+              "e68d1dbeabe94ca38a006de3c92ff6e3:0",
+              "ebbcfeff305d49989b4273515f6e10ed:0",
+              "ebe3e74d0e454ea4a34a0dc9695fc038:0",
+              "f20439e649174587a27e32695fd51cd3:0",
+              "f6e21eac3c8b417086e205e4bb869d2a:0",
+              "f83862e07f9c4c00b962ee7b9a3ef1c8:0",
+              "f9c13b45bf894b539fb7b57c04270160:0"
+            ]
+          },
+          {
+            "count": 13,
+            "diagnostic_stage": "import",
+            "message": "opaque structure has no importable layout",
+            "stage": "import",
+            "unit_ids": [
+              "3aaff99926e848c2b674e18f73dce96d:0",
+              "3d0ffe20a0dd4775a4a4eff8ea8740f5:0",
+              "4c32d384968e4ff4826db8b1d8c00546:0",
+              "4f8755f5b5654d24b30e99d1ce400088:0",
+              "5f7a643aae674402bb298fcad1c5a303:0",
+              "71d89deaaee94ddda3ceb2188a69c50e:0",
+              "759c8a40663d4e48b045f7288caeec55:0",
+              "8dd72c93a1aa40ae9aac92cab10f8010:0",
+              "9a7dcaa0967447abba6d6c4834638fcf:0",
+              "ade822ec99374ace90e802d689e512df:0",
+              "c3ddcb6f0a5a493a942e790017116afe:0",
+              "d05645eb652b45c98572da6bdeed2272:0",
+              "dff8e2c878484c07aa1b18c80bd9199b:0"
+            ]
+          },
+          {
+            "count": 9,
+            "diagnostic_stage": null,
+            "message": "error: ocorec failed",
+            "stage": "object",
+            "unit_ids": [
+              "2d6ef387315e47dfa2730f13fe72f063:0",
+              "5bf892d462944cc785b834d4aa6b8ef1:0",
+              "702518ae19484bc79968ae7c45a66c8c:0",
+              "9564ebc112a24c2dab71d42308785c30:0",
+              "97cf00162c0f47c9b147d546bc18e743:0",
+              "9c3ea5d769d945aba97229e6d97deee0:0",
+              "e007a11301c143db9aa672bf864f9d04:0",
+              "ede8294e2a824f85aae6b1ee5b616e91:0",
+              "f6d17184b9564e549f837c0bc96dc459:0"
+            ]
+          },
+          {
+            "count": 6,
+            "diagnostic_stage": "import",
+            "message": "unsupported integer width i128",
+            "stage": "import",
+            "unit_ids": [
+              "2e4950dcfacc4619ad201702cf2a7886:0",
+              "37f55774b6ea413d85f424723ec4eb73:0",
+              "6b30d7183f8d4d7e88bc490cd5e9be71:0",
+              "7d460ed3c5a44a38af8eff16be4f816f:0",
+              "870d1e824e0a44c885ea5acf91951a54:0",
+              "9a77a89a26af4d15962b449b59ee448b:0"
+            ]
+          },
+          {
+            "count": 4,
+            "diagnostic_stage": "import",
+            "message": "intrinsic llvm.fshl.i32 requires explicit call lowering",
+            "stage": "import",
+            "unit_ids": [
+              "0884cafdf0364a048438c6859ab3459c:0",
+              "506a857e512a439b8d8ddd0c8fac7f3d:0",
+              "7dc1d968d38546f08bea386bbdc499f3:0",
+              "84866b2283124daeb22a40b0ce7d2997:0"
+            ]
+          },
+          {
+            "count": 4,
+            "diagnostic_stage": "import",
+            "message": "unsupported attribute kind 9 at index 1",
+            "stage": "import",
+            "unit_ids": [
+              "047a88e9b388487a922a8e69980e8449:0",
+              "3e7f471f17a04f4986376503bd2bab1d:0",
+              "5b7663f6b7a04568b9ff3656d16ff102:0",
+              "709bce82c2f545409edd8220e71cac57:0"
+            ]
+          },
+          {
+            "count": 2,
+            "diagnostic_stage": "import",
+            "message": "intrinsic llvm.abs.i64 requires explicit call lowering",
+            "stage": "import",
+            "unit_ids": [
+              "22128f6034944b259f0dcc7425137cfe:0",
+              "5f69f143645544429bb337353be73431:0"
+            ]
+          },
+          {
+            "count": 2,
+            "diagnostic_stage": "import",
+            "message": "intrinsic llvm.bswap.i32 requires explicit call lowering",
+            "stage": "import",
+            "unit_ids": [
+              "425e47a91c9d43b9921d6af8247a6242:0",
+              "5aff22dcd6b149028a920ffe91eed8c1:0"
+            ]
+          },
+          {
+            "count": 2,
+            "diagnostic_stage": "import",
+            "message": "intrinsic llvm.fshl.i64 requires explicit call lowering",
+            "stage": "import",
+            "unit_ids": [
+              "e3f29a6cacd54267a482527f38f24242:0",
+              "e7488459f23e4f228e317bc726c213a3:0"
+            ]
+          },
+          {
+            "count": 2,
+            "diagnostic_stage": "import",
+            "message": "unsupported LLVM type kind 2 (float, vector, token and target types require another lowering)",
+            "stage": "import",
+            "unit_ids": [
+              "1fdf9cc313614a92a05aa2182226461e:0",
+              "de07004fbfae482c93dcf74f4ec18626:0"
+            ]
+          },
+          {
+            "count": 2,
+            "diagnostic_stage": "import",
+            "message": "unsupported metadata kind 23",
+            "stage": "import",
+            "unit_ids": [
+              "7147f9344b9d4e7ea0d6581e1d103e97:0",
+              "d3ed82362a8a400c8af856694a27b156:0"
+            ]
+          },
+          {
+            "count": 1,
+            "diagnostic_stage": "import",
+            "message": "intrinsic llvm.abs.i32 requires explicit call lowering",
+            "stage": "import",
+            "unit_ids": [
+              "e06933840aeb44d1985bf0a6d75b96e7:0"
+            ]
+          },
+          {
+            "count": 1,
+            "diagnostic_stage": "import",
+            "message": "intrinsic llvm.ctpop.i64 requires explicit call lowering",
+            "stage": "import",
+            "unit_ids": [
+              "93bcf320b3014fddb0ceb012869e14c9:0"
+            ]
+          },
+          {
+            "count": 1,
+            "diagnostic_stage": "import",
+            "message": "unsupported DLL storage or explicit section",
+            "stage": "import",
+            "unit_ids": [
+              "c2cffcfd7ceb432b8395dd94b9dcbf99:0"
+            ]
+          },
+          {
+            "count": 1,
+            "diagnostic_stage": "import",
+            "message": "unsupported attribute kind 55 at index 4294967295",
+            "stage": "import",
+            "unit_ids": [
+              "41bd6f25bc464ca89ce071f48b3e4fcf:0"
+            ]
+          }
+        ],
+        "imported_unit_count": 72,
+        "independently_verified_unit_count": 72,
+        "language": "python",
+        "log": {
+          "bytes": 3485,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile.log",
+          "sha256": "739d1c396fe17c9b6a2156222a8307f37f9831c9e057a18388ec90c2634f58b7"
+        },
+        "name": "cpython-full-hosted-profile",
+        "native_execution_qualified": false,
+        "report": {
+          "bytes": 2072129,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/cpython-full-hosted-profile/report.json",
+          "sha256": "4b9c3d36c1371feefbb8f9aee76fe121d11eb8a15ef51a7fb194e5b7c13c643d"
+        },
+        "runtime_complete": false,
+        "selected_units": 360,
+        "source": {
+          "clean_at_start": true,
+          "commit_timestamp": "1791544954",
+          "path": "/home/orangepi/ostadix-census-rv64-20261015-102303/src/cpython",
+          "revision": "c35ca4cb6e296d1770fe45f9414b58eb06242e02",
+          "submodules": [],
+          "url": "https://github.com/python/cpython.git"
+        },
+        "step": "build-runtime-and-extensions",
+        "verified_object_count": 63,
+        "definition_counts": [
+          {
+            "function_declarations": 20,
+            "functions": 4,
+            "globals": 2
+          },
+          {
+            "function_declarations": 0,
+            "functions": 3,
+            "globals": 69
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 65
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 3
+          },
+          {
+            "function_declarations": 4,
+            "functions": 2,
+            "globals": 3
+          },
+          {
+            "function_declarations": 6,
+            "functions": 2,
+            "globals": 1
+          },
+          {
+            "function_declarations": 5,
+            "functions": 2,
+            "globals": 12
+          },
+          {
+            "function_declarations": 37,
+            "functions": 28,
+            "globals": 60
+          },
+          {
+            "function_declarations": 1,
+            "functions": 1,
+            "globals": 1
+          },
+          {
+            "function_declarations": 0,
+            "functions": 1,
+            "globals": 1
+          },
+          {
+            "function_declarations": 4,
+            "functions": 1,
+            "globals": 1
+          },
+          {
+            "function_declarations": 5,
+            "functions": 6,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 8,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 8,
+            "functions": 2,
+            "globals": 13
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 31,
+            "functions": 16,
+            "globals": 36
+          },
+          {
+            "function_declarations": 2,
+            "functions": 3,
+            "globals": 0
+          },
+          {
+            "function_declarations": 35,
+            "functions": 18,
+            "globals": 43
+          },
+          {
+            "function_declarations": 10,
+            "functions": 3,
+            "globals": 0
+          },
+          {
+            "function_declarations": 1,
+            "functions": 8,
+            "globals": 0
+          },
+          {
+            "function_declarations": 31,
+            "functions": 16,
+            "globals": 37
+          },
+          {
+            "function_declarations": 15,
+            "functions": 5,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 1,
+            "globals": 1
+          },
+          {
+            "function_declarations": 21,
+            "functions": 16,
+            "globals": 10
+          },
+          {
+            "function_declarations": 18,
+            "functions": 5,
+            "globals": 10
+          },
+          {
+            "function_declarations": 24,
+            "functions": 8,
+            "globals": 31
+          },
+          {
+            "function_declarations": 0,
+            "functions": 1,
+            "globals": 1
+          },
+          {
+            "function_declarations": 4,
+            "functions": 4,
+            "globals": 4
+          },
+          {
+            "function_declarations": 22,
+            "functions": 16,
+            "globals": 57
+          },
+          {
+            "function_declarations": 3,
+            "functions": 3,
+            "globals": 3
+          },
+          {
+            "function_declarations": 39,
+            "functions": 22,
+            "globals": 75
+          },
+          {
+            "function_declarations": 8,
+            "functions": 3,
+            "globals": 139
+          },
+          {
+            "function_declarations": 17,
+            "functions": 25,
+            "globals": 7
+          },
+          {
+            "function_declarations": 15,
+            "functions": 3,
+            "globals": 39
+          },
+          {
+            "function_declarations": 4,
+            "functions": 3,
+            "globals": 38
+          },
+          {
+            "function_declarations": 17,
+            "functions": 11,
+            "globals": 25
+          },
+          {
+            "function_declarations": 3,
+            "functions": 3,
+            "globals": 10
+          },
+          {
+            "function_declarations": 7,
+            "functions": 4,
+            "globals": 0
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 10,
+            "functions": 15,
+            "globals": 90
+          },
+          {
+            "function_declarations": 8,
+            "functions": 5,
+            "globals": 19
+          },
+          {
+            "function_declarations": 20,
+            "functions": 9,
+            "globals": 25
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 22
+          },
+          {
+            "function_declarations": 14,
+            "functions": 6,
+            "globals": 16
+          },
+          {
+            "function_declarations": 3,
+            "functions": 3,
+            "globals": 0
+          },
+          {
+            "function_declarations": 5,
+            "functions": 2,
+            "globals": 48
+          },
+          {
+            "function_declarations": 2,
+            "functions": 2,
+            "globals": 1
+          },
+          {
+            "function_declarations": 45,
+            "functions": 20,
+            "globals": 130
+          },
+          {
+            "function_declarations": 20,
+            "functions": 11,
+            "globals": 40
+          },
+          {
+            "function_declarations": 16,
+            "functions": 8,
+            "globals": 22
+          },
+          {
+            "function_declarations": 12,
+            "functions": 13,
+            "globals": 5
+          },
+          {
+            "function_declarations": 0,
+            "functions": 0,
+            "globals": 0
+          },
+          {
+            "function_declarations": 1,
+            "functions": 3,
+            "globals": 10
+          },
+          {
+            "function_declarations": 2,
+            "functions": 2,
+            "globals": 2
+          },
+          {
+            "function_declarations": 0,
+            "functions": 2,
+            "globals": 1
+          },
+          {
+            "function_declarations": 9,
+            "functions": 10,
+            "globals": 0
+          },
+          {
+            "function_declarations": 1,
+            "functions": 1,
+            "globals": 0
+          },
+          {
+            "function_declarations": 7,
+            "functions": 7,
+            "globals": 10
+          },
+          {
+            "function_declarations": 20,
+            "functions": 17,
+            "globals": 32
+          },
+          {
+            "function_declarations": 18,
+            "functions": 2,
+            "globals": 5
+          },
+          {
+            "function_declarations": 4,
+            "functions": 64,
+            "globals": 348
+          },
+          {
+            "function_declarations": 1,
+            "functions": 1,
+            "globals": 0
+          },
+          {
+            "function_declarations": 26,
+            "functions": 43,
+            "globals": 56
+          },
+          {
+            "function_declarations": 24,
+            "functions": 1,
+            "globals": 3
+          },
+          {
+            "function_declarations": 31,
+            "functions": 0,
+            "globals": 34
+          },
+          {
+            "function_declarations": 18,
+            "functions": 2,
+            "globals": 13
+          }
+        ],
+        "raw_bitcode_decode_count": 0,
+        "retained_provenance_unit_count": 876,
+        "decoder_evidence": null,
+        "provider_closure_complete": false,
+        "dependency_closure_complete": false
+      },
+      {
+        "all_units_lowered": false,
+        "attempted_unit_ids": [
+          "0f23a2b15e424800a86d600b31b979af:0",
+          "2b292d7eeeaf400cb8c0abcba0d727ac:0",
+          "4273617f98ba4b45991b37b213e4ab3e:0",
+          "653d5f958f0a474ba2f617b6d04af1ea:0",
+          "78f8ddc92c2b4d75a7f3278435d9de59:0",
+          "7922559172174b999fe6cb6b6ff24960:0",
+          "d3b2cacf94644bb384bbddb70601692f:0",
+          "e19dfffc732d4323a82e6a70f8d73db8:0",
+          "e5eaed1862764144ae2f877d323b4407:0"
+        ],
+        "audit_complete": true,
+        "capture": {
+          "bytes": 2315388,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+          "sha256": "d7883256853bb11b7de7b9023242df5047be4d9dfa171b7c78fa2b732a9c6bf0"
+        },
+        "capture_complete": true,
+        "command": [
+          "/usr/bin/python3",
+          "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+          "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+          "--step",
+          "build-original-chibicc",
+          "--ocorec",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/ocorec",
+          "--target",
+          "riscv64-unknown-none",
+          "--jobs",
+          "1",
+          "--output",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/c-chibicc",
+          "--llvm-library",
+          "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "--llvm-sha256",
+          "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+          "--llvm-dis",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/llvm-dis"
+        ],
+        "exit_code": 1,
+        "first_failure_groups": [
+          {
+            "count": 9,
+            "diagnostic_stage": "import",
+            "message": "variadic calling convention is unsupported",
+            "stage": "import",
+            "unit_ids": [
+              "0f23a2b15e424800a86d600b31b979af:0",
+              "2b292d7eeeaf400cb8c0abcba0d727ac:0",
+              "4273617f98ba4b45991b37b213e4ab3e:0",
+              "653d5f958f0a474ba2f617b6d04af1ea:0",
+              "78f8ddc92c2b4d75a7f3278435d9de59:0",
+              "7922559172174b999fe6cb6b6ff24960:0",
+              "d3b2cacf94644bb384bbddb70601692f:0",
+              "e19dfffc732d4323a82e6a70f8d73db8:0",
+              "e5eaed1862764144ae2f877d323b4407:0"
+            ]
+          }
+        ],
+        "imported_unit_count": 0,
+        "independently_verified_unit_count": 0,
+        "language": "c",
+        "log": {
+          "bytes": 438,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/c-chibicc.log",
+          "sha256": "38fd85ce3012963b768c58563754c331b3d75432027520256c032420f58f44e2"
+        },
+        "name": "c-chibicc",
+        "native_execution_qualified": false,
+        "report": {
+          "bytes": 36583,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/c-chibicc/report.json",
+          "sha256": "e7e9565e289bfa6b98c8e438808f50a01d9dd1d9733f79ac40dfd96ea4773f12"
+        },
+        "runtime_complete": false,
+        "selected_units": 9,
+        "source": {
+          "clean_at_start": true,
+          "commit_timestamp": "1607310006",
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source",
+          "revision": "90d1f7f199cc55b13c7fdb5839d1409806633fdb",
+          "submodules": [],
+          "url": "https://github.com/rui314/chibicc.git"
+        },
+        "step": "build-original-chibicc",
+        "verified_object_count": 0,
+        "definition_counts": [],
+        "raw_bitcode_decode_count": 0,
+        "retained_provenance_unit_count": 9,
+        "decoder_evidence": null,
+        "provider_closure_complete": false,
+        "dependency_closure_complete": false
+      },
+      {
+        "all_units_lowered": true,
+        "attempted_unit_ids": [
+          "9892501c3a7149c5a9f67b3d087b9680:0"
+        ],
+        "audit_complete": true,
+        "capture": {
+          "bytes": 52543,
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+          "sha256": "31b6c7cf6a506d3327673dedc686d7b8f340dff309ba827d07c56babcd054408"
+        },
+        "capture_complete": true,
+        "command": [
+          "/usr/bin/python3",
+          "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+          "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+          "--step",
+          "build-entire-default-rust-library",
+          "--ocorec",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/ocorec",
+          "--target",
+          "riscv64-unknown-none",
+          "--jobs",
+          "1",
+          "--output",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default",
+          "--llvm-library",
+          "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "--llvm-sha256",
+          "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+          "--llvm-dis",
+          "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/llvm-dis"
+        ],
+        "exit_code": 0,
+        "first_failure_groups": [],
+        "imported_unit_count": 1,
+        "independently_verified_unit_count": 1,
+        "language": "rust",
+        "log": {
+          "bytes": 292,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default.log",
+          "sha256": "f4428d37e7acfe21148b46d809c3745dd200385510d00faca0a4c67a32a5ab81"
+        },
+        "name": "rust-adler2-default",
+        "native_execution_qualified": false,
+        "report": {
+          "bytes": 14521,
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default/report.json",
+          "sha256": "bf25c1203ae2adb54a9717b37aebc4a48969d3a93d4acea96e76cb10bfa41055"
+        },
+        "runtime_complete": false,
+        "selected_units": 1,
+        "source": {
+          "clean_at_start": true,
+          "commit_timestamp": "1749508274",
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-source",
+          "revision": "89a031a0f42eeff31c70dc598b398cbf31f1680f",
+          "submodules": [],
+          "url": "https://github.com/oyvindln/adler2"
+        },
+        "step": "build-entire-default-rust-library",
+        "verified_object_count": 1,
+        "definition_counts": [
+          {
+            "function_declarations": 3,
+            "functions": 3,
+            "globals": 0
+          }
+        ],
+        "raw_bitcode_decode_count": 1,
+        "retained_provenance_unit_count": 1,
+        "decoder_evidence": {
+          "bytes": 34560,
+          "llvm_version": "22.1.6",
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/tools/llvm-dis",
+          "sha256": "f4627dba95c7db30807c4f90e8fbbc2473a2847a5620e056bbb61abbc576c9cd",
+          "snapshot": {
+            "bytes": 34560,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default/tools/llvm-dis",
+            "sha256": "f4627dba95c7db30807c4f90e8fbbc2473a2847a5620e056bbb61abbc576c9cd"
+          },
+          "version_argv": [
+            "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default/tools/llvm-dis",
+            "--version"
+          ],
+          "version_exit_code": 0,
+          "version_stderr": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default/tools/llvm-dis-version.stderr",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "version_stdout": {
+            "bytes": 46,
+            "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/whole-unit-matrix-uuidfix/rust-adler2-default/tools/llvm-dis-version.stdout",
+            "sha256": "1d6a417a12b86c8ce066a1cf20e84fc2819bd21dc947fe12fd381e8dcec5c804"
+          }
+        },
+        "provider_closure_complete": false,
+        "dependency_closure_complete": false
+      }
+    ],
+    "counts_are_actual_outcomes_not_planned_source_counts": true
+  },
+  "python": {
+    "pipeline": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/pipeline-uuidfix.json",
+      "bytes": 5386,
+      "sha256": "84d37d9d0b6e753d33d42f1956d2801b65674a96d2657a214209f5029ffc3775"
+    },
+    "pipeline_stage": "complete",
+    "source_launch": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/launch.json",
+      "bytes": 10841,
+      "sha256": "399382085ced5a9a13422fa0c606f71550dac58421ca4cbd53c0fc48cfd4c467"
+    },
+    "source_route_exit_code": 1,
+    "source_receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/source-recipe.json",
+      "bytes": 4804,
+      "sha256": "ea7d9c3cd00064e3df987546cc1e110c52ddfb988893f8ffd89353a83c5360ed"
+    },
+    "source_receipt_capture_complete": true,
+    "source_receipt_lowering_complete": false,
+    "source_build_log": {
+      "bytes": 345,
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/capture.log",
+      "sha256": "713d7c34e75fd1aa2ae4eea9f9662c6814101e32cbc6aabb0ebd3f793b3b7729"
+    },
+    "full_inventory": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/full-unit-inventory.json",
+      "bytes": 104335,
+      "sha256": "26831dfa1124d0e112745d538955d47490ba25fec8ef2ebc13edeed073e428b2"
+    },
+    "completed_capture_counts_receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/completed-capture-counts-uuidfix.json",
+      "bytes": 803,
+      "sha256": "ab9895d3791d0ce2c88e0354e4b80f69ef4c573dcaf8968ef851458d0a6facaa"
+    },
+    "actual_capture_counts": {
+      "schema": "ocore-cpython-completed-capture-counts-v1",
+      "capture_path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/capture/report.json",
+      "capture_complete": true,
+      "runtime_complete": false,
+      "unit_inventory_complete": true,
+      "unit_roles_complete": true,
+      "raw_report_unit_count": 876,
+      "actual_capture_lowering_unit_ids_count": 360,
+      "actual_selected_build_step_unit_count": 360,
+      "selected_build_step": "build-runtime-and-extensions",
+      "complete_inventory_required_unit_count": 360,
+      "complete_inventory_non_lowering_rule_count": 1,
+      "inventory_complete": true,
+      "counting_method": "Streaming exact top-level/array indentation of the actual capture-worker JSON output; no planned source count substituted"
+    },
+    "reference_smoke_script": {
+      "bytes": 4798,
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/reference_smoke.py",
+      "sha256": "0de6a144870a37386fa344a332a266e06725753cf2a710f2352dff5baebd26d0"
+    },
+    "original_hosted_reference_command": {
+      "argv": [
+        "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/python",
+        "-I",
+        "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/reference_smoke.py",
+        "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/reference-smoke"
+      ],
+      "elapsed_seconds": 1.3367696790373884,
+      "exit_code": 0,
+      "finished_utc": "2026-10-18T22:30:24.524643+00:00",
+      "log": {
+        "bytes": 216,
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/reference-smoke.log",
+        "sha256": "762755385db0c248472afe7949d1cd417025b62ba2c01809dbe98b070276bb30"
+      },
+      "log_path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/reference-smoke.log",
+      "pid_in_this_namespace": 6,
+      "started_utc": "2026-10-18T22:30:23.197591+00:00"
+    },
+    "original_hosted_reference": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/reference-smoke/reference-smoke.json",
+      "bytes": 8494,
+      "sha256": "f8ef49397181e8e737af5a82cede215ccf8c1107276ce2debda671f2262e9cf0"
+    },
+    "original_hosted_reference_log": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/reference-smoke.log",
+      "bytes": 216,
+      "sha256": "762755385db0c248472afe7949d1cd417025b62ba2c01809dbe98b070276bb30"
+    },
+    "original_hosted_interpreter": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/python",
+      "bytes": 4981152,
+      "sha256": "114426e0768f6262c337af512b9568f3dcfeff6e40c010d5d85584d6dd88c4c6"
+    },
+    "reference_checks": {
+      "bz2": {
+        "roundtrip_bytes": 3200
+      },
+      "ctypes_libffi": {
+        "callback_value": 42
+      },
+      "gdbm": {
+        "read_write": true
+      },
+      "interpreter_and_compiler": {
+        "bytecode_sha256": "9dcfde3944a1981d13575a73edc019459f59e49b543d8906a416ed03a73a1b8e",
+        "py_compile_output": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/reference-smoke/__pycache__/writable_compile_witness.cpython-313.pyc",
+        "value": 42
+      },
+      "lzma": {
+        "roundtrip_bytes": 3200
+      },
+      "ndbm": {
+        "read_write": true
+      },
+      "openssl": {
+        "context_created": true,
+        "version": "OpenSSL 3.5.7 9 Jun 2026"
+      },
+      "required_module_imports": {
+        "_ctypes_test": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_ctypes_test.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "cb7324654c7b32b0704d9eff55084cebd80a51e7aaf5c229d82a8c377d8c7e10"
+        },
+        "_testbuffer": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testbuffer.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "e0c5d97c096f33e6a4500643b888b32971f94b13f0618a2083951cd5922ef0f7"
+        },
+        "_testcapi": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testcapi.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "d8cef0bd42026e3eac4bd3c7bc955fdf120e233b8c7691d6b025e5bb2361dff9"
+        },
+        "_testclinic": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testclinic.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "96963a59d62c701f3a2bb83e5c8c1740ff2f2b0e44413d8aa18f06acdb5b83bb"
+        },
+        "_testclinic_limited": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testclinic_limited.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "5c4590ebc54dcf3a21b2cc9f24e335b278bf090983c53fb1e3da4491f8bc57b6"
+        },
+        "_testexternalinspection": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testexternalinspection.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "77b2ef154b2398fd5e03d14cac7611fa222200b7a40ae8e31b0fd28bfb4313db"
+        },
+        "_testimportmultiple": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testimportmultiple.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "82f73292feed99993f79c66b3e04f7a18fe10d7391c1e8f5ee2bb61887db01d7"
+        },
+        "_testinternalcapi": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testinternalcapi.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "a0b4f14a1d094ac0908d570adfda7937cd573d248eccd69e9e0779b1552ce7c0"
+        },
+        "_testlimitedcapi": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testlimitedcapi.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "0db7aa23837a32c0e0aea72d5e2a8aacb3019f291fb81425b30b93bda1f247f5"
+        },
+        "_testmultiphase": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testmultiphase.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "f2f269ea881b2a105bb51c6d7f7054b9b8b1f22261ab774efc53395ffe46f961"
+        },
+        "_testsinglephase": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_testsinglephase.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "000d286208751f815777744b70bee6b19c8a07c091365acd624f43e914e3f663"
+        },
+        "_uuid": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/_uuid.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "ba843cd0399337c98897bc7f20ec86078e3ca3d4e7a1a04ee54596c5d87afde9"
+        },
+        "readline": {
+          "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/original-cpython-source-recipe-20261018-uuidfix/compiled/build/build/lib.linux-riscv64-3.13/readline.cpython-313-riscv64-linux-gnu.so",
+          "sha256": "993fa9cfe523607cdf62b613095c85c00216fb08755177f3b0af3984d4990150"
+        }
+      },
+      "sqlite3": {
+        "sqlite_version": "3.46.1",
+        "value": 42
+      },
+      "tcl_tk_interface": {
+        "tcl_patchlevel": "8.6.16",
+        "tcl_value": 42,
+        "tkinter_imported": true
+      },
+      "uuid": {
+        "version4": true
+      },
+      "zlib": {
+        "roundtrip_bytes": 3200
+      }
+    },
+    "hosted_runtime_data": {
+      "TCL_LIBRARY": {
+        "hosted_reference_only": true,
+        "init_file": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/share/tcltk/tcl8.6/init.tcl",
+        "init_sha256": "739629ec542241d20169e888a3bb983052c46916c28c38fc9126a9afe8ad61e4",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/share/tcltk/tcl8.6"
+      },
+      "TK_LIBRARY": {
+        "hosted_reference_only": true,
+        "init_file": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/share/tcltk/tk8.6/tk.tcl",
+        "init_sha256": "c23aa9e937caf63f760d05a08f03fd6a8ccf3d62734e0db2e23adf831666a429",
+        "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/share/tcltk/tk8.6"
+      }
+    },
+    "original_hosted_reference_only": true,
+    "native_dependency_closure_complete": false,
+    "runtime_complete": false,
+    "native_execution_qualified": false
+  },
+  "tests": {
+    "passing_test_methods": 154,
+    "skipped": 0,
+    "gates": [
+      {
+        "name": "root capture regressions",
+        "test_methods": 62,
+        "passed": 62,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/0.log",
+          "bytes": 162,
+          "sha256": "33327a523dff1d5ae8b35cf62a877500349b8f0f73e407c6201df4a1ed8344cd"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/receipt.json",
+          "bytes": 1619,
+          "sha256": "a44e167c95362a843fcb4a00b5e33602364038e89aec029670289ccc93d456fa"
+        },
+        "command": {
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests",
+            "-p",
+            "test_ocore_runtime_capture_*.py"
+          ],
+          "started_at": 1792357807.0311446,
+          "log": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/0.log",
+          "exit_code": 0,
+          "finished_at": 1792357874.2626517
+        }
+      },
+      {
+        "name": "capture tool regressions",
+        "test_methods": 47,
+        "passed": 47,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/1.log",
+          "bytes": 148,
+          "sha256": "10ce699b3261d8edb5d87980996a927ca1e5956d88705e74e889eddb38f0b506"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/receipt.json",
+          "bytes": 1619,
+          "sha256": "a44e167c95362a843fcb4a00b5e33602364038e89aec029670289ccc93d456fa"
+        },
+        "command": {
+          "argv": [
+            "python3",
+            "tools/ocore-runtime/test_capture.py"
+          ],
+          "started_at": 1792357874.263505,
+          "log": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/1.log",
+          "exit_code": 0,
+          "finished_at": 1792358307.2711554
+        }
+      },
+      {
+        "name": "matrix integrity including raw bitcode",
+        "test_methods": 21,
+        "passed": 21,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/source-matrix-tests-final.log",
+          "bytes": 5016,
+          "sha256": "e9b25e1638298db83034ee89879b6c30b0a7ddc8ba17c0df203dde7f90c826b2"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/source-matrix-tests-final.json",
+          "bytes": 476,
+          "sha256": "05f41a4518e5dccdff0a9a0bdb515a672b78ce12ac1d529198df340a52dcaaea"
+        },
+        "command": {
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tests",
+            "-p",
+            "test_ocore_source_matrix.py",
+            "-v"
+          ],
+          "exit_code": 0,
+          "tests": 21,
+          "skipped": 0,
+          "log": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/source-matrix-tests-final.log",
+          "test_file_sha256": "376828de079e1a78317b72cdbfbd0d9ac3e8a592b80ff75d8abc2b8bfc59d192",
+          "matrix_sha256": "2be82467c6d50af0aa0304d17917d11889f93ff46a94ceee5a2d63a63b82cb3b"
+        }
+      },
+      {
+        "name": "Rust library and raw bitcode checks",
+        "test_methods": 12,
+        "passed": 12,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/focused-tests-final.log",
+          "bytes": 2680,
+          "sha256": "b4c5682c5ca7ab334450e097b6a461d074c087a2c9d056fd37264470f3acf294"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/summary.json",
+          "bytes": 11723,
+          "sha256": "cdf58c37e71b924ed7df56714ef9f0e9f8c8aca15b993694909ca67da1fd63b5"
+        }
+      },
+      {
+        "name": "actual Rust owned generation and original-object rejection",
+        "test_methods": 2,
+        "passed": 2,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests.log",
+          "bytes": 601,
+          "sha256": "6903321192df8a54ebf99282ed6c1f13fc4a96a688615a4ae1c1f4ee98d133c8"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/summary.json",
+          "bytes": 11723,
+          "sha256": "cdf58c37e71b924ed7df56714ef9f0e9f8c8aca15b993694909ca67da1fd63b5"
+        }
+      },
+      {
+        "name": "C original Make inventory guards",
+        "test_methods": 9,
+        "passed": 9,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/original-chibicc-1uqemtct/guards.log",
+          "bytes": 1489,
+          "sha256": "f951e36d89c4a2c5bd0c81119fe7772b2f6f54dee9e4a5bdfeacf4c5e3bf38cb"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-expansion-summary.json",
+          "bytes": 9526,
+          "sha256": "a88d8146463160c65d47a8740551c2287d20d8a6d8bce5c5417aab5d85460dfb"
+        },
+        "command": {
+          "tests": 9,
+          "passed": 9,
+          "skipped": 0,
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tools/ocore-runtime/c-compiler",
+            "-p",
+            "test_build_inventory.py",
+            "-v"
+          ],
+          "exit_code": 0,
+          "log": {
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/original-chibicc-1uqemtct/guards.log",
+            "sha256": "f951e36d89c4a2c5bd0c81119fe7772b2f6f54dee9e4a5bdfeacf4c5e3bf38cb",
+            "bytes": 1489
+          }
+        }
+      },
+      {
+        "name": "actual C program through O-core native object",
+        "test_methods": 1,
+        "passed": 1,
+        "skipped": 0,
+        "log": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-suite-final.log",
+          "bytes": 393,
+          "sha256": "73768e3477db877bda0afef2b63fdaad19c7a102186031dcd3226e897ac0ded9"
+        },
+        "receipt": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-suite-final.json",
+          "bytes": 975,
+          "sha256": "99d2206d4064fe6ed167abf7f39f936f09d230c2bff435409ee62080913a339a"
+        },
+        "command": {
+          "argv": [
+            "python3",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "tools/ocore-runtime/c-compiler",
+            "-p",
+            "test_c_native_program.py",
+            "-v"
+          ],
+          "environment": {
+            "OCORE_TEST_C_NATIVE": "1",
+            "OCORE_TEST_LLVM22_BIN": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+            "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "OCORE_C_NATIVE_OUTPUT": "/home/orangepi/ostadix-BM/target/c-expansion-20261018",
+            "OCOREC": "/home/orangepi/.local/bin/ocorec",
+            "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib"
+          },
+          "exit_code": 0,
+          "log": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-suite-final.log"
+        }
+      }
+    ]
+  },
+  "tools": {
+    "installed_olangc": {
+      "path": "/home/orangepi/.local/bin/olangc",
+      "bytes": 12866560,
+      "sha256": "18b458ff49b2e12b005c90ebefad66340d411d0165ddd03c6a7455213b597a29"
+    },
+    "installed_ocorec": {
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "bytes": 2388760,
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+    },
+    "llvm_parser_library": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "bytes": 132053720,
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+    },
+    "clang": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+      "bytes": 111688,
+      "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+    },
+    "llvm_nm": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+      "bytes": 107328,
+      "sha256": "cea2a545e0b35eaa7733785bccdfb35739c5117b1380f677e9437031d92bf3a8"
+    },
+    "llvm_dis": {
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-dis",
+      "bytes": 34560,
+      "sha256": "f4627dba95c7db30807c4f90e8fbbc2473a2847a5620e056bbb61abbc576c9cd"
+    }
+  },
+  "c": {
+    "current_source_route_receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-source-route.json",
+      "bytes": 9441,
+      "sha256": "28cd4e7ad8ffc8459885237af403fc0442f043feafdb714f6ac66c4da5e1aaff"
+    },
+    "source_route": {
+      "schema": "ocore-original-chibicc-current-installed-source-gate-v1",
+      "run": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr",
+      "argv": [
+        "/home/orangepi/.local/bin/olangc",
+        "/home/orangepi/ostadix-BM/tools/ocore-runtime/c-compiler/chibicc.recipe.json",
+        "--native-runtime",
+        "--native-runtime-source",
+        "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source",
+        "--native-runtime-cc",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "--native-runtime-cxx",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang++",
+        "--native-runtime-llvm-nm",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+        "--native-runtime-llvm-dis",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-dis",
+        "--native-runtime-jobs",
+        "2",
+        "--native-isa",
+        "riscv64-unknown-none",
+        "--native-runtime-output",
+        "obj",
+        "--llvm-library",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "--llvm-sha256",
+        "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product"
+      ],
+      "started_at": "2026-10-18T21:46:15.693255+00:00",
+      "driver_before": {
+        "path": "/home/orangepi/.local/bin/olangc",
+        "sha256": "18b458ff49b2e12b005c90ebefad66340d411d0165ddd03c6a7455213b597a29",
+        "bytes": 12866560
+      },
+      "helper": {
+        "path": "/home/orangepi/ostadix-BM/tools/ocore-runtime/c-compiler/build_inventory.py",
+        "sha256": "617f984603da21008370a1a10b001dbdab7bc3df7f8a2dbb4131cf559a521789",
+        "bytes": 14352
+      },
+      "recipe": {
+        "path": "/home/orangepi/ostadix-BM/tools/ocore-runtime/c-compiler/chibicc.recipe.json",
+        "sha256": "b6f7feea9476cec7b694fac27c5f3738fa3b04aa1d5c0e2f62f9d6b6b6b655c4",
+        "bytes": 4777
+      },
+      "source_clean_before": true,
+      "runtime_complete": false,
+      "exit_code": 1,
+      "driver_after": {
+        "path": "/home/orangepi/.local/bin/olangc",
+        "sha256": "18b458ff49b2e12b005c90ebefad66340d411d0165ddd03c6a7455213b597a29",
+        "bytes": 12866560
+      },
+      "source_clean_after": true,
+      "source_receipt": {
+        "artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/source-recipe.json",
+          "sha256": "a5d13f57e132bed45b1fb74e33f5f5c61c7fc10d00e3fc3587642be3fcfca1c1",
+          "bytes": 4512
+        },
+        "capture_complete": true,
+        "unit_inventory_complete": null,
+        "unit_roles_complete": null,
+        "stage": "lowering",
+        "success": false,
+        "worker_capture_complete": true,
+        "lowering_complete": false,
+        "runtime_complete": false,
+        "issues": null
+      },
+      "capture": {
+        "artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+          "sha256": "d7883256853bb11b7de7b9023242df5047be4d9dfa171b7c78fa2b732a9c6bf0",
+          "bytes": 2315388
+        },
+        "capture_complete": true,
+        "unit_inventory_complete": true,
+        "unit_roles_complete": true,
+        "stage": null,
+        "success": null,
+        "worker_capture_complete": null,
+        "lowering_complete": null,
+        "runtime_complete": false,
+        "issues": [],
+        "unit_count": 9,
+        "capture_worker": {
+          "artifact": {
+            "bytes": 144891,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/capture-worker.py",
+            "sha256": "5a2d41eac94d024e7d9c3b7fbfe81c42a35d82c11e0c4a818d189a176c36136e"
+          },
+          "python": {
+            "bytes": 6400392,
+            "invoked_path": "/usr/bin/python3",
+            "path": "/usr/bin/python3.13",
+            "sha256": "8517cd237a0a8dea12fd5c773456db70d8f7262dcb35060f80640b8800c11fc6"
+          },
+          "schema": "ocore-runtime-capture-worker-v1",
+          "source": {
+            "bytes": 144891,
+            "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/driver/scripts/ocore_runtime_capture.py",
+            "sha256": "5a2d41eac94d024e7d9c3b7fbfe81c42a35d82c11e0c4a818d189a176c36136e"
+          },
+          "wrappers": {
+            "ar": {
+              "bytes": 675,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/ar",
+              "sha256": "d5e649d5382209c83642fa17c041f10dc17181b3fb8a5f2a48d41722ee9241a7"
+            },
+            "cc": {
+              "bytes": 675,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/cc",
+              "sha256": "4b3f60323d479b2fa9cdbc1ca6222973ebb9457b0501dd0a503f63ac2f7b9ae9"
+            },
+            "cxx": {
+              "bytes": 673,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/cxx",
+              "sha256": "ab0ffe1b343272c7233eaf876599172fd334edf3028a9dd684348c003d8c645f"
+            },
+            "ld": {
+              "bytes": 675,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/ld",
+              "sha256": "8efc44b7fa4e959dd7316283b3c3067883c1fa77a2ff7d2dbe15ffffe4dc4b99"
+            },
+            "ld.bfd": {
+              "bytes": 679,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/ld.bfd",
+              "sha256": "34e37fc19a01145d163166914f3ec6f5dd865a67b482c53e203b76d559dd5758"
+            },
+            "ld.gold": {
+              "bytes": 680,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/ld.gold",
+              "sha256": "31b97f637ab9f6f78bf46342e23a08deb13eb9818f644ef32eef25a0325e23a8"
+            },
+            "ld.lld": {
+              "bytes": 679,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/ld.lld",
+              "sha256": "e2030e126432867966e1c2a527132e2a9ceffdc8d986d41ee35263420f9077f9"
+            },
+            "llvm-ar": {
+              "bytes": 680,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/llvm-ar",
+              "sha256": "44737f7e9cfdfbf96afc6c5bc981563bf003247a9bed7047e1b627d9c2c87863"
+            },
+            "llvm-ranlib": {
+              "bytes": 684,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/llvm-ranlib",
+              "sha256": "d04339a7b8c623ed991892a8ee324f7ed4208159b1d80a2adc4f92e68c462f54"
+            },
+            "ranlib": {
+              "bytes": 679,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/ranlib",
+              "sha256": "e3ea1adb7feea5d73ee1f24008b4669e4b4c28e0f09e31d1474d73eb54d45a8b"
+            },
+            "rustc-wrapper": {
+              "bytes": 675,
+              "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/wrappers/rustc-wrapper",
+              "sha256": "d509d3de45a4d53464799cf20116ae058c07ba46abe1d3860641c8300ae7afb9"
+            }
+          }
+        }
+      },
+      "lowering": {
+        "artifact": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/lowered/coverage.json",
+          "sha256": "da6954755eccc4b0db6e1fc752219408da6069f05a7e430df1879d80130753f6",
+          "bytes": 10470
+        },
+        "capture_complete": false,
+        "unit_inventory_complete": null,
+        "unit_roles_complete": null,
+        "stage": null,
+        "success": null,
+        "worker_capture_complete": null,
+        "lowering_complete": false,
+        "runtime_complete": false,
+        "issues": [
+          "declared source dependency lacks a verified included native module-set"
+        ]
+      },
+      "original_compiler_smoke": {
+        "argv": [
+          "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/build/chibicc",
+          "-S",
+          "-o",
+          "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/compiler-output-smoke/returns42.s",
+          "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/compiler-output-smoke/returns42.c"
+        ],
+        "exit_code": 0,
+        "compiler": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/build/chibicc",
+          "sha256": "35ac5b75eccf49b9ecd3f7a933ed84f326de6f59674968657d1638773ed14174",
+          "bytes": 340512
+        },
+        "source": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/compiler-output-smoke/returns42.c",
+          "sha256": "7fbc7c908f797d1f300a709612039356f21f0a219e50286fefc599af2103cc77",
+          "bytes": 30
+        },
+        "assembly": {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/compiler-output-smoke/returns42.s",
+          "sha256": "3917d751f797b8217631d28c92c2a6ea1d5e3391adae9ac40f34dc321e159dab",
+          "bytes": 675
+        },
+        "output_routed_through_ocore": false
+      },
+      "finished_at": "2026-10-18T21:46:40.877274+00:00"
+    },
+    "actual_language_gate_receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/receipt.json",
+      "sha256": "b4e4fd8cca5bc664982796ad1e9abbf8b6366cb770d25f2e5947408fd4694325",
+      "bytes": 7785
+    },
+    "actual_language_gate": {
+      "schema": "ocore-c-program-native-gate-v1",
+      "success": true,
+      "source": {
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/program.c",
+        "sha256": "9630568bdbd906be1b1302f34c8474166564bc684d7880eec4b6d554edfd47c2",
+        "bytes": 201
+      },
+      "llvm_ir": {
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/program.ll",
+        "sha256": "0e54acf181eda64319e1efb34e636b8254cccdf418bdda690bb6dec2171be741",
+        "bytes": 7812
+      },
+      "target": "riscv64-unknown-none",
+      "compiler": {
+        "path": "/home/orangepi/.local/bin/ocorec",
+        "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915",
+        "bytes": 2388760
+      },
+      "frontend": {
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a",
+        "bytes": 111688
+      },
+      "llvm_library": {
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+        "bytes": 132053720
+      },
+      "linker": {
+        "path": "/usr/bin/ld.lld",
+        "sha256": "968791f8ff20e1d9cb86122df2238e464b17b8e1f8653230e54395e922856d5c",
+        "bytes": 4626320
+      },
+      "owned_object": {
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.o",
+        "sha256": "c38f349d7fcc549e2e278da932b695ed8ad3d780d9c4e487125e272dc283f911",
+        "bytes": 1672
+      },
+      "owned_assembly": {
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.s",
+        "sha256": "05c5bbbe67930bced473d19b4a170565167ad7d3ed734e1a9e57a0b4fe7ff8d5",
+        "bytes": 3836
+      },
+      "native_map": {
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.map.json",
+        "sha256": "c4eda273aa0e46b9faa7f264de82453c6f353d804ab3eac3787ab5c8431e7775",
+        "bytes": 28179
+      },
+      "executables": [
+        {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/reference.elf",
+          "sha256": "fb009659d969f6c392086d16d3a38ee981c3da1e23e044f91e521c29d1996192",
+          "bytes": 1488
+        },
+        {
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.elf",
+          "sha256": "64364a29de22fa4b13cf83f9d0e274ecb0140c236a7eb4d39174f8cc92af6555",
+          "bytes": 2128
+        }
+      ],
+      "cases": [
+        {
+          "input": 41,
+          "expected": 42
+        },
+        {
+          "input": -3,
+          "expected": -2
+        }
+      ],
+      "commands": [
+        {
+          "argv": [
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--version"
+          ],
+          "exit_code": 0,
+          "stdout": "Debian clang version 22.1.6 (1)\nTarget: riscv64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin\n",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--target=riscv64-unknown-linux-gnu",
+            "-O1",
+            "-ffreestanding",
+            "-fno-builtin",
+            "-fno-stack-protector",
+            "-S",
+            "-emit-llvm",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/program.c",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/program.ll"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--target=riscv64-unknown-linux-gnu",
+            "-O1",
+            "-ffreestanding",
+            "-fno-builtin",
+            "-fno-stack-protector",
+            "-c",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/program.c",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/reference.o"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/program.ll",
+            "--input-kind",
+            "llvm-ir",
+            "--emit",
+            "obj",
+            "--keep-asm",
+            "--target",
+            "riscv64-unknown-none",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--native-map",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.map.json",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.o"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": "ocorec: wrote /home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.o\nocorec: kept /home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.s\nocorec: wrote native assembly map /home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.map.json\n"
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "--target",
+            "riscv64-unknown-none",
+            "--verify-native-map",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.map.json",
+            "--map-assembly",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.s",
+            "--map-artifact",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.o"
+          ],
+          "exit_code": 0,
+          "stdout": "ok: native assembly correspondence and artifact bindings\n",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--target=riscv64-unknown-linux-gnu",
+            "-c",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/start.s",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/start.o"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/usr/bin/ld.lld",
+            "-m",
+            "elf64lriscv",
+            "-e",
+            "_start",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/reference.elf",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/start.o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/reference.o"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/reference.elf"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/usr/bin/ld.lld",
+            "-m",
+            "elf64lriscv",
+            "-e",
+            "_start",
+            "-o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.elf",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/start.o",
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.o"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "argv": [
+            "/home/orangepi/ostadix-BM/target/c-expansion-20261018/c-program-_83wrw77/owned.elf"
+          ],
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": ""
+        }
+      ],
+      "original_chibicc_lowered": false,
+      "ostadix_kernel_execution_qualified": false,
+      "runtime_complete": false
+    },
+    "older_capture_and_matrix_are_control_only": true,
+    "llvm_identity_comparison": {
+      "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/old-current-llvm-identity.json",
+      "bytes": 10031,
+      "sha256": "bd5623f98afd8878a807231d80a9959650b07c69e5aa13181ec0e05f01640a67"
+    }
+  },
+  "rust": {
+    "summary": {
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/summary.json",
+      "bytes": 11723,
+      "sha256": "cdf58c37e71b924ed7df56714ef9f0e9f8c8aca15b993694909ca67da1fd63b5"
+    },
+    "source_pin": {
+      "cached_rs_match": true,
+      "lock_package": [],
+      "registry_archive_sha256": "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
+      "revision": "89a031a0f42eeff31c70dc598b398cbf31f1680f",
+      "root_branch": "recovery-native-python-c-rust-20261018",
+      "source": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-source",
+      "source_rs": {
+        "src/algo.rs": "932c2bc591d13fe4470185125617b5aaa660a3898f23b553acc85df0bf49dded",
+        "src/lib.rs": "4acd41668fe30daffa37084e7e223f268957b816afc1864ffb3f5d6d7adf0890"
+      },
+      "status": "",
+      "url": "https://github.com/oyvindln/adler2"
+    },
+    "capture": {
+      "bytes": 52543,
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+      "sha256": "31b6c7cf6a506d3327673dedc686d7b8f340dff309ba827d07c56babcd054408"
+    },
+    "previous_whole_unit_audit": {
+      "bytes": 14329,
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/owned-audit-final/report.json",
+      "sha256": "27f7ca3b60de17298d8e86d0ecd8ee5e76cddeb12e7dc47b23a140f60b25239a"
+    },
+    "fresh_owned_positive": {
+      "bytes": 20435,
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/report.json",
+      "sha256": "1d403eb38da319782d396e595ecc0f1e97a02be89d0965a671b2c1f1f6d5437a"
+    },
+    "fresh_owned_units": [
+      {
+        "unit_id": "9892501c3a7149c5a9f67b3d087b9680:0",
+        "original_bitcode": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/units/9892501c3a7149c5a9f67b3d087b9680/cgu-0.bc",
+          "bytes": 5148,
+          "sha256": "b7c4e0f8a469f2edce8d08a56ea0a3a55898b36788ce7dc699ce6c59c6190544"
+        },
+        "module": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/owned-cgu-0/module.json",
+          "bytes": 170323,
+          "sha256": "afa62c4dbde481b29c65d4356b2aedb4672feadf2635522efc3d909985518232"
+        },
+        "verification": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/owned-cgu-0/verification.json",
+          "bytes": 1512,
+          "sha256": "cf07974bcd1bfb1e98abaee1dad0afa6a067c8d9fef91ec5df2ddffc9152556e"
+        },
+        "object": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/owned-cgu-0/module.o",
+          "bytes": 11296,
+          "sha256": "8c6b86769a30a0b2400e73d5e1517b5c2ad43ea6aef239f46272afe6cd55f6a8"
+        }
+      }
+    ],
+    "actual_scoped_api_execution_succeeded": true,
+    "actual_api_scope": "pinned original adler2::adler32_slice on Linux RV64 LP64D",
+    "api_cases": 12,
+    "vectors": [
+      {
+        "name": "empty",
+        "bytes": 0,
+        "mode": 0,
+        "payload_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "expected_adler32": 1
+      },
+      {
+        "name": "byte-range",
+        "bytes": 256,
+        "mode": 0,
+        "payload_sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880",
+        "expected_adler32": 2918612865
+      },
+      {
+        "name": "single-zero",
+        "bytes": 1,
+        "mode": 2,
+        "payload_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        "expected_adler32": 65537
+      },
+      {
+        "name": "single-ff",
+        "bytes": 1,
+        "mode": 3,
+        "payload_sha256": "a8100ae6aa1940d0b663bb31cd466142ebbdbd5187131b92d93818987832eb89",
+        "expected_adler32": 16777472
+      },
+      {
+        "name": "before-block",
+        "bytes": 5551,
+        "mode": 1,
+        "payload_sha256": "e3b442ce63762b8dee82818484a2404df9e4f80b09863656090722e862e187b6",
+        "expected_adler32": 2331495726
+      },
+      {
+        "name": "exact-block",
+        "bytes": 5552,
+        "mode": 1,
+        "payload_sha256": "9d926e9449e3451d21032da90fe30a375baeee62435a06e83ea3422ab295f58a",
+        "expected_adler32": 1484574070
+      },
+      {
+        "name": "after-block",
+        "bytes": 5553,
+        "mode": 1,
+        "payload_sha256": "c86b7f40c75178b230a22bfa120cb9ef7f6b36db3d47ec1e5a9b0e45addb6555",
+        "expected_adler32": 646434300
+      },
+      {
+        "name": "two-block-before",
+        "bytes": 11103,
+        "mode": 1,
+        "payload_sha256": "f4f0282433c764eaecd47e711656ca85a5969f5adb5036010cdfd7541690ef7a",
+        "expected_adler32": 517122805
+      },
+      {
+        "name": "two-block",
+        "bytes": 11104,
+        "mode": 1,
+        "payload_sha256": "246969bdd9c62f79eb0c41c6bb7e0f77e0b3f7639d24d9c867c08e7d84a6b414",
+        "expected_adler32": 3394415488
+      },
+      {
+        "name": "two-block-after",
+        "bytes": 11105,
+        "mode": 1,
+        "payload_sha256": "8dcfe93313143ed2369a772df83f9ca721868b363299e6feb1453fdbecf25df8",
+        "expected_adler32": 1983622106
+      },
+      {
+        "name": "max-byte-block",
+        "bytes": 5552,
+        "mode": 3,
+        "payload_sha256": "bdc0ebebea7776df0b743296785bef92b1f672ffbb3456145ae36096a6f514cd",
+        "expected_adler32": 4052720524
+      },
+      {
+        "name": "long-deterministic",
+        "bytes": 1048576,
+        "mode": 1,
+        "payload_sha256": "5b64b12ad6e657f403f9e3e57e4ad6fbd1d8fb14c53a0c7e1dc5dbd2257166b1",
+        "expected_adler32": 2478407276
+      }
+    ],
+    "original_and_owned_executables": {
+      "original": {
+        "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/original-api",
+        "bytes": 13664,
+        "sha256": "d6f0eb793af7ebb7b2e2a2e29ec06093c12f5e27ddab99e3b5100e07cbf9b5b6"
+      },
+      "owned": {
+        "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/owned-api",
+        "bytes": 21704,
+        "sha256": "7d8d6d3cfaab8f799713f359db43456cb4d0c849225c7548f5e00b355e7f1d12"
+      }
+    },
+    "abi_boundary": "RV64 a0/a1 forward pointer/length; low32 return normalized with sext.w to C LP64D",
+    "carrier": {
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/carrier.c",
+      "bytes": 1212,
+      "sha256": "6ece2efa6c2da224a5a1c4df5ba65e387565dc29539a1fe866ad7af3bd2c00b4"
+    },
+    "identical_test_only_abi_veneer": {
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/slice-abi.S",
+      "bytes": 471,
+      "sha256": "90729c25ac7165ab568010a439c3f47138d5d9a79b313b04acacc3265117ffc2"
+    },
+    "trusted_ocorec": {
+      "path": "/home/orangepi/.local/bin/ocorec",
+      "bytes": 2388760,
+      "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915",
+      "snapshot": {
+        "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification/tools/ocorec",
+        "bytes": 2388760,
+        "sha256": "6c8063c87eeb34bdb04072ee0f1a3c461766364de28a602a3470926362f00915"
+      }
+    },
+    "original_object_rejection": {
+      "bytes": 7102,
+      "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/reject-original-as-owned-85rat9db/qualification/report.json",
+      "sha256": "fb6240a92084cecb0183e242a06e8bd75d9e7c047ac6778a44660f6df80aead2"
+    },
+    "rejection_error": "fresh owned object differs from the claimed audit object",
+    "actual_ownership_test_commands": [
+      {
+        "receipt": {
+          "bytes": 983,
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/command.json",
+          "sha256": "e4b11565a561c0c11f0cb18eeba53ac1416ea93593f87ef45518e467827dd19e"
+        },
+        "command": {
+          "argv": [
+            "python3",
+            "/home/orangepi/ostadix-BM/tools/ocore-runtime/rust-crates/qualify_adler2.py",
+            "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+            "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/owned-audit-final/report.json",
+            "--ocorec",
+            "/home/orangepi/.local/bin/ocorec",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--clang",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--llvm-nm",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+            "--output",
+            "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/qualification"
+          ],
+          "exit_code": 0
+        },
+        "stdout": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/stdout.log",
+          "bytes": 196,
+          "sha256": "1d194c67d2cfef031a2a14736ea933fef28ee0e05bc44604b970058399695b43"
+        },
+        "stderr": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/actual-native-api-8opuk8xo/stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "receipt": {
+          "bytes": 997,
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/reject-original-as-owned-85rat9db/command.json",
+          "sha256": "4d24ffc16b29ebee3b7cf9edabf16660f7246f7d14ddcac2f26b598f960ab40b"
+        },
+        "command": {
+          "argv": [
+            "python3",
+            "/home/orangepi/ostadix-BM/tools/ocore-runtime/rust-crates/qualify_adler2.py",
+            "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+            "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/forged-owned-audit-zk06ypc1/audit.json",
+            "--ocorec",
+            "/home/orangepi/.local/bin/ocorec",
+            "--llvm-library",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+            "--llvm-sha256",
+            "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+            "--clang",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+            "--llvm-nm",
+            "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/llvm-nm",
+            "--output",
+            "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/reject-original-as-owned-85rat9db/qualification"
+          ],
+          "exit_code": 1
+        },
+        "stdout": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/reject-original-as-owned-85rat9db/stdout.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/owned-regeneration-tests/reject-original-as-owned-85rat9db/stderr.log",
+          "bytes": 57,
+          "sha256": "3f857c1ff13d0f89d1a3400b2d4a151ab7fbd5c90f602b7be1ef9140948c0238"
+        }
+      }
+    ],
+    "original_member_copy_provenance_not_provider_ownership": [
+      {
+        "bytes": 8600,
+        "captured_origin": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/build/native/libadler2.rlib",
+        "captured_origin_kind": "verified-rust-archive-member-copy",
+        "captured_rust_member": {
+          "archive": {
+            "bytes": 33186,
+            "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/build/native/libadler2.rlib",
+            "sha256": "f99fc0daac02430d0cc4490cdc0c043aeff26f544d91104dd547488addc4ad20"
+          },
+          "bitcode": {
+            "bytes": 5148,
+            "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/units/9892501c3a7149c5a9f67b3d087b9680/cgu-0.bc",
+            "sha256": "b7c4e0f8a469f2edce8d08a56ea0a3a55898b36788ce7dc699ce6c59c6190544"
+          },
+          "embedded_bitcode_edge": {
+            "bitcode_header": "raw",
+            "bytes": 5148,
+            "container_offset": 24650,
+            "kind": "elf_embedded_bitcode",
+            "object_offset": 64,
+            "section_index": 3,
+            "section_name": ".llvmbc",
+            "section_name_bytes": [
+              46,
+              108,
+              108,
+              118,
+              109,
+              98,
+              99
+            ],
+            "sha256": "b7c4e0f8a469f2edce8d08a56ea0a3a55898b36788ce7dc699ce6c59c6190544"
+          },
+          "invocation_id": "9892501c3a7149c5a9f67b3d087b9680",
+          "member_index": 2,
+          "member_name": "adler2.adler2.c2b24a949a1f4f2-cgu.0.rcgu.o",
+          "member_name_bytes": [
+            97,
+            100,
+            108,
+            101,
+            114,
+            50,
+            46,
+            97,
+            100,
+            108,
+            101,
+            114,
+            50,
+            46,
+            99,
+            50,
+            98,
+            50,
+            52,
+            97,
+            57,
+            52,
+            57,
+            97,
+            49,
+            102,
+            52,
+            102,
+            50,
+            45,
+            99,
+            103,
+            117,
+            46,
+            48,
+            46,
+            114,
+            99,
+            103,
+            117,
+            46,
+            111
+          ],
+          "object": {
+            "bytes": 8600,
+            "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/units/9892501c3a7149c5a9f67b3d087b9680/cgu-0.o",
+            "sha256": "9c8dec68df1bb2da3a379025b2e440896754e92921359b39c6626763e7a57bda"
+          }
+        },
+        "native_machine_equivalence_verified": false,
+        "path": "/home/orangepi/ostadix-BM/target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/build/native/adler2.adler2.c2b24a949a1f4f2-cgu.0.rcgu.o",
+        "post_lto_equivalence_verified": false,
+        "sha256": "9c8dec68df1bb2da3a379025b2e440896754e92921359b39c6626763e7a57bda",
+        "source_production_ownership_verified": false
+      }
+    ],
+    "full_rust_compiler_complete": false,
+    "provider_closure_complete": false,
+    "native_execution_qualified": false,
+    "runtime_complete": false
+  },
+  "hosted_interfaces": {
+    "package_receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages-verified.json",
+      "bytes": 43809,
+      "sha256": "bc1bbb4ca34e874dc27d47a10e154388088bb261b547bc8033d66d749a85c472"
+    },
+    "hosted_packages_are_target_implementations": false,
+    "package_count": 72,
+    "root_package_names": [
+      "libsqlite3-dev",
+      "tk-dev",
+      "tcl-dev",
+      "libreadline-dev",
+      "libgdbm-dev",
+      "libgdbm-compat-dev",
+      "uuid-dev",
+      "libbz2-dev",
+      "liblzma-dev"
+    ],
+    "package_pins": [
+      {
+        "name": "debconf",
+        "version": "1.5.91",
+        "architecture": "all",
+        "source_name": "debconf",
+        "source_version": "1.5.91",
+        "uri": "http://deb.debian.org/debian/pool/main/d/debconf/debconf_1.5.91_all.deb",
+        "sha256": "1ddc7e6c5925f748eefb7ca811d98e049f18c158bb21fbc7e122262ce6011e49",
+        "bytes": 121088,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/debconf_1.5.91_all.deb"
+      },
+      {
+        "name": "fontconfig-config",
+        "version": "2.15.0-2.3",
+        "architecture": "riscv64",
+        "source_name": "fontconfig",
+        "source_version": "2.15.0-2.3",
+        "uri": "http://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig-config_2.15.0-2.3_riscv64.deb",
+        "sha256": "4fd18a83b8d86f3493ad7ab714a77bfdb18ca19139168aea7161231a420963b5",
+        "bytes": 318304,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/fontconfig-config_2.15.0-2.3_riscv64.deb"
+      },
+      {
+        "name": "fonts-dejavu-core",
+        "version": "2.37-8",
+        "architecture": "all",
+        "source_name": "fonts-dejavu",
+        "source_version": "2.37-8",
+        "uri": "http://deb.debian.org/debian/pool/main/f/fonts-dejavu/fonts-dejavu-core_2.37-8_all.deb",
+        "sha256": "86635b3d25b3655fc11cb3ecc3af59f0bf19643b02b94f2de48bd10253cdba12",
+        "bytes": 840460,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/fonts-dejavu-core_2.37-8_all.deb"
+      },
+      {
+        "name": "fonts-dejavu-mono",
+        "version": "2.37-8",
+        "architecture": "all",
+        "source_name": "fonts-dejavu",
+        "source_version": "2.37-8",
+        "uri": "http://deb.debian.org/debian/pool/main/f/fonts-dejavu/fonts-dejavu-mono_2.37-8_all.deb",
+        "sha256": "3003e98a5debfdeadc7040a7f715fe9fe6fb67f68deacf6049b54e30f07fc014",
+        "bytes": 488808,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/fonts-dejavu-mono_2.37-8_all.deb"
+      },
+      {
+        "name": "libbrotli-dev",
+        "version": "1.1.0-2+b7",
+        "architecture": "riscv64",
+        "source_name": "brotli",
+        "source_version": "1.1.0-2",
+        "uri": "http://deb.debian.org/debian/pool/main/b/brotli/libbrotli-dev_1.1.0-2%2bb7_riscv64.deb",
+        "sha256": "edda8e716ab658a4269845f2ada23bfbf4fe9309f01e6b79248eb5301fc3c6d1",
+        "bytes": 797880,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libbrotli-dev_1.1.0-2+b7_riscv64.deb"
+      },
+      {
+        "name": "libbrotli1",
+        "version": "1.1.0-2+b7",
+        "architecture": "riscv64",
+        "source_name": "brotli",
+        "source_version": "1.1.0-2",
+        "uri": "http://deb.debian.org/debian/pool/main/b/brotli/libbrotli1_1.1.0-2%2bb7_riscv64.deb",
+        "sha256": "c18cc200551f11cc2e22514c1625c12e83a2c4155ddee78f77fb1f2c26fe3c6a",
+        "bytes": 357616,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libbrotli1_1.1.0-2+b7_riscv64.deb"
+      },
+      {
+        "name": "libbz2-1.0",
+        "version": "1.0.8-6",
+        "architecture": "riscv64",
+        "source_name": "bzip2",
+        "source_version": "1.0.8-6",
+        "uri": "http://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_riscv64.deb",
+        "sha256": "27c7937eb4d2e314e1f0a57a99a20c141c55f720e5ee93d2244de432fd247a55",
+        "bytes": 40280,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libbz2-1.0_1.0.8-6_riscv64.deb"
+      },
+      {
+        "name": "libbz2-dev",
+        "version": "1.0.8-6",
+        "architecture": "riscv64",
+        "source_name": "bzip2",
+        "source_version": "1.0.8-6",
+        "uri": "http://deb.debian.org/debian/pool/main/b/bzip2/libbz2-dev_1.0.8-6_riscv64.deb",
+        "sha256": "af48a4456b682611c223767725430b3ce41b647da74c0daeba5aceb84ca11f2c",
+        "bytes": 69908,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libbz2-dev_1.0.8-6_riscv64.deb"
+      },
+      {
+        "name": "libexpat1",
+        "version": "2.8.3-1~deb13u1",
+        "architecture": "riscv64",
+        "source_name": "expat",
+        "source_version": "2.8.3-1~deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/e/expat/libexpat1_2.8.3-1%7edeb13u1_riscv64.deb",
+        "sha256": "114156a4bccea157194bc6dc9ac4e2b44f7e8416245a34b168e40a3baaa68fa3",
+        "bytes": 119880,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libexpat1_2.8.3-1~deb13u1_riscv64.deb"
+      },
+      {
+        "name": "libexpat1-dev",
+        "version": "2.8.3-1~deb13u1",
+        "architecture": "riscv64",
+        "source_name": "expat",
+        "source_version": "2.8.3-1~deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/e/expat/libexpat1-dev_2.8.3-1%7edeb13u1_riscv64.deb",
+        "sha256": "7895e6c07e25d9d82646821233d9a06e9f635da174a3a4a71a52106038b45165",
+        "bytes": 327564,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libexpat1-dev_2.8.3-1~deb13u1_riscv64.deb"
+      },
+      {
+        "name": "libfontconfig-dev",
+        "version": "2.15.0-2.3",
+        "architecture": "riscv64",
+        "source_name": "fontconfig",
+        "source_version": "2.15.0-2.3",
+        "uri": "http://deb.debian.org/debian/pool/main/f/fontconfig/libfontconfig-dev_2.15.0-2.3_riscv64.deb",
+        "sha256": "786d6b395adf78ea60f10525498b0e77c5b4bf903459a46395d5ff2fc85bf6e9",
+        "bytes": 603860,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libfontconfig-dev_2.15.0-2.3_riscv64.deb"
+      },
+      {
+        "name": "libfontconfig1",
+        "version": "2.15.0-2.3",
+        "architecture": "riscv64",
+        "source_name": "fontconfig",
+        "source_version": "2.15.0-2.3",
+        "uri": "http://deb.debian.org/debian/pool/main/f/fontconfig/libfontconfig1_2.15.0-2.3_riscv64.deb",
+        "sha256": "dc06597ba8578cccf2e39ef1aa0cb281e805b3c51588ffa185dc83d5d5fa8a89",
+        "bytes": 398248,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libfontconfig1_2.15.0-2.3_riscv64.deb"
+      },
+      {
+        "name": "libfontconfig1-dev",
+        "version": "2.15.0-2.3",
+        "architecture": "riscv64",
+        "source_name": "fontconfig",
+        "source_version": "2.15.0-2.3",
+        "uri": "http://deb.debian.org/debian/pool/main/f/fontconfig/libfontconfig1-dev_2.15.0-2.3_riscv64.deb",
+        "sha256": "2cfd1c9cea7a5ff9e9e341ee136bce61c89b749395ed16e44bd89100bdc86905",
+        "bytes": 269264,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libfontconfig1-dev_2.15.0-2.3_riscv64.deb"
+      },
+      {
+        "name": "libfreetype-dev",
+        "version": "2.13.3+dfsg-1+deb13u1",
+        "architecture": "riscv64",
+        "source_name": "freetype",
+        "source_version": "2.13.3+dfsg-1+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/f/freetype/libfreetype-dev_2.13.3%2bdfsg-1%2bdeb13u1_riscv64.deb",
+        "sha256": "b266979e9bcb12447d372dcb13ffffb63e7e58ff9ad069a19977d04a19e447a8",
+        "bytes": 1143576,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libfreetype-dev_2.13.3+dfsg-1+deb13u1_riscv64.deb"
+      },
+      {
+        "name": "libfreetype6",
+        "version": "2.13.3+dfsg-1+deb13u1",
+        "architecture": "riscv64",
+        "source_name": "freetype",
+        "source_version": "2.13.3+dfsg-1+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/f/freetype/libfreetype6_2.13.3%2bdfsg-1%2bdeb13u1_riscv64.deb",
+        "sha256": "b90fc83a641faa9477e2510f99131a81d3d26dbfaaf9ed8e76a4f530865e60ad",
+        "bytes": 467624,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libfreetype6_2.13.3+dfsg-1+deb13u1_riscv64.deb"
+      },
+      {
+        "name": "libgdbm-compat-dev",
+        "version": "1.24-2",
+        "architecture": "riscv64",
+        "source_name": "gdbm",
+        "source_version": "1.24-2",
+        "uri": "http://deb.debian.org/debian/pool/main/g/gdbm/libgdbm-compat-dev_1.24-2_riscv64.deb",
+        "sha256": "08dedf5d3e14a114163a845702ff12626dcdecb24a2c16461e795f515cca3add",
+        "bytes": 54260,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libgdbm-compat-dev_1.24-2_riscv64.deb"
+      },
+      {
+        "name": "libgdbm-compat4t64",
+        "version": "1.24-2",
+        "architecture": "riscv64",
+        "source_name": "gdbm",
+        "source_version": "1.24-2",
+        "uri": "http://deb.debian.org/debian/pool/main/g/gdbm/libgdbm-compat4t64_1.24-2_riscv64.deb",
+        "sha256": "c93a683e775b48367f58597c9255ab7cb888ce849fd8b79c58c92673bd0bf504",
+        "bytes": 50452,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libgdbm-compat4t64_1.24-2_riscv64.deb"
+      },
+      {
+        "name": "libgdbm-dev",
+        "version": "1.24-2",
+        "architecture": "riscv64",
+        "source_name": "gdbm",
+        "source_version": "1.24-2",
+        "uri": "http://deb.debian.org/debian/pool/main/g/gdbm/libgdbm-dev_1.24-2_riscv64.deb",
+        "sha256": "7e8ffa8151c025d2076d5e4d6b7bf98cd7e4b0fa97178d7606b2581503e55788",
+        "bytes": 205576,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libgdbm-dev_1.24-2_riscv64.deb"
+      },
+      {
+        "name": "libgdbm6t64",
+        "version": "1.24-2",
+        "architecture": "riscv64",
+        "source_name": "gdbm",
+        "source_version": "1.24-2",
+        "uri": "http://deb.debian.org/debian/pool/main/g/gdbm/libgdbm6t64_1.24-2_riscv64.deb",
+        "sha256": "ed2897acba992907d8baf70dbf2af3a866335244e9ec46b1ca62dfd87904424d",
+        "bytes": 75916,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libgdbm6t64_1.24-2_riscv64.deb"
+      },
+      {
+        "name": "liblzma-dev",
+        "version": "5.8.1-1+deb13u1",
+        "architecture": "riscv64",
+        "source_name": "xz-utils",
+        "source_version": "5.8.1-1+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xz-utils/liblzma-dev_5.8.1-1%2bdeb13u1_riscv64.deb",
+        "sha256": "afcbbfc1456d28999013bda0a2e3fdc96b2fa311f50b171e5d0c6496bb36e33c",
+        "bytes": 476780,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/liblzma-dev_5.8.1-1+deb13u1_riscv64.deb"
+      },
+      {
+        "name": "liblzma5",
+        "version": "5.8.1-1+deb13u1",
+        "architecture": "riscv64",
+        "source_name": "xz-utils",
+        "source_version": "5.8.1-1+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.8.1-1%2bdeb13u1_riscv64.deb",
+        "sha256": "d6b628145f0e58ff4e406cc1f6b656830a95b6ba98da538dbfac26fab672475c",
+        "bytes": 312684,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/liblzma5_5.8.1-1+deb13u1_riscv64.deb"
+      },
+      {
+        "name": "libncurses-dev",
+        "version": "6.5+20250216-2",
+        "architecture": "riscv64",
+        "source_name": "ncurses",
+        "source_version": "6.5+20250216-2",
+        "uri": "http://deb.debian.org/debian/pool/main/n/ncurses/libncurses-dev_6.5%2b20250216-2_riscv64.deb",
+        "sha256": "10e964792eb28a898b5bf94490b5943ac52a7a0f9f1ac145158cfb0dddfaf8ba",
+        "bytes": 837528,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libncurses-dev_6.5+20250216-2_riscv64.deb"
+      },
+      {
+        "name": "libncurses6",
+        "version": "6.5+20250216-2",
+        "architecture": "riscv64",
+        "source_name": "ncurses",
+        "source_version": "6.5+20250216-2",
+        "uri": "http://deb.debian.org/debian/pool/main/n/ncurses/libncurses6_6.5%2b20250216-2_riscv64.deb",
+        "sha256": "0e3911d45138c30a3b1f9264d8d86a700232886bf1b68f7e24d6315f31c816d2",
+        "bytes": 104704,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libncurses6_6.5+20250216-2_riscv64.deb"
+      },
+      {
+        "name": "libncursesw6",
+        "version": "6.5+20250216-2",
+        "architecture": "riscv64",
+        "source_name": "ncurses",
+        "source_version": "6.5+20250216-2",
+        "uri": "http://deb.debian.org/debian/pool/main/n/ncurses/libncursesw6_6.5%2b20250216-2_riscv64.deb",
+        "sha256": "16debd916a1ecd95f6449d5bb739015dbb0d4c07f5aaa2360f11d1028b182eac",
+        "bytes": 140584,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libncursesw6_6.5+20250216-2_riscv64.deb"
+      },
+      {
+        "name": "libpng-dev",
+        "version": "1.6.48-1+deb13u5",
+        "architecture": "riscv64",
+        "source_name": "libpng1.6",
+        "source_version": "1.6.48-1+deb13u5",
+        "uri": "http://deb.debian.org/debian/pool/main/libp/libpng1.6/libpng-dev_1.6.48-1%2bdeb13u5_riscv64.deb",
+        "sha256": "02905e2c93cc4360d1a4be49fe05409cd0c1529467724513eff90e221fa8b7e3",
+        "bytes": 517348,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libpng-dev_1.6.48-1+deb13u5_riscv64.deb"
+      },
+      {
+        "name": "libpng16-16t64",
+        "version": "1.6.48-1+deb13u5",
+        "architecture": "riscv64",
+        "source_name": "libpng1.6",
+        "source_version": "1.6.48-1+deb13u5",
+        "uri": "http://deb.debian.org/debian/pool/main/libp/libpng1.6/libpng16-16t64_1.6.48-1%2bdeb13u5_riscv64.deb",
+        "sha256": "cd8970f0b5cf015c4ed58b2fcb43ab5069d2e72a4c520d01cce308e178cc36cd",
+        "bytes": 286852,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libpng16-16t64_1.6.48-1+deb13u5_riscv64.deb"
+      },
+      {
+        "name": "libreadline-dev",
+        "version": "8.2-6",
+        "architecture": "riscv64",
+        "source_name": "readline",
+        "source_version": "8.2-6",
+        "uri": "http://deb.debian.org/debian/pool/main/r/readline/libreadline-dev_8.2-6_riscv64.deb",
+        "sha256": "dd54f483255f7544c274342fe33752b3b74b9435e98ab0dabbefa92323f83cb6",
+        "bytes": 342300,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libreadline-dev_8.2-6_riscv64.deb"
+      },
+      {
+        "name": "libreadline8t64",
+        "version": "8.2-6",
+        "architecture": "riscv64",
+        "source_name": "readline",
+        "source_version": "8.2-6",
+        "uri": "http://deb.debian.org/debian/pool/main/r/readline/libreadline8t64_8.2-6_riscv64.deb",
+        "sha256": "a9a66fa49aed31e4d5ce6ab2fd4999ccc28bb185b58d645539ff6955c279eb47",
+        "bytes": 169460,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libreadline8t64_8.2-6_riscv64.deb"
+      },
+      {
+        "name": "libsqlite3-0",
+        "version": "3.46.1-7+deb13u2",
+        "architecture": "riscv64",
+        "source_name": "sqlite3",
+        "source_version": "3.46.1-7+deb13u2",
+        "uri": "http://deb.debian.org/debian/pool/main/s/sqlite3/libsqlite3-0_3.46.1-7%2bdeb13u2_riscv64.deb",
+        "sha256": "a878475db5df8361879060e65bfc7bc7ac7fa0e44635ac2107cf5bd7e497e330",
+        "bytes": 907260,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libsqlite3-0_3.46.1-7+deb13u2_riscv64.deb"
+      },
+      {
+        "name": "libsqlite3-dev",
+        "version": "3.46.1-7+deb13u2",
+        "architecture": "riscv64",
+        "source_name": "sqlite3",
+        "source_version": "3.46.1-7+deb13u2",
+        "uri": "http://deb.debian.org/debian/pool/main/s/sqlite3/libsqlite3-dev_3.46.1-7%2bdeb13u2_riscv64.deb",
+        "sha256": "8dcb5b55e80e4fc80313182afd36484c385ce82442635e8184b8154b305cf86b",
+        "bytes": 2179476,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libsqlite3-dev_3.46.1-7+deb13u2_riscv64.deb"
+      },
+      {
+        "name": "libtcl8.6",
+        "version": "8.6.16+dfsg-1",
+        "architecture": "riscv64",
+        "source_name": "tcl8.6",
+        "source_version": "8.6.16+dfsg-1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcl8.6/libtcl8.6_8.6.16%2bdfsg-1_riscv64.deb",
+        "sha256": "7e467fe9c7fcc407eeeb8ea4d0444f39bd83a28735218834cd3f0e35e3264ca4",
+        "bytes": 1065192,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libtcl8.6_8.6.16+dfsg-1_riscv64.deb"
+      },
+      {
+        "name": "libtinfo6",
+        "version": "6.5+20250216-2",
+        "architecture": "riscv64",
+        "source_name": "ncurses",
+        "source_version": "6.5+20250216-2",
+        "uri": "http://deb.debian.org/debian/pool/main/n/ncurses/libtinfo6_6.5%2b20250216-2_riscv64.deb",
+        "sha256": "9b902c0d5a1561c2e721fb90128281c9957ae6e37817acba2547aba91ff104ea",
+        "bytes": 347128,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libtinfo6_6.5+20250216-2_riscv64.deb"
+      },
+      {
+        "name": "libtk8.6",
+        "version": "8.6.16-1",
+        "architecture": "riscv64",
+        "source_name": "tk8.6",
+        "source_version": "8.6.16-1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tk8.6/libtk8.6_8.6.16-1_riscv64.deb",
+        "sha256": "669dbca2d24c037cf06c248b38e2b970373bc0b671da312879f7313b9d10cf96",
+        "bytes": 799300,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libtk8.6_8.6.16-1_riscv64.deb"
+      },
+      {
+        "name": "libuuid1",
+        "version": "2.41.5-0+deb13u1",
+        "architecture": "riscv64",
+        "source_name": "util-linux",
+        "source_version": "2.41.5-0+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0%2bdeb13u1_riscv64.deb",
+        "sha256": "8855961e9dd50ae01e93d8ceebc1b717afa28d7f22dc3854e2286cf1cc1bed6c",
+        "bytes": 39960,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libuuid1_2.41.5-0+deb13u1_riscv64.deb"
+      },
+      {
+        "name": "libx11-6",
+        "version": "2:1.8.12-1",
+        "architecture": "riscv64",
+        "source_name": "libx11",
+        "source_version": "2:1.8.12-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libx11/libx11-6_1.8.12-1_riscv64.deb",
+        "sha256": "7323fa274165abb319f40eb62c380ed863353723e2d7931bb0622b94b521675d",
+        "bytes": 817364,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libx11-6_2%3a1.8.12-1_riscv64.deb"
+      },
+      {
+        "name": "libx11-data",
+        "version": "2:1.8.12-1",
+        "architecture": "all",
+        "source_name": "libx11",
+        "source_version": "2:1.8.12-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libx11/libx11-data_1.8.12-1_all.deb",
+        "sha256": "c54f87069888f80ba4da586da6147d74c7598ccdd8b90906dbc4271fa414c738",
+        "bytes": 343072,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libx11-data_2%3a1.8.12-1_all.deb"
+      },
+      {
+        "name": "libx11-dev",
+        "version": "2:1.8.12-1",
+        "architecture": "riscv64",
+        "source_name": "libx11",
+        "source_version": "2:1.8.12-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libx11/libx11-dev_1.8.12-1_riscv64.deb",
+        "sha256": "8d3c51dddcdba837f5ffd5edfab0edfcb1783b01589d8e60a3d893443697baf3",
+        "bytes": 1408268,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libx11-dev_2%3a1.8.12-1_riscv64.deb"
+      },
+      {
+        "name": "libxau-dev",
+        "version": "1:1.0.11-1",
+        "architecture": "riscv64",
+        "source_name": "libxau",
+        "source_version": "1:1.0.11-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxau/libxau-dev_1.0.11-1_riscv64.deb",
+        "sha256": "1181a1a24d4d5bc5bd043516ac8424e93db5ac4fa4f5b6b7ae2bf8f05edcbe16",
+        "bytes": 27592,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxau-dev_1%3a1.0.11-1_riscv64.deb"
+      },
+      {
+        "name": "libxau6",
+        "version": "1:1.0.11-1",
+        "architecture": "riscv64",
+        "source_name": "libxau",
+        "source_version": "1:1.0.11-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxau/libxau6_1.0.11-1_riscv64.deb",
+        "sha256": "231e70010c1d91eb8890db365e4baface65c8727652d78651b9afe53e2bf2d57",
+        "bytes": 20504,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxau6_1%3a1.0.11-1_riscv64.deb"
+      },
+      {
+        "name": "libxcb1",
+        "version": "1.17.0-2+b1",
+        "architecture": "riscv64",
+        "source_name": "libxcb",
+        "source_version": "1.17.0-2",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb1_1.17.0-2%2bb1_riscv64.deb",
+        "sha256": "7453519720eb1791f08ba28748ab8654e0ccbdf2d0380fc7f617e74ffae99d74",
+        "bytes": 145320,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxcb1_1.17.0-2+b1_riscv64.deb"
+      },
+      {
+        "name": "libxcb1-dev",
+        "version": "1.17.0-2+b1",
+        "architecture": "riscv64",
+        "source_name": "libxcb",
+        "source_version": "1.17.0-2",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb1-dev_1.17.0-2%2bb1_riscv64.deb",
+        "sha256": "6dd61ac8abb8b479e6ca3c54cdce22462bf8fb2590acadcc57efb9f5604bccfd",
+        "bytes": 241172,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxcb1-dev_1.17.0-2+b1_riscv64.deb"
+      },
+      {
+        "name": "libxdmcp-dev",
+        "version": "1:1.1.5-1",
+        "architecture": "riscv64",
+        "source_name": "libxdmcp",
+        "source_version": "1:1.1.5-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxdmcp/libxdmcp-dev_1.1.5-1_riscv64.deb",
+        "sha256": "c5291eaa9ea4c8278d4612b4e87f3444d41606538f082056c2fedaa8c1ef2996",
+        "bytes": 52940,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxdmcp-dev_1%3a1.1.5-1_riscv64.deb"
+      },
+      {
+        "name": "libxdmcp6",
+        "version": "1:1.1.5-1",
+        "architecture": "riscv64",
+        "source_name": "libxdmcp",
+        "source_version": "1:1.1.5-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxdmcp/libxdmcp6_1.1.5-1_riscv64.deb",
+        "sha256": "ff8bdae603dc08d1181ad48a3113e28a560d9f79be891ee759e0e485699bac66",
+        "bytes": 27972,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxdmcp6_1%3a1.1.5-1_riscv64.deb"
+      },
+      {
+        "name": "libxext-dev",
+        "version": "2:1.3.4-1+b3",
+        "architecture": "riscv64",
+        "source_name": "libxext",
+        "source_version": "2:1.3.4-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxext/libxext-dev_1.3.4-1%2bb3_riscv64.deb",
+        "sha256": "ae35ce404d0c1f5a0990144befaaf97e03c261f3d265fd396798dcd6af68133d",
+        "bytes": 146956,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxext-dev_2%3a1.3.4-1+b3_riscv64.deb"
+      },
+      {
+        "name": "libxext6",
+        "version": "2:1.3.4-1+b3",
+        "architecture": "riscv64",
+        "source_name": "libxext",
+        "source_version": "2:1.3.4-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxext/libxext6_1.3.4-1%2bb3_riscv64.deb",
+        "sha256": "23a75839304cc392bdccbbf4bb0951783b5b269dda9b826a183cb73e46c915b2",
+        "bytes": 51724,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxext6_2%3a1.3.4-1+b3_riscv64.deb"
+      },
+      {
+        "name": "libxft-dev",
+        "version": "2.3.6-1+b4",
+        "architecture": "riscv64",
+        "source_name": "xft",
+        "source_version": "2.3.6-1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xft/libxft-dev_2.3.6-1%2bb4_riscv64.deb",
+        "sha256": "1ef7d555d552c7fc2c9c72092c5972211b58e61f014c1053404f439a1a7a9e92",
+        "bytes": 123788,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxft-dev_2.3.6-1+b4_riscv64.deb"
+      },
+      {
+        "name": "libxft2",
+        "version": "2.3.6-1+b4",
+        "architecture": "riscv64",
+        "source_name": "xft",
+        "source_version": "2.3.6-1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xft/libxft2_2.3.6-1%2bb4_riscv64.deb",
+        "sha256": "79a869daa6c4ce26ce08c1dab1d7b55b1e211b626cd1b7da4110804a21db8a7b",
+        "bytes": 53100,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxft2_2.3.6-1+b4_riscv64.deb"
+      },
+      {
+        "name": "libxrender-dev",
+        "version": "1:0.9.12-1",
+        "architecture": "riscv64",
+        "source_name": "libxrender",
+        "source_version": "1:0.9.12-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxrender/libxrender-dev_0.9.12-1_riscv64.deb",
+        "sha256": "22ad5b3d48526bc272c2d450788c39446728f8f2d4a656b38ba79b69d9679096",
+        "bytes": 62676,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxrender-dev_1%3a0.9.12-1_riscv64.deb"
+      },
+      {
+        "name": "libxrender1",
+        "version": "1:0.9.12-1",
+        "architecture": "riscv64",
+        "source_name": "libxrender",
+        "source_version": "1:0.9.12-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxrender/libxrender1_0.9.12-1_riscv64.deb",
+        "sha256": "9821c63ab65ead2d2b1b67b9fb01b6595b769046e41319886be1b57c8981f389",
+        "bytes": 28516,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxrender1_1%3a0.9.12-1_riscv64.deb"
+      },
+      {
+        "name": "libxss-dev",
+        "version": "1:1.2.3-1+b3",
+        "architecture": "riscv64",
+        "source_name": "libxss",
+        "source_version": "1:1.2.3-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxss/libxss-dev_1.2.3-1%2bb3_riscv64.deb",
+        "sha256": "fc34165fb6758547c0f6bf18bd33a18852484bbfa5ab3f142c4e6e983f85719f",
+        "bytes": 26156,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxss-dev_1%3a1.2.3-1+b3_riscv64.deb"
+      },
+      {
+        "name": "libxss1",
+        "version": "1:1.2.3-1+b3",
+        "architecture": "riscv64",
+        "source_name": "libxss",
+        "source_version": "1:1.2.3-1",
+        "uri": "http://deb.debian.org/debian/pool/main/libx/libxss/libxss1_1.2.3-1%2bb3_riscv64.deb",
+        "sha256": "597c3a4a32e42a6d4c93c0050fb231436a70cbf1fc7613eed5738dc8a436b616",
+        "bytes": 16948,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/libxss1_1%3a1.2.3-1+b3_riscv64.deb"
+      },
+      {
+        "name": "lsb-base",
+        "version": "11.6",
+        "architecture": "all",
+        "source_name": "lsb",
+        "source_version": "11.6",
+        "uri": "http://deb.debian.org/debian/pool/main/l/lsb/lsb-base_11.6_all.deb",
+        "sha256": "f8bedd167280e76636df3a1bc023cd2906d458916c1af4c1d7912c5b971fc642",
+        "bytes": 4584,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/lsb-base_11.6_all.deb"
+      },
+      {
+        "name": "readline-common",
+        "version": "8.2-6",
+        "architecture": "all",
+        "source_name": "readline",
+        "source_version": "8.2-6",
+        "uri": "http://deb.debian.org/debian/pool/main/r/readline/readline-common_8.2-6_all.deb",
+        "sha256": "f77e8aa0bf0de618f11cb0b21658a4ed60f177d63b3cf26d7fc3706b6d0eaaa9",
+        "bytes": 69360,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/readline-common_8.2-6_all.deb"
+      },
+      {
+        "name": "sysvinit-utils",
+        "version": "3.14-4",
+        "architecture": "riscv64",
+        "source_name": "sysvinit",
+        "source_version": "3.14-4",
+        "uri": "http://deb.debian.org/debian/pool/main/s/sysvinit/sysvinit-utils_3.14-4_riscv64.deb",
+        "sha256": "80f5ad03faaa4aff78ad18d004e017d553d38efafbdbd6ce8b7e9436f87878dd",
+        "bytes": 33744,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/sysvinit-utils_3.14-4_riscv64.deb"
+      },
+      {
+        "name": "tcl",
+        "version": "8.6.16",
+        "architecture": "riscv64",
+        "source_name": "tcltk-defaults",
+        "source_version": "8.6.16",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcltk-defaults/tcl_8.6.16_riscv64.deb",
+        "sha256": "32a97a37688f917da5c6a9a9fc35a9352faf6916b7c43d8d9ee82f361a50b6e9",
+        "bytes": 4096,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tcl_8.6.16_riscv64.deb"
+      },
+      {
+        "name": "tcl-dev",
+        "version": "8.6.16",
+        "architecture": "riscv64",
+        "source_name": "tcltk-defaults",
+        "source_version": "8.6.16",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcltk-defaults/tcl-dev_8.6.16_riscv64.deb",
+        "sha256": "db7bce1cf70753288c176ba1b2c0763d09cffc0a77c0a043d50f2c131f37d25e",
+        "bytes": 6624,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tcl-dev_8.6.16_riscv64.deb"
+      },
+      {
+        "name": "tcl8.6",
+        "version": "8.6.16+dfsg-1",
+        "architecture": "riscv64",
+        "source_name": "tcl8.6",
+        "source_version": "8.6.16+dfsg-1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcl8.6/tcl8.6_8.6.16%2bdfsg-1_riscv64.deb",
+        "sha256": "94c2fae9bc70b52efd1d60735121bd04934f1f366218dd8f849946319595c5fe",
+        "bytes": 120572,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tcl8.6_8.6.16+dfsg-1_riscv64.deb"
+      },
+      {
+        "name": "tcl8.6-dev",
+        "version": "8.6.16+dfsg-1",
+        "architecture": "riscv64",
+        "source_name": "tcl8.6",
+        "source_version": "8.6.16+dfsg-1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcl8.6/tcl8.6-dev_8.6.16%2bdfsg-1_riscv64.deb",
+        "sha256": "5466349ac2ee39caf68e1f1c92b816c60c441fbbbf4ac0b8a9edca7f331e10de",
+        "bytes": 2263968,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tcl8.6-dev_8.6.16+dfsg-1_riscv64.deb"
+      },
+      {
+        "name": "tk",
+        "version": "8.6.16",
+        "architecture": "riscv64",
+        "source_name": "tcltk-defaults",
+        "source_version": "8.6.16",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcltk-defaults/tk_8.6.16_riscv64.deb",
+        "sha256": "e554644ccc31d55ce94be1bf657ee8aebb636dfb6140038bfadc220dfdfeefd0",
+        "bytes": 4136,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tk_8.6.16_riscv64.deb"
+      },
+      {
+        "name": "tk-dev",
+        "version": "8.6.16",
+        "architecture": "riscv64",
+        "source_name": "tcltk-defaults",
+        "source_version": "8.6.16",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tcltk-defaults/tk-dev_8.6.16_riscv64.deb",
+        "sha256": "c8c29f40d7c025f479fc16901f1d6d1f8e85873123d7c07e28482edf3da5455c",
+        "bytes": 3964,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tk-dev_8.6.16_riscv64.deb"
+      },
+      {
+        "name": "tk8.6",
+        "version": "8.6.16-1",
+        "architecture": "riscv64",
+        "source_name": "tk8.6",
+        "source_version": "8.6.16-1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tk8.6/tk8.6_8.6.16-1_riscv64.deb",
+        "sha256": "a4eeefaf801abb384f4c43d6349f5b11c276259faadbd2e4620d34626f3da39f",
+        "bytes": 69556,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tk8.6_8.6.16-1_riscv64.deb"
+      },
+      {
+        "name": "tk8.6-dev",
+        "version": "8.6.16-1",
+        "architecture": "riscv64",
+        "source_name": "tk8.6",
+        "source_version": "8.6.16-1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tk8.6/tk8.6-dev_8.6.16-1_riscv64.deb",
+        "sha256": "6731cce26b6369dd19848d138afaed625cf8c8aa96f20d07feb20950eefea2ee",
+        "bytes": 1600448,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tk8.6-dev_8.6.16-1_riscv64.deb"
+      },
+      {
+        "name": "tzdata",
+        "version": "2026c-0+deb13u1",
+        "architecture": "all",
+        "source_name": "tzdata",
+        "source_version": "2026c-0+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/t/tzdata/tzdata_2026c-0%2bdeb13u1_all.deb",
+        "sha256": "813b9bbbe14ccda2b24617b8bade0ade4d745957e75921766c153d249886bd4c",
+        "bytes": 264156,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/tzdata_2026c-0+deb13u1_all.deb"
+      },
+      {
+        "name": "uuid-dev",
+        "version": "2.41.5-0+deb13u1",
+        "architecture": "riscv64",
+        "source_name": "util-linux",
+        "source_version": "2.41.5-0+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/u/util-linux/uuid-dev_2.41.5-0%2bdeb13u1_riscv64.deb",
+        "sha256": "49273817d4d8fb740ff4f23face2cc53c54c849f0864439e8e5ea0bb8c7a6721",
+        "bytes": 64536,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/uuid-dev_2.41.5-0+deb13u1_riscv64.deb"
+      },
+      {
+        "name": "x11-common",
+        "version": "1:7.7+24+deb13u1",
+        "architecture": "all",
+        "source_name": "xorg",
+        "source_version": "1:7.7+24+deb13u1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xorg/x11-common_7.7%2b24%2bdeb13u1_all.deb",
+        "sha256": "57a981938506b26dc552f19cafeaa8c04e9b59dc7508509151f8507a9d4e5f24",
+        "bytes": 216864,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/x11-common_1%3a7.7+24+deb13u1_all.deb"
+      },
+      {
+        "name": "x11proto-core-dev",
+        "version": "2024.1-1",
+        "architecture": "all",
+        "source_name": "xorgproto",
+        "source_version": "2024.1-1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xorgproto/x11proto-core-dev_2024.1-1_all.deb",
+        "sha256": "82bff9dab1d74e30bdbc6130f94d1bd361c3c1d3cdad660bd92e5b730c4cba7b",
+        "bytes": 3312,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/x11proto-core-dev_2024.1-1_all.deb"
+      },
+      {
+        "name": "x11proto-dev",
+        "version": "2024.1-1",
+        "architecture": "all",
+        "source_name": "xorgproto",
+        "source_version": "2024.1-1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xorgproto/x11proto-dev_2024.1-1_all.deb",
+        "sha256": "6a6764500eb8171d3cd6d793c09902974f8ea87bd20c68d9eac5f1eeaf3fc407",
+        "bytes": 602628,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/x11proto-dev_2024.1-1_all.deb"
+      },
+      {
+        "name": "x11proto-scrnsaver-dev",
+        "version": "2024.1-1",
+        "architecture": "all",
+        "source_name": "xorgproto",
+        "source_version": "2024.1-1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xorgproto/x11proto-scrnsaver-dev_2024.1-1_all.deb",
+        "sha256": "a1eeb8c637bf817d69ddff48ec74f55dd571a0a486054806845db53b54f39fce",
+        "bytes": 3320,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/x11proto-scrnsaver-dev_2024.1-1_all.deb"
+      },
+      {
+        "name": "xorg-sgml-doctools",
+        "version": "1:1.11-1.1",
+        "architecture": "all",
+        "source_name": "xorg-sgml-doctools",
+        "source_version": "1:1.11-1.1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xorg-sgml-doctools/xorg-sgml-doctools_1.11-1.1_all.deb",
+        "sha256": "168345058319094e475a87ace66f5fb6ae802109650ea8434d672117982b5d0a",
+        "bytes": 22064,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/xorg-sgml-doctools_1%3a1.11-1.1_all.deb"
+      },
+      {
+        "name": "xtrans-dev",
+        "version": "1.4.0-1",
+        "architecture": "all",
+        "source_name": "xtrans",
+        "source_version": "1.4.0-1",
+        "uri": "http://deb.debian.org/debian/pool/main/x/xtrans/xtrans-dev_1.4.0-1_all.deb",
+        "sha256": "9ce1af9464faee0c679348dd11cdf63934c12e734a64e0903692b0cb5af38e06",
+        "bytes": 98740,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/xtrans-dev_1.4.0-1_all.deb"
+      },
+      {
+        "name": "zlib1g",
+        "version": "1:1.3.dfsg+really1.3.1-1+b1",
+        "architecture": "riscv64",
+        "source_name": "zlib",
+        "source_version": "1:1.3.dfsg+really1.3.1-1",
+        "uri": "http://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg%2breally1.3.1-1%2bb1_riscv64.deb",
+        "sha256": "38c52eef58e5fc9b13d93f8a7d0a0549c32b4f00402a778d39a135254f554314",
+        "bytes": 85664,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/zlib1g_1%3a1.3.dfsg+really1.3.1-1+b1_riscv64.deb"
+      },
+      {
+        "name": "zlib1g-dev",
+        "version": "1:1.3.dfsg+really1.3.1-1+b1",
+        "architecture": "riscv64",
+        "source_name": "zlib",
+        "source_version": "1:1.3.dfsg+really1.3.1-1",
+        "uri": "http://deb.debian.org/debian/pool/main/z/zlib/zlib1g-dev_1.3.dfsg%2breally1.3.1-1%2bb1_riscv64.deb",
+        "sha256": "d114f1570a22a105ffda27f92989bb892541f36ebe3fbe85d3238b21ffdc39bc",
+        "bytes": 978240,
+        "archive": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/packages/zlib1g-dev_1%3a1.3.dfsg+really1.3.1-1+b1_riscv64.deb"
+      }
+    ],
+    "authenticated_indices": [
+      {
+        "inrelease": "/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_InRelease",
+        "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+        "gpgv_status": "[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8 0\n[GNUPG:] SIG_ID fM8UqijUGAqWJdb90JmZdKIEkBw 2026-09-12 1789199778\n[GNUPG:] GOODSIG 6ED0E7B82643E131 Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG 4CB50190207B4758A3F73A796ED0E7B82643E131 2026-09-12 1789199778 0 4 0 1 8 01 B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 04B54C3CDCA79751B16BC6B5225629DF75B188BD 0\n[GNUPG:] SIG_ID LslL/RevDk/visZTn+fCIVYA9H4 2026-09-12 1789199779\n[GNUPG:] GOODSIG 78DBA3BC47EF2265 Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\n[GNUPG:] VALIDSIG B8E5F13176D2A7A75220028078DBA3BC47EF2265 2026-09-12 1789199779 0 4 0 1 8 01 04B54C3CDCA79751B16BC6B5225629DF75B188BD\n[GNUPG:] NEWSIG\n[GNUPG:] KEY_CONSIDERED 41587F7DB8C774BCCF131416762F67A0B2C39DE4 0\n[GNUPG:] SIG_ID tBl+SI6uuFq+8fkokvwiPkG+UgQ 2026-09-12 1789199867\n[GNUPG:] GOODSIG 762F67A0B2C39DE4 Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>\n[GNUPG:] VALIDSIG 41587F7DB8C774BCCF131416762F67A0B2C39DE4 2026-09-12 1789199867 0 4 0 22 8 01 41587F7DB8C774BCCF131416762F67A0B2C39DE4\n",
+        "gpgv_diagnostic": "gpgv: Signature made Sat Sep 12 07:56:18 2026 UTC\ngpgv:                using RSA key 4CB50190207B4758A3F73A796ED0E7B82643E131\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>\"\ngpgv: Signature made Sat Sep 12 07:56:19 2026 UTC\ngpgv:                using RSA key B8E5F13176D2A7A75220028078DBA3BC47EF2265\ngpgv: Good signature from \"Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>\"\ngpgv: Signature made Sat Sep 12 07:57:47 2026 UTC\ngpgv:                using EDDSA key 41587F7DB8C774BCCF131416762F67A0B2C39DE4\ngpgv: Good signature from \"Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>\"\n",
+        "cached_index": "/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_main_binary-riscv64_Packages",
+        "cached_index_sha256": "0f29f58fb195d4e44daefa1a416ea34d1fd5f4908f54968286ad115384372298",
+        "signed_index_path": "main/binary-riscv64/Packages",
+        "uncompressed_sha256": "0f29f58fb195d4e44daefa1a416ea34d1fd5f4908f54968286ad115384372298",
+        "uncompressed_bytes": 54322586,
+        "current_cached_index": {
+          "path": "/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_main_binary-riscv64_Packages",
+          "bytes": 54322586,
+          "sha256": "0f29f58fb195d4e44daefa1a416ea34d1fd5f4908f54968286ad115384372298"
+        },
+        "current_inrelease": {
+          "path": "/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_InRelease",
+          "bytes": 140421,
+          "sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675"
+        }
+      }
+    ],
+    "provided_host_base_packages": {
+      "libc6-dev": "2.41-12+deb13u4",
+      "libc6": "2.41-12+deb13u4",
+      "dpkg-dev": "1.22.22",
+      "pkgconf": "1.8.1-4"
+    },
+    "initial_pkg_config_queries": {
+      "scope": "version-only; not a compiler/header/link proof",
+      "results": {
+        "sqlite3": {
+          "exit_code": 0,
+          "stdout": "3.46.1\n",
+          "stderr": ""
+        },
+        "tk": {
+          "exit_code": 0,
+          "stdout": "8.6.16\n",
+          "stderr": ""
+        },
+        "tcl": {
+          "exit_code": 0,
+          "stdout": "8.6.16\n",
+          "stderr": ""
+        },
+        "readline": {
+          "exit_code": 0,
+          "stdout": "8.2\n",
+          "stderr": ""
+        },
+        "uuid": {
+          "exit_code": 0,
+          "stdout": "2.41.5\n",
+          "stderr": ""
+        },
+        "liblzma": {
+          "exit_code": 0,
+          "stdout": "5.8.1\n",
+          "stderr": ""
+        }
+      }
+    },
+    "actual_all_interface_proof": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/all-interface-check-v2.json",
+      "bytes": 5636,
+      "sha256": "3de5cc078896456258441a7604c603d37d5c508ad636d812d8fd6288749c3a25"
+    },
+    "actual_link_flags": [
+      "-lsqlite3",
+      "-ltk8.6",
+      "-ltcl8.6",
+      "-lreadline",
+      "-lgdbm_compat",
+      "-lgdbm",
+      "-luuid",
+      "-lbz2",
+      "-llzma",
+      "-lz",
+      "-lssl",
+      "-lcrypto",
+      "-lffi"
+    ],
+    "compile": {
+      "argv": [
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "-I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include",
+        "-I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/riscv64-linux-gnu",
+        "-I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/tcl8.6",
+        "-I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/uuid",
+        "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/all-hosted-interfaces-test-v2.c",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/all-hosted-interfaces-test-v2",
+        "-L/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib/riscv64-linux-gnu",
+        "-L/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib",
+        "-lsqlite3",
+        "-ltk8.6",
+        "-ltcl8.6",
+        "-lreadline",
+        "-lgdbm_compat",
+        "-lgdbm",
+        "-luuid",
+        "-lbz2",
+        "-llzma",
+        "-lz",
+        "-lssl",
+        "-lcrypto",
+        "-lffi"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "execution": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "interface_program": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/all-hosted-interfaces-test-v2",
+      "bytes": 13648,
+      "sha256": "cf409b6e75697490e85bfca51c2ac61f830c7abde8f13744423a860f0c06d4dd"
+    },
+    "source": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/all-hosted-interfaces-test-v2.c",
+      "sha256": "bcd7fc27ffb84e633c2f97a6cb3aaecbc63290c513cfafef6ebed28353d7e32e"
+    },
+    "selected_flags": {
+      "CPPFLAGS": "-I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include -I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/riscv64-linux-gnu -I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/tcl8.6 -I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/uuid",
+      "LDFLAGS": "-L/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib/riscv64-linux-gnu -L/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib",
+      "LIBUUID_CFLAGS": "-I/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/include/uuid",
+      "LIBUUID_LIBS": "-L/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/rootfs/usr/lib/riscv64-linux-gnu -luuid"
+    },
+    "uuid_specific_proof": {
+      "path": "/home/orangepi/ostadix-BM/target/cpython-expansion-20261018/hosted-dependencies/uuid-interface-check.json",
+      "bytes": 3620,
+      "sha256": "b321ef52b89b17e6ff254f2c72735d760364f7df3103bee52c1c6db282007d7d"
+    },
+    "native_dependency_closure_complete": false
+  },
+  "root_current_rust_readmission": {
+    "receipt": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/receipt.json",
+      "bytes": 1619,
+      "sha256": "a44e167c95362a843fcb4a00b5e33602364038e89aec029670289ccc93d456fa"
+    },
+    "command": {
+      "argv": [
+        "target/release/olangc",
+        "target/rust-expansion-20261018/adler2-nativecopy-tyad43_m/capture/report.json",
+        "--native-runtime",
+        "--native-isa",
+        "riscv64-unknown-none",
+        "--native-runtime-output",
+        "ir",
+        "--llvm-library",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "--llvm-sha256",
+        "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+        "-o",
+        "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/rust-current-driver-readmission"
+      ],
+      "started_at": 1792358307.2720833,
+      "log": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/2.log",
+      "exit_code": 1,
+      "finished_at": 1792358311.8051543
+    },
+    "log": {
+      "path": "/home/orangepi/ostadix-BM/target/python-c-rust-regressions-20261018/2.log",
+      "bytes": 318,
+      "sha256": "4520cf1243011f0feabc60788b7216ffbd830f5beb0e4f462f986e14f825f833"
+    }
+  },
+  "runtime_complete": false,
+  "provider_closure_complete": false,
+  "dependency_closure_complete": false,
+  "native_execution_qualified": false,
+  "native_ostadix_platform_qualified": false,
+  "full_python_runtime_ocore_lowered": false,
+  "full_c_compiler_ocore_lowered": false,
+  "full_rust_compiler_complete": false,
+  "hosted_binary_packages_are_target_implementations": false
+}

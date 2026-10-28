@@ -124,16 +124,16 @@ const PATH_CLIENT: u64 = 0x3e3c_6043_6eb1_e944;
 const PATH_PROVIDER: u64 = 0x1015_04f6_a11b_cb48;
 const PATH_OBJECT: u64 = 0x9694_1904_85ab_7ecd;
 
-const IMAGE_LENGTH: usize = 78304;
-const IMAGE_ID: u64 = 0xc095_ca50_76ae_0942;
-const IMAGE_DIGEST_0: u64 = 0x4209_ae76_50ca_95c0;
-const IMAGE_DIGEST_1: u64 = 0x75cb_920b_cd92_10c2;
-const IMAGE_DIGEST_2: u64 = 0x16df_1018_1736_d72d;
-const IMAGE_DIGEST_3: u64 = 0xf551_040d_84a4_d83c;
-const IMAGE_SHA_0: u64 = 0xc095_ca50_76ae_0942;
-const IMAGE_SHA_1: u64 = 0xc210_92cd_0b92_cb75;
-const IMAGE_SHA_2: u64 = 0x2dd7_3617_1810_df16;
-const IMAGE_SHA_3: u64 = 0x3cd8_a484_0d04_51f5;
+const IMAGE_LENGTH: usize = 82400;
+const IMAGE_ID: u64 = 0x3ea4_a9f6_a2aa_19d2;
+const IMAGE_DIGEST_0: u64 = 0xd219_aaa2_f6a9_a43e;
+const IMAGE_DIGEST_1: u64 = 0x79d0_22de_9c52_079b;
+const IMAGE_DIGEST_2: u64 = 0x1015_2f9e_cd29_732d;
+const IMAGE_DIGEST_3: u64 = 0xe9c7_a691_03b1_e881;
+const IMAGE_SHA_0: u64 = 0x3ea4_a9f6_a2aa_19d2;
+const IMAGE_SHA_1: u64 = 0x9b07_529c_de22_d079;
+const IMAGE_SHA_2: u64 = 0x2d73_29cd_9e2f_1510;
+const IMAGE_SHA_3: u64 = 0x81e8_b103_91a6_c7e9;
 
 const OBJECT_DIGEST_0: u64 = 0xacb8_3ec6_138e_a059;
 const OBJECT_DIGEST_1: u64 = 0x0713_05af_4c3f_e9da;

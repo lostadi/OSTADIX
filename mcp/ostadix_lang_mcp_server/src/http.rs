@@ -1,7 +1,7 @@
 //! Remote MCP transport. The SDK owns JSON-RPC, SSE, and session negotiation;
 //! this module owns listener configuration, access policy, and process shutdown.
 
-use crate::{execution::WeakJobManager, OstadixMcp, RuntimeSearchPath};
+use crate::{execution::WeakJobManager, oauth::OAuth, OstadixMcp, RuntimeSearchPath};
 use anyhow::{bail, Context};
 use axum::{
     body::{to_bytes, Body},
@@ -18,6 +18,7 @@ use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService,
 };
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -48,6 +49,16 @@ pub struct Options {
     /// File containing the bearer token (or set OSTADIX_MCP_BEARER_TOKEN).
     #[arg(long, conflicts_with = "allow_unauthenticated")]
     token_file: Option<PathBuf>,
+    /// Enable OAuth at this exact public MCP URL; repeat for public aliases.
+    #[arg(
+        long,
+        requires = "oauth_state_dir",
+        conflicts_with = "allow_unauthenticated"
+    )]
+    oauth_public_url: Vec<String>,
+    /// Absolute private directory for OAuth grants, outside managed releases.
+    #[arg(long, requires = "oauth_public_url")]
+    oauth_state_dir: Option<PathBuf>,
     /// Explicitly disable bearer authentication, e.g. behind an auth gateway.
     #[arg(long)]
     allow_unauthenticated: bool,
@@ -68,6 +79,9 @@ pub struct Options {
 #[derive(Clone)]
 struct Access {
     token: Option<Arc<[u8]>>,
+    oauth: Option<OAuth>,
+    session_owners: Arc<Mutex<HashMap<String, String>>>,
+    sessions: Arc<LocalSessionManager>,
     origins: Vec<HeaderValue>,
     max_request_bytes: usize,
     stopping: CancellationToken,
@@ -140,19 +154,51 @@ async fn access(State(access): State<Access>, request: Request, next: Next) -> R
     if access.stopping.is_cancelled() {
         return (StatusCode::SERVICE_UNAVAILABLE, "MCP server is stopping").into_response();
     }
-    if !authorized(request.headers(), access.token.as_deref()) {
+    let principal = if authorized(request.headers(), access.token.as_deref()) {
+        Some("owner".to_owned())
+    } else {
+        access
+            .oauth
+            .as_ref()
+            .and_then(|oauth| oauth.authenticate(request.headers()))
+    };
+    let Some(principal) = principal else {
+        let challenge = access
+            .oauth
+            .as_ref()
+            .and_then(|oauth| oauth.challenge(request.headers()))
+            .unwrap_or_else(|| HeaderValue::from_static("Bearer realm=\"ostadix-mcp\""));
         return (
             StatusCode::UNAUTHORIZED,
-            [(header::WWW_AUTHENTICATE, "Bearer realm=\"ostadix-mcp\"")],
+            [(header::WWW_AUTHENTICATE, challenge)],
             "MCP bearer token required",
         )
             .into_response();
-    }
+    };
     // Match CORS exactly. The SDK currently treats a portless allowlist entry
     // as matching any port, which would otherwise admit unintended origins.
     if !allowed_origin(request.headers(), &access.origins) {
         return (StatusCode::FORBIDDEN, "Origin is not allowed").into_response();
     }
+    // An OAuth grant may retain its own sessions across refresh, but cannot
+    // adopt another app's jobs or intent handles using a leaked session ID.
+    let session_id = request
+        .headers()
+        .get("mcp-session-id")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    if access.oauth.is_some() {
+        if let Some(id) = &session_id {
+            let owners = access
+                .session_owners
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if owners.get(id) != Some(&principal) {
+                return (StatusCode::NOT_FOUND, "MCP session not found").into_response();
+            }
+        }
+    }
+    let deleting = request.method() == Method::DELETE;
     let mut request = request;
     if request.method() == Method::POST {
         let (parts, body) = request.into_parts();
@@ -192,11 +238,44 @@ async fn access(State(access): State<Access>, request: Request, next: Next) -> R
     } else if !supported_header(request.headers()) {
         return (StatusCode::BAD_REQUEST, "Unsupported MCP protocol version").into_response();
     }
-    next.run(request).await
+    let response = next.run(request).await;
+    if access.oauth.is_some() && response.status().is_success() {
+        let active = access.sessions.sessions.read().await;
+        let mut owners = access
+            .session_owners
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        owners.retain(|id, _| active.contains_key(id.as_str()));
+        if deleting {
+            if let Some(id) = session_id {
+                owners.remove(&id);
+            }
+        } else if let Some(id) = response
+            .headers()
+            .get("mcp-session-id")
+            .and_then(|v| v.to_str().ok())
+        {
+            owners.insert(id.to_owned(), principal);
+        }
+    }
+    response
 }
 
 pub async fn serve(options: Options, runtime_search: RuntimeSearchPath) -> anyhow::Result<()> {
     let token = load_token(&options)?;
+    let oauth = options
+        .oauth_state_dir
+        .as_ref()
+        .map(|state_dir| {
+            OAuth::open(
+                &options.oauth_public_url,
+                state_dir,
+                token
+                    .clone()
+                    .context("OAuth requires an owner bearer token")?,
+            )
+        })
+        .transpose()?;
     if options.max_request_bytes == 0 {
         bail!("--max-request-bytes must be positive");
     }
@@ -211,6 +290,14 @@ pub async fn serve(options: Options, runtime_search: RuntimeSearchPath) -> anyho
         }
     }
     config.allowed_hosts.extend(options.allowed_host);
+    for public_url in &options.oauth_public_url {
+        let uri: axum::http::Uri = public_url.parse().context("invalid OAuth public URL")?;
+        config.allowed_hosts.push(
+            uri.authority()
+                .context("OAuth URL has no authority")?
+                .to_string(),
+        );
+    }
     // Exact origins keep the transport check and CORS policy aligned.
     let origins: Vec<HeaderValue> = options
         .allowed_origin
@@ -267,14 +354,18 @@ pub async fn serve(options: Options, runtime_search: RuntimeSearchPath) -> anyho
             "last-event-id".parse().unwrap(),
         ])
         .expose_headers([
+            header::WWW_AUTHENTICATE,
             "mcp-session-id".parse().unwrap(),
             "mcp-protocol-version".parse().unwrap(),
         ]);
-    let app = Router::new()
+    let mut app = Router::new()
         .route_service("/mcp", service)
         .route_layer(middleware::from_fn_with_state(
             Access {
                 token,
+                oauth: oauth.clone(),
+                session_owners: Arc::new(Mutex::new(HashMap::new())),
+                sessions: sessions.clone(),
                 origins,
                 max_request_bytes: options.max_request_bytes,
                 stopping: stopping.clone(),
@@ -283,6 +374,9 @@ pub async fn serve(options: Options, runtime_search: RuntimeSearchPath) -> anyho
         ))
         .layer(cors)
         .route("/healthz", get(|| async { "ostadix-mcp ok\n" }));
+    if let Some(oauth) = oauth {
+        app = app.merge(oauth.router());
+    }
     let listener = tokio::net::TcpListener::bind(options.bind)
         .await
         .context("bind MCP HTTP listener")?;

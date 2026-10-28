@@ -1,0 +1,859 @@
+{
+  "compiler_build": {
+    "profile": "Rust DEV/TEST opt-level=0 debug=0, jobs=1; selected O, olangc and ocorec binaries, not a complete release-tool installation",
+    "receipt": {
+      "bytes": 3072,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/receipt.json",
+      "sha256": "50bc7af42c15b20975392aef8f490d004ec26c4e4edd6d839c453b1c8d9ee2a9"
+    },
+    "record": {
+      "api_tests_exit": 0,
+      "binaries": {
+        "O": {
+          "bytes": 23768296,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/O",
+          "sha256": "ca778bbb38e7146fd0f6e35ab5d69b7ac5fa1692cce45c11e8bf20d1dd76cf11"
+        },
+        "ocorec": {
+          "bytes": 12543616,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/ocorec",
+          "sha256": "e521a88ff18e606bbaec6480856318369548783d60ab29c1ff353ede59e9ba1d"
+        },
+        "olangc": {
+          "bytes": 47341800,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/olangc",
+          "sha256": "df05b7e0c5bf5848dc34dbadbd685111847a1da77fb843d7837f4081688298a4"
+        }
+      },
+      "build_exit": 0,
+      "finished_utc": "2026-10-20T07:25:01.507446+00:00",
+      "source_after_build": {
+        "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+        "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+        "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+        "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+        "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+        "scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+      },
+      "source_after_tests": {
+        "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+        "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+        "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+        "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+        "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+        "scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+      },
+      "source_before": {
+        "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+        "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+        "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+        "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+        "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+        "scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+      },
+      "stage": "complete",
+      "started_utc": "2026-10-20T07:23:11.050156+00:00"
+    }
+  },
+  "date_utc": "2026-10-20T08:35:37.854279+00:00",
+  "documentation_checks": {
+    "receipt": {
+      "bytes": 612,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/docs-final-v2-matrix/receipt.json",
+      "sha256": "bedd19b75837cac76561636d8d3120aeed5a1e0de71aaeb95ba35f1a3de1fe32"
+    },
+    "record": {
+      "complete": true,
+      "steps": [
+        {
+          "argv": [
+            "python3",
+            "scripts/render_docs.py",
+            "write",
+            "--marked",
+            "/tmp/ostadix-doc-renderer/node_modules/marked/bin/marked.js",
+            "--jobs",
+            "2"
+          ],
+          "exit_code": 0,
+          "seconds": 65.96979370899498
+        },
+        {
+          "argv": [
+            "python3",
+            "scripts/render_docs.py",
+            "check",
+            "--marked",
+            "/tmp/ostadix-doc-renderer/node_modules/marked/bin/marked.js",
+            "--jobs",
+            "2"
+          ],
+          "exit_code": 0,
+          "seconds": 71.36033593502361
+        }
+      ]
+    }
+  },
+  "driver_source_recipe_and_hgraph": {
+    "receipt": {
+      "bytes": 9359,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2-final/receipt.json",
+      "sha256": "e9fe13ec15540cea74835dc0058bb51446fcd4c201860ac535ad7ab4a73ec8d0"
+    },
+    "record": {
+      "binary_pins": {
+        "O_debug": {
+          "bytes": 23768296,
+          "path": "/home/orangepi/ostadix-BM/target/debug/O",
+          "sha256": "ca778bbb38e7146fd0f6e35ab5d69b7ac5fa1692cce45c11e8bf20d1dd76cf11"
+        },
+        "O_immutable": {
+          "bytes": 23768296,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/O",
+          "sha256": "ca778bbb38e7146fd0f6e35ab5d69b7ac5fa1692cce45c11e8bf20d1dd76cf11"
+        },
+        "ocorec_debug": {
+          "bytes": 12543616,
+          "path": "/home/orangepi/ostadix-BM/target/debug/ocorec",
+          "sha256": "e521a88ff18e606bbaec6480856318369548783d60ab29c1ff353ede59e9ba1d"
+        },
+        "ocorec_immutable": {
+          "bytes": 12543616,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/ocorec",
+          "sha256": "e521a88ff18e606bbaec6480856318369548783d60ab29c1ff353ede59e9ba1d"
+        },
+        "olangc_debug": {
+          "bytes": 47341800,
+          "path": "/home/orangepi/ostadix-BM/target/debug/olangc",
+          "sha256": "df05b7e0c5bf5848dc34dbadbd685111847a1da77fb843d7837f4081688298a4"
+        },
+        "olangc_immutable": {
+          "bytes": 47341800,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/olangc",
+          "sha256": "df05b7e0c5bf5848dc34dbadbd685111847a1da77fb843d7837f4081688298a4"
+        }
+      },
+      "build": {
+        "bytes": 3072,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/receipt.json",
+        "sha256": "50bc7af42c15b20975392aef8f490d004ec26c4e4edd6d839c453b1c8d9ee2a9"
+      },
+      "environment": {
+        "GIT_AUTHOR_EMAIL": "ostadi.lee@gmail.com",
+        "GIT_AUTHOR_NAME": "Lee Daghlar Ostadi",
+        "GIT_COMMITTER_EMAIL": "ostadi.lee@gmail.com",
+        "GIT_COMMITTER_NAME": "Lee Daghlar Ostadi",
+        "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+        "OCORE_TEST_LLVM22_BIN": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin",
+        "OCORE_TEST_LLVM_LIBRARY": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "OCORE_TEST_LLVM_SHA256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+        "OCORE_TEST_NATIVE_HGRAPH_EVALUATOR": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/O",
+        "OCORE_TEST_NATIVE_HGRAPH_OUTPUT_DIR": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2-final/hgraph-fixtures",
+        "OCORE_TEST_NATIVE_SOURCE_RECIPE_OUTPUT_DIR": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2-final/source-fixtures",
+        "PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin:/home/orangepi/.local/bin:/home/orangepi/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games",
+        "PYTHONPATH": "/home/orangepi/ostadix-BM/tests:/home/orangepi/ostadix-BM"
+      },
+      "finished_epoch": 1792482641.6734838,
+      "fixture_proofs": [
+        {
+          "bytes": 6439,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2-final/source-fixtures/run-wy39ulqy/case-6rrebvf9/qualification.json",
+          "sha256": "290201a225fa3f15e8cb9f31d4c8070b1bdf2839bd1a85cab373690a8eb1af4c"
+        }
+      ],
+      "fresh_fixture_step": {
+        "command": [
+          "/usr/bin/python3",
+          "-m",
+          "unittest",
+          "tests.test_ocore_native_variadic_source_recipe",
+          "-v"
+        ],
+        "exit_code": 0,
+        "name": "source-varargs",
+        "skipped": 0,
+        "stderr": {
+          "bytes": 338,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2-final/source-varargs.stderr",
+          "sha256": "53cd4fad7a98762895e7baf29aecf9ad73c0f72f8d76e67dc397683198d345b6"
+        },
+        "stdout": {
+          "bytes": 0,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2-final/source-varargs.stdout",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "success": true,
+        "tests": 1
+      },
+      "retained_discovery_issue": "Prior fixture module exposed its imported TestCase, so unittest ran11 duplicatebase methods plus the newmethod; all12passed. Fresh module import below exposes only its own testcase.",
+      "retained_regression_receipt": {
+        "bytes": 18927,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2/receipt.json",
+        "sha256": "4ac701792c259655ad2d58fbc608fa138a9aa1c4e49d82c41d02dd1f4e26de6f"
+      },
+      "retained_regression_steps": [
+        {
+          "command": [
+            "/usr/bin/python3",
+            "-m",
+            "unittest",
+            "tests.test_ocore_native_source_recipe",
+            "-v"
+          ],
+          "elapsed_seconds": 59.99505853652954,
+          "exit_code": 0,
+          "expected_tests": 11,
+          "name": "source-recipe",
+          "skipped": 0,
+          "stderr": {
+            "bytes": 2375,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2/source-recipe.stderr",
+            "sha256": "518e90e0b5d07a5e432acbe5141ffeb29b08373199fa121d80d673bab03735fa"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2/source-recipe.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "success": true,
+          "tests": 11
+        },
+        {
+          "command": [
+            "/usr/bin/python3",
+            "-m",
+            "unittest",
+            "tests.test_ocore_native_hgraph_cli",
+            "-v"
+          ],
+          "elapsed_seconds": 45.435242652893066,
+          "exit_code": 0,
+          "expected_tests": 8,
+          "name": "hgraph-cli",
+          "skipped": 0,
+          "stderr": {
+            "bytes": 1739,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2/hgraph-cli.stderr",
+            "sha256": "c6b515007b16bc7f03537e2968fee1aa10af0951250465237a023bb8aedaca7c"
+          },
+          "stdout": {
+            "bytes": 0,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/driver-integration-v2/hgraph-cli.stdout",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "success": true,
+          "tests": 8
+        }
+      ],
+      "runner": {
+        "bytes": 3522,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/run-driver-integration-v2-final.py",
+        "sha256": "fd8f7759c4de8a9250f4a722edf766c26fc900d2320b446260720764610facb4"
+      },
+      "schema": "native-variadic-driver-integration-v1",
+      "skipped": 0,
+      "source_and_binary_stable": true,
+      "source_pins": {
+        "crates/ostadix-api/src/ocore/native_abi.rs": {
+          "bytes": 62561,
+          "path": "/home/orangepi/ostadix-BM/crates/ostadix-api/src/ocore/native_abi.rs",
+          "sha256": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee"
+        },
+        "crates/ostadix-api/src/ocore/native_codegen.rs": {
+          "bytes": 136971,
+          "path": "/home/orangepi/ostadix-BM/crates/ostadix-api/src/ocore/native_codegen.rs",
+          "sha256": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068"
+        },
+        "crates/ostadix-api/src/ocore/native_ir.rs": {
+          "bytes": 27185,
+          "path": "/home/orangepi/ostadix-BM/crates/ostadix-api/src/ocore/native_ir.rs",
+          "sha256": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe"
+        },
+        "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": {
+          "bytes": 6268,
+          "path": "/home/orangepi/ostadix-BM/crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+          "sha256": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0"
+        },
+        "crates/ostadix-api/src/ocore/native_verify.rs": {
+          "bytes": 399940,
+          "path": "/home/orangepi/ostadix-BM/crates/ostadix-api/src/ocore/native_verify.rs",
+          "sha256": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9"
+        },
+        "scripts/ocore_llvm_import.py": {
+          "bytes": 170171,
+          "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+          "sha256": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+        },
+        "tests/test_ocore_llvm_import.py": {
+          "bytes": 119299,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+          "sha256": "e389a51fecc77861550f6f74700020ed42e4b94901cc1eb7cd4e1372b79b1d82"
+        },
+        "tests/test_ocore_native_hgraph_cli.py": {
+          "bytes": 15243,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_hgraph_cli.py",
+          "sha256": "e083bea781c624f387256a381088493092f4c9b0d288778eae250831891f2355"
+        },
+        "tests/test_ocore_native_runtime.py": {
+          "bytes": 19135,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_runtime.py",
+          "sha256": "1838d640739d781e5435f12090f3b88df3234c22612211e56b6e57b9a9a6123f"
+        },
+        "tests/test_ocore_native_source_recipe.py": {
+          "bytes": 18768,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_source_recipe.py",
+          "sha256": "b2ab8c386374e283baa39c9bd44299204b23718ed382b2ab37aeb6aa9ca9602f"
+        },
+        "tests/test_ocore_native_variadic_source_recipe.py": {
+          "bytes": 10228,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_variadic_source_recipe.py",
+          "sha256": "f99bb428e2e1f0318950e5de93b7c03c42c4aaa514bc4219ebc5890ae4cca667"
+        }
+      },
+      "stage": "complete",
+      "started_epoch": 1792482612.107154,
+      "success": true,
+      "unique_test_methods": 20
+    },
+    "runtime_provider_qualification": false
+  },
+  "forensics": {
+    "actual_pinned_byval_kind": 84,
+    "actual_pinned_dead_on_return_kind": 9,
+    "initial_install_smoke_expectation_error_retained": true,
+    "initial_v1_failures_retained": true,
+    "no_failure_reclassified_as_pass": true
+  },
+  "historical_progress": {
+    "bytes": 35319,
+    "path": "/home/orangepi/ostadix-BM/evidence/native_variadic_progress_20261020.json",
+    "sha256": "c379af1b6fe5c53dc8d2931283450a93aad96c6e2ede1e3bb0f6b164374638d8"
+  },
+  "implementation_contract": [
+    "Native Call/Invoke plans classify actual variadic operands after validating the fixed signature prefix and independent tail attributes.",
+    "Only canonical direct llvm.va_start.p0, llvm.va_copy.p0 and llvm.va_end.p0 intrinsics receive owned cursor lowering; default promotions remain the frontend responsibility.",
+    "The pinned LLVM22 unsized AS0-pointer dead_on_return promise is retained as a conservative nonexploited refinement. It grants no byval support.",
+    "Raw GP/vector incoming banks are saved before use; RV64 variadic frame and CFI use the same80-byte header.",
+    "Native .oc initial type checking remains before typed MIR lowering; native code generation remains owned, while LLVM still serves foreign parsing and verification."
+  ],
+  "importer_changed_scope_v2": {
+    "receipt": {
+      "bytes": 1521,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-dead-on-return-final-v2-yzmg78rt/receipt.json",
+      "sha256": "43c5d93eaa73032d980215169b3eb96e7b329f9eb98510c6803b7495e818bbaf"
+    },
+    "record": {
+      "errors": 0,
+      "failures": 0,
+      "llvm_library": {
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+      },
+      "log": "/home/orangepi/ostadix-BM/target/variadic-dead-on-return-final-v2-yzmg78rt/unittest.log",
+      "selected_methods": [
+        "test_variadic_call_retains_complete_actual_types_and_independent_tail_attributes",
+        "test_variadic_list_lifecycle_retains_exact_owned_calls_and_declarations",
+        "test_variadic_list_addresses_and_fixed_function_start_remain_rejected",
+        "test_dead_on_return_refinement_preserves_every_original_call_and_memory_operation",
+        "test_dead_on_return_invoke_keeps_edges_and_byval_is_still_not_erased"
+      ],
+      "semantic_reference": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-22.1.6/llvm/docs/LangRef.rst#L1667-L1680",
+      "skips": [],
+      "source_after": {
+        "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5",
+        "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py": "e389a51fecc77861550f6f74700020ed42e4b94901cc1eb7cd4e1372b79b1d82"
+      },
+      "source_before": {
+        "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5",
+        "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py": "e389a51fecc77861550f6f74700020ed42e4b94901cc1eb7cd4e1372b79b1d82"
+      },
+      "tests_run": 5
+    }
+  },
+  "importer_regression_history": {
+    "passed_methods": 73,
+    "receipt": {
+      "bytes": 1985,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-importer-complete-20261020-t6i0drz2/receipt.json",
+      "sha256": "32b972ad91a8abda507180c0aaf839a9c3c1dc976d0b01986e125d420119200c"
+    },
+    "record": {
+      "errors": 0,
+      "failures": 0,
+      "log": {
+        "bytes": 15597,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-importer-complete-20261020-t6i0drz2/unittest.log",
+        "sha256": "4fb11ad61537893f761fd0c6634d3cda85e9fc20bb29fc79375d2e92b2d77f38"
+      },
+      "passed": true,
+      "schema": "ostadix.variadic-importer-regression-v1",
+      "seconds": 1904.18970937602,
+      "skips": [
+        {
+          "reason": "Clang 21 frontend unavailable",
+          "test": "test_clang21_text_and_bitcode_full_unit_inventory_and_symbol_closure_on_all_three_isas (full_variadic_importer_regression.LlvmImportTests.test_clang21_text_and_bitcode_full_unit_inventory_and_symbol_closure_on_all_three_isas)"
+        }
+      ],
+      "sources_after": [
+        {
+          "bytes": 169042,
+          "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+          "sha256": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+        },
+        {
+          "bytes": 115663,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+          "sha256": "a4afa2db3dc6eef554fe329c668cfbdbdf66901088b4457f53a56ea9efd17b73"
+        },
+        {
+          "bytes": 132053720,
+          "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+        }
+      ],
+      "sources_before": [
+        {
+          "bytes": 169042,
+          "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+          "sha256": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+        },
+        {
+          "bytes": 115663,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+          "sha256": "a4afa2db3dc6eef554fe329c668cfbdbdf66901088b4457f53a56ea9efd17b73"
+        },
+        {
+          "bytes": 132053720,
+          "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+        }
+      ],
+      "tests_run": 74
+    },
+    "scope": "Full pre-dead_on_return v1 importer suite; explicitly bound to its recorded v1 worker, not relabeled as v2."
+  },
+  "installed_tool_verification": {
+    "actual_direct_O_stdout": "[number] 2\n",
+    "additional_installed_interoperability_methods": 2,
+    "additional_installed_interoperability_profiles": [
+      "riscv64-lp64d",
+      "aarch64"
+    ],
+    "additional_installed_interoperability_skips": 0,
+    "log": {
+      "bytes": 433,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/installed-v2-verification/unittest.log",
+      "sha256": "5b789ae7ce5eb93f95bf7f2739c27b93eefa738bc2b4c4c1f92bf54416b87d93"
+    },
+    "previous_binaries_retained": "target/variadic-20261020/installed-v2/*.previous",
+    "receipt": {
+      "bytes": 1768,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/installed-v2-verification/receipt.json",
+      "sha256": "5ee9b26ea020635896dbe2868e3aa730fd0cfce76dede734fbfa91df23052c7a"
+    },
+    "record": {
+      "checks": [
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/O",
+            "/home/orangepi/ostadix-BM/examples/hello.O",
+            "/home/orangepi/ostadix-BM/backends"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/ocorec",
+            "--help"
+          ],
+          "exit_code": 0
+        },
+        {
+          "argv": [
+            "/home/orangepi/.local/bin/olangc",
+            "--help"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "finished_utc": "2026-10-20T08:10:44.096079+00:00",
+      "installed": {
+        "O": {
+          "bytes": 23768296,
+          "path": "/home/orangepi/.local/bin/O",
+          "sha256": "ca778bbb38e7146fd0f6e35ab5d69b7ac5fa1692cce45c11e8bf20d1dd76cf11"
+        },
+        "ocorec": {
+          "bytes": 12543616,
+          "path": "/home/orangepi/.local/bin/ocorec",
+          "sha256": "e521a88ff18e606bbaec6480856318369548783d60ab29c1ff353ede59e9ba1d"
+        },
+        "olangc": {
+          "bytes": 47341800,
+          "path": "/home/orangepi/.local/bin/olangc",
+          "sha256": "df05b7e0c5bf5848dc34dbadbd685111847a1da77fb843d7837f4081688298a4"
+        },
+        "ostadix-evaluator": {
+          "bytes": 23768296,
+          "path": "/home/orangepi/.local/bin/ostadix-evaluator",
+          "sha256": "ca778bbb38e7146fd0f6e35ab5d69b7ac5fa1692cce45c11e8bf20d1dd76cf11"
+        }
+      },
+      "prior_attempt": {
+        "actual_hello_stdout": "[number] 2\n",
+        "command_exit": 0,
+        "harness_error": "expected untagged 2; evaluator correctly returned typed [number] 2",
+        "receipt": {
+          "bytes": 1608,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/installed-v2/receipt.json",
+          "sha256": "797932df831d15a1230073a4ca754c8115fbfeaaa449aa045b0af3e876f5e797"
+        }
+      },
+      "stage": "complete",
+      "started_utc": "2026-10-20T08:09:46.236574+00:00",
+      "tests_exit": 0
+    }
+  },
+  "native_interoperability": {
+    "receipt": {
+      "bytes": 11676,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/qualification-summary.json",
+      "sha256": "1b690642a77da6462af5dfc853c75b70394bb1f9be79df5a9670431d8d155157"
+    },
+    "record": {
+      "all_oracle_comparisons": 12480,
+      "bound_artifact_records_rehashed": 452,
+      "build_receipt_at_launch": {
+        "bytes": 3072,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/build-receipt-at-launch.json",
+        "sha256": "50bc7af42c15b20975392aef8f490d004ec26c4e4edd6d839c453b1c8d9ee2a9"
+      },
+      "case_reports": [
+        {
+          "pairings": 4,
+          "profile": "riscv64-lp64",
+          "report": {
+            "bytes": 38862,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-2weulm99/report.json",
+            "sha256": "4d6dc9cb23e8c5be09ca87b248847ad7302417ec95ed8c70b775cc69525fe76d"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_riscv64_lp64_integer_pointer_interoperability"
+        },
+        {
+          "pairings": 8,
+          "profile": null,
+          "report": {
+            "bytes": 95894,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-3_to9si8/report.json",
+            "sha256": "48a92c7c2c8b138fd1b2e721221a1e69934d76fbe58b0dd3ffc61bb2e68883f4"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_reference_floating_callers_cross_owned_opaque_va_list_wrapper"
+        },
+        {
+          "pairings": 4,
+          "profile": "riscv64-lp64d",
+          "report": {
+            "bytes": 38872,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-5l847x5i/report.json",
+            "sha256": "5bd67d008700bc2709d9b96f5040af069b0322e212455dc8ac3a9d143964de4b"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_riscv64_lp64d_integer_pointer_interoperability"
+        },
+        {
+          "pairings": 4,
+          "profile": "aarch64",
+          "report": {
+            "bytes": 38383,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-89z8ryr3/report.json",
+            "sha256": "baf1c4c1788b65f54cdd4b5cac82d8b09ff843ed4276c7b07d77b56c3bc2195c"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_aarch64_integer_pointer_interoperability"
+        },
+        {
+          "pairings": 0,
+          "profile": null,
+          "report": {
+            "bytes": 4964,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-bewdkhj5/report.json",
+            "sha256": "a2500513b0717c8bf3103d3e4a1db0de73bcb0cc02efa180d54b1cf1052bb561"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_clang_x86_byval_ellipsis_argument_requires_aggregate_abi"
+        },
+        {
+          "pairings": 4,
+          "profile": "x86_64",
+          "report": {
+            "bytes": 38360,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-j2kh03b9/report.json",
+            "sha256": "0e37bf427e805200e289f7d00d0ac093c1b8839e837e5d89b210f1cbaf9c1a53"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_x86_64_integer_pointer_interoperability"
+        },
+        {
+          "pairings": 0,
+          "profile": null,
+          "report": {
+            "bytes": 12492,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-jcj8676c/report.json",
+            "sha256": "612db115cded427e5538e5a54f404865a09a39bb9994f12f34dde22b532305dc"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_default_promoted_float_extra_argument_requires_float_abi"
+        }
+      ],
+      "comparisons_with_at_least_one_owned_component": 9024,
+      "compiled_source_guard_fields": {
+        "source_after_build": {
+          "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+          "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+          "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+          "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+          "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+          "scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+        },
+        "source_after_tests": {
+          "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+          "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+          "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+          "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+          "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+          "scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+        },
+        "source_before": {
+          "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+          "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+          "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+          "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+          "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+          "scripts/ocore_llvm_import.py": "2a708f225128d88de37de3c78d22de3b918e1544b53f05886f12750a782b57a5"
+        }
+      },
+      "compiler": {
+        "bytes": 12543616,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/ocorec",
+        "sha256": "e521a88ff18e606bbaec6480856318369548783d60ab29c1ff353ede59e9ba1d"
+      },
+      "compiler_and_harness_before_after_identical": true,
+      "full_causal_native_graph_qualified": false,
+      "general_byval_qualified": false,
+      "harness": {
+        "bytes": 31429,
+        "path": "/home/orangepi/ostadix-BM/tests/test_ocore_native_variadic_abi.py",
+        "sha256": "1cd051ad552b2331a091bff530b1b89c59ef64dc308ccb5694c6a94091bf9bfe"
+      },
+      "instruction_debugger_qualified": false,
+      "integer_oracle_comparisons": 11136,
+      "integer_pairings": 16,
+      "negative_guards": [
+        {
+          "exit_code": 1,
+          "message": "unsupported attribute kind 84 at index 2",
+          "native_output_absent": true,
+          "stage": "import",
+          "stderr": {
+            "bytes": 288,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-bewdkhj5/command-2.stderr",
+            "sha256": "5fce5868aea526b4a0c4eb02a431c3396292762026d825e72d9a95a7a92e617f"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_clang_x86_byval_ellipsis_argument_requires_aggregate_abi"
+        },
+        {
+          "exit_code": 1,
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "native_output_absent": true,
+          "stage": "import",
+          "stderr": {
+            "bytes": 341,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-jcj8676c/command-2.stderr",
+            "sha256": "44b685b522bd43cd8d0da1bcdf25e206100b894094dbb3b4cccc282e8bcd5367"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_default_promoted_float_extra_argument_requires_float_abi"
+        },
+        {
+          "exit_code": 1,
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "native_output_absent": true,
+          "stage": "import",
+          "stderr": {
+            "bytes": 341,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-jcj8676c/command-5.stderr",
+            "sha256": "44b685b522bd43cd8d0da1bcdf25e206100b894094dbb3b4cccc282e8bcd5367"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_default_promoted_float_extra_argument_requires_float_abi"
+        },
+        {
+          "exit_code": 1,
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "native_output_absent": true,
+          "stage": "import",
+          "stderr": {
+            "bytes": 341,
+            "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/cases/variadic-jcj8676c/command-8.stderr",
+            "sha256": "44b685b522bd43cd8d0da1bcdf25e206100b894094dbb3b4cccc282e8bcd5367"
+          },
+          "test": "tests.test_ocore_native_variadic_abi.NativeVariadicAbiTests.test_default_promoted_float_extra_argument_requires_float_abi"
+        }
+      ],
+      "opaque_fp_oracle_comparisons": 1344,
+      "opaque_fp_pairings": 8,
+      "oracles": {
+        "integer": "Independent Python unsigned64 arithmetic, pointer-pointee/sentinel checks, default promotions;87 original C cases times8 seeds per pairing",
+        "opaque_fp": "Independent Python binary64 word/binary128 two-word bit-pattern fold; reference Clang caller and va_list consumer; only wrapper is compiled by O-core"
+      },
+      "ostadix_kernel_native_execution_qualified": false,
+      "owned_first_class_fp_ssa_qualified": false,
+      "owned_fp_caller_qualified": false,
+      "owned_opaque_wrappers_contain_no_float_type": true,
+      "profiles": {
+        "aarch64": {
+          "integer_comparisons": 2784,
+          "integer_pairings": 4,
+          "opaque_comparisons": 384,
+          "opaque_pairings": 2
+        },
+        "riscv64-lp64": {
+          "integer_comparisons": 2784,
+          "integer_pairings": 4,
+          "opaque_comparisons": 384,
+          "opaque_pairings": 2
+        },
+        "riscv64-lp64d": {
+          "integer_comparisons": 2784,
+          "integer_pairings": 4,
+          "opaque_comparisons": 384,
+          "opaque_pairings": 2
+        },
+        "x86_64": {
+          "integer_comparisons": 2784,
+          "integer_pairings": 4,
+          "opaque_comparisons": 192,
+          "opaque_pairings": 2
+        }
+      },
+      "provider_closure_complete": false,
+      "runtime_complete": false,
+      "schema": "ostadix.native-variadic-qualification-v1",
+      "scope": "ELF Linux development carriers on x86_64,AArch64,RV64 lp64/lp64d; integer/AS0-pointer variadic C callers/callees and opaque FP forwarding",
+      "skips": 0,
+      "status": "pass",
+      "suite": {
+        "bytes": 2832,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/launch.json",
+        "sha256": "3c5fc35530d7081f7698f92a31bb55b43cda19ed1dfb7fc22389a93f94a770d9"
+      },
+      "suite_log": {
+        "bytes": 1353,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v2/suite.stderr",
+        "sha256": "6c7a7898b686f51196dbc150c7c2a764376c886283bcad9d048c14d4e2d8557c"
+      },
+      "suite_methods": 7,
+      "v1_history": {
+        "changes": "AArch64 dead_on_return promise9 admitted without exploiting it; x86 byval guard corrected to actual pinned kind84; original C fixtures unchanged",
+        "failures": 3,
+        "log": {
+          "bytes": 7502,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v1/suite.stderr",
+          "sha256": "376d5312a31bbfec13d139bcc904b854af8a8c5de83bdb3fdcd1dcacb3b97834"
+        },
+        "methods": 7,
+        "rewritten": false,
+        "suite": {
+          "bytes": 2829,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v1/launch.json",
+          "sha256": "dca7c6a1c19da0fe0d81f0323c137502d8976a898d589e053a04b161e3ddbf6d"
+        }
+      },
+      "whole_original_llvm_input_and_definition_inventories_checked": true
+    }
+  },
+  "raw_artifacts_policy": "Large immutable carrier/source/tool artifacts and logs remain at recorded local paths; this tracked JSON preserves their hashes, receipts and exact qualification scope.",
+  "remaining_gates": {
+    "bounded_native_reference_interpreter_variadics": false,
+    "complete_original_python_c_rust_runtimes": false,
+    "exception_execution_through_owned_variadic_frames": false,
+    "general_byval_and_fp_aggregate_abi": false,
+    "general_graph_to_native_causal_relationship_preservation": false,
+    "generic_llvm_va_arg_opcode": false,
+    "instruction_level_causal_debugger": false,
+    "owned_first_class_fp_ssa_and_callers": false,
+    "provider_dependency_closure": false
+  },
+  "remaining_gates_explanation": "False means unqualified or unsupported. This milestone does not mark full execution support complete. Existing bounded graph-leaf rejection remains enforced. Complete source-matrix diagnostics are separate from runtime/provider closure and execution qualification.",
+  "repository": {
+    "base_commit": "e0aa16a6427f120cbdd2547a55ab2399d35400c9",
+    "checkpoint_commit": "ec6e30f523572eff528bd449acdbd4aab15f5058",
+    "identity": "Lee Daghlar Ostadi <ostadi.lee@gmail.com>",
+    "physical_path": "/home/orangepi/ostadix-BM",
+    "remote": "https://github.com/lostadi/ostadix-BM"
+  },
+  "rust_native_tests": {
+    "failed": 0,
+    "filter": "ocore::native",
+    "filtered_out": 1173,
+    "ignored": 0,
+    "log": {
+      "bytes": 26748,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v2/api-tests.log",
+      "sha256": "8f0f645747c29543ffd8524440b150b88a00eea9c962fa9c791946d606fadc71"
+    },
+    "passed": 232
+  },
+  "schema": "ostadix.native-variadic-integration-v1",
+  "scope": "Owned ELF/Linux C integer and AS0-pointer variadic callers/callees on x86-64, AArch64 and RV64 lp64/lp64d; opaque va_list forwarding preserves raw foreign FP registers without claiming owned first-class FP execution.",
+  "status": "pass_for_recorded_scope",
+  "whole_original_chibicc": {
+    "all9_attempted_without_body_filtering": true,
+    "counts": {
+      "attempted": 9,
+      "imported": 6,
+      "independently_verified": 6,
+      "owned_objects": 6,
+      "selected": 9
+    },
+    "remaining_boundaries": [
+      "Three unchanged units require first-class floating-point SSA/ABI support.",
+      "Aggregate byval remains unsupported.",
+      "No linked or executed chibicc runtime or provider dependency closure is qualified by per-unit objects."
+    ],
+    "source_tools_and_inputs_stable": true,
+    "tracked_evidence": {
+      "bytes": 66730,
+      "path": "/home/orangepi/ostadix-BM/evidence/chibicc_variadic_followup_20261020.json",
+      "sha256": "63da98e137e51adc68ccdc6808857d977549d4ecefd7b1f64c6f37590010be7b"
+    }
+  },
+  "whole_original_python_c_rust_followup": {
+    "all223_negative_exits_are1_without_crash_or_loader_failures": true,
+    "attempted": 370,
+    "baseline_verified_objects": 64,
+    "c": {
+      "attempted": 9,
+      "baseline_default_profile_objects": 0,
+      "default_profile_objects": 6
+    },
+    "dependency_closure_complete": false,
+    "native_execution_qualified": false,
+    "newly_verified_objects": 83,
+    "normal_baseline_atomic_profile": true,
+    "python": {
+      "attempted": 360,
+      "baseline_default_profile_objects": 63,
+      "default_profile_objects": 140,
+      "imported_and_independently_verified": 152
+    },
+    "regressed_objects": 0,
+    "runtime_complete": false,
+    "rust": {
+      "attempted": 1,
+      "baseline_default_profile_objects": 1,
+      "default_profile_objects": 1
+    },
+    "same_original_cohort_tools_sources_and_inputs_stable": true,
+    "separate_coherent_ram_followup_included": false,
+    "tracked_evidence": {
+      "bytes": 88012,
+      "path": "/home/orangepi/ostadix-BM/evidence/python_c_rust_variadic_followup_20261020.json",
+      "sha256": "28e59ab8c21c49c43241df6c90adddfc72e13e1ca88300df21451305f751fb5d"
+    },
+    "verified_objects": 147
+  }
+}

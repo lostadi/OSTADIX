@@ -543,8 +543,8 @@ system does not wait for native self-hosting.
 
 `ocore/kernel/build-m5-artifacts.sh` performs two builds of all four static
 service ELFs and the read-only OVFS image, requiring byte identity and the exact
-host-computed image digest. The pinned artifact is 62,056 bytes with SHA-256
-`388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a`;
+host-computed image digest. The pinned artifact is 57,960 bytes with SHA-256
+`a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4`;
 the kernel recomputes that digest before OVFS import. `smoke-live-qemu.sh`
 verifies the ELF entry symbols are absent from the kernel, boots the four loaded
 CPL3 principals, and drives the real serial `o> ` loop. It submits malformed
@@ -591,8 +591,8 @@ Status: **bounded scalar gate implemented**.
 Mode 18 packages four independently linked static ELFs at
 `/sbin/m6-client.elf`, `/sbin/m6-personalityd.elf`,
 `/sbin/m6-supervisord.elf`, and `/sbin/m6-observer.elf`. The deterministic
-62,104-byte OVFS image has SHA-256
-`f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417`;
+58,320-byte OVFS image has SHA-256
+`bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d`;
 the host verifies the exact path set, byte identity, and digest, and the kernel
 recomputes the digest before import. The gate rejects any kernel-linked user
 module symbol.
@@ -695,7 +695,7 @@ proceed to stderr before complete reclamation.
 
 Mode 26 retains that exact Linux ELF and adds an unprivileged native 9P2000
 server, native supervisor, and independently linked native Plan-9-style client.
-The four principals load from one deterministic 92,872-byte immutable OVFS
+The four principals load from one deterministic 97,512-byte immutable OVFS
 image into isolated CPL3 address spaces. The server exposes only the
 generation-bound `/srv/linux/status` path, where the client performs exact
 `version`, `attach`, `walk`, `open`, `read`, and `clunk` exchanges with

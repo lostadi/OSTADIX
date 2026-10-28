@@ -180,8 +180,8 @@ The M5 builder performs two full service builds and requires byte-identical
 ELFs and images. Both verify image SHA-256 before boot. O-core also runs its
 freestanding NIST-vector-tested SHA-256 implementation over the complete image
 before OVFS import and publication, then validates OVFS and ELF structure. The
-mode-16 artifact is pinned at 62,056 bytes with SHA-256
-`388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a`;
+mode-16 artifact is pinned at 57,960 bytes with SHA-256
+`a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4`;
 both the smoke harness and kernel require that exact identity. A fuller receipt
 must also name the compiler revision and source digest.
 

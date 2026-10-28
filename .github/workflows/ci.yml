@@ -294,6 +294,8 @@ jobs:
           python3 scripts/check_language_sources.py validate
           python3 scripts/render_docs.py validate
           python3 -m unittest -v tests.test_example_manifest tests.test_benchmark_hgraph_hosted
+          python3 -m unittest -v tests.test_hosted_boot tests.test_python_shim_backend
+          python3 -m unittest -v tests.test_boxing tests.test_ocore_execution_prefix
           python3 -m unittest -v tests.test_foreign_kernel_lab tests.test_ostadix_capacity tests.test_ostadix_capacity_iso tests.test_ostadix_boot_media tests.test_ostadix_boot_iso tests.test_ostadix_boot_info_qemu tests.test_ostadix_hosted_live_release tests.test_ostadix_ventoy_installer tests.test_ostadix_media_writer tests.test_ostadix_physical_evidence tests.test_setup tests.test_native_install tests.test_language_sources tests.test_render_docs
           python3 -m tests.test_evaluator
           python3 -B tests/test_backend_state_protocol.py -v
@@ -342,6 +344,7 @@ jobs:
           cargo +1.97.1 build --release --locked --manifest-path mcp/ostadix_lang_mcp_server/Cargo.toml
           python3 scripts/smoke_ostadix_mcp.py
           python3 scripts/smoke_ostadix_mcp_http.py
+          python3 scripts/smoke_ostadix_mcp_oauth.py
           python3 -m unittest -v tests.test_mcp_http_updater
           python3 scripts/smoke_ostadix_mcp_node.py
 
@@ -781,6 +784,8 @@ jobs:
         run: ocore/kernel/smoke-x86_64-uefi-media-qemu.sh
       - name: Prove deterministic x86_64 UEFI ISO boot through OVMF
         run: ocore/kernel/smoke-x86_64-uefi-iso-qemu.sh
+      - name: Verify compact native payloads and exact OVFS artifact pins
+        run: python3 -m unittest -v tests.test_ocore_payload_layout tests.test_ocore_ovfs_pins
       # BEGIN GENERATED: REQUIRED_QEMU_EVIDENCE_CI
       - name: Validate central release-evidence manifest
         run: python3 scripts/release_evidence.py validate

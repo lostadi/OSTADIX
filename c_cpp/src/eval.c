@@ -10,6 +10,7 @@
 
 #include "value.h"
 #include "parser.h"
+#include "backends.h"
 #include "process.h"
 #include "scheduler.h"
 #include "nix_ops.h"
@@ -424,19 +425,9 @@ void olang_evaluator_free(OEvaluator *ev) {
 
 bool olang_evaluator_set_registered(OEvaluator *ev, const StringSet *backends) {
     if (!ev) return false;
-    StringSet *registered = string_set_new();
+    StringSet *registered = backends ? string_set_new() : olang_default_backends();
     if (!registered) return false;
-    if (!backends) {
-        const char *defs[] = {"O","python","html","markdown","latex","text","quote",
-                              "nix","nix_expr","nix_store","nixos_test","bash","shell","rust","racket", NULL};
-        for (int i=0; defs[i]; ++i) {
-            string_set_add(registered, defs[i]);
-            if (!string_set_contains(registered, defs[i])) {
-                string_set_free(registered);
-                return false;
-            }
-        }
-    } else {
+    if (backends) {
         for (size_t i=0; i<backends->len; ++i) {
             string_set_add(registered, backends->items[i]);
             if (!string_set_contains(registered, backends->items[i])) {

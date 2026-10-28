@@ -13,6 +13,8 @@
     <string>--bind</string><string>127.0.0.1:8787</string>
     <string>--token-file</string><string>__HOME__/.config/ostadix-mcp/token</string>
     <string>--allowed-host</string><string>__HOST__</string>
+    <string>--oauth-public-url</string><string>https://__HOST__/mcp</string>
+    <string>--oauth-state-dir</string><string>__BASE__/oauth</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>

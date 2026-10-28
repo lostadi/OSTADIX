@@ -36,6 +36,10 @@ CARGO_PARENT_VARIABLE = "OCORE_CAPTURE_CARGO_PARENT"
 REGISTERED_CARGO_OBSERVER_SHA256 = "9e10e5fd5a95c196bc1f8403a3180d450b477a419abc4774316a12fbe3f40993"
 RUST_EMBEDDED_POLICY = "rust-embedded-bc-v1"
 REGISTERED_RUST_PAYLOAD_SHA256 = "0190404305ffa887b60d5f23e9af64029c1fe770ce6c705d19a65ee3a89d6767"
+PRODUCER_REGISTRY_FILE = "ocore_producer_registry.json"
+REGISTERED_PRODUCER_REGISTRY_SHA256 = "62d74350f9b97db882f96ccb04fb985ff519e45d648b2f977664c2e631ff4052"
+# These are implemented by this trusted worker, not recipe-selected modules.
+BUILTIN_CAPTURE_ADAPTERS = frozenset({"clang", "rustc"})
 NATIVE_TOOL_KINDS = {"ld": "linker", "ld.lld": "linker", "ld.bfd": "linker",
                      "ld.gold": "linker", "ar": "archive", "llvm-ar": "archive",
                      "ranlib": "archive-index", "llvm-ranlib": "archive-index"}
@@ -88,6 +92,89 @@ def worker_digest(expected_worker_sha256: str | None = None) -> str:
     return expected_worker_sha256
 
 
+def producer_registry(path: Path | None = None) -> dict:
+    if path is None:
+        if "__file__" not in globals():
+            raise CaptureError("embedded producer registry requires a verified capture snapshot")
+        path = Path(__file__).resolve().with_name(PRODUCER_REGISTRY_FILE)
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != REGISTERED_PRODUCER_REGISTRY_SHA256:
+        raise CaptureError("producer registry differs from its independently registered SHA-256")
+    # Hash and parse the same bytes. The registry is data, never executable code.
+    registry = json.loads(raw)
+    if (not isinstance(registry, dict) or set(registry) != {"schema", "capability_scope", "producers"}
+            or registry["schema"] != "ocore-producer-registry-v1"
+            or not isinstance(registry["producers"], list) or not registry["producers"]):
+        raise CaptureError("invalid registered producer registry")
+    ids, kinds, wrappers = set(), set(), set()
+    for item in registry["producers"]:
+        if (set(item) != {"id", "adapter", "unit_kind", "wrappers", "capture", "import"}
+                or item["adapter"] not in BUILTIN_CAPTURE_ADAPTERS
+                or item["unit_kind"] != item["adapter"]):
+            raise CaptureError("producer requires a statically implemented trusted adapter")
+        if item["id"] in ids or item["unit_kind"] in kinds:
+            raise CaptureError("duplicate registered producer identity")
+        ids.add(item["id"]); kinds.add(item["unit_kind"])
+        for wrapper in item["wrappers"]:
+            if set(wrapper) != {"name", "kind"} or wrapper["name"] in wrappers:
+                raise CaptureError("invalid registered producer wrapper inventory")
+            wrappers.add(wrapper["name"])
+        if (set(item["capture"]) != {"available", "policies"}
+                or type(item["capture"]["available"]) is not bool
+                or set(item["import"]) != {"available", "adapter", "formats"}
+                or type(item["import"]["available"]) is not bool
+                or item["import"]["adapter"] not in {None, "llvm-ir"}):
+            raise CaptureError("invalid separate producer capture/import capabilities")
+    return registry
+
+
+def registered_producer(kind: str, producer_id: str | None = None, registry: dict | None = None) -> dict:
+    registry = producer_registry() if registry is None else registry
+    matches = [item for item in registry["producers"] if item["unit_kind"] == kind]
+    if len(matches) != 1:
+        raise CaptureError("unregistered producer unit kind: " + str(kind))
+    producer = matches[0]
+    if producer_id is not None and producer_id != producer["id"]:
+        raise CaptureError("unregistered or mismatched producer ID: " + str(producer_id))
+    if not producer["capture"]["available"]:
+        raise CaptureError("registered producer has no supported capture adapter: " + producer["id"])
+    return producer
+
+
+def producer_policy(kind: str, recipe: dict, registry: dict | None = None) -> dict:
+    producer = registered_producer(kind, registry=registry)
+    policy = (recipe.get("toolchain", {}).get("rust_capture_policy")
+              if producer["adapter"] == "rustc" else None) or "frontend-replay-v1"
+    if policy not in producer["capture"]["policies"]:
+        raise CaptureError("unsupported registered producer capture policy: " + str(policy))
+    return producer["capture"]["policies"][policy]
+
+
+def require_import_format(kind: str, format_: str, registry: dict | None = None) -> dict:
+    producer = registered_producer(kind, registry=registry)
+    capability = producer["import"]
+    if (not capability["available"] or capability["adapter"] != "llvm-ir"
+            or format_ not in capability["formats"]):
+        raise CaptureError(f"unsupported import format {format_!r} for registered producer {producer['id']}")
+    return capability
+
+
+def verified_producer_registry(session: dict, directory: Path) -> dict:
+    record = session.get("capture_worker", {}).get("producer_registry")
+    if not isinstance(record, dict) or record.get("schema") != "ocore-producer-registry-snapshot-v1":
+        raise CaptureError("capture worker requires its registered producer registry snapshot")
+    path = directory.resolve() / PRODUCER_REGISTRY_FILE
+    artifact = record.get("artifact", {})
+    if path.is_symlink() or artifact.get("path") != str(path):
+        raise CaptureError("producer registry snapshot path differs from the capture worker")
+    registry = producer_registry(path)
+    if (artifact != file_info(path) or artifact.get("sha256") != REGISTERED_PRODUCER_REGISTRY_SHA256
+            or record.get("source", {}).get("sha256") != REGISTERED_PRODUCER_REGISTRY_SHA256
+            or record.get("source", {}).get("bytes") != artifact.get("bytes")):
+        raise CaptureError("producer registry snapshot identity changed")
+    return registry
+
+
 def wrapper_bytes(directory: Path, kind: str, worker: dict) -> bytes:
     script = worker["artifact"]["path"]
     digest = worker["artifact"]["sha256"]
@@ -113,6 +200,15 @@ def snapshot_worker(directory: Path, rust_policy: str | None = None) -> dict:
         raise CaptureError("capture worker source changed while snapshotting")
     worker = {"schema": "ocore-runtime-capture-worker-v1", "source": original, "artifact": artifact,
               "python": {**file_info(Path(sys.executable)), "invoked_path": sys.executable}, "wrappers": {}}
+    registry_source = source.with_name(PRODUCER_REGISTRY_FILE)
+    registry = producer_registry(registry_source)
+    registry_original = file_info(registry_source)
+    registry_snapshot = directory / PRODUCER_REGISTRY_FILE
+    registry_snapshot.write_bytes(registry_source.read_bytes())
+    registry_snapshot.chmod(0o444)
+    worker["producer_registry"] = {"schema": "ocore-producer-registry-snapshot-v1",
+                                   "source": registry_original, "artifact": file_info(registry_snapshot)}
+    verified_producer_registry({"capture_worker": worker}, directory)
     if rust_policy is not None:
         if rust_policy != RUST_EMBEDDED_POLICY:
             raise CaptureError("unsupported Rust capture policy")
@@ -128,7 +224,7 @@ def snapshot_worker(directory: Path, rust_policy: str | None = None) -> dict:
         if worker["rust_payload_extractor"]["artifact"]["sha256"] != REGISTERED_RUST_PAYLOAD_SHA256:
             raise CaptureError("Rust payload extractor changed during snapshotting")
     (directory / "wrappers").mkdir(exist_ok=True)
-    for name, kind in wrapper_kinds():
+    for name, kind in wrapper_kinds(registry):
         path = directory / "wrappers" / name
         path.write_bytes(wrapper_bytes(directory, kind, worker))
         path.chmod(0o755)
@@ -136,9 +232,10 @@ def snapshot_worker(directory: Path, rust_policy: str | None = None) -> dict:
     return worker
 
 
-def wrapper_kinds() -> list[tuple[str, str]]:
-    return [("cc", "clang"), ("cxx", "cxx"), ("rustc-wrapper", "rustc"),
-            *[(name, name) for name in NATIVE_TOOL_KINDS]]
+def wrapper_kinds(registry: dict | None = None) -> list[tuple[str, str]]:
+    registry = producer_registry() if registry is None else registry
+    return [(wrapper["name"], wrapper["kind"]) for item in registry["producers"] for wrapper in item["wrappers"]] + [
+        (name, name) for name in NATIVE_TOOL_KINDS]
 
 
 def verify_worker(session: dict, directory: Path, expected_worker_sha256: str | None = None) -> dict:
@@ -154,12 +251,13 @@ def verify_worker(session: dict, directory: Path, expected_worker_sha256: str | 
         raise CaptureError("frozen capture worker artifact changed or relocated")
     if worker["source"]["sha256"] != expected or worker["source"]["bytes"] != artifact["bytes"]:
         raise CaptureError("capture worker original-source binding differs from its immutable snapshot")
+    registry = verified_producer_registry(session, directory)
     python = worker["python"]
     if file_info(Path(python["invoked_path"])) != {key: python[key] for key in ("path", "sha256", "bytes")}:
         raise CaptureError("capture worker Python interpreter changed")
-    if set(worker["wrappers"]) != {name for name, _ in wrapper_kinds()}:
+    if set(worker["wrappers"]) != {name for name, _ in wrapper_kinds(registry)}:
         raise CaptureError("capture worker wrapper inventory is incomplete")
-    for name, kind in wrapper_kinds():
+    for name, kind in wrapper_kinds(registry):
         path = directory / "wrappers" / name
         if file_info(path) != worker["wrappers"][name] or path.read_bytes() != wrapper_bytes(directory, kind, worker):
             raise CaptureError("capture worker wrapper changed or does not execute the frozen worker: " + name)
@@ -350,7 +448,8 @@ def cargo_tool_info(command: str, rust_info: dict) -> dict:
     return cargo
 
 
-def validate_recipe(recipe: dict) -> None:
+def validate_recipe(recipe: dict, registry: dict | None = None) -> None:
+    registry = producer_registry() if registry is None else registry
     if recipe.get("schema") != RECIPE_SCHEMA:
         raise CaptureError(f"recipe schema must be {RECIPE_SCHEMA}")
     if not isinstance(recipe.get("name"), str) or not recipe["name"]:
@@ -361,6 +460,9 @@ def validate_recipe(recipe: dict) -> None:
     if not isinstance(source.get("url"), str):
         raise CaptureError("source.url must record its origin")
     toolchain = recipe.get("toolchain", {})
+    if any(key in owner for owner in (recipe, toolchain) for key in
+           ("producer_registry", "producer_plugins", "producer_adapters")):
+        raise CaptureError("recipes cannot supply producer registries or executable adapters")
     if not re.fullmatch(r"\d+\.\d+\.\d+", toolchain.get("llvm_version", "")):
         raise CaptureError("toolchain.llvm_version must pin an exact version")
     if "rust_capture_policy" in toolchain and toolchain["rust_capture_policy"] != RUST_EMBEDDED_POLICY:
@@ -384,8 +486,10 @@ def validate_recipe(recipe: dict) -> None:
         if item["id"] in ids:
             raise CaptureError(f"duplicate required unit id: {item['id']}")
         ids.add(item["id"])
-        if item.get("kind") not in {"clang", "rustc"}:
-            raise CaptureError("required unit kind must be clang or rustc")
+        if any(key in item for key in ("adapter", "plugin", "registry", "producer_options")):
+            raise CaptureError("required units select registered producer IDs, not executable adapters")
+        producer = registered_producer(item.get("kind"), item.get("producer"), registry)
+        producer_policy(producer["unit_kind"], recipe, registry)
 
 
 def verify_source(recipe: dict, source: Path) -> dict:
@@ -935,6 +1039,53 @@ def verify_rust_capture_event(event: dict, session: dict, directory: Path) -> No
             raise CaptureError("Rust original embedded CGU inventory is incomplete")
 
 
+
+def verified_rust_native_member_copies(event: dict, session: dict, directory: Path) -> list[dict]:
+    """Readmit original CGU edges before indexing possible exact native copies.
+
+    This binds copy contents to an original archive member, not to a guessed
+    save-temp filename. It grants neither source-provider ownership nor native
+    machine/post-LTO equivalence. All ordinary worker/source gates still apply.
+    """
+    verify_rust_capture_event(event, session, directory)
+    if (event.get("kind") != "rustc" or event.get("state") != "finished"
+            or event.get("exit_code") != 0 or event.get("capture_errors")
+            or not event.get("rust_capture", {}).get("applied")):
+        return []
+    origins = []
+    for record in event.get("saved_cgus", []):
+        container = record.get("container")
+        if container is None:
+            continue
+        member = container["member"]
+        origins.append({"invocation_id": event["id"], "archive": container["artifact"],
+                        "member_index": member["index"], "member_name": member["name"],
+                        "member_name_bytes": member["name_bytes"],
+                        "object": record["object"], "bitcode": record["bitcode"],
+                        "embedded_bitcode_edge": record["edge"]})
+    return origins
+
+
+def rust_native_member_copy_index(origins: list[dict]) -> dict:
+    index = {}
+    for origin in origins:
+        key = (bytes(origin["member_name_bytes"]), origin["object"]["sha256"], origin["object"]["bytes"])
+        index.setdefault(key, []).append(origin)
+    return index
+
+
+def exact_rust_native_member_copy(artifact: dict, index: dict) -> dict | None:
+    key = (os.fsencode(Path(artifact["path"]).name), artifact["sha256"], artifact["bytes"])
+    matches = index.get(key, [])
+    if len(matches) != 1:
+        return None
+    origin = matches[0]
+    return {**artifact, "captured_origin": origin["archive"]["path"],
+            "captured_origin_kind": "verified-rust-archive-member-copy",
+            "captured_rust_member": origin, "source_production_ownership_verified": False,
+            "native_machine_equivalence_verified": False, "post_lto_equivalence_verified": False}
+
+
 def observed_link_inputs(args: list[str], cwd: Path) -> dict:
     files, libraries, search_paths, ordered = [], [], [], []
     args = [item for arg in args for item in (arg[4:].split(",") if arg.startswith("-Wl,") else [arg])]
@@ -1236,8 +1387,13 @@ def driver_link_plan(program: str, args: list[str], directory: Path, environment
 def compiler(session_path: Path, kind: str, original_args: list[str], *,
              expected_cargo_observer_sha256: str | None = None) -> int:
     session = read_json(session_path / "session.json")
+    registry = verified_producer_registry(session, session_path)
+    aliases = {wrapper["kind"]: item for item in registry["producers"] for wrapper in item["wrappers"]}
+    if kind not in aliases:
+        raise CaptureError("unregistered producer wrapper kind: " + str(kind))
+    producer = aliases[kind]
     driver_kind = kind
-    kind = "clang" if kind == "cxx" else kind
+    kind = producer["unit_kind"]
     event_id = uuid.uuid4().hex
     directory = session_path / "units" / event_id
     directory.mkdir(parents=True)
@@ -1249,7 +1405,8 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
         if not original_args:
             raise CaptureError("Rust wrapper requires the real compiler as its first argument")
         program, original_args = original_args[0], original_args[1:]
-    event = {"id": event_id, "kind": kind, "driver_kind": driver_kind, "compiler": program, "cwd": str(cwd),
+    event = {"id": event_id, "kind": kind, "producer": producer["id"],
+             "driver_kind": driver_kind, "compiler": program, "cwd": str(cwd),
              "argv": original_args, "started_ns": time.time_ns(), "state": "running",
              "units": [], "capture_errors": [], "outputs": [],
              "parent_invocation_id": os.environ.get("OCORE_CAPTURE_PARENT_EVENT")}
@@ -1455,6 +1612,8 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
         event["exit_code"] = native_code
         event["state"] = "finished"
         event["finished_ns"] = time.time_ns()
+        for unit in event["units"]:
+            unit["producer"] = producer["id"]
         write_json(event_path, event)
         if cargo_parent is not None:
             try:
@@ -1863,7 +2022,8 @@ def linkage_evidence(events: list[dict], membership: dict) -> dict:
 
 def partition_units(units: list[dict], required: list[dict], inventory: dict | None,
                     inventory_info: dict | None, events: list[dict], steps: list[dict],
-                    source: Path, recipe_required_count: int = 0, membership: dict | None = None) -> dict:
+                    source: Path, recipe_required_count: int = 0, membership: dict | None = None,
+                    registry: dict | None = None) -> dict:
     """Assign every LLVM unit an explicit role, retaining the complete journal.
 
     Runtime selections come from the complete build inventory and recipe floors.
@@ -1936,8 +2096,9 @@ def partition_units(units: list[dict], required: list[dict], inventory: dict | N
                     raise CaptureError(f"{rule['id']}: duplicate or unavailable captured unit ID")
                 selected = ids
             else:
-                if rule.get("kind") not in {"clang", "rustc"} or not isinstance(rule.get("source"), str) or not isinstance(rule.get("build_step"), str):
+                if not isinstance(rule.get("source"), str) or not isinstance(rule.get("build_step"), str):
                     raise CaptureError(f"{rule['id']}: source selectors need kind, source and build_step")
+                registered_producer(rule.get("kind"), rule.get("producer"), registry)
                 selected = []
                 for unit_id, unit in known.items():
                     event = owners[unit_id]
@@ -1979,11 +2140,25 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     events = [read_json(path) for path in sorted((directory / "events").glob("*.json"))]
     source, build = Path(session["source"]["path"]), Path(session["build"])
     issues = list(session.get("issues", []))
+    registry = None
     try:
         worker = verify_worker(session, directory, expected_worker_sha256)
+        registry = verified_producer_registry(session, directory)
+        validate_recipe(recipe, registry)
         for event in events:
             if event.get("capture_worker") != worker["artifact"]:
                 issues.append(f"compiler invocation has unbound/mixed capture worker provenance: {event['id']}")
+            native_event = (event.get("driver_kind") in NATIVE_TOOL_KINDS
+                            and NATIVE_TOOL_KINDS[event["driver_kind"]] == event.get("kind")
+                            and not event.get("units"))
+            if not native_event:
+                producer = registered_producer(event.get("kind"), event.get("producer"), registry)
+                if event.get("driver_kind") not in {item["kind"] for item in producer["wrappers"]}:
+                    raise CaptureError("compiler invocation has a mismatched registered producer wrapper")
+                for unit in event.get("units", []):
+                    if unit.get("kind") != producer["unit_kind"]:
+                        raise CaptureError("captured unit kind differs from its owning compiler producer")
+                    registered_producer(unit.get("kind"), unit.get("producer"), registry)
     except (CaptureError, OSError, KeyError, TypeError) as error:
         issues.append("capture worker provenance: " + str(error))
     try:
@@ -2013,7 +2188,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
             extra = inventory.get("units")
             if not isinstance(extra, list) or not extra:
                 raise CaptureError("expected-unit inventory must contain units")
-            validate_recipe({**recipe, "coverage": {"required_units": extra}})
+            validate_recipe({**recipe, "coverage": {"required_units": extra}}, registry)
             requirements.extend(extra)
             inventory_complete = True
         except (CaptureError, OSError, ValueError) as error:
@@ -2023,12 +2198,13 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
         issues.append("full build-generated source-unit inventory is required and unavailable")
     required = check_requirements(requirements, events, source)
     issues.extend(f"required unit incomplete: {item['id']} ({item['source']})" for item in required if not item["complete"])
+    rust_member_origins = []
     for event in events:
         if event.get("state") != "finished":
             issues.append(f"unfinished compiler invocation: {event['id']}")
         issues.extend(f"invocation {event['id']}: {error}" for error in event.get("capture_errors", []))
         try:
-            verify_rust_capture_event(event, session, directory)
+            rust_member_origins.extend(verified_rust_native_member_copies(event, session, directory))
         except (CaptureError, OSError, ValueError, KeyError, TypeError) as error:
             issues.append(f"Rust embedded capture readmission {event['id']}: {error}")
         compiler_artifacts = [*event.get("compiler_inputs", []),
@@ -2045,6 +2221,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     outputs = [output for event in events for output in event.get("outputs", [])]
     produced = {output["path"] for output in outputs}
     output_hashes = {output["sha256"]: output["path"] for output in outputs}
+    rust_member_index = rust_native_member_copy_index(rust_member_origins)
     uncaptured = []
     copied_outputs = []
     for root in session["audit_roots"]:
@@ -2058,7 +2235,11 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                 if item["sha256"] in output_hashes:
                     copied_outputs.append({**item, "captured_origin": output_hashes[item["sha256"]]})
                 else:
-                    uncaptured.append(item)
+                    rust_copy = exact_rust_native_member_copy(item, rust_member_index)
+                    if rust_copy is not None:
+                        copied_outputs.append(rust_copy)
+                    else:
+                        uncaptured.append(item)
     if uncaptured:
         issues.append(f"{len(uncaptured)} native object/archive outputs have no captured compiler invocation")
     build_steps = session.get("build_steps", [])
@@ -2083,7 +2264,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                    "archive_member_ownership": [], "provider_ownership": [], "issues": [str(error)]}
         issues.append("native linkage reconstruction: " + str(error))
     partition = partition_units(units, required, inventory, inventory_info, events, build_steps, source,
-                                recipe_required_count, membership)
+                                recipe_required_count, membership, registry)
     issues.extend(partition["issues"])
     inventory_complete = inventory_complete and partition["complete"]
     if inventory_info:
@@ -2094,11 +2275,15 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
                 issues.append(f"required unit incomplete: {item['id']} ({item['source']})")
     for unit in units:
         try:
+            producer = registered_producer(unit.get("kind"), unit.get("producer"), registry)
+            require_import_format(producer["unit_kind"], unit["ir"].get("format"), registry)
+            if unit["ir"]["format"] != producer_policy(producer["unit_kind"], recipe, registry)["format"]:
+                raise CaptureError("captured format differs from the registered producer capture policy")
             actual = ir_info(Path(unit["ir"]["path"]), session["tools"].get("llvm_dis"))
             if actual != unit["ir"]:
                 issues.append(f"LLVM unit bytes or target metadata changed: {unit['id']}")
         except (CaptureError, OSError, ValueError) as error:
-            issues.append(f"LLVM unit unavailable: {unit['id']}: {error}")
+            issues.append(f"producer unit unavailable: {unit['id']}: {error}")
     defined, undefined = set(), set()
     dependency_files_by_path = {}
     for event in events:
@@ -2111,6 +2296,7 @@ def make_report(directory: Path, persist: bool = True, expected_worker_sha256: s
     complete = not issues
     report = {"schema": REPORT_SCHEMA, "name": recipe["name"], "manifest": session["manifest"],
               "capture_worker": session.get("capture_worker"),
+              "producer_capabilities": registry,
               "source": session["source"], "build": session["build"], "tools": session["tools"],
               "native_tools": session.get("native_tools", {}), "native_linkage": linkage,
               "build_steps": build_steps, "invocations": events, "units": units,
@@ -2157,8 +2343,9 @@ def verify_report(report: dict, expected_worker_sha256: str | None = None) -> di
     session = read_json(directory / "session.json")
     trusted_digest = worker_digest(expected_worker_sha256)
     verify_worker(session, directory, trusted_digest)
+    registry = verified_producer_registry(session, directory)
     original_recipe = read_json(Path(session["manifest"]["path"]))
-    validate_recipe(original_recipe)
+    validate_recipe(original_recipe, registry)
     if session["recipe"] != original_recipe:
         raise CaptureError("capture session recipe differs from its hashed source artifact")
     if file_info(Path(session["manifest"]["path"])) != session["manifest"]:
@@ -2186,6 +2373,7 @@ def verify_report(report: dict, expected_worker_sha256: str | None = None) -> di
             "report_content_sha256": hashlib.sha256(json.dumps(report, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
             "capture_directory": str(directory), "inventory": rebuilt["unit_inventory"]["file"],
             "capture_worker_sha256": trusted_digest,
+            "producer_registry_sha256": REGISTERED_PRODUCER_REGISTRY_SHA256,
             "lowering_unit_ids": rebuilt["lowering_unit_ids"],
             "non_lowering_unit_ids": [unit["unit_id"] for unit in rebuilt["non_lowering_units"]],
             "provenance_unit_count": len(rebuilt["units"]),
@@ -2344,6 +2532,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="action", required=True)
     validate = subparsers.add_parser("validate", help="validate a pinned source/build recipe")
     validate.add_argument("manifest")
+    subparsers.add_parser("producers", help="show trusted adapter availability, not engine or import qualification")
     run = subparsers.add_parser("capture", help="execute the declared build through journaling compiler wrappers")
     run.add_argument("manifest")
     run.add_argument("--source", required=True)
@@ -2364,7 +2553,7 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--receipt")
     internal = subparsers.add_parser("_compiler", help=argparse.SUPPRESS)
     internal.add_argument("--session", required=True)
-    internal.add_argument("--kind", choices=["clang", "cxx", "rustc"], required=True)
+    internal.add_argument("--kind", required=True)
     internal.add_argument("args", nargs=argparse.REMAINDER)
     native = subparsers.add_parser("_native-tool", help=argparse.SUPPRESS)
     native.add_argument("--session", required=True)
@@ -2372,6 +2561,13 @@ def main(argv: list[str] | None = None) -> int:
     native.add_argument("args", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     try:
+        if args.action == "producers":
+            print(json.dumps({"registry": producer_registry(),
+                              "registry_sha256": REGISTERED_PRODUCER_REGISTRY_SHA256,
+                              "capture_complete": False, "ocore_lowering_complete": False,
+                              "dependency_closure_complete": False, "native_execution_qualified": False,
+                              "runtime_complete": False}, indent=2))
+            return 0
         if args.action == "validate":
             validate_recipe(read_json(Path(args.manifest)))
             print(f"valid {RECIPE_SCHEMA}: {args.manifest}")
@@ -2391,6 +2587,10 @@ def main(argv: list[str] | None = None) -> int:
             return native_tool(Path(args.session), args.kind, original_args)
         return compiler(Path(args.session), args.kind, original_args)
     except (CaptureError, OSError, ValueError) as error:
+        if args.action in {"capture", "report", "verify-report", "producers"}:
+            print(json.dumps({"capture_complete": False, "ocore_lowering_complete": False,
+                              "dependency_closure_complete": False, "native_execution_qualified": False,
+                              "runtime_complete": False, "issues": [str(error)]}, indent=2))
         print(f"ocore-runtime-capture: {error}", file=sys.stderr)
         return 1
 

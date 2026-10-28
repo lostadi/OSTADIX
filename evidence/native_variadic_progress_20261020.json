@@ -1,0 +1,757 @@
+{
+  "checkpoint_only": true,
+  "compiler_build_v1": {
+    "api_tests_exit": 0,
+    "build_exit": 0,
+    "compiler": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v1/ocorec",
+    "compiler_sha256": "6fdbb15fea5184cf09a9ba477b44723446ba7f93414324b09e246ad61d8b2a3d",
+    "finished_utc": "2026-10-20T07:14:38.826244+00:00",
+    "source_after_build": {
+      "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+      "scripts/ocore_llvm_import.py": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+    },
+    "source_after_tests": {
+      "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+      "scripts/ocore_llvm_import.py": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+    },
+    "source_before": {
+      "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+      "scripts/ocore_llvm_import.py": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+    },
+    "stage": "complete",
+    "started_utc": "2026-10-20T06:44:35.630298+00:00"
+  },
+  "complete_three_isa_execution_qualified": false,
+  "dependency_closure_complete": false,
+  "importer_suite_v1": {
+    "receipt": {
+      "bytes": 1985,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-importer-complete-20261020-t6i0drz2/receipt.json",
+      "sha256": "32b972ad91a8abda507180c0aaf839a9c3c1dc976d0b01986e125d420119200c"
+    },
+    "result": {
+      "errors": 0,
+      "failures": 0,
+      "log": {
+        "bytes": 15597,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-importer-complete-20261020-t6i0drz2/unittest.log",
+        "sha256": "4fb11ad61537893f761fd0c6634d3cda85e9fc20bb29fc79375d2e92b2d77f38"
+      },
+      "passed": true,
+      "schema": "ostadix.variadic-importer-regression-v1",
+      "seconds": 1904.18970937602,
+      "skips": [
+        {
+          "reason": "Clang 21 frontend unavailable",
+          "test": "test_clang21_text_and_bitcode_full_unit_inventory_and_symbol_closure_on_all_three_isas (full_variadic_importer_regression.LlvmImportTests.test_clang21_text_and_bitcode_full_unit_inventory_and_symbol_closure_on_all_three_isas)"
+        }
+      ],
+      "sources_after": [
+        {
+          "bytes": 169042,
+          "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+          "sha256": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+        },
+        {
+          "bytes": 115663,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+          "sha256": "a4afa2db3dc6eef554fe329c668cfbdbdf66901088b4457f53a56ea9efd17b73"
+        },
+        {
+          "bytes": 132053720,
+          "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+        }
+      ],
+      "sources_before": [
+        {
+          "bytes": 169042,
+          "path": "/home/orangepi/ostadix-BM/scripts/ocore_llvm_import.py",
+          "sha256": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+        },
+        {
+          "bytes": 115663,
+          "path": "/home/orangepi/ostadix-BM/tests/test_ocore_llvm_import.py",
+          "sha256": "a4afa2db3dc6eef554fe329c668cfbdbdf66901088b4457f53a56ea9efd17b73"
+        },
+        {
+          "bytes": 132053720,
+          "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+          "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+        }
+      ],
+      "tests_run": 74
+    }
+  },
+  "interop_v1": {
+    "compiler_sha256": "6fdbb15fea5184cf09a9ba477b44723446ba7f93414324b09e246ad61d8b2a3d",
+    "exit_code": 1,
+    "failures": 3,
+    "first_failures": [
+      {
+        "attribute": "dead_on_return",
+        "kind": 9,
+        "site": "AArch64 provider fold_list",
+        "stage": "import"
+      },
+      {
+        "attribute": "dead_on_return",
+        "kind": 9,
+        "site": "AArch64 opaque_forward",
+        "stage": "import"
+      },
+      {
+        "actual_byval_kind": 84,
+        "old_expected_kind": 9,
+        "site": "x86 byval negative test",
+        "stage": "test diagnostic expectation"
+      }
+    ],
+    "harness_sha256": "b2cee3ae3852a1e9eb1f1648432b805450c475f3d5faa4bcfe907228225ecd9c",
+    "passed_methods": 4,
+    "stderr": {
+      "bytes": 7502,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-owned-v1/suite.stderr",
+      "sha256": "376d5312a31bbfec13d139bcc904b854af8a8c5de83bdb3fdcd1dcacb3b97834"
+    },
+    "tests_run": 7
+  },
+  "native_api_tests_v1": {
+    "exit_code": 0,
+    "failed": 0,
+    "ignored": 0,
+    "log": {
+      "bytes": 26829,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v1/api-tests.log",
+      "sha256": "20d1853d29f60eb5f88246128a58c7c36be7b4fdb9ab9fc3d0d2e4bd8f530b03"
+    },
+    "passed": 232
+  },
+  "original_chibicc_whole_unit_v1": {
+    "argv": [
+      "/usr/bin/python3",
+      "/home/orangepi/ostadix-BM/scripts/check_ocore_source_matrix.py",
+      "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/manifest.json",
+      "--ocorec",
+      "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v1/ocorec",
+      "--target",
+      "riscv64-unknown-none",
+      "--jobs",
+      "1",
+      "--llvm-library",
+      "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "--llvm-sha256",
+      "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83",
+      "--output",
+      "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix"
+    ],
+    "audit_complete": true,
+    "build_receipt_at_start": {
+      "bytes": 1782,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/compiler-build-receipt-at-start.json",
+      "sha256": "e35c4aec03f485cd14df764ba0d9ff6a88a4fb463e33829954089335a3f7534c"
+    },
+    "capture": {
+      "bytes": 2315388,
+      "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+      "sha256": "d7883256853bb11b7de7b9023242df5047be4d9dfa171b7c78fa2b732a9c6bf0"
+    },
+    "dependency_closure_complete": false,
+    "elf_objects": [
+      {
+        "elf_flags": 5,
+        "id": "0f23a2b15e424800a86d600b31b979af:0",
+        "module": {
+          "bytes": 171179,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0000/module.json",
+          "sha256": "b2bc932420e7ecdf819f37ae4c37e40a24e8c083cfe531065adb246dc235bf69"
+        },
+        "object": {
+          "bytes": 13872,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0000/module.o",
+          "sha256": "7823e9e2e1ce3cd7da47f32d1f1837f3d4466e4faf9ee967a087a6d464ffdf74"
+        },
+        "source": {
+          "bytes": 6980,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/unicode.c",
+          "sha256": "67311a3aab39522bc7555a8318840c971dfd01b0e92943da62d8b28d2091f953"
+        },
+        "target_abi": "lp64d"
+      },
+      {
+        "elf_flags": 5,
+        "id": "4273617f98ba4b45991b37b213e4ab3e:0",
+        "module": {
+          "bytes": 475709,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0002/module.json",
+          "sha256": "81d29196f283b4d325f3340386ad1882c8c60b60828a64882cc5ea65c80b5455"
+        },
+        "object": {
+          "bytes": 36048,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0002/module.o",
+          "sha256": "d652721bcf9dc52ddc119cc2ec1578f4e9c5c942cd791a878764bc3af4e1cc6c"
+        },
+        "source": {
+          "bytes": 7503,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/type.c",
+          "sha256": "a8756271f3be4bceb3cd4820ce3251f55a1fbee241a428ba24e2c7e003feb327"
+        },
+        "target_abi": "lp64d"
+      },
+      {
+        "elf_flags": 5,
+        "id": "653d5f958f0a474ba2f617b6d04af1ea:0",
+        "module": {
+          "bytes": 1733727,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0003/module.json",
+          "sha256": "bc6e8466e77b1d8eb0c2df9bcced584a8d3e7b486f60d18cac76fe54dc15a20e"
+        },
+        "object": {
+          "bytes": 134584,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0003/module.o",
+          "sha256": "664bc9d17e63e8592b34f97e659f9a78f2bf41cf51ff4a84901e3618d618b25c"
+        },
+        "source": {
+          "bytes": 33021,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/preprocess.c",
+          "sha256": "9fec813839210036d772eb8ba40980e3af70bf7166ba81b8e3814a659d83b3f1"
+        },
+        "target_abi": "lp64d"
+      },
+      {
+        "elf_flags": 5,
+        "id": "78f8ddc92c2b4d75a7f3278435d9de59:0",
+        "module": {
+          "bytes": 349174,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0004/module.json",
+          "sha256": "8a4de92da711c4f0d062dbc78af3f6b96d31aaaf4290020c8a0c3d7030f9d387"
+        },
+        "object": {
+          "bytes": 28584,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0004/module.o",
+          "sha256": "0d2140af389f0c2764ec60235bd9421f3a4671809fbb3e595287770e59b1af15"
+        },
+        "source": {
+          "bytes": 4564,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/hashmap.c",
+          "sha256": "3c34396d0bf6df362dbdec740580c2b8fdd54dd74a1624ffcb8824bd1f1bcbdb"
+        },
+        "target_abi": "lp64d"
+      },
+      {
+        "elf_flags": 5,
+        "id": "7922559172174b999fe6cb6b6ff24960:0",
+        "module": {
+          "bytes": 63722,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0005/module.json",
+          "sha256": "4fb9ad168c3a4bf2490b6b630a4367729c81bd25d1e84ba61111741f1c0934e7"
+        },
+        "object": {
+          "bytes": 4304,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0005/module.o",
+          "sha256": "4edffa3be2756d3454ac7af6958d4890c3b6aa29f9fc17364856f1d2583aaf40"
+        },
+        "source": {
+          "bytes": 690,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/strings.c",
+          "sha256": "e7e413d70e6f1d3582eb783999132a0a7fb9cd7b370f6320d73886a2fa6e8c5e"
+        },
+        "target_abi": "lp64d"
+      },
+      {
+        "elf_flags": 5,
+        "id": "e5eaed1862764144ae2f877d323b4407:0",
+        "module": {
+          "bytes": 1270456,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0008/module.json",
+          "sha256": "d417c10f3a9e769d491c5e1ed0f0f4838c8cee54ae9cd55f10bd4e9a326e69d0"
+        },
+        "object": {
+          "bytes": 110832,
+          "elf_type": 1,
+          "machine": 243,
+          "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/unit-0008/module.o",
+          "sha256": "343bc7affc267900908f39238ebb068a32903dec0898ade5d4f90d5885bcac5e"
+        },
+        "source": {
+          "bytes": 18392,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/main.c",
+          "sha256": "b2b6570363dd7ebdd4d456e555501639422b410bbcd4d1eb3150bc18a675e46c"
+        },
+        "target_abi": "lp64d"
+      }
+    ],
+    "expected_unit_ids": [
+      "0f23a2b15e424800a86d600b31b979af:0",
+      "2b292d7eeeaf400cb8c0abcba0d727ac:0",
+      "4273617f98ba4b45991b37b213e4ab3e:0",
+      "653d5f958f0a474ba2f617b6d04af1ea:0",
+      "78f8ddc92c2b4d75a7f3278435d9de59:0",
+      "7922559172174b999fe6cb6b6ff24960:0",
+      "d3b2cacf94644bb384bbddb70601692f:0",
+      "e19dfffc732d4323a82e6a70f8d73db8:0",
+      "e5eaed1862764144ae2f877d323b4407:0"
+    ],
+    "finished_utc": "2026-10-20T07:05:24.951164+00:00",
+    "historical_control": {
+      "evidence": {
+        "bytes": 166058,
+        "path": "/home/orangepi/ostadix-BM/evidence/original_python_c_rust_expansion_20261018.json",
+        "sha256": "6d435db47d408a69158d656391349a1e949d1fda09aef75c5976e4e103cfc409"
+      },
+      "imported_unit_count": 0,
+      "only_historical": true,
+      "selected_unit_count": 9,
+      "verified_object_count": 0
+    },
+    "inputs_after": {
+      "0f23a2b15e424800a86d600b31b979af:0": {
+        "ir": {
+          "bytes": 49266,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/0f23a2b15e424800a86d600b31b979af/unit-0.ll",
+          "sha256": "2d4722165a46206fe2808e72bce1c8d6575dda1f20c137222bf6c0f7cf3e5620"
+        },
+        "source": {
+          "bytes": 6980,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/unicode.c",
+          "sha256": "67311a3aab39522bc7555a8318840c971dfd01b0e92943da62d8b28d2091f953"
+        }
+      },
+      "2b292d7eeeaf400cb8c0abcba0d727ac:0": {
+        "ir": {
+          "bytes": 1286769,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/2b292d7eeeaf400cb8c0abcba0d727ac/unit-0.ll",
+          "sha256": "9a4c7ccd14a7c84c535be031045bc4a3e9c82d3142434f21ec3b2078d2b2df81"
+        },
+        "source": {
+          "bytes": 91158,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/parse.c",
+          "sha256": "6fba1f2497f443819c3b936e206f5d1045c3a16ed378fc34bfb5b2e478126c92"
+        }
+      },
+      "4273617f98ba4b45991b37b213e4ab3e:0": {
+        "ir": {
+          "bytes": 158760,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/4273617f98ba4b45991b37b213e4ab3e/unit-0.ll",
+          "sha256": "4519db210ab27f71ee5d854b6eeb72ecff927adb85744b22374fe3c5c6b8dd9b"
+        },
+        "source": {
+          "bytes": 7503,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/type.c",
+          "sha256": "a8756271f3be4bceb3cd4820ce3251f55a1fbee241a428ba24e2c7e003feb327"
+        }
+      },
+      "653d5f958f0a474ba2f617b6d04af1ea:0": {
+        "ir": {
+          "bytes": 529026,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/653d5f958f0a474ba2f617b6d04af1ea/unit-0.ll",
+          "sha256": "80146c4292b5b615179b377ec9ac05dafb35d28f01d060d6371650fbb048e15e"
+        },
+        "source": {
+          "bytes": 33021,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/preprocess.c",
+          "sha256": "9fec813839210036d772eb8ba40980e3af70bf7166ba81b8e3814a659d83b3f1"
+        }
+      },
+      "78f8ddc92c2b4d75a7f3278435d9de59:0": {
+        "ir": {
+          "bytes": 111982,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/78f8ddc92c2b4d75a7f3278435d9de59/unit-0.ll",
+          "sha256": "a3d706531cbb5fa36192e4be707773b0d62ff4897f96eeae0b5ee0f183d32e90"
+        },
+        "source": {
+          "bytes": 4564,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/hashmap.c",
+          "sha256": "3c34396d0bf6df362dbdec740580c2b8fdd54dd74a1624ffcb8824bd1f1bcbdb"
+        }
+      },
+      "7922559172174b999fe6cb6b6ff24960:0": {
+        "ir": {
+          "bytes": 35571,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/7922559172174b999fe6cb6b6ff24960/unit-0.ll",
+          "sha256": "b50104f5d089e3483285c0722c6195d65d3e79d1733caf6679458ad06677ff03"
+        },
+        "source": {
+          "bytes": 690,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/strings.c",
+          "sha256": "e7e413d70e6f1d3582eb783999132a0a7fb9cd7b370f6320d73886a2fa6e8c5e"
+        }
+      },
+      "d3b2cacf94644bb384bbddb70601692f:0": {
+        "ir": {
+          "bytes": 379173,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/d3b2cacf94644bb384bbddb70601692f/unit-0.ll",
+          "sha256": "cf33b87dbc8bbbbf8d3f15fd394474bc90f723791ada2b8a78d9a7d3031cd9b7"
+        },
+        "source": {
+          "bytes": 19317,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/tokenize.c",
+          "sha256": "787f83b0f009ea69763e6aca3243f73224214068931b29c98fa60068f8b235dd"
+        }
+      },
+      "e19dfffc732d4323a82e6a70f8d73db8:0": {
+        "ir": {
+          "bytes": 591650,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/e19dfffc732d4323a82e6a70f8d73db8/unit-0.ll",
+          "sha256": "24edd350f086d8851d7a044a0feb3d78b02fbfb58cecd0fc08ec727e93575164"
+        },
+        "source": {
+          "bytes": 43920,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/codegen.c",
+          "sha256": "b0491ac6438c8e9d125e4c1752057c1820826c3629ccc7fa68d7ef98a224fc4e"
+        }
+      },
+      "e5eaed1862764144ae2f877d323b4407:0": {
+        "ir": {
+          "bytes": 361867,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/e5eaed1862764144ae2f877d323b4407/unit-0.ll",
+          "sha256": "8d2eb5f3cceb73dd2d9ebf6def1e3fecb2e83dfd1bc861608b86b541b61cbe2f"
+        },
+        "source": {
+          "bytes": 18392,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/main.c",
+          "sha256": "b2b6570363dd7ebdd4d456e555501639422b410bbcd4d1eb3150bc18a675e46c"
+        }
+      }
+    },
+    "inputs_before": {
+      "0f23a2b15e424800a86d600b31b979af:0": {
+        "ir": {
+          "bytes": 49266,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/0f23a2b15e424800a86d600b31b979af/unit-0.ll",
+          "sha256": "2d4722165a46206fe2808e72bce1c8d6575dda1f20c137222bf6c0f7cf3e5620"
+        },
+        "source": {
+          "bytes": 6980,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/unicode.c",
+          "sha256": "67311a3aab39522bc7555a8318840c971dfd01b0e92943da62d8b28d2091f953"
+        }
+      },
+      "2b292d7eeeaf400cb8c0abcba0d727ac:0": {
+        "ir": {
+          "bytes": 1286769,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/2b292d7eeeaf400cb8c0abcba0d727ac/unit-0.ll",
+          "sha256": "9a4c7ccd14a7c84c535be031045bc4a3e9c82d3142434f21ec3b2078d2b2df81"
+        },
+        "source": {
+          "bytes": 91158,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/parse.c",
+          "sha256": "6fba1f2497f443819c3b936e206f5d1045c3a16ed378fc34bfb5b2e478126c92"
+        }
+      },
+      "4273617f98ba4b45991b37b213e4ab3e:0": {
+        "ir": {
+          "bytes": 158760,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/4273617f98ba4b45991b37b213e4ab3e/unit-0.ll",
+          "sha256": "4519db210ab27f71ee5d854b6eeb72ecff927adb85744b22374fe3c5c6b8dd9b"
+        },
+        "source": {
+          "bytes": 7503,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/type.c",
+          "sha256": "a8756271f3be4bceb3cd4820ce3251f55a1fbee241a428ba24e2c7e003feb327"
+        }
+      },
+      "653d5f958f0a474ba2f617b6d04af1ea:0": {
+        "ir": {
+          "bytes": 529026,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/653d5f958f0a474ba2f617b6d04af1ea/unit-0.ll",
+          "sha256": "80146c4292b5b615179b377ec9ac05dafb35d28f01d060d6371650fbb048e15e"
+        },
+        "source": {
+          "bytes": 33021,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/preprocess.c",
+          "sha256": "9fec813839210036d772eb8ba40980e3af70bf7166ba81b8e3814a659d83b3f1"
+        }
+      },
+      "78f8ddc92c2b4d75a7f3278435d9de59:0": {
+        "ir": {
+          "bytes": 111982,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/78f8ddc92c2b4d75a7f3278435d9de59/unit-0.ll",
+          "sha256": "a3d706531cbb5fa36192e4be707773b0d62ff4897f96eeae0b5ee0f183d32e90"
+        },
+        "source": {
+          "bytes": 4564,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/hashmap.c",
+          "sha256": "3c34396d0bf6df362dbdec740580c2b8fdd54dd74a1624ffcb8824bd1f1bcbdb"
+        }
+      },
+      "7922559172174b999fe6cb6b6ff24960:0": {
+        "ir": {
+          "bytes": 35571,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/7922559172174b999fe6cb6b6ff24960/unit-0.ll",
+          "sha256": "b50104f5d089e3483285c0722c6195d65d3e79d1733caf6679458ad06677ff03"
+        },
+        "source": {
+          "bytes": 690,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/strings.c",
+          "sha256": "e7e413d70e6f1d3582eb783999132a0a7fb9cd7b370f6320d73886a2fa6e8c5e"
+        }
+      },
+      "d3b2cacf94644bb384bbddb70601692f:0": {
+        "ir": {
+          "bytes": 379173,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/d3b2cacf94644bb384bbddb70601692f/unit-0.ll",
+          "sha256": "cf33b87dbc8bbbbf8d3f15fd394474bc90f723791ada2b8a78d9a7d3031cd9b7"
+        },
+        "source": {
+          "bytes": 19317,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/tokenize.c",
+          "sha256": "787f83b0f009ea69763e6aca3243f73224214068931b29c98fa60068f8b235dd"
+        }
+      },
+      "e19dfffc732d4323a82e6a70f8d73db8:0": {
+        "ir": {
+          "bytes": 591650,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/e19dfffc732d4323a82e6a70f8d73db8/unit-0.ll",
+          "sha256": "24edd350f086d8851d7a044a0feb3d78b02fbfb58cecd0fc08ec727e93575164"
+        },
+        "source": {
+          "bytes": 43920,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/codegen.c",
+          "sha256": "b0491ac6438c8e9d125e4c1752057c1820826c3629ccc7fa68d7ef98a224fc4e"
+        }
+      },
+      "e5eaed1862764144ae2f877d323b4407:0": {
+        "ir": {
+          "bytes": 361867,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/units/e5eaed1862764144ae2f877d323b4407/unit-0.ll",
+          "sha256": "8d2eb5f3cceb73dd2d9ebf6def1e3fecb2e83dfd1bc861608b86b541b61cbe2f"
+        },
+        "source": {
+          "bytes": 18392,
+          "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source/main.c",
+          "sha256": "b2b6570363dd7ebdd4d456e555501639422b410bbcd4d1eb3150bc18a675e46c"
+        }
+      }
+    },
+    "matrix_exit_code": 0,
+    "matrix_log": {
+      "bytes": 291,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix.log",
+      "sha256": "5cb6310f1bc361295f7887d30ec648e1649471c4269d5656a8180a260b939a39"
+    },
+    "matrix_report": {
+      "bytes": 5166,
+      "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/report.json",
+      "sha256": "26e30296dd723f8a0cfff06c206717e94b7e3fbfadd614701c8fe5bd2c6af799"
+    },
+    "native_execution_qualified": false,
+    "profile": {
+      "all_units_lowered": false,
+      "attempted_unit_ids": [
+        "0f23a2b15e424800a86d600b31b979af:0",
+        "2b292d7eeeaf400cb8c0abcba0d727ac:0",
+        "4273617f98ba4b45991b37b213e4ab3e:0",
+        "653d5f958f0a474ba2f617b6d04af1ea:0",
+        "78f8ddc92c2b4d75a7f3278435d9de59:0",
+        "7922559172174b999fe6cb6b6ff24960:0",
+        "d3b2cacf94644bb384bbddb70601692f:0",
+        "e19dfffc732d4323a82e6a70f8d73db8:0",
+        "e5eaed1862764144ae2f877d323b4407:0"
+      ],
+      "audit_complete": true,
+      "capture": {
+        "bytes": 2315388,
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+        "sha256": "d7883256853bb11b7de7b9023242df5047be4d9dfa171b7c78fa2b732a9c6bf0"
+      },
+      "capture_complete": true,
+      "command": [
+        "/usr/bin/python3",
+        "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+        "/home/orangepi/ostadix-BM/target/c-expansion-20261018/current-installed-chibicc-y6udd9dr/product/capture/report.json",
+        "--step",
+        "build-original-chibicc",
+        "--ocorec",
+        "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/tools/ocorec",
+        "--target",
+        "riscv64-unknown-none",
+        "--jobs",
+        "1",
+        "--output",
+        "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc",
+        "--llvm-library",
+        "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "--llvm-sha256",
+        "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+      ],
+      "exit_code": 1,
+      "first_failure_groups": [
+        {
+          "count": 2,
+          "diagnostic_stage": "import",
+          "message": "binary128 is supported only for storage layout, not first-class SSA or ABI values",
+          "stage": "import",
+          "unit_ids": [
+            "d3b2cacf94644bb384bbddb70601692f:0",
+            "e19dfffc732d4323a82e6a70f8d73db8:0"
+          ]
+        },
+        {
+          "count": 1,
+          "diagnostic_stage": "import",
+          "message": "unsupported LLVM type kind 3 (float, vector, token and target types require another lowering)",
+          "stage": "import",
+          "unit_ids": [
+            "2b292d7eeeaf400cb8c0abcba0d727ac:0"
+          ]
+        }
+      ],
+      "imported_unit_count": 6,
+      "independently_verified_unit_count": 6,
+      "language": "c",
+      "log": {
+        "bytes": 677,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc.log",
+        "sha256": "ecfddf73a735acbbc620dd48e424c026ea0f285266a4312e52aee053024f887c"
+      },
+      "name": "c-chibicc",
+      "native_execution_qualified": false,
+      "report": {
+        "bytes": 55760,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/chibicc-whole-units-v1/matrix/c-chibicc/report.json",
+        "sha256": "4124bade829c580f88f6cfd4953fb6d187cffbd5dbd159327e5aa776ccd00848"
+      },
+      "runtime_complete": false,
+      "selected_units": 9,
+      "source": {
+        "clean_at_start": true,
+        "commit_timestamp": "1607310006",
+        "path": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source",
+        "revision": "90d1f7f199cc55b13c7fdb5839d1409806633fdb",
+        "submodules": [],
+        "url": "https://github.com/rui314/chibicc.git"
+      },
+      "step": "build-original-chibicc",
+      "verified_object_count": 6
+    },
+    "runtime_complete": false,
+    "schema": "ostadix.chibicc-whole-unit-variadic-followup-v1",
+    "selected_environment": {
+      "LD_LIBRARY_PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu:/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/lib",
+      "PATH": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin:/home/orangepi/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+    },
+    "source_after": {
+      "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+      "scripts/ocore_llvm_import.py": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+    },
+    "source_before": {
+      "crates/ostadix-api/src/ocore/native_abi.rs": "cc81f5a59fd5112d604ac0685fcdaea0939d99ac51d003da332c4c7db63ae5ee",
+      "crates/ostadix-api/src/ocore/native_codegen.rs": "237a5578b575e867df9ce6dff196a03c28587626e6aaa91382e270928765c068",
+      "crates/ostadix-api/src/ocore/native_ir.rs": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": "0506393ed563baaf24912bdc0cf0576aea91dae32097ef2d150eff48cbb509a0",
+      "crates/ostadix-api/src/ocore/native_verify.rs": "b752629cd2f2f52bc6ec5f6c839a381f223c075c2c09e19ef852d72a9fd3f2d9",
+      "scripts/ocore_llvm_import.py": "0c509083e5a15ef3cae483572fce2f0232d75dd24ec490a93e39f6bc338d2a34"
+    },
+    "source_stable": true,
+    "stage": "complete",
+    "started_utc": "2026-10-20T07:03:52.608254+00:00",
+    "tools_after": {
+      "clang": {
+        "bytes": 111688,
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+      },
+      "diagnostic_script": {
+        "bytes": 18965,
+        "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+        "sha256": "11125d04123f5cb6f30a9d9d9d1465d43bd4c4b8fedb79c630499748d49e577d"
+      },
+      "llvm_library": {
+        "bytes": 132053720,
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+      },
+      "matrix_script": {
+        "bytes": 18613,
+        "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_source_matrix.py",
+        "sha256": "2be82467c6d50af0aa0304d17917d11889f93ff46a94ceee5a2d63a63b82cb3b"
+      },
+      "ocorec": {
+        "bytes": 12543616,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v1/ocorec",
+        "sha256": "6fdbb15fea5184cf09a9ba477b44723446ba7f93414324b09e246ad61d8b2a3d"
+      }
+    },
+    "tools_and_inputs_stable": true,
+    "tools_before": {
+      "clang": {
+        "bytes": 111688,
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/llvm-22/bin/clang",
+        "sha256": "e359d0cd6ea74288ded5d4256e6f96c75b95ad8cd0ae7bd0466e0f549db5962a"
+      },
+      "diagnostic_script": {
+        "bytes": 18965,
+        "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_runtime_imports.py",
+        "sha256": "11125d04123f5cb6f30a9d9d9d1465d43bd4c4b8fedb79c630499748d49e577d"
+      },
+      "llvm_library": {
+        "bytes": 132053720,
+        "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+        "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+      },
+      "matrix_script": {
+        "bytes": 18613,
+        "path": "/home/orangepi/ostadix-BM/scripts/check_ocore_source_matrix.py",
+        "sha256": "2be82467c6d50af0aa0304d17917d11889f93ff46a94ceee5a2d63a63b82cb3b"
+      },
+      "ocorec": {
+        "bytes": 12543616,
+        "path": "/home/orangepi/ostadix-BM/target/variadic-20261020/final-build-v1/ocorec",
+        "sha256": "6fdbb15fea5184cf09a9ba477b44723446ba7f93414324b09e246ad61d8b2a3d"
+      }
+    }
+  },
+  "pending_v2": "admit nonexploited unsized dead_on_return with exact LLVM22 contracts; correct negative kind84; rebuild all three tools; rerun cross-compiler execution before qualification",
+  "pinned_attribute_probe": {
+    "attribute_kinds": {
+      "align": 89,
+      "byval": 84,
+      "captures": 92,
+      "dead_on_return": 9,
+      "nocapture": 0,
+      "nonnull": 45,
+      "noundef": 42,
+      "sret": 88
+    },
+    "library": {
+      "bytes": 132053720,
+      "path": "/home/orangepi/.local/share/ostadix/llvm22/rootfs/usr/lib/riscv64-linux-gnu/libLLVM.so.22.1",
+      "sha256": "8617d27fecff5e31785eed07ee1cd7665e083bb689b6fb13266956d5231afe83"
+    },
+    "llvm_version": [
+      22,
+      1,
+      6
+    ],
+    "method": "actual pinned LLVM22 C API LLVMGetEnumAttributeKindForName"
+  },
+  "runtime_complete": false,
+  "schema": "ostadix.native-variadic-implementation-progress-v1"
+}

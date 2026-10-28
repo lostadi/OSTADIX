@@ -53,6 +53,8 @@ REGISTERED_LANGUAGES = {
     # mirroring Lisp's quote. The companion operator is `O.eval(expr)`
     # available inside Python blocks, which re-evaluates an OExpr.
     "quote",
+    # Stateless external engines run through the repository's shipped shims.
+    "common_lisp", "javascript",
     # Nix family: typed evaluator, store-path realizer, OS test runner.
     "nix",
     "nix_store",

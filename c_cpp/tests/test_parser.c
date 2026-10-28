@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "parser.h"
+#include "backends.h"
 
 static int failures = 0;
 
@@ -154,6 +155,32 @@ static void test_call_lookahead(const StringSet *backends) {
     }
 }
 
+static void test_default_backend_bindings(void) {
+    StringSet *backends = olang_default_backends();
+    const char *names[] = {"common_lisp", "javascript", "nix_store", "webassembly", NULL};
+    size_t index;
+    check(backends != NULL, "default backend registration succeeds");
+    if (!backends) return;
+    for (index = 0; names[index] != NULL; ++index) {
+        char source[160];
+        OParser parser;
+        ONodeList *nodes;
+        snprintf(source, sizeof(source), "let value = %s^(payload)_%s", names[index], names[index]);
+        parser_init(&parser, source, backends);
+        nodes = parser_parse(&parser);
+        check(nodes != NULL, parser.error_msg);
+        if (nodes) {
+            check(nodes->len == 1 && nodes->items[0]->tag == ONODE_LET_BINDING &&
+                      nodes->items[0]->data.let_binding.expr->tag == ONODE_TYPED_EXPR &&
+                      strcmp(nodes->items[0]->data.let_binding.expr->data.typed_expr.lang,
+                             names[index]) == 0,
+                  "default backend names parse as typed let expressions");
+            onode_list_free(nodes);
+        }
+    }
+    string_set_free(backends);
+}
+
 int main(void) {
     const char *names[] = {"text", "py", "python", "python2", "custom_2", "bad-name", NULL};
     StringSet *backends = string_set_new();
@@ -167,6 +194,7 @@ int main(void) {
     test_opener_boundaries(backends);
     test_call_lookahead(backends);
     test_long_identifiers(backends);
+    test_default_backend_bindings();
     string_set_free(backends);
     if (failures != 0) {
         return 1;

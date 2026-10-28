@@ -116,7 +116,7 @@ hardware gate.</p>
 three ignored tests. Its portable native aggregate recorded 26 of 26 required
 gates passing. The exact historical validation scope and the then-observed G0
 evidence continuity defect are recorded in
-<a href="#validation-at-the-audited-master">Validation at the audited master</a> and
+<a href="#validation-at-the-historical-audited-master">Validation at the historical audited master</a> and
 <a href="#exact-implementation-boundaries">Exact implementation boundaries</a>.</p>
 <p>The current M3 boundary is specified separately by <a href="docs/OIR_EXECUTION_FABRIC_V1.md">OIR Execution Fabric
 V1</a> and the <a href="docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md">authenticated pure
@@ -238,13 +238,24 @@ cd OSTADIX
 ./setup.sh -y --minimal
 source &quot;$HOME/.config/ostadix/env.sh&quot;
 
-O examples/hello.O &quot;$PWD/backends&quot;
+o eval &#39;python^( __oval_result__ = 1 + 1 )_python&#39;
 # expected: [number] 2
 
 O version --json
 </code></pre>
 <p><code>O version --json</code> reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.</p>
+<p>For a greeting that crosses three language boundaries, install Node.js and a
+Common Lisp runtime such as SBCL alongside Python 3, then run:</p>
+<pre><code class="language-bash">O examples/hello.O &quot;$PWD/backends&quot;
+# hello from Python and Lisp and JavaScript!
+./boot-and-test.sh hosted
+</code></pre>
+<p>The hosted check compares graph and serial stdout byte for byte, then runs
+the same greeting through the Python and C17 reference editions. An available
+edition that fails makes the check fail; absent optional tools are reported as
+skips. Setup verification and MCP <code>o_smoke</code> use a fixed Python-only calculation
+so minimal setup does not depend on the greeting&#39;s optional language engines.</p>
 <p><code>setup.sh</code> installs syntax support for detected Code editors, Nano, Vim,
 Neovim, Emacs, Sublime Text, and bat. Update only editor support with:</p>
 <pre><code class="language-sh">python3 tools/syntax/install.py
@@ -747,13 +758,13 @@ the corresponding explicit interfaces. Paste each code block separately. If
 zsh displays <code>heredoc&gt;</code>, press <code>Ctrl-C</code> before continuing; the commands below
 intentionally avoid heredocs.</p>
 <p>First refresh the installed tools and prove ordinary local execution:</p>
-<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/Ostadix-lang}&quot;
+<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/OSTADIX}&quot;
 git switch master
 git pull --ff-only origin master
 ./setup.sh -y --minimal
 export O_LANG_ROOT=&quot;$PWD&quot;
 export PATH=&quot;$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH&quot;
-O examples/hello.O &quot;$O_LANG_ROOT/backends&quot;
+o eval &#39;python^( __oval_result__ = 1 + 1 )_python&#39;
 # expected: [number] 2
 </code></pre>
 <p>In Terminal 1, create a fresh private demo root, one persistent Python
@@ -786,7 +797,7 @@ root and pinned placement-authority key are explicit:</p>
 <p>In Terminal 2, paste the exact <code>export DEMO=...</code> line printed by Terminal 1,
 then paste this block to reconstruct the remaining paths and check the TLS
 endpoint:</p>
-<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/Ostadix-lang}&quot;
+<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/OSTADIX}&quot;
 export O_LANG_ROOT=&quot;$PWD&quot;
 export PATH=&quot;$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH&quot;
 export PKI=&quot;$DEMO/pki&quot;
@@ -1083,6 +1094,9 @@ for the complete contract and native placement boundaries.</p>
 locked build helper, real HTTP smoke tests, HTTPS proxy and service templates,
 and a candidate-build updater with rollback and optional daily scheduling.
 Follow the <a href="deployment/mcp/README.md">remote connector deployment guide</a>.
+Native OAuth enables browser authorization for hosted chat apps; the
+<a href="deployment/mcp/CLIENTS.md">client guide</a> covers ChatGPT, Claude, Cursor,
+VS Code, Codex, Gemini, Grok and Perplexity.
 The empty-argument command continues to use stdio.</p>
 <table>
 <thead>
@@ -1121,7 +1135,7 @@ The empty-argument command continues to use stdio.</p>
 </tr>
 <tr>
 <td><code>o_smoke</code></td>
-<td>Runs <code>examples/hello.O</code> with an absolute backend path and expects <code>2</code>.</td>
+<td>Runs a fixed Python-only O calculation with an absolute backend path and expects <code>2</code>, independently of editable examples.</td>
 </tr>
 <tr>
 <td><code>o_analyze_intent</code></td>
@@ -1218,11 +1232,11 @@ paths rather than relying on shell expansion inside JSON:</p>
 <pre><code class="language-json">{
   &quot;mcpServers&quot;: {
     &quot;ostadix&quot;: {
-      &quot;command&quot;: &quot;/absolute/path/to/Ostadix-lang/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp&quot;,
+      &quot;command&quot;: &quot;/absolute/path/to/OSTADIX/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp&quot;,
       &quot;args&quot;: [],
       &quot;env&quot;: {
-        &quot;O_LANG_ROOT&quot;: &quot;/absolute/path/to/Ostadix-lang&quot;,
-        &quot;O_BACKENDS_DIR&quot;: &quot;/absolute/path/to/Ostadix-lang/backends&quot;
+        &quot;O_LANG_ROOT&quot;: &quot;/absolute/path/to/OSTADIX&quot;,
+        &quot;O_BACKENDS_DIR&quot;: &quot;/absolute/path/to/OSTADIX/backends&quot;
       }
     }
   }
@@ -1232,15 +1246,15 @@ paths rather than relying on shell expansion inside JSON:</p>
 source-first workflow such as:</p>
 <pre><code class="language-text">o_execute {&quot;source&quot;:&quot;python^( __oval_result__ = 2 )_python&quot;}
 o_execute {&quot;source&quot;:&quot;python^( __oval_result__ = 2 )_python&quot;,&quot;action&quot;:&quot;check&quot;}
-o_execute {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;,&quot;action&quot;:&quot;plan&quot;}
+o_execute {&quot;path&quot;:&quot;/absolute/path/to/OSTADIX/examples/hello.O&quot;,&quot;action&quot;:&quot;plan&quot;}
 o_capabilities {&quot;query&quot;:&quot;mesh&quot;}
 o_guide {&quot;topic&quot;:&quot;projects&quot;}
 o_env {}
 o_runtimes {}
 o_smoke {}
 o_run {&quot;source&quot;:&quot;python^(\n__oval_result__ = 1 + 1\n)_python&quot;}
-o_run {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;}
-o_olangc {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;,&quot;target&quot;:&quot;ir&quot;}
+o_run {&quot;path&quot;:&quot;/absolute/path/to/OSTADIX/examples/hello.O&quot;}
+o_olangc {&quot;path&quot;:&quot;/absolute/path/to/OSTADIX/examples/hello.O&quot;,&quot;target&quot;:&quot;ir&quot;}
 o_information_inspect {&quot;state&quot;:&quot;/absolute/path/to/existing-information-state&quot;,&quot;head&quot;:&quot;main&quot;}
 </code></pre>
 <p>Enter these names and argument objects through the MCP client&#39;s tool-call
@@ -1268,7 +1282,9 @@ interpreter, REPL, OIR, scheduler, linker tools, notebook, <code>olangc</code>, 
 <code>ocorec</code>.</li>
 <li>The <strong>C17 edition</strong> is the small standalone hosted runtime and AOT compiler.</li>
 <li>The <strong>Python edition</strong> is the readable reference implementation used for
-semantic cross-checking.</li>
+semantic cross-checking. It also runs stateless Common Lisp and JavaScript
+blocks through the shipped shims; its builtin Python evaluator stays
+in-process.</li>
 <li><strong>O-core</strong> is compiled by the Rust <code>ocorec</code> binary, but the code it produces
 is freestanding and has no Rust runtime dependency.</li>
 </ul>
@@ -1479,9 +1495,12 @@ make
 </code></pre>
 <p>The C17 port implements the core typed-parenthesis evaluator, structural
 backends, Python execution, the Nix value ladder, lazy and deferred requests,
-shebang handling, and AOT packaging. The Rust edition remains authoritative
-for OIR planning, coordination-group concurrency, the full backend registry,
-the notebook, and O-core.</p>
+shebang handling, and AOT packaging. Its interpreter and generated programs
+share registration and shim packaging for the shipped adapters. The external
+language engines used by a program must still be installed; the greeting above
+uses Python 3, Common Lisp, and Node.js. The Rust edition remains authoritative
+for OIR planning, coordination-group concurrency, the complete runtime feature
+set, the notebook, and O-core.</p>
 <h3>Embedding the Python and C17 editions</h3>
 <p>The Python package exports its complete root API from <code>o_lang/__init__.py</code>:</p>
 <ul>
@@ -2079,9 +2098,9 @@ mode-17 rollback, denial, stale-generation, restart, and parser corpus.</p>
 <p>M6A is gated separately by <code>smoke-personality-qemu.sh</code> in mode 18. A
 deterministic digest-pinned read-only OVFS image supplies a test client, native
 personality daemon, native supervisor daemon, and unrelated observer as four
-independently loaded CPL3 ELFs. Its canonical image is 62,104 bytes with
+independently loaded CPL3 ELFs. Its canonical image is 58,320 bytes with
 SHA-256
-<code>f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417</code>;
+<code>bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d</code>;
 the gate verifies that identity, the exact four <code>/sbin/m6-*.elf</code> paths, and the
 absence of their module symbols from the kernel. The supervisor health-gates
 publication and chooses cancellation, one crash-driven generation restart, and
@@ -2120,8 +2139,8 @@ fuzzing, allocation-failure matrix, or concrete filesystem, network, timer, or
 device service.</p>
 <p>Mode 24 adds a separately gated live composition without broadening that claim
 to a general foreign ABI. <code>build-m6b-live-artifacts.sh</code> deterministically packs
-four independently linked CPL3 ELFs into a 65,152-byte OVFS image with SHA-256
-<code>5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887</code>.
+four independently linked CPL3 ELFs into a 61,576-byte OVFS image with SHA-256
+<code>9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0</code>.
 The client issues each bounded call once; one exact four-byte <code>INOUT</code> request
 crosses the public call, view lookup/read/write, and reply syscalls. The
 generation-1 daemon is fault-contained, the unrelated observer survives, and
@@ -2297,8 +2316,8 @@ content-addressed attestations. The executable G0 composition is
 <a href="evidence/world_contract_v2.toml"><code>evidence/world_contract_v2.toml</code></a>, which
 imports the byte-frozen
 <a href="evidence/world_contract_v1.toml"><code>evidence/world_contract_v1.toml</code></a> vocabulary
-and the separately versioned O-Machine contract. The current validator result
-is recorded in <a href="#validation-at-the-audited-master">Validation at the audited master</a>.</p>
+and the separately versioned O-Machine contract. A historical validator result
+is recorded in <a href="#validation-at-the-historical-audited-master">Validation at the historical audited master</a>.</p>
 <p>Run the bounded shared World-identity gate with:</p>
 <pre><code class="language-bash">./ocore/kernel/smoke-world-identity-qemu.sh
 </code></pre>
@@ -5608,7 +5627,7 @@ edition supports every file.</p>
 </thead>
 <tbody><tr>
 <td><code>examples/hello.O</code></td>
-<td>Smallest Python-backed O program.</td>
+<td>Greeting passed from Python to Common Lisp to JavaScript; requires Python 3, a supported Common Lisp runtime, and Node.js.</td>
 </tr>
 <tr>
 <td><code>examples/bindings.O</code></td>
@@ -6372,9 +6391,9 @@ CSpaces, a real capability-gated CPL3 serial loop, immutable-digest install,
 exact health-gated activation, one contained package-daemon fault and
 health-gated fresh-generation restart, final control-plane deactivation,
 control revocation, namespace/process teardown, reclamation, and
-post-lifecycle timer survival. Its canonical embedded OVFS image is 62,056
+post-lifecycle timer survival. Its canonical embedded OVFS image is 57,960
 bytes with SHA-256
-<code>388b9253ce6f92bef1e1f986b46aabbeb728604cc73589d12105031f5f6b780a</code>,
+<code>a5f0711de037892a47c0a34427bee0572ba394aadea70a1313e17c81c2fe67b4</code>,
 checked independently by the host and kernel before import.</li>
 <li>A bounded M6A gate for four package-loaded CPL3 principals: a test client,
 native personality daemon, native supervisor daemon, and unrelated observer.
@@ -6537,8 +6556,10 @@ arguments, concurrent managed jobs, capability guides, environment/runtime
 diagnostics, compiler, intent, search, and bounded Information inspection.
 Explicit <code>--transport http</code> exposes the same capabilities at <code>/mcp</code> with
 bearer authentication, host/origin validation, and separate session state.
-TLS belongs to the configured reverse proxy; OAuth requires a compatible
-gateway. <code>--allow-unauthenticated</code> explicitly removes the bearer check.
+TLS belongs to the configured reverse proxy; native OAuth is enabled with
+explicit public URLs and a persistent state directory. See the
+<a href="deployment/mcp/CLIENTS.md">client guide</a>. <code>--allow-unauthenticated</code>
+explicitly removes the bearer check.
 Neither transport creates a per-user sandbox. The
 <code>o_run</code> tool uses the unified local front door by default and can explicitly
 submit one complete document through the existing hosted-node client; the one-use
@@ -6567,7 +6588,7 @@ now restore source-digest validation; the registry derives only G0 and G2 as
 passed. This repair does not refresh the historical 26-of-26 portable native
 execution-gate observation.</p>
 </li>
-<li><p>The standalone MCP crate passed all 29 Rust tests, and the real built server
+<li><p>At the historical audited snapshot, the standalone MCP crate passed all 29 Rust tests, and the real built server
 passed a smoke of all ten tools. Separately, root Python
 <code>tests.test_mcp_smoke</code> recorded four passes and one brittle assertion failure:
 its exact command-substring expectation omits the current <code>--bin o-cli</code>

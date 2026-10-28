@@ -250,7 +250,7 @@ const SERVICE: usize = 1;
 const SUPERVISOR: usize = 2;
 const OBSERVER: usize = 3;
 const QUOTA: usize = 16;
-const IMAGE_LENGTH: usize = 62104;
+const IMAGE_LENGTH: usize = 58320;
 const SCALAR_MASK: u64 = 0x00ff_ffff_ffff_ffff;
 const INFINITE_DEADLINE: u64 = 0xffff_ffff_ffff_ffff;
 
@@ -282,25 +282,25 @@ static PATH_IDS: [u64; 4] = [
     0xdad8_5f71_3696_c238,
 ];
 
-const IMAGE_ID: u64 = 0xf592_4eeb_64b5_a3d3;
-const IMAGE_DIGEST_0: u64 = 0xd3a3_b564_eb4e_92f5;
-const IMAGE_DIGEST_1: u64 = 0x237b_ae0f_5d0b_e232;
-const IMAGE_DIGEST_2: u64 = 0xea72_8bb5_4e71_e23a;
-const IMAGE_DIGEST_3: u64 = 0x1744_3326_4d8a_f007;
-const IMAGE_SHA_0: u64 = 0xf592_4eeb_64b5_a3d3;
-const IMAGE_SHA_1: u64 = 0x32e2_0b5d_0fae_7b23;
-const IMAGE_SHA_2: u64 = 0x3ae2_714e_b58b_72ea;
-const IMAGE_SHA_3: u64 = 0x07f0_8a4d_2633_4417;
-const BOUNDED_IMAGE_LENGTH: usize = 65152;
-const BOUNDED_IMAGE_ID: u64 = 0x5b9d_2526_da2a_bd75;
-const BOUNDED_IMAGE_DIGEST_0: u64 = 0x75bd_2ada_2625_9d5b;
-const BOUNDED_IMAGE_DIGEST_1: u64 = 0x2359_ed0d_77b4_90ec;
-const BOUNDED_IMAGE_DIGEST_2: u64 = 0xb16f_73ad_2f13_56d8;
-const BOUNDED_IMAGE_DIGEST_3: u64 = 0x8798_57f1_341c_243f;
-const BOUNDED_IMAGE_SHA_0: u64 = 0x5b9d_2526_da2a_bd75;
-const BOUNDED_IMAGE_SHA_1: u64 = 0xec90_b477_0ded_5923;
-const BOUNDED_IMAGE_SHA_2: u64 = 0xd856_132f_ad73_6fb1;
-const BOUNDED_IMAGE_SHA_3: u64 = 0x3f24_1c34_f157_9887;
+const IMAGE_ID: u64 = 0xbad3_c789_64ac_6608;
+const IMAGE_DIGEST_0: u64 = 0x0866_ac64_89c7_d3ba;
+const IMAGE_DIGEST_1: u64 = 0xec1f_dcf0_1085_574b;
+const IMAGE_DIGEST_2: u64 = 0x9319_f9cd_a33c_e559;
+const IMAGE_DIGEST_3: u64 = 0x5d7f_94a4_1226_b320;
+const IMAGE_SHA_0: u64 = 0xbad3_c789_64ac_6608;
+const IMAGE_SHA_1: u64 = 0x4b57_8510_f0dc_1fec;
+const IMAGE_SHA_2: u64 = 0x59e5_3ca3_cdf9_1993;
+const IMAGE_SHA_3: u64 = 0x20b3_2612_a494_7f5d;
+const BOUNDED_IMAGE_LENGTH: usize = 61576;
+const BOUNDED_IMAGE_ID: u64 = 0x9f83_25ed_73a1_3c67;
+const BOUNDED_IMAGE_DIGEST_0: u64 = 0x673c_a173_ed25_839f;
+const BOUNDED_IMAGE_DIGEST_1: u64 = 0xf6f3_3f7c_18f5_01c3;
+const BOUNDED_IMAGE_DIGEST_2: u64 = 0xd8f5_fc69_b00f_e7a4;
+const BOUNDED_IMAGE_DIGEST_3: u64 = 0xb087_41ea_c984_ce5f;
+const BOUNDED_IMAGE_SHA_0: u64 = 0x9f83_25ed_73a1_3c67;
+const BOUNDED_IMAGE_SHA_1: u64 = 0xc301_f518_7c3f_f3f6;
+const BOUNDED_IMAGE_SHA_2: u64 = 0xa4e7_0fb0_69fc_f5d8;
+const BOUNDED_IMAGE_SHA_3: u64 = 0x5fce_84c9_ea41_87b0;
 
 static IMAGE_MESSAGE: [u8; 28] = b"M6A OVFS image import: PASS\n";
 static LOAD_MESSAGE: [u8; 34] = b"M6A four packaged ELF loads: PASS\n";

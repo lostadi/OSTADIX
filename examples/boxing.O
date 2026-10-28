@@ -18,8 +18,11 @@ let arena_title = shell^(
 printf 'OSTADIX WORLD BOXING CHAMPIONSHIP · 64-BIT PIXEL INJURY & PHYSICS ENGINE'
 )_shell
 
-python^(
+let boxing_engine_source = quote^(
+python[91]^(
 import sys, time, random, os, shutil, math
+import json, hashlib, base64, copy, uuid, subprocess
+from pathlib import Path
 
 # ==============================================================================
 # 64-BIT HALF-BLOCK TRUECOLOR PIXEL ENGINE & PALETTE
@@ -315,6 +318,8 @@ class Fighter:
         self.power_landed = 0
         self.knockdowns_scored = 0
         self.knockdowns_taken = 0
+        self.damage_dealt = 0.0
+        self.finishing_threat = 0.0
 
         # Dynamic combat animation telemetry
         self.slip_ticks = 0
@@ -625,6 +630,14 @@ class BoxingArena:
         self.max_rounds = 3
         self.round_time_sec = 60
         self.clock_tick = 0
+        self.round_tick = 0
+        self.current_tick = 0
+        self.seed = 42
+        self.match_id = uuid.uuid4().hex
+        self.scores = [0, 0]
+        self.scorecards = []
+        self.round_baseline = [(0.0, 0.0), (0.0, 0.0)]
+        self.events = []
         self.match_over = False
         self.winner = None
         self.ko_type = None
@@ -632,6 +645,7 @@ class BoxingArena:
         self.referee_counting = False
         self.doctor_inspecting = False
         self.doctor_timer = 0
+        self.doctor_fighter = None
         self.commentary_log = [
             "⚙️ Real-time 2D physics engine active: coupled elastic ropes, impulse kinematics, and Verlet ragdolls.",
             "⚡ Referee signals the bell: 'Touch gloves and fight clean!' Let's go!"
@@ -690,6 +704,8 @@ class BoxingArena:
                 atk.hp = max(0.0, atk.hp - 18.0)
                 atk.ragdoll = VerletRagdoll(atk.x, self.physics.floor_y, facing=1 if atk.facing_right else -1)
                 atk.ragdoll.apply_knockdown_impulse(0.5 if atk.facing_right else -0.5, 1.2)
+                atk.knockdowns_taken += 1
+                dfn.knockdowns_scored += 1
                 self.add_commentary(f"🚨 LIVER SHUTDOWN! {atk.name} collapses to the canvas from the delayed liver trauma!")
                 self.referee_counting = True
                 self.referee_count = 1
@@ -723,7 +739,7 @@ class BoxingArena:
         atk.guard = min(100.0, atk.guard + 0.8)
 
         ideal_dist = 11 if atk.is_titan else 15
-        if atk.injury.is_left_eye_shut():
+        if atk.injury.is_left_eye_shut() or atk.injury.is_right_eye_shut():
             ideal_dist += 4
 
         force_stride = 75.0 if atk.injury.liver_trauma < 50.0 else 35.0
@@ -739,6 +755,18 @@ class BoxingArena:
             atk.state = 'RETREAT'
         else:
             atk.state = 'IDLE'
+
+        # Defensive reactions belong to this fighter's machine. Both machines
+        # see the same previous tick, including an opponent's incoming punch.
+        if dfn.state in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT') and dfn.state_frame <= 1:
+            blind = atk.injury.is_left_eye_shut() if dfn.facing_right else atk.injury.is_right_eye_shut()
+            slip_chance = 0.05 if blind else (0.30 if atk.style.startswith('Out') else 0.18)
+            if dfn.state in ('JAB', 'CROSS') and random.random() < slip_chance:
+                atk.state, atk.state_frame, atk.state_duration = 'SLIP', 0, 5
+                return
+            if not blind and atk.guard > 20 and random.random() < 0.35:
+                atk.state, atk.state_frame, atk.state_duration = 'GUARD', 0, 4
+                return
 
         if atk.stamina > 15.0 and dist <= 18:
             roll = random.random()
@@ -790,26 +818,6 @@ class BoxingArena:
         target_y = dfn.y + (7.0 if target_zone == 'LIVER' else (4.0 if target_zone == 'NOSE' else (2.0 if punch == 'UPPERCUT' else 3.0)))
         atk.punch_target = (target_x, target_y)
 
-        # AI evasive or defensive reaction if anticipating
-        blind_spot = False
-        if atk.facing_right and dfn.injury.is_left_eye_shut():
-            blind_spot = True
-        elif (not atk.facing_right) and dfn.injury.is_right_eye_shut():
-            blind_spot = True
-
-        slip_chance = 0.05 if blind_spot else (0.30 if dfn.style.startswith('Out') else 0.18)
-        guard_chance = 0.15 if blind_spot else 0.35
-
-        if random.random() < slip_chance and punch in ('JAB', 'CROSS') and dfn.state not in ('HURT', 'DOWN'):
-            dfn.state = 'SLIP'
-            dfn.state_frame = 0
-            dfn.state_duration = 5
-            self.add_commentary(f"💨 {dfn.name} ducks down into a slip under {atk.name}'s incoming {punch.lower()}!")
-        elif (not blind_spot) and random.random() < guard_chance and dfn.guard > 20.0 and dfn.state not in ('HURT', 'DOWN'):
-            dfn.state = 'GUARD'
-            dfn.state_frame = 0
-            dfn.state_duration = 4
-
     def check_punch_collisions(self, atk: Fighter, dfn: Fighter):
         if atk.state not in ('JAB', 'CROSS', 'HOOK', 'UPPERCUT') or atk.has_impacted:
             return
@@ -836,6 +844,8 @@ class BoxingArena:
                 self.hit_sparks.append({'x': int(gx), 'y': int(gy), 'life': 3})
                 self.physics.spawn_sweat_cloud(gx, gy)
                 self.add_commentary(f"🛡️ {dfn.name} absorbs {atk.name}'s {atk.punch_type.lower()} on high guard!")
+                if dfn.hp <= 0:
+                    knock_down(self, dfn, atk, 1.5 if atk.facing_right else -1.5)
                 return
 
         # 2. Anatomical zones collision
@@ -880,6 +890,7 @@ class BoxingArena:
 
             if hit_zone == 'liver':
                 dfn.injury.liver_trauma += actual_dmg * 1.3
+                dfn.injury.rib_fracture += actual_dmg * 0.2
                 self.physics.spawn_blood_spray(gx, gy + 3, intensity=0.9)
                 self.add_commentary(f"💥 THUD! {atk.name}'s {atk.punch_type} collides with {dfn.name}'s liver at ({gx:.1f}, {gy:.1f})!")
                 if dfn.injury.liver_trauma >= 65.0 and random.random() < 0.5:
@@ -915,11 +926,14 @@ class BoxingArena:
                         self.physics.spawn_blood_spray(gx, gy, intensity=1.5)
                         self.add_commentary(f"🩸 GASH OPENED! A vicious cut tears across {dfn.name}'s right brow!")
 
-            if (dfn.injury.has_severe_cut() or dfn.injury.l_eye_swelling >= 80.0) and not dfn.injury.doc_checked:
+            severity = injury_severity(dfn)
+            if severity >= 70.0 and severity >= getattr(dfn.injury, 'last_exam_severity', 0) + 15:
+                self.doctor_fighter = 'red' if dfn is self.f1 else 'blue'
                 dfn.injury.doc_checked = True
+                dfn.injury.last_exam_severity = severity
                 self.doctor_inspecting = True
-                self.doctor_timer = 25
-                self.add_commentary("🩺 TIME OUT! The referee calls the Ringside Physician to examine the lacerations!")
+                self.doctor_timer = 12
+                self.add_commentary("🩺 TIME OUT! The ringside physician examines " + dfn.name + ".")
 
             if dfn.hp <= 0.0 or (dfn.injury.jaw_concussion >= 85.0 and random.random() < 0.6):
                 dfn.state = 'DOWN'
@@ -933,60 +947,7 @@ class BoxingArena:
                 self.referee_count = 1
                 self.add_commentary(f"🚨 DOWN GOES {dfn.name}! Physical impact knockdown! The referee starts the count!")
     def step(self, tick):
-        self.clock_tick += 1
-        
-        self.physics.step_ropes()
-        self.physics.step_projectiles(self.blood_stains)
-        self.step_kinematics(self.f1)
-        self.step_kinematics(self.f2)
-
-        self.hit_sparks = [s for s in self.hit_sparks if s['life'] > 0]
-        for s in self.hit_sparks:
-            s['life'] -= 1
-
-        if self.doctor_inspecting:
-            self.doctor_timer -= 1
-            if self.doctor_timer <= 0:
-                self.doctor_inspecting = False
-                severe = max(self.f1.injury.l_brow_cut, self.f2.injury.l_brow_cut, self.f1.injury.l_eye_swelling, self.f2.injury.l_eye_swelling)
-                if severe >= 95.0:
-                    self.match_over = True
-                    self.ko_type = "TKO (Ringside Physician Stoppage)"
-                    self.winner = self.f1 if self.f2.injury.has_severe_cut() else self.f2
-                    self.add_commentary("🛑 DOCTOR WAVES HIS ARMS! The cut is too severe to continue! IT'S OVER!")
-                else:
-                    self.add_commentary("👨‍⚕️ PHYSICIAN: 'He can see my fingers! One more round, keep it clean!' FIGHT ON!")
-            return
-
-        if self.referee_counting:
-            if self.clock_tick % 10 == 0:
-                self.referee_count += 1
-                self.add_commentary(f"🔔 REFEREE COUNT: ... {self.referee_count}!")
-                
-                down_fighter = self.f1 if self.f1.state == 'DOWN' else self.f2
-                if self.referee_count >= 10:
-                    self.match_over = True
-                    self.ko_type = "KNOCKOUT (10-COUNT KO)"
-                    self.winner = self.f2 if down_fighter == self.f1 else self.f1
-                    self.winner.state = 'VICTORY'
-                    self.add_commentary(f"🏆 IT'S ALL OVER! {self.winner.name} WINS BY BRUTAL KNOCKOUT!")
-                    return
-                elif self.referee_count >= 8 and down_fighter.hp > -15.0 and random.random() < 0.65:
-                    down_fighter.state = 'IDLE'
-                    down_fighter.state_frame = 0
-                    down_fighter.hp = 25.0
-                    down_fighter.ragdoll = None
-                    self.referee_counting = False
-                    self.referee_count = 0
-                    self.add_commentary(f"🔥 UNBELIEVABLE HEART! {down_fighter.name} beats the count at 8 and fights on!")
-            return
-
-        if not self.match_over:
-            self.update_ai_fighter(self.f1, self.f2, tick)
-            self.update_ai_fighter(self.f2, self.f1, tick)
-            # Animation-driven physical collision & damage resolution
-            self.check_punch_collisions(self.f1, self.f2)
-            self.check_punch_collisions(self.f2, self.f1)
+        advance_match(self, tick)
 
     # --------------------------------------------------------------------------
     # VERLET RAGDOLL RENDERING
@@ -1481,7 +1442,7 @@ def render_full_screen(arena: BoxingArena, tick: int):
 
     out = []
     
-    sec_left = max(0, arena.round_time_sec - (arena.clock_tick // 4))
+    sec_left = max(0, arena.round_time_sec - (getattr(arena, 'round_tick', arena.clock_tick) // 4))
     clock_str = f"{sec_left // 60:02d}:{sec_left % 60:02d}"
     out.append(f"{C_MAU}{C_BLD}  OSTADIX BOXING · 64-BIT PIXEL INJURY & 2D PHYSICS ENGINE{C_RST}  {C_YEL}R{arena.round_num}/{arena.max_rounds} [{clock_str}]{C_RST}")
 
@@ -1495,17 +1456,13 @@ def render_full_screen(arena: BoxingArena, tick: int):
 
     out.append(f"  {C_RED}{C_BLD}TITAN{C_RST} {hp1} {arena.f1.hp:4.0f} HP │ {stm1} STM  {C_SUB}VS{C_RST}  STM {stm2} │ {hp2} {arena.f2.hp:4.0f} HP {C_BLU}{C_BLD}PHANTOM{C_RST}")
 
-    f1_eye = f"{C_RED}SHUT!{C_RST}" if arena.f1.injury.is_left_eye_shut() else (f"{C_YEL}SWLN{C_RST}" if arena.f1.injury.l_eye_swelling > 25 else f"{C_GRN}OK{C_RST}")
-    f2_eye = f"{C_RED}SHUT!{C_RST}" if arena.f2.injury.is_left_eye_shut() else (f"{C_YEL}SWLN{C_RST}" if arena.f2.injury.l_eye_swelling > 25 else f"{C_GRN}OK{C_RST}")
-    f1_cut = f"{C_RED}BLEED {arena.f1.injury.l_brow_cut:2.0f}%{C_RST}" if arena.f1.injury.l_brow_cut > 20 else f"{C_GRN}NONE{C_RST}"
-    f2_cut = f"{C_RED}BLEED {arena.f2.injury.l_brow_cut:2.0f}%{C_RST}" if arena.f2.injury.l_brow_cut > 20 else f"{C_GRN}NONE{C_RST}"
-    f1_liv = f"{C_RED}LIVER {arena.f1.injury.liver_trauma:2.0f}%{C_RST}" if arena.f1.injury.liver_trauma > 30 else f"{C_SUB}LIVER OK{C_RST}"
-    f2_liv = f"{C_RED}LIVER {arena.f2.injury.liver_trauma:2.0f}%{C_RST}" if arena.f2.injury.liver_trauma > 30 else f"{C_SUB}LIVER OK{C_RST}"
-
-    f1_phys = f"m:{arena.f1.mass:.0f}kg vx:{arena.f1.vx:+.1f}"
-    f2_phys = f"m:{arena.f2.mass:.0f}kg vx:{arena.f2.vx:+.1f}"
-
-    out.append(f"  {C_SUB}PHYS:{C_RST} [{f1_phys}] L-EYE:{f1_eye} {f1_cut} │ [{f2_phys}] L-EYE:{f2_eye} {f2_cut}")
+    for f, color in ((arena.f1, C_RED), (arena.f2, C_BLU)):
+        inj = f.injury
+        eyes = f"L {inj.l_eye_swelling:.0f}{' SHUT' if inj.is_left_eye_shut() else ''} / R {inj.r_eye_swelling:.0f}{' SHUT' if inj.is_right_eye_shut() else ''}"
+        out.append(f"  {color}{f.name:7}{C_RST} EYES {eyes} · CUTS L {inj.l_brow_cut:.0f} / R {inj.r_brow_cut:.0f} · JAW {inj.jaw_concussion:.0f} · LIVER {inj.liver_trauma:.0f}")
+    out.append(f"  {C_SUB}PHYS:{C_RST} TITAN {arena.f1.mass:.0f}kg / vx {arena.f1.vx:+.1f} │ PHANTOM {arena.f2.mass:.0f}kg / vx {arena.f2.vx:+.1f}")
+    for f, color in ((arena.f1, C_RED), (arena.f2, C_BLU)):
+        out.append(f"  {color}{f.name:7}{C_RST} DAMAGE {f.damage_dealt:.1f} + DANGER {f.finishing_threat:.1f} = {f.damage_dealt + f.finishing_threat:.1f}")
 
     ring_lines = arena.render_frame(tick)
     for line in ring_lines:
@@ -1514,16 +1471,630 @@ def render_full_screen(arena: BoxingArena, tick: int):
     out.append(f"  {C_MAU}{'─' * 74}{C_RST}")
     for c_msg in arena.commentary_log[-2:]:
         out.append(f"  {c_msg}")
+    out.append(f"  {C_SUB}Space pause · 1/2 inspect fighter · i inspect both · q stop · full injury replay saved after match{C_RST}")
 
     return "\n".join(out)
 
 # ==============================================================================
+# LOCKSTEP FIGHTER WORKERS AND SHARED MATCH RULES
+# ==============================================================================
+def canonical_json(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+
+def state_digest(value):
+    return hashlib.sha256(canonical_json(value).encode()).hexdigest()
+
+def fighter_to_data(fighter):
+    data = copy.deepcopy(vars(fighter))
+    data['injury'] = copy.deepcopy(vars(fighter.injury))
+    data['ragdoll'] = copy.deepcopy(vars(fighter.ragdoll)) if fighter.ragdoll else None
+    return data
+
+def fighter_from_data(data):
+    # Explicit JSON state only; no pickle or executable object deserialization.
+    data = copy.deepcopy(data)
+    fighter = Fighter(data['name'], data['corner'], data['style'], data['x'], data['mass'], data['is_titan'])
+    expected = set(vars(fighter))
+    if set(data) != expected:
+        raise ValueError('fighter state fields do not match this engine')
+    for key, default in vars(fighter).items():
+        value = data[key]
+        if isinstance(default, bool):
+            if type(value) is not bool:
+                raise ValueError('invalid fighter flag: ' + key)
+        elif isinstance(default, (int, float)):
+            require_number(value)
+        elif isinstance(default, str) and not isinstance(value, str):
+            raise ValueError('invalid fighter text: ' + key)
+    if data['state'] not in ('IDLE', 'ADVANCE', 'RETREAT', 'JAB', 'CROSS', 'HOOK', 'UPPERCUT',
+                              'GUARD', 'SLIP', 'HURT', 'WOBBLE', 'DOWN', 'VICTORY'):
+        raise ValueError('unknown fighter state')
+    if data['punch_type'] not in (None, 'JAB', 'CROSS', 'HOOK', 'UPPERCUT'):
+        raise ValueError('unknown punch type')
+    if data['punch_target'] is not None:
+        if not isinstance(data['punch_target'], (list, tuple)) or len(data['punch_target']) != 2:
+            raise ValueError('invalid punch target')
+        for value in data['punch_target']:
+            require_number(value)
+    injury = InjurySystem(data['name'])
+    if not set(vars(injury)) <= set(data['injury']) or set(data['injury']) - set(vars(injury)) - {'last_exam_severity'}:
+        raise ValueError('invalid injury fields')
+    for key, value in data['injury'].items():
+        if key == 'name':
+            if value != data['name']:
+                raise ValueError('injury owner mismatch')
+        elif key in ('doc_checked', 'doc_stopped', 'has_mouthguard'):
+            if type(value) is not bool:
+                raise ValueError('invalid injury flag')
+        else:
+            require_number(value)
+            if value < 0:
+                raise ValueError('negative injury value')
+    injury.__dict__.update(data.pop('injury'))
+    ragdoll_data = data.pop('ragdoll')
+    ragdoll = None
+    if ragdoll_data is not None:
+        ragdoll = VerletRagdoll(data['x'], 23.0)
+        if set(ragdoll_data) != set(vars(ragdoll)) or len(ragdoll_data['points']) != 4:
+            raise ValueError('invalid ragdoll state')
+        for point in ragdoll_data['points']:
+            if set(point) != {'x', 'y', 'ox', 'oy'}:
+                raise ValueError('invalid ragdoll point')
+            for value in point.values():
+                require_number(value)
+        if len(ragdoll_data['lengths']) != 3:
+            raise ValueError('invalid ragdoll lengths')
+        for value in ragdoll_data['lengths']:
+            require_number(value)
+        require_number(ragdoll_data['facing'])
+        if type(ragdoll_data['settled']) is not bool:
+            raise ValueError('invalid ragdoll flag')
+        ragdoll.__dict__.update(ragdoll_data)
+    fighter.__dict__.update(data)
+    fighter.injury, fighter.ragdoll = injury, ragdoll
+    return fighter
+
+def match_snapshot(arena, tick):
+    return {
+        'schema': 'boxing.snapshot/v1', 'match_id': arena.match_id,
+        'tick': tick, 'seed': arena.seed,
+        'fighters': {'red': fighter_to_data(arena.f1), 'blue': fighter_to_data(arena.f2)},
+        'physics': copy.deepcopy(vars(arena.physics)),
+        'blood_stains': [[x, y, list(col)] for (x, y), col in sorted(arena.blood_stains.items())],
+        'active': not (arena.match_over or arena.doctor_inspecting or arena.referee_counting),
+    }
+
+def compute_fighter(snapshot, side):
+    if snapshot['schema'] != 'boxing.snapshot/v1' or side not in ('red', 'blue'):
+        raise ValueError('invalid fighter request')
+    # A per-tick, per-fighter seed makes results independent of network ordering.
+    saved_rng = random.getstate()
+    random.seed(str(snapshot['seed']) + ':' + str(snapshot['tick']) + ':' + side)
+    try:
+        world = BoxingArena()
+        world.f1 = fighter_from_data(snapshot['fighters']['red'])
+        world.f2 = fighter_from_data(snapshot['fighters']['blue'])
+        world.physics.__dict__.update(copy.deepcopy(snapshot['physics']))
+        world.blood_stains = {(x, y): col for x, y, col in snapshot['blood_stains']}
+        world.commentary_log = []
+        fighter, opponent = (world.f1, world.f2) if side == 'red' else (world.f2, world.f1)
+        old_rope_vel = [r['vel'][:] for r in world.physics.ropes]
+        old_projectiles = len(world.physics.projectiles)
+        world.step_kinematics(fighter)
+        if snapshot['active']:
+            world.update_ai_fighter(fighter, opponent, snapshot['tick'])
+        elif fighter.ragdoll:
+            fighter.ragdoll.step(world.physics.floor_y)
+        return {
+            'schema': 'boxing.fighter-step/v1', 'match_id': snapshot['match_id'],
+            'tick': snapshot['tick'], 'side': side, 'snapshot_sha256': state_digest(snapshot),
+            'fighter': fighter_to_data(fighter),
+            'rope_impulses': [[v - old for v, old in zip(r['vel'], prior)]
+                              for r, prior in zip(world.physics.ropes, old_rope_vel)],
+            'projectiles': world.physics.projectiles[old_projectiles:],
+            'commentary': world.commentary_log,
+            'down': fighter.state == 'DOWN' and snapshot['fighters'][side]['state'] != 'DOWN',
+        }
+    finally:
+        random.setstate(saved_rng)
+
+def validate_plain_state(value):
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError('non-finite worker state')
+    if isinstance(value, dict):
+        for child in value.values():
+            validate_plain_state(child)
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            validate_plain_state(child)
+
+def require_number(value):
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise ValueError('worker physics value must be a finite number')
+
+def apply_fighter_steps(arena, snapshot, replies):
+    # Validate the complete pair before committing either fighter.
+    if set(replies) != {'red', 'blue'}:
+        raise ValueError('both fighter replies required')
+    fighters = []
+    digest = state_digest(snapshot)
+    for side in ('red', 'blue'):
+        reply = replies[side]
+        validate_plain_state(reply)
+        for key, expected in [('schema', 'boxing.fighter-step/v1'), ('match_id', snapshot['match_id']),
+                              ('tick', snapshot['tick']), ('side', side), ('snapshot_sha256', digest)]:
+            if reply.get(key) != expected:
+                raise ValueError('stale or mismatched worker reply: ' + key)
+        fighter = fighter_from_data(reply['fighter'])
+        original = snapshot['fighters'][side]
+        for key in ('name', 'corner', 'style', 'mass', 'is_titan', 'facing_right'):
+            if getattr(fighter, key) != original[key]:
+                raise ValueError('worker changed fighter identity: ' + key)
+        for key in ('damage_dealt', 'finishing_threat'):
+            if getattr(fighter, key) != original[key]:
+                raise ValueError('only the referee may credit inflicted damage: ' + key)
+        if not (10 <= fighter.x <= arena.w - 24 and 0 <= fighter.hp <= 100 and 0 <= fighter.stamina <= 100):
+            raise ValueError('worker fighter bounds invalid')
+        if len(reply['rope_impulses']) != 3 or any(len(row) != arena.w for row in reply['rope_impulses']):
+            raise ValueError('invalid rope impulses')
+        for row in reply['rope_impulses']:
+            for value in row:
+                require_number(value)
+        if not isinstance(reply['projectiles'], list):
+            raise ValueError('invalid worker projectiles')
+        for projectile in reply['projectiles']:
+            if set(projectile) != {'type', 'x', 'y', 'vx', 'vy', 'drag', 'restitution', 'life', 'col'}:
+                raise ValueError('invalid worker projectile fields')
+            if projectile['type'] != 'sweat':
+                raise ValueError('fighter workers may only emit traction sweat')
+            for key in ('x', 'y', 'vx', 'vy', 'drag', 'restitution', 'life'):
+                require_number(projectile[key])
+            if len(projectile['col']) != 3:
+                raise ValueError('invalid projectile color')
+            for component in projectile['col']:
+                require_number(component)
+                if not 0 <= component <= 255:
+                    raise ValueError('projectile color out of range')
+        if not isinstance(reply['down'], bool) or not all(isinstance(msg, str) for msg in reply['commentary']):
+            raise ValueError('invalid fighter events')
+        fighters.append(fighter)
+    arena.f1, arena.f2 = fighters
+    for side in ('red', 'blue'):
+        reply = replies[side]
+        for rope, impulse in zip(arena.physics.ropes, reply['rope_impulses']):
+            rope['vel'] = [v + dv for v, dv in zip(rope['vel'], impulse)]
+        arena.physics.projectiles.extend(reply['projectiles'])
+        for message in reply['commentary']:
+            arena.add_commentary(message)
+        if reply['down']:
+            opponent = arena.f2 if side == 'red' else arena.f1
+            fighter = arena.f1 if side == 'red' else arena.f2
+            opponent.knockdowns_scored += 1
+            opponent.damage_dealt += max(0, snapshot['fighters'][side]['hp'] - fighter.hp)
+            opponent.finishing_threat += 20.0
+            arena.referee_counting, arena.referee_count = True, 1
+
+def injury_severity(fighter):
+    return max(fighter.injury.l_brow_cut, fighter.injury.r_brow_cut,
+               fighter.injury.l_eye_swelling, fighter.injury.r_eye_swelling)
+
+def knock_down(arena, fighter, opponent, impulse):
+    if fighter.state == 'DOWN':
+        return
+    fighter.state, fighter.state_frame = 'DOWN', 0
+    fighter.knockdowns_taken += 1
+    opponent.knockdowns_scored += 1
+    fighter.ragdoll = VerletRagdoll(fighter.x, arena.physics.floor_y, 1 if fighter.facing_right else -1)
+    fighter.ragdoll.apply_knockdown_impulse(impulse, -1.6)
+    arena.referee_counting, arena.referee_count = True, 1
+
+def finish_match(arena, winner, method):
+    arena.match_over, arena.winner, arena.ko_type = True, winner, method
+    arena.scores = [f.damage_dealt + f.finishing_threat for f in (arena.f1, arena.f2)]
+    if winner:
+        winner.state = 'VICTORY'
+    arena.add_commentary('RESULT: ' + (winner.name if winner else 'DRAW') + ' — ' + method)
+
+def record_injury_change(arena, fighter, before, attacker=None, punch=None, zone=None, damage=0, finishing_threat=0):
+    changes = {key: {'before': value, 'after': vars(fighter.injury).get(key)}
+               for key, value in before.items() if vars(fighter.injury).get(key) != value}
+    if changes or damage:
+        arena.events.append({'tick': arena.current_tick, 'round': arena.round_num,
+                             'fighter': fighter.name, 'attacker': attacker, 'punch': punch,
+                             'zone': zone, 'damage': damage, 'finishing_threat': finishing_threat, 'changes': changes})
+
+def finishing_threat_delta(before, after, knockdowns=0):
+    # Arcade finishing danger, not a clinical scale or mortality probability.
+    weights = {'jaw_concussion': 1.5, 'liver_trauma': 1.25, 'rib_fracture': 0.5,
+               'nose_fracture': 0.25, 'l_eye_swelling': 0.25, 'r_eye_swelling': 0.25,
+               'l_brow_cut': 0.15, 'r_brow_cut': 0.15}
+    return sum(max(0, after.get(key, 0) - before.get(key, 0)) * weight
+               for key, weight in weights.items()) + 20.0 * knockdowns
+
+def score_round(arena):
+    # Damage and finishing danger accumulate across the entire match. Hit count
+    # alone earns no points, and corner recovery does not erase inflicted harm.
+    totals = [(f.damage_dealt, f.finishing_threat) for f in (arena.f1, arena.f2)]
+    delta = [[now - old for now, old in zip(total, base)] for total, base in zip(totals, arena.round_baseline)]
+    # SCORE POLICY: this small block is the customization point for judging.
+    arena.scores = [damage + threat for damage, threat in totals]
+    arena.scorecards.append({'round': arena.round_num, 'points': [sum(d) for d in delta],
+                            'damage': [d[0] for d in delta], 'finishing_threat': [d[1] for d in delta]})
+    arena.round_baseline = totals
+    if arena.round_num >= arena.max_rounds:
+        winner = None if math.isclose(arena.scores[0], arena.scores[1], abs_tol=1e-9) else (arena.f1 if arena.scores[0] > arena.scores[1] else arena.f2)
+        finish_match(arena, winner, 'DRAW (damage + finishing danger)' if winner is None else 'DECISION (damage + finishing danger)')
+    else:
+        arena.round_num += 1
+        arena.round_tick = 0
+        for f, x in ((arena.f1, 16), (arena.f2, 46)):
+            before = dict(vars(f.injury))
+            f.injury.apply_cutman_treatments()
+            f.injury.last_exam_severity = 0
+            f.hp, f.stamina, f.guard = min(100, f.hp + 12), min(100, f.stamina + 35), 100
+            f.x, f.vx, f.state, f.state_frame, f.ragdoll = x, 0, 'IDLE', 0, None
+            record_injury_change(arena, f, before, zone='CORNER TREATMENT')
+        arena.add_commentary('BELL! Round ' + str(arena.round_num))
+
+def advance_match(arena, tick, transport=None):
+    if arena.match_over:
+        return
+    snapshot = match_snapshot(arena, tick)
+    replies = transport.steps(snapshot) if transport else {side: compute_fighter(snapshot, side) for side in ('red', 'blue')}
+    apply_fighter_steps(arena, snapshot, replies)
+    arena.current_tick = tick
+    arena.clock_tick += 1
+    arena.scores = [f.damage_dealt + f.finishing_threat for f in (arena.f1, arena.f2)]
+    for side, fighter in (('red', arena.f1), ('blue', arena.f2)):
+        collapse = replies[side]['down']
+        opponent = arena.f2 if side == 'red' else arena.f1
+        record_injury_change(arena, fighter, snapshot['fighters'][side]['injury'],
+                             attacker=opponent.name if collapse else None,
+                             punch='DELAYED LIVER COLLAPSE' if collapse else None,
+                             zone='LIVER' if collapse else 'FIGHTER UPDATE',
+                             damage=max(0, snapshot['fighters'][side]['hp'] - fighter.hp),
+                             finishing_threat=20.0 if collapse else 0)
+    # Shared torso contact: fighters cannot pass through each other. Preserve
+    # their combined horizontal momentum when approaching into contact.
+    if arena.f1.state != 'DOWN' and arena.f2.state != 'DOWN' and arena.f2.x - arena.f1.x < 8:
+        a, b = arena.f1, arena.f2
+        overlap = 8 - (b.x - a.x)
+        a.x -= overlap * b.mass / (a.mass + b.mass)
+        b.x += overlap * a.mass / (a.mass + b.mass)
+        shift = max(0, 10 - a.x) - max(0, b.x - (arena.w - 24))
+        a.x, b.x = a.x + shift, b.x + shift
+        if a.vx > b.vx:
+            a.vx = b.vx = (a.mass * a.vx + b.mass * b.vx) / (a.mass + b.mass)
+    random.seed(str(arena.seed) + ':' + str(tick) + ':referee')
+    arena.physics.step_ropes()
+    arena.physics.step_projectiles(arena.blood_stains)
+    arena.hit_sparks = [dict(s, life=s['life'] - 1) for s in arena.hit_sparks if s['life'] > 1]
+    for f in (arena.f1, arena.f2):
+        before = dict(vars(f.injury))
+        f.injury.blood_loss_ml += (f.injury.l_brow_cut + f.injury.r_brow_cut + f.injury.nose_fracture) * 0.0025
+        record_injury_change(arena, f, before, zone='BLEEDING')
+
+    # A count takes precedence over a physician exam initiated by the same hit.
+    if arena.referee_counting:
+        down = [f for f in (arena.f1, arena.f2) if f.state == 'DOWN']
+        if not down:
+            arena.referee_counting = False
+            return
+        if arena.clock_tick % 4 == 0:
+            arena.referee_count += 1
+            if arena.referee_count >= 10:
+                winner = None if len(down) == 2 else (arena.f2 if down[0] is arena.f1 else arena.f1)
+                finish_match(arena, winner, 'DOUBLE KNOCKOUT' if winner is None else 'KNOCKOUT (10-count)')
+            elif arena.referee_count >= 8:
+                for f in down:
+                    if f.knockdowns_taken < 3 and f.injury.jaw_concussion < 85 and random.random() < 0.65:
+                        f.state, f.state_frame, f.hp, f.ragdoll = 'IDLE', 0, 25.0, None
+                arena.referee_counting = any(f.state == 'DOWN' for f in down)
+        return
+    if arena.doctor_inspecting:
+        arena.doctor_timer -= 1
+        if arena.doctor_timer <= 0:
+            arena.doctor_inspecting = False
+            fighter = arena.f1 if arena.doctor_fighter == 'red' else arena.f2
+            if injury_severity(fighter) >= 95:
+                fighter.injury.doc_stopped = True
+                finish_match(arena, arena.f2 if fighter is arena.f1 else arena.f1, 'TKO (ringside physician)')
+        return
+
+    # Alternate contact priority, independent of response arrival order.
+    pairs = [(arena.f1, arena.f2), (arena.f2, arena.f1)]
+    if tick % 2:
+        pairs.reverse()
+    for attacker, defender in pairs:
+        if arena.referee_counting:
+            break
+        before, hp, knockdowns = dict(vars(defender.injury)), defender.hp, defender.knockdowns_taken
+        arena.check_punch_collisions(attacker, defender)
+        damage = max(0, hp - defender.hp)
+        threat = finishing_threat_delta(before, vars(defender.injury), defender.knockdowns_taken - knockdowns)
+        attacker.damage_dealt += damage
+        attacker.finishing_threat += threat
+        record_injury_change(arena, defender, before, attacker.name, attacker.punch_type,
+                             defender.last_hurt_zone, damage, threat)
+    arena.scores = [f.damage_dealt + f.finishing_threat for f in (arena.f1, arena.f2)]
+    arena.round_tick += 1
+    if arena.round_tick >= arena.round_time_sec * 4 and not (arena.referee_counting or arena.doctor_inspecting):
+        score_round(arena)
+
+class BoxingNodes:
+    def __init__(self, engine_source, controllers, output_dir):
+        from concurrent.futures import ThreadPoolExecutor
+        self.engine_source, self.controllers, self.output_dir = engine_source, controllers, Path(output_dir)
+        self.octl = os.environ.get('OSTADIX_BOXING_OCTL') or shutil.which('octl')
+        self.timeout = int(os.environ.get('OSTADIX_BOXING_NODE_TIMEOUT', '30'))
+        if not 1 <= self.timeout <= 86400:
+            raise ValueError('node timeout must be 1..86400 seconds')
+        self.endpoints, self.pool = {}, None
+        remote = {side: node for side, node in controllers.items() if node != 'local'}
+        if remote and not self.octl:
+            raise RuntimeError('octl is required for node fighters; install the Ostadix node tools')
+        if remote:
+            listing = self.command(['node', 'list'])
+            peers = {p['node_id']: p for p in listing}
+            for side, node in remote.items():
+                if node not in peers or not peers[node].get('remembered'):
+                    raise RuntimeError('Node ' + node + ' is not paired. Use o node pair first.')
+                address = os.environ.get('OSTADIX_BOXING_' + side.upper() + '_ADDRESS') or peers[node]['address']
+                profile = self.command(['node', 'profile', '--node', node, '--address', address])
+                if profile['node_id'] != node:
+                    raise RuntimeError('profile identity mismatch')
+                self.endpoints[side] = (address, profile['backend_catalog_sha256'])
+            (self.output_dir / 'nodes.json').write_text(canonical_json(self.endpoints) + '\n')
+            self.pool = ThreadPoolExecutor(max_workers=len(remote))
+
+    def command(self, arguments, source=None):
+        proc = subprocess.run([self.octl] + arguments, input=source, text=True, capture_output=True,
+                              timeout=self.timeout + 5)
+        if proc.returncode:
+            if source is not None:
+                # Failed native operations still have useful full receipts.
+                try:
+                    receipt = json.loads(proc.stdout)
+                    if receipt.get('schema') == 'ostadix.hosted-operation-receipt/v1':
+                        return receipt
+                except (ValueError, AttributeError):
+                    pass
+            raise RuntimeError('octl failed; no retry: ' + (proc.stderr or proc.stdout)[-2000:])
+        return json.loads(proc.stdout)
+
+    def remote_step(self, snapshot, side):
+        node = self.controllers[side]
+        address, catalog = self.endpoints[side]
+        encoded = base64.b64encode(canonical_json(snapshot).encode()).decode()
+        worker = ('python' + '[91]^(\n'
+                  "__oval_result__ = canonical_json(compute_fighter(json.loads(base64.b64decode('" + encoded + "')), '" + side + "'))\n)_" + 'python[91]')
+        source = 'O' + '^(\n' + self.engine_source + '\n' + worker + '\n)_' + 'O\n'
+        if len(source.encode()) > 1024 * 1024:
+            raise RuntimeError('worker document exceeds hosted node 1 MiB limit')
+        task = 'boxing-' + snapshot['match_id'] + '-' + str(snapshot['tick']) + '-' + side
+        attempt = uuid.uuid4().hex
+        receipt_path = self.output_dir / 'receipts' / (str(snapshot['tick']) + '-' + side + '.json')
+        receipt_path.parent.mkdir(exist_ok=True)
+        try:
+            receipt = self.command(['node', 'run', '--node', node, '--address', address,
+                '--expected-catalog-sha256', catalog, '--task-id', task, '--attempt-id', attempt,
+                '--connect-timeout-seconds', str(min(10, self.timeout)),
+                '--io-timeout-seconds', str(self.timeout), '--deadline-seconds', str(self.timeout), '-'], source)
+            receipt_path.write_text(canonical_json(receipt) + '\n')
+            for key, expected in [('schema', 'ostadix.hosted-operation-receipt/v1'), ('node_id', node),
+                                  ('task_id', task), ('attempt_id', attempt),
+                                  ('source_sha256', hashlib.sha256(source.encode()).hexdigest())]:
+                if receipt.get(key) != expected:
+                    raise RuntimeError('node receipt mismatch: ' + key)
+            if receipt['outcome']['status'] != 'succeeded':
+                raise RuntimeError('node failed: ' + canonical_json(receipt['outcome']))
+            value = receipt['outcome']['value']
+            if value['t'] == 'text':
+                payload = value['v']['utf8']
+            elif value['t'] == 'str':
+                payload = value['v']
+            else:
+                raise RuntimeError('worker result must be text JSON')
+            return json.loads(payload)
+        except Exception as exc:
+            receipt_path.with_suffix('.error.json').write_text(canonical_json({
+                'node': node, 'task_id': task, 'attempt_id': attempt,
+                'tick': snapshot['tick'], 'side': side, 'error': str(exc),
+                'completion': 'not accepted; may be unknown', 'retried': False}) + '\n')
+            raise
+
+    def steps(self, snapshot):
+        pending = {side: self.pool.submit(self.remote_step, snapshot, side)
+                   for side in self.endpoints} if self.pool else {}
+        replies = {side: compute_fighter(snapshot, side) for side in ('red', 'blue') if side not in pending}
+        for side, future in pending.items():
+            replies[side] = future.result()
+        return replies
+
+    def close(self):
+        if self.pool:
+            self.pool.shutdown(wait=True, cancel_futures=True)
+
+# ==============================================================================
+# INJURY SNAPSHOTS & OFFLINE RINGSIDE INSPECTOR
+# ==============================================================================
+INJURY_METRICS = [
+    {'key': 'l_eye_swelling', 'label': 'Left eye swelling', 'region': 'left-eye', 'unit': 'index', 'limit': 60,
+     'detail': 'At 60 the simulated left eye is shut. Vision loss changes defensive reactions and spacing; the sprite shows bruising and swelling.'},
+    {'key': 'r_eye_swelling', 'label': 'Right eye swelling', 'region': 'right-eye', 'unit': 'index', 'limit': 60,
+     'detail': 'At 60 the simulated right eye is shut. The blind side changes defensive reactions; inspect the matching brow cut separately.'},
+    {'key': 'l_brow_cut', 'label': 'Left brow cut', 'region': 'left-eye', 'unit': 'index', 'limit': 70,
+     'detail': 'At 70 a brow cut is severe in this game. Cuts contribute to simulated blood loss and ringside inspection. Corner treatment can reduce the index.'},
+    {'key': 'r_brow_cut', 'label': 'Right brow cut', 'region': 'right-eye', 'unit': 'index', 'limit': 70,
+     'detail': 'The right brow is tracked independently. Scrub across a hit or corner treatment to see the exact change; 70 is the severe-cut threshold.'},
+    {'key': 'nose_fracture', 'label': 'Nose trauma', 'region': 'nose', 'unit': 'index', 'limit': 50,
+     'detail': 'Nose impacts add trauma to this arcade counter. The facial sprite changes as it increases. This is not a diagnosis or a probability of fracture.'},
+    {'key': 'jaw_concussion', 'label': 'Jaw / concussion', 'region': 'jaw', 'unit': 'index', 'limit': 85,
+     'detail': 'Head impacts increase this arcade index. High values can trigger wobbling or a knockdown; corner recovery can lower it. It is not a clinical scale.'},
+    {'key': 'liver_trauma', 'label': 'Liver trauma', 'region': 'body', 'unit': 'index', 'limit': 65,
+     'detail': 'Body trauma reduces stamina recovery above 40 and stride force above 50. A high value can arm a delayed collapse; watch the countdown below.'},
+    {'key': 'rib_fracture', 'label': 'Rib trauma', 'region': 'body', 'unit': 'index', 'limit': None,
+     'detail': 'Body impacts accumulate this separate trauma counter. Its value records damage in the simulation; it does not establish a medical fracture.'},
+    {'key': 'blood_loss_ml', 'label': 'Simulated blood loss', 'region': 'blood', 'unit': 'ml', 'limit': None,
+     'detail': 'Cumulative simulated loss from cuts. The unit belongs to the arcade model and does not estimate real blood loss. It is shown without a clinical severity label.'},
+]
+
+def injury_snapshot(arena, tick, controllers):
+    """Capture plain, detached data at a committed tick, without advancing physics."""
+    fighters = []
+    for index, fighter in enumerate((arena.f1, arena.f2)):
+        if isinstance(controllers, dict):
+            controller = controllers.get(fighter.name, controllers.get('f' + str(index + 1), controllers.get('red' if index == 0 else 'blue', 'local')))
+        elif isinstance(controllers, (list, tuple)):
+            controller = controllers[index] if index < len(controllers) else 'local'
+        else:
+            controller = str(controllers)
+        item = {key: getattr(fighter, key) for key in (
+            'name', 'corner', 'style', 'is_titan', 'mass', 'x', 'y', 'vx', 'hp',
+            'stamina', 'guard', 'state', 'state_frame', 'state_duration',
+            'punches_thrown', 'punches_landed', 'knockdowns_taken', 'knockdowns_scored',
+            'damage_dealt', 'finishing_threat')}
+        item.update({'id': 'f' + str(index + 1), 'controller': controller,
+                     'injury': dict(vars(fighter.injury)),
+                     'sprite': fighter.get_pixel_matrix(tick)})
+        fighters.append(item)
+    return {'tick': int(tick), 'round': arena.round_num, 'clock_tick': arena.clock_tick,
+            'match_over': arena.match_over, 'fighters': fighters,
+            'commentary': list(arena.commentary_log)}
+
+def terminal_injury_report(arena, side=None):
+    """Human-readable values for both fighters, including less visible body injuries."""
+    lines = ['INJURY EXAMINATION · arcade values, not medical measurements']
+    fighters = (arena.f1, arena.f2) if side is None else ((arena.f1,) if side in ('red', 'f1', 'TITAN', 0) else (arena.f2,))
+    for fighter in fighters:
+        inj = fighter.injury
+        lines.append(f'{fighter.name} [{fighter.state}] HP {fighter.hp:.1f} · stamina {fighter.stamina:.1f} · guard {fighter.guard:.1f}')
+        lines.append(f'  Damage dealt {fighter.damage_dealt:.2f} + finishing danger {fighter.finishing_threat:.2f} = {fighter.damage_dealt + fighter.finishing_threat:.2f} damage/danger score')
+        lines.append(f'  Eye swelling L {inj.l_eye_swelling:.2f} / R {inj.r_eye_swelling:.2f} · shut L {inj.is_left_eye_shut()} / R {inj.is_right_eye_shut()}')
+        lines.append(f'  Brow cuts L {inj.l_brow_cut:.2f} / R {inj.r_brow_cut:.2f} · nose {inj.nose_fracture:.2f} · jaw {inj.jaw_concussion:.2f}')
+        lines.append(f'  Liver {inj.liver_trauma:.2f} · ribs {inj.rib_fracture:.2f} · simulated blood loss {inj.blood_loss_ml:.2f} ml')
+        lines.append(f'  Mouthguard {"in" if inj.has_mouthguard else "out"} · liver countdown {inj.delayed_liver_timer} ticks · doctor checked {inj.doc_checked} / stopped {inj.doc_stopped}')
+        lines.append(f'  Position {fighter.x:.2f}, {fighter.y:.2f} · velocity {fighter.vx:+.3f} · mass {fighter.mass:.1f} kg · landed {fighter.punches_landed}/{fighter.punches_thrown}')
+    return '\n'.join(lines)
+
+def terminal_injury_closeup(arena, side):
+    """Enlarge the selected fighter's injury sprite for a paused terminal exam."""
+    fighter = arena.f1 if side in ('red', 'f1', 'TITAN', 0) else arena.f2
+    codes = {'L': 'skin_light', 'M': 'skin_mid', 'D': 'skin_dark', 'E': 'eye_white',
+             'W': 'waist_gold', 'B': 'boot', 'b': 'bruise', 'h': 'hematoma',
+             'g': 'gash', 'w': 'wound', 'c': 'blood', 'C': 'blood_bright',
+             'k': 'blood_dark', 'o': 'bone', '=': 'mouthguard', 'X': 'bruise',
+             'G': 'glove_titan' if fighter.is_titan else 'glove_phantom',
+             'T': 'trunks_titan' if fighter.is_titan else 'trunks_phantom',
+             'H': 'hair_titan' if fighter.is_titan else 'hair_phantom'}
+    sprite = fighter.get_pixel_matrix(arena.clock_tick)
+    lines = [f'{fighter.name} · FACE CLOSE-UP / FRONT VIEW', 'Left and right refer to the fighter. Purple: bruising · red: cuts/blood']
+    for title, rows, left, right, width in (('', sprite[:7], 2, 12, 4),
+                                           ('TORSO CLOSE-UP', sprite[7:11], 2, 12, 4)):
+        if title:
+            lines.append(title)
+        for row in rows:
+            cells = []
+            for ch in row[left:right]:
+                rgb = PAL.get(codes.get(ch, 'bg')) or PAL['bg']
+                cells.append(f'\033[48;2;{rgb[0]};{rgb[1]};{rgb[2]}m' + ' ' * width)
+            lines.append('  ' + ''.join(cells) + '\033[0m')
+    lines.append(terminal_injury_report(arena, side))
+    return '\n'.join(lines)
+
+def export_injury_report(output_dir, frames, events, result):
+    """Write an offline inspector and the complete tick/event data beside it."""
+    import json
+    from pathlib import Path
+    directory = Path(output_dir).expanduser().resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+    payload = {'schema': 'ostadix.boxing.injury-replay/v1', 'result': result,
+               'frames': frames, 'events': events, 'metrics': INJURY_METRICS,
+               'palette': PAL}
+    serialized = json.dumps(payload, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
+    # Escape HTML-significant characters even in a non-executable JSON script.
+    embedded = serialized.replace('&', '\\u0026').replace('<', '\\u003c').replace('>', '\\u003e').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
+    page = r'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ostadix Boxing · Ringside injury replay</title>
+<style>
+:root{color-scheme:dark;--bg:#11111b;--panel:#1e1e2e;--ink:#cdd6f4;--muted:#a6adc8;--line:#45475a;--accent:#cba6f7;--red:#f38ba8;--blue:#89b4fa;--green:#a6e3a1;--yellow:#f9e2af}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif}main{max-width:1260px;margin:auto;padding:30px 24px 50px}h1,h2,h3,p{margin:0}h1{font-size:clamp(28px,4vw,44px);letter-spacing:-1.5px;line-height:1.15}h2{font-size:19px}h3{font-size:15px}.eyebrow{color:var(--accent);letter-spacing:2.5px;font-size:11px;font-weight:800;margin-bottom:8px}.muted,small{color:var(--muted)}.masthead{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:24px}.tag{border:1px solid var(--line);border-radius:30px;padding:6px 12px;font-size:12px;white-space:nowrap}.summary{display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:20px 0}.summary>div{background:var(--panel);padding:16px 18px;min-width:0}.summary strong{display:block;font-size:19px;overflow-wrap:anywhere}.summary small{text-transform:uppercase;font-size:10px;letter-spacing:1.5px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}.timeline{margin-bottom:18px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}button,select{font:inherit;background:#313244;border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:8px 13px;cursor:pointer}button:hover{border-color:var(--accent)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}button[aria-pressed=true]{background:#49355f;border-color:var(--accent);color:#f5e0dc}.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700}.timeline input{accent-color:var(--accent);width:100%;margin:15px 0 5px}.timeline-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}.spacer{flex:1}.fighters{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}.fighter{text-align:left;display:flex;justify-content:space-between;gap:14px;padding:14px 18px;border-radius:12px;background:var(--panel);min-width:0}.fighter strong{display:block;font-size:18px}.fighter small{display:block;overflow-wrap:anywhere}.fighter:first-child strong{color:var(--red)}.fighter:last-child strong{color:var(--blue)}.fighter[aria-pressed=true]{background:#292337}.fighter-stat{text-align:right;white-space:nowrap}.layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px}.canvas-wrap{background:#181825;border-radius:9px;margin:16px 0 12px;position:relative;border:1px solid #313244;display:grid;place-items:center;min-height:294px}.sprite{width:240px;height:288px;max-width:100%;image-rendering:pixelated;cursor:crosshair}.portrait-label{position:absolute;left:12px;top:9px;color:var(--muted);font:11px ui-monospace,monospace}.regions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.regions button{font-size:12px;padding:6px 9px}.readout{font:12px/1.7 ui-monospace,monospace;color:var(--muted);margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}.note{font-size:12px;color:var(--muted);margin-top:16px;border-top:1px solid var(--line);padding-top:13px}.metrics{width:100%;border-collapse:collapse;font-size:13px}.metrics th{text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:12px 8px;border-bottom:1px solid var(--line)}.metrics td{padding:10px 8px;border-bottom:1px solid #313244;vertical-align:middle}.metrics button{padding:0;background:none;border:0;border-radius:0;text-align:left;font-size:13px}.metrics tr.selected{background:#292337}.metric-value{font:13px ui-monospace,monospace;white-space:nowrap}.metric-bar{height:4px;width:100%;min-width:40px;background:#45475a;border-radius:9px;margin-top:5px}.metric-bar span{height:4px;display:block;background:var(--yellow);border-radius:9px}.metric-description{border-left:3px solid var(--accent);padding:12px 15px;background:#181825;border-radius:0 7px 7px 0;font-size:13px;margin:16px 0}.metric-description p{margin-top:6px;color:var(--muted)}.trend{width:100%;height:120px;display:block;background:#181825;border-radius:7px}.trend-labels{display:flex;justify-content:space-between;font:11px ui-monospace,monospace;color:var(--muted);margin:5px 0 16px}.events{max-height:330px;overflow:auto;display:grid;gap:7px;margin-top:12px}.event{display:block;text-align:left;padding:11px 13px;background:#181825;width:100%;font-size:12px}.event strong{display:block;color:var(--ink);font-size:13px}.event span{display:block;color:var(--muted);margin-top:4px}.event.current{border-color:var(--yellow)}.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}.swatch{width:8px;height:8px;display:inline-block;border-radius:2px;margin-right:4px}.bottom{margin-top:18px}.evidence{margin-top:20px;font-size:13px;color:var(--muted)}.evidence summary{cursor:pointer}.evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;background:#181825;padding:15px;border-radius:8px}a{color:var(--blue)}.error{color:var(--yellow);margin:10px 0;white-space:pre-wrap}.empty{padding:18px 0;color:var(--muted);font-size:13px}#commentary{white-space:pre-wrap;font-size:13px;margin-top:10px}.zoom{font-size:11px;padding:5px 7px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.visual{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}.visual h2,.visual>.muted,.visual>.note{grid-column:1/-1}.visual .canvas-wrap{grid-row:3/7}.summary{grid-template-columns:1fr 1fr}.metrics td,.metrics th{padding:10px 5px}}@media(max-width:520px){main{padding:20px 12px}.masthead{align-items:flex-start;flex-direction:column;gap:12px}.fighters{grid-template-columns:1fr}.visual{display:block}.summary strong{font-size:16px}.panel{padding:15px}.metric-value{font-size:11px}}
+</style></head><body><main>
+<header class="masthead"><div><p class="eyebrow">OSTADIX / RINGSIDE LAB</p><h1>Every impact. Every change.</h1><p class="muted" style="margin-top:10px">Inspect both fighters, one committed tick at a time.</p></div><span id="status" class="tag" role="status">Loading replay</span></header>
+<div class="summary"><div><small>Official result</small><strong id="winner">—</strong></div><div><small>Method</small><strong id="method">—</strong><p id="finalScores" class="muted" style="font-size:12px;margin-top:6px"></p></div><div><small>Recorded states</small><strong id="ticks">—</strong></div><div><small>Match seed</small><strong id="seed">—</strong></div></div>
+<p class="muted" style="font-size:12px;margin-bottom:18px">Damage/danger score = cumulative damage dealt + finishing danger. Finishing danger is a fictional index of knockout/stoppage pressure. A knockout or stoppage ends the match immediately; a completed match otherwise uses the cumulative scores.</p>
+<p id="error" class="error" hidden></p>
+<section class="panel timeline" aria-label="Replay controls"><div class="toolbar"><button id="play" class="primary" type="button">Play replay</button><button id="previous" type="button" aria-label="Previous tick">←</button><button id="next" type="button" aria-label="Next tick">→</button><label for="speed">Speed</label><select id="speed"><option value="250">4 ticks/s</option><option value="100" selected>10 ticks/s</option><option value="30">33 ticks/s</option></select><span class="spacer"></span><strong id="position">Tick 0</strong></div><label for="scrubber" class="muted" style="font-size:12px">Match timeline — drag to examine any recorded state</label><input id="scrubber" type="range" min="0" max="0" value="0" step="1"><div class="timeline-labels"><span id="firstTick"></span><span>Space: play/pause · ←/→: one tick · 1/2: fighter</span><span id="lastTick"></span></div></section>
+<div class="fighters" aria-label="Choose a fighter"><button class="fighter" id="fighter0" type="button" aria-pressed="true"><span><strong>TITAN</strong><small class="controller"></small></span><span class="fighter-stat"></span></button><button class="fighter" id="fighter1" type="button" aria-pressed="false"><span><strong>PHANTOM</strong><small class="controller"></small></span><span class="fighter-stat"></span></button></div>
+<div class="layout"><section class="panel visual"><h2 id="fighterTitle">Fighter examination</h2><p class="muted" style="font-size:12px;margin-top:5px">Click the fighter or choose an anatomical region.</p><div class="canvas-wrap"><span class="portrait-label" id="portraitLabel">FRONT VIEW / INJURY OVERLAY</span><canvas id="sprite" class="sprite" width="240" height="288" role="img" aria-label="Enlarged fighter injury sprite"></canvas></div><div class="toolbar"><label for="zoom">View</label><select id="zoom" class="zoom"><option value="full">Full body</option><option value="head">Face close-up</option><option value="body">Torso close-up</option></select></div><div id="regions" class="regions" aria-label="Anatomical region"></div><div class="legend"><span><i class="swatch" style="background:#8c2d7d"></i>Bruising</span><span><i class="swatch" style="background:#ff2837"></i>Cut / blood</span><span><i class="swatch" style="background:#cba6f7"></i>Selected area</span></div><div id="phys" class="readout"></div><p class="note">Arcade injury model. Indices are game state, not percentages or clinical measurements. Left and right always refer to the fighter. The front-view sprite remains visible during knockdowns so injuries can still be inspected.</p></section>
+<section class="panel"><div class="toolbar"><h2 id="regionTitle">All injuries</h2><span class="spacer"></span><small id="metricHint">Select a metric to examine its history.</small></div><table class="metrics"><thead><tr><th scope="col">Injury metric</th><th scope="col">Value</th><th scope="col">Model state</th></tr></thead><tbody id="metrics"></tbody></table><div class="metric-description"><h3 id="detailTitle"></h3><p id="detailText"></p></div><svg id="trend" class="trend" viewBox="0 0 650 120" role="img" aria-label="Selected injury value across the match"></svg><div class="trend-labels"><span id="trendStart"></span><span id="trendPeak"></span><span id="trendEnd"></span></div><h3>Condition & equipment</h3><div id="conditions" class="readout"></div><div class="bottom"><div class="toolbar"><h2>Injury events</h2><span class="spacer"></span><label for="futureEvents" style="font-size:12px"><input id="futureEvents" type="checkbox" checked> Include later events</label></div><p class="muted" style="font-size:12px">Select an event to jump to that impact and examine the change.</p><div id="events" class="events"></div></div></section></div>
+<section class="panel bottom"><h2>Ringside commentary</h2><div id="commentary"></div></section>
+<details class="evidence"><summary>Match data & execution record</summary><p style="margin-top:10px">This self-contained page includes every captured tick and injury event. <a href="match.json" download>Download the complete JSON record</a>.</p><pre id="evidence"></pre></details>
+<noscript><p class="error">Enable JavaScript to inspect this offline replay, or open match.json for the complete injury record.</p></noscript>
+</main><script id="replay-data" type="application/json">__BOXING_REPLAY_DATA__</script><script>
+'use strict';
+const data = JSON.parse(document.getElementById('replay-data').textContent);
+const byId = function(id){return document.getElementById(id);};
+const frames = data.frames, metrics = data.metrics;
+let frameIndex = Math.max(0, frames.length - 1), fighterIndex = 0, region = 'all', metricKey = 'l_eye_swelling', timer = null;
+const regionNames = {'all':'All injuries','left-eye':'Left eye & brow','right-eye':'Right eye & brow','nose':'Nose','jaw':'Jaw & mouth','body':'Body & ribs','blood':'Blood loss'};
+const result = data.result;
+byId('status').textContent = result.status || 'UNKNOWN';
+byId('winner').textContent = result.winner || (String(result.status).toLowerCase() === 'concluded' ? 'DRAW' : 'UNDECIDED');
+byId('method').textContent = result.method || 'No official result';
+const finalScores = result.scores || [];
+const finalDamage = result.damage_dealt || {}, finalDanger = result.finishing_threat || {};
+byId('finalScores').style.whiteSpace = 'pre-line';
+byId('finalScores').textContent = 'Damage + finishing danger = total\nTITAN ' + fmt(finalDamage.red) + ' + ' + fmt(finalDanger.red) + ' = ' + fmt(Array.isArray(finalScores) ? finalScores[0] : finalScores.red) + '\nPHANTOM ' + fmt(finalDamage.blue) + ' + ' + fmt(finalDanger.blue) + ' = ' + fmt(Array.isArray(finalScores) ? finalScores[1] : finalScores.blue);
+byId('ticks').textContent = frames.length.toLocaleString();
+byId('seed').textContent = String(result.seed == null ? '—' : result.seed);
+byId('evidence').textContent = JSON.stringify(result, null, 2);
+if(result.error){byId('error').hidden = false;byId('error').textContent = result.error;}
+function fmt(value){return Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—';}
+function combatMerit(fighter){return Number(fighter.damage_dealt || 0) + Number(fighter.finishing_threat || 0);}
+function stop(){if(timer !== null){clearInterval(timer);timer = null;}byId('play').textContent = 'Play replay';}
+function play(){if(timer !== null){stop();return;}if(frameIndex >= frames.length - 1){frameIndex = 0;render();}byId('play').textContent = 'Pause replay';timer = setInterval(function(){if(frameIndex >= frames.length - 1){stop();return;}frameIndex++;render();},Number(byId('speed').value));}
+function chooseRegion(value){region = value;const subset = metrics.filter(function(m){return region === 'all' || m.region === region;});if(!subset.some(function(m){return m.key === metricKey;})){metricKey = subset[0].key;}render();}
+Object.keys(regionNames).forEach(function(key){const button = document.createElement('button');button.type = 'button';button.textContent = regionNames[key];button.dataset.region = key;button.addEventListener('click',function(){chooseRegion(key);});byId('regions').appendChild(button);});
+function svgElement(tag, attrs){const e = document.createElementNS('http://www.w3.org/2000/svg',tag);Object.keys(attrs).forEach(function(k){e.setAttribute(k,String(attrs[k]));});return e;}
+function chart(metric){
+    const svg=byId('trend');svg.replaceChildren();
+    const values=frames.map(function(f){return Number(f.fighters[fighterIndex].injury[metric.key]||0);});
+    const maximum=values.reduce(function(a,b){return Math.max(a,b);},0),peak=Math.max(1,maximum),width=626,height=94;
+    const points=values.map(function(v,i){return (12+i*width/Math.max(1,values.length-1))+','+(106-v/peak*height);}).join(' ');
+    svg.appendChild(svgElement('line',{x1:12,y1:106,x2:638,y2:106,stroke:'#45475a'}));
+    svg.appendChild(svgElement('polyline',{points:points,fill:'none',stroke:'#cba6f7','stroke-width':2}));
+    const x=12+frameIndex*width/Math.max(1,values.length-1);
+    svg.appendChild(svgElement('line',{x1:x,y1:10,x2:x,y2:110,stroke:'#f9e2af','stroke-dasharray':'3 3'}));
+    svg.appendChild(svgElement('circle',{cx:x,cy:106-values[frameIndex]/peak*height,r:4,fill:'#f9e2af'}));
+    svg.setAttribute('aria-label',metric.label+' over '+values.length+' recorded states. Current '+fmt(values[frameIndex])+', peak '+fmt(maximum)+'.');
+    byId('trendStart').textContent='tick '+frames[0].tick;
+    byId('trendPeak').textContent='peak '+fmt(maximum)+' '+metric.unit;
+    byId('trendEnd').textContent='tick '+frames[frames.length-1].tick;
+}
+const spriteCodes={L:'skin_light',M:'skin_mid',D:'skin_dark',E:'eye_white',W:'waist_gold',B:'boot',b:'bruise',h:'hematoma',g:'gash',w:'wound',c:'blood',C:'blood_bright',k:'blood_dark',o:'bone','=':'mouthguard',X:'bruise'};
+function sprite(f){const canvas=byId('sprite'),ctx=canvas.getContext('2d');const zoom=byId('zoom').value;const crop=zoom==='head'?[2,0,10,7]:zoom==='body'?[1,6,13,7]:[0,0,15,18];canvas.dataset.crop=JSON.stringify(crop);const scale=Math.min(canvas.width/crop[2],canvas.height/crop[3]);const ox=(canvas.width-crop[2]*scale)/2,oy=(canvas.height-crop[3]*scale)/2;canvas.dataset.transform=JSON.stringify([scale,ox,oy]);ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#181825';ctx.fillRect(0,0,canvas.width,canvas.height);f.sprite.forEach(function(row,y){Array.from(row).forEach(function(ch,x){if(x<crop[0]||x>=crop[0]+crop[2]||y<crop[1]||y>=crop[1]+crop[3])return;let key=spriteCodes[ch];if(ch==='G')key=f.is_titan?'glove_titan':'glove_phantom';if(ch==='T')key=f.is_titan?'trunks_titan':'trunks_phantom';if(ch==='H')key=f.is_titan?'hair_titan':'hair_phantom';const rgb=data.palette[key];if(!rgb)return;ctx.fillStyle='rgb('+rgb.join(',')+')';ctx.fillRect(ox+(x-crop[0])*scale,oy+(y-crop[1])*scale,scale,scale);});});const rects={'left-eye':[7,2,3,3],'right-eye':[3,2,3,3],'nose':[5,3,3,2],'jaw':[4,5,5,2],'body':[3,7,7,3],'blood':[3,2,7,9]};if(rects[region]){const r=rects[region];ctx.strokeStyle='#cba6f7';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.strokeRect(ox+(r[0]-crop[0])*scale,oy+(r[1]-crop[1])*scale,r[2]*scale,r[3]*scale);ctx.setLineDash([]);}canvas.setAttribute('aria-label',f.name+' front-view injury overlay at tick '+frames[frameIndex].tick+', state '+f.state+'. Use anatomical region buttons for accessible inspection.');byId('portraitLabel').textContent=(zoom==='full'?'FRONT VIEW':zoom==='head'?'FACE CLOSE-UP':'TORSO CLOSE-UP')+' / '+f.state;}
+function eventMatchesFighter(event,f){return event.fighter===f.name||event.fighter===f.id||event.fighter===fighterIndex||event.fighter===String(fighterIndex);}
+function renderEvents(f,frame){const area=byId('events');area.replaceChildren();const keys=new Set(metrics.filter(function(m){return region==='all'||m.region===region;}).map(function(m){return m.key;}));const events=data.events.filter(function(e){return eventMatchesFighter(e,f)&&(byId('futureEvents').checked||e.tick<=frame.tick)&&(region==='all'||Object.keys(e.changes||{}).some(function(k){return keys.has(k);}));});if(!events.length){const p=document.createElement('p');p.className='empty';p.textContent='No recorded injury changes for this fighter and region.';area.appendChild(p);return;}events.slice().reverse().forEach(function(e){const b=document.createElement('button');b.type='button';b.className='event'+(e.tick===frame.tick?' current':'');const title=document.createElement('strong');title.textContent='Tick '+e.tick+' · '+(e.attacker?e.attacker+' → ':'')+f.name+' · '+(e.punch||e.kind||'Condition change');const body=document.createElement('span');const changes=Object.keys(e.changes||{}).map(function(key){const m=metrics.find(function(v){return v.key===key;});const c=e.changes[key];return (m?m.label:key)+': '+fmt(c.before)+' → '+fmt(c.after);});body.textContent=(e.zone?e.zone+' · ':'')+(e.damage!==undefined?'damage '+fmt(e.damage)+' · ':'')+(e.finishing_threat!==undefined?'finishing danger '+fmt(e.finishing_threat)+' · ':'')+changes.join(' / ');b.append(title,body);b.addEventListener('click',function(){stop();const i=frames.findIndex(function(v){return v.tick>=e.tick;});frameIndex=i<0?frames.length-1:i;render();});area.appendChild(b);});}
+function render(){if(!frames.length)return;const frame=frames[frameIndex],f=frame.fighters[fighterIndex];byId('scrubber').value=String(frameIndex);byId('position').textContent='Round '+frame.round+' · tick '+frame.tick;byId('fighterTitle').textContent=f.name+' / '+f.state;frame.fighters.forEach(function(v,i){const button=byId('fighter'+i);button.setAttribute('aria-pressed',String(i===fighterIndex));button.querySelector('.controller').textContent=typeof v.controller==='string'?v.controller:JSON.stringify(v.controller);button.querySelector('.fighter-stat').style.whiteSpace='pre-line';button.querySelector('.fighter-stat').textContent='HP '+fmt(v.hp)+' · '+v.state+'\nDamage + danger '+fmt(combatMerit(v));});byId('regionTitle').textContent=regionNames[region];Array.from(byId('regions').children).forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.region===region));});sprite(f);byId('phys').textContent='Position '+fmt(f.x)+', '+fmt(f.y)+' · vx '+fmt(f.vx)+'\nMass '+fmt(f.mass)+' kg · guard '+fmt(f.guard)+'\nStamina '+fmt(f.stamina)+' · landed '+f.punches_landed+'/'+f.punches_thrown+'\nKnockdowns taken '+f.knockdowns_taken+' / scored '+f.knockdowns_scored+'\nDamage dealt '+fmt(f.damage_dealt)+'\nFinishing danger '+fmt(f.finishing_threat)+'\nDamage/danger score '+fmt(combatMerit(f));const table=byId('metrics');table.replaceChildren();metrics.filter(function(m){return region==='all'||m.region===region;}).forEach(function(m){const value=Number(f.injury[m.key]||0),row=document.createElement('tr');if(m.key===metricKey)row.className='selected';const label=document.createElement('td'),button=document.createElement('button');button.type='button';button.textContent=m.label;button.addEventListener('click',function(){metricKey=m.key;render();});label.appendChild(button);const number=document.createElement('td');number.className='metric-value';number.textContent=fmt(value)+' '+m.unit;const state=document.createElement('td');state.textContent=m.limit===null?'Cumulative':value===0?'Clear':value>=m.limit?'Threshold reached':value>=m.limit*0.5?'Elevated':'Present';if(m.limit!==null){const bar=document.createElement('div');bar.className='metric-bar';const fill=document.createElement('span');fill.style.width=Math.min(100,value/m.limit*100)+'%';fill.style.background=value>=m.limit?'#f38ba8':value>0?'#f9e2af':'#a6e3a1';bar.appendChild(fill);state.appendChild(bar);}row.append(label,number,state);table.appendChild(row);});const metric=metrics.find(function(m){return m.key===metricKey;});byId('detailTitle').textContent=metric.label+' · '+fmt(f.injury[metric.key])+' '+metric.unit;byId('detailText').textContent=metric.detail;chart(metric);const inj=f.injury;byId('conditions').textContent='Mouthguard: '+(inj.has_mouthguard?'IN':'OUT')+' · liver collapse timer: '+inj.delayed_liver_timer+' ticks\nEyes shut: left '+(inj.l_eye_swelling>=60?'YES':'no')+', right '+(inj.r_eye_swelling>=60?'YES':'no')+'\nDoctor checked: '+(inj.doc_checked?'yes':'no')+' · doctor stopped: '+(inj.doc_stopped?'yes':'no');renderEvents(f,frame);byId('commentary').textContent=frame.commentary.join('\n');}
+byId('play').addEventListener('click',play);byId('previous').addEventListener('click',function(){stop();frameIndex=Math.max(0,frameIndex-1);render();});byId('next').addEventListener('click',function(){stop();frameIndex=Math.min(frames.length-1,frameIndex+1);render();});byId('scrubber').addEventListener('input',function(){stop();frameIndex=Number(this.value);render();});byId('speed').addEventListener('change',function(){if(timer!==null){stop();play();}});byId('zoom').addEventListener('change',render);byId('futureEvents').addEventListener('change',render);
+[0,1].forEach(function(i){byId('fighter'+i).addEventListener('click',function(){fighterIndex=i;render();});});
+byId('sprite').addEventListener('click',function(event){const canvas=event.currentTarget,rect=canvas.getBoundingClientRect(),crop=JSON.parse(canvas.dataset.crop),t=JSON.parse(canvas.dataset.transform);const x=((event.clientX-rect.left)*canvas.width/rect.width-t[1])/t[0]+crop[0],y=((event.clientY-rect.top)*canvas.height/rect.height-t[2])/t[0]+crop[1];chooseRegion(y>=7?'body':y>=5?'jaw':x>=5.5&&x<=7.5&&y>=3.5?'nose':x<7?'right-eye':'left-eye');});
+document.addEventListener('keydown',function(e){if(['INPUT','SELECT','BUTTON','A','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();play();}else if(e.key==='ArrowLeft'){e.preventDefault();byId('previous').click();}else if(e.key==='ArrowRight'){e.preventDefault();byId('next').click();}else if(e.key==='1'||e.key==='2'){fighterIndex=Number(e.key)-1;render();}});
+if(frames.length){byId('scrubber').max=String(frames.length-1);byId('firstTick').textContent='Tick '+frames[0].tick;byId('lastTick').textContent='Tick '+frames[frames.length-1].tick;render();}else{byId('status').textContent='NO RECORDED STATES';byId('play').disabled=true;byId('error').hidden=false;byId('error').textContent=result.error||'No frames were captured.';}
+</script></body></html>'''
+    json_path = directory / 'match.json'
+    html_path = directory / 'report.html'
+    json_path.write_text(serialized + '\n', encoding='utf-8')
+    html_path.write_text(page.replace('__BOXING_REPLAY_DATA__', embedded), encoding='utf-8')
+    return {'html': str(html_path), 'json': str(json_path)}
+
+# ==============================================================================
 # MAIN SIMULATION RUNNER
 # ==============================================================================
-try:
-    _tty_out = open("/dev/tty", "w")
-except Exception:
-    _tty_out = None
+_tty_out = None
 
 def term_write(s):
     if _tty_out:
@@ -1540,52 +2111,173 @@ def term_write(s):
         sys.stdout.write(s)
         sys.stdout.flush()
 
-def run_championship_match():
-    arena = BoxingArena()
-    term_write("\033[?25l")  # Hide cursor
-    term_write("\033[2J")    # Clear screen
-
-    total_frames = 180       # Full dramatic arcade match duration
-    try:
-        for tick in range(total_frames):
-            arena.step(tick)
-            frame_str = render_full_screen(arena, tick)
-            term_write("\033[H" + frame_str + "\n")
-            
-            if arena.referee_counting or arena.doctor_inspecting:
-                time.sleep(0.14)
-            else:
-                time.sleep(0.065)
-
-            if arena.match_over and tick > 40:
-                if arena.f1.state == 'VICTORY' or arena.f2.state == 'VICTORY':
-                    time.sleep(1.0)
-                    break
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        term_write("\033[?25h\n")  # Restore cursor
-        receipt = (
-            f"\033[38;2;166;227;161m\033[1m  ↻ Match concluded — 64-bit Ostadix physics & hypergraph execution verified.\033[0m\n"
-            f"  Winner: {arena.winner.name if arena.winner else 'DRAW / DECISION'} "
-            f"· Result: {arena.ko_type or 'Goes the Distance'}\n"
-            f"  Titan stats: {arena.f1.punches_landed}/{arena.f1.punches_thrown} landed "
-            f"· Cuts: L {arena.f1.injury.l_brow_cut:.0f}% / R {arena.f1.injury.r_brow_cut:.0f}% "
-            f"· Liver: {arena.f1.injury.liver_trauma:.0f}%\n"
-            f"  Phantom stats: {arena.f2.punches_landed}/{arena.f2.punches_thrown} landed "
-            f"· Cuts: L {arena.f2.injury.l_brow_cut:.0f}% / R {arena.f2.injury.r_brow_cut:.0f}% "
-            f"· Liver: {arena.f2.injury.liver_trauma:.0f}%\n"
-        )
-        term_write(receipt)
-        if _tty_out:
+class BoxingTerminal:
+    def __init__(self):
+        self.fd, self.saved, self.foreground, self.previous_ttou = None, None, None, None
+        if os.environ.get('OSTADIX_BOXING_HEADLESS', '0') != '1':
             try:
-                _tty_out.close()
-            except Exception:
-                pass
-        print(f"64-bit Ostadix Boxing Match Complete with Physics: Winner={arena.winner.name if arena.winner else 'DECISION'}")
+                import termios, tty, signal
+                self.fd = os.open('/dev/tty', os.O_RDWR)
+                self.saved = termios.tcgetattr(self.fd)
+                # O backends have their own process groups. Borrow the terminal
+                # foreground while handling input, then return it to the caller.
+                self.foreground = os.tcgetpgrp(self.fd)
+                self.previous_ttou = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+                os.tcsetpgrp(self.fd, os.getpgrp())
+                tty.setcbreak(self.fd)
+                attrs = termios.tcgetattr(self.fd)
+                attrs[3] &= ~termios.ISIG
+                termios.tcsetattr(self.fd, termios.TCSANOW, attrs)
+            except (OSError, ImportError, ValueError):
+                self.close()
 
-# Run directly inside Ostadix Python backend
-run_championship_match()
-)_python
+    def keys(self):
+        if self.fd is None:
+            return ''
+        import select
+        if select.select([self.fd], [], [], 0)[0]:
+            return os.read(self.fd, 64).decode(errors='ignore')
+        return ''
+
+    def draw(self, text):
+        if self.fd is not None:
+            # Keep the cursor visible even if the O parent is interrupted.
+            remaining = memoryview(('\033[H\033[2J' + text + '\033[0m\n').encode())
+            while remaining:
+                remaining = remaining[os.write(self.fd, remaining):]
+
+    def close(self):
+        if self.fd is not None:
+            import termios, signal
+            try:
+                if self.saved is not None:
+                    termios.tcsetattr(self.fd, termios.TCSADRAIN, self.saved)
+                os.write(self.fd, b'\033[0m\033[?25h\n')
+                if self.foreground is not None:
+                    os.tcsetpgrp(self.fd, self.foreground)
+            finally:
+                os.close(self.fd)
+                self.fd = None
+                if self.previous_ttou is not None:
+                    signal.signal(signal.SIGTTOU, self.previous_ttou)
+
+def positive_env(name, default):
+    value = int(os.environ.get(name, str(default)))
+    if value < 1:
+        raise ValueError(name + ' must be positive')
+    return value
+
+def run_championship_match(engine_source=''):
+    arena = BoxingArena()
+    arena.seed = int(os.environ.get('OSTADIX_BOXING_SEED', '42'))
+    arena.max_rounds = positive_env('OSTADIX_BOXING_ROUNDS', 3)
+    arena.round_time_sec = positive_env('OSTADIX_BOXING_ROUND_SECONDS', 60)
+    max_ticks = positive_env('OSTADIX_BOXING_MAX_TICKS', 1) if os.environ.get('OSTADIX_BOXING_MAX_TICKS') else None
+    delay = float(os.environ.get('OSTADIX_BOXING_DELAY', '0.065'))
+    if not math.isfinite(delay) or delay < 0:
+        raise ValueError('OSTADIX_BOXING_DELAY must be finite and nonnegative')
+    controllers = {side: os.environ.get('OSTADIX_BOXING_' + side.upper() + '_NODE', 'local') for side in ('red', 'blue')}
+    if any(not node.strip() for node in controllers.values()):
+        raise ValueError('fighter node must be local or a paired node ID')
+    base = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'ostadix/boxing'
+    output_dir = Path(os.environ.get('OSTADIX_BOXING_OUT') or str(base / (time.strftime('%Y%m%d-%H%M%S') + '-' + arena.match_id[:8]))).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if (output_dir / 'match.json').exists() or (output_dir / 'engine.O').exists():
+        output_dir = output_dir / arena.match_id
+        output_dir.mkdir()
+    (output_dir / 'engine.O').write_text(engine_source)
+    frames = [injury_snapshot(arena, 0, controllers)]
+    tick, transport, terminal = 0, None, None
+    status, error, paused, selected_side = 'incomplete', None, False, None
+    result = {}
+    try:
+        transport = BoxingNodes(engine_source, controllers, output_dir)
+        terminal = BoxingTerminal()
+        term_write('OSTADIX BOXING: TITAN [' + controllers['red'] + '] vs PHANTOM [' + controllers['blue'] + ']\n')
+        while not arena.match_over:
+            keys = terminal.keys()
+            quit_requested = False
+            for key in keys:
+                if key.lower() == 'q' or key == '\x03':
+                    quit_requested = True
+                    break
+                if key == ' ':
+                    paused = not paused
+                elif key.lower() == 'i':
+                    selected_side, paused = None, True
+                elif key == '1':
+                    selected_side, paused = 'red', True
+                elif key == '2':
+                    selected_side, paused = 'blue', True
+            if quit_requested:
+                status = 'interrupted'
+                break
+            if paused:
+                view = terminal_injury_closeup(arena, selected_side) if selected_side else terminal_injury_report(arena)
+                terminal.draw(view + '\nPAUSED — 1 Titan / 2 Phantom / i both / Space resume / q end.')
+                time.sleep(0.05)
+                continue
+            if max_ticks is not None and tick >= max_ticks:
+                status = 'incomplete'
+                break
+            advance_match(arena, tick + 1, transport)
+            tick += 1
+            frames.append(injury_snapshot(arena, tick, controllers))
+            if terminal.fd is not None:
+                saved_rng = random.getstate()
+                try:
+                    terminal.draw(render_full_screen(arena, tick))
+                finally:
+                    random.setstate(saved_rng)
+                if delay:
+                    time.sleep(delay)
+        if arena.match_over:
+            status = 'concluded'
+    except KeyboardInterrupt:
+        status = 'interrupted'
+    except Exception as exc:
+        status, error = 'error', str(exc)
+    finally:
+        if transport:
+            transport.close()
+        if terminal:
+            terminal.close()
+        result = {'schema': 'boxing.match/v1', 'match_id': arena.match_id, 'status': status,
+                  'winner': arena.winner.name if arena.match_over and arena.winner else None,
+                  'method': arena.ko_type if arena.match_over else 'No official result',
+                  'ticks': tick, 'seed': arena.seed, 'controllers': controllers,
+                  'scores': arena.scores, 'scorecards': arena.scorecards,
+                  'scoring': 'damage_dealt + finishing_threat; knockout/stoppage takes precedence',
+                  'damage_dealt': {side: f.damage_dealt for side, f in (('red', arena.f1), ('blue', arena.f2))},
+                  'finishing_threat': {side: f.finishing_threat for side, f in (('red', arena.f1), ('blue', arena.f2))},
+                  'engine_sha256': hashlib.sha256(engine_source.encode()).hexdigest(),
+                  'error': error, 'output_dir': str(output_dir)}
+        paths = export_injury_report(output_dir, frames, arena.events, result)
+        term_write(terminal_injury_report(arena) + '\n')
+        label = result['winner'] or ('DRAW' if arena.match_over else 'UNDECIDED')
+        term_write('Match ' + status.upper() + ' — Winner: ' + label + ' · ' + result['method'] + '\n')
+        term_write('Injury replay: ' + str(paths['html']) + '\nMatch data: ' + str(paths['json']) + '\n')
+        if error:
+            term_write('Match stopped: ' + error + '\nNo failed tick was retried or substituted locally.\n')
+        if status == 'concluded':
+            print('64-bit Ostadix Boxing Match Complete with Physics: Winner=' + label + ' · ' + result['method'])
+        else:
+            print('Ostadix Boxing Match ' + status.upper() + ': Winner=UNDECIDED')
+    if status == 'error':
+        raise RuntimeError(error)
+    return result
+
+__oval_result__ = 'boxing-engine-ready'
+)_python[91]
+)_quote
+
+let boxing_engine_loaded = python[90]^(
+__oval_result__ = O.eval($boxing_engine_source)
+)_python[90]
+
+python[91]^(
+loaded = $boxing_engine_loaded
+engine_expression = $boxing_engine_source
+__oval_result__ = run_championship_match(engine_expression.src)
+)_python[91]
 )_O

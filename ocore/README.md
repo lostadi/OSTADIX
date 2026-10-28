@@ -339,7 +339,7 @@ the post-reply/pre-consume process-exit or unmap race, pinned windows,
 signal/restart integration, a Linux oracle, or concrete services.
 
 Mode 25 separately packages one exact 8,520-byte static Linux x86-64 ELF with
-three native service principals in a 60,104-byte digest-pinned OVFS image. The
+three native service principals in a 60,648-byte digest-pinned OVFS image. The
 foreign ELF enters at CPL3, performs exact fd 1/fd 2 writes through
 request-scoped bounded `IN` views, observes Linux `-ENOSYS`, and exits with
 status 42. Its generation-1 daemon completes stdout before faulting; the closed
@@ -358,8 +358,8 @@ Mode 26 composes that same exact Linux-ABI ELF with an actual bounded 9P2000
 wire path. `build-m7-linux-plan9-artifacts.sh` deterministically packages
 `/bin/linux-minimal.elf`, `/sbin/linux-9pd.elf`,
 `/sbin/linux-supervisord.elf`, and `/bin/plan9-namespace-client.elf` into a
-92,872-byte immutable OVFS image with SHA-256
-`920b014cfb133f033b6761da6fe5b1d22be613bf88112c05ec0af982e1beebd9`.
+97,512-byte immutable OVFS image with SHA-256
+`c1501f633640d92a8b7d84baaa8afbeeca9a40d4f79138cc08f73c0e678f0ac3`.
 All four principals load as data into isolated W^X CPL3 address spaces and
 CSpaces. The Linux ELF produces the exact generation-1 stdout and generation-2
 stderr snapshots; the unprivileged native 9P server exposes only the

@@ -73,6 +73,8 @@ fi
 link_service() {
   local pass_dir="$1"
   local service="$2"
+  # Keep the same page-aligned virtual RX/R image while omitting file-only
+  # segment padding. The loader accepts p_align=1 and still enforces page W^X.
   "$OCOREC" \
     "$ROOT/ocore/runtime/x86_64/m6b_live_${service}.oc" \
     --target x86_64-unknown-none \
@@ -85,12 +87,12 @@ link_service() {
   case "$(basename "$LLD")" in
     rust-lld | lld)
       "$LLD" -flavor gnu -m elf_x86_64 -nostdlib --build-id=none \
-        --strip-all -z max-page-size=0x1000 \
+        --strip-all --nmagic -z max-page-size=0x1000 \
         -T "$USER_DIR/static-user.ld" \
         -o "$pass_dir/${service}.elf" "$pass_dir/${service}.o"
       ;;
     *)
-      "$LLD" -m elf_x86_64 -nostdlib --build-id=none --strip-all \
+      "$LLD" -m elf_x86_64 -nostdlib --build-id=none --strip-all --nmagic \
         -z max-page-size=0x1000 -T "$USER_DIR/static-user.ld" \
         -o "$pass_dir/${service}.elf" "$pass_dir/${service}.o"
       ;;

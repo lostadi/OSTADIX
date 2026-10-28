@@ -5,12 +5,13 @@ An optional hash-bound original LLVM Use.cpp check follows the actual compiler
 implementation input. Linux startup and QEMU carry the ELF selection comparison;
 complete compiler/runtime dependency closure and OSTADIX execution remain separate.
 No Cargo build, tool download or original LLVM input rewriting occurs here.
+OCORE_TEST_REQUIRE_ALL_ISAS requires the execution matrix; independently set
+OCORE_TEST_REQUIRE_CAPTURE_CLOSURE=1 to fail when capture prerequisites are absent.
 """
 import hashlib
 import json
 import os
 from pathlib import Path
-import platform
 import re
 import shutil
 import struct
@@ -18,10 +19,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from scripts import ocore_llvm_import as importer
 from scripts.check_ocore_foreign_frontends import HARNESS as LINUX_CARRIER
-from scripts.check_ocore_native_equivalence import TARGETS, elf
+from scripts.check_ocore_native_equivalence import TARGETS, RunEvidence, elf, execution_prefix, host_isa
 from tests import test_ocore_llvm_import as baseline
 from tests import test_ocore_llvm_memory_import as memory
 from tests import test_ocore_llvm_optimizer_promises as promises
@@ -190,6 +192,7 @@ class WeakSourceApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.library = baseline.llvm_library()
+        cls.library_sha256 = os.environ.get("OCORE_TEST_LLVM_SHA256", importer.PINNED_SHA256)
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="ocore-weak-source-")
@@ -201,7 +204,8 @@ class WeakSourceApiTests(unittest.TestCase):
         source.write_text(promises.module_text(triple, body))
         original = source.read_bytes()
         bitcode = memory.LlvmMemoryImportTests.bitcode(self, source)
-        normalized = [importer.import_module(path, library_path=self.library) for path in (source, bitcode)]
+        normalized = [importer.import_module(path, library_path=self.library,
+                                            expected_sha256=self.library_sha256) for path in (source, bitcode)]
         self.assertEqual(source.read_bytes(), original)
         self.assertEqual({k:v for k,v in normalized[0].items() if k not in {"name", "provenance"}},
                          {k:v for k,v in normalized[1].items() if k not in {"name", "provenance"}})
@@ -249,18 +253,31 @@ class WeakSourceApiTests(unittest.TestCase):
                     bitcode = memory.LlvmMemoryImportTests.bitcode(self,source)
                     for path in (source,bitcode):
                         with self.assertRaises(importer.ImportFailure) as failure:
-                            importer.import_module(path, library_path=self.library)
+                            importer.import_module(path, library_path=self.library,
+                                                   expected_sha256=self.library_sha256)
                         self.assertIn(failure.exception.stage, ("import", "bitcode-audit"))
                         self.assertRegex(str(failure.exception), "unsupported.*(?:linkage|COMDAT)")
 
 
 class WeakNativeTests(unittest.TestCase):
+    capture_closure_gate = False
+
     @classmethod
     def setUpClass(cls):
         cls.compiler = Path(os.environ.get("OCOREC", str(ROOT/"target/debug/ocorec"))).resolve()
         cls.sdk = Path(os.environ.get("OCORE_TEST_LLVM22_BIN", str(SDK))).resolve()
         cls.linker = shutil.which(os.environ.get("LD_LLD", "ld.lld"))
         cls.assembler = shutil.which("clang")
+        library = os.environ.get("OCORE_TEST_LLVM_LIBRARY")
+        library_sha = os.environ.get("OCORE_TEST_LLVM_SHA256")
+        if library_sha and not library:
+            raise RuntimeError("OCORE_TEST_LLVM_SHA256 requires OCORE_TEST_LLVM_LIBRARY")
+        cls.llvm_flags = []
+        if library:
+            library_sha = library_sha or importer.PINNED_SHA256
+            if artifact(library)["sha256"] != library_sha:
+                raise RuntimeError("explicit LLVM parser digest differs from OCORE_TEST_LLVM_SHA256")
+            cls.llvm_flags = ["--llvm-library", library, "--llvm-sha256", library_sha]
         required = [cls.compiler, *(cls.sdk/name for name in ("clang", "llvm-as", "llvm-nm", "llvm-readobj"))]
         missing = [str(path) for path in required if not path.is_file()]
         if cls.linker is None:
@@ -269,7 +286,8 @@ class WeakNativeTests(unittest.TestCase):
             missing.append("clang assembler from PATH")
         if missing:
             reason = "actual O-core and installed exact LLVM22 SDK required: " + ", ".join(missing)
-            if os.environ.get("OCORE_TEST_REQUIRE_ALL_ISAS") == "1":
+            if (os.environ.get("OCORE_TEST_REQUIRE_ALL_ISAS") == "1"
+                    or cls.capture_closure_gate and os.environ.get("OCORE_TEST_REQUIRE_CAPTURE_CLOSURE") == "1"):
                 raise RuntimeError(reason)
             raise unittest.SkipTest(reason)
         for path in required[1:]:
@@ -287,12 +305,19 @@ class WeakNativeTests(unittest.TestCase):
             self.addCleanup(temporary.cleanup); self.directory = Path(temporary.name)
         self.compiler_sha = artifact(self.compiler)["sha256"]
         self.sequence = 0
+        tools={"ocorec":self.compiler,"clang":self.sdk/"clang","own_assembler":self.assembler,
+               "llvm-as":self.sdk/"llvm-as","llvm-nm":self.sdk/"llvm-nm",
+               "llvm-readobj":self.sdk/"llvm-readobj","linker":self.linker}
+        if self.llvm_flags:
+            tools["explicit_llvm_parser"]=self.llvm_flags[1]
+        self.evidence=RunEvidence([__file__],tools)
+        self.addCleanup(self.evidence.verify_unchanged)
 
     def command(self, argv, success=True, cwd=ROOT):
         argv = [str(item) for item in argv]
-        result = subprocess.run(argv, cwd=cwd, capture_output=True, timeout=120)
+        result = self.evidence.run(argv,cwd=cwd)
         (self.directory/f"command-{self.sequence:03}.json").write_text(json.dumps({
-            "argv":argv,"cwd":str(cwd),"exit_code":result.returncode,
+            **self.evidence.commands[-1],"exit_code":result.returncode,
             "stdout":result.stdout.decode(errors="replace"),"stderr":result.stderr.decode(errors="replace")}, indent=2))
         self.sequence += 1
         if success:
@@ -301,16 +326,22 @@ class WeakNativeTests(unittest.TestCase):
 
     def inputs(self, stem, triple, body):
         source = self.directory/(stem+".ll"); source.write_text(promises.module_text(triple, body))
+        self.evidence.watch_source(source)
         binary = source.with_suffix(".bc"); self.command([self.sdk/"llvm-as",source,"-o",binary])
+        self.evidence.watch_source(binary)
         return source, binary
 
     def test_actual_weak_elf_bindings_and_selection_match_original_clang_all_three_isas(self):
-        emulators = {isa:shutil.which(os.environ.get("OCORE_TEST_QEMU_"+isa.upper(), "qemu-"+isa))
-                     for isa in ("aarch64", "riscv64")}
-        if platform.machine() not in {"x86_64", "AMD64"} or not all(emulators.values()):
+        try:
+            runners = {isa:execution_prefix(isa, os.environ.get("OCORE_TEST_QEMU_"+isa.upper()))
+                       for isa in TARGETS}
+        except RuntimeError as error:
             if os.environ.get("OCORE_TEST_REQUIRE_ALL_ISAS") == "1":
-                self.fail("all-three execution requires x86 host and both QEMU user emulators")
-            self.skipTest("all-three execution tools unavailable")
+                self.fail(str(error))
+            self.skipTest(str(error))
+        emulators = {isa:runner[0] for isa,runner in runners.items() if runner}
+        for isa,path in emulators.items():
+            self.evidence.watch_tool(isa,path)
         report = {"scope":"weak-definition compiler conformance on Linux carriers", "runtime_complete":False,
                   "kernel_execution_verified":False,"dependency_closure_complete":False,"compiler_sha256":self.compiler_sha,
                   "test_source":artifact(__file__),
@@ -326,11 +357,11 @@ class WeakNativeTests(unittest.TestCase):
                     own = source.with_name(source.name+".own.o")
                     reference = source.with_name(source.name+".clang.o")
                     normalized = source.with_name(source.name+".native.json")
-                    self.command([self.compiler,source,"--input-kind","llvm-ir","--target",target,"--emit","mir","-o",normalized])
+                    self.command([self.compiler,source,"--input-kind","llvm-ir","--target",target,"--emit","mir","-o",normalized,*self.llvm_flags])
                     receipt = source.with_name(source.name+".verification.json")
                     self.command([self.compiler,normalized,"--input-kind","native-ir","--verify-native","--receipt",receipt])
                     self.assertEqual(json.loads(receipt.read_text())["module_sha256"],artifact(normalized)["sha256"])
-                    self.command([self.compiler,source,"--input-kind","llvm-ir","--target",target,"-o",own])
+                    self.command([self.compiler,source,"--input-kind","llvm-ir","--target",target,"-o",own,*self.llvm_flags])
                     self.command([self.sdk/"clang","--target="+triple,*flags,"-O0","-c",source,"-o",reference])
                     self.assertEqual(source.read_bytes(),original)
                     elf(own,machine,1); elf(reference,machine,1)
@@ -361,6 +392,7 @@ class WeakNativeTests(unittest.TestCase):
                     marker = MARKERS["strong" if "strong" in order else order[0]]
                     harness = self.directory/(isa+"-"+"-".join(order)+suffix+".c")
                     harness.write_text(carrier(marker))
+                    self.evidence.watch_source(harness)
                     for kind,index in (("own",0),("clang",1)):
                         output = harness.with_name(harness.name+"."+kind)
                         argv = [self.sdk/"clang","--target="+triple,*flags,"--ld-path="+self.linker,
@@ -368,7 +400,7 @@ class WeakNativeTests(unittest.TestCase):
                                 "-nostdlib","-static","-Wl,--no-relax","-Wl,-e,_start",harness,
                                 objects["consumer",suffix][index],*[objects[tag,suffix][index] for tag in order],"-o",output]
                         self.command(argv)
-                        command = [output] if isa=="x86_64" else [emulators[isa],output]
+                        command = [*runners[isa],output]
                         result = self.command(command)
                         self.assertEqual(result.stdout,golden(marker))
                         executions.append({"input_kind":suffix,"order":list(order),"implementation":kind,
@@ -376,12 +408,15 @@ class WeakNativeTests(unittest.TestCase):
                         if kind=="own" and order==SCENARIOS[0]:
                             corrupt = output.with_name(output.name+".corrupt")
                             self.command([*argv[:-2],"-DCORRUPT_ORACLE","-o",corrupt])
-                            failed = self.command([corrupt] if isa=="x86_64" else [emulators[isa],corrupt],success=False)
+                            failed = self.command([*runners[isa],corrupt],success=False)
                             self.assertEqual(failed.returncode,31); self.assertEqual(failed.stdout,b"")
                             executions.append({"input_kind":suffix,"order":list(order),"corrupt_oracle":True,
                                                "executable":artifact(corrupt),"exit_code":31})
-            report["targets"][isa] = {"modules":records,"executions":executions}
+            report["targets"][isa] = {"modules":records,"executions":executions,
+                                      "execution_argv_prefix":runners[isa],
+                                      "profile":{"native_target":target,"hosted_target":triple,"flags":flags}}
         self.assertEqual(artifact(self.compiler)["sha256"],self.compiler_sha)
+        report["provenance"]=self.evidence.finish()
         (self.directory/"weak-conformance.json").write_text(json.dumps(report,indent=2)+"\n")
 
     def test_weak_native_declarations_cannot_masquerade_as_definitions(self):
@@ -417,7 +452,7 @@ class WeakNativeTests(unittest.TestCase):
         source = Path(original["input"]["path"])
         normalized = self.directory/"original-llvm-Use.native.json"
         result = self.command([self.compiler,source,"--input-kind","llvm-ir","--target","x86_64-unknown-none",
-                               "--emit","mir","-o",normalized],success=False)
+                               "--emit","mir","-o",normalized,*self.llvm_flags],success=False)
         diagnostic = result.stderr.decode(errors="replace")
         details = next((json.loads(line.split("LLVM import failed: ",1)[1])["error"]
                         for line in diagnostic.splitlines() if "LLVM import failed: {" in line), None)
@@ -451,16 +486,53 @@ class WeakNativeTests(unittest.TestCase):
         (self.directory/"original-llvm-Use-diagnostic.json").write_text(json.dumps(record,indent=2)+"\n")
 
 
+def capture_closure_prerequisites(olangc, sdk):
+    missing=[str(path) for path in (olangc,sdk/"clang++") if not path.is_file()]
+    git=shutil.which("git")
+    if git is None:
+        missing.append("git")
+    if missing:
+        reason="capture closure prerequisites unavailable: "+", ".join(missing)
+        if os.environ.get("OCORE_TEST_REQUIRE_CAPTURE_CLOSURE") == "1":
+            raise RuntimeError("required "+reason)
+        raise unittest.SkipTest(reason)
+    return git
+
+
+class CaptureClosureGateTests(unittest.TestCase):
+    def test_missing_required_capture_prerequisites_fail_instead_of_skip(self):
+        with tempfile.TemporaryDirectory(prefix="ocore-required-closure-") as directory:
+            missing=Path(directory)/"missing"
+            with mock.patch.dict(os.environ,{"OCORE_TEST_REQUIRE_CAPTURE_CLOSURE":"1"}):
+                with self.assertRaisesRegex(RuntimeError,"required capture closure prerequisites"):
+                    capture_closure_prerequisites(missing,missing)
+            with mock.patch.dict(os.environ,{"OCORE_TEST_REQUIRE_CAPTURE_CLOSURE":"0",
+                                             "OCORE_TEST_REQUIRE_ALL_ISAS":"1"}):
+                with self.assertRaises(unittest.SkipTest):
+                    capture_closure_prerequisites(missing,missing)
+
+
 class WeakRuntimeClosureTests(WeakNativeTests):
+    capture_closure_gate = True
     # Suppress inherited native methods: this class adds only capture closure.
     test_actual_weak_elf_bindings_and_selection_match_original_clang_all_three_isas = None
     test_weak_native_declarations_cannot_masquerade_as_definitions = None
     test_original_rust_llvm_use_cpp_whole_unit_after_weak_increment = None
 
     def test_actual_captured_duplicate_weak_and_strong_definitions_require_compatible_abi(self):
+        isa = host_isa()
+        self.assertIn(isa, TARGETS, "capture closure requires a supported native Linux host ISA")
+        target = TARGETS[isa][0]
         olangc = Path(os.environ.get("OLANGC", str(ROOT/"target/debug/olangc"))).resolve()
-        if not olangc.is_file() or not (self.sdk/"clang++").is_file() or not shutil.which("git"):
-            self.skipTest("actual olangc/Git/Clang++ required for capture admission")
+        git=capture_closure_prerequisites(olangc,self.sdk)
+        for name,path in {"olangc":olangc,"clang++":self.sdk/"clang++","git":git,
+                          "python":sys.executable}.items():
+            self.evidence.watch_tool(name,path)
+        self.evidence.watch_source(ROOT/"scripts/ocore_runtime_capture.py")
+        linker_query=self.command([self.sdk/"clang","-print-prog-name=ld.lld"]).stdout.decode().strip()
+        capture_linker=shutil.which(linker_query,path=self.evidence.environment.get("PATH"))
+        self.assertIsNotNone(capture_linker,"capture driver linker must resolve")
+        self.evidence.watch_tool("capture_driver_linker",capture_linker)
         receipts = []
         for mismatch in ("none","function","global","weak-function","weak-global"):
             root = self.directory/mismatch; source = root/"source"; source.mkdir(parents=True)
@@ -474,9 +546,11 @@ class WeakRuntimeClosureTests(WeakNativeTests):
 source=pathlib.Path(sys.argv[1]); cc=os.environ["CC"]; flags=json.loads(sys.argv[2])
 names=["weak.c","strong.c","main.c"]
 for name in names:subprocess.run([cc,*flags,"-c",str(source/name),"-o",name+".o"],check=True)
-subprocess.run([cc,*[name+".o" for name in names],"-no-pie","-o","app"],check=True)
+subprocess.run([cc,*[name+".o" for name in names],"-fuse-ld=lld","-no-pie","-o","app"],check=True)
 pathlib.Path("inventory.json").write_text(json.dumps({"schema":"ocore-runtime-unit-inventory-v1","complete":True,"units":[{"id":name,"kind":"clang","source":name,"role":"runtime","build_step":"runtime-build"} for name in names]}))
 ''')
+            for path in source.iterdir():
+                self.evidence.watch_source(path)
             for argv in (("git","init","-q"),("git","add","."),("git","-c","user.name=Weak Closure Test","-c","user.email=test@example.invalid","commit","-qm","typed whole units")):
                 self.command(argv,cwd=source)
             revision = self.command(["git","rev-parse","HEAD"],cwd=source).stdout.decode().strip()
@@ -486,14 +560,15 @@ pathlib.Path("inventory.json").write_text(json.dumps({"schema":"ocore-runtime-un
                       "coverage":{"required_units":[{"id":name,"kind":"clang","source":name,"role":"runtime"} for name in ("weak.c","strong.c","main.c")],
                                   "required_outputs":["app"],"require_full_unit_inventory":True}}
             recipe_path=root/"recipe.json";recipe_path.write_text(json.dumps(recipe))
+            self.evidence.watch_source(recipe_path)
             build,capture,output = root/"build",root/"capture",root/"lowered"
             self.command([sys.executable,ROOT/"scripts/ocore_runtime_capture.py","capture",recipe_path,"--source",source,
                           "--build",build,"--output",capture,"--unit-inventory",build/"inventory.json",
                           "--cc",self.sdk/"clang","--cxx",self.sdk/"clang++","--llvm-nm",self.sdk/"llvm-nm"])
             original=json.loads((capture/"report.json").read_text()); self.assertTrue(original["capture_complete"])
             self.assertEqual(len(original["lowering_unit_ids"]),3)
-            result=self.command([olangc,capture/"report.json","--native-runtime","--native-isa","x86_64-unknown-none",
-                                 "--native-runtime-output","obj","-o",output],success=False)
+            result=self.command([olangc,capture/"report.json","--native-runtime","--native-isa",target,
+                                 "--native-runtime-output","obj","-o",output,*self.llvm_flags],success=False)
             receipt=json.loads((output/"coverage.json").read_text())
             summary = json.dumps({key:receipt.get(key) for key in ("issues","unit_lowering_complete","module_set_complete","lowered_unit_count","symbol_closure_complete")})
             self.assertTrue(receipt["unit_lowering_complete"],summary)
@@ -506,10 +581,13 @@ pathlib.Path("inventory.json").write_text(json.dumps({"schema":"ocore-runtime-un
             if mismatch!="none":self.assertRegex(json.dumps(receipt["issues"]),"incompatible|ABI|contract")
             objects=list(output.glob("unit-*/module.o"));self.assertEqual(len(objects),3)
             if mismatch=="none":
-                exe=root/"own-linked-selection";self.command([self.sdk/"clang",*objects,"-no-pie","-o",exe]);self.command([exe])
+                exe=root/"own-linked-selection";self.command([self.sdk/"clang",*objects,"--ld-path="+self.linker,"-no-pie","-o",exe]);self.command([exe])
             receipts.append({"scenario":mismatch,"receipt":artifact(output/"coverage.json"),"symbol_closure_complete":receipt["symbol_closure_complete"]})
         (self.directory/"weak-capture-closure.json").write_text(json.dumps({"scope":"typed compiler symbol closure regression","runtime_complete":False,
-            "test_source":artifact(__file__),"olangc":artifact(olangc),"receipts":receipts},indent=2)+"\n")
+            "test_source":artifact(__file__),"olangc":artifact(olangc),"receipts":receipts,
+            "profile":{"host_isa":isa,"native_target":target},
+            "require_capture_closure":os.environ.get("OCORE_TEST_REQUIRE_CAPTURE_CLOSURE")=="1",
+            "provenance":self.evidence.finish()},indent=2)+"\n")
 
 
 if __name__ == "__main__":

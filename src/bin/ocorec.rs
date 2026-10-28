@@ -467,6 +467,54 @@ mod tests {
     use super::*;
 
     #[test]
+    fn embedded_llvm_worker_streams_source_and_literal_paths_before_library_admission() {
+        let directory = tempfile::tempdir().unwrap();
+        // Win32 rejects control characters in filenames; Unix also exercises
+        // a literal newline, which must remain part of one argument.
+        let separator = if cfg!(windows) { " " } else { "\n" };
+        let input = directory.path().join(format!(
+            "literal 'quotes' $dollar `ticks` λ{separator}module.ll"
+        ));
+        let library = directory.path().join(format!(
+            "parser 'quotes' $dollar `ticks` λ{separator}library.fake"
+        ));
+        std::fs::write(
+            &input,
+            b"define i64 @identity(i64 %value) { ret i64 %value }\n",
+        )
+        .unwrap();
+        let parser_bytes = b"deliberately not an ELF shared library";
+        std::fs::write(&library, parser_bytes).unwrap();
+        let cli = Cli::try_parse_from([
+            std::ffi::OsString::from("ocorec"),
+            input.as_os_str().into(),
+            "--input-kind".into(),
+            "llvm-ir".into(),
+            "--llvm-library".into(),
+            library.as_os_str().into(),
+            "--llvm-sha256".into(),
+            hex::encode(Sha256::digest(parser_bytes)).into(),
+        ])
+        .unwrap();
+        let error = match import_llvm(&cli) {
+            Ok(_) => panic!("a non-ELF parser must not be admitted"),
+            Err(error) => error.to_string(),
+        };
+        // The real embedded worker reads the input, opens the selected parser,
+        // and verifies its digest before checking ELF magic. Reaching this
+        // diagnostic exercises streaming and literal argv on every host.
+        assert!(error.contains("LLVM import failed: child"), "{error}");
+        assert!(error.contains("\"stage\": \"toolchain\""), "{error}");
+        assert!(
+            error.contains("LLVM library is not an ELF shared library"),
+            "{error}"
+        );
+    }
+
+    // Successful parsing requires the pinned ELF LLVM library; the companion
+    // test above retains real embedded-worker transport coverage on other hosts.
+    #[cfg(target_os = "linux")]
+    #[test]
     fn embedded_whole_llvm_import_streams_large_workers_and_literal_path_arguments() {
         let directory = std::env::temp_dir().join(format!(
             "ostadix-streamed-llvm-worker-{}-{}",

@@ -77,31 +77,63 @@ phase_setup() {
 }
 
 # ---- layer 1: hosted .O polyglot runtime -----------------------------------
-phase_hosted() {
+phase_hosted() (
   say "Layer 1 — hosted .O runtime"
   need cargo
+  need cmp
+  local transcript_dir
+  transcript_dir="$(mktemp -d "${TMPDIR:-/tmp}/ostadix-hosted.XXXXXX")" \
+    || die "could not create hosted transcript directory"
+  trap 'rm -rf "$transcript_dir"' EXIT
+  # Keep stdout byte-for-byte: command substitution would discard trailing
+  # newlines. Build diagnostics and execution timings remain on stderr.
+  hosted_run() {
+    local transcript="$1"
+    shift
+    if "$@" >"$transcript_dir/$transcript"; then
+      cat "$transcript_dir/$transcript"
+      printf '\n'
+    else
+      cat "$transcript_dir/$transcript"
+      return 1
+    fi
+  }
   # Authoritative Rust interpreter. default-run is the `O` binary.
-  cargo run -q --package o-lang -- examples/hello.O                         || die "hosted hello.O failed"
-  cargo run -q --package o-lang -- examples/hello.O backends                || die "hosted hello.O (backends) failed"
+  # Select graph explicitly so an inherited O_EXECUTOR cannot run serial twice.
+  O_EXECUTOR=graph hosted_run graph cargo run -q --package o-lang -- examples/hello.O \
+    || die "hosted hello.O failed"
+  O_EXECUTOR=graph hosted_run graph_backends cargo run -q --package o-lang -- examples/hello.O backends \
+    || die "hosted hello.O (backends) failed"
+  cmp -s "$transcript_dir/graph" "$transcript_dir/graph_backends" \
+    || die "graph output differs with explicit backends"
   ok "graph executor (default) ran hello.O"
 
   # Differential conformance: the serial topological OIR interpreter is the
   # reference oracle. Its output must agree with the default graph coordinator.
-  O_EXECUTOR=serial cargo run -q --package o-lang -- examples/hello.O        || die "serial oracle failed"
+  O_EXECUTOR=serial hosted_run serial cargo run -q --package o-lang -- examples/hello.O \
+    || die "serial oracle failed"
+  cmp -s "$transcript_dir/graph" "$transcript_dir/serial" \
+    || die "serial oracle output differs from graph executor"
   ok "serial oracle agrees (differential check)"
 
   # Python reference edition (readable semantics cross-check).
   if have python3; then
-    python3 -m o_lang examples/hello.O                      && ok "python reference ran hello.O" \
-      || skip "python reference edition returned nonzero"
+    hosted_run python python3 -m o_lang examples/hello.O \
+      || die "python reference edition failed"
+    ok "python reference ran hello.O"
   else skip "python3 absent — skipping reference edition"; fi
 
   # C17 standalone edition.
   if have make && have cc; then
-    make -C c_cpp >/dev/null 2>&1 && c_cpp/O examples/hello.O backends \
-      && ok "C17 edition ran hello.O" || skip "C17 edition build/run skipped"
+    if ! make -C c_cpp >"$transcript_dir/c17-build" 2>&1; then
+      cat "$transcript_dir/c17-build" >&2
+      die "C17 edition build failed"
+    fi
+    hosted_run c17 c_cpp/O examples/hello.O backends \
+      || die "C17 edition failed"
+    ok "C17 edition ran hello.O"
   else skip "make/cc absent — skipping C17 edition"; fi
-}
+)
 
 # ---- layer 2: O-core native compiler (ocorec) ------------------------------
 phase_ocore() {

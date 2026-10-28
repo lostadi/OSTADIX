@@ -26,6 +26,10 @@ mod float_layout {
     include!("native_float_layout.rs");
 }
 
+mod variadic {
+    include!("native_variadic_codegen.rs");
+}
+
 pub fn emit(module: &NativeModule, target: Target) -> Result<String, Diagnostic> {
     emit_impl(module, target, None)
 }
@@ -54,19 +58,34 @@ fn emit_impl(
     let abi = AbiContext::new(module, target, &leaf_layouts, &layouts)?;
     let metadata_personalities = super::native_eh::metadata_personality_declarations(module);
     for function in &module.functions {
+        let types: BTreeMap<_, _> = function_values(function).map(|v| (v.id, v.ty)).collect();
         if !metadata_personalities.contains(&function.name)
             && function.intrinsic.as_deref() != Some(NOALIAS_SCOPE_DECL)
         {
             abi.plan(&function.signature)?;
         }
         for instruction in function.blocks.iter().flat_map(|b| &b.instructions) {
-            if let Operation::Call { signature, .. } = &instruction.operation {
-                abi.plan(signature)?;
+            if let Operation::Call {
+                signature, args, ..
+            } = &instruction.operation
+            {
+                abi.plan_call(
+                    signature,
+                    &argument_types(args, &types),
+                    &signature.param_attributes,
+                )?;
             }
         }
         for block in &function.blocks {
-            if let Terminator::Invoke { signature, .. } = &block.terminator {
-                abi.plan(signature)?;
+            if let Terminator::Invoke {
+                signature, args, ..
+            } = &block.terminator
+            {
+                abi.plan_call(
+                    signature,
+                    &argument_types(args, &types),
+                    &signature.param_attributes,
+                )?;
             }
         }
     }
@@ -391,6 +410,15 @@ fn constant_type(value: &Operand) -> Option<TypeId> {
     }
 }
 
+fn argument_types(args: &[Operand], types: &BTreeMap<ValueId, TypeId>) -> Vec<TypeId> {
+    args.iter()
+        .map(|arg| match arg {
+            Operand::Value { id } => types[id],
+            _ => constant_type(arg).expect("verified typed argument"),
+        })
+        .collect()
+}
+
 fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
     let metadata_personalities = super::native_eh::metadata_personality_declarations(module);
     let prefix = match target {
@@ -524,8 +552,17 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
         }
         let value_types: BTreeMap<_, _> = function_values(function).map(|v| (v.id, v.ty)).collect();
         for block in &function.blocks {
-            if let Terminator::Invoke { signature, .. } = &block.terminator {
-                super::native_abi::audit_signature(module, target, signature)?;
+            if let Terminator::Invoke {
+                signature, args, ..
+            } = &block.terminator
+            {
+                super::native_abi::audit_call_signature(
+                    module,
+                    target,
+                    signature,
+                    &argument_types(args, &value_types),
+                    &signature.param_attributes,
+                )?;
             }
             for instruction in &block.instructions {
                 atomic::audit_instruction(module, instruction, &value_types)?;
@@ -540,6 +577,17 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                     }
                 }
                 match &instruction.operation {
+                    Operation::Call {
+                        signature, args, ..
+                    } => {
+                        super::native_abi::audit_call_signature(
+                            module,
+                            target,
+                            signature,
+                            &argument_types(args, &value_types),
+                            &signature.param_attributes,
+                        )?;
+                    }
                     Operation::Alloca { .. } if Some(block.id) != function.entry => {
                         return Err(error_diagnostic(format!("non-entry allocation in {} needs per-execution stack allocation lowering", function.name)));
                     }
@@ -547,9 +595,6 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                         return Err(error_diagnostic(
                             "over-aligned imported stack allocations need extended frame lowering",
                         ))
-                    }
-                    Operation::Call { signature, .. } => {
-                        super::native_abi::audit_signature(module, target, signature)?
                     }
                     Operation::Load {
                         alignment,
@@ -635,6 +680,9 @@ struct Emitter<'a> {
     allocations: BTreeMap<ValueId, i64>,
     call_return_storage: BTreeMap<ValueId, i64>,
     return_pointer: Option<i64>,
+    /// x86/AArch64 register-save area, below the ordinary fixed frame.
+    /// RV64 instead saves a0..a7 immediately below the incoming stack area.
+    variadic_save: Option<i64>,
     abi_plan: AbiPlan,
     abi: &'a AbiContext<'a>,
     /// One eight-byte spill per scalar field, independent of memory padding.
@@ -668,6 +716,7 @@ impl<'a> Emitter<'a> {
             allocations: BTreeMap::new(),
             call_return_storage: BTreeMap::new(),
             return_pointer: None,
+            variadic_save: None,
             abi_plan: abi.plan(&function.signature)?,
             abi,
             leaf_layouts,
@@ -703,11 +752,16 @@ impl<'a> Emitter<'a> {
         for block in &function.blocks {
             if let Terminator::Invoke {
                 signature,
+                args,
                 result: value,
                 ..
             } = &block.terminator
             {
-                let plan = abi.plan(signature)?;
+                let plan = abi.plan_call(
+                    signature,
+                    &argument_types(args, &result.types),
+                    &signature.param_attributes,
+                )?;
                 if let Some(storage) = plan
                     .storage
                     .filter(|storage| storage.explicit_param.is_none())
@@ -760,8 +814,15 @@ impl<'a> Emitter<'a> {
                     .allocations
                     .insert(instruction.result.unwrap().id, -result.frame);
             }
-            if let Operation::Call { signature, .. } = &instruction.operation {
-                let plan = abi.plan(signature)?;
+            if let Operation::Call {
+                signature, args, ..
+            } = &instruction.operation
+            {
+                let plan = abi.plan_call(
+                    signature,
+                    &argument_types(args, &result.types),
+                    &signature.param_attributes,
+                )?;
                 if let Some(storage) = plan.storage.filter(|s| s.explicit_param.is_none()) {
                     if storage.alignment > 16 {
                         return Err(error_diagnostic(
@@ -805,6 +866,21 @@ impl<'a> Emitter<'a> {
                 .checked_add(8)
                 .ok_or_else(|| error_diagnostic("phi frame overflow"))?;
             result.phi_slots.push(-result.frame);
+        }
+        if function.signature.variadic && target != Target::Riscv64UnknownNone {
+            let bytes = if target == Target::X86_64UnknownNone {
+                176
+            } else {
+                192
+            };
+            result.frame = align(
+                result
+                    .frame
+                    .checked_add(bytes)
+                    .ok_or_else(|| error_diagnostic("variadic register save area overflow"))?,
+                16,
+            )?;
+            result.variadic_save = Some(-result.frame);
         }
         result.frame = align(result.frame, 16)?;
         Ok(result)
@@ -1185,10 +1261,12 @@ impl<'a> Emitter<'a> {
                 out.push_str("  .cfi_def_cfa sp, 0\n  .cfi_same_value x29\n  .cfi_same_value x30\n  stp x29, x30, [sp, #-16]!\n  .cfi_def_cfa_offset 16\n  .cfi_offset x29, -16\n  .cfi_offset x30, -8\n  mov x29, sp\n  .cfi_def_cfa_register x29\n")
             }
             Target::Riscv64UnknownNone => {
-                out.push_str("  .cfi_def_cfa sp, 0\n  .cfi_same_value s0\n  .cfi_same_value ra\n  addi sp, sp, -16\n  .cfi_def_cfa_offset 16\n  sd ra, 8(sp)\n  .cfi_offset ra, -8\n  sd s0, 0(sp)\n  .cfi_offset s0, -16\n  mv s0, sp\n  .cfi_def_cfa_register s0\n")
+                let header = self.incoming_stack_base();
+                writeln!(out, "  .cfi_def_cfa sp, 0\n  .cfi_same_value s0\n  .cfi_same_value ra\n  addi sp, sp, -{header}\n  .cfi_def_cfa_offset {header}\n  sd ra, 8(sp)\n  .cfi_offset ra, {}\n  sd s0, 0(sp)\n  .cfi_offset s0, -{header}\n  mv s0, sp\n  .cfi_def_cfa_register s0", 8-header).unwrap();
             }
         }
         self.adjust_stack(out, self.frame, true);
+        self.save_variadic_registers(out);
         if let Some(pointer) = self.return_pointer {
             self.incoming(
                 out,
@@ -1380,7 +1458,10 @@ impl<'a> Emitter<'a> {
                     match self.target {
                         Target::X86_64UnknownNone => out.push_str("  mov rsp, rbp\n  .cfi_def_cfa rsp, 16\n  pop rbp\n  .cfi_def_cfa_offset 8\n  .cfi_same_value rbp\n  ret\n"),
                         Target::Aarch64UnknownNone => out.push_str("  mov sp, x29\n  .cfi_def_cfa sp, 16\n  ldp x29, x30, [sp], #16\n  .cfi_def_cfa_offset 0\n  .cfi_same_value x29\n  .cfi_same_value x30\n  ret\n"),
-                        Target::Riscv64UnknownNone => out.push_str("  mv sp, s0\n  .cfi_def_cfa sp, 16\n  ld ra, 8(sp)\n  .cfi_same_value ra\n  ld s0, 0(sp)\n  .cfi_same_value s0\n  addi sp, sp, 16\n  .cfi_def_cfa_offset 0\n  ret\n"),
+                        Target::Riscv64UnknownNone => {
+                            let header = self.incoming_stack_base();
+                            writeln!(out, "  mv sp, s0\n  .cfi_def_cfa sp, {header}\n  ld ra, 8(sp)\n  .cfi_same_value ra\n  ld s0, 0(sp)\n  .cfi_same_value s0\n  addi sp, sp, {header}\n  .cfi_def_cfa_offset 0\n  ret").unwrap();
+                        }
                     }
                     out.push_str("  .cfi_restore_state\n");
                 }
@@ -1563,7 +1644,7 @@ impl<'a> Emitter<'a> {
                 0,
                 i64::try_from(offset)
                     .ok()
-                    .and_then(|offset| offset.checked_add(16))
+                    .and_then(|offset| offset.checked_add(self.incoming_stack_base()))
                     .ok_or_else(|| error_diagnostic("incoming ABI stack offset overflow"))?,
             ),
             AbiLocation::IndirectResult { .. } => {
@@ -2560,7 +2641,16 @@ impl<'a> Emitter<'a> {
         result: Option<Value>,
         exception_target: Option<(String, u64)>,
     ) -> Result<(), Diagnostic> {
-        let plan = self.abi.plan(signature)?;
+        if let Operand::Symbol { name, .. } = callee {
+            if let Some(intrinsic) = super::native_verify::variadic_intrinsic(name) {
+                return self.variadic_intrinsic(out, intrinsic, args);
+            }
+        }
+        let plan = self.abi.plan_call(
+            signature,
+            &argument_types(args, &self.types),
+            &signature.param_attributes,
+        )?;
         if plan.stack_alignment > 16 {
             return Err(error_diagnostic(
                 "extended call stack alignment is unsupported",
@@ -2630,6 +2720,14 @@ impl<'a> Emitter<'a> {
             .then(|| self.label());
         match callee {
             Operand::Symbol { name, .. } => {
+                if signature.variadic && self.target == Target::X86_64UnknownNone {
+                    writeln!(
+                        out,
+                        "  mov eax, {}",
+                        plan.variadic.as_ref().unwrap().vector_register_count
+                    )
+                    .unwrap();
+                }
                 if let Some(start) = &call_start {
                     writeln!(out, "{start}:").unwrap();
                 }
@@ -2646,6 +2744,17 @@ impl<'a> Emitter<'a> {
             }
             _ => {
                 self.operand(out, 0, callee);
+                if signature.variadic && self.target == Target::X86_64UnknownNone {
+                    // AL carries the vector count; preserve the indirect target
+                    // outside RAX before installing that implicit ABI argument.
+                    out.push_str("  mov r11, rax\n");
+                    writeln!(
+                        out,
+                        "  mov eax, {}",
+                        plan.variadic.as_ref().unwrap().vector_register_count
+                    )
+                    .unwrap();
+                }
                 if let Some(start) = &call_start {
                     writeln!(out, "{start}:").unwrap();
                 }
@@ -2657,7 +2766,11 @@ impl<'a> Emitter<'a> {
                         Target::Aarch64UnknownNone => "blr",
                         Target::Riscv64UnknownNone => "jalr",
                     },
-                    self.reg(0)
+                    if signature.variadic && self.target == Target::X86_64UnknownNone {
+                        "r11"
+                    } else {
+                        self.reg(0)
+                    }
                 )
                 .unwrap();
             }

@@ -510,8 +510,9 @@ original frontend's recursive integer/pointer parameter and result types,
 extension attributes, register-block placement, stack arguments and implicit
 result storage. Source-language aggregate coercions remain those of the
 original frontend; they are not reconstructed from a struct's byte size.
-`byval`, floating-point call classification and variadic calls remain explicit
-unsupported whole-unit contracts.
+`byval` and first-class floating-point call classification remain explicit
+unsupported whole-unit contracts. Imported C variadics have the separate
+integer/pointer realization described below.
 Typed LLVM `sret` keeps a void result and its original pointer parameter in the
 first or second position. The signature records the sized in-memory result type
 as `return_storage`; declarations, definitions, calls and alias bindings must
@@ -523,6 +524,44 @@ or memory access by itself, and sized empty result types remain valid.
 The scalar RV64 profile also preserves explicit `lp64d` frontend ABI metadata
 and the actual ELF double-float ABI flags; this admission does not qualify
 floating-point computation or aggregate register classification.
+
+Imported NativeModule C variadic declarations, definitions, direct calls and
+indirect calls retain the original fixed parameter prefix and actual trailing
+operand types. Every actual argument's ABI attributes are checked, including
+attributes outside the fixed prefix; declaration attributes are not inferred
+onto call sites. The supported profile is little-endian ELF LP64 with integer
+and AS0-pointer arguments. Clang's default promotions remain in its original
+LLVM input. Variadic `fastcc`, first-class FP arguments and unsupported aggregate
+or typed `byval` contracts reject the whole unit. `musttail` remains rejected;
+ordinary tail hints can use conventional calls.
+
+Canonical `llvm.va_start`, `llvm.va_copy` and `llvm.va_end` retain their actual
+operands and context requirements. Native prologues save the incoming argument
+register banks and preserve the target's register-save areas, stack overflow
+cursor and fixed-prefix offsets; copies retain independent cursor state.
+Raw vector-register preservation also permits an owned variadic wrapper to
+forward a `va_list` to an included fixed-signature foreign consumer without
+introducing FP SSA into the wrapper. This does not admit an owned FP caller.
+
+The [variadic integration gate](../evidence/native_variadic_integration_20261020.json)
+passes seven methods without skips on x86-64, AArch64, RV64 `lp64` and RV64
+`lp64d`. All four reference/owned caller/callee combinations compare 696
+integer/pointer results per profile: 16 pairings and 11,136 comparisons. Eight
+additional opaque-FP wrapper pairings compare 1,344 results, including double
+register overflow and AArch64/RV64 binary128 forwarding. Reference callers and
+FP consumers remain Clang objects; each owned wrapper is checked to contain no
+FP type. The original C units are retained whole. These are Linux development
+carrier gates, with QEMU for nonhost ISAs. General `byval`, owned FP SSA/callers,
+variadic exception-unwind execution and complete runtime closure remain
+separate qualifications. The scalar native reference interpreter retains its
+existing rejection of variadic signatures; this gate executes emitted objects.
+
+The [whole-source chibicc follow-up](../evidence/chibicc_variadic_followup_20261020.json)
+attempts all nine original captured units with the same final compiler: six
+independently verify and emit owned objects, while three first reject
+double-precision or binary128 values. The earlier nine-unit, zero-object
+2026-10-18 audit remains a separate historical result. Complete compiler and
+provider closure is not established by these six objects.
 
 PIC/PIE flags are admitted only under a recorded static, nonpreemptive image
 contract. Symbol visibility remains explicit: default, hidden and protected
@@ -651,7 +690,8 @@ Literal address bits do not establish mapping or dereference validity.
 
 Unsupported operations, ABI features or hidden bitcode fields reject the whole
 unit before code artifacts are written. Floating-point computation and call
-classification, `byval`, ordinary variadics, dynamic TLS/DSO loading, additional unwind models,
+classification, `byval`, variadic FP/aggregate ABI forms outside the profile above,
+dynamic TLS/DSO loading, additional unwind models,
 general dynamic stack allocation,
 managed execution and runtime-generated code publication remain required work.
 Weak/common/ODR linkage is not silently converted into strong linkage, and
@@ -1475,7 +1515,8 @@ for `u32`; unsigned SSA values remain zero-extended internally.
 `extern "sysv64"` explicitly selects the AMD64 convention and is rejected on
 other targets. Aggregate parameters and returns are forbidden across direct
 and indirect calls, including extern calls; pass pointers instead. Variadic
-calls and floating-point C ABI classification are not implemented.
+calls and floating-point C ABI classification are not implemented by the `.oc`
+frontend. Imported NativeModule C variadics use the separate route above.
 
 `extern "ocore"` is versioned with the compiler and is not a stable foreign
 ABI. Interrupt entries use the x86_64-only `@interrupt`; they have no ordinary
@@ -1869,8 +1910,8 @@ filesystem.
 M6A is a separate bounded personality-supervision slice in mode 18.
 `build-m6-artifacts.sh` deterministically packages a test client, native
 personality daemon, native supervisor daemon, and unrelated observer at exact
-`/sbin/m6-*.elf` paths in a 62,104-byte immutable OVFS image. Its SHA-256 is
-`f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417`.
+`/sbin/m6-*.elf` paths in a 58,320-byte immutable OVFS image. Its SHA-256 is
+`bad3c78964ac66084b578510f0dc1fec59e53ca3cdf9199320b32612a4947f5d`.
 `smoke-personality-qemu.sh` checks the artifact identity and absence of the four
 user modules from kernel symbols before boot. In QEMU, the CPL3 supervisor
 performs health-before-publication, cancels one held request, observes the
@@ -1924,8 +1965,8 @@ Mode 24 is a bounded M6B vertical slice. It composes the mode-19 view
 mechanism with the existing M6A request router and four independently packaged
 CPL3 principals. `build-m6b-live-artifacts.sh` deterministically rebuilds a
 client, personality daemon, supervisor, and unrelated observer into a
-65,152-byte OVFS image whose SHA-256 is
-`5b9d2526da2abd75ec90b4770ded5923d856132fad736fb13f241c34f1579887`.
+61,576-byte OVFS image whose SHA-256 is
+`9f8325ed73a13c67c301f5187c3ff3f6a4e70fb069fcf5d85fce84c9ea4187b0`.
 The client issues each call once through syscall 17; the live corpus uses one
 exact four-byte `INOUT` view. The daemon discovers only the view correlated to
 the received request, accesses it through syscalls 18-20, and completes it
@@ -1957,8 +1998,8 @@ packages exactly `/bin/linux-minimal.elf`, `/sbin/linux-personalityd.elf`,
 OVFS image. The foreign payload is independently pinned at 8,520 bytes with
 SHA-256
 `06240b6a840ed4262835aceff64a94f6ebd77838666f05eb7415d9a0d1b5868d`;
-the complete image is 60,104 bytes with SHA-256
-`b380e5cbbe50403bd58bdafb11c54f2201f0cc742fc898487fa08ba26e2886e8`.
+the complete image is 60,648 bytes with SHA-256
+`71cf5cd3f68d8d424c4965f7efa25aaf0f3d1c77f8ab6dbec8827862c0946626`.
 The live gate pins both identities and rejects any of those packaged principals
 linked into the kernel as source modules.
 
@@ -2001,8 +2042,8 @@ exact 8,520-byte Linux x86-64 ELF and adds an unprivileged native 9P2000 server,
 native supervisor, and independently linked native Plan-9-style client. The
 deterministic builder packages exactly `/bin/linux-minimal.elf`,
 `/sbin/linux-9pd.elf`, `/sbin/linux-supervisord.elf`, and
-`/bin/plan9-namespace-client.elf` into a 92,872-byte OVFS image with SHA-256
-`920b014cfb133f033b6761da6fe5b1d22be613bf88112c05ec0af982e1beebd9`.
+`/bin/plan9-namespace-client.elf` into a 97,512-byte OVFS image with SHA-256
+`c1501f633640d92a8b7d84baaa8afbeeca9a40d4f79138cc08f73c0e678f0ac3`.
 The builder double-compiles each native principal, rejects dynamic or W+X ELF
 profiles, double-packs the image, and runs an independent exact-wire oracle
 before the image is admitted.
@@ -2047,7 +2088,7 @@ Mode 31 is the bounded M7B-1 mechanism gate. Run it with:
 ./ocore/kernel/smoke-m7b-logical-read-qemu.sh
 ```
 
-The deterministic 78,304-byte OVFS contains one requester-local client/router
+The deterministic 82,400-byte OVFS contains one requester-local client/router
 ELF, one provider ELF instantiated as two distinct generation-bound CPL3
 provider principals, and one exact 20-byte immutable object. Before the request,
 O-core admits distinct A/B provider identities, service bindings, endpoints,

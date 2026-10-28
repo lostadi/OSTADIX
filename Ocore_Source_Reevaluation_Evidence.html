@@ -422,3 +422,164 @@ earlier compiler rather than being relabeled as a new run.</p>
 <p>This qualifies the bounded scalar leaf under the existing coordinator. General
 native orchestration, effectful native resource handles, machine-PC debugging
 and complete original-runtime dependency closure remain outside these results.</p>
+<h2>Python, C, and Rust source expansion (2026-10-18)</h2>
+<p>The <a href="evidence/original_python_c_rust_expansion_20261018.json">original-source expansion evidence</a>
+records complete configured source captures and a completed 370-unit diagnostic
+audit with the pinned LLVM 22.1.6 parser and installed O-core compiler. The
+matrix reconciles the complete selected build inventory, retains whole modules,
+checks tool and input hashes, independently verifies imported modules, and
+checks the actual emitted ELF objects. Raw Rust bitcode remains the compiler
+input; separately decoded text supplies independently checked metadata.</p>
+<table>
+<thead>
+<tr>
+<th>Original configured source profile</th>
+<th align="right">Units audited</th>
+<th align="right">Independently verified modules</th>
+<th align="right">Owned objects</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPython runtime and extensions</td>
+<td align="right">360</td>
+<td align="right">72</td>
+<td align="right">63</td>
+</tr>
+<tr>
+<td>chibicc stage-one C compiler</td>
+<td align="right">9</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>adler2 2.0.1 Rust library, default <code>std</code> feature</td>
+<td align="right">1 emitted code-generation unit</td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+</tbody></table>
+<p>These are complete diagnostic results, not complete runtime qualifications.
+All nine chibicc units first reject the unsupported variadic calling convention.
+In that baseline, Python has import blockers and nine explicit coherent-RAM
+execution-profile gates at object generation. Failure groups
+record the first rejection of each whole unit, rather than every unsupported
+feature that might occur behind it.</p>
+<p>The <a href="evidence/cpython_atomic_profile_followup_20261018.json">separate atomic-profile follow-up</a>
+freshly imported those nine exact whole modules with the existing explicit
+<code>coherent-ram-v1</code> option. All nine independently verified and produced owned
+RV64 objects. Every semantic field and function body stayed equal to the
+baseline apart from the declared target profile and provenance. This profile
+requires ordinary coherent RAM, excludes device memory, and retains the
+RISC-V masked-word accessibility and LR/SC progress requirements. It supplies
+nine additional profile-qualified objects without relabeling the baseline
+audit or establishing runtime execution.</p>
+<p>The unchanged hosted CPython build separately passed its reference smoke checks.
+Its authenticated local dependency packages establish hosted build interfaces;
+they do not establish O-core-built dependency implementations. A separate C
+fixture passed actual reference/owned execution with positive and negative
+inputs. The complete Rust library unit was freshly imported, verified and
+emitted again before its API matched the original implementation on 12 payloads.
+A forged substitution of the original native object was rejected before linking.
+Those native checks qualify their recorded interfaces and Linux RV64 execution
+profile, not full C or Rust compiler/runtime support.</p>
+<p>All 154 focused source-expansion regression methods passed without skips. The
+<a href="evidence/python_c_rust_integration_20261018.json">merged-source integration evidence</a>
+records 91 additional passing methods without skips, the successful Cargo check
+of <code>olangc</code> and <code>ocorec</code>, architecture and source inventories, and the complete
+101-document HTML export check. Complete native
+Python and chibicc lowering, dependency closure, compiler-generated program
+routing, other-ISA execution and general native graph orchestration remain
+separate required gates.</p>
+<p>The later LLVM importer refinement was checked through 20 complete memory-import
+regression methods using the pinned SDK. A freshly built compiler separately
+agreed on six accepted text/bitcode cases across the three ISAs, including
+independent verification and owned objects, and 18 intended rejections. Those
+checks bind their own merged source tree and compiler; they do not relabel the
+earlier whole-source audit or establish native runtime execution.</p>
+<h2>Imported C variadic execution (2026-10-20)</h2>
+<p>The <a href="evidence/native_variadic_integration_20261020.json">variadic integration evidence</a>
+records seven passing methods without skips against the cohesive v2 compiler.
+Imported C variadic signatures retain their original fixed prefix, while native
+call plans classify every actual trailing integer or AS0-pointer argument and
+check its attributes. Direct and indirect callers, zero tails, register
+exhaustion, named stack parameters, narrow default promotions, nested calls and
+conventional <code>va_list</code> forwarding run through the owned emitter. Canonical
+<code>va_start</code>, <code>va_copy</code> and <code>va_end</code> preserve target cursor state and raw incoming
+register banks. The <code>.oc</code> frontend&#39;s fixed <code>extern &quot;C&quot;</code> interface is unchanged.</p>
+<table>
+<thead>
+<tr>
+<th>ELF/Linux profile</th>
+<th align="right">Integer caller/callee pairings</th>
+<th align="right">Integer comparisons</th>
+<th align="right">Opaque FP wrapper pairings</th>
+<th align="right">Opaque comparisons</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>x86-64</td>
+<td align="right">4</td>
+<td align="right">2,784</td>
+<td align="right">2</td>
+<td align="right">192</td>
+</tr>
+<tr>
+<td>AArch64</td>
+<td align="right">4</td>
+<td align="right">2,784</td>
+<td align="right">2</td>
+<td align="right">384</td>
+</tr>
+<tr>
+<td>RV64 <code>lp64</code></td>
+<td align="right">4</td>
+<td align="right">2,784</td>
+<td align="right">2</td>
+<td align="right">384</td>
+</tr>
+<tr>
+<td>RV64 <code>lp64d</code></td>
+<td align="right">4</td>
+<td align="right">2,784</td>
+<td align="right">2</td>
+<td align="right">384</td>
+</tr>
+</tbody></table>
+<p>The four integer pairings combine reference/reference, owned/reference,
+reference/owned and owned/owned objects built from the same complete Clang22
+units. A Python oracle checks 87 cases across eight seeds in each pairing.
+Opaque FP gates keep the caller and <code>va_list</code> consumer as reference Clang
+objects and replace only the forwarding wrapper. That owned module contains no
+FP type. Double values cross register/stack boundaries; AArch64 and RV64 also
+forward both words of binary128 values. Across all pairings there are 12,480
+comparisons, including 9,024 involving at least one owned component.</p>
+<p>The initial cohesive run&#39;s three failures are retained separately. Two exposed
+the pinned LLVM22 <code>dead_on_return</code> pointer promise, attribute kind 9, at AArch64
+forwarding sites. The final importer records its conservative, nonexploited
+refinement without changing the calls or memory operations. The third corrected
+a test&#39;s numeric assumption: actual trailing typed <code>byval</code> is kind 84, not 9.
+The final guards require import-stage rejection, exact exit 1 and no native
+output for unsupported FP SSA and the actual <code>byval</code> form. No original C
+fixture was weakened.</p>
+<p>The <a href="evidence/chibicc_variadic_followup_20261020.json">separate whole-source chibicc follow-up</a>
+attempted all nine original captured units with the final v2 compiler and
+unchanged tool/source hashes. <code>unicode</code>, <code>type</code>, <code>preprocess</code>, <code>hashmap</code>,
+<code>strings</code> and <code>main</code> independently verified and produced owned objects.
+<code>parse</code> first rejects a double-precision value; <code>tokenize</code> and <code>codegen</code> first
+reject binary128 values. The earlier v1 six-object result is retained
+separately. Neither follow-up revises the historical 2026-10-18 nine-unit,
+zero-object baseline above.</p>
+<p>The <a href="evidence/python_c_rust_variadic_followup_20261020.json">complete original Python/C/Rust follow-up</a>
+attempted the same 370 original captured units with all inputs and tools pinned.
+CPython independently verified 152 units and emitted 140 default-profile objects,
+chibicc emitted six objects, and Rust retained its one object. The aggregate
+rose from 64 to 147 objects, with 83 additions and no object regressions. All
+223 rejected units returned exit 1 without crash or loader-failure markers.
+The original atomic profile remained in force; the separate coherent-RAM
+follow-up is excluded. These are whole-unit compilation results, not complete
+Python/C/Rust runtime or provider-closure qualification.</p>
+<p>Owned FP SSA/callers, general <code>byval</code>, exception execution through variadic
+frames, complete original-compiler/provider closure and general native graph
+or instruction-debugger execution remain separate required gates. Linux
+carriers and QEMU qualify their recorded development profiles. The scalar native
+reference interpreter&#39;s variadic rejection is unchanged.</p>

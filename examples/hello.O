@@ -1,5 +1,14 @@
+
 O^(
-python^(
-__oval_result__ = 1 + 1
+let greeting = python^(
+__oval_result__ = 'h' + 'e' + 'l' + 'l' + 'o'
 )_python
+
+let phrase = common_lisp^(
+(princ (concatenate 'string "$greeting" " from Python and Lisp"))
+)_common_lisp
+
+javascript^(
+console.log("$phrase" + " and JavaScript!");
+)_javascript
 )_O

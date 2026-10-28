@@ -262,6 +262,9 @@ pub struct Signature {
     pub result: TypeId,
     pub abi: String,
     pub variadic: bool,
+    /// Declarations, definitions and function value types describe the fixed
+    /// prefix. A variadic Call/Invoke records one vector per actual argument,
+    /// including every unnamed trailing operand's independent ABI attributes.
     #[serde(default)]
     pub param_attributes: Vec<Vec<String>>,
     #[serde(default)]

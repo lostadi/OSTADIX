@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <sys/wait.h>
 #include "installed_paths.h"
+#include "backends.h"
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -318,14 +319,9 @@ static int remove_tree(const char *path) {
 static const char *SHIM_NAMES[] = {
     "o_shim_common.py",
     "o_native_objects.py",
-    "python_shim.py",
-    "nix_shim.py",
-    "nix_store_shim.py",
-    "nixos_test_shim.py",
-    "bash_shim.py",
-    "shell_shim.py",
-    "rust_shim.py",
-    "racket_shim.py",
+#define OLANG_SHIM_FILE(name) #name "_shim.py",
+    OLANG_SHIM_BACKENDS(OLANG_SHIM_FILE)
+#undef OLANG_SHIM_FILE
     NULL
 };
 
@@ -618,7 +614,7 @@ int main(int argc, char **argv) {
         "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n"
         "#include <stdint.h>\n#include <unistd.h>\n"
         "#if defined(__APPLE__)\n#include <mach-o/dyld.h>\n#endif\n"
-        "#include \"value.h\"\n#include \"parser.h\"\n#include \"eval.h\"\n\n"
+        "#include \"value.h\"\n#include \"parser.h\"\n#include \"eval.h\"\n#include \"backends.h\"\n\n"
         "static char *append_suffix(const char *a,const char *b){\n"
         "  if(!a||!b)return NULL;\n"
         "  size_t an=strlen(a),bn=strlen(b);\n"
@@ -648,10 +644,8 @@ int main(int argc, char **argv) {
         "};\n"
         "int main(int argc,char**argv){\n"
         "  const char *src=(const char *)embedded_source;\n"
-        "  StringSet *bs=string_set_new();\n"
+        "  StringSet *bs=olang_default_backends();\n"
         "  if(!bs){fprintf(stderr,\"failed to create backend set\\n\");return 1;}\n"
-        "  const char*t[]={\"O\",\"python\",\"html\",\"markdown\",\"latex\",\"text\",\"quote\",\"nix\",\"nix_expr\",\"nix_store\",\"nixos_test\",\"bash\",\"shell\",\"rust\",\"racket\",0};\n"
-        "  for(int i=0;t[i];++i){string_set_add(bs,t[i]);if(!string_set_contains(bs,t[i])){fprintf(stderr,\"failed to register backend tag %%s\\n\",t[i]);string_set_free(bs);return 1;}}\n"
         "  OParser p; parser_init(&p,src,bs);\n"
         "  ONodeList *nodes=parser_parse(&p);\n"
         "  if(!nodes){fprintf(stderr,\"parse: %%s\\n\",p.error_msg);string_set_free(bs);return 1;}\n"
