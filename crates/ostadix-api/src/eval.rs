@@ -5074,7 +5074,14 @@ mod tests {
 
         fn evaluate(source: &str) -> Option<serde_json::Value> {
             let output = match Command::new("nix")
-                .args(["eval", "--json", "--expr", source])
+                .args([
+                    "--extra-experimental-features",
+                    "nix-command",
+                    "eval",
+                    "--json",
+                    "--expr",
+                    source,
+                ])
                 .output()
             {
                 Ok(output) => output,
