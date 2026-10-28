@@ -44,6 +44,13 @@ impl NativeSourceOptions<'_> {
 /// Resolve an as-yet nonexistent output against its real existing parent.
 /// In particular, never create missing ancestors before detecting source aliases.
 fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
+    // Compare filesystem identities on both sides. A source path may use a
+    // symlinked ancestor (including macOS /var -> /private/var) even when the
+    // output's parent has already been resolved to its physical location.
+    let source = source
+        .canonicalize()
+        .context("resolve original source checkout")?;
+    let recipe = recipe.canonicalize().context("resolve source recipe")?;
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -58,10 +65,10 @@ fn new_output(path: &Path, source: &Path, recipe: &Path) -> Result<PathBuf> {
         .canonicalize()
         .context("source recipe output parent must already exist")?;
     let output = parent.join(name);
-    if output.starts_with(source)
+    if output.starts_with(&source)
         || source.starts_with(&output)
         || recipe.starts_with(&output)
-        || output.starts_with(recipe)
+        || output.starts_with(&recipe)
     {
         bail!("source recipe output must be separate from the source checkout and input recipe");
     }
@@ -363,5 +370,40 @@ mod tests {
             assert!(new_output(&link.join("output"), &source, &recipe).is_err());
             assert!(!source.join("output").exists());
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn source_output_checks_resolve_symlinked_input_ancestors() {
+        let directory = tempfile::tempdir().unwrap();
+        let physical = directory.path().canonicalize().unwrap();
+        let source = physical.join("source");
+        fs::create_dir(&source).unwrap();
+        let recipe = physical.join("recipe.json");
+        fs::write(&recipe, b"{}").unwrap();
+        let alias = physical.join("alias");
+        std::os::unix::fs::symlink(&physical, &alias).unwrap();
+
+        let aliased_source = alias.join("source");
+        let aliased_recipe = alias.join("recipe.json");
+        for output in [source.join("output"), aliased_source.join("output")] {
+            assert!(new_output(&output, &aliased_source, &aliased_recipe).is_err());
+            assert!(!source.join("output").exists());
+        }
+
+        // Resolving inputs must still allow a genuinely separate new output,
+        // without creating it or accepting a missing parent directory.
+        assert_eq!(
+            new_output(&alias.join("output"), &aliased_source, &aliased_recipe).unwrap(),
+            physical.join("output")
+        );
+        assert!(!physical.join("output").exists());
+        assert!(new_output(
+            &alias.join("missing/output"),
+            &aliased_source,
+            &aliased_recipe
+        )
+        .is_err());
+        assert!(!physical.join("missing").exists());
     }
 }
