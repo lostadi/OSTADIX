@@ -120,7 +120,7 @@ The isolated audit of that pinned snapshot recorded 1,351 passing tests and
 three ignored tests. Its portable native aggregate recorded 26 of 26 required
 gates passing. The exact historical validation scope and the then-observed G0
 evidence continuity defect are recorded in
-[Validation at the audited master](#validation-at-the-audited-master) and
+[Validation at the historical audited master](#validation-at-the-historical-audited-master) and
 [Exact implementation boundaries](#exact-implementation-boundaries).
 
 The current M3 boundary is specified separately by [OIR Execution Fabric
@@ -2543,8 +2543,8 @@ content-addressed attestations. The executable G0 composition is
 [`evidence/world_contract_v2.toml`](evidence/world_contract_v2.toml), which
 imports the byte-frozen
 [`evidence/world_contract_v1.toml`](evidence/world_contract_v1.toml) vocabulary
-and the separately versioned O-Machine contract. The current validator result
-is recorded in [Validation at the audited master](#validation-at-the-audited-master).
+and the separately versioned O-Machine contract. A historical validator result
+is recorded in [Validation at the historical audited master](#validation-at-the-historical-audited-master).
 
 Run the bounded shared World-identity gate with:
 

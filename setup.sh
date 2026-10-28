@@ -181,6 +181,12 @@ if $PERSIST_ENV && ! $WRITE_ENV; then
   exit 2
 fi
 
+if $DRY_RUN || $CHECK_ONLY; then
+  # Python may cache imports under HOME (Apple's system Python does so before
+  # our helpers run). Read-only planning must suppress those writes as well.
+  export PYTHONDONTWRITEBYTECODE=1
+fi
+
 if $FULL; then
   if ! $SKIP_OCORE; then WITH_OCORE=true; fi
   if ! $SKIP_NIX; then

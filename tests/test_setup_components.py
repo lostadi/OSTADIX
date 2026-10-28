@@ -112,12 +112,23 @@ class ComponentTests(unittest.TestCase):
         self.assertIn(str(tools), app.env["PATH"])
         self.assertIn(str(java), app.env["PATH"])
 
-    def test_macos_android_build_uses_actual_modern_bash_features(self):
+    def test_macos_android_build_uses_bash_feature_probe(self):
         sdk = self.home / "sdk/platforms/android-34"
         sdk.mkdir(parents=True)
         (sdk / "android.jar").write_bytes(b"test sdk")
-        env = {"HOME": str(self.home), "ANDROID_SDK_ROOT": str(self.home / "sdk"), "OSTADIX_BASH": "/bin/bash"}
-        plan = components.plan(ROOT, system="Darwin", machine="arm64", which=lambda name: "/bin/bash" if name == "bash" else f"/fake/{name}", environ=env)
+        # /bin/bash is 3.2 on macOS, so it is not a portable positive fixture.
+        # Record the real feature-probe invocation and control its result.
+        capable = self.home / "capable-bash"
+        probe = self.home / "bash-probe-arguments"
+        capable.write_text('#!/bin/sh\nprintf "%s\\0" "$@" > "${0%/*}/bash-probe-arguments"\nexit 0\n')
+        capable.chmod(0o755)
+        env = {"HOME": str(self.home), "ANDROID_SDK_ROOT": str(self.home / "sdk"), "OSTADIX_BASH": str(capable)}
+        plan = components.plan(ROOT, system="Darwin", machine="arm64", which=lambda name: f"/fake/{name}", environ=env)
+        arguments = probe.read_bytes().split(b"\0")[:-1]
+        self.assertEqual(arguments[:3], [b"--noprofile", b"--norc", b"-c"])
+        self.assertEqual(len(arguments), 4)
+        self.assertIn(b"mapfile -t", arguments[3])
+        self.assertIn(b"declare -A", arguments[3])
         self.assertFalse(next(item for item in plan if item.name == "prismatic-launcher").missing)
         self.assertFalse(next(item for item in plan if item.name == "pixel-ai-probe").missing)
         legacy = self.home / "legacy-bash"

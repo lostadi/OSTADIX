@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import platform
 import shlex
 import subprocess
 import tempfile
@@ -438,6 +439,23 @@ class SetupScriptTests(unittest.TestCase):
             self.assertFalse(guests_dir.exists())
             self.assertEqual(list(home.iterdir()), [])
 
+    def test_read_only_modes_do_not_write_python_import_caches(self) -> None:
+        # Force an empty bytecode-cache destination on every host, including
+        # hosts whose Python normally writes beside already-cached sources.
+        for option in ("--dry-run", "--check"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory)
+                cache = home / "python-cache"
+                environment = {"PYTHONPYCACHEPREFIX": str(cache)}
+                if option == "--check":
+                    # OS simulation is intentionally allowed only in dry-run.
+                    environment.update(OSTADIX_SETUP_PLATFORM="", OSTADIX_SETUP_DISTRO="")
+                result = self.run_setup("--minimal", "--no-env", option, home=home,
+                                        extra_env=environment)
+                self.assertEqual(result.returncode, 0, self.combined_output(result))
+                self.assertFalse(cache.exists(), self.combined_output(result))
+                self.assertEqual(list(home.iterdir()), [])
+
     def test_dry_run_makes_gemini_registration_device_conditional(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             result = self.run_setup(
@@ -615,7 +633,7 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("--features notebook --bin o-notebook", result.stdout)
         self.assertIn("/bin/o-notebook from", result.stdout)
 
-    def test_default_setup_selects_all_root_bins_workspace_and_native_apps(self) -> None:
+    def test_default_setup_selects_all_root_bins_workspace_and_host_supported_apps(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             tools = home / "fake-tools"
@@ -638,7 +656,13 @@ class SetupScriptTests(unittest.TestCase):
         self.assertIn("--features notebook", result.stdout)
         self.assertIn("default-jdk-headless", result.stdout)
         self.assertIn("[DRY]", result.stdout)
-        self.assertIn("mobile-console/Cargo.toml", result.stdout)
+        # Dependency-package planning above is simulated Linux; independent
+        # component capability checks deliberately inspect the actual host.
+        # Keep the Linux-only USB/configfs app unavailable on other hosts.
+        if platform.system() == "Linux":
+            self.assertIn("mobile-console/Cargo.toml", result.stdout)
+        else:
+            self.assertIn("[skip] mobile-console: Linux/Android USB configfs implementation", result.stdout)
         self.assertIn("android-terminal/runtime/Cargo.toml", result.stdout)
         self.assertIn("Android platform jar", result.stdout)
 
