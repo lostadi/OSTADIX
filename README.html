@@ -238,13 +238,24 @@ cd OSTADIX
 ./setup.sh -y --minimal
 source &quot;$HOME/.config/ostadix/env.sh&quot;
 
-O examples/hello.O &quot;$PWD/backends&quot;
+o eval &#39;python^( __oval_result__ = 1 + 1 )_python&#39;
 # expected: [number] 2
 
 O version --json
 </code></pre>
 <p><code>O version --json</code> reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.</p>
+<p>For a greeting that crosses three language boundaries, install Node.js and a
+Common Lisp runtime such as SBCL alongside Python 3, then run:</p>
+<pre><code class="language-bash">O examples/hello.O &quot;$PWD/backends&quot;
+# hello from Python and Lisp and JavaScript!
+./boot-and-test.sh hosted
+</code></pre>
+<p>The hosted check compares graph and serial stdout byte for byte, then runs
+the same greeting through the Python and C17 reference editions. An available
+edition that fails makes the check fail; absent optional tools are reported as
+skips. Setup verification and MCP <code>o_smoke</code> use a fixed Python-only calculation
+so minimal setup does not depend on the greeting&#39;s optional language engines.</p>
 <p><code>setup.sh</code> installs syntax support for detected Code editors, Nano, Vim,
 Neovim, Emacs, Sublime Text, and bat. Update only editor support with:</p>
 <pre><code class="language-sh">python3 tools/syntax/install.py
@@ -747,13 +758,13 @@ the corresponding explicit interfaces. Paste each code block separately. If
 zsh displays <code>heredoc&gt;</code>, press <code>Ctrl-C</code> before continuing; the commands below
 intentionally avoid heredocs.</p>
 <p>First refresh the installed tools and prove ordinary local execution:</p>
-<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/Ostadix-lang}&quot;
+<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/OSTADIX}&quot;
 git switch master
 git pull --ff-only origin master
 ./setup.sh -y --minimal
 export O_LANG_ROOT=&quot;$PWD&quot;
 export PATH=&quot;$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH&quot;
-O examples/hello.O &quot;$O_LANG_ROOT/backends&quot;
+o eval &#39;python^( __oval_result__ = 1 + 1 )_python&#39;
 # expected: [number] 2
 </code></pre>
 <p>In Terminal 1, create a fresh private demo root, one persistent Python
@@ -786,7 +797,7 @@ root and pinned placement-authority key are explicit:</p>
 <p>In Terminal 2, paste the exact <code>export DEMO=...</code> line printed by Terminal 1,
 then paste this block to reconstruct the remaining paths and check the TLS
 endpoint:</p>
-<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/Ostadix-lang}&quot;
+<pre><code class="language-bash">cd &quot;${O_LANG_ROOT:-$HOME/OSTADIX}&quot;
 export O_LANG_ROOT=&quot;$PWD&quot;
 export PATH=&quot;$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH&quot;
 export PKI=&quot;$DEMO/pki&quot;
@@ -1124,7 +1135,7 @@ The empty-argument command continues to use stdio.</p>
 </tr>
 <tr>
 <td><code>o_smoke</code></td>
-<td>Runs <code>examples/hello.O</code> with an absolute backend path and expects <code>2</code>.</td>
+<td>Runs a fixed Python-only O calculation with an absolute backend path and expects <code>2</code>, independently of editable examples.</td>
 </tr>
 <tr>
 <td><code>o_analyze_intent</code></td>
@@ -1221,11 +1232,11 @@ paths rather than relying on shell expansion inside JSON:</p>
 <pre><code class="language-json">{
   &quot;mcpServers&quot;: {
     &quot;ostadix&quot;: {
-      &quot;command&quot;: &quot;/absolute/path/to/Ostadix-lang/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp&quot;,
+      &quot;command&quot;: &quot;/absolute/path/to/OSTADIX/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp&quot;,
       &quot;args&quot;: [],
       &quot;env&quot;: {
-        &quot;O_LANG_ROOT&quot;: &quot;/absolute/path/to/Ostadix-lang&quot;,
-        &quot;O_BACKENDS_DIR&quot;: &quot;/absolute/path/to/Ostadix-lang/backends&quot;
+        &quot;O_LANG_ROOT&quot;: &quot;/absolute/path/to/OSTADIX&quot;,
+        &quot;O_BACKENDS_DIR&quot;: &quot;/absolute/path/to/OSTADIX/backends&quot;
       }
     }
   }
@@ -1235,15 +1246,15 @@ paths rather than relying on shell expansion inside JSON:</p>
 source-first workflow such as:</p>
 <pre><code class="language-text">o_execute {&quot;source&quot;:&quot;python^( __oval_result__ = 2 )_python&quot;}
 o_execute {&quot;source&quot;:&quot;python^( __oval_result__ = 2 )_python&quot;,&quot;action&quot;:&quot;check&quot;}
-o_execute {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;,&quot;action&quot;:&quot;plan&quot;}
+o_execute {&quot;path&quot;:&quot;/absolute/path/to/OSTADIX/examples/hello.O&quot;,&quot;action&quot;:&quot;plan&quot;}
 o_capabilities {&quot;query&quot;:&quot;mesh&quot;}
 o_guide {&quot;topic&quot;:&quot;projects&quot;}
 o_env {}
 o_runtimes {}
 o_smoke {}
 o_run {&quot;source&quot;:&quot;python^(\n__oval_result__ = 1 + 1\n)_python&quot;}
-o_run {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;}
-o_olangc {&quot;path&quot;:&quot;/absolute/path/to/Ostadix-lang/examples/hello.O&quot;,&quot;target&quot;:&quot;ir&quot;}
+o_run {&quot;path&quot;:&quot;/absolute/path/to/OSTADIX/examples/hello.O&quot;}
+o_olangc {&quot;path&quot;:&quot;/absolute/path/to/OSTADIX/examples/hello.O&quot;,&quot;target&quot;:&quot;ir&quot;}
 o_information_inspect {&quot;state&quot;:&quot;/absolute/path/to/existing-information-state&quot;,&quot;head&quot;:&quot;main&quot;}
 </code></pre>
 <p>Enter these names and argument objects through the MCP client&#39;s tool-call
@@ -1271,7 +1282,9 @@ interpreter, REPL, OIR, scheduler, linker tools, notebook, <code>olangc</code>, 
 <code>ocorec</code>.</li>
 <li>The <strong>C17 edition</strong> is the small standalone hosted runtime and AOT compiler.</li>
 <li>The <strong>Python edition</strong> is the readable reference implementation used for
-semantic cross-checking.</li>
+semantic cross-checking. It also runs stateless Common Lisp and JavaScript
+blocks through the shipped shims; its builtin Python evaluator stays
+in-process.</li>
 <li><strong>O-core</strong> is compiled by the Rust <code>ocorec</code> binary, but the code it produces
 is freestanding and has no Rust runtime dependency.</li>
 </ul>
@@ -1482,9 +1495,12 @@ make
 </code></pre>
 <p>The C17 port implements the core typed-parenthesis evaluator, structural
 backends, Python execution, the Nix value ladder, lazy and deferred requests,
-shebang handling, and AOT packaging. The Rust edition remains authoritative
-for OIR planning, coordination-group concurrency, the full backend registry,
-the notebook, and O-core.</p>
+shebang handling, and AOT packaging. Its interpreter and generated programs
+share registration and shim packaging for the shipped adapters. The external
+language engines used by a program must still be installed; the greeting above
+uses Python 3, Common Lisp, and Node.js. The Rust edition remains authoritative
+for OIR planning, coordination-group concurrency, the complete runtime feature
+set, the notebook, and O-core.</p>
 <h3>Embedding the Python and C17 editions</h3>
 <p>The Python package exports its complete root API from <code>o_lang/__init__.py</code>:</p>
 <ul>
@@ -5611,7 +5627,7 @@ edition supports every file.</p>
 </thead>
 <tbody><tr>
 <td><code>examples/hello.O</code></td>
-<td>Smallest Python-backed O program.</td>
+<td>Greeting passed from Python to Common Lisp to JavaScript; requires Python 3, a supported Common Lisp runtime, and Node.js.</td>
 </tr>
 <tr>
 <td><code>examples/bindings.O</code></td>
@@ -6572,7 +6588,7 @@ now restore source-digest validation; the registry derives only G0 and G2 as
 passed. This repair does not refresh the historical 26-of-26 portable native
 execution-gate observation.</p>
 </li>
-<li><p>The standalone MCP crate passed all 29 Rust tests, and the real built server
+<li><p>At the historical audited snapshot, the standalone MCP crate passed all 29 Rust tests, and the real built server
 passed a smoke of all ten tools. Separately, root Python
 <code>tests.test_mcp_smoke</code> recorded four passes and one brittle assertion failure:
 its exact command-substring expectation omits the current <code>--bin o-cli</code>

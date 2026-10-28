@@ -276,7 +276,7 @@ cd OSTADIX
 ./setup.sh -y --minimal
 source "$HOME/.config/ostadix/env.sh"
 
-O examples/hello.O "$PWD/backends"
+o eval 'python^( __oval_result__ = 1 + 1 )_python'
 # expected: [number] 2
 
 O version --json
@@ -284,6 +284,21 @@ O version --json
 
 `O version --json` reports the package, toolchain, admission, catalog, Hosted,
 and World schema coordinates compiled into that executable.
+
+For a greeting that crosses three language boundaries, install Node.js and a
+Common Lisp runtime such as SBCL alongside Python 3, then run:
+
+```bash
+O examples/hello.O "$PWD/backends"
+# hello from Python and Lisp and JavaScript!
+./boot-and-test.sh hosted
+```
+
+The hosted check compares graph and serial stdout byte for byte, then runs
+the same greeting through the Python and C17 reference editions. An available
+edition that fails makes the check fail; absent optional tools are reported as
+skips. Setup verification and MCP `o_smoke` use a fixed Python-only calculation
+so minimal setup does not depend on the greeting's optional language engines.
 
 `setup.sh` installs syntax support for detected Code editors, Nano, Vim,
 Neovim, Emacs, Sublime Text, and bat. Update only editor support with:
@@ -821,13 +836,13 @@ intentionally avoid heredocs.
 First refresh the installed tools and prove ordinary local execution:
 
 ```bash
-cd "${O_LANG_ROOT:-$HOME/Ostadix-lang}"
+cd "${O_LANG_ROOT:-$HOME/OSTADIX}"
 git switch master
 git pull --ff-only origin master
 ./setup.sh -y --minimal
 export O_LANG_ROOT="$PWD"
 export PATH="$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH"
-O examples/hello.O "$O_LANG_ROOT/backends"
+o eval 'python^( __oval_result__ = 1 + 1 )_python'
 # expected: [number] 2
 ```
 
@@ -869,7 +884,7 @@ then paste this block to reconstruct the remaining paths and check the TLS
 endpoint:
 
 ```bash
-cd "${O_LANG_ROOT:-$HOME/Ostadix-lang}"
+cd "${O_LANG_ROOT:-$HOME/OSTADIX}"
 export O_LANG_ROOT="$PWD"
 export PATH="$HOME/.local/bin:$O_LANG_ROOT/target/release:$PATH"
 export PKI="$DEMO/pki"
@@ -1217,7 +1232,7 @@ The empty-argument command continues to use stdio.
 | `o_env` | Reports the resolved Ostadix root, backend directory, `O` and `olangc` paths, Python shim status, and a 30-backend runtime summary. |
 | `o_runtimes` | Discovers executable requirements and projects typed value capabilities from the canonical backend catalog compiled into that MCP binary, including alternative runtime sets, without failing because an optional runtime is absent. Rebuild MCP with O after catalog changes. |
 | `o_doctor` | Checks the local toolchain and inventories compatibility shims plus the complete backend runtime report. |
-| `o_smoke` | Runs `examples/hello.O` with an absolute backend path and expects `2`. |
+| `o_smoke` | Runs a fixed Python-only O calculation with an absolute backend path and expects `2`, independently of editable examples. |
 | `o_analyze_intent` | Analyzes exact source and a stable graph intent, then creates a bounded one-use handle. |
 | `o_execute_intent` | Consumes that handle, requires O to recompute the same Intent V1, then performs a fresh V6 admission before dispatch. |
 | `o_run` | Accepts exactly one complete `.O` `source` or existing `path`; local runs use the unified project-aware front door and return decoded results as MCP structured content. `placement=node` submits the complete document to one selected hosted node without claiming graph splitting. |
@@ -1308,11 +1323,11 @@ paths rather than relying on shell expansion inside JSON:
 {
   "mcpServers": {
     "ostadix": {
-      "command": "/absolute/path/to/Ostadix-lang/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp",
+      "command": "/absolute/path/to/OSTADIX/mcp/ostadix_lang_mcp_server/target/release/ostadix-mcp",
       "args": [],
       "env": {
-        "O_LANG_ROOT": "/absolute/path/to/Ostadix-lang",
-        "O_BACKENDS_DIR": "/absolute/path/to/Ostadix-lang/backends"
+        "O_LANG_ROOT": "/absolute/path/to/OSTADIX",
+        "O_BACKENDS_DIR": "/absolute/path/to/OSTADIX/backends"
       }
     }
   }
@@ -1325,15 +1340,15 @@ source-first workflow such as:
 ```text
 o_execute {"source":"python^( __oval_result__ = 2 )_python"}
 o_execute {"source":"python^( __oval_result__ = 2 )_python","action":"check"}
-o_execute {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","action":"plan"}
+o_execute {"path":"/absolute/path/to/OSTADIX/examples/hello.O","action":"plan"}
 o_capabilities {"query":"mesh"}
 o_guide {"topic":"projects"}
 o_env {}
 o_runtimes {}
 o_smoke {}
 o_run {"source":"python^(\n__oval_result__ = 1 + 1\n)_python"}
-o_run {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O"}
-o_olangc {"path":"/absolute/path/to/Ostadix-lang/examples/hello.O","target":"ir"}
+o_run {"path":"/absolute/path/to/OSTADIX/examples/hello.O"}
+o_olangc {"path":"/absolute/path/to/OSTADIX/examples/hello.O","target":"ir"}
 o_information_inspect {"state":"/absolute/path/to/existing-information-state","head":"main"}
 ```
 
@@ -1366,7 +1381,9 @@ compiler path in this repository:
   `ocorec`.
 - The **C17 edition** is the small standalone hosted runtime and AOT compiler.
 - The **Python edition** is the readable reference implementation used for
-  semantic cross-checking.
+  semantic cross-checking. It also runs stateless Common Lisp and JavaScript
+  blocks through the shipped shims; its builtin Python evaluator stays
+  in-process.
 - **O-core** is compiled by the Rust `ocorec` binary, but the code it produces
   is freestanding and has no Rust runtime dependency.
 
@@ -1631,9 +1648,12 @@ make
 
 The C17 port implements the core typed-parenthesis evaluator, structural
 backends, Python execution, the Nix value ladder, lazy and deferred requests,
-shebang handling, and AOT packaging. The Rust edition remains authoritative
-for OIR planning, coordination-group concurrency, the full backend registry,
-the notebook, and O-core.
+shebang handling, and AOT packaging. Its interpreter and generated programs
+share registration and shim packaging for the shipped adapters. The external
+language engines used by a program must still be installed; the greeting above
+uses Python 3, Common Lisp, and Node.js. The Rust edition remains authoritative
+for OIR planning, coordination-group concurrency, the complete runtime feature
+set, the notebook, and O-core.
 
 ### Embedding the Python and C17 editions
 
@@ -5605,7 +5625,7 @@ edition supports every file.
 
 | File | What it demonstrates |
 |------|----------------------|
-| `examples/hello.O` | Smallest Python-backed O program. |
+| `examples/hello.O` | Greeting passed from Python to Common Lisp to JavaScript; requires Python 3, a supported Common Lisp runtime, and Node.js. |
 | `examples/bindings.O` | `let` and `$var` splicing. |
 | `examples/nested_splice.O` | Nested Python expressions. |
 | `examples/trailing_expr.O` | Python trailing-expression result rule. |
@@ -6219,7 +6239,7 @@ confuse with the implemented mechanisms described above.
   now restore source-digest validation; the registry derives only G0 and G2 as
   passed. This repair does not refresh the historical 26-of-26 portable native
   execution-gate observation.
-- The standalone MCP crate passed all 29 Rust tests, and the real built server
+- At the historical audited snapshot, the standalone MCP crate passed all 29 Rust tests, and the real built server
   passed a smoke of all ten tools. Separately, root Python
   `tests.test_mcp_smoke` recorded four passes and one brittle assertion failure:
   its exact command-substring expectation omits the current `--bin o-cli`

@@ -149,13 +149,13 @@
       "editions": ["rust"],
       "classification": "integration",
       "requirements": {
-        "backends": ["O", "python", "shell"],
+        "backends": ["O", "python", "quote", "shell"],
         "programs": ["python3", "sh"],
         "authorities": ["process"],
         "opt_in": ["RUN_INTERACTIVE_EXAMPLES=1"]
       },
       "expected": {
-        "rust": {"patterns": ["64-bit Ostadix Boxing Match Complete with Physics"]}
+        "rust": {"patterns": ["boxing.match/v1", "concluded"]}
       },
       "timeout_seconds": 300
     },
@@ -314,16 +314,16 @@
       "path": "hello.O",
       "compile_timeout_seconds": 120,
       "editions": ["rust", "c17", "python"],
-      "classification": "unit",
+      "classification": "integration",
       "requirements": {
-        "backends": ["O", "python"],
-        "programs": ["python3"],
+        "backends": ["O", "python", "common_lisp", "javascript"],
+        "programs": ["python3", "sbcl", "node"],
         "authorities": ["process"]
       },
       "expected": {
-        "rust": {"patterns": ["2"]},
-        "c17": {"patterns": ["2"], "modes": ["interpreter", "aot"]},
-        "python": {"result": {"tag": "int", "value": 2}}
+        "rust": {"patterns": ["hello from Python and Lisp and JavaScript!"]},
+        "c17": {"patterns": ["hello from Python and Lisp and JavaScript!"], "modes": ["interpreter", "aot"]},
+        "python": {"result": {"tag": "str", "value": "hello from Python and Lisp and JavaScript!"}}
       }
     },
 {

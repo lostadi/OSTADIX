@@ -28,6 +28,7 @@ pub(crate) use crate::native_leaf_identity::digest;
 pub use crate::native_leaf_identity::BUILTIN;
 pub const SCHEMA: &str = "ocore-native-i64-leaf-v1";
 pub const PROFILE: &str = "linux-elf-i64-acyclic-v1";
+#[cfg(any(target_os = "linux", test))]
 const MAGIC: u64 = u64::from_le_bytes(*b"OCI64v1\0");
 
 #[derive(Deserialize)]
@@ -68,10 +69,15 @@ pub struct ToolIdentity {
 }
 
 struct Audited {
+    // Static auditing runs on every host; these fields feed the Linux launcher.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     descriptor: Descriptor,
     parameter_count: usize,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     module_sha256: String,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     target: Target,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     assembler_abi: Option<&'static str>,
 }
 
@@ -291,6 +297,7 @@ pub(crate) fn validate_descriptor(text: &str, arity: usize) -> Result<()> {
 /// It reads one exact frame to EOF, calls the audited C-ABI entry, writes one
 /// exact response and exits. All integer argument counts use the platform ABI,
 /// including stack arguments; checked arithmetic detects measured size failure.
+#[cfg(any(target_os = "linux", test))]
 fn wrapper(target: Target, entry: &str, arity: usize) -> Result<String> {
     let registers = if target == Target::X86_64UnknownNone {
         6

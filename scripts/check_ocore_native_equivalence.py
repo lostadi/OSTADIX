@@ -42,9 +42,15 @@ def host_isa() -> str:
 
 
 def execution_prefix(isa: str, emulator: str | None = None) -> list[str]:
-    if isa == host_isa():
+    system = platform.system()
+    # These carriers use Linux ELF and syscalls, even when the ISA matches.
+    if system == "Linux" and isa == host_isa():
         return []
-    return [tool(emulator or "qemu-" + isa, f"{isa} user emulator; install qemu-user")]
+    label = f"{isa} user emulator; install qemu-user"
+    if system != "Linux":
+        label = (f"{isa} Linux ELF runner on {system}; matching ISA alone is insufficient; "
+                 "provide a compatible runner or use a Linux host")
+    return [tool(emulator or "qemu-" + isa, label)]
 
 
 def file_identity(path) -> dict:

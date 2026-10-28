@@ -18,6 +18,41 @@ SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 class SetupScriptTests(unittest.TestCase):
     maxDiff = None
 
+    def test_python_smoke_is_fixed_exact_and_cleans_up_on_success_and_failure(self) -> None:
+        source = SETUP.read_text(encoding="utf-8")
+        body = source.split("\nverify_python_smoke() (\n", 1)[1].split("\n)\n", 1)[0]
+        expected_source = "O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n"
+        for output, status, expected_status in (("2", 0, 0), ("[number] 2", 0, 0),
+                                                ("12", 0, 1), ("2", 7, 1),
+                                                ("2\nextra", 0, 1)):
+            with self.subTest(output=output, status=status), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "examples").mkdir()
+                (root / "examples/hello.O").write_text("not the smoke computation")
+                temporary = root / "scratch"
+                temporary.mkdir()
+                script = (
+                    "set -euo pipefail\n"
+                    "fake_runner() {\n"
+                    '  printf "%s" "$1" > "$PROJECT_ROOT/source-path"\n'
+                    '  cp "$1" "$PROJECT_ROOT/source-copy"\n'
+                    '  test "$O_BACKENDS_DIR" = "$PROJECT_ROOT/backends"\n'
+                    '  printf "%s" "$SMOKE_OUTPUT"\n'
+                    '  return "$SMOKE_STATUS"\n'
+                    "}\n"
+                    f"verify_python_smoke() (\n{body}\n)\nverify_python_smoke fake_runner\n"
+                )
+                result = subprocess.run([str(BASH), "-c", script], cwd=root, env={
+                    "PATH": SYSTEM_PATH, "PROJECT_ROOT": str(root), "TMPDIR": str(temporary),
+                    "SMOKE_OUTPUT": output, "SMOKE_STATUS": str(status),
+                }, text=True, capture_output=True, timeout=10)
+                self.assertEqual(result.returncode, expected_status, self.combined_output(result))
+                self.assertEqual((root / "source-copy").read_text(), expected_source)
+                staged = Path((root / "source-path").read_text())
+                self.assertNotEqual(staged, root / "examples/hello.O")
+                self.assertFalse(staged.exists())
+                self.assertEqual(list(temporary.iterdir()), [])
+
     def test_native_install_dispatch_keeps_required_argv_under_system_bash_nounset(self) -> None:
         # Execute the real function bodies, not setup's global installation
         # flow. On macOS /bin/bash is 3.2, whose nounset rejects empty arrays.
