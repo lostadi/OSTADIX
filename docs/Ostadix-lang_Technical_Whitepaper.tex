@@ -5620,9 +5620,9 @@ evidence needed to extend them.
 \textbf{Surface} & \textbf{Exact boundary} \\
 \midrule
 \endhead
-Source and installed tools & Source describes the pinned commit. The October
-grounding commands require a build containing that source; installed tools
-probed during this revision still rejected them. \\
+Source and installed tools & Source describes the pinned commit. Installed
+binaries have their own build identity; source support and an installation's
+option support must be checked separately. \\
 Native front door & Compiled \texttt{o} owns operational routing and shared
 discovery. The compatibility script launches that owner. Catalog discovery
 alone proves neither installed flag support nor backend readiness. \\
@@ -5663,9 +5663,9 @@ from the consuming policy. \\
 Native qualification & Portable QEMU, hardware KVM, Linux guest, physical boot,
 Secure Boot, measured boot, PCI/DMA/IOMMU, and cross-machine execution require
 their own evidence. Passing one profile does not complete World-alpha. \\
-Current test scope & The document revision reran the focused checks in
-Section~\ref{sec:validation}. Full workspace, remote platform, and native boot
-matrices remain separate qualification runs. \\
+Current test scope & Section~\ref{sec:validation} records retained host and
+native repair runs at their actual source coordinates. Document compilation
+and review do not rerun those execution matrices or qualify other substrates. \\
 \bottomrule
 \end{longtable}
 \endgroup
