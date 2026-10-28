@@ -31,6 +31,8 @@
 #   Kernel layer needs: clang (x86_64-unknown-none-elf assembler), an LLD-class
 #   linker, and qemu-system-x86_64. Hosted layer needs: cargo, python3; node for
 #   javascript^, etc. Missing optional tools are reported and skipped.
+#   Host tests default to no debug symbols or incremental caches; explicit
+#   CARGO_PROFILE_DEV_DEBUG, CARGO_PROFILE_TEST_DEBUG and CARGO_INCREMENTAL win.
 # =============================================================================
 set -Eeuo pipefail
 
@@ -246,6 +248,12 @@ phase_smoke() {
 phase_tests() {
   say "Layer 5 — host test suite"
   need cargo
+  # The full workspace produces many large runtime/test binaries. Keep every
+  # test enabled without multiplying disk use by debug data and incremental
+  # caches. Callers can opt back in through Cargo's standard environment.
+  local -x CARGO_PROFILE_DEV_DEBUG="${CARGO_PROFILE_DEV_DEBUG:-0}"
+  local -x CARGO_PROFILE_TEST_DEBUG="${CARGO_PROFILE_TEST_DEBUG:-$CARGO_PROFILE_DEV_DEBUG}"
+  local -x CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-0}"
   cargo test -q --workspace --all-targets --all-features || die "cargo test failed"
   cargo test -q --package o-lang --test parser_proptest        || die "parser proptest failed"
   # Byte-reproducibility of ocore object emission across source dirs (CI gate).
