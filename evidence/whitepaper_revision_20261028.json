@@ -81,8 +81,8 @@
     "mac_cli_pass": 108
   },
   "document_artifact": {
-    "pdf_sha256": "55dbb06d4ee5d3c720bb97671884ceb34803c3359d55dc8b50906939fa6a3a8a",
-    "tex_sha256": "b5ae0b608bf8dceb917913c6feae89d21a704fd885486752a9eb524348e6af2d",
+    "pdf_sha256": "c846292dc053ddb756f4e136ca9822cb93b0728382a7fd56b804aa2f47574c37",
+    "tex_sha256": "07098ca41e71971605ca515141fedca1d1692e8bea0b331cbe98178805329ab3",
     "pages": 89,
     "pdf_version": "1.7",
     "tectonic": "Tectonic 0.17.0",
@@ -96,6 +96,6 @@
       "all cited source paths present in pinned runtime tree",
       "all-page contact sheets and enlarged native/evidence pages reviewed"
     ],
-    "repeat_build": "Two fresh cached builds before the final prose-only log-location edit produced identical PDF bytes."
+    "repeat_build": "Two fresh cached builds of an earlier revision before final editorial corrections produced identical PDF bytes."
   }
 }
