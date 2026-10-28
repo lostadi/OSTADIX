@@ -57,7 +57,7 @@ introduced by this transport.
 | `o_env` | Print roots, `O` / `olangc` paths, shim presence, and the 30-backend runtime summary |
 | `o_runtimes` | Report executable discovery and catalog value capabilities for every canonical backend and supported alternative runtime set |
 | `o_doctor` | Existence checks + shim inventory + complete runtime report + resolved external or bundled search corpus |
-| `o_smoke` | `O examples/hello.O <absolute-backends>` — expect `2` |
+| `o_smoke` | Runs a private fixed Python `1 + 1` fixture through `O` with the resolved backends — expects `2`; independent of the public polyglot greeting |
 | `o_analyze_intent` | Nonexecutingly compute a stable execution intent and return a bounded, expiring, one-use opaque handle |
 | `o_execute_intent` | Consume that handle and require `O` to recompute the same source and execution-intent digests before fresh Graph V2/Evidence and Admission V6 dispatch |
 | `o_run` | Structured unified operation: accept exactly one complete `.O` `source` or existing `path`. Default `mode=execute` routes work through the unified project-aware front door and returns decoded value/project results. `mode=check` returns the non-executing unified static plan/graph validation and never contacts a node or mesh. Optional `route` resolves genuinely ambiguous projects. `placement=node` submits the complete document to one selected hosted node. `placement=project_mesh` requires authenticated project-route mesh execution with local fallback disabled; neither placement splits an ordinary OIR graph. |

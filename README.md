@@ -77,8 +77,9 @@ The system has two computational languages:
    evaluator environments, deferred work, project routes, operating-system
    values, and distributed placement through typed parentheses and `OValue`.
 2. **O-core**, written in `.oc`, compiles statically typed machine computation
-   through resolved HIR and SSA MIR into freestanding x86_64 and bounded
-   AArch64 objects. OKernel is built through this pipeline.
+   through resolved HIR and SSA MIR into freestanding x86_64, AArch64 and
+   RV64GC objects. The existing x86_64 and AArch64 kernel profiles use this
+   pipeline; an ISA backend does not by itself qualify a kernel port.
 
 OIR models orchestration among evaluators. O-core MIR models control flow,
 memory, ABI, atomics, hardware operations, and native execution. That division
@@ -105,23 +106,21 @@ G13 qualification gates is named **OSTADIX Alpha**.
 - [Architecture](ARCHITECTURE.md)
 - [Claim and evidence index](docs/CLAIMS.md)
 
-The artifact set is pinned to master commit
-`36787b16476bc0c8c4ddf665c7228b314d04e716`. At that snapshot,
-`ostadix-api` owns 42 engine modules. Its 36 public module identities are
-reexported by the root compatibility library. The root Cargo package declares
-14 binaries, including `ogit` and `ocore-kernel-world-record`. The backend
-catalog contains 30 canonical backends and six aliases, including canonical
-`ubuntu_vm` with the `ubuntu` alias. That snapshot tracks 44 recursively
-discovered `.O` examples. The in-checkout MCP server exposes 10 tools. Native
-release evidence contains 26 required portable QEMU gates and one supplemental
-hardware gate.
+The technical whitepaper is revised through 28 October 2026 and pins the
+published canonical runtime source `f472c983deb83d260d4d52e77aa4dd8740710dc5`.
+It covers the three native compiler targets, original-module import and
+source recipes, hosted reference-edition repairs, MCP HTTP/OAuth, and native
+image repairs. Its dated evidence table separates the 26/26 portable QEMU
+result from Linux and Mac host tests and the earlier compiler experiments.
+The [revision evidence summary](evidence/whitepaper_revision_20261028.json)
+records source coordinates, counts and retained-log identities. Rebuild the
+paper with `python3 scripts/build_whitepaper.py --install` (Tectonic and qpdf).
 
-The isolated audit of that pinned snapshot recorded 1,351 passing tests and
-three ignored tests. Its portable native aggregate recorded 26 of 26 required
-gates passing. The exact historical validation scope and the then-observed G0
-evidence continuity defect are recorded in
-[Validation at the historical audited master](#validation-at-the-historical-audited-master) and
-[Exact implementation boundaries](#exact-implementation-boundaries).
+The compiler-emitted HGraph figures retain their August snapshot at
+`36787b16476bc0c8c4ddf665c7228b314d04e716`. The earlier 1,351-test audit,
+26-gate native result and then-observed G0 continuity defect remain dated in
+[Validation at the historical audited master](#validation-at-the-historical-audited-master).
+These historical illustrations and results are not relabelled as October runs.
 
 The current M3 boundary is specified separately by [OIR Execution Fabric
 V1](docs/OIR_EXECUTION_FABRIC_V1.md) and the [authenticated pure
@@ -5212,7 +5211,7 @@ flowchart TD
     G2 --> Q["Required portable manifest"]
     SMP --> Q
     KW --> Q
-    Q --> E["26 required QEMU gates<br/>201 exact transcript markers"]
+    Q --> E["26 required QEMU gates<br/>202 exact transcript markers"]
     KW -.-> HW["Mode 21 supplemental<br/>AMD SVM and KVM"]
 ```
 

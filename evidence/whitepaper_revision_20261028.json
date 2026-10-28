@@ -1,0 +1,101 @@
+{
+  "schema": "ostadix.whitepaper-revision/v1",
+  "date": "2026-10-28",
+  "kind": "retained-evidence-summary",
+  "author": "Lee Daghlar Ostadi",
+  "scope_notes": [
+    "This record summarizes retained logs; it does not execute gates.",
+    "Raw logs remain in local target/validation-logs and are not included in this record.",
+    "Portable QEMU run is at d9af173f; final Linux host suite at 62c7f8f0.",
+    "Mac logs record the October 28 repair validation without an embedded exact source commit.",
+    "Passing optional Cargo tests may return early without external runtime execution.",
+    "2362 Linux passing invocations include three repeats after the 2359-test workspace suite.",
+    "No physical-machine, supplemental hardware-KVM or complete external-runtime qualification is inferred."
+  ],
+  "mac-cargo-api-20261028.log": {
+    "sha256": "88cdcf4175cf5c6b358df7c8483a6c17212043280477449a1b78d2ad80b00089",
+    "bytes": 2618
+  },
+  "mac-cli-20261028.log": {
+    "sha256": "8ebfad446811622e89284b9850fc8fb89897a04c9e7fafa3756ce2bf3feff510",
+    "bytes": 5770
+  },
+  "mac-cargo-root-20261028.log": {
+    "sha256": "181dbd3214511174f9900b816d28ea8624a606fc5fa733ddbfb732eb81b8e103",
+    "bytes": 10366
+  },
+  "a51-final-smoke-20261028.log": {
+    "sha256": "02c5d31e0142f7f1d4e023966dce776a16deff7d54ff5bee97dd44e33ccb72c0",
+    "bytes": 75811
+  },
+  "a51-host-tests-20261028.log": {
+    "sha256": "123274bc5127bf6285dc4f52dfb9677b5bf4081e8920989be9b3caf17bc56824",
+    "bytes": 16424
+  },
+  "mac-mcp-live-20261028.log": {
+    "sha256": "5b258bc36908ea601955400186477d12359957488cecab15d0d25d3b0aae8ba9",
+    "bytes": 78
+  },
+  "language-source-check.json": {
+    "sha256": "47ff1d729429f4b2667f3760389054a63fd666489a1a583cd0ae0f6c1268bb23",
+    "bytes": 181322
+  },
+  "coordinates": {
+    "bm_commit": "62c7f8f043dddad890e4ef048c563b1199a8a678",
+    "canonical_commit": "f472c983deb83d260d4d52e77aa4dd8740710dc5",
+    "same_tree": "627afd3ee65c829a3edce3e3bd6ba86db4660017",
+    "qemu_log_source_commit": "d9af173fa6a54c8cdedb17968658b395c1505250"
+  },
+  "counts": {
+    "workspace_members": 3,
+    "explicit_root_binaries": 15,
+    "api_modules": 51,
+    "api_public_modules": 43,
+    "api_nonpublic_modules": 8,
+    "root_engine_reexports": 42,
+    "root_cli_modules": 2,
+    "commands": 23,
+    "guides": 11,
+    "mcp_tools": 21,
+    "required_native_gates": 26,
+    "required_exact_markers": 202,
+    "supplemental_hardware_gate": 1,
+    "world_alpha_gates": 14,
+    "language_sources": 235,
+    "hosted_O": 86,
+    "native_oc": 149,
+    "parsed": 235,
+    "executed_by_parser_check": 0,
+    "html_exports": 101,
+    "a51_workspace_pass": 2359,
+    "a51_workspace_ignored": 5,
+    "a51_complete_log_pass_invocations": 2362,
+    "a51_example_pass": 42,
+    "a51_example_skipped": 10,
+    "mac_root_pass": 921,
+    "mac_root_ignored": 1,
+    "mac_api_pass": 1414,
+    "mac_api_ignored": 3,
+    "mac_packages_total_pass": 2335,
+    "mac_packages_total_ignored": 4,
+    "mac_cli_pass": 108
+  },
+  "document_artifact": {
+    "pdf_sha256": "55dbb06d4ee5d3c720bb97671884ceb34803c3359d55dc8b50906939fa6a3a8a",
+    "tex_sha256": "b5ae0b608bf8dceb917913c6feae89d21a704fd885486752a9eb524348e6af2d",
+    "pages": 89,
+    "pdf_version": "1.7",
+    "tectonic": "Tectonic 0.17.0",
+    "qpdf": "qpdf version 12.4.2",
+    "source_date_epoch": 1793164714,
+    "validation": [
+      "qpdf structure check passed",
+      "authored Info only; no dates, tool identities, PTEX or XMP",
+      "no undefined references or overfull text boxes",
+      "both published PDF copies identical",
+      "all cited source paths present in pinned runtime tree",
+      "all-page contact sheets and enlarged native/evidence pages reviewed"
+    ],
+    "repeat_build": "Two fresh cached builds before the final prose-only log-location edit produced identical PDF bytes."
+  }
+}

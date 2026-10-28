@@ -76,8 +76,9 @@ receiving HTML expression. The nesting itself is the interface.</p>
 evaluator environments, deferred work, project routes, operating-system
 values, and distributed placement through typed parentheses and <code>OValue</code>.</li>
 <li><strong>O-core</strong>, written in <code>.oc</code>, compiles statically typed machine computation
-through resolved HIR and SSA MIR into freestanding x86_64 and bounded
-AArch64 objects. OKernel is built through this pipeline.</li>
+through resolved HIR and SSA MIR into freestanding x86_64, AArch64 and
+RV64GC objects. The existing x86_64 and AArch64 kernel profiles use this
+pipeline; an ISA backend does not by itself qualify a kernel port.</li>
 </ol>
 <p>OIR models orchestration among evaluators. O-core MIR models control flow,
 memory, ABI, atomics, hardware operations, and native execution. That division
@@ -102,22 +103,20 @@ G13 qualification gates is named <strong>OSTADIX Alpha</strong>.</p>
 <li><a href="ARCHITECTURE.md">Architecture</a></li>
 <li><a href="docs/CLAIMS.md">Claim and evidence index</a></li>
 </ul>
-<p>The artifact set is pinned to master commit
-<code>36787b16476bc0c8c4ddf665c7228b314d04e716</code>. At that snapshot,
-<code>ostadix-api</code> owns 42 engine modules. Its 36 public module identities are
-reexported by the root compatibility library. The root Cargo package declares
-14 binaries, including <code>ogit</code> and <code>ocore-kernel-world-record</code>. The backend
-catalog contains 30 canonical backends and six aliases, including canonical
-<code>ubuntu_vm</code> with the <code>ubuntu</code> alias. That snapshot tracks 44 recursively
-discovered <code>.O</code> examples. The in-checkout MCP server exposes 10 tools. Native
-release evidence contains 26 required portable QEMU gates and one supplemental
-hardware gate.</p>
-<p>The isolated audit of that pinned snapshot recorded 1,351 passing tests and
-three ignored tests. Its portable native aggregate recorded 26 of 26 required
-gates passing. The exact historical validation scope and the then-observed G0
-evidence continuity defect are recorded in
-<a href="#validation-at-the-historical-audited-master">Validation at the historical audited master</a> and
-<a href="#exact-implementation-boundaries">Exact implementation boundaries</a>.</p>
+<p>The technical whitepaper is revised through 28 October 2026 and pins the
+published canonical runtime source <code>f472c983deb83d260d4d52e77aa4dd8740710dc5</code>.
+It covers the three native compiler targets, original-module import and
+source recipes, hosted reference-edition repairs, MCP HTTP/OAuth, and native
+image repairs. Its dated evidence table separates the 26/26 portable QEMU
+result from Linux and Mac host tests and the earlier compiler experiments.
+The <a href="evidence/whitepaper_revision_20261028.json">revision evidence summary</a>
+records source coordinates, counts and retained-log identities. Rebuild the
+paper with <code>python3 scripts/build_whitepaper.py --install</code> (Tectonic and qpdf).</p>
+<p>The compiler-emitted HGraph figures retain their August snapshot at
+<code>36787b16476bc0c8c4ddf665c7228b314d04e716</code>. The earlier 1,351-test audit,
+26-gate native result and then-observed G0 continuity defect remain dated in
+<a href="#validation-at-the-historical-audited-master">Validation at the historical audited master</a>.
+These historical illustrations and results are not relabelled as October runs.</p>
 <p>The current M3 boundary is specified separately by <a href="docs/OIR_EXECUTION_FABRIC_V1.md">OIR Execution Fabric
 V1</a> and the <a href="docs/M3_AUTHENTICATED_PURE_REMOTE_EXECUTION_DESIGN.md">authenticated pure
 remote-execution design note</a>.</p>
@@ -5168,7 +5167,7 @@ likewise accepts <code>aarch64-unknown-none</code> and <code>aarch64-unknown-non
     G2 --&gt; Q[&quot;Required portable manifest&quot;]
     SMP --&gt; Q
     KW --&gt; Q
-    Q --&gt; E[&quot;26 required QEMU gates&lt;br/&gt;201 exact transcript markers&quot;]
+    Q --&gt; E[&quot;26 required QEMU gates&lt;br/&gt;202 exact transcript markers&quot;]
     KW -.-&gt; HW[&quot;Mode 21 supplemental&lt;br/&gt;AMD SVM and KVM&quot;]
 </code></pre>
 <p>Read from source at the top to evidence at the bottom. The central column grows
