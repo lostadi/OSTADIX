@@ -100,6 +100,21 @@ def shell_array(source: str, name: str) -> tuple[str, ...]:
 
 
 class HostedLiveWorkstationPayloadTests(unittest.TestCase):
+    def test_minimal_boot_health_uses_a_fixed_python_fixture(self) -> None:
+        source = PREPARE.read_text(encoding="utf-8")
+        fixture = "/opt/ostadix/smoke/python-one-plus-one.O"
+        self.assertIn(
+            f'cat >"$STAGE{fixture}" <<\'SMOKE_SOURCE\'\n'
+            'python^( __oval_result__ = 1 + 1 )_python\nSMOKE_SOURCE\n',
+            source,
+        )
+        self.assertIn(f'chmod 0444 "$STAGE{fixture}"', source)
+        for command in ("O", "olangc", "o-link --literal"):
+            self.assertIn(f"{command} {fixture}", source)
+            self.assertNotIn(f"{command} /opt/ostadix/examples/hello.O", source)
+        self.assertIn('[ "$smoke_output" = \'[number] 2\' ]', source)
+        self.assertIn("hello.O additionally requires Common Lisp and JavaScript runtimes", source)
+
     def test_workstation_apk_lock_is_full_sorted_versioned_closure(self) -> None:
         packages = package_specs(WORKSTATION_LOCK)
         self.assertEqual(packages, sorted(set(packages)))

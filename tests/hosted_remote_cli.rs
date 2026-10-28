@@ -239,6 +239,12 @@ fn provision_profile_doctor_and_run_are_usable_end_to_end() {
     let root = tempfile::tempdir().unwrap();
     let pki = root.path().join("pki");
     let server_stderr = root.path().join("server.stderr");
+    let program = root.path().join("python-smoke.O");
+    fs::write(
+        &program,
+        "O^(\npython^(\n__oval_result__ = 1 + 1\n)_python\n)_O\n",
+    )
+    .unwrap();
     let provision = Command::new(env!("CARGO_BIN_EXE_o-node"))
         .args(["pki", "init", "--directory"])
         .arg(&pki)
@@ -317,7 +323,7 @@ fn provision_profile_doctor_and_run_are_usable_end_to_end() {
     let mut run = client_command("run", &address, &pki);
     run.args(["--task-id", "hosted-cli-task"])
         .args(["--attempt-id", "hosted-cli-attempt"])
-        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/hello.O"));
+        .arg(&program);
     let receipt = run.output().unwrap();
     assert!(
         receipt.status.success(),

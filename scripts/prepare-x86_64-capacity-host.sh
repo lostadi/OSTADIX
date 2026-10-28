@@ -438,7 +438,8 @@ fi
 rm -f -- "$STAGE/var/log/apk.log"
 
 install -d -m 0755 "$STAGE/usr/local/bin" "$STAGE/opt/ostadix/backends" \
-  "$STAGE/opt/ostadix/examples" "$STAGE/usr/share/ostadix" "$STAGE/root"
+  "$STAGE/opt/ostadix/examples" "$STAGE/opt/ostadix/smoke" \
+  "$STAGE/usr/share/ostadix" "$STAGE/root"
 install -m 0444 "$PACKAGE_LOCK" "$STAGE/usr/share/ostadix/hosted-live-apk-packages.txt"
 if [[ "$ALPINE_KERNEL_FLAVOR" == lts ]]; then
   install -m 0444 "$PACKAGE_LOCK" \
@@ -708,6 +709,12 @@ for example in hello.O wasm_hello.O webassembly_hello.O \
   install -m 0444 "$HOSTED_SOURCE_ROOT/examples/$example" \
     "$STAGE/opt/ostadix/examples/$example"
 done
+# The minimal hosted profile includes Python. Its fixed health check must not
+# acquire optional runtime dependencies when an editable example changes.
+cat >"$STAGE/opt/ostadix/smoke/python-one-plus-one.O" <<'SMOKE_SOURCE'
+python^( __oval_result__ = 1 + 1 )_python
+SMOKE_SOURCE
+chmod 0444 "$STAGE/opt/ostadix/smoke/python-one-plus-one.O"
 # Install native command routing and an unambiguous raw evaluator identity.
 install -m 0555 "$HOSTED_BIN_DIR/o-cli" "$STAGE/usr/local/bin/o"
 install -m 0555 "$HOSTED_BIN_DIR/O" "$STAGE/usr/local/bin/ostadix-evaluator"
@@ -908,7 +915,7 @@ if [ "$selected" = hosted ]; then
   esac
   cd /opt/ostadix
   smoke_output=
-  if smoke_output=$(O /opt/ostadix/examples/hello.O "$O_BACKENDS_DIR" 2>&1) \
+  if smoke_output=$(O /opt/ostadix/smoke/python-one-plus-one.O "$O_BACKENDS_DIR" 2>&1) \
       && [ "$smoke_output" = '[number] 2' ]; then
     emit_line 'OSTADIX HOSTED O SMOKE: PASS'
   else
@@ -936,7 +943,7 @@ if [ "$selected" = hosted ]; then
     emit_error 'OSTADIX HOSTED SQLITE: FAIL'
     hosted_shell
   fi
-  if olangc /opt/ostadix/examples/hello.O --target ir \
+  if olangc /opt/ostadix/smoke/python-one-plus-one.O --target ir \
       --shim-dir "$O_BACKENDS_DIR" >/tmp/ostadix-hello.ir 2>/tmp/ostadix-olangc.err \
       && [ -s /tmp/ostadix-hello.ir ]; then
     emit_line 'OSTADIX HOSTED OLANGC IR: PASS'
@@ -951,7 +958,7 @@ if [ "$selected" = hosted ]; then
     emit_error 'OSTADIX HOSTED O-CLI: FAIL'
     hosted_shell
   fi
-  if o-link --literal /opt/ostadix/examples/hello.O \
+  if o-link --literal /opt/ostadix/smoke/python-one-plus-one.O \
       -o /tmp/ostadix-linked.O >/tmp/ostadix-olink.out 2>/tmp/ostadix-olink.err \
       && [ -s /tmp/ostadix-linked.O ]; then
     emit_line 'OSTADIX HOSTED O-LINK: PASS'
@@ -1454,9 +1461,10 @@ RUST_WASM_SOURCE
   fi
     hosted_ready() {
       emit_line 'OSTADIX HOSTED LIVE READY'
-      emit_line 'Try: O /opt/ostadix/examples/hello.O "$O_BACKENDS_DIR"'
+      emit_line 'Try: O /opt/ostadix/smoke/python-one-plus-one.O "$O_BACKENDS_DIR"'
       emit_line '     O --repl "$O_BACKENDS_DIR"'
-      emit_line '     olangc /opt/ostadix/examples/hello.O --target ir --shim-dir "$O_BACKENDS_DIR"'
+      emit_line '     olangc /opt/ostadix/smoke/python-one-plus-one.O --target ir --shim-dir "$O_BACKENDS_DIR"'
+      emit_line 'examples/hello.O additionally requires Common Lisp and JavaScript runtimes.'
     }
     hosted_ready
     emit_line 'Source: /usr/src/ostadix    Scratch workspace: /workspace'
@@ -1469,9 +1477,10 @@ RUST_WASM_SOURCE
   fi
   hosted_ready() {
     emit_line 'OSTADIX HOSTED LIVE READY'
-    emit_line 'Try: O /opt/ostadix/examples/hello.O "$O_BACKENDS_DIR"'
+    emit_line 'Try: O /opt/ostadix/smoke/python-one-plus-one.O "$O_BACKENDS_DIR"'
     emit_line '     O --repl "$O_BACKENDS_DIR"'
-    emit_line '     olangc /opt/ostadix/examples/hello.O --target ir --shim-dir "$O_BACKENDS_DIR"'
+    emit_line '     olangc /opt/ostadix/smoke/python-one-plus-one.O --target ir --shim-dir "$O_BACKENDS_DIR"'
+    emit_line 'examples/hello.O additionally requires Common Lisp and JavaScript runtimes.'
   }
   hosted_ready
   hosted_shell

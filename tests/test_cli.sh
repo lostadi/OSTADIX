@@ -20,6 +20,14 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$ARTIFACT_DIR"
+SMOKE_SOURCE="$ARTIFACT_DIR/python-smoke.O"
+cat > "$SMOKE_SOURCE" <<'O_SOURCE'
+O^(
+python^(
+__oval_result__ = 1 + 1
+)_python
+)_O
+O_SOURCE
 
 RELEASE_DIR="${O_LANG_RELEASE_DIR:-$ROOT/target/release}"
 O_BIN="$RELEASE_DIR/O"
@@ -178,7 +186,7 @@ check_olangc_compile_and_run() {
     local desc="$1"
     local output_bin="$ARTIFACT_DIR/hello_compiled"
 
-    run_command "$OLANGC_BIN" examples/hello.O -o "$output_bin"
+    run_command "$OLANGC_BIN" "$SMOKE_SOURCE" -o "$output_bin"
     if [ "$RUN_EXIT" -ne 0 ]; then
         fail "$desc" "(olangc compilation failed with exit $RUN_EXIT)"
         return
@@ -220,7 +228,7 @@ check_olangc_capability_compile_and_run() {
 check_olangc_grounding_report() {
     local desc="$1"
 
-    run_command "$OLANGC_BIN" examples/hello.O \
+    run_command "$OLANGC_BIN" "$SMOKE_SOURCE" \
         --target ir \
         --grounding \
         --world-id desk \
@@ -928,65 +936,65 @@ setup_kernel_media_cli_fixture
 
 check_stderr_contains "O with no args shows usage error" 1 'Usage:|missing input file' "$O_BIN"
 check_nonzero_stderr_contains "O missing file errors" 'failed to read input file|No such file' "$O_BIN" nonexistent.O backends/
-check_stdout_contains "O runs hello.O" 0 '^(\[number\] )?2$' "$O_BIN" examples/hello.O backends/
+check_stdout_contains "O runs the Python smoke fixture" 0 '^(\[number\] )?2$' "$O_BIN" "$SMOKE_SOURCE" backends/
 check_stdout_contains "legacy backend cap attrs run without a host grant" 0 '^(\[number\] )?0$' "$O_BIN" "$CAPABILITY_SOURCE" backends/
 check_stdout_contains "backend grants remain accepted but unnecessary" 0 '^(\[number\] )?0$' "$O_BIN" --backend-grant runner=python:process "$CAPABILITY_SOURCE" backends/
 check_stdout_contains "plain Python has ambient process authority" 0 '^(\[number\] )?0$' "$O_BIN" "$AMBIENT_AUTHORITY_SOURCE" backends/
 check_stdout_contains "O --help shows usage" 0 '^Usage:' "$O_BIN" --help
 check_stdout_contains "O help defines graph worker pool capacity" 0 'local-worker pool capacity' "$O_BIN" --help
-check_nonzero_stderr_contains "O rejects a zero graph worker bound" '--workers must be at least 1' "$O_BIN" --workers 0 examples/hello.O backends/
+check_nonzero_stderr_contains "O rejects a zero graph worker bound" '--workers must be at least 1' "$O_BIN" --workers 0 "$SMOKE_SOURCE" backends/
 check_stdout_contains "olangc --help shows usage" 0 '^Usage: olangc' "$OLANGC_BIN" --help
 check_stdout_contains "olangc help advertises schedule explanation" 0 '--explain-schedule' "$OLANGC_BIN" --help
 check_stdout_contains "olangc help advertises schedule explanation formats" 0 '--format <FORMAT>' "$OLANGC_BIN" --help
 check_stdout_contains "olangc help advertises focused schedule why" 0 '--why <PLAN_NODE>' "$OLANGC_BIN" --help
 check_stdout_contains "olangc help advertises schedule worker override" 0 '--workers <N>' "$OLANGC_BIN" --help
-check_nonzero_stderr_contains "olangc rejects schedule workers without explanation" '--workers requires --explain-schedule --target ir' "$OLANGC_BIN" examples/hello.O --target ir --workers 2
-check_nonzero_stderr_contains "olangc rejects a zero schedule worker override" '--workers must be at least 1' "$OLANGC_BIN" examples/hello.O --target ir --explain-schedule --workers 0
-check_nonzero_stderr_contains "olangc rejects schedule formats without explanation" '--format requires --explain-schedule --target ir' "$OLANGC_BIN" examples/hello.O --target ir --format json
-check_nonzero_stderr_contains "olangc rejects JSON schedule output combined with grounding" '--format json is a standalone schedule view' "$OLANGC_BIN" examples/hello.O --target ir --explain-schedule --format json --grounding
+check_nonzero_stderr_contains "olangc rejects schedule workers without explanation" '--workers requires --explain-schedule --target ir' "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --workers 2
+check_nonzero_stderr_contains "olangc rejects a zero schedule worker override" '--workers must be at least 1' "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --explain-schedule --workers 0
+check_nonzero_stderr_contains "olangc rejects schedule formats without explanation" '--format requires --explain-schedule --target ir' "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --format json
+check_nonzero_stderr_contains "olangc rejects JSON schedule output combined with grounding" '--format json is a standalone schedule view' "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --explain-schedule --format json --grounding
 check_olangc_schedule_explanation "olangc explains digest-bound admission without execution"
 check_olangc_schedule_explanation_json "olangc emits typed schedule JSON without execution"
 check_olangc_schedule_why "olangc and o explain one admitted operation without execution"
 check_nonzero_stderr_contains "olangc schedule why rejects a non-IR target" \
     '--why is available only with --target ir' \
-    "$OLANGC_BIN" examples/hello.O --target script --why P0
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target script --why P0
 check_nonzero_stderr_contains "olangc schedule why rejects a malformed plan identity" \
     'expected a canonical plan node such as P3' \
-    "$OLANGC_BIN" examples/hello.O --target ir --why p0
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --why p0
 check_nonzero_stderr_contains "olangc schedule why rejects the whole admission view" \
     '--why and --explain-schedule are distinct inspection views' \
-    "$OLANGC_BIN" examples/hello.O --target ir --why P0 --explain-schedule
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --why P0 --explain-schedule
 check_nonzero_stderr_contains "olangc schedule why rejects non-executable plan text" \
     'P1 exists in the ExecutionPlan as `text` but is not an admitted executable operation' \
-    "$OLANGC_BIN" examples/hello.O --target ir --why P1
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --why P1
 check_nonzero_stderr_contains "olangc schedule why rejects project HGraphs" \
     '--explain-schedule and --why currently admit ordinary .O HGraphs only' \
     "$OLANGC_BIN" examples/group_pipeline --target ir --why P0
 check_nonzero_stderr_contains "olangc schedule explanation rejects a non-IR target" \
     '--explain-schedule is available only with --target ir' \
-    "$OLANGC_BIN" examples/hello.O --target script --explain-schedule
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target script --explain-schedule
 check_olangc_grounding_report "olangc grounding reports exact World and residual HostWorld"
 check_nonzero_stderr_contains "olangc grounding rejects a non-IR target" \
     '--grounding is available only with --target ir' \
-    "$OLANGC_BIN" examples/hello.O --target dot --grounding
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target dot --grounding
 check_nonzero_stderr_contains "olangc World flags require grounding" \
     '--world-id and --world-epoch require --grounding --target ir' \
-    "$OLANGC_BIN" examples/hello.O --target ir --world-id desk --world-epoch 4
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --world-id desk --world-epoch 4
 check_nonzero_stderr_contains "olangc World identity requires an epoch" \
     '--world-id requires --world-epoch' \
-    "$OLANGC_BIN" examples/hello.O --target ir --grounding --world-id desk
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --grounding --world-id desk
 check_nonzero_stderr_contains "olangc World epoch requires an identity" \
     '--world-epoch requires --world-id' \
-    "$OLANGC_BIN" examples/hello.O --target ir --grounding --world-epoch 4
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --grounding --world-epoch 4
 check_nonzero_stderr_contains "olangc grounding rejects an invalid World identity" \
     'world identity .*unsupported character or path component' \
-    "$OLANGC_BIN" examples/hello.O --target ir --grounding \
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --grounding \
     --world-id desk/escape --world-epoch 4
 check_nonzero_stderr_contains "olangc grounding rejects World epoch zero" \
     'world epoch must be nonzero' \
-    "$OLANGC_BIN" examples/hello.O --target ir --grounding \
+    "$OLANGC_BIN" "$SMOKE_SOURCE" --target ir --grounding \
     --world-id desk --world-epoch 0
-check_olangc_compile_and_run "olangc compiles hello.O and the output runs"
+check_olangc_compile_and_run "olangc compiles the Python smoke fixture and the output runs"
 check_olangc_capability_compile_and_run "olangc compiles legacy backend cap attrs without a host grant"
 check_stdout_contains "ocorec --help shows usage" 0 '^Usage: ocorec' "$OCOREC_BIN" --help
 check_ocore_compile "ocorec emits x86-64 freestanding ELF object"
@@ -1174,10 +1182,10 @@ check_stdout_contains "ogit semantic diff detects policy change" 0 'runtime dema
 check_stdout_contains "olink help shows usage" 0 'Usage: (olink|o-link)' "$OLINK_BIN" --help
 check_olink_hardened_round_trip
 check_nonzero_stderr_contains "O invalid syntax exits with an error" 'failed to parse \.O source|error:' "$O_BIN" "$INVALID_SOURCE" backends/
-check_stdout_contains "O --check validates a valid file" 0 '^ok$' "$O_BIN" --check examples/hello.O backends/
-check_stdout_contains "O --json --check reports structured success" 0 '"ok":true' "$O_BIN" --json --check examples/hello.O backends/
+check_stdout_contains "O --check validates a valid file" 0 '^ok$' "$O_BIN" --check "$SMOKE_SOURCE" backends/
+check_stdout_contains "O --json --check reports structured success" 0 '"ok":true' "$O_BIN" --json --check "$SMOKE_SOURCE" backends/
 check_stdout_contains "O --json --check reports structured parse errors" 1 '"ok":false.*"stage":"parse"' "$O_BIN" --json --check "$INVALID_SOURCE" backends/
-check_stdout_contains "O --json runs hello.O with structured output" 0 '"ok":true.*"value".*"elapsed_ms"' "$O_BIN" --json examples/hello.O backends/
+check_stdout_contains "O --json runs the Python smoke fixture with structured output" 0 '"ok":true.*"value".*"elapsed_ms"' "$O_BIN" --json "$SMOKE_SOURCE" backends/
 check_stdout_contains "O --eval evaluates an inline expression" 0 '^(\[number\] )?2$' "$O_BIN" --eval 'python^(
 __oval_result__ = 1 + 1
 )_python' backends/
