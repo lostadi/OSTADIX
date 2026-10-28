@@ -126,7 +126,7 @@ def plan(root: Path, *, system: str | None = None, machine: str | None = None,
         add("ocore-kernel", missing=("disabled by --minimal/--no-ocore",))
     if native:
         wasi = add("wasi-artifact", ("rustc", "cargo"), [[str(root / "target/release/olangc"), str(root / "examples/hello.O"), "--target", "wasm", "-o", str(root / "target/setup-components/hello.wasm")]],
-                   note="WASI compile artifact; foreign Python execution requires an explicit runtime/provider, and is not claimed as browser execution", artifact="target/setup-components/hello.wasm")
+                   note="WASI compile artifact; foreign backend execution requires explicit runtimes/providers, and is not claimed as browser execution", artifact="target/setup-components/hello.wasm")
         # Detect the standard library without executing rustup in read-only modes.
         rustup_home = Path(env.get("RUSTUP_HOME", str(home / ".rustup")))
         toolchain_file = root / "rust-toolchain.toml"

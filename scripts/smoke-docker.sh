@@ -36,6 +36,9 @@ cleanup() {
     rm -rf -- "$work_dir"
 }
 trap cleanup EXIT HUP INT TERM
+cat >"$work_dir/python-one-plus-one.O" <<'SMOKE_SOURCE'
+python^( __oval_result__ = 1 + 1 )_python
+SMOKE_SOURCE
 
 require_exact() {
     local label=$1 expected=$2 actual=$3
@@ -91,13 +94,13 @@ for key, value in expected.items():
 PY
 printf 'Docker current V6 and archival Intent V1 coordinates: PASS\n'
 
-hello_output="$(
+smoke_output="$(
     "$docker_bin" run --rm \
-        --mount "type=bind,src=$repo_root,dst=/work,readonly" \
-        "$image" examples/hello.O
+        --mount "type=bind,src=$work_dir,dst=/work,readonly" \
+        "$image" /work/python-one-plus-one.O
 )"
-require_exact "hello.O output" "[number] 2" "$hello_output"
-printf 'Docker read-only hello.O: PASS\n'
+require_exact "private Python smoke output" "[number] 2" "$smoke_output"
+printf 'Docker read-only Python smoke: PASS\n'
 
 project_output="$work_dir/project.O"
 "$docker_bin" run --rm \
