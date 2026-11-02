@@ -231,6 +231,12 @@ fn native_leaf_graph_rejects_deleted_resource_dependency() {
 
 #[test]
 fn native_leaf_trap_inside_a_batch_is_a_member_error_and_never_a_publication() {
+    // the trap has to come from a really compiled leaf; without a trusted
+    // clang and ld the member fails at tool lookup, which proves nothing here.
+    if let Some(reason) = crate::native_leaf::missing_native_tool() {
+        eprintln!("SKIP-OPTIONAL: a native trap needs real native tools: {reason}");
+        return;
+    }
     let text = BackendRegistry::global().interface_for("text");
     let program = OIrProgram {
         nodes: vec![

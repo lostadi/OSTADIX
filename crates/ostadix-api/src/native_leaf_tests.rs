@@ -380,6 +380,11 @@ fn division_leaf(kind: &str, width: u16, lhs: Side, rhs: Side) -> Json {
 #[cfg(target_os = "linux")]
 #[test]
 fn division_matches_the_interpreter_at_i1_and_i64_through_owned_native_code() {
+    // every case runs owned native code, which needs a trusted clang and ld.
+    if let Some(reason) = missing_native_tool() {
+        eprintln!("SKIP-OPTIONAL: native division needs real native tools: {reason}");
+        return;
+    }
     use crate::ocore::native_interpret::evaluate;
     use num_bigint::BigUint;
     use Side::{Constant, Runtime};
