@@ -932,6 +932,21 @@ fn locate_tool(
     )
 }
 
+/// Why a test that really assembles and links a leaf cannot run here, if it
+/// cannot. it asks the same absolute-path lookup `prepare` uses, so pinning
+/// `O_NATIVE_CLANG` / `O_NATIVE_LD` to absolute paths makes such tests run.
+#[cfg(all(test, target_os = "linux"))]
+pub(crate) fn missing_native_tool() -> Option<String> {
+    let search_path = std::env::var_os("PATH");
+    [("clang", NATIVE_CLANG_ENV), ("ld", NATIVE_LD_ENV)]
+        .into_iter()
+        .find_map(|(name, pin_env)| {
+            locate_tool(name, pin_env, std::env::var_os(pin_env), &search_path)
+                .err()
+                .map(|error| format!("{error:#}"))
+        })
+}
+
 /// The tools' LD_LIBRARY_PATH: only what `O_NATIVE_TOOL_LIBRARY_PATH` sets,
 /// and only absolute entries, so a hostile library dir in the caller's own
 /// LD_LIBRARY_PATH (or a relative entry resolved against the cwd) cannot
