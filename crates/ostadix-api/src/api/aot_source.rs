@@ -15,6 +15,9 @@
 pub const RUNTIME_VALUE_RS: &str = include_str!("../value.rs");
 /// Exact shared-helper names used by adapter admission in generated runtimes.
 pub const RUNTIME_SHIM_SUPPORT_NAMES: &[&str] = crate::shims::BUNDLED_SHIM_SUPPORT_NAMES;
+/// The private temp-directory helper the project materializer calls through
+/// `crate::shims`, shared byte for byte with the engine.
+pub const RUNTIME_PRIVATE_DIR_RS: &str = include_str!("../private_dir.inc.rs");
 pub const RUNTIME_CANCELLATION_RS: &str = include_str!("../cancellation.rs");
 pub const RUNTIME_PROGRESS_RS: &str = include_str!("../progress.rs");
 pub const RUNTIME_STEP_KNOBS_RS: &str = include_str!("../step_knobs.rs");
