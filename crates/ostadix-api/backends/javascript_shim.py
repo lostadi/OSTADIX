@@ -24,27 +24,102 @@ def send_err(message):
     write_wire_message({"status": "err", "message": message})
 
 
+_MAX_SAFE_INTEGER = 9007199254740991
+_IDENT_RE = o_shim_common.re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _int_literal(val):
+    n = int(val)
+    if -_MAX_SAFE_INTEGER <= n <= _MAX_SAFE_INTEGER:
+        return str(n)
+    return f"{n}n"
+
+
+def _float_literal(val, path):
+    f = float(val)
+    if not o_shim_common.math.isfinite(f):
+        raise ValueError(
+            f"javascript binding `{path}` has unsupported non-finite float"
+        )
+    if f == 0.0 and o_shim_common.math.copysign(1.0, f) < 0.0:
+        return "-0"
+    return repr(f)
+
+
+def _number_literal(num, path):
+    if not isinstance(num, dict):
+        raise ValueError(f"javascript binding `{path}` has invalid number payload")
+    kind = num.get("kind")
+    if kind == "int":
+        return _int_literal(num.get("v", 0))
+    if kind == "binary_float":
+        fmt = num.get("format")
+        bits = bytes(num.get("bits", []))
+        if fmt == "f32" and len(bits) == 4:
+            val = o_shim_common.struct.unpack(">f", bits)[0]
+            return _float_literal(val, path)
+        if fmt == "f64" and len(bits) == 8:
+            val = o_shim_common.struct.unpack(">d", bits)[0]
+            return _float_literal(val, path)
+    raise ValueError(
+        f"javascript binding `{path}` has unsupported numeric value `{kind}`"
+    )
+
+
+def _oval_to_js_literal(oval, path):
+    if not isinstance(oval, dict):
+        return json.dumps(oval)
+    t = oval.get("t")
+    v = oval.get("v")
+    if t == "str":
+        return json.dumps(v)
+    if t == "text":
+        return json.dumps(v.get("utf8", "") if isinstance(v, dict) else "")
+    if t == "int":
+        return _int_literal(v)
+    if t == "float":
+        return _float_literal(v, path)
+    if t == "number":
+        return _number_literal(v, path)
+    if t == "bool":
+        return "true" if v else "false"
+    if t == "null":
+        return "null"
+    if t == "list":
+        items = [
+            _oval_to_js_literal(item, f"{path}[{idx}]")
+            for idx, item in enumerate(v or [])
+        ]
+        return "[" + ", ".join(items) + "]"
+    if t == "map":
+        entries = []
+        for key in sorted((v or {}).keys()):
+            entries.append(
+                f"{json.dumps(str(key))}: {_oval_to_js_literal(v[key], f'{path}.{key}')}"
+            )
+        return "{" + ", ".join(entries) + "}"
+    if t == "native":
+        return json.dumps(oval)
+    raise ValueError(f"javascript binding `{path}` has unsupported value type `{t}`")
+
+
 def handle_exec(cmd):
     code = cmd.get("code", "")
     bindings = cmd.get("bindings", {})
 
     # Inject bindings as top-level const declarations.
     preamble = ""
-    for name, oval in bindings.items():
-        t = oval.get("t")
-        v = oval.get("v")
-        if t == "str":
-            preamble += f"const {name} = {json.dumps(v)};\n"
-        elif t in ("int", "float"):
-            preamble += f"const {name} = {v};\n"
-        elif t == "bool":
-            preamble += f"const {name} = {'true' if v else 'false'};\n"
-        elif t == "null":
-            preamble += f"const {name} = null;\n"
-        elif t == "list":
-            preamble += f"const {name} = {json.dumps(v)};\n"
-        elif t == "map":
-            preamble += f"const {name} = {json.dumps(v)};\n"
+    try:
+        for name in sorted(bindings.keys()):
+            if not _IDENT_RE.match(name):
+                continue
+            oval = bindings[name]
+            t = oval.get("t") if isinstance(oval, dict) else None
+            if t in ("str", "text", "int", "float", "number", "bool", "null", "list", "map", "native"):
+                preamble += f"const {name} = {_oval_to_js_literal(oval, name)};\n"
+    except ValueError as exc:
+        send_err(str(exc))
+        return
 
     full_code = preamble + code
 
