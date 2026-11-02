@@ -168,6 +168,11 @@ pub fn extract_bundled_shims(prefix: &str) -> Result<ExtractedShims> {
 // runtimes, whose materializer calls it, compile the very same bytes.
 include!("private_dir.inc.rs");
 
+/// Create a fresh private directory `<temp>/<prefix>_<pid>_<random>`.
+pub fn create_private_dir(prefix: &str) -> Result<PathBuf> {
+    create_private_dir_with_separator(prefix, '_')
+}
+
 pub fn extract_shims(prefix: &str, shims: &[(String, Vec<u8>)]) -> Result<ExtractedShims> {
     let dir = create_private_dir(prefix)?;
     // the guard owns the directory from here, so a failed write removes it.

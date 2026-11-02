@@ -7,8 +7,13 @@
 // create_dir_all) refuses any existing path, symlinks included, and 0700 keeps
 // other users out.
 
-/// Create a fresh private directory `<temp>/<prefix>_<pid>_<random>`.
-pub fn create_private_dir(prefix: &str) -> anyhow::Result<std::path::PathBuf> {
+/// Create a fresh private directory `<temp>/<prefix><sep><pid><sep><random>`.
+/// callers pick the separator because some names are matched by globs that
+/// users already wrote, e.g. a project workspace under `*/olang-ws-*`.
+pub fn create_private_dir_with_separator(
+    prefix: &str,
+    separator: char,
+) -> anyhow::Result<std::path::PathBuf> {
     use anyhow::Context as _;
     let base = std::env::temp_dir();
     let mut builder = std::fs::DirBuilder::new();
@@ -21,7 +26,7 @@ pub fn create_private_dir(prefix: &str) -> anyhow::Result<std::path::PathBuf> {
         let mut random = [0u8; 16];
         getrandom::fill(&mut random).map_err(|error| anyhow::anyhow!("{error}"))?;
         let dir = base.join(format!(
-            "{prefix}_{}_{}",
+            "{prefix}{separator}{}{separator}{}",
             std::process::id(),
             hex::encode(random)
         ));

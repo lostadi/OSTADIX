@@ -38,8 +38,10 @@ impl Drop for Workspace {
 
 /// A fresh workspace root: mode 0700 under the temp dir, with a random name
 /// created exclusively, so another user can neither predict nor plant it.
+/// the name keeps the historical `olang-ws-` prefix because project commands
+/// recognize their isolated workspace with globs such as `*/olang-ws-*`.
 fn unique_temp_dir() -> Result<PathBuf> {
-    crate::shims::create_private_dir("olang-ws")
+    crate::shims::create_private_dir_with_separator("olang-ws", '-')
 }
 
 /// Validate that a stored relative path is safe (relative, no `..`, no root)
@@ -219,9 +221,10 @@ mod private_root_tests {
             let mode = std::fs::metadata(root).unwrap().permissions().mode();
             assert_eq!(mode & 0o777, 0o700, "{}", root.display());
             let name = root.file_name().unwrap().to_string_lossy().into_owned();
-            assert!(name.starts_with("olang-ws_"), "{name}");
+            // user globs like `*/olang-ws-*` must keep matching the root.
+            assert!(name.starts_with("olang-ws-"), "{name}");
             // pid then 32 hex digits of randomness.
-            let random = name.rsplit('_').next().unwrap();
+            let random = name.rsplit('-').next().unwrap();
             assert_eq!(random.len(), 32, "{name}");
             assert!(
                 random.bytes().all(|byte| byte.is_ascii_hexdigit()),
