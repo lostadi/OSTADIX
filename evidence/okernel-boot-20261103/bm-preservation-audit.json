@@ -1,0 +1,150 @@
+{
+  "base": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+  "implementation_commit": "f8f06f188834cfd75baa1ada879dcd504d46c1a0",
+  "canonical_code_commit": "e29dcdb33904c869466e8a1b5ba9d66815450c34",
+  "cherry_pick_conflicts": false,
+  "deleted_tracked_paths": [],
+  "modified_oc_exports": [
+    {
+      "path": "ocore/runtime/aarch64/kernel_world_monitor.oc",
+      "old_public_names": [],
+      "removed_public_names": [],
+      "added_public_names": []
+    },
+    {
+      "path": "ocore/runtime/aarch64/kernel_world_virtio.oc",
+      "old_public_names": [],
+      "removed_public_names": [],
+      "added_public_names": []
+    },
+    {
+      "path": "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+      "old_public_names": [],
+      "removed_public_names": [],
+      "added_public_names": []
+    }
+  ],
+  "protected_x86_paths_unchanged": {
+    "ocore/kernel/run-qemu.sh": true,
+    "ocore/kernel/build.sh": true,
+    "ocore/runtime/x86_64/address_space.oc": true,
+    "ocore/runtime/x86_64/cap_transfer.oc": true,
+    "ocore/runtime/x86_64/capability.oc": true,
+    "ocore/runtime/x86_64/delegated_resource.oc": true,
+    "ocore/runtime/x86_64/domain.oc": true,
+    "ocore/runtime/x86_64/domain_namespace.oc": true,
+    "ocore/runtime/x86_64/elf_loader.oc": true,
+    "ocore/runtime/x86_64/endpoint.oc": true,
+    "ocore/runtime/x86_64/endpoint_probe_stub.oc": true,
+    "ocore/runtime/x86_64/image_vfs.oc": true,
+    "ocore/runtime/x86_64/image_vfs_storage.oc": true,
+    "ocore/runtime/x86_64/image_vfs_storage_m7.oc": true,
+    "ocore/runtime/x86_64/interrupts.oc": true,
+    "ocore/runtime/x86_64/ipc_lifecycle.oc": true,
+    "ocore/runtime/x86_64/ipc_wait.oc": true,
+    "ocore/runtime/x86_64/kernel_world_admission.oc": true,
+    "ocore/runtime/x86_64/kernel_world_boot.oc": true,
+    "ocore/runtime/x86_64/kernel_world_boot_stub.oc": true,
+    "ocore/runtime/x86_64/kernel_world_device.oc": true,
+    "ocore/runtime/x86_64/kernel_world_device_stub.oc": true,
+    "ocore/runtime/x86_64/kernel_world_execution.oc": true,
+    "ocore/runtime/x86_64/kernel_world_execution_stub.oc": true,
+    "ocore/runtime/x86_64/kernel_world_record.oc": true,
+    "ocore/runtime/x86_64/linux_fd_table.oc": true,
+    "ocore/runtime/x86_64/linux_personality.oc": true,
+    "ocore/runtime/x86_64/live_supervisor.oc": true,
+    "ocore/runtime/x86_64/m1_user.oc": true,
+    "ocore/runtime/x86_64/m2_user.oc": true,
+    "ocore/runtime/x86_64/m3_user.oc": true,
+    "ocore/runtime/x86_64/m4_personality_alpha.oc": true,
+    "ocore/runtime/x86_64/m4_personality_beta.oc": true,
+    "ocore/runtime/x86_64/m5_init.oc": true,
+    "ocore/runtime/x86_64/m5_pkgd.oc": true,
+    "ocore/runtime/x86_64/m5_repl.oc": true,
+    "ocore/runtime/x86_64/m5_supervisor.oc": true,
+    "ocore/runtime/x86_64/m6_client.oc": true,
+    "ocore/runtime/x86_64/m6_linux_observer.oc": true,
+    "ocore/runtime/x86_64/m6_linux_personalityd.oc": true,
+    "ocore/runtime/x86_64/m6_linux_supervisord.oc": true,
+    "ocore/runtime/x86_64/m6_observer.oc": true,
+    "ocore/runtime/x86_64/m6_personalityd.oc": true,
+    "ocore/runtime/x86_64/m6_supervisord.oc": true,
+    "ocore/runtime/x86_64/m6b_live_client.oc": true,
+    "ocore/runtime/x86_64/m6b_live_observer.oc": true,
+    "ocore/runtime/x86_64/m6b_live_personalityd.oc": true,
+    "ocore/runtime/x86_64/m6b_live_supervisord.oc": true,
+    "ocore/runtime/x86_64/m7_linux_9pd.oc": true,
+    "ocore/runtime/x86_64/m7_linux_supervisord.oc": true,
+    "ocore/runtime/x86_64/m7_plan9_client.oc": true,
+    "ocore/runtime/x86_64/m7b_9p_provider.oc": true,
+    "ocore/runtime/x86_64/m7b_logical_read_client.oc": true,
+    "ocore/runtime/x86_64/mapping.oc": true,
+    "ocore/runtime/x86_64/memory_object.oc": true,
+    "ocore/runtime/x86_64/native_abi.oc": true,
+    "ocore/runtime/x86_64/native_control.oc": true,
+    "ocore/runtime/x86_64/package_root.oc": true,
+    "ocore/runtime/x86_64/pages.oc": true,
+    "ocore/runtime/x86_64/personality.oc": true,
+    "ocore/runtime/x86_64/personality_bounded_rpc.oc": true,
+    "ocore/runtime/x86_64/personality_memory_view.oc": true,
+    "ocore/runtime/x86_64/personality_rpc.oc": true,
+    "ocore/runtime/x86_64/personality_supervision.oc": true,
+    "ocore/runtime/x86_64/process.oc": true,
+    "ocore/runtime/x86_64/rtl8139.oc": true,
+    "ocore/runtime/x86_64/scheduler.oc": true,
+    "ocore/runtime/x86_64/serial.oc": true,
+    "ocore/runtime/x86_64/serial_control.oc": true,
+    "ocore/runtime/x86_64/service_registry.oc": true,
+    "ocore/runtime/x86_64/svm_execution.oc": true,
+    "ocore/runtime/x86_64/syscall.oc": true,
+    "ocore/runtime/x86_64/thread.oc": true,
+    "ocore/runtime/x86_64/trap.oc": true,
+    "ocore/runtime/x86_64/user.oc": true,
+    "ocore/runtime/x86_64/user_memory.oc": true,
+    "ocore/runtime/x86_64/vm_object.oc": true
+  },
+  "compiler_core_source_identities": [
+    {
+      "path": "scripts/ocore_llvm_import.py",
+      "sha256": "2313dd3866ca6e5479ca890ed41b3cbf9c1dd05e962992d445e5a3a7c2d6ac22",
+      "canonical_sha256": "2313dd3866ca6e5479ca890ed41b3cbf9c1dd05e962992d445e5a3a7c2d6ac22",
+      "matches": true
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/native_codegen.rs",
+      "sha256": "c945f509fb02158bdc7a84a47bc058440fb355756354a3be650be718f9784bea",
+      "canonical_sha256": "c945f509fb02158bdc7a84a47bc058440fb355756354a3be650be718f9784bea",
+      "matches": true
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/native_verify.rs",
+      "sha256": "40efdb011774ac00177112683b84802f51c0e8dd543a03f0075600048397b822",
+      "canonical_sha256": "40efdb011774ac00177112683b84802f51c0e8dd543a03f0075600048397b822",
+      "matches": true
+    },
+    {
+      "path": "crates/ostadix-api/src/ocore/native_ir.rs",
+      "sha256": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "canonical_sha256": "7597ee3b7075c2133a28230daee0a95e0bdc5b973c438d49989753121d2ff9fe",
+      "matches": true
+    }
+  ],
+  "bm_specific_differences_from_canonical": [
+    "ci/architecture-roots.toml",
+    "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+    "tests/test_architecture_boundaries.py"
+  ],
+  "variadic_module_preservation": {
+    "path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+    "difference": "BM master retains explicit architecture-boundary imports; emitter implementation body identical to canonical",
+    "emitter_body_sha256": "c47111cdf10d81facc1e5c2ea150e6db949771b9520a628ae678e7e9e8b725c4",
+    "implementation_body_matches_canonical": true
+  },
+  "bm_specific_base_changes_preserved": {
+    "ci/architecture-roots.toml": true,
+    "crates/ostadix-api/src/ocore/native_variadic_codegen.rs": true,
+    "tests/test_architecture_boundaries.py": true
+  },
+  "native_smoke_matrix_unchanged": true,
+  "release_manifest_unchanged": "release_evidence.py validates existing manifest separately"
+}
