@@ -504,6 +504,10 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
         }
     }
     float_layout::audit(module, &executable_value_types(module))?;
+    // Required source environment contract survives NativeIR serialization.
+    // Every supported emitter realizes these operations without changing the
+    // FP control/status state; provider calls retain their original effects.
+    super::native_verify::verify_strict_fp_profile(module)?;
     for alias in &module.aliases {
         if !matches!(
             alias.linkage.as_str(),

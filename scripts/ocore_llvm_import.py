@@ -2209,6 +2209,8 @@ class Importer:
                 frontend_version = "self-reported !llvm.ident: " + "; ".join(self.producer_ident)
             self.refinements.add("LLVM poison/undef may be refined deterministically; dropped assumptions are never used for optimization")
             target = {"triple": triple, "data_layout": layout, "pointer_bits": 64, "little_endian": True}
+            if self.strict_fp_sites:
+                target["strict_fp_profile"] = "integer_only_v1"
             if self.target_abi is not None:
                 target["abi"] = self.target_abi
             if self.tls_profile is not None:

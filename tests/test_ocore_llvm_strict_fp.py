@@ -157,6 +157,7 @@ class StrictFloatingPointTests(unittest.TestCase):
                 module = importer.import_module(path, library_path=self.library,
                                                 expected_sha256=self.library_sha256)
                 notes = module["provenance"]["refinements"]
+                self.assertEqual(module["target"]["strict_fp_profile"], "integer_only_v1")
                 self.assertTrue(any("strictfp-integer-v1 function" in n for n in notes))
                 self.assertTrue(any("strictfp-integer-v1 callsite" in n for n in notes))
                 self.assertEqual(module["provenance"]["input_sha256"],
@@ -199,6 +200,7 @@ define i32 @integer_only(i32 %value) nounwind {
             self.assertEqual(module["provenance"]["input_sha256"],
                              hashlib.sha256(source.read_bytes()).hexdigest())
             self.assertEqual(module["functions"][0]["name"], "integer_only")
+            self.assertNotIn("strict_fp_profile", module["target"])
 
     def test_profile_does_not_silently_expand_to_new_operations(self):
         source = self.write(INTEGER_BODY)

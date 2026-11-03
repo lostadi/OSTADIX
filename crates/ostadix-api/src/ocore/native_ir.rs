@@ -193,6 +193,18 @@ pub struct TargetLayout {
     /// property for these regions; this does not promise starvation freedom.
     #[serde(default)]
     pub atomic_profile: Option<AtomicProfile>,
+    /// Required native realization for strictfp source scopes. Absence retains
+    /// the ordinary profile; consumers must reject unknown required profiles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strict_fp_profile: Option<StrictFpProfile>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StrictFpProfile {
+    /// No floating first-class values, ABI or arithmetic; original provider
+    /// calls keep their ordered effects on the ambient floating environment.
+    IntegerOnlyV1,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
