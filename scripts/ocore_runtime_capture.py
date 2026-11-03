@@ -578,6 +578,24 @@ def clang_inputs(args: list[str], cwd: Path) -> list[Path]:
     return result
 
 
+def clang_languages(args: list[str]) -> list[str]:
+    """Retain ordered -x LANG and -xLANG selections, excluding option values."""
+    result, index = [], 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "-x" and index + 1 < len(args):
+            result.append(args[index + 1])
+            index += 2
+        elif arg.startswith("-x") and len(arg) > 2:
+            result.append(arg[2:])
+            index += 1
+        elif arg in PAIR_OPTIONS | {"-l", "-L"}:
+            index += 2
+        else:
+            index += 1
+    return result
+
+
 def clang_stdin_input(args: list[str]) -> bool:
     """Recognize a positional stdin input, not an option's '-' value."""
     index = 0
@@ -1742,11 +1760,12 @@ def compiler(session_path: Path, kind: str, original_args: list[str], *,
         if native_code == 0 and event["translation_required"]:
             if kind == "clang":
                 replay_inputs = inputs
-                if stdin_source is not None and (len(inputs) != 1 or args.count("-x") != 1 or args.count("-") != 1):
+                languages = clang_languages(args)
+                if stdin_source is not None and (len(inputs) != 1 or len(languages) != 1 or args.count("-") != 1):
                     event["capture_errors"].append("stdin LLVM replay requires one source and one explicit language selection")
                     replay_inputs = []
                 for index, source in enumerate(replay_inputs):
-                    if source == stdin_source and option_value(args, "-x") not in {
+                    if source == stdin_source and languages[0] not in {
                             "c", "c++", "objective-c", "objective-c++"}:
                         event["capture_errors"].append("stdin LLVM replay requires an explicit supported C-family language")
                         continue

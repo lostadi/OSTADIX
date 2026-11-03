@@ -83,6 +83,17 @@ class StdinCaptureTests(unittest.TestCase):
         self.assertEqual(len(event["units"]), 1)
         self.assertEqual(len(event["response_files"]), 1)
 
+    def test_busybox_joined_language_probe_preserves_original_command(self):
+        _, event = self.compare(["-Wall", "-Wstrict-prototypes", "-O2", "-fomit-frame-pointer",
+                                "-xc", "-o", "/dev/null", "-"], b"int main(void) { return 0; }\n")
+        # This reduced session intentionally has no native linker wrappers;
+        # inspect the stdin replay independently of link ownership admission.
+        self.assertFalse(any("stdin LLVM" in e for e in event["capture_errors"]))
+        unit, = event["units"]
+        self.assertEqual(unit["replay_exit_code"], 0)
+        self.assertIn("-xc", unit["replay_argv"])
+        self.assertEqual(unit["replay_argv"][-1], "-")
+
     def test_native_failure_keeps_status_and_source_without_successful_ir(self):
         result, event = self.compare(["-x", "c", "-", "-c", "-o", "bad.o"], b"int = ;\n")
         self.assertNotEqual(result.returncode, 0)
