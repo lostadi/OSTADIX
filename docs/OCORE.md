@@ -620,6 +620,11 @@ member into the image. Definitions labeled `extern_weak` and external-weak TLS
 are rejected. This object-emission support does not waive the separate
 compiler-owned runtime dependency-closure gate. Common and
 `available_externally` definitions remain unsupported whole-unit contracts.
+Source-relative32 initializers targeting `extern_weak` reject during AArch64
+native emission: the [AArch64 ELF weak-reference rules](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst#561-weak-references)
+substitute the relocation place for an absent weak PC-relative target, rather
+than preserving its zero address. Absolute64 initializer relocations and GOT-based
+addresses retain that zero behavior on all three ISAs.
 
 ELF `any` and `nodeduplicate` COMDAT groups keep code, globals and their
 relocation sections together. Direct aliases inherit their included root's

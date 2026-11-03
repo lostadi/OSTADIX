@@ -562,6 +562,25 @@ fn audit(module: &NativeModule, target: Target) -> Result<(), Diagnostic> {
                         "only absolute64 and source-relative32 initializer relocations are implemented",
                     ));
                 }
+                if target == Target::Aarch64UnknownNone
+                    && r.relative_to.is_some()
+                    && (module
+                        .globals
+                        .iter()
+                        .any(|g| g.name == r.symbol && g.linkage == "extern_weak")
+                        || module
+                            .functions
+                            .iter()
+                            .any(|f| f.name == r.symbol && f.linkage == "extern_weak"))
+                {
+                    // The AArch64 ELF PREL relocation rule substitutes P for
+                    // an absent weak S, rather than the zero address required
+                    // by LLVM extern_weak pointer arithmetic. Keep this source
+                    // contract in IR but reject before publishing an object.
+                    return Err(error_diagnostic(
+                        "AArch64 source-relative initializer targeting extern_weak cannot preserve absent-provider zero semantics",
+                    ));
+                }
             }
         }
     }
