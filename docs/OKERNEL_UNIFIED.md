@@ -166,6 +166,11 @@ a checkout-independent replay entry. Original kernel and initramfs bytes are
 fixed admitted inputs to that proof; foreign compiler bootstrapping is not
 claimed.
 
+Native-build reproduction requires host Python 3.10 or newer with its standard
+library, `/bin/sh`, Bash, `ldd`, and the recorded native ELF `PT_INTERP` loader.
+The captured compiler/tool binaries and shared libraries support replay outside
+the checkout with these declared host dependencies.
+
 The retained R9 proof can be repeated outside the checkout:
 
 ```sh
@@ -175,10 +180,11 @@ python3 "$proof/reproduce.py" --capture "$proof" --output "$replay/result"
 ```
 
 The frozen launcher still requires a compatible Linux x86-64 host, Python
-3.10 or newer with its standard library, Bash, tmux, and the recorded host ELF
-interpreter. It carries its QEMU libraries, modules and data. This is a captured
-runtime and native-build proof, rather than a bootstrap of every host tool or
-a claim that mutable package repositories will reproduce the same disk later.
+3.10 or newer with its standard library, `/bin/sh`, Bash, tmux, and the recorded
+host ELF interpreter. It carries its QEMU libraries, modules and data. This is
+a captured runtime and native-build proof, rather than a bootstrap of every
+host tool or a claim that mutable package repositories will reproduce the
+same disk later.
 
 ## Present scope
 

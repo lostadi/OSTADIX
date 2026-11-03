@@ -2,9 +2,9 @@
 """Archive p9 protocol history on private Linux storage before native cleanup.
 
 Quiet success; never reads stdin, dispatches a request, or changes private client
-receipts/ACKs. A busy client or any pending.json disables cleanup. Keep eight
-newest locally receipted current-instance job within a 1 MiB
-resident allocation budget. Larger/excess jobs are retained fully on Linux.
+receipts/ACKs. A busy client or any pending.json disables cleanup. Keep at most
+one locally receipted current-instance job: the newest that fits within a 1 MiB
+resident allocation budget. Larger/excess jobs are archived fully on Linux.
 Retired service
 trees are archived as unclassified bytes, including partial/unknown work.
 Archives are content-addressed, byte-checked and fsynced before native removal.
