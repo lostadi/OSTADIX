@@ -27,7 +27,7 @@ jobs:
           ATTRIBUTION_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           ATTRIBUTION_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: >-
-          python3 scripts/check_attribution.py
+          python3 scripts/check_commit_authors.py
           --base "$ATTRIBUTION_BASE"
           --head "$ATTRIBUTION_HEAD"
           --ref-type "${{ github.ref_type || 'branch' }}"
@@ -36,7 +36,7 @@ jobs:
           python3 scripts/local_ci_posture.py --profile baseline --format text
           python3 scripts/contract_surfaces.py validate
           python3 scripts/check_architecture_boundaries.py
-          python3 -m unittest -v tests.test_contract_surfaces tests.test_local_ci_posture tests.test_attribution_policy tests.test_architecture_boundaries tests.test_governance_surfaces
+          python3 -m unittest -v tests.test_contract_surfaces tests.test_local_ci_posture tests.test_commit_authors tests.test_architecture_boundaries tests.test_governance_surfaces
 
   docker:
     name: Docker minimal runtime profile
