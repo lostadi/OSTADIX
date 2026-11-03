@@ -64,6 +64,37 @@ scripts/bm-dev-env.sh python3 -m unittest \
   tests.test_ocore_ovfs_pins -v
 ```
 
+The `p9` CLI defaults to a 120,000 ms invocation budget for original tools under
+emulation. `Client.run` retains its 30,000 ms API default and the wire maximum
+remains 300,000 ms. The longer CLI budget delays automatic hang detection;
+`--timeout-ms` and Ctrl+C remain available. The focused budget regression uses
+actual CLI/API requests with a local protocol fixture:
+
+```sh
+python3 -B -m unittest tests.test_p9_timeout_defaults -v
+```
+
+To qualify the exact current guest helper with original Plan 9 compiler and
+linker execution, first create a new saved-state fork and deploy the current
+helpers with `scripts/prepare_okernel_unified.py`. Then run:
+
+```sh
+python3 -B scripts/verify_okernel_p9_default_compile.py \
+  --state /absolute/new/private/state --build /absolute/admitted/unified/build
+```
+
+This gate checks installed helper hashes, types `p9 7c`, `p9 7l` and the compiled
+program without timeout overrides, and validates 120,000 ms in all three wire
+requests. It retains the exact source, object, executable and complete protocol
+captures after one paired save. It requires both original kernels to remain
+live and owns only its explicitly forked test state. Previously frozen client
+receipts retain their original helper hashes and qualification scope.
+
+The current 33,362-byte client (`1d000bb7b1cfe958c3fe25b6d00c65ab9b8cb33f83f53b857cbefbbac7416d9e`)
+passed this live check on X12, with the four focused budget tests passing
+separately. This follow-up adds exact-byte runtime qualification and regression
+coverage for the existing CLI setting.
+
 Read the named tests' prerequisites. Some original-image, SDK, ABI and native
 console tests require explicit captured fixtures and report a skip when those
 fixtures are absent. A skip does not qualify that runtime. The pure admission
