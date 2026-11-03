@@ -158,5 +158,31 @@
     "passed": true,
     "methods": 1,
     "log_sha256": "11e6eee1976dfedd0f445e654907897a967b5c3bcd312e4de6d33f8747a6d383"
+  },
+  "known_baseline_html_drift": {
+    "scope": "Canonical full HTML export check; the affected Markdown and HTML files are byte-identical to the untouched master base. New boot documentation exports match pinned rendering.",
+    "files": [
+      {
+        "path": "CHANGELOG.md",
+        "sha256": "dcf765b6c4a23fff760def60655c5de9f14f7762e6e231c32025c52221b35415",
+        "unchanged_from_base": true
+      },
+      {
+        "path": "CHANGELOG.html",
+        "sha256": "aa9b2eb8cdec16564a9d7cae38c1ff5f08505b6635697f79cd30633e3bd87d62",
+        "unchanged_from_base": true
+      },
+      {
+        "path": "SPEC.md",
+        "sha256": "108ca9034e19bdc2d3a83ca416ca452f72842940fb71626f1a8d17edfd9ed49f",
+        "unchanged_from_base": true
+      },
+      {
+        "path": "SPEC.html",
+        "sha256": "30e90e6ad1a6ebb91f546e858452799043dea45da0776798f54af16ff9a0edc2",
+        "unchanged_from_base": true
+      }
+    ],
+    "output": "drift: CHANGELOG.html\ndrift: SPEC.html\nhtml-exports: 101 complete documents; 2284716 bytes; 2 drifted\n"
   }
 }
