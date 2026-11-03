@@ -250,6 +250,17 @@ changed documentation/progress references that need refreshing before an
 execution manifest is frozen. Byte checks here do not reverify signatures;
 native APK execution, durability and efficiency remain unqualified.
 
+The separate [source-compilation contract](acceptance/apk-source/PROPOSAL.md)
+retains the original APK/libapk, crypto-provider, script and helper closure
+requirements. The retained dynamic musl 1.2.6 profile cannot use the existing
+static musl 1.2.5 recipe as matching provenance. Its [snapshot record](acceptance/apk-source/capture.json)
+maps six recorded hook/doc differences to this integration base and notes the
+newer, still-incomplete 1.2.5 source capture. Authentic upstream sources, distro
+patches/configuration, the whole evaluated build graph and separately bound
+reference/O-core outputs remain required. This source gate preserves the
+same-binary ABI gate above; no runnable APK source recipe or native manager
+profile is admitted.
+
 Required native services include real user-memory/syscall layouts, ELF startup,
 TLS/allocation, writable filesystem metadata and links, permissions, locks,
 open-file lifetimes, replacement/commit behavior, subprocesses, signals,

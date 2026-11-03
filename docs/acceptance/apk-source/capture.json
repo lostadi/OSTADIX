@@ -1,0 +1,199 @@
+{
+  "schema": "ostadix.apk-source-contract-snapshot/v1",
+  "status": "proposal-only-not-a-runnable-source-recipe",
+  "captured_unix": 1793704416.9333634,
+  "integration_base_commit": "0c9cdcd1a5e23efb173e8e5225b23cef7976b8fb",
+  "source_bundle": "/home/ustad/.cache/okernel-unified-backend/apk-source-contract-current-8ho0peo4",
+  "files": {
+    "PROPOSAL.md": {
+      "bytes": 10631,
+      "sha256": "910b0386f452ba3d54fd5631a34cf80382a9d956134e593e9d071f160e4f1920"
+    },
+    "input-identities.json": {
+      "bytes": 7609,
+      "sha256": "bf61d1fd5872204b1473dcacc467922281350353232797ffe04b769c99a812e2"
+    },
+    "reference-observations.json": {
+      "bytes": 36719,
+      "sha256": "8a22fb5b941bba55cbd618d023c08d838d45c7a310b5b5e9a80dc9a594814630"
+    },
+    "source-contract.json": {
+      "bytes": 7239,
+      "sha256": "6f209cd2b0874804637c2ab11d23f2cff1581de82e09bee536fc5f786c1de7aa"
+    },
+    "validation.json": {
+      "bytes": 1362,
+      "sha256": "97f3eb538c0916bef17f8f6b0ee567403ce21421c7f03606cfc6cb80f30dbdd4"
+    }
+  },
+  "proposal_artifact_bindings_consistent": true,
+  "recorded_original_checkout_sources_differ_from_integration": [
+    {
+      "path": "docs/OKERNEL_UNIFIED_IMPLEMENTATION.md",
+      "recorded": {
+        "bytes": 24932,
+        "sha256": "b2a6cd27b4b7ae755a4cbd8c34f37853ea754c4241f3ce72e6f9c397583c5e09"
+      },
+      "integration_base": {
+        "path": "docs/OKERNEL_UNIFIED_IMPLEMENTATION.md",
+        "bytes": 39724,
+        "sha256": "5d229de94a2f88789dcf64a81978f1a7aca9343008c055156b1d4d8c35650642"
+      }
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/source_recipe.rs",
+      "recorded": {
+        "bytes": 15261,
+        "sha256": "22bed10ec54c0a717c6a0fecdcdb993b3668afb9bf421f55fe1b74cf08985aa4"
+      },
+      "integration_base": {
+        "path": "src/bin/olangc/native_runtime/source_recipe.rs",
+        "bytes": 17089,
+        "sha256": "fef52d893b5b952793a0fbc03f09be62d3e047a85647471ebbed490bb3d4fda1"
+      }
+    },
+    {
+      "path": "scripts/ocore_runtime_capture.py",
+      "recorded": {
+        "bytes": 154484,
+        "sha256": "a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779"
+      },
+      "integration_base": {
+        "path": "scripts/ocore_runtime_capture.py",
+        "bytes": 161548,
+        "sha256": "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059"
+      }
+    },
+    {
+      "path": "tools/ocore-runtime/libc/build_inventory.py",
+      "recorded": {
+        "bytes": 17660,
+        "sha256": "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9"
+      },
+      "integration_base": {
+        "path": "tools/ocore-runtime/libc/build_inventory.py",
+        "bytes": 17983,
+        "sha256": "9c28fe25c4054097a3d3d375c73f4aea77f752f2f21ff0f52bb6fb93d71950b7"
+      }
+    },
+    {
+      "path": "tools/ocore-runtime/libc/README.md",
+      "recorded": {
+        "bytes": 7604,
+        "sha256": "733f108cea17c606153932a05029a34386b4f9ed1a494bb2fc79b6d9ebe9b75e"
+      },
+      "integration_base": {
+        "path": "tools/ocore-runtime/libc/README.md",
+        "bytes": 9543,
+        "sha256": "483bf6db9bf78b4c579e44ef97244f10652ef927820f347326bb707e78bcaec5"
+      }
+    },
+    {
+      "path": "tools/ocore-runtime/libc/aarch64.static.recipe.json",
+      "recorded": {
+        "bytes": 5977,
+        "sha256": "89d80bc407378e7be8e47aa92efb3fc2be48d295fa17b58c6d6a6969839fbc5f"
+      },
+      "integration_base": {
+        "path": "tools/ocore-runtime/libc/aarch64.static.recipe.json",
+        "bytes": 5977,
+        "sha256": "3b67b29a0434d6307866f6ca25ee492204ed286155bb9d7aa4ba8bb16b177eae"
+      }
+    }
+  ],
+  "integration_base_source_bindings": [
+    {
+      "path": "docs/OKERNEL_UNIFIED_IMPLEMENTATION.md",
+      "bytes": 39724,
+      "sha256": "5d229de94a2f88789dcf64a81978f1a7aca9343008c055156b1d4d8c35650642"
+    },
+    {
+      "path": "src/bin/olangc/native_runtime.rs",
+      "bytes": 136187,
+      "sha256": "6e16c8c47e905ec24e527bff48d7330836ac0279cba5cc4595e4f146828425b1"
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/source_recipe.rs",
+      "bytes": 17089,
+      "sha256": "fef52d893b5b952793a0fbc03f09be62d3e047a85647471ebbed490bb3d4fda1"
+    },
+    {
+      "path": "src/bin/olangc/native_runtime/artifact.rs",
+      "bytes": 32276,
+      "sha256": "a0b1fc8ac38335fabf7023157af3035b4e9f08d0f485a53c55aaa893749ac364"
+    },
+    {
+      "path": "scripts/ocore_runtime_capture.py",
+      "bytes": 161548,
+      "sha256": "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059"
+    },
+    {
+      "path": "scripts/ocore_llvm_import.py",
+      "bytes": 174447,
+      "sha256": "2313dd3866ca6e5479ca890ed41b3cbf9c1dd05e962992d445e5a3a7c2d6ac22"
+    },
+    {
+      "path": "scripts/ocore_producer_registry.json",
+      "bytes": 1138,
+      "sha256": "62d74350f9b97db882f96ccb04fb985ff519e45d648b2f977664c2e631ff4052"
+    },
+    {
+      "path": "scripts/okernel_native_codec.py",
+      "bytes": 11248,
+      "sha256": "26a47f312c0bb7dbbff7fe56faa089c2189be0009a614952d6fb79eb1bcd059b"
+    },
+    {
+      "path": "tools/ocore-runtime/u9fs/build_component.py",
+      "bytes": 8336,
+      "sha256": "69014d68fe7fe7308e064fc3458dac8ec7b92bb7c9ea93053303b7f28f59761b"
+    },
+    {
+      "path": "tools/ocore-runtime/u9fs/build_native.py",
+      "bytes": 10718,
+      "sha256": "339a9cbb04e960e000c866c632b39ebda00ee88ca620c601527c5f9456755129"
+    },
+    {
+      "path": "tools/ocore-runtime/libc/build_inventory.py",
+      "bytes": 17983,
+      "sha256": "9c28fe25c4054097a3d3d375c73f4aea77f752f2f21ff0f52bb6fb93d71950b7"
+    },
+    {
+      "path": "tools/ocore-runtime/libc/README.md",
+      "bytes": 9543,
+      "sha256": "483bf6db9bf78b4c579e44ef97244f10652ef927820f347326bb707e78bcaec5"
+    },
+    {
+      "path": "tools/ocore-runtime/libc/aarch64.static.recipe.json",
+      "bytes": 5977,
+      "sha256": "3b67b29a0434d6307866f6ca25ee492204ed286155bb9d7aa4ba8bb16b177eae"
+    },
+    {
+      "path": "ocore/runtime/common/namespace_store.oc",
+      "bytes": 35864,
+      "sha256": "13cffe0c19b455314f23e8a53914b585ba43d19d606c07c3f6706793c5f41c53"
+    },
+    {
+      "path": "ocore/runtime/common/posix_namespace_files.oc",
+      "bytes": 17536,
+      "sha256": "ff161dd8db9d024200a9318a7fc62941bd726635e5c599085e44dc7cf582f36a"
+    },
+    {
+      "path": "ocore/guest/linux/package-domain/build.py",
+      "bytes": 24822,
+      "sha256": "e4646e00cc990fe0898dad43a7f018e15806e5b4de0702b240ac83754f152a4b"
+    }
+  ],
+  "compiler_binary_admitted_for_apk": false,
+  "source_graph_complete": false,
+  "source_native_apk_admitted": false,
+  "build_import_test_package_vm_executions": [],
+  "matching_upstream_source_pins_not_invented": true,
+  "observed_local_musl_source_git_head": "0784374d561435f7c787a555aeab8ede699ed298",
+  "newer_musl_capture_documentation": {
+    "path": "tools/ocore-runtime/libc/README.md",
+    "stated_capture": "/home/ustad/.cache/okernel-musl-source-current-soc9clfn/",
+    "scope": "Seven original 1.2.5 build steps succeeded, capture remains incomplete for required assembly and unclassified events; does not qualify retained dynamic musl1.2.6 or native libc execution."
+  },
+  "prior_behavior_plan_in_repository": "../original-apk/PROPOSAL.md",
+  "provenance_note": "Verbatim support proposal keeps its original cache-relative references. Integration mappings are recorded here; source hashes are not proof of installed compiler binary contents."
+}

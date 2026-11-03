@@ -1,0 +1,410 @@
+{
+  "binary_nodes": [
+    {
+      "dt_needed": [
+        "libapk.so.3.0.0",
+        "libz.so.1",
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 135248,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/sbin/apk",
+        "sha256": "304e62b9494b79cef24d621f4538b83496201252e32fce76c7f7e27760594fee",
+        "type": "file"
+      },
+      "interpreter": [
+        "/lib/ld-musl-aarch64.so.1"
+      ],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [
+        "libssl.so.3",
+        "libcrypto.so.3",
+        "libz.so.1",
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 330360,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libapk.so.3.0.0",
+        "sha256": "8b2cb7e779832b06fcd570ef7e12492792d54ce1a7f45031e36bcba62b7f0d0a",
+        "type": "file"
+      },
+      "interpreter": [],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [
+        "libcrypto.so.3",
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 868240,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libssl.so.3",
+        "sha256": "74d73f8a6ded282a7e5c305b92772815b2b9ceee9fb67e3082e2412d282658e6",
+        "type": "file"
+      },
+      "interpreter": [],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 4533144,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libcrypto.so.3",
+        "sha256": "699d362147ff3d99d23aa84bdb353a86cc5cdc56a6bf3e1fafea7a9304f37b3e",
+        "type": "file"
+      },
+      "interpreter": [],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 133008,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libz.so.1.3.2",
+        "sha256": "afe41fdd58868461eae3b04068f334bfad2d4ecd0e11c7e30f9afafe06f28528",
+        "type": "file"
+      },
+      "interpreter": [],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [],
+      "file": {
+        "bytes": 723480,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/ld-musl-aarch64.so.1",
+        "sha256": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793",
+        "type": "file"
+      },
+      "interpreter": [],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 919304,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/bin/busybox",
+        "sha256": "97d52efa149563c8d886e3670e2496d4140d3c54138017afd3a105e0397fae2e",
+        "type": "file"
+      },
+      "interpreter": [
+        "/lib/ld-musl-aarch64.so.1"
+      ],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    },
+    {
+      "dt_needed": [
+        "libcrypto.so.3",
+        "libc.musl-aarch64.so.1"
+      ],
+      "file": {
+        "bytes": 133008,
+        "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/ossl-modules/legacy.so",
+        "sha256": "bdcfcfbdf6e2892af3fe1416d0148ecf80d08dbd11844787076a9d44612a7cbd",
+        "type": "file"
+      },
+      "interpreter": [],
+      "scope": "Static ELF metadata inspection only; not source capture or runtime execution."
+    }
+  ],
+  "binary_package_metadata": [
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "musl>=1.2.3_git20230424 libcrypto3>=3.5 libapk=3.0.8-r0 ca-certificates-bundle so:libapk.so.3.0.0 so:libc.musl-aarch64.so.1 so:libz.so.1"
+      ],
+      "distro_packaging_commit": "4588b452722bd4800efdc6cce4f6e980e02a997f",
+      "name": "apk-tools",
+      "origin": "apk-tools",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "3.0.8-r0"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "so:libc.musl-aarch64.so.1"
+      ],
+      "distro_packaging_commit": "c3ef5d10e6ef6528852c51f0564963e2f8c1be19",
+      "name": "busybox",
+      "origin": "busybox",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "1.37.0-r31"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "busybox=1.37.0-r31"
+      ],
+      "distro_packaging_commit": "c3ef5d10e6ef6528852c51f0564963e2f8c1be19",
+      "name": "busybox-binsh",
+      "origin": "busybox",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "1.37.0-r31"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "so:libc.musl-aarch64.so.1 so:libcrypto.so.3 so:libssl.so.3 so:libz.so.1"
+      ],
+      "distro_packaging_commit": "4588b452722bd4800efdc6cce4f6e980e02a997f",
+      "name": "libapk",
+      "origin": "apk-tools",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "3.0.8-r0"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "so:libc.musl-aarch64.so.1"
+      ],
+      "distro_packaging_commit": "29b9ec24b1b5b39aeef51fa2a044210e2ec5258e",
+      "name": "libcrypto3",
+      "origin": "openssl",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "3.5.9-r0"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "libcrypto3=3.5.9-r0 so:libc.musl-aarch64.so.1 so:libcrypto.so.3"
+      ],
+      "distro_packaging_commit": "29b9ec24b1b5b39aeef51fa2a044210e2ec5258e",
+      "name": "libssl3",
+      "origin": "openssl",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "3.5.9-r0"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [],
+      "distro_packaging_commit": "8f79d39391b46d6dbf1800fb68b8212a21d5ee2e",
+      "name": "musl",
+      "origin": "musl",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "1.2.6-r3"
+    },
+    {
+      "architecture": "aarch64",
+      "dependency_strings": [
+        "so:libc.musl-aarch64.so.1"
+      ],
+      "distro_packaging_commit": "0afa2da0e8c8051c6f8f64a7a388e5a259904245",
+      "name": "zlib",
+      "origin": "zlib",
+      "scope": "Installed binary package metadata; packaging commit is not upstream implementation provenance.",
+      "upstream_source_pin": null,
+      "version": "1.3.2-r1"
+    }
+  ],
+  "complete_dependency_graph": false,
+  "created_utc": "2026-11-03T02:20:50.877165+00:00",
+  "installed_database": {
+    "bytes": 15097,
+    "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/apk/db/installed",
+    "sha256": "c23a62ca067a055376b25deb897432c054aece98b87668f2820fd2999893a97d",
+    "type": "file"
+  },
+  "note": "DT_NEEDED does not cover loadable providers, config/data, scripts, helpers, generated sources, upstream build inputs or kernel interfaces.",
+  "readelf_commands": [
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/sbin/apk"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0x1f3d0 contains 28 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libapk.so.3.0.0]\n 0x0000000000000001 (NEEDED)             Shared library: [libz.so.1]\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x000000000000000c (INIT)               0x52b0\n 0x000000000000000d (FINI)               0x132a8\n 0x0000000000000019 (INIT_ARRAY)         0x2f168\n 0x000000000000001b (INIT_ARRAYSZ)       224 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0x2f248\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x278\n 0x0000000000000005 (STRTAB)             0x2030\n 0x0000000000000006 (SYMTAB)             0x2a8\n 0x000000000000000a (STRSZ)              5143 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000015 (DEBUG)              0x0\n 0x0000000000000003 (PLTGOT)             0x2f5f0\n 0x0000000000000002 (PLTRELSZ)           6672 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x3850\n 0x0000000000000007 (RELA)               0x3448\n 0x0000000000000008 (RELASZ)             1032 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000000000001e (FLAGS)              BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW PIE\n 0x0000000000000024 (RELR)               0x5260\n 0x0000000000000023 (RELRSZ)             80 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/sbin/apk"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Position-Independent Executable file)\nEntry point 0x6c1c\nThere are 9 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  PHDR           0x000040 0x0000000000000040 0x0000000000000040 0x0001f8 0x0001f8 R   0x8\n  INTERP         0x00025c 0x000000000000025c 0x000000000000025c 0x00001a 0x00001a R   0x1\n      [Requesting program interpreter: /lib/ld-musl-aarch64.so.1]\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x018ea4 0x018ea4 R E 0x10000\n  LOAD           0x01f168 0x000000000002f168 0x000000000002f168 0x0017b8 0x003ab8 RW  0x10000\n  DYNAMIC        0x01f3d0 0x000000000002f3d0 0x000000000002f3d0 0x000220 0x000220 RW  0x8\n  NOTE           0x000238 0x0000000000000238 0x0000000000000238 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x016c48 0x0000000000016c48 0x0000000000016c48 0x000584 0x000584 R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x01f168 0x000000000002f168 0x000000000002f168 0x000e98 0x000e98 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     \n   01     .interp \n   02     .note.gnu.build-id .interp .gnu.hash .dynsym .dynstr .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   03     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   04     .dynamic \n   05     .note.gnu.build-id \n   06     .eh_frame_hdr \n   07     \n   08     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libapk.so.3.0.0"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0x4eb70 contains 32 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libssl.so.3]\n 0x0000000000000001 (NEEDED)             Shared library: [libcrypto.so.3]\n 0x0000000000000001 (NEEDED)             Shared library: [libz.so.1]\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x000000000000000e (SONAME)             Library soname: [libapk.so.3.0.0]\n 0x000000000000000c (INIT)               0xc048\n 0x000000000000000d (FINI)               0x370e4\n 0x0000000000000019 (INIT_ARRAY)         0x5dcd8\n 0x000000000000001b (INIT_ARRAYSZ)       8 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0x5dce0\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x1f0\n 0x0000000000000005 (STRTAB)             0x5748\n 0x0000000000000006 (SYMTAB)             0x18c0\n 0x000000000000000a (STRSZ)              10455 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000003 (PLTGOT)             0x5edc0\n 0x0000000000000002 (PLTRELSZ)           13128 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x8ca0\n 0x0000000000000007 (RELA)               0x8598\n 0x0000000000000008 (RELASZ)             1800 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000000000001e (FLAGS)              BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW\n 0x000000006ffffffe (VERNEED)            0x8558\n 0x000000006fffffff (VERNEEDNUM)         2\n 0x000000006ffffff0 (VERSYM)             0x8020\n 0x0000000000000024 (RELR)               0xbfe8\n 0x0000000000000023 (RELRSZ)             96 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libapk.so.3.0.0"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Shared object file)\nEntry point 0x0\nThere are 7 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x043e9c 0x043e9c R E 0x10000\n  LOAD           0x04dcd8 0x000000000005dcd8 0x000000000005dcd8 0x002610 0x0038d8 RW  0x10000\n  DYNAMIC        0x04eb70 0x000000000005eb70 0x000000000005eb70 0x000250 0x000250 RW  0x8\n  NOTE           0x0001c8 0x00000000000001c8 0x00000000000001c8 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x03a510 0x000000000003a510 0x000000000003a510 0x0019c4 0x0019c4 R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x04dcd8 0x000000000005dcd8 0x000000000005dcd8 0x002328 0x002328 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   01     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   02     .dynamic \n   03     .note.gnu.build-id \n   04     .eh_frame_hdr \n   05     \n   06     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libssl.so.3"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0xce920 contains 33 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libcrypto.so.3]\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x000000000000000e (SONAME)             Library soname: [libssl.so.3]\n 0x0000000000000010 (SYMBOLIC)           0x0\n 0x000000000000000c (INIT)               0x133b8\n 0x000000000000000d (FINI)               0x9828c\n 0x0000000000000019 (INIT_ARRAY)         0xd6578\n 0x000000000000001b (INIT_ARRAYSZ)       8 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0xd6580\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x1f0\n 0x0000000000000005 (STRTAB)             0x8b58\n 0x0000000000000006 (SYMTAB)             0x1b08\n 0x000000000000000a (STRSZ)              24713 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000003 (PLTGOT)             0xdeb80\n 0x0000000000000002 (PLTRELSZ)           13896 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0xfa58\n 0x0000000000000007 (RELA)               0xf668\n 0x0000000000000008 (RELASZ)             1008 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000006ffffffc (VERDEF)             0xf540\n 0x000000006ffffffd (VERDEFNUM)          6\n 0x000000000000001e (FLAGS)              SYMBOLIC BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW NODELETE\n 0x000000006ffffffe (VERNEED)            0xf608\n 0x000000006fffffff (VERNEEDNUM)         1\n 0x000000006ffffff0 (VERSYM)             0xebe2\n 0x0000000000000024 (RELR)               0x130a0\n 0x0000000000000023 (RELRSZ)             792 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libssl.so.3"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Shared object file)\nEntry point 0x0\nThere are 7 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x0c34d8 0x0c34d8 R E 0x10000\n  LOAD           0x0c6578 0x00000000000d6578 0x00000000000d6578 0x00d240 0x00d2a0 RW  0x10000\n  DYNAMIC        0x0ce920 0x00000000000de920 0x00000000000de920 0x000260 0x000260 RW  0x8\n  NOTE           0x0001c8 0x00000000000001c8 0x00000000000001c8 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x0a632c 0x00000000000a632c 0x00000000000a632c 0x005454 0x005454 R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x0c6578 0x00000000000d6578 0x00000000000d6578 0x009a88 0x009a88 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_d .gnu.version_r .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   01     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   02     .dynamic \n   03     .note.gnu.build-id \n   04     .eh_frame_hdr \n   05     \n   06     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libcrypto.so.3"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0x44ed28 contains 30 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x000000000000000e (SONAME)             Library soname: [libcrypto.so.3]\n 0x0000000000000010 (SYMBOLIC)           0x0\n 0x000000000000000c (INIT)               0x4fe30\n 0x000000000000000d (FINI)               0x24dda0\n 0x0000000000000019 (INIT_ARRAY)         0x3ef3e0\n 0x000000000000001b (INIT_ARRAYSZ)       16 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0x3ef3f0\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x1f0\n 0x0000000000000005 (STRTAB)             0x2bc38\n 0x0000000000000006 (SYMTAB)             0x8c58\n 0x000000000000000a (STRSZ)              124213 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000003 (PLTGOT)             0x45ef58\n 0x0000000000000002 (PLTRELSZ)           3744 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x4d260\n 0x0000000000000007 (RELA)               0x4d170\n 0x0000000000000008 (RELASZ)             240 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000006ffffffc (VERDEF)             0x4d018\n 0x000000006ffffffd (VERDEFNUM)          10\n 0x000000000000001e (FLAGS)              SYMBOLIC BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW NODELETE\n 0x000000006ffffff0 (VERSYM)             0x4a16e\n 0x0000000000000024 (RELR)               0x4e100\n 0x0000000000000023 (RELRSZ)             7472 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libcrypto.so.3"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Shared object file)\nEntry point 0x0\nThere are 7 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x3dc4d0 0x3dc4d0 R E 0x10000\n  LOAD           0x3df3e0 0x00000000003ef3e0 0x00000000003ef3e0 0x073028 0x076058 RW  0x10000\n  DYNAMIC        0x44ed28 0x000000000045ed28 0x000000000045ed28 0x000230 0x000230 RW  0x8\n  NOTE           0x0001c8 0x00000000000001c8 0x00000000000001c8 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x356c14 0x0000000000356c14 0x0000000000356c14 0x01957c 0x01957c R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x3df3e0 0x00000000003ef3e0 0x00000000003ef3e0 0x070c20 0x070c20 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_d .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   01     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   02     .dynamic \n   03     .note.gnu.build-id \n   04     .eh_frame_hdr \n   05     \n   06     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libz.so.1.3.2"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0x1fbc8 contains 29 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x000000000000000e (SONAME)             Library soname: [libz.so.1]\n 0x000000000000000c (INIT)               0x23d0\n 0x000000000000000d (FINI)               0xfef0\n 0x0000000000000019 (INIT_ARRAY)         0x2fa68\n 0x000000000000001b (INIT_ARRAYSZ)       8 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0x2fa70\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x1f0\n 0x0000000000000005 (STRTAB)             0x1440\n 0x0000000000000006 (SYMTAB)             0x750\n 0x000000000000000a (STRSZ)              1582 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000003 (PLTGOT)             0x2fde8\n 0x0000000000000002 (PLTRELSZ)           1344 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x1e70\n 0x0000000000000007 (RELA)               0x1de0\n 0x0000000000000008 (RELASZ)             144 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000006ffffffc (VERDEF)             0x1b88\n 0x000000006ffffffd (VERDEFNUM)          17\n 0x000000000000001e (FLAGS)              BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW\n 0x000000006ffffff0 (VERSYM)             0x1a6e\n 0x0000000000000024 (RELR)               0x23b0\n 0x0000000000000023 (RELRSZ)             32 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libz.so.1.3.2"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Shared object file)\nEntry point 0x0\nThere are 7 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x015c38 0x015c38 R E 0x10000\n  LOAD           0x01fa68 0x000000000002fa68 0x000000000002fa68 0x0005a0 0x0005d8 RW  0x10000\n  DYNAMIC        0x01fbc8 0x000000000002fbc8 0x000000000002fbc8 0x000220 0x000220 RW  0x8\n  NOTE           0x0001c8 0x00000000000001c8 0x00000000000001c8 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x013d98 0x0000000000013d98 0x0000000000013d98 0x000484 0x000484 R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x01fa68 0x000000000002fa68 0x000000000002fa68 0x000598 0x000598 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_d .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   01     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   02     .dynamic \n   03     .note.gnu.build-id \n   04     .eh_frame_hdr \n   05     \n   06     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/ld-musl-aarch64.so.1"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0xafd68 contains 22 entries:\n  Tag        Type                         Name/Value\n 0x000000000000000e (SONAME)             Library soname: [libc.musl-aarch64.so.1]\n 0x000000000000000c (INIT)               0x1fbf0\n 0x000000000000000d (FINI)               0x20794\n 0x0000000000000004 (HASH)               0x1f0\n 0x000000006ffffef5 (GNU_HASH)           0x2ba8\n 0x0000000000000005 (STRTAB)             0xf810\n 0x0000000000000006 (SYMTAB)             0x5d48\n 0x000000000000000a (STRSZ)              15195 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000003 (PLTGOT)             0xbff18\n 0x0000000000000002 (PLTRELSZ)           144 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x134f0\n 0x0000000000000007 (RELA)               0x13370\n 0x0000000000000008 (RELASZ)             384 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000000000001e (FLAGS)              BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW\n 0x0000000000000024 (RELR)               0x13580\n 0x0000000000000023 (RELRSZ)             48 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/ld-musl-aarch64.so.1"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Shared object file)\nEntry point 0x69ddc\nThere are 7 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x0a24a4 0x0a24a4 R E 0x10000\n  LOAD           0x0afb00 0x00000000000bfb00 0x00000000000bfb00 0x000904 0x003420 RW  0x10000\n  DYNAMIC        0x0afd68 0x00000000000bfd68 0x00000000000bfd68 0x0001b0 0x0001b0 RW  0x8\n  NOTE           0x0001c8 0x00000000000001c8 0x00000000000001c8 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x0a2088 0x00000000000a2088 0x00000000000a2088 0x0000b4 0x0000b4 R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x0afb00 0x00000000000bfb00 0x00000000000bfb00 0x000500 0x000500 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     .note.gnu.build-id .hash .gnu.hash .dynsym .dynstr .rela.dyn .rela.plt .relr.dyn .plt .text .rodata .eh_frame_hdr .eh_frame \n   01     .data.rel.ro .dynamic .got .data .bss \n   02     .dynamic \n   03     .note.gnu.build-id \n   04     .eh_frame_hdr \n   05     \n   06     .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/bin/busybox"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0xdf0e8 contains 26 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x000000000000000c (INIT)               0x5c10\n 0x000000000000000d (FINI)               0xb01d8\n 0x0000000000000019 (INIT_ARRAY)         0xec728\n 0x000000000000001b (INIT_ARRAYSZ)       8 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0xec730\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x278\n 0x0000000000000005 (STRTAB)             0x2898\n 0x0000000000000006 (SYMTAB)             0x2d0\n 0x000000000000000a (STRSZ)              3349 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000015 (DEBUG)              0x0\n 0x0000000000000003 (PLTGOT)             0xef2d8\n 0x0000000000000002 (PLTRELSZ)           9096 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x37c0\n 0x0000000000000007 (RELA)               0x35b0\n 0x0000000000000008 (RELASZ)             528 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000000000001e (FLAGS)              BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW PIE\n 0x0000000000000024 (RELR)               0x5b48\n 0x0000000000000023 (RELRSZ)             200 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/bin/busybox"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Position-Independent Executable file)\nEntry point 0x7500\nThere are 9 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  PHDR           0x000040 0x0000000000000040 0x0000000000000040 0x0001f8 0x0001f8 R   0x8\n  INTERP         0x00025c 0x000000000000025c 0x000000000000025c 0x00001a 0x00001a R   0x1\n      [Requesting program interpreter: /lib/ld-musl-aarch64.so.1]\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x0d0004 0x0d0004 R E 0x10000\n  LOAD           0x0dc728 0x00000000000ec728 0x00000000000ec728 0x003911 0x0043e8 RW  0x10000\n  DYNAMIC        0x0df0e8 0x00000000000ef0e8 0x00000000000ef0e8 0x0001f0 0x0001f0 RW  0x8\n  NOTE           0x000238 0x0000000000000238 0x0000000000000238 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x0cff50 0x00000000000cff50 0x00000000000cff50 0x00002c 0x00002c R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x0dc728 0x00000000000ec728 0x00000000000ec728 0x0038d8 0x0038d8 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     \n   01     .interp \n   02     .note.gnu.build-id .interp .gnu.hash .dynsym .dynstr .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   03     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   04     .dynamic \n   05     .note.gnu.build-id \n   06     .eh_frame_hdr \n   07     \n   08     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--dynamic",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/ossl-modules/legacy.so"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nDynamic section at offset 0x1fa50 contains 30 entries:\n  Tag        Type                         Name/Value\n 0x0000000000000001 (NEEDED)             Shared library: [libcrypto.so.3]\n 0x0000000000000001 (NEEDED)             Shared library: [libc.musl-aarch64.so.1]\n 0x0000000000000010 (SYMBOLIC)           0x0\n 0x000000000000000c (INIT)               0x1f10\n 0x000000000000000d (FINI)               0xdf7c\n 0x0000000000000019 (INIT_ARRAY)         0x2c798\n 0x000000000000001b (INIT_ARRAYSZ)       16 (bytes)\n 0x000000000000001a (FINI_ARRAY)         0x2c7a8\n 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)\n 0x000000006ffffef5 (GNU_HASH)           0x1f0\n 0x0000000000000005 (STRTAB)             0xbf0\n 0x0000000000000006 (SYMTAB)             0x218\n 0x000000000000000a (STRSZ)              1834 (bytes)\n 0x000000000000000b (SYMENT)             24 (bytes)\n 0x0000000000000003 (PLTGOT)             0x2fc80\n 0x0000000000000002 (PLTRELSZ)           2352 (bytes)\n 0x0000000000000014 (PLTREL)             RELA\n 0x0000000000000017 (JMPREL)             0x14f8\n 0x0000000000000007 (RELA)               0x1420\n 0x0000000000000008 (RELASZ)             216 (bytes)\n 0x0000000000000009 (RELAENT)            24 (bytes)\n 0x000000000000001e (FLAGS)              SYMBOLIC BIND_NOW\n 0x000000006ffffffb (FLAGS_1)            Flags: NOW NODELETE\n 0x000000006ffffffe (VERNEED)            0x13f0\n 0x000000006fffffff (VERNEEDNUM)         1\n 0x000000006ffffff0 (VERSYM)             0x131a\n 0x0000000000000024 (RELR)               0x1e28\n 0x0000000000000023 (RELRSZ)             232 (bytes)\n 0x0000000000000025 (RELRENT)            8 (bytes)\n 0x0000000000000000 (NULL)               0x0\n"
+    },
+    {
+      "argv": [
+        "/usr/bin/readelf",
+        "--wide",
+        "--program-headers",
+        "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/ossl-modules/legacy.so"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "\nElf file type is DYN (Shared object file)\nEntry point 0x0\nThere are 7 program headers, starting at offset 64\n\nProgram Headers:\n  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n  LOAD           0x000000 0x0000000000000000 0x0000000000000000 0x0122e0 0x0122e0 R E 0x10000\n  LOAD           0x01c798 0x000000000002c798 0x000000000002c798 0x003870 0x0038f0 RW  0x10000\n  DYNAMIC        0x01fa50 0x000000000002fa50 0x000000000002fa50 0x000230 0x000230 RW  0x8\n  NOTE           0x0001c8 0x00000000000001c8 0x00000000000001c8 0x000024 0x000024 R   0x4\n  GNU_EH_FRAME   0x00f244 0x000000000000f244 0x000000000000f244 0x00094c 0x00094c R   0x4\n  GNU_STACK      0x000000 0x0000000000000000 0x0000000000000000 0x000000 0x000000 RW  0x10\n  GNU_RELRO      0x01c798 0x000000000002c798 0x000000000002c798 0x003868 0x003868 R   0x1\n\n Section to Segment mapping:\n  Segment Sections...\n   00     .note.gnu.build-id .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .relr.dyn .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame \n   01     .init_array .fini_array .data.rel.ro .dynamic .got .data .bss \n   02     .dynamic \n   03     .note.gnu.build-id \n   04     .eh_frame_hdr \n   05     \n   06     .init_array .fini_array .data.rel.ro .dynamic .got \n"
+    }
+  ],
+  "readelf_invoked_path": "/usr/bin/readelf",
+  "readelf_tool": {
+    "bytes": 789280,
+    "path": "/usr/bin/x86_64-linux-gnu-readelf",
+    "sha256": "64c58e15274bbbb5153f31078e455e9e77ee5f51489e709bba5bb788ce9df2b0",
+    "type": "file"
+  },
+  "runtime_execution": false,
+  "schema": "ostadix.support.apk-source-seed-observation/v1",
+  "status": "read-only-inspection"
+}

@@ -1,0 +1,201 @@
+{
+  "builds_or_tests_or_vm_runs": [],
+  "current_architecture_contracts": [
+    {
+      "bytes": 4688,
+      "path": "/home/ustad/.local/state/ostadix/okernel/source-native-component-plan-20261102.json",
+      "sha256": "5fe2256eaecf8e0b609a55ac53d6c8395dfbfdc90bdfcb8750fb6c2137b019d1",
+      "type": "file"
+    },
+    {
+      "bytes": 9460,
+      "path": "/home/ustad/.local/state/ostadix/okernel/single-system-architecture-target-20261102.json",
+      "sha256": "e855b627b8df6e8a5e00ad2e2ce04f2d68021f00b259a99ec227849373033e4a",
+      "type": "file"
+    }
+  ],
+  "current_repo_files": [
+    {
+      "bytes": 24932,
+      "path": "/home/ustad/ostadix-BM/docs/OKERNEL_UNIFIED_IMPLEMENTATION.md",
+      "sha256": "b2a6cd27b4b7ae755a4cbd8c34f37853ea754c4241f3ce72e6f9c397583c5e09",
+      "type": "file"
+    },
+    {
+      "bytes": 136187,
+      "path": "/home/ustad/ostadix-BM/src/bin/olangc/native_runtime.rs",
+      "sha256": "6e16c8c47e905ec24e527bff48d7330836ac0279cba5cc4595e4f146828425b1",
+      "type": "file"
+    },
+    {
+      "bytes": 15261,
+      "path": "/home/ustad/ostadix-BM/src/bin/olangc/native_runtime/source_recipe.rs",
+      "sha256": "22bed10ec54c0a717c6a0fecdcdb993b3668afb9bf421f55fe1b74cf08985aa4",
+      "type": "file"
+    },
+    {
+      "bytes": 32276,
+      "path": "/home/ustad/ostadix-BM/src/bin/olangc/native_runtime/artifact.rs",
+      "sha256": "a0b1fc8ac38335fabf7023157af3035b4e9f08d0f485a53c55aaa893749ac364",
+      "type": "file"
+    },
+    {
+      "bytes": 154484,
+      "path": "/home/ustad/ostadix-BM/scripts/ocore_runtime_capture.py",
+      "sha256": "a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779",
+      "type": "file"
+    },
+    {
+      "bytes": 174447,
+      "path": "/home/ustad/ostadix-BM/scripts/ocore_llvm_import.py",
+      "sha256": "2313dd3866ca6e5479ca890ed41b3cbf9c1dd05e962992d445e5a3a7c2d6ac22",
+      "type": "file"
+    },
+    {
+      "bytes": 1138,
+      "path": "/home/ustad/ostadix-BM/scripts/ocore_producer_registry.json",
+      "sha256": "62d74350f9b97db882f96ccb04fb985ff519e45d648b2f977664c2e631ff4052",
+      "type": "file"
+    },
+    {
+      "bytes": 11248,
+      "path": "/home/ustad/ostadix-BM/scripts/okernel_native_codec.py",
+      "sha256": "26a47f312c0bb7dbbff7fe56faa089c2189be0009a614952d6fb79eb1bcd059b",
+      "type": "file"
+    },
+    {
+      "bytes": 8336,
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/u9fs/build_component.py",
+      "sha256": "69014d68fe7fe7308e064fc3458dac8ec7b92bb7c9ea93053303b7f28f59761b",
+      "type": "file"
+    },
+    {
+      "bytes": 10718,
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/u9fs/build_native.py",
+      "sha256": "339a9cbb04e960e000c866c632b39ebda00ee88ca620c601527c5f9456755129",
+      "type": "file"
+    },
+    {
+      "bytes": 17660,
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/libc/build_inventory.py",
+      "sha256": "a67fcbf02d81e3c94d53fd59cfdd973bc6cdb4d0e71a2561c9f22497b26c0be9",
+      "type": "file"
+    },
+    {
+      "bytes": 7604,
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/libc/README.md",
+      "sha256": "733f108cea17c606153932a05029a34386b4f9ed1a494bb2fc79b6d9ebe9b75e",
+      "type": "file"
+    },
+    {
+      "bytes": 5977,
+      "path": "/home/ustad/ostadix-BM/tools/ocore-runtime/libc/aarch64.static.recipe.json",
+      "sha256": "89d80bc407378e7be8e47aa92efb3fc2be48d295fa17b58c6d6a6969839fbc5f",
+      "type": "file"
+    },
+    {
+      "bytes": 35864,
+      "path": "/home/ustad/ostadix-BM/ocore/runtime/common/namespace_store.oc",
+      "sha256": "13cffe0c19b455314f23e8a53914b585ba43d19d606c07c3f6706793c5f41c53",
+      "type": "file"
+    },
+    {
+      "bytes": 17536,
+      "path": "/home/ustad/ostadix-BM/ocore/runtime/common/posix_namespace_files.oc",
+      "sha256": "ff161dd8db9d024200a9318a7fc62941bd726635e5c599085e44dc7cf582f36a",
+      "type": "file"
+    },
+    {
+      "bytes": 24822,
+      "path": "/home/ustad/ostadix-BM/ocore/guest/linux/package-domain/build.py",
+      "sha256": "e4646e00cc990fe0898dad43a7f018e15806e5b4de0702b240ac83754f152a4b",
+      "type": "file"
+    }
+  ],
+  "historical_libc_readme_receipt_path": {
+    "exists": false,
+    "path": "/home/ustad/.cache/ostadix-runtime-captures/original-musl-0784374d-20261010/whole-source-build-observation-v1.json",
+    "scope": "Absence at this exact path is not a claim that no historical receipt exists elsewhere."
+  },
+  "local_musl_source": {
+    "git_head": "0784374d561435f7c787a555aeab8ede699ed298",
+    "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl",
+    "scope": "Selected read-only source observations, not a complete capture or new source-native qualification.",
+    "selected_build_source_files": [
+      {
+        "bytes": 6,
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/VERSION",
+        "sha256": "fe2b7c237b5a6e42818aa3e4f7fc5820f49c32289c32c96260ef89a8c8f6d3d7",
+        "type": "file"
+      },
+      {
+        "bytes": 7515,
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/Makefile",
+        "sha256": "58c8b95c68d5326c747e26e7b4ff51560d72fc881fa5492d85f8dcf9af17ab9e",
+        "type": "file"
+      },
+      {
+        "bytes": 26407,
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/configure",
+        "sha256": "aa6574f8049f80f3b0a464bc20ab377a57bc0d3464478ac7ccb500f10002cd78",
+        "type": "file"
+      },
+      {
+        "bytes": 67619,
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/ldso/dynlink.c",
+        "sha256": "7d6d6bfd3aafc7eb3331c37752a37fcf1e568452d2ca5be9009669386571cbbb",
+        "type": "file"
+      },
+      {
+        "bytes": 4756,
+        "path": "/home/ustad/.cache/okernel-u9fs-native-recipe/sources/musl/ldso/dlstart.c",
+        "sha256": "89c13c034fd7e7d2c85b249af04a0c922a658ade2295949dad441e059d8c3d6b",
+        "type": "file"
+      }
+    ],
+    "version": "1.2.5"
+  },
+  "locally_retained_source_inputs": [
+    {
+      "bytes": 1502830,
+      "path": "/home/ustad/.cache/ostadix/package-domain/sources/zlib-1.3.2.tar.gz",
+      "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+      "type": "file"
+    },
+    {
+      "bytes": 854,
+      "path": "/home/ustad/.cache/ostadix/package-domain/sources/CVE-2026-85091.patch",
+      "sha256": "110ff14375733173d8aa54574473424fbd7dfe4b81f1ca34a759c6fe14b15b14",
+      "type": "file"
+    }
+  ],
+  "native_candidate_admitted": false,
+  "prior_behavior_proposal": [
+    {
+      "bytes": 10233,
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/PROPOSAL.md",
+      "sha256": "87ba940d68314c78dfc94caed5f0051714e3e85d864611aeb05c9b8e6eb38c49",
+      "type": "file"
+    },
+    {
+      "bytes": 6898,
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/gate-plan.json",
+      "sha256": "4eb6a93e6d3870643203137241c969f48420dcd910e02d928e6f51b1b2acb6c2",
+      "type": "file"
+    },
+    {
+      "bytes": 32399,
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/input-identities.json",
+      "sha256": "5e3092f2b1f7fa34b3efbb6bbeaceae4abcc4e330c368a96134673810619cd5e",
+      "type": "file"
+    },
+    {
+      "bytes": 1579,
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/validation.json",
+      "sha256": "12e86825aa0b31cb8e1d6ea9d5e2c2987ca11c51a171a10f85836efc771e0a30",
+      "type": "file"
+    }
+  ],
+  "schema": "ostadix.support.apk-source-contract-inputs/v1",
+  "status": "proposal-only"
+}

@@ -1,0 +1,36 @@
+{
+  "active_source_or_vm_changes": false,
+  "artifacts": [
+    {
+      "bytes": 10631,
+      "path": "/home/ustad/.cache/okernel-unified-backend/apk-source-contract-current-8ho0peo4/PROPOSAL.md",
+      "sha256": "910b0386f452ba3d54fd5631a34cf80382a9d956134e593e9d071f160e4f1920",
+      "type": "file"
+    },
+    {
+      "bytes": 7609,
+      "path": "/home/ustad/.cache/okernel-unified-backend/apk-source-contract-current-8ho0peo4/input-identities.json",
+      "sha256": "bf61d1fd5872204b1473dcacc467922281350353232797ffe04b769c99a812e2",
+      "type": "file"
+    },
+    {
+      "bytes": 36719,
+      "path": "/home/ustad/.cache/okernel-unified-backend/apk-source-contract-current-8ho0peo4/reference-observations.json",
+      "sha256": "8a22fb5b941bba55cbd618d023c08d838d45c7a310b5b5e9a80dc9a594814630",
+      "type": "file"
+    },
+    {
+      "bytes": 7239,
+      "path": "/home/ustad/.cache/okernel-unified-backend/apk-source-contract-current-8ho0peo4/source-contract.json",
+      "sha256": "6f209cd2b0874804637c2ab11d23f2cff1581de82e09bee536fc5f786c1de7aa",
+      "type": "file"
+    }
+  ],
+  "build_import_test_vm_runs": 0,
+  "guest_executions": 0,
+  "inspected_elf_count": 8,
+  "native_apk_admitted": false,
+  "schema": "ostadix.support.source-contract-validation/v1",
+  "source_and_contract_hashes_stable": true,
+  "status": "inspection-and-proposal-only"
+}

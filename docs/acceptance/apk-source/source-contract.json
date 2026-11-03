@@ -1,0 +1,143 @@
+{
+  "compiler_scope": "A compiled compiler implementation and its emitted-program O-core route remain separate gates.",
+  "components": [
+    {
+      "id": "apk-tools-libapk",
+      "reference_package_version": "3.0.8-r0",
+      "required_source": "Original manager, libapk, resolver, trust/crypto calls, archive/database/scripts/transport implementation and generated sources",
+      "status": "matching-upstream-source-build-profile-not-located",
+      "upstream_pin": null
+    },
+    {
+      "available_nonmatching_source": "musl1.2.5 commit0784374d561435f7c787a555aeab8ede699ed298; static recipe disables shared loader",
+      "id": "musl-loader",
+      "reference_package_version": "1.2.6-r3",
+      "required_source": "Original libc, loader, startup, TLS, assembly, compiler helpers and platform closure",
+      "status": "matching-dynamic-reference-profile-unqualified",
+      "upstream_pin": null
+    },
+    {
+      "id": "openssl",
+      "reference_package_version": "3.5.9-r0",
+      "required_source": "Original libssl/libcrypto plus configured loadable providers, initialization, ABI/assembly and runtime config/trust data",
+      "status": "matching-source-build-profile-not-located; ELF-links-incomplete",
+      "upstream_pin": null
+    },
+    {
+      "id": "zlib",
+      "reference_package_version": "1.3.2-r1",
+      "required_source": "Original zlib source/config and exact distro patchset",
+      "retained_inputs": [
+        {
+          "bytes": 1502830,
+          "path": "/home/ustad/.cache/ostadix/package-domain/sources/zlib-1.3.2.tar.gz",
+          "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+          "type": "file"
+        },
+        {
+          "bytes": 854,
+          "path": "/home/ustad/.cache/ostadix/package-domain/sources/CVE-2026-85091.patch",
+          "sha256": "110ff14375733173d8aa54574473424fbd7dfe4b81f1ca34a759c6fe14b15b14",
+          "type": "file"
+        }
+      ],
+      "status": "archive-and-declared-patch-retained; full-distro-build-profile-and-source-recipe-not-admitted",
+      "upstream_pin": null
+    },
+    {
+      "id": "busybox-script-runtime",
+      "reference_package_version": "1.37.0-r31",
+      "required_source": "Original configured BusyBox shell/applets and required script-helper source graphs; scripts retained as original data interpreted by qualified original runtime",
+      "status": "matching-source-config-not-located",
+      "upstream_pin": null
+    },
+    {
+      "id": "manager-environment",
+      "required_source": "Original keys/index/packages/config plus separately governed DB/runtime view; installed scripts may introduce additional helpers and original engines",
+      "status": "runtime-helper-graph-and-native-namespace-platform-unqualified",
+      "upstream_pin": null
+    }
+  ],
+  "executions": [],
+  "native_candidate_admitted": false,
+  "no_runtime_fallbacks": [
+    "No host helper execution in place of native runtime semantics",
+    "No reference frontend object in deliverable code closure",
+    "No silent source/feature/assembly/helper omissions or replacement resolver",
+    "No rewritten target triple/DataLayout to impersonate another ISA/ABI",
+    "No recipe-supplied producer adapters or invented source pins",
+    "No constructor/TLS/crypto/script success stubs",
+    "No dual-kernel experiment promoted as completed single-system implementation"
+  ],
+  "plan9_scope": "Current producer registry contains clang/rustc only; native Plan9 C/ASM/object producers require separately verified bindings and are not added or qualified by this proposal.",
+  "profiles": [
+    {
+      "comparison": "Identical retained original manager/runtime executable bytes, keys and fixtures on matched-ISA Linux/reference and native candidate.",
+      "id": "original-binary-abi",
+      "source_lowering_claim": false,
+      "status": "native-candidate-unqualified"
+    },
+    {
+      "comparison": "Same pinned original source, patches/configuration and fixtures through original reference frontend vs compiler-owned O-core route; generated binaries have separate hashes.",
+      "id": "original-source-lowered",
+      "source_lowering_claim": "Only after whole source/component closure and native behavior separately qualify.",
+      "status": "recipe-and-candidate-unqualified"
+    }
+  ],
+  "requirements": [
+    {
+      "evidence": null,
+      "id": "source-and-configuration",
+      "qualified": false,
+      "requirement": "Original upstream commits/archives, distro packaging patches, submodules, generated inputs, exact build configuration and full evaluated build graph for manager and all dependencies."
+    },
+    {
+      "evidence": null,
+      "id": "producer-and-role-inventory",
+      "qualified": false,
+      "requirement": "Per ISA real frontend, ABI/triple/DataLayout; planned vs observed compilation occurrences, response files, wrappers, generated headers, ordered archive members and selected link inputs; independent evidence for probe/tool exclusions."
+    },
+    {
+      "evidence": null,
+      "id": "whole-unit-import",
+      "qualified": false,
+      "requirement": "Every required function/global/initializer/relocation and cold configured member retained; unsupported ASM/TLS/IFUNC/constructors/IR features stop admission and remain reported."
+    },
+    {
+      "evidence": null,
+      "id": "dependency-and-platform-closure",
+      "qualified": false,
+      "requirement": "Verified native module sets plus explicit O-core platform interfaces; all linked libraries, loadable providers, helper binaries/interpreters and data/config ownership bound. No original opaque object is counted as lowered code."
+    },
+    {
+      "evidence": null,
+      "id": "final-artifact",
+      "qualified": false,
+      "requirement": "Own code objects and exact manifest identities; linker/loader behavior, startup, relocations and ABI adapters separately checked; OIR orchestration references only explicit included native modules."
+    },
+    {
+      "evidence": null,
+      "id": "behavior-and-restart",
+      "qualified": false,
+      "requirement": "Original manager semantics against matched Linux reference, including original trust/resolver/database/scripts plus all earlier positive/negative/restart cases. No silent unsupported hooks."
+    },
+    {
+      "evidence": null,
+      "id": "reproduction",
+      "qualified": false,
+      "requirement": "Fresh private build/capture and checkout-independent retained-artifact replay with exact tools and evidence, distinct from behavioral compatibility."
+    },
+    {
+      "evidence": null,
+      "id": "efficiency",
+      "qualified": false,
+      "requirement": "Same ISA/protection/durability/config/repository/cache/versions and full kernel+driver+service+manager+helper memory; raw repetitions and p50/p95 after correctness qualifies."
+    }
+  ],
+  "schema": "ostadix.support.apk-source-contract-proposal/v1",
+  "scope": "Add source provenance/lowering gates alongside the earlier original-manager behavioral proposal; do not replace same-binary Linux ABI acceptance.",
+  "source_component_owner": "main coordinator",
+  "source_graph_complete": false,
+  "source_native_apk_admitted": false,
+  "status": "proposal-only-not-a-runnable-source-recipe"
+}
