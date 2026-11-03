@@ -628,6 +628,17 @@ controls. The immutable owned report SHA-256 is
 This compiler fixture evidence uses Linux/QEMU carriers and explicit test
 providers; it does not establish lowering or closure of an upstream engine.
 
+LLVM `strictfp` scopes require the serialized NativeIR target field
+`strict_fp_profile: "integer_only_v1"`. The importer admits only audited
+integer/pointer operations and ABI values under this profile. Native verification
+and emission independently enforce the profile, including rejection of floating
+atomic operations; unknown profile names fail deserialization. Modules without
+the field retain the ordinary realization. Native execution preserves ambient
+floating control/status state and the ordered effects of original provider
+calls. Floating SSA/ABI values, constrained arithmetic/conversions, and extended
+precision formatting still require separate lowering; this profile does not
+qualify musl `vfprintf` or complete original-runtime dependencies.
+
 LLVM `weak` function and global definitions retain their bodies, initializers,
 relocations and actual ELF weak bindings. Symbol closure selects a compatible
 strong definition over weak definitions, or the first weak definition in the
@@ -636,8 +647,20 @@ and sufficient selected-provider alignment, including overridden definitions.
 The original build's ordered link membership is separate evidence; a supplied
 module order alone does not qualify complete runtime linking. `linkonce`,
 `linkonce_odr` and `weak_odr` definitions and direct aliases retain their exact
-linkage names and ELF weak bindings. `extern_weak` declarations, common and
+linkage names and ELF weak bindings. Non-TLS `extern_weak` function/global
+declarations retain their undefined ELF weak binding. Address materialization
+and guarded direct calls use linker-resolved GOT entries on all three ISAs,
+so an absent provider has address zero; a supplied definition retains ordinary
+ELF provider selection, and an optional reference alone does not pull an archive
+member into the image. Definitions labeled `extern_weak` and external-weak TLS
+are rejected. This object-emission support does not waive the separate
+compiler-owned runtime dependency-closure gate. Common and
 `available_externally` definitions remain unsupported whole-unit contracts.
+Source-relative32 initializers targeting `extern_weak` reject during AArch64
+native emission: the [AArch64 ELF weak-reference rules](https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst#561-weak-references)
+substitute the relocation place for an absent weak PC-relative target, rather
+than preserving its zero address. Absolute64 initializer relocations and GOT-based
+addresses retain that zero behavior on all three ISAs.
 
 ELF `any` and `nodeduplicate` COMDAT groups keep code, globals and their
 relocation sections together. Direct aliases inherit their included root's
