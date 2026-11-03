@@ -1,0 +1,142 @@
+{
+  "schema": "ocore-original-runtime-acceptance-v1",
+  "name": "complete-original-chibicc",
+  "implementation": {
+    "kind": "compiler",
+    "upstream_url": "https://github.com/rui314/chibicc.git",
+    "revision": "90d1f7f199cc55b13c7fdb5839d1409806633fdb",
+    "source_checkout": "/home/orangepi/ostadix-BM/target/c-expansion-20261018/chibicc-source",
+    "recipe": {
+      "path": "/home/orangepi/ostadix-BM/tools/ocore-runtime/c-compiler/chibicc.recipe.json",
+      "sha256": "b6f7feea9476cec7b694fac27c5f3738fa3b04aa1d5c0e2f62f9d6b6b6b655c4",
+      "bytes": 4777
+    },
+    "build_step": "build-original-chibicc"
+  },
+  "requirements": {
+    "delivery": "native",
+    "resource_profile": "ostadix-kernel",
+    "compiler_output_routing": true,
+    "jit_generation": false,
+    "jit_publication": false,
+    "jit_invalidation": false
+  },
+  "targets": [
+    {
+      "id": "riscv64-lp64d",
+      "target": "riscv64-unknown-none",
+      "native_target": {
+        "triple": "riscv64-unknown-linux-gnu",
+        "data_layout": "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+        "pointer_bits": 64,
+        "little_endian": true,
+        "abi": "lp64d",
+        "tls_profile": null,
+        "atomic_profile": null
+      },
+      "jobs": 1,
+      "unit_inventory": "unit-inventory.json",
+      "frontend_tools": {
+        "--native-runtime-cc": "cc",
+        "--native-runtime-llvm-nm": "nm",
+        "--native-runtime-llvm-dis": "dis"
+      },
+      "import_profiles": {},
+      "provider_profiles": [],
+      "programs": [
+        {
+          "name": "chibicc",
+          "kind": "program",
+          "required_units": [
+            "codegen",
+            "hashmap",
+            "main",
+            "parse",
+            "preprocess",
+            "strings",
+            "tokenize",
+            "type",
+            "unicode"
+          ],
+          "reference_output": "chibicc",
+          "upstream_targets": [
+            "test-all"
+          ],
+          "behavior_driver": null
+        }
+      ]
+    },
+    {
+      "id": "x86_64-sysv",
+      "target": "x86_64-unknown-none",
+      "native_target": null,
+      "jobs": 1,
+      "unit_inventory": "unit-inventory.json",
+      "frontend_tools": {
+        "--native-runtime-cc": "cc_x86_64",
+        "--native-runtime-llvm-nm": "nm",
+        "--native-runtime-llvm-dis": "dis"
+      },
+      "import_profiles": {},
+      "provider_profiles": [],
+      "programs": [
+        {
+          "name": "chibicc",
+          "kind": "program",
+          "required_units": [
+            "codegen",
+            "hashmap",
+            "main",
+            "parse",
+            "preprocess",
+            "strings",
+            "tokenize",
+            "type",
+            "unicode"
+          ],
+          "reference_output": "chibicc",
+          "upstream_targets": [
+            "test-all"
+          ],
+          "behavior_driver": null
+        }
+      ]
+    },
+    {
+      "id": "aarch64-aapcs64",
+      "target": "aarch64-unknown-none",
+      "native_target": null,
+      "jobs": 1,
+      "unit_inventory": "unit-inventory.json",
+      "frontend_tools": {
+        "--native-runtime-cc": "cc_aarch64",
+        "--native-runtime-llvm-nm": "nm",
+        "--native-runtime-llvm-dis": "dis"
+      },
+      "import_profiles": {},
+      "provider_profiles": [],
+      "programs": [
+        {
+          "name": "chibicc",
+          "kind": "program",
+          "required_units": [
+            "codegen",
+            "hashmap",
+            "main",
+            "parse",
+            "preprocess",
+            "strings",
+            "tokenize",
+            "type",
+            "unicode"
+          ],
+          "reference_output": "chibicc",
+          "upstream_targets": [
+            "test-all"
+          ],
+          "behavior_driver": null
+        }
+      ]
+    }
+  ]
+}

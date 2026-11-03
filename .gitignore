@@ -132,3 +132,6 @@ big_iron_to_my_texas_red*
 /session-*.md
 /ostadix-lang-info.pdf
 /src/bin/*.before-*
+
+# Private local Codex history and work snapshots (never publish)
+/.private-codex/

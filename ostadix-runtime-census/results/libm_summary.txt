@@ -1,0 +1,24 @@
+fn      differ  A=truth B=truth  A>1ulp B>1ulp  worst ulp A/B   max |A-B| ulp
+sin        123       64      59       0      0      1/1          1
+cos         91       46      45       0      0      1/1          1
+tan          1        0       1       0      0      1/0          1
+asin        38       22      16       0      0      1/1          1
+acos        14        6       8       0      0      1/1          1
+atan        66       39      27       0      0      1/1          1
+sinh       159       75      72       0      1      1/2          2
+cosh        87       54      33       0      0      1/1          1
+tanh        73       28      18       2      8      2/2          3
+asinh       28       16      12       0      0      1/1          1
+atanh       11        8       3       0      0      1/1          1
+exp        105       64      41       0      0      1/1          1
+expm1      146       90      56       0      0      1/1          1
+log          4        2       2       0      0      1/1          1
+log2        15        7       8       0      0      1/1          1
+log10        4        3       1       0      0      1/1          1
+log1p       38       25      13       0      0      1/1          1
+erfc        13        6       6       0      0      1/1          2
+lgamma      10        3       3       5      3      4/3          2
+gamma      146       50      40      38     27      4/3          4
+atan2       23       13      10       0      0      1/1          1
+pow        106       64      42       0      0      1/1          1
+TOTAL {'results': 5400000, 'diff': 1301, 'A_ok': 685, 'B_ok': 516, 'A_gt1': 45, 'B_gt1': 39}

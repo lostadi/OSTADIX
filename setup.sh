@@ -505,7 +505,7 @@ install_system_deps() {
             append_unique debian_packages grub-efi-amd64-bin mtools ovmf xorriso
           fi
           if $WITH_HOSTED_RUNTIMES; then
-            append_unique debian_packages nodejs npm ruby racket ghc ocaml sbcl mono-devel octave wabt default-jdk-headless python3-matplotlib
+            append_unique debian_packages nodejs npm ruby racket ghc ocaml sbcl  octave wabt default-jdk-headless python3-matplotlib
           fi
           if $WITH_GUEST_TOOLS; then
             append_unique debian_packages qemu-system-x86 qemu-system-arm qemu-efi-aarch64 qemu-utils gzip xz-utils zstd xorriso cpio squashfs-tools

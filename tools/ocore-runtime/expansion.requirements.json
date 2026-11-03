@@ -1,0 +1,580 @@
+{
+  "schema_version": 1,
+  "kind": "ostadix-original-implementation-expansion-requirements",
+  "purpose": "An open-ended acceptance contract for automated original runtime and compiler lowering through O-core. This file states requirements, not a claim of installed, imported, executable, or cross-ISA support.",
+  "assessment_status": "pending_evidence_review",
+  "architectural_requirements": {
+    "path": "isa.requirements.json",
+    "mandatory_primary_profiles": [
+      "x86_64",
+      "aarch64",
+      "rv64gc"
+    ],
+    "additional_required_expansion_profiles": [
+      "i686",
+      "armv7"
+    ],
+    "rule": "Apply the referenced per-ISA acceptance matrix to every applicable mechanism and selected implementation. Missing 32-bit foundations remain required unfinished expansion work; 64-bit execution, target-object emission, and QEMU presence do not establish i686 or ARMv7 support. Require functional identity across every implemented O-core ISA under matched declared profiles, with dynamic backend inventory, original-reference and pairwise execution comparisons. Required unsupported or unavailable lanes remain RED/unmet; the listed targets are minimum obligations.",
+    "profile_lists_are_minimum_not_exhaustive": true,
+    "all_implemented_isa_semantic_equivalence_ref": "isa.requirements.json#/all_implemented_isa_semantic_equivalence"
+  },
+  "scope": {
+    "language_family_ids": [
+      "rust",
+      "python",
+      "javascript",
+      "typescript",
+      "html",
+      "latex",
+      "java",
+      "c",
+      "d",
+      "lua",
+      "common_lisp",
+      "chez_scheme",
+      "go",
+      "ocaml"
+    ],
+    "language_family_list_is_exhaustive": false,
+    "architectural_objective": "General automated import of external runtime and compiler implementations using existing implementation-language frontends and original build metadata, without a fixed language whitelist or interpreter-only ceiling.",
+    "required_target_profiles": [
+      "x86_64",
+      "aarch64",
+      "rv64gc"
+    ],
+    "preserve_existing_work": "Retain and extend all prior Rust, CPython, Node/V8, actual TypeScript, HTML, LaTeX, Java, C, D, Lua and provider investigations. Common Lisp, exact Chez Scheme and official Go are additional required families; no new entry replaces an unfinished implementation. OCaml is an additional required original compiler/runtime family and replaces none of these obligations.",
+    "claim_rule": "Report acceptance independently per original implementation, execution profile, artifact kind, and target. Family-wide or universal completion requires evidence for the actual claimed scope; one implementation or execution mode cannot establish every other one.",
+    "explicit_user_runtime_additions": {
+      "requested_at_utc": "2026-10-20T15:33:46.099284+00:00",
+      "family_ids": [
+        "common_lisp",
+        "chez_scheme",
+        "go"
+      ],
+      "scope": "Complete original runtime/compiler lowering under every mandatory stage and applicable separate obligation; not registration or present support."
+    },
+    "explicit_user_ocaml_and_all_isa_identity": {
+      "family_id": "ocaml",
+      "required": true,
+      "functional_identity_scope": "Every ISA in which O-core is implemented; dynamically inventory actual backends rather than treating existing profile lists as exhaustive.",
+      "status": "pending_evidence_review"
+    }
+  },
+  "candidate_policy": {
+    "selection_status": "pending_original_source_and_build_audit",
+    "names_are_candidates_only": true,
+    "versions_are_not_selected_here": true,
+    "required_before_selection": [
+      "Exact upstream identity and source revision",
+      "Original license and source provenance",
+      "Original build recipe and bootstrap requirements",
+      "Declared execution profile and required modules",
+      "Dependency and platform-interface inventories"
+    ],
+    "existing_recipe_rule": "Audit existing recipes and evidence before selecting or changing a candidate. File existence, command catalog presence, or a prepared recipe does not prove build health or successful lowering."
+  },
+  "mandatory_acceptance_stages": [
+    {
+      "id": "original_implementation",
+      "requires": [],
+      "evidence_required": [
+        "Pinned original upstream source identity and hashes",
+        "Complete source and resource manifest for the declared profile",
+        "Audited original build and bootstrap recipe",
+        "Recorded source patches with purpose and semantic impact"
+      ],
+      "acceptance": "Use the original implementation. Infrastructure patches must be disclosed and reviewed; replacing implementation logic with a manual O-core rewrite, generated facade, reduced teaching implementation, or different engine cannot establish this implementation's acceptance."
+    },
+    {
+      "id": "source_build_capture",
+      "requires": [
+        "original_implementation"
+      ],
+      "evidence_required": [
+        "olangc-owned recipe and frontend invocations",
+        "Full command, environment, toolchain, target, and build-input provenance",
+        "Complete expected-versus-captured translation-unit and generated-source inventory",
+        "Build-time tools and dependencies distinguished from shipped runtime dependencies"
+      ],
+      "acceptance": "olangc owns original source acquisition or resolution, build recipe, frontend invocation, capture, and failure reporting. Capture all required original compilation units, including generated sources and target-specific units; inventory-only success is insufficient."
+    },
+    {
+      "id": "complete_ocore_import",
+      "requires": [
+        "source_build_capture"
+      ],
+      "evidence_required": [
+        "Per-unit import results matched to the expected complete source inventory",
+        "Complete required functions, globals, constants, initializers, relocations, modules, and compiler helpers",
+        "Exact unsupported constructs and affected units",
+        "Mapping from original implementation units to emitted O-core-owned modules"
+      ],
+      "acceptance": "Every required unit and construct for the declared profile must lower through O-core with original observable semantics. Reject unsupported constructs explicitly. No silently omitted units, unresolved native stubs, interpreted unchanged foreign IR, or external original-engine executable may substitute for lowering."
+    },
+    {
+      "id": "independent_verification",
+      "requires": [
+        "complete_ocore_import"
+      ],
+      "evidence_required": [
+        "Independent O-core verifier invocation and actual exit status for each required module",
+        "Verifier identity and module hashes",
+        "Diagnostics and negative outcomes retained",
+        "Module-consistency verification"
+      ],
+      "acceptance": "A successful importer or emitter must not certify itself by implication. Run the applicable independent verifier on every emitted module, then verify final linkage and the complete artifact at artifact construction; parse success, a feature census, or an evidence filename is insufficient."
+    },
+    {
+      "id": "dependency_provider_closure",
+      "requires": [
+        "independent_verification"
+      ],
+      "evidence_required": [
+        "Complete recursive declared dependency and resource graph",
+        "Resolved functions, globals, initializers, relocations, libraries, helpers, and native module references",
+        "Provider implementation identity, provenance, ABI, target, and qualification",
+        "Explicit required platform interfaces and external effects"
+      ],
+      "acceptance": "Every required native implementation reference resolves within the included compiled dependency closure. Declare platform interfaces explicitly; an allowlisted unresolved native implementation, host-installed runtime, or supplied executable is not a complete compiled closure."
+    },
+    {
+      "id": "abi_linking",
+      "requires": [
+        "dependency_provider_closure"
+      ],
+      "evidence_required": [
+        "Target-specific calling conventions, data layout, and relocation support",
+        "Required varargs, aggregates, vectors, floating point, atomics, TLS, exceptions, and unwind features",
+        "Initializer and finalizer ordering",
+        "Resolved final link map and symbol table"
+      ],
+      "acceptance": "Validate every ABI feature actually used by the original implementation and its closure. Reduced argument tests or one successful translation unit do not establish complete ABI support."
+    },
+    {
+      "id": "complete_olangc_artifact",
+      "requires": [
+        "abi_linking"
+      ],
+      "evidence_required": [
+        "Single olangc-owned workflow from declared source recipe to artifact",
+        "Artifact manifest and hashes",
+        "Independent whole-program linkage, module-consistency, and complete-artifact verification",
+        "Compiled original runtime or compiler plus complete native dependency closure",
+        "Included .O program, foreign scripts, resources, execution profile, realization bindings, linkage, and provenance"
+      ],
+      "accepted_artifact_kinds": [
+        "native_binary",
+        "complete_verified_ocore_ir_artifact",
+        "complete_oir_program_with_verified_native_ocore_modules"
+      ],
+      "acceptance": "The artifact must be a complete whole program for its declared profile. OIR orchestration and O-core MIR retain distinct invariants and explicit runtime/operation interfaces. An OIR artifact may include compiled native modules, but every native module reference must resolve in its included dependency closure. Supplied original-engine executables and orchestration-only plans do not establish original-engine compilation."
+    },
+    {
+      "id": "actual_execution",
+      "requires": [
+        "complete_olangc_artifact"
+      ],
+      "evidence_required": [
+        "Actual artifact execution command and environment",
+        "Exit status and retained stdout/stderr",
+        "Representative upstream conformance and regression workloads for the declared profile",
+        "Observable-behavior comparison with the original implementation",
+        "Clean-environment dependency-closure check"
+      ],
+      "acceptance": "Exercise the compiled original implementation through the shipped .O and foreign-script path. Foreign scripts may be interpreted by the O-core-compiled original language runtime. Artifact construction alone does not establish executable support. An IR artifact must receive its required native lowering and execution qualification before an execution claim is made."
+    },
+    {
+      "id": "cross_isa_profile_qualification",
+      "requires": [
+        "actual_execution"
+      ],
+      "evidence_required": [
+        "Separate x86_64, AArch64, and RV64GC artifact and execution evidence",
+        "Exact ISA, OS, ABI, architecture features, and execution profile",
+        "Native hardware versus emulator identity clearly identified",
+        "Observable-semantics comparison and declared treatment of nondeterminism",
+        "Unsupported target-specific constructs and interfaces retained",
+        "Frozen dynamic inventory of every implemented O-core ISA/backend and complete expected-versus-executed mechanism/profile matrix; retain all minimum required targets even when foundations are missing",
+        "Unchanged-original-reference versus owned execution on each ISA plus pairwise matched owned executions across every implemented ISA, with exact workload/input/profile/artifact/result identities",
+        "Declared deterministic, floating-point, memory/concurrency and nondeterministic observation models; retained raw results, semantic mismatches, missing executions and meaningful cross-ISA negative controls"
+      ],
+      "acceptance": "Qualify equivalence per execution profile on all required targets. Successful host execution, cross-emission, static verification, or a runtime's name does not imply cross-ISA equivalence or purity. Preserve required external effects and specify environment-dependent equivalence explicitly. Every implemented O-core ISA is required: enumerate actual source/build/runtime backends and qualify functional identity against the unchanged original reference and between matched owned executions. Never normalize away mismatches, silently omit an ISA, or use compilation/static checks as semantic equivalence. Follow the referenced all-implemented-ISA contract; unresolved profile conflicts and gaps remain RED/unmet."
+    }
+  ],
+  "separate_capability_obligations": {
+    "compiler_implementation_import": {
+      "status": "pending_evidence_review",
+      "requirement": "Compile the original compiler implementation and its complete declared closure through O-core under the mandatory acceptance stages. Bootstrap tools are recorded separately and cannot stand in for the final compiled compiler."
+    },
+    "compiler_generated_program_routing": {
+      "status": "pending_evidence_review",
+      "requirement": "Have olangc automatically route programs produced by the original compiler through O-core import, verification, ABI adaptation, dependency resolution, linking, artifact construction, and actual execution. Importing a compiler implementation alone does not satisfy this capability."
+    },
+    "jit_generated_code": {
+      "status": "pending_evidence_review",
+      "requirement": "Keep JIT implementations in scope. Declare and verify a concrete generated-code capture, O-core lowering, relocation, publication, execution, and invalidation path with original runtime semantics. An interpreter profile may be qualified separately but cannot establish JIT support or permanently remove JIT work from scope."
+    },
+    "replayability": {
+      "status": "pending_evidence_review",
+      "requirement": "Track replayability, external effects, and admission independently from lowering. Do not infer purity or determinism from the source language or runtime identity."
+    }
+  },
+  "language_families": [
+    {
+      "id": "rust",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "rustc",
+        "Rust standard library and required compiler support libraries"
+      ],
+      "specific_obligations": [
+        "Original compiler implementation and complete standard-library/provider closure",
+        "Bootstrap and generated-source capture",
+        "Compiler-produced Rust programs routed through O-core",
+        "Panics, unwind or declared abort profile, allocation, TLS, atomics, and target runtime behavior"
+      ],
+      "non_substitute": "A small Rust crate, reduced probe, or manually rewritten library is evidence only for that probe and cannot replace rustc or the required standard library."
+    },
+    {
+      "id": "python",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "CPython"
+      ],
+      "specific_obligations": [
+        "Complete original interpreter/compiler implementation for the declared profile",
+        "Required standard-library modules, extension-module providers, encodings, imports, and resources",
+        "Reference semantics, exceptions, initialization, dynamic loading, and threading profile",
+        "Actual Python scripts carried by the olangc artifact"
+      ]
+    },
+    {
+      "id": "javascript",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "Original Node.js and V8 implementation used by the existing backend profile",
+        "QuickJS as an additional engine profile",
+        "V8 including an explicitly tracked JIT scope"
+      ],
+      "specific_obligations": [
+        "Preserve the existing Node.js/V8 backend's original-engine profile and audit its pinned upstream producer and complete host/module/provider closure",
+        "An additional QuickJS profile must not silently replace the existing Node.js/V8 profile or establish its acceptance",
+        "Original selected engine and complete declared module/provider closure",
+        "JavaScript parsing, execution, exceptions, modules, and required host interfaces",
+        "Interpreter and JIT profiles assessed separately",
+        "V8 generated-code path remains an explicit obligation for the Node.js/V8 profile"
+      ],
+      "non_substitute": "A smaller replacement engine or an original Node.js executable launched by a backend does not establish lowering of the required original Node.js/V8 implementation."
+    },
+    {
+      "id": "typescript",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "Upstream TypeScript compiler implementation resolved by pinned revision and producer audit",
+        "An independently admitted original JavaScript engine for generated JavaScript"
+      ],
+      "specific_obligations": [
+        "Resolve the actual original compiler implementation, implementation language, build/bootstrap recipe, and producer frontend for the selected upstream revision; do not assume the compiler body is JavaScript",
+        "Lower the complete original compiler body and its dependencies through the appropriate implementation-language frontend and O-core path, including the native/Go implementation where selected by the audited upstream revision",
+        "A historical JavaScript tsc profile may be declared and qualified separately but cannot establish lowering of a different current native compiler implementation",
+        "Complete compiler libraries, module resolution, declaration inputs, and resources",
+        "Compiler-generated JavaScript routes through the admitted selected original O-core-compiled JavaScript engine or a separately verified native O-core compilation path",
+        "Compiler-body lowering, TypeScript compile diagnostics, and generated-program execution have separate evidence"
+      ],
+      "non_substitute": "A handwritten transpiler, syntax stripper, or supplied JavaScript-engine executable does not establish upstream TypeScript support."
+    },
+    {
+      "id": "html",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "A genuine upstream HTML DOM and rendering engine selected after source/build audit"
+      ],
+      "specific_obligations": [
+        "Original parser, DOM, layout, and rendering implementation for the declared profile",
+        "Required CSS, JavaScript integration, encoding, resource loading, graphics, font, and platform providers",
+        "Actual DOM and rendering workloads with documented observable comparison",
+        "Documented browser or headless execution profile and its complete resources"
+      ],
+      "non_substitute": "The built-in text formatter, string interpolation, an HTML generator, or markup passthrough does not establish DOM or rendering-engine lowering."
+    },
+    {
+      "id": "latex",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "An original TeX-family engine",
+        "Upstream LaTeX format and required packages and fonts"
+      ],
+      "specific_obligations": [
+        "Original TeX engine implementation lowered through O-core",
+        "Complete declared format, macro, package, font, encoding, hyphenation, and resource closure",
+        "Original build and format-generation steps captured",
+        "Actual document compilation and output behavior qualified per execution profile"
+      ],
+      "non_substitute": "A LaTeX-like formatter, rendered fixture, or host TeX executable is not evidence of original TeX-engine lowering."
+    },
+    {
+      "id": "java",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "OpenJDK"
+      ],
+      "specific_obligations": [
+        "Original JVM and compiler implementation plus required class-library and native-provider closure",
+        "Bootstrap, generated-source, module, and resource capture",
+        "JNI, class loading, initialization, garbage collection, exceptions, threading, and platform interfaces",
+        "javac implementation and compiler-generated program routing assessed separately",
+        "Interpreter and JIT execution profiles with an explicit generated-code path"
+      ]
+    },
+    {
+      "id": "c",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "chibicc",
+        "General existing C implementation-language frontends and original compiler build metadata"
+      ],
+      "specific_obligations": [
+        "Complete original compiler implementation and required runtime/provider closure",
+        "Compiler-generated C programs routed through O-core",
+        "All required translation units, preprocessing inputs, headers, helpers, relocations, and ABI features",
+        "Support architecture generalizes beyond the initial compiler candidate"
+      ],
+      "non_substitute": "Successful compilation of a subset of chibicc units or a synthetic varargs probe does not establish complete compiler support."
+    },
+    {
+      "id": "d",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "LDC",
+        "dmd",
+        "D druntime",
+        "Phobos"
+      ],
+      "specific_obligations": [
+        "Original selected compiler implementation and its build/bootstrap closure",
+        "Complete required druntime and Phobos implementation",
+        "Compiler-generated D programs routed through O-core",
+        "Garbage collection, exceptions, unwind, modules, templates, initialization, TLS, and platform providers as required by the declared profile"
+      ]
+    },
+    {
+      "id": "lua",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "Original upstream Lua implementation covered by the existing investigation"
+      ],
+      "specific_obligations": [
+        "Preserve and audit existing Lua original-source capture and import evidence",
+        "Complete engine, standard libraries, resources, and declared provider closure",
+        "Actual Lua script execution through the complete olangc artifact",
+        "Independent verification and cross-ISA qualification remain required"
+      ]
+    },
+    {
+      "id": "common_lisp",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "SBCL",
+        "ECL",
+        "CLISP",
+        "Clozure Common Lisp (CCL)"
+      ],
+      "specific_obligations": [
+        "Pin and preserve the actual original Common Lisp implementation, compiler/runtime, bootstrap inputs, generated images, libraries, native code and complete declared providers. Existing adapter fallback selection is not implementation equivalence.",
+        "Capture original implementation-language and architecture-specific producers under olangc ownership; supplied bootstrap executables/images are build inputs, not final lowered-runtime evidence.",
+        "Preserve reader/macros, packages, lexical and dynamic binding, CLOS/generic functions, conditions/restarts/non-local exits, numeric behavior, GC, FFI and declared thread behavior.",
+        "Keep evaluation, compilation, FASL/image loading, compiler-produced programs and runtime-generated native code as explicit supported paths; qualify publication/invalidation where applicable."
+      ],
+      "acceptance_tests": {
+        "reference_workloads": [
+          "Pinned upstream conformance/regression suite plus macro/package/closure/dynamic-binding/condition/restart and numeric cases",
+          "GC/root liveness, object identity, finalization, FFI/callbacks and declared thread/effect cases",
+          "Original compiler/evaluator/image behavior compared with O-core-owned complete artifacts on each required ISA"
+        ],
+        "negative_controls": [
+          "Missing cold function/unit/image/library or GC root/initializer",
+          "Silently selected different Common Lisp engine",
+          "Opaque supplied executable or precompiled original-engine image used as lowering proof",
+          "Unlowered compiler-produced/native-generated code or ABI/platform mismatch"
+        ]
+      },
+      "non_substitute": "A reduced Lisp evaluator, another implementation selected silently, handwritten runtime, external host Lisp process or embedded executable/image cannot establish lowering of the selected original implementation."
+    },
+    {
+      "id": "chez_scheme",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "Chez Scheme original compiler and runtime"
+      ],
+      "specific_obligations": [
+        "Require Chez Scheme itself, pinned original compiler/runtime/boot-image and library sources, generated bootstrap products, native primitives, providers and FFI closure.",
+        "Preserve proper tail calls, continuations, multiple values, dynamic-wind, exceptions, numeric behavior, library loading, GC roots and declared thread/foreign-call behavior.",
+        "Capture and lower original Scheme/C/assembly producers and complete target-specific sources through registered verified interfaces; unsupported producers stay unmet.",
+        "Separate compiler-body lowering, compiled Scheme output, runtime-generated code, publication/invalidation and image/boot reconstruction obligations."
+      ],
+      "acceptance_tests": {
+        "reference_workloads": [
+          "Pinned upstream Chez tests and complete declared libraries/boot resources",
+          "Deep proper-tail-call, captured/reentered continuation, multiple-value, dynamic-wind, exception and GC/root-liveness cases",
+          "Original versus owned compiler/runtime/FFI behavior on each required ISA"
+        ],
+        "negative_controls": [
+          "Another Scheme engine or authored Scheme subset substituted for Chez",
+          "Missing boot/library/native primitive/provider/cold implementation entity",
+          "Broken continuation roots/tail-call behavior/ABI/data layout",
+          "Unlowered generated code or opaque host Chez executable/image"
+        ]
+      },
+      "non_substitute": "Generic Scheme support, another Scheme implementation, an unchanged implementation-IR interpreter or launching a supplied Chez executable is not original Chez runtime lowering."
+    },
+    {
+      "id": "go",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "Official Go compiler, Go runtime and required standard library"
+      ],
+      "specific_obligations": [
+        "Use pinned original official Go compiler/runtime/required standard-library and internal-package sources, bootstrap tools and declared generated resources.",
+        "Register and verify actual Go, assembly and cgo producers where used; preserve target-specific assembly, ABI/stack conventions, stack maps, GC barriers, atomics and full recursive package/provider closure.",
+        "Preserve goroutine scheduling and stack growth, channels/synchronization, interfaces/reflection, maps, GC/root liveness, panic/defer/recover, finalizers and declared cgo/platform effects.",
+        "Compile original compiler implementation and route programs it generates through O-core as distinct capabilities; Go-host compilation/execution outside the owned path does not close either requirement."
+      ],
+      "acceptance_tests": {
+        "reference_workloads": [
+          "Pinned upstream runtime/compiler/standard-library tests for the complete declared profile",
+          "Goroutine/channel synchronization, growing stacks with live roots, GC barriers/stack maps, atomics and interface/reflection/map cases",
+          "Panic/defer/recover and FFI/cgo callbacks where declared; native original versus owned programs on each required ISA"
+        ],
+        "negative_controls": [
+          "Missing Go/assembly/internal-package/compiler-helper unit, relocation, initializer or provider",
+          "Dropped stack map/GC barrier/ABI metadata or changed scheduler/stack semantics",
+          "Toy Go-like runtime, substituted scheduler/GC, external go run or supplied executable as lowering proof",
+          "Compiler body accepted while generated programs bypass O-core or wrong target ABI is silently reused"
+        ]
+      },
+      "non_substitute": "A Go-like interpreter, reduced runtime, alternative engine silently replacing official Go, discarded assembly, external Go compiler/runtime process or supplied native programs cannot establish complete official Go lowering."
+    },
+    {
+      "id": "ocaml",
+      "status": "pending_evidence_review",
+      "candidate_upstreams": [
+        "Original official OCaml compiler, bytecode runtime, native runtime and standard library"
+      ],
+      "specific_obligations": [
+        "Pin unchanged original OCaml compiler/runtime/standard-library sources, selected upstream revision, license, bootstrap tools and bytecode/native bootstrap products, generated sources, native assembly, build metadata, target configuration and complete recursive providers/resources. Candidate naming does not select or qualify an upstream revision.",
+        "Drive full original implementation-language and architecture-specific units through olangc-owned registered producers, complete O-core import, independent verification, ABI/link/initializer resolution and complete native/verified O-core IR/OIR artifact construction. Preserve all cold functions, globals, relocations and original runtime/compiler behavior; unsupported producers and units remain RED/unmet.",
+        "Qualify original bytecode VM/runtime lowering and execution of OCaml bytecode programs separately from original compiler-body lowering, native/runtime compiler lowering and compiler-generated native-program routing through O-core. Bytecode execution by the O-core-compiled original VM is permitted; interpreting unchanged imported implementation IR is not lowering the VM or compiler.",
+        "Preserve value/tag and integer-width representations, heap layouts, precise GC roots and stack maps, allocation/safepoints/barriers, closures and partial application, proper tail calls, exceptions, effects/continuations, modules/functors/standard libraries, FFI/callbacks and original data/marshalling/unmarshalling behavior under the declared profile.",
+        "Preserve systhreads, domains, synchronization/atomics, memory model, GC/finalizer interaction and target-specific native assembly/platform interfaces. Required effects/domain-capable and other execution lanes cannot be closed by selecting an older or reduced profile that lacks them; retain actual upstream/profile applicability and missing capabilities explicitly.",
+        "Keep bytecode compilation/output, native compilation/output, dynamic linking and any applicable runtime-generated code/publication/invalidation paths distinct. Bind complete owned artifacts and unchanged-reference behavior to each actual ISA/profile, including every implemented O-core ISA and the minimum required expansion profiles."
+      ],
+      "acceptance_tests": {
+        "reference_workloads": [
+          "Pinned upstream compiler/runtime/stdlib conformance and regression workloads, with full required bytecode and native build inventories and separately identified original implementation, compiler and generated-program artifacts",
+          "Tagged values, int/nativeint/float representations, GC/root liveness and relocation, minor/major allocation and barriers, custom blocks/finalizers, closures/partial application/tail calls and exceptions under the declared semantic profile",
+          "Effects/continuation capture and resumption, modules/functors, FFI and callbacks, original marshalled/unmarshalled data and declared resource/module loading",
+          "Systhreads/domains, atomics and GC/synchronization interactions; native assembly and platform behavior; unchanged upstream versus owned execution plus pairwise matched executions on every implemented O-core ISA"
+        ],
+        "negative_controls": [
+          "Missing required original bytecode/native/compiler/stdlib/assembly unit, cold function/global, initializer/relocation, provider, generated resource or boot artifact",
+          "Wrong tag/heap/data layout, lost GC root/stack map/barrier, broken closure/tail call/exception/effect/continuation or unmarshalling behavior",
+          "Bytecode VM success substituted for native compiler/output qualification, compiler body accepted while generated programs bypass O-core, or reduced profile used to claim all execution modes",
+          "Host OCaml executable/image, alternative implementation, toy runtime, manually rewritten engine or unchanged implementation-IR interpreter used as original-runtime lowering evidence",
+          "ABI/platform/assembly/atomic/domain mismatch, an omitted implemented ISA, missing reference/pairwise comparison, or an altered cross-ISA observable incorrectly accepted"
+        ]
+      },
+      "non_substitute": "An OCaml-like interpreter, alternate implementation, supplied host compiler/runtime executable, partial bytecode-only profile, handwritten runtime or unchanged implementation-IR interpreter cannot establish complete original OCaml compiler/runtime support."
+    }
+  ],
+  "provider_workstream": {
+    "status": "pending_evidence_review",
+    "required_provider_categories_when_used": [
+      "libc and allocator",
+      "C++ ABI and standard library",
+      "compiler helper libraries",
+      "exceptions and unwind",
+      "threading and synchronization",
+      "TLS and atomics",
+      "garbage collection",
+      "dynamic loading",
+      "OS and platform interfaces",
+      "encoding and internationalization",
+      "graphics and rendering",
+      "fonts and document packages",
+      "networking and cryptography"
+    ],
+    "acceptance": "Apply the same original-source, capture, import, independent-verification, provenance, ABI, linkage, closure, execution, and target requirements to required implementation providers. Separate explicit platform interfaces from bundled implementations, record every unresolved dependency, and preserve existing provider work."
+  },
+  "evidence_record_requirements": {
+    "required_fields": [
+      "implementation_identity",
+      "source_revision_and_hashes",
+      "execution_profile",
+      "artifact_kind",
+      "target_isa_os_abi",
+      "toolchain_identity",
+      "actual_commands",
+      "exit_statuses",
+      "expected_units",
+      "captured_units",
+      "imported_units",
+      "verified_units",
+      "unsupported_constructs",
+      "provider_closure",
+      "resolved_linkage",
+      "artifact_hashes",
+      "execution_results",
+      "upstream_comparison",
+      "platform_interfaces",
+      "remaining_blockers"
+    ],
+    "status_values": [
+      "pending_evidence_review",
+      "in_progress",
+      "blocked_by_measured_failure",
+      "qualified_for_declared_scope"
+    ],
+    "completion_rule": "Use qualified_for_declared_scope only after every mandatory stage and applicable separate capability obligation has evidence for that exact implementation/profile/artifact/target claim. Retain failures and commands; distinguish observed output from expectations.",
+    "metrics_rule": "Unit counts and feature percentages may describe progress but never certify completeness. One missing required unit, dependency, ABI feature, resource, or module reference blocks the corresponding complete-support claim.",
+    "test_rule": "Use meaningful upstream and end-to-end workloads. Reduced probes diagnose blockers and remain labeled as probes. They cannot replace the original engine/compiler or its complete declared dependency closure.",
+    "independent_review_rule": "Before qualifying a milestone, retain a separate reviewer assessment of changed lowering/code generation, generated-runtime source inclusion, complete required-unit inventories, and semantic oracles, with findings and resolution. Reviewer approval does not replace actual verification/execution evidence. Use a separate reviewer agent when available.",
+    "all_implemented_isa_identity_rule": "Retain the dynamically derived implemented-ISA inventory, complete applicable mechanism/profile matrix, per-ISA original-reference comparisons and pairwise matched owned executions. List minimum targets separately from implemented status; missing/unsupported/unexecuted lanes remain RED/unmet and cannot disappear from the expected set. Coverage must fail closed when a backend is added without applicable target/runner/oracle coverage. Require exact defined deterministic observations and the same defined concurrency/nondeterministic allowed-trace semantics; matching a few schedules is bounded evidence."
+  },
+  "prohibited_completion_evidence": [
+    "Embedding or launching a supplied original-engine executable",
+    "Manually reimplementing a language runtime in O-core",
+    "Generating O-core text from a polyglot block without lowering the original runtime",
+    "Interpreting unchanged imported foreign IR as proof of native runtime lowering",
+    "Silently omitting failed original units or replacing them with semantic stubs",
+    "Using toy crates, reduced engines, or handwritten transpilers as substitutes for named original implementations",
+    "Counting captured units or feature percentages as complete runtime/compiler support",
+    "Treating command, path, recipe, or artifact presence as proof of functioning execution",
+    "Treating compiler implementation import as compiler-generated program routing",
+    "Treating host-only execution or static cross-emission as cross-ISA semantic qualification",
+    "One ISA or a fixed target whitelist used as universal functional-identity proof while an implemented O-core ISA is omitted",
+    "Compilation-only, object-emission-only or zero-execution comparisons presented as all-ISA semantic equivalence",
+    "Floating-point, memory, concurrency or nondeterministic mismatches normalized away or silently filtered",
+    "A new implemented backend omitted from CI/acceptance target, guarded runner or independent oracle coverage; unsupported features excluded to turn RED into green; a few matching schedules presented as all-trace identity"
+  ],
+  "primary_runtime_lowering_test_priority": {
+    "explicitly_reiterated_by_Lee": true,
+    "property": "O-core must lower arbitrary original language-runtime implementations through reusable producer/build/import interfaces",
+    "primary_tests": "End-to-end original-source runtime lowering, complete verification/closure/artifacts and declared-profile behavior",
+    "named_language_list_is_exhaustive": false,
+    "capture_registry_or_rejection_tests_establish_runtime_support": false,
+    "manual_runtime_rewrite_or_opaque_executable_embedding_establishes_lowering": false,
+    "unchanged_imported_implementation_IR_interpretation_establishes_lowering": false,
+    "foreign_scripts_interpreted_by_original_Ocore_compiled_engine_allowed": true,
+    "compiler_body_output_routing_and_JIT_are_separate_gates": true,
+    "other_acceptance_requirements_remain_required": true,
+    "required_profile_missing_prerequisites_or_unsupported_constructs": "unmet acceptance, retain failures, no silent skip/zero-case pass",
+    "status": "test-design-and-implementation-required",
+    "explicit_required_additional_families": [
+      "common_lisp",
+      "chez_scheme",
+      "go",
+      "ocaml"
+    ],
+    "all_implemented_isa_functional_identity_required": true
+  }
+}
