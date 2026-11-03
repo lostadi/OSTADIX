@@ -180,8 +180,9 @@ python3 "$proof/reproduce.py" --capture "$proof" --output "$replay/result"
 ```
 
 The frozen launcher still requires a compatible Linux x86-64 host, Python
-3.10 or newer with its standard library, `/bin/sh`, Bash, tmux, and the recorded
-host ELF interpreter. It carries its QEMU libraries, modules and data. This is
+3.10 or newer with its standard library, `/bin/sh`, Bash, tmux,
+coreutils-compatible `dirname`, `sleep` and `cat`, and the recorded host ELF
+interpreter. It carries its QEMU libraries, modules and data. This is
 a captured runtime and native-build proof, rather than a bootstrap of every
 host tool or a claim that mutable package repositories will reproduce the
 same disk later.
