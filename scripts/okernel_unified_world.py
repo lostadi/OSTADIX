@@ -1,0 +1,819 @@
+#!/usr/bin/env python3
+"""Run an explicit isolated Linux/original-Plan9 state below one O-core monitor.
+
+The two kernels share native objects, not guest RAM or host filesystem servers.
+This runner cannot select the working package-domain state. Build and live
+qualification are separate; original program dispatch is qualified separately.
+"""
+from __future__ import annotations
+
+import argparse
+import ctypes
+import fcntl
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import secrets
+import selectors
+import shutil
+import signal
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from okernel_native_volume import Volume
+
+PROTOCOL_SPEC = importlib.util.spec_from_file_location("original_plan9_protocol", ROOT / "ocore/guest/plan9/unified/protocol.py")
+protocol = importlib.util.module_from_spec(PROTOCOL_SPEC)
+sys.modules[PROTOCOL_SPEC.name] = protocol
+PROTOCOL_SPEC.loader.exec_module(protocol)
+SPEC = importlib.util.spec_from_file_location("unified_common", ROOT / "scripts/okernel_package_domain.py")
+common = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(common)
+DISK_BYTES = 0x40000000
+STORE_BYTES = 0x1000000
+DEFAULT_BOOTSTRAP = b"!rc\nmount -n -c /dev/eia1 /n\necho ORIGINAL_PLAN9_UNIFIED_@TOKEN@ > /n/work/plan9-ready-@TOKEN@\n"
+RECOVERY = {"control_address": 0x6d000070, "control_bytes": 48,
+            "kernel_backup_address": 0xd0000000, "kernel_max_bytes": 0x1000000,
+            "dtb_backup_address": 0xd1000000, "dtb_max_bytes": 0x10000,
+            "pause": 1, "restart": 2}
+COORDINATOR_UART = {"guest_address": 0x09001000, "guest_irq": 51,
+                    "input_address": 0x6d060000, "input_bytes": 8192,
+                    "output_address": 0x6d080000, "output_bytes": 65536}
+
+
+def owned_qemu_child(parent_pid: int):
+    """Keep this controller's private QEMU from outliving an abrupt owner exit."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(1, signal.SIGTERM, 0, 0, 0) != 0:  # PR_SET_PDEATHSIG
+        os._exit(126)
+    if os.getppid() != parent_pid:
+        os._exit(126)
+
+
+def digest(path: Path) -> str:
+    value = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            value.update(chunk)
+    return value.hexdigest()
+
+
+def identity(path: Path) -> dict:
+    return {"path": str(path.resolve()), "bytes": path.stat().st_size, "sha256": digest(path)}
+
+
+def checked(path: Path, expected: dict) -> Path:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("expected regular captured input: " + str(path))
+    if path.stat().st_size != expected["bytes"] or digest(path) != expected["sha256"]:
+        raise ValueError("captured input identity changed: " + str(path))
+    return path
+
+
+def validate_profile(profile: dict) -> None:
+    required = {
+        "schema": "ostadix.unified-world-monitor/v1", "profile": "linux-original-plan9",
+        "outer_ram_bytes": 0xc0000000,
+        "domains": [
+            {"id": 0, "name": "linux", "guest_ram_ipa": 0x40000000, "guest_ram_pa": 0x48000000,
+             "guest_ram_bytes": 0x20000000, "entry": 0x40000000, "x0": 0x47e00000, "vmid": 1},
+            {"id": 1, "name": "plan9", "guest_ram_ipa": 0x40000000, "guest_ram_pa": 0xb0000000,
+             "guest_ram_bytes": 0x20000000, "entry": 0x40100000, "x0": 0x40000000, "vmid": 2}],
+        "loader_addresses": {"inputs/linux.Image": 0x48000000, "linux.dtb": 0x4fe00000,
+                             "inputs/linux.initramfs": 0x50000000, "inputs/plan9.kernel": 0xb0100000,
+                             "plan9.dtb": 0xb0000000},
+        "block_backing": {"address": 0x70000000, "bytes": DISK_BYTES},
+        "namespace": {"address": 0x6c000000, "bytes": STORE_BYTES, "epoch_address": 0x6d000000,
+                      "quiescence_address": 0x6d000008, "clock_address": 0x6d000010,
+                      "linux_grant": 1, "plan9_grant": 4, "native_peer_grant": 2},
+        "plan9_console": {"input_address": 0x6d010000, "input_bytes": 4096,
+                         "output_address": 0x6d020000, "output_bytes": 65536},
+        "console_mux": {"escape": 30, "linux_select": 48, "plan9_select": 49,
+                        "linux_output_address": 0x6d040000, "output_bytes": 65536},
+        "gic": {"version": 3, "physical_controller": "native monitor only",
+                "distributor": [0x08000000, 0x08010000],
+                "redistributor": [0x080a0000, 0x080c0000],
+                "native_quantum_irq": 26, "quantum_counter_divisor": 100, "lpi_authority": False}}
+    if "plan9_recovery" in profile:
+        required["plan9_recovery"] = RECOVERY
+        required["loader_addresses"].update({"inputs/plan9-recovery.kernel": 0xd0000000,
+                                             "inputs/plan9-recovery.dtb": 0xd1000000})
+    if "coordinator_uart" in profile:
+        required["coordinator_uart"] = COORDINATOR_UART
+    if any(profile.get(key) != value for key, value in required.items()):
+        raise ValueError("expected the exact isolated two-domain memory/interrupt grant")
+
+
+def validate_recovery_inputs(artifacts: dict[str, Path]) -> None:
+    for backup, original, maximum in (("inputs/plan9-recovery.kernel", "inputs/plan9.kernel", 0x1000000),
+                                       ("inputs/plan9-recovery.dtb", "plan9.dtb", 0x10000)):
+        for name in (backup, original):
+            if artifacts[name].is_symlink() or not artifacts[name].is_file():
+                raise ValueError("native recovery input must be a captured regular file")
+        if (identity(artifacts[backup])["sha256"] != identity(artifacts[original])["sha256"]
+                or not 0 < artifacts[backup].stat().st_size <= maximum):
+            raise ValueError("native recovery copy differs from admitted original input")
+
+
+class UnifiedDomain:
+    def __init__(self, state: Path, build: Path, qemu: str, *, bootstrap: bytes = DEFAULT_BOOTSTRAP,
+                 live: bool = False, timeout: float = 180):
+        if state.is_symlink():
+            raise ValueError("state must not be a symlink")
+        self.state, self.build = state.resolve(strict=True), build.resolve(strict=True)
+        configured = Path(os.environ.get("OSTADIX_OKERNEL_STATE") or str(common.DEFAULT_STATE.parent)) / "package-domain"
+        if self.state in (common.DEFAULT_STATE.resolve(), configured.expanduser().resolve()):
+            raise ValueError("the working package-domain state is not a unified test target")
+        fork = json.loads((self.state / "fork.json").read_text())
+        if fork.get("schema") != "ostadix.okernel-state-fork/v1" or not fork.get("ok") or fork.get("output") != str(self.state):
+            raise ValueError("use an explicitly copied, isolated state fork")
+        token = secrets.token_hex(12)
+        bootstrap = bootstrap.replace(b"@TOKEN@", token.encode())
+        self.ready_name, self.ready_value = "plan9-ready-" + token, "ORIGINAL_PLAN9_UNIFIED_" + token
+        if len(bootstrap) > 4096 or b"\0" in bootstrap:
+            raise ValueError("Plan9 console bootstrap exceeds its declared input buffer")
+        self.lock = (self.state / "domain.lock").open("a+")
+        try:
+            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            self.lock.close()
+            raise RuntimeError("this isolated state is already running") from None
+        self.closed = False
+        self.process = self.qmp = None
+        self.ram = None
+        self.control_sequence = 0
+        self.control_active = False
+        self.last_provider_poll = 0.0
+        self.service = None
+        self.provider_ready = False
+        self.provider_failed = False
+        self.native_store_ready = False
+        self.guest_coordinator_online = False
+        self.coordinator_position = 0
+        self.coordinator_capture = bytearray()
+        self.coordinator_events = []
+        self.last_coordinator_poll = 0.0
+        self.selector = selectors.DefaultSelector()
+        self.live, self.timeout = live, timeout
+        self.session = Path(tempfile.mkdtemp(prefix="unified-session-", dir=self.state))
+        self.control = None
+        self.capture, self.plan9_capture = bytearray(), bytearray()
+        self.plan9_position, self.linux_position, self.last_console_poll = 0, 0, 0.0
+        self.log = (self.session / "linux-console.log").open("wb")
+        self.terminal_log = (self.session / "console.log").open("wb")
+        self.plan9_log = (self.session / "plan9-console.log").open("wb")
+        self.error_log = (self.session / "qemu-stderr.log").open("wb")
+        self.record = {"schema": "ostadix.unified-world-session/v1", "ok": False,
+                       "scope": "one native O-core EL2 monitor with original Linux and original9front under QEMU/TCG; live claims require completion checks"}
+        try:
+            self.control = common.ControlSocket(self.session, prefer_session=False)
+            self.record["control_socket"] = {"path": str(self.control.path), "private_runtime": self.control.external}
+            controller = self.session / "controller.py"
+            shutil.copyfile(Path(__file__), controller)
+            controller.chmod(0o400)
+            self.record["controller"] = identity(controller)
+            manifest_file = self.build / "monitor-profile.json"
+            manifest = json.loads(manifest_file.read_text())
+            validate_profile(manifest)
+            common.write_json(self.session / "monitor-profile.json", manifest)
+            artifacts = {}
+            snapshots = self.session / "inputs"
+            snapshots.mkdir()
+            for name, expected in manifest["artifacts"].items():
+                relative = Path(name)
+                if relative.is_absolute() or ".." in relative.parts or expected.get("path") != name:
+                    raise ValueError("profile artifact escaped its captured build directory")
+                source = checked(self.build / name, expected)
+                target = snapshots / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
+                checked(target, expected).chmod(0o400)
+                artifacts[name] = target
+            self.head = json.loads((self.state / "head.json").read_text())
+            common.validate_head(self.state, self.head)
+            if self.head["disk"]["bytes"] != DISK_BYTES or not self.head.get("namespace"):
+                raise ValueError("unified execution requires a saved1GiB disk/native-store pair")
+            for name, key in (("disk.ext4", "disk"), ("namespace.raw", "namespace")):
+                expected = self.head[key]
+                target = snapshots / name
+                shutil.copyfile(checked(Path(expected["path"]), expected), target)
+                checked(target, expected).chmod(0o400)
+                artifacts[name] = target
+            self.epoch = secrets.randbits(64) or 1
+            self.clock = int(time.time())
+            self.recovery = manifest.get("plan9_recovery")
+            self.coordinator_uart = manifest.get("coordinator_uart")
+            if self.recovery:
+                validate_recovery_inputs(artifacts)
+            self.base_bootstrap = bootstrap
+            if manifest.get("plan9_derivation_kind") == "qualified-original-userland":
+                if not self.recovery:
+                    raise ValueError("original command provider requires native domain recycling")
+                self.service = {"generation": f"{self.epoch:016x}", "instance": secrets.token_hex(16)}
+                bootstrap = self.provider_bootstrap()
+                self.record["plan9_service"] = dict(self.service)
+            script = snapshots / "plan9-bootstrap.bin"
+            script.write_bytes(struct.pack("<Q", len(bootstrap)) + bootstrap)
+            script.chmod(0o400)
+            artifacts["plan9-bootstrap.bin"] = script
+            # A private anonymous shared RAM file permits the owning controller
+            # to write only trusted native controls while QEMU is stopped. It
+            # is never a guest filesystem, host path grant, or saved snapshot.
+            self.ram = os.memfd_create("ostadix-unified-private-ram", os.MFD_CLOEXEC)
+            os.ftruncate(self.ram, 0xc0000000)
+            command = [shutil.which(qemu) or qemu, "-machine", "virt,virtualization=on,gic-version=3,its=off,memory-backend=unified-ram",
+                       "-object", f"memory-backend-file,id=unified-ram,size=3G,mem-path=/proc/self/fd/{self.ram},share=on",
+                       "-accel", "tcg,thread=single", "-cpu", "cortex-a57", "-smp", "1", "-m", "3G",
+                       "-nodefaults", "-nic", "none", "-display", "none", "-monitor", "none",
+                       "-serial", "stdio", "-no-reboot", "-no-shutdown",
+                       "-qmp", "unix:" + str(self.control.path) + ",server=on,wait=off",
+                       "-kernel", str(artifacts["monitor.elf"])]
+            addresses = {**manifest["loader_addresses"], "disk.ext4": 0x70000000, "namespace.raw": 0x6c000000}
+            for name, address in addresses.items():
+                command += ["-device", "loader,file=" + str(artifacts[name]).replace(",", ",,") + ",addr=" + hex(address) + ",force-raw=on"]
+            command += ["-device", "loader,file=" + str(script).replace(",", ",,") + ",addr=0x6d010000,force-raw=on"]
+            for address, value in ((0x6d000000, self.epoch), (0x6d000008, 0), (0x6d000010, self.clock),
+                                   (0x6d020000, 0), (0x6d040000, 0)):
+                command += ["-device", f"loader,addr={hex(address)},data={value},data-len=8"]
+            if self.recovery:
+                for address, value in ((0x6d000090, artifacts["inputs/plan9.kernel"].stat().st_size),
+                                       (0x6d000098, artifacts["plan9.dtb"].stat().st_size)):
+                    command += ["-device", f"loader,addr={hex(address)},data={value},data-len=8"]
+            command += ["-global", "virtio-mmio.force-legacy=false", "-netdev", "user,id=unified-net",
+                        "-device", "virtio-net-device,bus=virtio-mmio-bus.31,netdev=unified-net,mac=52:54:00:12:34:56"]
+            self.record.update(argv=command, inputs={name: identity(path) for name, path in artifacts.items()},
+                               before=self.head, epoch=self.epoch, clock_unix_seconds=self.clock)
+            common.write_json(self.session / "result.json", self.record)
+            owner = os.getpid()
+            self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE, start_new_session=True, bufsize=0, pass_fds=(self.ram,),
+                                            preexec_fn=lambda: owned_qemu_child(owner))
+            self.record.update(controller_pid=os.getpid(), qemu_pid=self.process.pid)
+            common.write_json(self.session / "result.json", self.record)
+            (self.state / "latest-unified-session").write_text(str(self.session) + "\n")
+            self.selector.register(self.process.stdout, selectors.EVENT_READ, self.terminal_log)
+            self.selector.register(self.process.stderr, selectors.EVENT_READ, self.error_log)
+            self.qmp = common.QMP(self.control.path)
+            self.control.connected()
+        except BaseException as error:
+            self.record["error"] = str(error)
+            self.close()
+            raise
+
+    def pump(self, duration: float = 0.1):
+        for key, _ in self.selector.select(duration):
+            data = os.read(key.fileobj.fileno(), 16384)
+            if not data:
+                self.selector.unregister(key.fileobj)
+                continue
+            key.data.write(data)
+            key.data.flush()
+            if key.fileobj is self.process.stdout:
+                if self.live:
+                    os.write(sys.stdout.fileno(), data)
+        if self.qmp is not None and time.monotonic() - self.last_console_poll > 0.2:
+            self.last_console_poll = time.monotonic()
+            self.plan9_position = self.drain_console(0x6d020000, self.plan9_position, self.plan9_log, self.plan9_capture, "plan9")
+            self.linux_position = self.drain_console(0x6d040000, self.linux_position, self.log, self.capture, "linux")
+            if b"KW native shared namespace: online\n" in self.capture:
+                self.native_store_ready = True
+            common.write_json(self.session / "native-observation.json", self.counters())
+        if not self.live and (b"KW unified domain failure:" in self.capture or b"KW terminal unexpected exit:" in self.capture or b"Kernel panic" in self.capture):
+            raise RuntimeError("unified domain/monitor failure; inspect " + str(self.session))
+        if not self.live and b"panic:" in self.plan9_capture:
+            raise RuntimeError("original Plan9 kernel panic; inspect " + str(self.session))
+        if not self.provider_failed and not self.control_active:
+            try:
+                if self.service and time.monotonic() - self.last_provider_poll > 1:
+                    self.last_provider_poll = time.monotonic()
+                    self.watch_provider()
+                if self.guest_coordinator_online and time.monotonic() - self.last_coordinator_poll > 1:
+                    self.last_coordinator_poll = time.monotonic()
+                    self.watch_guest_coordinator()
+            except (OSError, ValueError, KeyError, RuntimeError, TimeoutError) as error:
+                if not self.live:
+                    raise
+                self.provider_failed = True
+                self.provider_ready = False
+                self.control_active = True
+                try:
+                    self.native_control(1)
+                finally:
+                    self.control_active = False
+                self.record["provider_failure"] = {"error": str(error), "time": time.time(),
+                                                    "counters": self.counters()}
+                common.write_json(self.session / "result.json", self.record)
+                os.write(sys.stdout.fileno(), ("\r\nPlan 9 provider withdrawn: " + str(error) +
+                         "\r\nLinux remains available. Save and restart to restore Plan 9; pending work is not replayed.\r\n").encode())
+
+    def provider_bootstrap(self) -> bytes:
+        service = self.service
+        script = self.base_bootstrap + ("mkdir -p /n/services\nrc /rc/bin/okernel-start /n/services/plan9 " +
+                    service["generation"] + " " + service["instance"] + "\n").encode()
+        if len(script) > 4096:
+            raise ValueError("provider bootstrap exceeds native console input grant")
+        return script
+
+    def stopped(self):
+        for _ in range(1000):
+            self.qmp.execute("stop")
+            if self.qmp.execute("query-status").get("running") is not False:
+                raise RuntimeError("CPU did not stop")
+            busy, = struct.unpack("<Q", os.pread(self.ram, 8, 0x6d000008 - 0x40000000))
+            if busy == 0:
+                return
+            if busy != 1:
+                raise RuntimeError("invalid native quiescence word")
+            self.qmp.execute("cont")
+            time.sleep(0.001)
+        raise RuntimeError("native service did not reach a snapshot boundary")
+
+    def native_volume(self):
+        self.stopped()
+        try:
+            captured = os.pread(self.ram, STORE_BYTES, 0x6c000000 - 0x40000000)
+        finally:
+            self.qmp.execute("cont")
+        return Volume(captured)
+
+    def native_control(self, operation: int, bootstrap: bytes | None = None, payload: bytes | None = None):
+        if not self.recovery or operation not in (1, 2, 3) or (operation == 3 and not self.coordinator_uart):
+            raise ValueError("native recovery is unavailable for this profile")
+        self.control_sequence += 1
+        self.stopped()
+        try:
+            if bootstrap is not None:
+                if operation != 2 or len(bootstrap) > 4096 or b"\0" in bootstrap:
+                    raise ValueError("invalid native recovery bootstrap")
+                self.write_native(0x6d010000, struct.pack("<Q", len(bootstrap)) + bootstrap)
+            if payload is not None:
+                if operation != 3 or not 0 < len(payload) <= 8192:
+                    raise ValueError("invalid native coordinator payload")
+                self.write_native(0x6d060000, struct.pack("<Q", len(payload)) + payload)
+            self.write_native(0x6d000070, struct.pack("<QQ", self.control_sequence, operation))
+        finally:
+            self.qmp.execute("cont")
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            ack, result = struct.unpack("<QQ", os.pread(self.ram, 16, 0x6d000080 - 0x40000000))
+            if ack == self.control_sequence:
+                # Acknowledgement is published inside a native transaction;
+                # require its completed boundary before observing live state.
+                self.stopped()
+                self.qmp.execute("cont")
+                if result != 1:
+                    raise RuntimeError("native Plan9 recovery rejected operation " + str(operation))
+                return
+            if self.process.poll() is not None:
+                raise RuntimeError("native supervisor exited during recovery")
+            self.pump(0.01)
+        raise TimeoutError("native Plan9 recovery acknowledgement missing")
+
+    def write_native(self, address: int, data: bytes):
+        # Called only under stopped(), to these private control/input regions.
+        if not ((0x6d000070 <= address and address + len(data) <= 0x6d000080)
+                or (0x6d010000 <= address and address + len(data) <= 0x6d011008)
+                or (0x6d060000 <= address and address + len(data) <= 0x6d062008)):
+            raise ValueError("host write escaped native provisioning region")
+        if self.qmp.execute("query-status").get("running") is not False:
+            raise RuntimeError("native control write requires a stopped CPU")
+        if os.pwrite(self.ram, data, address - 0x40000000) != len(data):
+            raise RuntimeError("native provisioning write was incomplete")
+
+    def client_session(self, *, state="ready"):
+        return {"schema": "ostadix.p9.client-session/v1", **self.service,
+                "service_root": "/n/okernel/services/plan9", "linux_mount": "/n/okernel",
+                "plan9_mount": "/n", "program_dir": "/arm64/bin",
+                "recovery_mode": "controller-v1", "state": state}
+
+    def coordinator_update(self, *, recovered=None, state="ready"):
+        active = self.control_active
+        self.control_active = True
+        try:
+            sequence = self.control_sequence + 1
+            document = {"seq": sequence, "current": self.client_session(state=state)}
+            if recovered is not None:
+                document["recovered"] = recovered
+            frame = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+            expected_hash = hashlib.sha256(frame).hexdigest()
+            self.native_control(3, payload=frame + b"\n")
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                for acknowledgement in self.coordinator_read():
+                    if acknowledgement.get("event") == "unknown":
+                        self.coordinator_events.append(acknowledgement)
+                        continue
+                    if acknowledgement.get("seq") != sequence:
+                        continue
+                    if acknowledgement.get("sha256") != expected_hash or acknowledgement.get("ok") is not True:
+                        raise RuntimeError("Linux-private coordinator publication failed: " + repr(acknowledgement))
+                    self.record.setdefault("coordinator_updates", []).append({"frame": document, "ack": acknowledgement})
+                    return
+                self.pump(0.05)
+            raise TimeoutError("Linux-private coordinator acknowledgement missing")
+        finally:
+            self.control_active = active
+
+    def coordinator_read(self):
+        self.stopped()
+        try:
+            captured = os.pread(self.ram, 65544, 0x6d080000 - 0x40000000)
+        finally:
+            self.qmp.execute("cont")
+        count, = struct.unpack_from("<Q", captured)
+        if count < self.coordinator_position or count - self.coordinator_position > 65536:
+            raise RuntimeError("Linux coordinator acknowledgement ring overflowed/reset")
+        while self.coordinator_position < count:
+            offset = self.coordinator_position % 65536
+            size = min(count - self.coordinator_position, 65536 - offset)
+            self.coordinator_capture.extend(captured[8 + offset:8 + offset + size])
+            self.coordinator_position += size
+        messages = []
+        while b"\n" in self.coordinator_capture:
+            line, _, rest = self.coordinator_capture.partition(b"\n")
+            self.coordinator_capture[:] = rest
+            if len(line) > 8192:
+                raise RuntimeError("oversized native coordinator reply")
+            message = json.loads(line)
+            if not isinstance(message, dict):
+                raise RuntimeError("native coordinator reply is not an object")
+            messages.append(message)
+        if len(self.coordinator_capture) > 8192:
+            raise RuntimeError("unterminated native coordinator reply")
+        return messages
+
+    def watch_guest_coordinator(self):
+        for message in self.coordinator_read():
+            if message.get("event") == "unknown":
+                self.coordinator_events.append(message)
+        while self.coordinator_events:
+            event = self.coordinator_events.pop(0)
+            protocol.ready_marker(event.get("generation"), event.get("instance"))
+            protocol._hex(event.get("request_id"), 32, "request ID")
+            protocol._hex(event.get("request_sha256"), 64, "request SHA256")
+            if any(event[key] != self.service[key] for key in ("generation", "instance")):
+                continue  # Historical notice cannot reset a fresh instance.
+            root = "/services/plan9/g" + event["generation"] + "/s" + event["instance"]
+            volume = self.native_volume()
+            try:
+                request_bytes = volume.get(root + "/r" + event["request_id"] + "/request")
+            except FileNotFoundError:
+                # The Linux-private journal can precede request publication.
+                # Recycle conservatively; invent neither execution nor result.
+                request_bytes = None
+            if request_bytes is not None:
+                request = protocol.decode_request(request_bytes)
+                if ((request.generation, request.instance, request.request_id) !=
+                        (event["generation"], event["instance"], event["request_id"])
+                        or hashlib.sha256(request_bytes).hexdigest() != event["request_sha256"]):
+                    raise RuntimeError("unknown completion notice differs from native request")
+            self.recycle_plan9(None, {}, unknown=event)
+
+    def watch_provider(self):
+        # Read a quiescent native snapshot. Guest console text never asks for
+        # recovery or changes command authority. Service reset notices are
+        # bound to exact current-generation requests and completed captures.
+        if not self.native_store_ready:
+            return
+        if self.provider_ready and self.counters()["live_domains"] != 3:
+            raise RuntimeError("the original Plan9 domain was withdrawn")
+        volume = self.native_volume()
+        service = self.service
+        root = "/services/plan9/g" + service["generation"] + "/s" + service["instance"]
+        try:
+            ready = volume.get(root + "/ready")
+        except FileNotFoundError:
+            return
+        if ready != protocol.ready_marker(service["generation"], service["instance"]):
+            raise RuntimeError("original Plan9 ready marker has the wrong session binding")
+        self.provider_ready = True
+        try:
+            reset = volume.get(root + "/reset-required")
+        except FileNotFoundError:
+            return
+        fields = protocol._marker(reset, "OC9RESET1", (16, 32, 32, 64, 64))
+        if fields[:2] != (service["generation"], service["instance"]):
+            raise RuntimeError("Plan9 recovery marker belongs to another active instance")
+        request_dir = root + "/r" + fields[2]
+        try:
+            files = {name: volume.get(request_dir + "/" + name) for name in protocol.REQUEST_FILES}
+        except FileNotFoundError:
+            # reset-required precedes done; a quiescent snapshot can still be
+            # taken between these separate original-service publications.
+            return
+        protocol.validate_reset(files["request"], files["result"], reset)
+        protocol.validate_submit(files["request"], files["submit"])
+        protocol.validate_result(files["request"], files["result"], files["stdout"], files["stderr"],
+                                 started=files["started"], done=files["done"], status=files["status"])
+        self.recycle_plan9(reset, files)
+
+    def recycle_plan9(self, reset: bytes | None, files: dict, *, unknown: dict | None = None):
+        previous = dict(self.service)
+        recovery = {"previous": previous, "reset": reset.decode("ascii") if reset else None,
+                    "unknown": unknown, "started": time.time()}
+        self.record.setdefault("provider_recoveries", []).append(recovery)
+        self.control_active = True
+        try:
+            if self.guest_coordinator_online:
+                self.coordinator_update(state="recovering")
+            self.native_control(1)
+            withdrawn = self.counters()
+            if withdrawn["live_domains"] != 1:
+                raise RuntimeError("Plan9 withdrawal did not preserve only the Linux domain")
+            # Preserve the exact common objects at withdrawal, so lifecycle
+            # tests can distinguish preexisting effects from later effects.
+            captured = self.native_volume()
+            snapshot = self.session / ("namespace-before-recycle-" + str(len(self.record["provider_recoveries"])) + ".raw")
+            snapshot.write_bytes(captured._data)
+            recovery["namespace_before"] = identity(snapshot)
+            self.service = {"generation": previous["generation"], "instance": secrets.token_hex(16)}
+            self.provider_ready = False
+            bootstrap = self.provider_bootstrap()
+            self.native_control(2, bootstrap)
+            instance_root = "/services/plan9/g" + self.service["generation"] + "/s" + self.service["instance"]
+            deadline = time.monotonic() + self.timeout
+            while time.monotonic() < deadline:
+                volume = self.native_volume()
+                try:
+                    ready = volume.get(instance_root + "/ready")
+                except FileNotFoundError:
+                    self.pump(0.1)
+                    continue
+                if ready != protocol.ready_marker(self.service["generation"], self.service["instance"]):
+                    raise RuntimeError("recycled provider evidence does not match the native recovery")
+                self.provider_ready = True
+                if self.guest_coordinator_online:
+                    sha = lambda data: hashlib.sha256(data).hexdigest()
+                    request = protocol.decode_request(files["request"]) if not unknown else None
+                    acknowledgement = {"schema": "ostadix.p9.recovered/v1", "generation": previous["generation"],
+                                       "old_instance": previous["instance"], "request_id": unknown["request_id"] if unknown else request.request_id,
+                                       "request_sha256": unknown["request_sha256"] if unknown else sha(files["request"]),
+                                       "result_sha256": None if unknown else sha(files["result"]),
+                                       "reset_sha256": None if unknown else sha(reset), "done_sha256": None if unknown else sha(files["done"]),
+                                       "new_instance": self.service["instance"],
+                                       "ready_sha256": sha(ready), "outcome": "unknown" if unknown else "interrupted"}
+                    self.coordinator_update(recovered=acknowledgement)
+                recovery.update(ok=True, finished=time.time(), current=dict(self.service), withdrawn=withdrawn,
+                                restored=self.counters())
+                self.record["plan9_service"] = dict(self.service)
+                common.write_json(self.session / "result.json", self.record)
+                return
+            raise TimeoutError("fresh Plan9 provider did not become ready after native recycling")
+        finally:
+            self.control_active = False
+
+    def drain_console(self, address: int, position: int, log, capture: bytearray, name: str) -> int:
+        path = self.session / (name + "-ring.bin")
+        self.qmp.execute("pmemsave", {"val": address, "size": 65544, "filename": str(path)})
+        snapshot = path.read_bytes()
+        count, = struct.unpack_from("<Q", snapshot)
+        if count < position or count - position > 65536:
+            if not self.live:
+                raise RuntimeError(name + " console capture overflowed or reset unexpectedly")
+            self.record.setdefault("console_overruns", []).append({"domain": name, "before": position, "after": count})
+            position = max(0, count - 65536)
+        while position < count:
+            offset = position % 65536
+            length = min(count - position, 65536 - offset)
+            data = snapshot[8 + offset:8 + offset + length]
+            log.write(data)
+            capture.extend(data)
+            position += length
+        log.flush()
+        if self.live and len(capture) > 1048576:
+            del capture[:-1048576]
+        return position
+
+    def wait(self, marker: bytes, *, after: int = 0, timeout: float | None = None, plan9: bool = False, line: bool = False,
+             prompt_line: bool = False):
+        deadline = time.monotonic() + (timeout or self.timeout)
+        while time.monotonic() < deadline:
+            stream = self.plan9_capture if plan9 else self.capture
+            text = bytes(stream[after:]).replace(b"\r\n", b"\n")
+            complete = text.split(b"\n")[:-1]
+            found = marker in (complete if line else text)
+            if line and prompt_line:
+                found = found or b"% " + marker in complete or b"; " + marker in complete
+            if found:
+                return
+            if self.process.poll() is not None:
+                raise RuntimeError("unified QEMU exited; inspect " + str(self.session))
+            self.pump()
+        raise TimeoutError("missing " + repr(marker) + "; inspect " + str(self.session))
+
+    def send(self, data: bytes):
+        for offset in range(0, len(data), 32):
+            self.process.stdin.write(data[offset:offset + 32])
+            self.process.stdin.flush()
+            self.pump(0.01)
+
+    def command(self, command: str, timeout: float | None = None):
+        token = "UNIFIED_COMMAND_" + uuid.uuid4().hex
+        # Two selectors converge even if an operator left a dangling prefix;
+        # clear any literal selector residue before the fresh shell command.
+        self.send(b"\x1e0\x1e0\x15" + (command + "; _uw_rc=$?; printf '\\n" + token + ":%s\\n' \"$_uw_rc\"\n").encode())
+        deadline = time.monotonic() + (timeout or self.timeout)
+        while time.monotonic() < deadline:
+            lines = bytes(self.capture).replace(b"\r\n", b"\n").split(b"\n")[:-1]
+            for line in lines:
+                status = common.command_completion_status(line, token.encode())
+                if status is not None:
+                    if status != 0:
+                        raise RuntimeError("guest command failed: " + command + "; " + repr(line))
+                    return
+            if self.process.poll() is not None:
+                raise RuntimeError("unified QEMU exited during guest command")
+            self.pump()
+        raise TimeoutError("guest command timed out: " + command + "; inspect " + str(self.session))
+
+    def ready(self):
+        self.wait(b"KW unified Linux/Plan9 EL2: online", line=True)
+        self.wait(b"OKERNEL PACKAGE DOMAIN READY", line=True)
+        self.wait(b"pkg> ")
+        self.command("pkg-namespace mount")
+        self.command("date -u -s @" + str(self.clock))
+        self.command("pkg-net online", timeout=120)
+        if self.service:
+            deadline = time.monotonic() + self.timeout
+            while not self.provider_ready and time.monotonic() < deadline:
+                self.pump()
+            if not self.provider_ready:
+                raise TimeoutError("original Plan9 command provider readiness missing")
+            if self.coordinator_uart:
+                token = "P9_CLIENT_PRESENT_" + uuid.uuid4().hex
+                self.command("if test -x /usr/bin/python3 && test -f /usr/local/libexec/p9-controller && test -x /usr/local/bin/p9; then echo " + token + "; fi")
+                if token.encode() in bytes(self.capture).replace(b"\r", b"").split(b"\n"):
+                    self.command("mkdir -p /usr/lib/okernel /run/okernel/p9; chmod 700 /run/okernel/p9; cp /usr/local/libexec/p9_protocol.py /usr/lib/okernel/p9_protocol.py; /usr/local/libexec/p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9 > /run/okernel/p9/controller.log 2>&1 & echo $! > /run/okernel/p9/controller.pid")
+                    self.command("i=0; until grep -qx 'p9-controller ready' /run/okernel/p9/controller.log; do kill -0 $(cat /run/okernel/p9/controller.pid) || { cat /run/okernel/p9/controller.log; exit 1; }; i=$((i+1)); test $i -lt 200 || exit 1; sleep 0.05; done")
+                    self.coordinator_update()
+                    self.guest_coordinator_online = True
+                    self.record["plan9_client"] = {"ready": True, "control": "/run/okernel/p9", "transport": "native Linux-only PL011"}
+                    self.command("cd /n/okernel/work; PS1='okernel> '; export PS1; printf '\\nLinux and original Plan 9 share this workspace. Use p9 NAME for original Plan 9 programs.\\n' ")
+
+    def counters(self) -> dict:
+        path = self.session / "native-status.bin"
+        self.qmp.execute("pmemsave", {"val": 0x6d000020, "size": 80, "filename": str(path)})
+        live, switches, linux, plan9, linux_pc, plan9_pc, linux_esr, plan9_esr, console, dropped = struct.unpack("<10Q", path.read_bytes())
+        return {"live_domains": live, "switches": switches, "linux_exits": linux, "plan9_exits": plan9,
+                "linux_pc": hex(linux_pc), "plan9_pc": hex(plan9_pc), "linux_esr": hex(linux_esr), "plan9_esr": hex(plan9_esr),
+                "console": console, "input_dropped": dropped}
+
+    def save(self):
+        # Confirm that the original Plan9 console accepts commands too. DEL is
+        # its original console interrupt key; the host does not substitute an
+        # original engine or mistake echoed input for a completed command.
+        live = self.counters()["live_domains"]
+        if live == 1 and self.provider_failed:
+            self.record["plan9_save_state"] = "native authority withdrawn; no Plan9 operations remain"
+        else:
+            if live != 3:
+                raise RuntimeError("save requires both live shells or verified Plan9 withdrawal")
+            for attempt in range(2):
+                token = "PLAN9_SAVE_READY_" + uuid.uuid4().hex
+                self.send(b"\x1e1\x7f\x15")
+                self.send(("echo " + token + "\n").encode())
+                try:
+                    self.wait(token.encode(), plan9=True, line=True, prompt_line=True, timeout=3 if attempt == 0 else 15)
+                    break
+                except TimeoutError:
+                    if attempt:
+                        raise
+        self.command("sync")
+        flag = self.session / "quiescence.bin"
+        for attempt in range(1000):
+            self.qmp.execute("stop")
+            if self.qmp.execute("query-status").get("running") is not False:
+                raise RuntimeError("CPU did not stop")
+            self.qmp.execute("pmemsave", {"val": 0x6d000008, "size": 8, "filename": str(flag)})
+            value = flag.read_bytes()
+            if value == bytes(8):
+                break
+            if value != b"\1" + bytes(7):
+                raise RuntimeError("invalid native quiescence word")
+            self.qmp.execute("cont")
+            self.pump(0.01)
+        else:
+            raise RuntimeError("native operations did not reach a snapshot boundary")
+        selected = {"schema": "ostadix.package-domain-disk-head/v2",
+                    "previous": self.head["disk"], "previous_namespace": self.head["namespace"],
+                    "session": str(self.session)}
+        for key, folder, suffix, address, size in (("disk", "disk-generations", ".ext4", 0x70000000, DISK_BYTES),
+                                                   ("namespace", "namespace-generations", ".raw", 0x6c000000, STORE_BYTES)):
+            generations = self.state / folder
+            if generations.is_symlink():
+                raise ValueError("generation store must not be a symlink")
+            temporary = generations / ("pending-unified-" + uuid.uuid4().hex + suffix)
+            self.qmp.execute("pmemsave", {"val": address, "size": size, "filename": str(temporary)})
+            if temporary.stat().st_size != size:
+                raise RuntimeError("snapshot export incomplete")
+            with temporary.open("rb") as stream:
+                os.fsync(stream.fileno())
+            expected = identity(temporary)
+            target = generations / (expected["sha256"] + suffix)
+            if target.exists() or target.is_symlink():
+                checked(target, expected)
+                temporary.unlink()
+            else:
+                temporary.chmod(0o400)
+                temporary.replace(target)
+            common.fsync_directory(generations)
+            selected[key] = identity(target)
+        common.validate_head(self.state, selected)
+        common.write_json(self.state / "head.json", selected)
+        self.record.update(ok=True, after=selected, paired_snapshot=True, virtual_cpu_stopped=True,
+                           native_operations_quiescent=True, quiescence_attempts=attempt + 1)
+        self.head = selected
+        return selected
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        if self.process is not None:
+            if self.process.poll() is None:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                    self.process.wait(timeout=3)
+            for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
+                if stream is not None:
+                    stream.close()
+        if self.qmp is not None:
+            self.qmp.close()
+        if self.ram is not None:
+            os.close(self.ram)
+        self.selector.close()
+        for stream in (self.log, self.plan9_log, self.terminal_log, self.error_log):
+            stream.close()
+        try:
+            common.write_json(self.session / "result.json", self.record)
+        finally:
+            try:
+                if self.control is not None:
+                    self.control.cleanup()
+            finally:
+                self.lock.close()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("test", "run"))
+    parser.add_argument("--state", type=Path, required=True)
+    parser.add_argument("--build", type=Path, required=True)
+    parser.add_argument("--qemu", default="qemu-system-aarch64")
+    parser.add_argument("--bootstrap", type=Path)
+    parser.add_argument("--timeout", type=float, default=180)
+    args = parser.parse_args()
+    def terminate(signum, frame):
+        raise SystemExit(128 + signum)
+    signal.signal(signal.SIGTERM, terminate)
+    domain = None
+    try:
+        bootstrap = args.bootstrap.read_bytes() if args.bootstrap else DEFAULT_BOOTSTRAP
+        domain = UnifiedDomain(args.state.expanduser(), args.build.expanduser(), args.qemu,
+                               bootstrap=bootstrap, live=args.action == "run", timeout=args.timeout)
+        if args.action == "run":
+            if not sys.stdin.isatty():
+                raise ValueError("interactive unified console requires a real foreground terminal")
+            common.run_interactive(domain)
+        else:
+            domain.ready()
+            domain.command("i=0; until grep -qx " + domain.ready_value + " /n/okernel/work/" + domain.ready_name + "; do i=$((i+1)); test \"$i\" -lt 100 || exit 1; sleep 0.1; done")
+            domain.command("printf '#include <stdio.h>\\nint main(void){puts(\"UNIFIED_LINUX_SOURCE_PASS\");return 0;}\\n' > /n/okernel/work/unified-world.c; cc /n/okernel/work/unified-world.c -o /work/unified-world && /work/unified-world")
+            domain.wait(b"UNIFIED_LINUX_SOURCE_PASS", line=True)
+            counters = domain.counters()
+            if counters["live_domains"] != 3 or counters["switches"] < 10:
+                raise RuntimeError("both original kernels did not maintain scheduled progress")
+            domain.save()
+            domain.record["checks"] = ["one O-core monitor booted original Linux and original9front simultaneously",
+                                      "original Plan9 wrote native shared object recovered by original Linux",
+                                      "original Linux GCC compiled and executed source with Plan9 still scheduled"]
+            domain.record["counters"] = counters
+            print("Unified two-kernel component gate: PASS\nEvidence: " + str(domain.session / "result.json"))
+        return 0
+    except (OSError, ValueError, KeyError, RuntimeError, TimeoutError) as error:
+        if domain is not None:
+            domain.record["error"] = str(error)
+        print("Unified execution failed: " + str(error), file=sys.stderr)
+        return 1
+    except BaseException as error:
+        if domain is not None:
+            domain.record["error"] = type(error).__name__ + ": " + str(error)
+        raise
+    finally:
+        if domain is not None:
+            domain.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

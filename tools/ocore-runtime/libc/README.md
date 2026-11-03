@@ -20,6 +20,34 @@ Each graph also retains five startup objects and installs 218 original/generated
 
 All three capture reports remain incomplete: original assembly is a required unsupported import, and configure probes still require independently verified role exclusions. Original `LIBCC` selection was `-lgcc -lgcc_eh` on x86-64 and empty on the two cross targets where the matching helper libraries were unavailable; no override supplied those decisions. Full-archive symbol receipts retain required complex arithmetic helpers on x86-64, additional quad-precision arithmetic/conversion/comparison helpers on AArch64/RV64GC, and linker-owned `_DYNAMIC` and init/fini boundary symbols. Their source ownership and final-link applicability remain unresolved closure obligations. These source builds do not qualify libc/TLS/thread execution or any O-core provider, runtime/compiler or OSTADIX execution profile.
 
+On X12, the historical receipt path above is absent. A fresh x86-64 reproduction
+is retained at `/home/ustad/.cache/okernel-musl-source-current-soc9clfn/`.
+All seven configured recipe steps succeeded, including upstream `make all`,
+ordered archive validation and header installation. The source remained clean;
+the evaluated graph has 1,350 units (1,318 C and 32 assembly) and 1,345 ordered
+`libc.a` members. The generic capture command still exits 1 with
+`capture_complete: false`: required assembly and 56 unclassified frontend/probe
+events prevent admission. This does not qualify original libc execution or
+full O-core lowering. The failed preceding attempt is retained at
+`/home/ustad/.cache/okernel-musl-source-before-9gbsub8u/`; it stopped at a stale
+inventory-worker digest. The helper now accepts exactly two pinned worker
+versions: `a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779`
+and `0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059`.
+All three recipes bind the updated helper digest. Both workers were checked
+against all 1,345 original archive member names and hashes; this preserves
+compatibility with the existing compiler's embedded worker. Earlier receipts
+and their qualification limits remain historical evidence.
+
+The new source worker preserves upstream GNU linker-map arguments and captures
+an immutable copy of the selected map; LLD uses independent dependency traces.
+Fifteen real-linker tests compare executable bytes, map output, streams and exit
+status with the original invocation. Unsupported map destinations still stop
+complete capture without changing upstream behavior. The installed compiler
+binary was not rebuilt: its embedded worker remains the older pinned version.
+Using the updated standalone source worker and rebuilding a compiler that
+embeds it are separate operations. This change does not admit original assembly
+or resolve the unclassified producer events.
+
 Prerequisites are GNU Make, a clean complete original source checkout at the pinned commit, the matching scoped LLVM 22.1.6 SDK and any installation-specific compatibility libraries. Headers come from the original source and its per-architecture Make generation; they require no manually supplied pthread definitions or POSIX ABI macros. A recipe and helper snapshot should be placed in a new empty directory before starting:
 
 ```bash

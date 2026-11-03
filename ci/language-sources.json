@@ -721,6 +721,117 @@
         "audits/nano-source-validation-20260918/generated-program.O",
         "audits/nano-source-validation-20260918/rejected-program.O"
       ]
+    },
+    {
+      "id": "ocore-native-posix-files-kernel",
+      "category": "kernel-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native_posix_files/verify.py",
+          "kind": "runtime",
+          "conditions": "Isolated x86-64 protected CPL3 file/startup profile with original lowered codec manifest, Clang/LLD and QEMU; controlled fixture, not an unchanged upstream application."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/native_posix_files/probe.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-thread-fs-kernel",
+      "category": "kernel-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/native_tls/verify.py",
+          "kind": "runtime",
+          "conditions": "Isolated x86-64 CPL3 per-TCB FS selector/base profile; original codec closure and QEMU required. Qualifies the declared one-CPU profile, not full musl or a unified OS."
+        }
+      ],
+      "sources": [
+        "ocore/kernel/native_tls/probe.oc"
+      ]
+    },
+    {
+      "id": "ocore-aarch64-plan9-probe-runtime",
+      "category": "runtime-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-aarch64-plan9-probe.sh",
+          "kind": "build",
+          "conditions": "Original Plan9 ARM64 execution probe requires admitted original image and matching monitor/DTB; this is guest execution, not original-engine Ocore lowering."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/plan9_probe.oc"
+      ]
+    },
+    {
+      "id": "ocore-aarch64-unified-services",
+      "category": "runtime-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "scripts/build_okernel_unified_world.py",
+          "kind": "build",
+          "conditions": "Build the declared original Linux/Plan9 EL2 compatibility profile with exact kernel/provider inputs; individual modules are linked with platform sources. Runtime acceptance is separately qualified."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/coordinator_uart.oc",
+        "ocore/runtime/aarch64/kernel_world_9p.oc",
+        "ocore/runtime/aarch64/kernel_world_net.oc",
+        "ocore/runtime/aarch64/kernel_world_net_host.oc",
+        "ocore/runtime/aarch64/plan9_namespace_uart.oc",
+        "ocore/runtime/aarch64/unified_gic.oc",
+        "ocore/runtime/aarch64/unified_world.oc"
+      ]
+    },
+    {
+      "id": "ocore-common-namespace-services",
+      "category": "runtime-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "tests/test_posix_namespace_files.py",
+          "kind": "runtime",
+          "conditions": "Actual native carriers require built ocorec and the pinned seven-object original u9fs/musl manifest. Native object/session authority and codec equivalence remain distinct from full libc/OS admission."
+        },
+        {
+          "path": "tests/test_unified_namespace_transports.py",
+          "kind": "runtime",
+          "conditions": "Actual native carriers require built ocorec and the pinned seven-object original u9fs/musl manifest. Native object/session authority and codec equivalence remain distinct from full libc/OS admission."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/common/namespace_peer.oc",
+        "ocore/runtime/common/namespace_store.oc",
+        "ocore/runtime/common/posix_namespace_files.oc",
+        "ocore/runtime/common/u9fs_codec.oc",
+        "ocore/runtime/common/u9fs_namespace_peer.oc"
+      ]
+    },
+    {
+      "id": "ocore-native-linux-syscall-adapters",
+      "category": "runtime-module",
+      "reason": "Native OKernel source belongs to the named platform/component compilation graph; modules are not interchangeable standalone programs.",
+      "coverage": [
+        {
+          "path": "tests/test_posix_file_syscalls.py",
+          "kind": "runtime",
+          "conditions": "Hosted native registries exercise checked current-process/file/FS policy; protected hardware gates are native_posix_files and native_tls. No general writable POSIX, process or full Linux ABI claim."
+        },
+        {
+          "path": "tests/test_linux_tls.py",
+          "kind": "runtime",
+          "conditions": "Hosted native registries exercise checked current-process/file/FS policy; protected hardware gates are native_posix_files and native_tls. No general writable POSIX, process or full Linux ABI claim."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/x86_64/linux_tls_syscalls.oc",
+        "ocore/runtime/x86_64/posix_file_syscalls.oc"
+      ]
     }
   ],
   "expected_parse_failures": {

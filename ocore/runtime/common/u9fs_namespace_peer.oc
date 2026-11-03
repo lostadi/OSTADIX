@@ -1,0 +1,179 @@
+module runtime::common::namespace_peer;
+
+// Optional native peer using the unchanged original u9fs codec implementations
+// compiled through O-core. Select this file INSTEAD of namespace_peer.oc.
+// Authority, object operations and persistence remain in namespace_store.
+// All live requests encode with convS2M; all replies decode with convM2S.
+use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::handle;
+use runtime::common::u9fs_codec::reset as codec_reset;
+use runtime::common::u9fs_codec::begin as codec_begin;
+use runtime::common::u9fs_codec::set_version;
+use runtime::common::u9fs_codec::set_attach;
+use runtime::common::u9fs_codec::set_walk;
+use runtime::common::u9fs_codec::set_open;
+use runtime::common::u9fs_codec::set_create;
+use runtime::common::u9fs_codec::set_fid;
+use runtime::common::u9fs_codec::set_io;
+use runtime::common::u9fs_codec::encode;
+use runtime::common::u9fs_codec::decode;
+use runtime::common::u9fs_codec::kind as reply_kind;
+use runtime::common::u9fs_codec::tag as reply_tag;
+use runtime::common::u9fs_codec::version as reply_version;
+use runtime::common::u9fs_codec::msize as reply_msize;
+use runtime::common::u9fs_codec::walk_count;
+use runtime::common::u9fs_codec::count as reply_count;
+use runtime::common::u9fs_codec::data as reply_data;
+use runtime::common::u9fs_codec::encodes;
+use runtime::common::u9fs_codec::decodes;
+use runtime::common::u9fs_codec::encoded_bytes;
+use runtime::common::u9fs_codec::decoded_bytes;
+
+const WIRE_BYTES: usize = 8192;
+const MAX_INPUT: usize = 128;
+static mut REQUEST: [u8; 8192] = [0; 8192];
+static mut RESPONSE: [u8; 8192] = [0; 8192];
+static mut INPUT: [u8; 128] = [0; 128];
+static mut PREVIOUS: [u8; 128] = [0; 128];
+static mut OUTPUT: [u8; 192] = [0; 192];
+static mut SESSION: u64 = 0;
+static mut GENERATION: u64 = 0;
+static mut LAST_LENGTH: usize = 0;
+static mut EXCHANGES: u64 = 0;
+static mut ACTIVE: u64 = 0;
+static mut TAG: u64 = 0;
+
+// Original codec strings are C strings; payload bytes remain length-delimited.
+static FROM_LINUX: [u8; 11] = b"from-linux\0";
+static FROM_PLAN9: [u8; 11] = b"from-plan9\0";
+static VERSION: [u8; 7] = b"9P2000\0";
+static EMPTY: [u8; 1] = b"\0";
+static PREFIX: [u8; 26] = b"native-9p-peer generation=";
+static LINUX_PREFIX: [u8; 7] = b"\nlinux=";
+static HEX: [u8; 16] = b"0123456789abcdef";
+
+unsafe fn begin(kind: u64, version_request: bool) -> void {
+    TAG = (TAG + 1) & 0xffff;
+    if TAG == 0xffff { TAG = 1; }
+    if version_request { TAG = 0xffff; }
+    codec_begin(kind as u8, TAG as u16);
+}
+unsafe fn exchange(expected: u64) -> usize {
+    if SESSION == 0 { return 0; }
+    let length: usize = encode(&mut REQUEST[0], WIRE_BYTES);
+    if length == 0 { return 0; }
+    let result: usize = handle(SESSION, &REQUEST[0], length, &mut RESPONSE[0], WIRE_BYTES);
+    if result < 7 || result > WIRE_BYTES || decode(&mut RESPONSE[0], result) != result
+        || reply_kind() != expected || reply_tag() != TAG { return 0; }
+    return result;
+}
+unsafe fn version() -> bool {
+    begin(100, true); set_version(WIRE_BYTES as u32, &VERSION[0]);
+    if exchange(101) != 19 || reply_msize() != WIRE_BYTES as u64 { return false; }
+    let text: *const u8 = reply_version();
+    let mut index: usize = 0;
+    while index < 7 { if volatile_load(text + index) != VERSION[index] { return false; } index += 1; }
+    return true;
+}
+unsafe fn attach() -> bool {
+    begin(104, false); set_attach(1, 0xffff_ffff, &EMPTY[0], &EMPTY[0]);
+    return exchange(105) == 20;
+}
+unsafe fn walk(fid: u64, name: *const u8, length: usize) -> bool {
+    begin(110, false);
+    if length == 0 { set_walk(1, fid as u32, 0 as *const u8); }
+    else { set_walk(1, fid as u32, name); }
+    let result: usize = exchange(111);
+    if length == 0 { return result == 9 && walk_count() == 0; }
+    return result == 22 && walk_count() == 1;
+}
+unsafe fn open(fid: u64, mode: u64) -> bool {
+    begin(112, false); set_open(fid as u32, mode as u8); return exchange(113) == 24;
+}
+unsafe fn clunk(fid: u64) -> bool {
+    begin(120, false); set_fid(fid as u32); return exchange(121) == 7;
+}
+unsafe fn read_input() -> usize {
+    if !walk(2, &FROM_LINUX[0], 10) { return 0; }
+    if !open(2, 0) { clunk(2); return 0; }
+    begin(116, false); set_io(2, 0, MAX_INPUT as u32, 0 as *const u8);
+    let received: usize = exchange(117);
+    let length: usize = reply_count() as usize;
+    if received < 11 || length == 0 || length > MAX_INPUT || received != 11 + length { clunk(2); return 0; }
+    let bytes: *const u8 = reply_data();
+    let mut index: usize = 0;
+    while index < length { INPUT[index] = volatile_load(bytes + index); index += 1; }
+    if !clunk(2) { return 0; }
+    return length;
+}
+unsafe fn write_output(length: usize) -> bool {
+    if walk(3, &FROM_PLAN9[0], 10) {
+        if !open(3, 0x11) { clunk(3); return false; }
+    } else {
+        if !walk(3, &FROM_PLAN9[0], 0) { return false; }
+        begin(114, false); set_create(3, &FROM_PLAN9[0], 0x1a4, 1);
+        if exchange(115) != 24 { clunk(3); return false; }
+    }
+    begin(118, false); set_io(3, 0, length as u32, &OUTPUT[0]);
+    let written: usize = exchange(119);
+    let success: bool = written == 11 && reply_count() == length as u64;
+    let closed: bool = clunk(3); return success && closed;
+}
+
+// Called only by trusted monitor code after namespace_store::init. Grant 2
+// means RW /work and cannot be replaced by bytes supplied by Linux or 9P.
+pub unsafe fn init(generation: u64) -> u64 {
+    ACTIVE = 0;
+    SESSION = 0;
+    GENERATION = generation;
+    LAST_LENGTH = 0;
+    EXCHANGES = 0;
+    TAG = 0;
+    codec_reset();
+    if generation == 0 { return 0; }
+    SESSION = session_init(2, generation);
+    if SESSION == 0 || !version() || !attach() { return 0; }
+    ACTIVE = 1;
+    return 1;
+}
+
+// No direct object-store access occurs here. Both directions use standard
+// Twalk/Topen/Tread/Tcreate/Twrite/Tclunk against the same native server.
+pub unsafe fn poll() -> u64 {
+    if ACTIVE == 0 { return 0; }
+    let length: usize = read_input();
+    if length == 0 { return 0; }
+    let mut changed: bool = EXCHANGES == 0 || length != LAST_LENGTH;
+    let mut index: usize = 0;
+    while index < length {
+        if INPUT[index] != PREVIOUS[index] { changed = true; }
+        index += 1;
+    }
+    if !changed { return 0; }
+    index = 0;
+    while index < 26 { OUTPUT[index] = PREFIX[index]; index += 1; }
+    index = 0;
+    while index < 16 {
+        let shift: u64 = 60 - (index as u64) * 4;
+        OUTPUT[26 + index] = HEX[((GENERATION >> shift) & 15) as usize];
+        index += 1;
+    }
+    index = 0;
+    while index < 7 { OUTPUT[42 + index] = LINUX_PREFIX[index]; index += 1; }
+    index = 0;
+    while index < length { OUTPUT[49 + index] = INPUT[index]; index += 1; }
+    if !write_output(49 + length) { return 0; }
+    index = 0;
+    while index < length { PREVIOUS[index] = INPUT[index]; index += 1; }
+    LAST_LENGTH = length;
+    EXCHANGES += 1;
+    return 1;
+}
+pub unsafe fn exchanges() -> u64 { return EXCHANGES; }
+pub unsafe fn generation() -> u64 { return GENERATION; }
+
+// Trusted observations for exact native integration/measurement evidence.
+pub unsafe fn codec_encodes() -> u64 { return encodes(); }
+pub unsafe fn codec_decodes() -> u64 { return decodes(); }
+pub unsafe fn codec_request_bytes() -> u64 { return encoded_bytes(); }
+pub unsafe fn codec_response_bytes() -> u64 { return decoded_bytes(); }

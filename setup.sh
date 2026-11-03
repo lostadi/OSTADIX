@@ -1146,6 +1146,22 @@ check_any_tool() {
   return 0
 }
 
+check_python_runtime() {
+  local python_path python_version
+  python_path="$(command -v python3 2>/dev/null || true)"
+  python_version=""
+  if [[ -n "$python_path" ]] && python_version="$("$python_path" -c \
+      'import sys; print(".".join(str(v) for v in sys.version_info[:3])); sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
+      2>/dev/null)"; then
+    printf '  [ok] %-28s %s (%s)\n' "Python 3.10+" "$python_path" "$python_version"
+  else
+    printf '  [missing] Python 3.10+ (python3: %s)\n' "${python_version:-unavailable or unusable}" >&2
+    echo '  Install Python 3.10 or newer and make it available as python3 on PATH, then rerun setup.' >&2
+    ((CHECK_FAILURES+=1))
+  fi
+  return 0
+}
+
 check_lld() {
   local path
   path="$(find_lld_path 2>/dev/null || true)"
@@ -1215,7 +1231,7 @@ check_capabilities() {
   check_any_tool "Cargo" cargo
   check_any_tool "C compiler" cc clang gcc
   check_any_tool "Make" make gmake
-  check_any_tool "Python 3" python3
+  check_python_runtime
   check_any_tool "Git" git
   check_any_tool "curl" curl
   check_any_tool "SQLite CLI" sqlite3

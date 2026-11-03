@@ -1,0 +1,22 @@
+/dts-v1/;
+/ {
+    compatible = "ostadix,original-plan9-build-vm";
+    #address-cells = <2>;
+    #size-cells = <2>;
+    chosen {
+        bootargs = "console=0 baud=115200 *ncpu=1 *maxmem=0x60000000 nousbrc=1 user=glenda nobootprompt=local!/dev/sdF0/fs init='/arm64/init -tm'";
+    };
+    memory@40000000 {
+        device_type = "memory";
+        reg = <0 0x40000000 0 0x20000000>;
+    };
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu@0 {
+            device_type = "cpu";
+            compatible = "arm,cortex-a57";
+            reg = <0>;
+        };
+    };
+};

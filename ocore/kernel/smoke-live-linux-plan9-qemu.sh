@@ -4,17 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m7-linux-plan9-live}"
 TIMEOUT_SECONDS="${OCORE_M7_LINUX_PLAN9_TIMEOUT_SECONDS:-180}"
-IMAGE_DIGEST="c1501f633640d92a8b7d84baaa8afbeeca9a40d4f79138cc08f73c0e678f0ac3"
-IMAGE_BYTES=97512
 IMAGE_RECORD="$BUILD_DIR/m7-linux-plan9-image.path"
 LINUX_ELF_DIGEST="06240b6a840ed4262835aceff64a94f6ebd77838666f05eb7415d9a0d1b5868d"
 LINUX_ELF_BYTES=8520
-DAEMON_DIGEST="f6ecf428d92b149dd6cac6c5d7d90e2782311137abdf89e6a0b8f1bab4a4011d"
-DAEMON_BYTES=37240
-SUPERVISOR_DIGEST="c693b6f3f55561f436ceaa8a5f96b64d4e1d45d8fd622f81a6dc73e982955f87"
-SUPERVISOR_BYTES=11496
-PLAN9_CLIENT_DIGEST="18bb53283ecb4de9070372b4ca7560c5ce83102d5c384d283d84952bcea1a9e0"
-PLAN9_CLIENT_BYTES=25104
 
 for tool in qemu-system-x86_64 nm python3 shasum; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -32,6 +24,34 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
+# Bind the full image to this kernel's generated trust anchor. Native service
+# identities come from the independently double-built ELF files below; foreign
+# program and immutable object identities remain pinned separately.
+read -r IMAGE_BYTES IMAGE_DIGEST < <(
+  python3 - "$BUILD_DIR/m6.image.json" "$IMAGE" <<'PYMETA'
+import json
+import sys
+identity = json.load(open(sys.argv[1]))
+if identity["image"] != sys.argv[2]:
+    raise SystemExit("recorded embedded image path differs from generated binding")
+print(identity["bytes"], identity["sha256"])
+PYMETA
+)
+read -r DAEMON_BYTES DAEMON_DIGEST SUPERVISOR_BYTES SUPERVISOR_DIGEST PLAN9_CLIENT_BYTES PLAN9_CLIENT_DIGEST < <(
+  python3 - \
+    "$ROOT/target/ocore-m7-linux-plan9-artifacts/pass-one/linux-9pd.elf" \
+    "$ROOT/target/ocore-m7-linux-plan9-artifacts/pass-one/linux-supervisord.elf" \
+    "$ROOT/target/ocore-m7-linux-plan9-artifacts/pass-one/plan9-namespace-client.elf" <<'PYPRINCIPALS'
+import hashlib
+from pathlib import Path
+import sys
+fields = []
+for path in sys.argv[1:]:
+    data = Path(path).read_bytes()
+    fields.extend((str(len(data)), hashlib.sha256(data).hexdigest()))
+print(" ".join(fields))
+PYPRINCIPALS
+)
 if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$IMAGE_DIGEST" ]]; then

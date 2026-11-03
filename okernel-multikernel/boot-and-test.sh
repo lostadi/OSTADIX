@@ -19,7 +19,8 @@
 #     setup    Run ./setup.sh --minimal --verify  (build Rust+C17+Python editions)
 #     hosted   Hosted .O runtime + differential (graph vs serial) + Python/C17 xcheck
 #     ocore    Build ocorec, dump HIR/MIR, emit a freestanding ELF object
-#     kernel   Build the kernel ELF and BOOT it interactively in QEMU (serial console)
+#     kernel   Build and boot the baseline kernel in QEMU (silent after heartbeat)
+#     console  Boot the native command console in QEMU (status/install/activate)
 #     smoke    Build + run the asserted 4s smoke gate, then the full probe matrix
 #     tests    Rust test suite + parser proptest + reproducibility + example sweep
 #     quick    hosted + ocore + default smoke  (fast confidence check)
@@ -154,15 +155,19 @@ phase_ocore() {
 
 # ---- layer 3: boot the Okernel in QEMU (interactive) -----------------------
 phase_kernel() {
-  say "Layer 3 — build + BOOT the O-core kernel (interactive serial console)"
-  need cargo; need clang; need qemu-system-x86_64
-  # build.sh compiles the runtime+kernel .oc unit through ocorec, assembles
-  # boot.S, links with LLD against linker.ld -> target/ocore-kernel/kernel.elf
-  ./ocore/kernel/build.sh || die "kernel build failed (set OCORE_LLD if the linker wasn't found)"
-  ok "kernel.elf built"
-  say "Handing off to QEMU. Ctrl-A X to quit the serial console."
-  # run-qemu.sh rebuilds (cheap) then execs qemu with -serial stdio, no display.
+  say "Layer 3 — build + boot the O-core kernel in QEMU"
+  need cargo; need clang; need "${OCORE_QEMU_BIN:-qemu-system-x86_64}"
+  if [ "${OCORE_PROBE_MODE:-0}" = 0 ]; then
+    printf 'The baseline runs silently after its heartbeat. Use the console phase for the o> command prompt.\n'
+  fi
+  say "Handing off to QEMU. Ctrl-A X to exit."
+  # The runner builds once, explains the selected mode, then starts QEMU.
   exec ./ocore/kernel/run-qemu.sh
+}
+
+phase_console() {
+  export OCORE_PROBE_MODE=16
+  phase_kernel
 }
 
 # ---- layer 4: smoke-gate matrix --------------------------------------------
@@ -282,7 +287,8 @@ Phases:
   setup    Build and verify the Rust, C17, and Python editions
   hosted   Run hosted runtime and differential checks
   ocore    Exercise the typed O-core compiler pipeline
-  kernel   Boot the kernel interactively in QEMU
+  kernel   Boot the baseline kernel in QEMU (silent after heartbeat)
+  console  Boot the native command console (status/install/activate)
   smoke    Run all required OKernel QEMU gates
   tests    Run the host test and reproducibility suite
   quick    Run hosted, O-core, and the default QEMU smoke (default)
@@ -305,6 +311,7 @@ case "$phase" in
   hosted) phase_hosted ;;
   ocore)  phase_ocore ;;
   kernel) phase_kernel ;;
+  console) phase_console ;;
   smoke)  phase_smoke ;;
   tests)  phase_tests ;;
   quick)  phase_hosted; phase_ocore; say "Layer 3/4 — default smoke gate"; \

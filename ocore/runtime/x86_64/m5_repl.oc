@@ -3,6 +3,7 @@ module runtime::m5_repl;
 use runtime::native_abi::SYS_DEBUG_WRITE;
 use runtime::native_abi::SYS_SERIAL_READ;
 use runtime::native_abi::SYS_CONTROL_SUBMIT;
+use runtime::native_abi::DEBUG_BUFFER_SIZE;
 
 const COMPLETION_VA: usize = 0x0120_1000;
 pub const COMPLETION_VALUE: u64 = 0x4d35_0000_0000_0004;
@@ -24,6 +25,23 @@ static RESOLVE_OK: [u8; 24] = b"M5 serial resolve: PASS\n";
 static EVAL_OK: [u8; 21] = b"M5 serial eval: PASS\n";
 @link_section(".rodata")
 static REJECTED: [u8; 28] = b"M5 serial command: rejected\n";
+@link_section(".rodata")
+static INTRO: [u8; 72] = b"Type help for commands. Backspace edits; Ctrl-U clears; Ctrl-C cancels.\n";
+@link_section(".rodata")
+static HELP: [u8; 444] = b"OKernel native service console\nCommands:\n  help | ?                   Show this help\n  status                     Check the native control plane\n  install <sha256> 5 1       Install the embedded service package\n  activate <sha256>          Run its bounded lifecycle test\nUse the image digest printed by the launcher.\nActivation parks this console after the lifecycle test.\nShell commands, files and arbitrary programs are not implemented here.\n";
+@link_section(".rodata")
+static REJECT_HINT: [u8; 54] = b"Type help for supported commands and argument syntax.\n";
+@link_section(".rodata")
+static NEWLINE: [u8; 2] = b"\r\n";
+@link_section(".rodata")
+static ERASE: [u8; 3] = [8, 32, 8];
+@link_section(".rodata")
+static CANCEL: [u8; 4] = b"^C\r\n";
+@link_section(".rodata")
+static HELP_TEXT: [u8; 4] = b"help";
+@link_section(".rodata")
+static QUESTION_TEXT: [u8; 1] = b"?";
+
 unsafe fn report(
     report_capability: u64,
     message: *const u8,
@@ -37,6 +55,94 @@ unsafe fn report(
     ) == length as u64;
 }
 
+// Console presentation remains in the unprivileged REPL. Only an exact
+// nonlocal command is submitted to the capability-gated kernel parser.
+unsafe fn emit(capability: u64, message: *const u8, length: usize) -> void {
+    let mut offset: usize = 0;
+    while offset < length {
+        let mut count: usize = length - offset;
+        if count > DEBUG_BUFFER_SIZE {
+            count = DEBUG_BUFFER_SIZE;
+        }
+        if !report(capability, message + offset, count) {
+            loop {
+                asm!("pause", options(nomem, nostack));
+            }
+        }
+        offset += count;
+    }
+}
+
+unsafe fn matches(
+    line: *const u8,
+    length: usize,
+    text: *const u8,
+    text_length: usize
+) -> bool {
+    if length != text_length {
+        return false;
+    }
+    let mut index: usize = 0;
+    while index < length {
+        if volatile_load(line + index) != volatile_load(text + index) {
+            return false;
+        }
+        index += 1;
+    }
+    return true;
+}
+
+unsafe fn reject_line(capability: u64) -> void {
+    emit(capability, (&REJECTED[0]), 28);
+    emit(capability, (&REJECT_HINT[0]), 54);
+}
+
+unsafe fn submit_line(
+    report_capability: u64,
+    control_capability: u64,
+    line: *const u8,
+    length: usize
+) -> void {
+    if matches(line, length, (&HELP_TEXT[0]), 4)
+        || matches(line, length, (&QUESTION_TEXT[0]), 1) {
+        emit(report_capability, (&HELP[0]), 444);
+    } else {
+        // Publishing on a nonlocal submission is idempotent. Activation
+        // consumes this exact private token in this process generation.
+        volatile_store(COMPLETION_VA as *mut u64, COMPLETION_VALUE);
+        let command: u64 = syscall3(
+            SYS_CONTROL_SUBMIT,
+            control_capability,
+            line as u64,
+            length as u64
+        );
+        if command == 3 {
+            emit(report_capability, (&ACTIVATE_OK[0]), 35);
+            volatile_store((COMPLETION_VA + 8) as *mut u64, 1);
+            loop {
+                asm!("pause", options(nomem, nostack));
+            }
+        }
+        if command == 2 {
+            emit(report_capability, (&INSTALL_OK[0]), 32);
+        } else {
+            if command == 1 {
+                emit(report_capability, (&STATUS_OK[0]), 23);
+            } else {
+                if command == 4 {
+                    emit(report_capability, (&RESOLVE_OK[0]), 24);
+                } else {
+                    if command == 6 {
+                        emit(report_capability, (&EVAL_OK[0]), 21);
+                    } else {
+                        reject_line(report_capability);
+                    }
+                }
+            }
+        }
+    }
+}
+
 @export
 @no_mangle
 @link_section(".text.entry")
@@ -44,15 +150,13 @@ pub unsafe fn _start(
     report_capability: u64,
     control_capability: u64
 ) -> never {
-    if !report(report_capability, (&ONLINE[0]), 28)
-        || !report(report_capability, (&PROMPT[0]), 3) {
-        loop {
-            asm!("pause", options(nomem, nostack));
-        }
-    }
+    emit(report_capability, (&ONLINE[0]), 28);
+    emit(report_capability, (&INTRO[0]), 72);
+    emit(report_capability, (&PROMPT[0]), 3);
 
     let mut length: usize = 0;
     let mut drain_rejected_line: bool = false;
+    let mut swallow_lf: bool = false;
     let mut line: [u8; 192] = [0; 192];
     loop {
         let status: u64 = syscall3(
@@ -71,148 +175,60 @@ pub unsafe fn _start(
             if status == 1 {
                 byte = volatile_load((&line[0]) + length);
             }
-            if byte == b'\r' || byte == b'\n' {
-                if drain_rejected_line || length == 0 {
-                    if !report(
-                        report_capability,
-                        (&REJECTED[0]),
-                        28
-                    ) || !report(report_capability, (&PROMPT[0]), 3) {
-                        loop {
-                            asm!("pause", options(nomem, nostack));
+            // A terminal's CRLF pair is one Enter key, not a second command.
+            if swallow_lf && byte == b'\n' {
+                swallow_lf = false;
+            } else {
+                swallow_lf = false;
+                if byte == b'\r' || byte == b'\n' {
+                    swallow_lf = byte == b'\r';
+                    emit(report_capability, (&NEWLINE[0]), 2);
+                    if drain_rejected_line {
+                        reject_line(report_capability);
+                    } else {
+                        if length != 0 {
+                            submit_line(report_capability, control_capability, (&line[0]), length);
                         }
                     }
+                    emit(report_capability, (&PROMPT[0]), 3);
+                    length = 0;
+                    drain_rejected_line = false;
                 } else {
-                    // Publishing on every well-formed submission is
-                    // idempotent. The activation gate consumes this exact
-                    // private token while this process generation executes
-                    // the later activate syscall.
-                    volatile_store(
-                        COMPLETION_VA as *mut u64,
-                        COMPLETION_VALUE
-                    );
-                    let command: u64 = syscall3(
-                        SYS_CONTROL_SUBMIT,
-                        control_capability,
-                        (&line[0]) as u64,
-                        length as u64
-                    );
-                    if command == 2 {
-                        if !report(
-                            report_capability,
-                            (&INSTALL_OK[0]),
-                            32
-                        ) || !report(report_capability, (&PROMPT[0]), 3) {
-                            loop {
-                                asm!("pause", options(nomem, nostack));
-                            }
-                        }
+                    if byte == 3 {
+                        // Ctrl-C cancels both ordinary and rejected partial input.
+                        emit(report_capability, (&CANCEL[0]), 4);
+                        emit(report_capability, (&PROMPT[0]), 3);
+                        length = 0;
+                        drain_rejected_line = false;
                     } else {
-                        if command == 3 {
-                            if !report(
-                                report_capability,
-                                (&ACTIVATE_OK[0]),
-                                35
-                            ) {
-                                loop {
-                                    asm!("pause", options(nomem, nostack));
-                                }
-                            }
-                            volatile_store(
-                                (COMPLETION_VA + 8) as *mut u64,
-                                1
-                            );
-                            loop {
-                                asm!("pause", options(nomem, nostack));
-                            }
+                        if drain_rejected_line {
+                            // Never admit the suffix of an invalid/overlong command.
+                            length = 0;
                         } else {
-                            if command == 1 {
-                                if !report(
-                                    report_capability,
-                                    (&STATUS_OK[0]),
-                                    23
-                                ) || !report(
-                                    report_capability,
-                                    (&PROMPT[0]),
-                                    3
-                                ) {
-                                    loop {
-                                        asm!(
-                                            "pause",
-                                            options(nomem, nostack)
-                                        );
-                                    }
+                            if byte == 8 || byte == 127 {
+                                if length != 0 {
+                                    length -= 1;
+                                    emit(report_capability, (&ERASE[0]), 3);
                                 }
                             } else {
-                                if command == 4 {
-                                    if !report(
-                                        report_capability,
-                                        (&RESOLVE_OK[0]),
-                                        24
-                                    ) || !report(
-                                        report_capability,
-                                        (&PROMPT[0]),
-                                        3
-                                    ) {
-                                        loop {
-                                            asm!(
-                                                "pause",
-                                                options(nomem, nostack)
-                                            );
-                                        }
+                                if byte == 21 {
+                                    while length != 0 {
+                                        length -= 1;
+                                        emit(report_capability, (&ERASE[0]), 3);
                                     }
                                 } else {
-                                    if command == 6 { // COMMAND_EVAL
-                                        // 3. The shell must read strings, evaluate them natively within O-core using the O-lang syntax evaluator, and print the results back.
-                                        if !report(
-                                            report_capability,
-                                            (&EVAL_OK[0]),
-                                            21
-                                        ) || !report(
-                                            report_capability,
-                                            (&PROMPT[0]),
-                                            3
-                                        ) {
-                                            loop {
-                                                asm!("pause", options(nomem, nostack));
-                                            }
-                                        }
-                                    } else if !report(
-                                        report_capability,
-                                        (&REJECTED[0]),
-                                        28
-                                    ) || !report(
-                                        report_capability,
-                                        (&PROMPT[0]),
-                                        3
-                                    ) {
-                                        loop {
-                                            asm!(
-                                                "pause",
-                                                options(nomem, nostack)
-                                            );
-                                        }
+                                    if byte < 0x20
+                                        || byte > 0x7e
+                                        || length + 1 >= MAX_LINE_BYTES {
+                                        drain_rejected_line = true;
+                                        length = 0;
+                                    } else {
+                                        emit(report_capability, (&line[0]) + length, 1);
+                                        length += 1;
                                     }
                                 }
                             }
                         }
-                    }
-                }
-                length = 0;
-                drain_rejected_line = false;
-            } else {
-                if drain_rejected_line {
-                    // Consume through the delimiter without admitting any
-                    // suffix as a second command.
-                    length = 0;
-                } else {
-                    if byte < 0x20
-                        || byte > 0x7e
-                        || length + 1 >= MAX_LINE_BYTES {
-                        drain_rejected_line = true;
-                        length = 0;
-                    } else {
-                        length += 1;
                     }
                 }
             }

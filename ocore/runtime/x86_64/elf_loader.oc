@@ -13,6 +13,7 @@ pub const ELF_ERROR_CAPACITY: u64 = 5;
 
 pub const MAX_ELF_PLANS: usize = 4;
 pub const MAX_ELF_SEGMENTS: usize = 8;
+pub const LINUX_STARTUP_DESCRIPTOR_WORDS: usize = 15;
 
 const PLAN_EMPTY: u8 = 0;
 const PLAN_BUILDING: u8 = 1;
@@ -45,6 +46,14 @@ static mut OBJECT_LENGTHS: [usize; 4] = [0; 4];
 static mut ENTRIES: [usize; 4] = [0; 4];
 static mut STACK_POINTERS: [usize; 4] = [0; 4];
 static mut SEGMENT_COUNTS: [usize; 4] = [0; 4];
+static mut PROGRAM_HEADERS: [usize; 4] = [0; 4];
+static mut PROGRAM_COUNTS: [usize; 4] = [0; 4];
+static mut STACK_CONFIGURED: [u8; 4] = [0; 4];
+static mut STACK_IMAGES: [u8; 65536] = [0; 65536];
+// Loader calls, including configure/materialize/commit, are serialized by the
+// native process-start owner. Configuration uses kernel-owned scratch and is
+// published only after validation; inputs must remain immutable for the call.
+static mut STACK_SCRATCH: [u8; 16384] = [0; 16384];
 
 static mut SEGMENT_OFFSETS: [usize; 32] = [0; 32];
 static mut SEGMENT_VADDRS: [usize; 32] = [0; 32];
@@ -105,6 +114,16 @@ unsafe fn clear_slot(slot: usize) -> void {
     ENTRIES[slot] = 0;
     STACK_POINTERS[slot] = 0;
     SEGMENT_COUNTS[slot] = 0;
+    PROGRAM_HEADERS[slot] = 0;
+    PROGRAM_COUNTS[slot] = 0;
+    if STACK_CONFIGURED[slot] != 0 {
+        let mut byte: usize = 0;
+        while byte < STACK_SIZE {
+            STACK_IMAGES[slot * STACK_SIZE + byte] = 0;
+            byte += 1;
+        }
+    }
+    STACK_CONFIGURED[slot] = 0;
     let mut segment: usize = 0;
     while segment < MAX_ELF_SEGMENTS {
         let index: usize = segment_index(slot, segment);
@@ -415,6 +434,24 @@ pub unsafe fn validate(object: u64) -> u64 {
     if SEGMENT_COUNTS[slot] == 0 || !executable_entry {
         return reject(slot, ELF_ERROR_MALFORMED);
     }
+    // AT_PHDR is truthful only when the entire table is actually present in
+    // a file-backed, readable PT_LOAD. A PT_PHDR declaration alone is not
+    // sufficient, nor may a pointer into loader/kernel storage reach users.
+    let table_bytes: usize = program_count * ELF_PROGRAM_HEADER_SIZE;
+    let mut segment: usize = 0;
+    while segment < SEGMENT_COUNTS[slot] {
+        let index: usize = segment_index(slot, segment);
+        if phoff >= SEGMENT_OFFSETS[index] {
+            let relative: usize = phoff - SEGMENT_OFFSETS[index];
+            if relative <= SEGMENT_FILESZS[index]
+                && table_bytes <= SEGMENT_FILESZS[index] - relative {
+                PROGRAM_HEADERS[slot] = SEGMENT_VADDRS[index] + relative;
+                PROGRAM_COUNTS[slot] = program_count;
+                break;
+            }
+        }
+        segment += 1;
+    }
     STACK_POINTERS[slot] = STACK_BASE + STACK_SIZE - INITIAL_STACK_BYTES;
     STATES[slot] = PLAN_VALIDATED;
     VALIDATIONS += 1;
@@ -450,6 +487,12 @@ pub unsafe fn stack_size(plan: u64) -> usize {
         return 0;
     }
     return STACK_SIZE;
+}
+
+pub unsafe fn stack_pointer(plan: u64) -> usize {
+    let slot: usize = checked_plan(plan, true);
+    if slot >= MAX_ELF_PLANS { return 0; }
+    return STACK_POINTERS[slot];
 }
 
 pub unsafe fn segment_count(plan: u64) -> usize {
@@ -568,6 +611,148 @@ unsafe fn initial_stack_word(slot: usize, word: usize) -> u64 {
     return 0;
 }
 
+fn native_range(pointer: usize, length: usize) -> bool {
+    return length == 0 || (pointer != 0 && pointer <= 0xffff_ffff_ffff_ffff - length);
+}
+
+unsafe fn startup_reject(error: u64) -> u64 {
+    LAST_ERROR = error;
+    return 0;
+}
+
+// Packed vectors contain exactly `count` NUL-terminated byte strings. Empty
+// arguments are valid; extra/missing terminators and trailing bytes are not.
+unsafe fn packed_strings(pointer: *const u8, length: usize, count: usize) -> bool {
+    if !native_range(pointer as usize, length) { return false; }
+    if count == 0 { return length == 0; }
+    if length == 0 || count > length { return false; }
+    let mut found: usize = 0;
+    let mut byte: usize = 0;
+    while byte < length {
+        if volatile_load(pointer + byte) == 0 { found += 1; }
+        byte += 1;
+    }
+    return found == count && volatile_load(pointer + length - 1) == 0;
+}
+
+unsafe fn stack_word(offset: usize, value: u64) -> void {
+    let mut byte: usize = 0;
+    while byte < 8 {
+        STACK_SCRATCH[offset + byte] = ((value >> (byte * 8)) & 0xff) as u8;
+        byte += 1;
+    }
+}
+
+unsafe fn stack_aux(offset: usize, kind: u64, value: u64) -> usize {
+    stack_word(offset, kind);
+    stack_word(offset + 8, value);
+    return offset + 16;
+}
+
+// Trusted native process-start API, not a user-pointer syscall. The 15-word
+// descriptor contains argv pointer/bytes/argc, env pointer/bytes/envc,
+// execfn pointer/bytes (including its sole NUL), random pointer/bytes (16),
+// uid/euid/gid/egid and secure (0 or 1), in that order. Credentials and fresh
+// entropy must come from the owning platform policy; this module invents
+// neither. Pointer inputs refer only to immutable trusted native allocations.
+// A future exec syscall must first copy/authorize all user inputs separately.
+// This supplies startup data only: static ET_EXEC/load-window policy remains,
+// and no dynamic loader, TLS, libc or complete application profile is admitted.
+pub unsafe fn configure_startup(plan: u64, descriptor: *const u64, words: usize) -> u64 {
+    let slot: usize = checked_plan(plan, false);
+    if slot >= MAX_ELF_PLANS || words != LINUX_STARTUP_DESCRIPTOR_WORDS || (descriptor as usize & 7) != 0
+        || !native_range(descriptor as usize, 120) {
+        return startup_reject(ELF_ERROR_MALFORMED);
+    }
+    let mut input: [u64; 15] = [0; 15];
+    let mut field: usize = 0;
+    while field < 15 { input[field] = volatile_load(descriptor + field); field += 1; }
+    let argv: *const u8 = input[0] as *const u8;
+    let argv_bytes: usize = input[1] as usize;
+    let argc: usize = input[2] as usize;
+    let env: *const u8 = input[3] as *const u8;
+    let env_bytes: usize = input[4] as usize;
+    let envc: usize = input[5] as usize;
+    let execfn: *const u8 = input[6] as *const u8;
+    let execfn_bytes: usize = input[7] as usize;
+    let random: *const u8 = input[8] as *const u8;
+    if argv_bytes > STACK_SIZE || env_bytes > STACK_SIZE - argv_bytes
+        || execfn_bytes > STACK_SIZE - argv_bytes - env_bytes
+        || 16 as usize > STACK_SIZE - argv_bytes - env_bytes - execfn_bytes
+        || argc > STACK_SIZE / 8 || envc > STACK_SIZE / 8 {
+        return startup_reject(ELF_ERROR_CAPACITY);
+    }
+    if !packed_strings(argv, argv_bytes, argc)
+        || !packed_strings(env, env_bytes, envc)
+        || !packed_strings(execfn, execfn_bytes, 1)
+        || input[9] != 16 || !native_range(random as usize, 16)
+        || input[10] > 0xffff_ffff || input[11] > 0xffff_ffff
+        || input[12] > 0xffff_ffff || input[13] > 0xffff_ffff || input[14] > 1 {
+        return startup_reject(ELF_ERROR_MALFORMED);
+    }
+    let data_bytes: usize = argv_bytes + env_bytes + execfn_bytes + 16;
+    let mut aux_pairs: usize = 10; // Nine entries and AT_NULL.
+    if PROGRAM_HEADERS[slot] != 0 { aux_pairs += 3; }
+    let table_words: usize = 1 + argc + 1 + envc + 1 + aux_pairs * 2;
+    let data_start: usize = STACK_SIZE - data_bytes;
+    if table_words > data_start / 8 { return startup_reject(ELF_ERROR_CAPACITY); }
+    let pointer_offset: usize = (data_start - table_words * 8) & 0xffff_ffff_ffff_fff0;
+    let mut byte: usize = 0;
+    while byte < STACK_SIZE { STACK_SCRATCH[byte] = 0; byte += 1; }
+    let mut cursor: usize = pointer_offset;
+    stack_word(cursor, argc as u64); cursor += 8;
+    byte = 0;
+    while byte < argv_bytes {
+        if byte == 0 || volatile_load(argv + byte - 1) == 0 {
+            stack_word(cursor, (STACK_BASE + data_start + byte) as u64); cursor += 8;
+        }
+        STACK_SCRATCH[data_start + byte] = volatile_load(argv + byte); byte += 1;
+    }
+    stack_word(cursor, 0); cursor += 8;
+    let env_start: usize = data_start + argv_bytes;
+    byte = 0;
+    while byte < env_bytes {
+        if byte == 0 || volatile_load(env + byte - 1) == 0 {
+            stack_word(cursor, (STACK_BASE + env_start + byte) as u64); cursor += 8;
+        }
+        STACK_SCRATCH[env_start + byte] = volatile_load(env + byte); byte += 1;
+    }
+    stack_word(cursor, 0); cursor += 8;
+    let execfn_start: usize = env_start + env_bytes;
+    byte = 0;
+    while byte < execfn_bytes {
+        STACK_SCRATCH[execfn_start + byte] = volatile_load(execfn + byte); byte += 1;
+    }
+    let random_start: usize = execfn_start + execfn_bytes;
+    byte = 0;
+    while byte < 16 { STACK_SCRATCH[random_start + byte] = volatile_load(random + byte); byte += 1; }
+    cursor = stack_aux(cursor, 6, PAGE_SIZE as u64);
+    cursor = stack_aux(cursor, 9, ENTRIES[slot] as u64);
+    cursor = stack_aux(cursor, 11, input[10]);
+    cursor = stack_aux(cursor, 12, input[11]);
+    cursor = stack_aux(cursor, 13, input[12]);
+    cursor = stack_aux(cursor, 14, input[13]);
+    cursor = stack_aux(cursor, 23, input[14]);
+    cursor = stack_aux(cursor, 25, (STACK_BASE + random_start) as u64);
+    cursor = stack_aux(cursor, 31, (STACK_BASE + execfn_start) as u64);
+    if PROGRAM_HEADERS[slot] != 0 {
+        cursor = stack_aux(cursor, 3, PROGRAM_HEADERS[slot] as u64);
+        cursor = stack_aux(cursor, 4, ELF_PROGRAM_HEADER_SIZE as u64);
+        cursor = stack_aux(cursor, 5, PROGRAM_COUNTS[slot] as u64);
+    }
+    cursor = stack_aux(cursor, 0, 0);
+    byte = 0;
+    while byte < STACK_SIZE {
+        STACK_IMAGES[slot * STACK_SIZE + byte] = STACK_SCRATCH[byte];
+        STACK_SCRATCH[byte] = 0;
+        byte += 1;
+    }
+    STACK_POINTERS[slot] = STACK_BASE + pointer_offset;
+    STACK_CONFIGURED[slot] = 1;
+    LAST_ERROR = ELF_LOAD_OK;
+    return 1;
+}
+
 pub unsafe fn materialize_stack_range(
     plan: u64,
     range_offset: usize,
@@ -577,6 +762,7 @@ pub unsafe fn materialize_stack_range(
     let slot: usize = checked_plan(plan, false);
     if slot >= MAX_ELF_PLANS
         || destination as usize == 0
+        || !native_range(destination as usize, length)
         || range_offset > STACK_SIZE
         || length > STACK_SIZE - range_offset {
         return 0;
@@ -586,7 +772,9 @@ pub unsafe fn materialize_stack_range(
     while byte < length {
         let absolute: usize = range_offset + byte;
         let mut value: u8 = 0;
-        if absolute >= stack_data_start {
+        if STACK_CONFIGURED[slot] != 0 {
+            value = STACK_IMAGES[slot * STACK_SIZE + absolute];
+        } else if absolute >= stack_data_start {
             let relative: usize = absolute - stack_data_start;
             let word: u64 = initial_stack_word(slot, relative / 8);
             value = ((word >> ((relative & 7) * 8)) & 0xff) as u8;
@@ -678,8 +866,15 @@ pub unsafe fn invariants_hold() -> bool {
                 if OBJECT_LENGTHS[slot] < ELF_HEADER_SIZE
                 || ENTRIES[slot] < LOAD_WINDOW_START
                 || ENTRIES[slot] >= LOAD_WINDOW_END
-                || STACK_POINTERS[slot] != STACK_BASE + STACK_SIZE
-                    - INITIAL_STACK_BYTES
+                || STACK_CONFIGURED[slot] > 1
+                || (PROGRAM_HEADERS[slot] == 0 && PROGRAM_COUNTS[slot] != 0)
+                || (PROGRAM_HEADERS[slot] != 0 && (PROGRAM_COUNTS[slot] == 0
+                    || PROGRAM_COUNTS[slot] > 16 || PROGRAM_HEADERS[slot] < LOAD_WINDOW_START
+                    || PROGRAM_HEADERS[slot] >= LOAD_WINDOW_END))
+                || (STACK_CONFIGURED[slot] == 0 && STACK_POINTERS[slot] != STACK_BASE + STACK_SIZE - INITIAL_STACK_BYTES)
+                || (STACK_CONFIGURED[slot] != 0 && (STACK_POINTERS[slot] < STACK_BASE
+                    || STACK_POINTERS[slot] > STACK_BASE + STACK_SIZE - 16
+                    || (STACK_POINTERS[slot] & 15) != 0))
                 || SEGMENT_COUNTS[slot] == 0
                 || SEGMENT_COUNTS[slot] > MAX_ELF_SEGMENTS
                 || (state == PLAN_VALIDATED && OBJECTS[slot] == 0)

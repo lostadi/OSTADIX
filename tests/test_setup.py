@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import platform
 import shlex
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -819,6 +821,133 @@ class SetupScriptTests(unittest.TestCase):
                 self.assertIn('exec "$SCRIPT_DIR/../../setup.sh" "$@"', text)
                 self.assertNotIn("cargo build", text)
                 self.assertNotIn("pip install", text)
+
+
+class BMDevEnvironmentTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory(prefix="BM development environment ")
+        self.addCleanup(self.temporary.cleanup)
+        self.home = Path(self.temporary.name) / "home with spaces"
+        self.root = self.home / "BM source"
+        (self.root / "scripts").mkdir(parents=True)
+        (self.root / "backends").mkdir()
+        self.script = self.root / "scripts/bm-dev-env.sh"
+        shutil.copyfile(PROJECT_ROOT / "scripts/bm-dev-env.sh", self.script)
+        self.environment = {"HOME": str(self.home), "PATH": SYSTEM_PATH}
+
+    @staticmethod
+    def executable(path: Path, body: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("#!/bin/bash\n" + body, encoding="utf-8")
+        path.chmod(0o755)
+
+    def run_helper(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([str(BASH), str(self.script), *arguments],
+                              cwd=self.home, env=self.environment,
+                              capture_output=True, text=True, timeout=15)
+
+    def test_prefers_checkout_debug_and_keeps_native_front_door(self) -> None:
+        for profile in ("debug", "release"):
+            for name in ("O", "o-cli", "ocorec", "olangc"):
+                self.executable(self.root / "target" / profile / name,
+                                f"printf '%s\\n' {shlex.quote(profile + ' ' + name)}\n")
+        result = self.run_helper("python3", "-c", """
+import json, os, shutil, subprocess
+print(json.dumps({"root": os.environ["O_LANG_ROOT"], "backends": os.environ["O_BACKENDS_DIR"],
+    "ocorec": os.environ["OCOREC"], "olangc": os.environ["OLANGC"],
+    "evaluator": os.environ["O_LANG_EVALUATOR_BIN"],
+    "front_door": subprocess.check_output(["o"], text=True).strip(),
+    "o": shutil.which("o")}))
+""")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["root"], str(self.root))
+        self.assertEqual(report["backends"], str(self.root / "backends"))
+        for name in ("ocorec", "olangc"):
+            self.assertEqual(report[name], str(self.root / "target/debug" / name))
+        self.assertEqual(report["evaluator"], str(self.root / "target/debug/O"))
+        self.assertEqual(report["front_door"], "debug o-cli")
+        self.assertTrue(Path(report["o"]).is_symlink())
+        self.assertFalse((self.home / "OSTADIX").exists())
+
+    def test_sourcing_preserves_shell_options_and_stable_search_path(self) -> None:
+        script = """
+set -euo pipefail
+before=$-
+source "$1"
+first=$PATH
+source "$1"
+[[ "$before" == "$-" && "$first" == "$PATH" ]]
+! declare -F o
+printf '%s\\n' "$O_LANG_ROOT"
+"""
+        result = subprocess.run([str(BASH), "-c", script, "BM source test", str(self.script)],
+                                cwd=self.home, env=self.environment,
+                                text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.strip(), str(self.root))
+
+    def test_private_tools_scope_libraries_to_their_child_and_preserve_arguments(self) -> None:
+        host = self.home / ".local/share/ostadix/bm-dev/host"
+        library = host / "usr/lib/x86_64-linux-gnu"
+        library.mkdir(parents=True)
+        self.executable(host / "usr/bin/qemu-aarch64", """
+exec /usr/bin/python3 -c 'import json,os,sys; print(json.dumps([os.environ["LD_LIBRARY_PATH"],sys.argv[1:]]))' "$@"
+""")
+        self.environment["LD_LIBRARY_PATH"] = "existing-search-path"
+        literal = "spaces and $dollars; $(never-run) `literal`"
+        command = """
+set -euo pipefail
+source "$1"
+qemu-aarch64 "$2"
+printf '%s\\n' "$LD_LIBRARY_PATH"
+"""
+        result = subprocess.run([str(BASH), "-c", command, "BM wrapper test", str(self.script), literal],
+                                cwd=self.home, env=self.environment,
+                                text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        child, parent = result.stdout.splitlines()
+        search, arguments = json.loads(child)
+        self.assertEqual(arguments, [literal])
+        self.assertTrue(search.startswith(str(library) + ":"), search)
+        self.assertTrue(search.endswith(":existing-search-path"), search)
+        self.assertEqual(parent, "existing-search-path")
+
+    def test_only_exact_complete_sdk_activates_original_frontend_variables(self) -> None:
+        sdk = self.home / ".cache/ostadix-toolchains/llvm-22.1.6/sdk/LLVM-22.1.6-Linux-X64/bin"
+        tools = ("clang", "clang++", "llvm-nm", "llvm-ar", "llvm-as", "llvm-dis", "llvm-readobj",
+                 "llvm-objdump", "llvm-objcopy", "llvm-dwarfdump", "ld.lld")
+        probe = "import json,os; print(json.dumps({name:os.environ.get(name) for name in ('OCORE_TEST_LLVM22_BIN','OCORE_TEST_CLANG22','LD_LLD')}))"
+        for version in ("22.1.60", "22.1.6"):
+            for tool in tools:
+                self.executable(sdk / tool, f"printf '%s\\n' 'clang version {version}'\n")
+            result = self.run_helper("python3", "-c", probe)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads(result.stdout)
+            if version == "22.1.60":
+                self.assertEqual(report, dict.fromkeys(report))
+            else:
+                self.assertEqual(report, {"OCORE_TEST_LLVM22_BIN": str(sdk),
+                                          "OCORE_TEST_CLANG22": str(sdk / "clang"),
+                                          "LD_LLD": str(sdk / "ld.lld")})
+        # Re-sourcing after an SDK becomes incomplete must clear this helper's
+        # prior qualified selection, rather than retain a stale frontend pin.
+        result = subprocess.run([str(BASH), "-c", """
+set -euo pipefail
+source "$1"
+chmod -x -- "$2/clang"
+source "$1"
+exec python3 -c "$3"
+""", "BM SDK refresh", str(self.script), str(sdk), probe],
+                                cwd=self.home, env=self.environment,
+                                text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report, dict.fromkeys(report))
+
+    def test_command_exit_status_is_preserved(self) -> None:
+        result = self.run_helper("/bin/bash", "-c", "exit 17")
+        self.assertEqual(result.returncode, 17, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

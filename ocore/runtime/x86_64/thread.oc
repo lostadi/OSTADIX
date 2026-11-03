@@ -15,7 +15,10 @@ use runtime::address_space::VM_WRITE;
 use runtime::capability::cspace_is_live;
 use runtime::domain::is_live as domain_is_live;
 use runtime::process::address_space_for;
+use runtime::process::can_issue_operations;
 use runtime::process::cspace_for;
+use runtime::process::current_address_space_handle;
+use runtime::process::current_process_handle;
 use runtime::process::domain_for;
 use runtime::process::is_live as process_is_live;
 use runtime::process::process_state;
@@ -26,6 +29,10 @@ use runtime::process::PROCESS_STATE_READY;
 use runtime::process::PROCESS_STATE_RUNNING;
 
 pub const MAX_THREADS: usize = 4;
+// Four-level x86-64 Linux TASK_SIZE_MAX excludes the highest canonical page.
+// This is a thread register value, not a memory grant; an unmapped lower user
+// base is valid and ordinary CPL3 page permissions still govern accesses.
+pub const USER_FS_BASE_LIMIT: u64 = 0x0000_7fff_ffff_f000;
 pub const THREAD_STATE_READY: u64 = 1;
 pub const THREAD_STATE_RUNNING: u64 = 2;
 pub const THREAD_STATE_BLOCKED: u64 = 3;
@@ -85,6 +92,8 @@ static mut CSPACE_HANDLES: [u64; 4] = [0; 4];
 static mut KERNEL_STACK_TOPS: [usize; 4] = [0; 4];
 static mut STACK_ORDINALS: [u8; 4] = [0xff; 4];
 static mut USER_STACK_TOPS: [usize; 4] = [0; 4];
+static mut USER_FS_BASES: [u64; 4] = [0; 4];
+static mut USER_FS_SELECTORS: [u16; 4] = [0; 4];
 static mut ROLES: [u8; 4] = [0; 4];
 static mut PRIORITIES: [u8; 4] = [0; 4];
 static mut QUANTUM_LEFT: [u8; 4] = [0; 4];
@@ -164,6 +173,8 @@ unsafe fn clear_slot(slot: usize) -> void {
     KERNEL_STACK_TOPS[slot] = 0;
     STACK_ORDINALS[slot] = INVALID_STACK_ORDINAL;
     USER_STACK_TOPS[slot] = 0;
+    USER_FS_BASES[slot] = 0;
+    USER_FS_SELECTORS[slot] = 0;
     ROLES[slot] = 0;
     PRIORITIES[slot] = 0;
     QUANTUM_LEFT[slot] = 0;
@@ -458,9 +469,14 @@ pub unsafe fn queue_invariants_hold() -> bool {
     let mut slot: usize = 0;
     while slot < MAX_THREADS {
         let state: u8 = STATES[slot];
+        if !valid_user_fs_base(USER_FS_BASES[slot])
+            || !valid_user_fs_selector(USER_FS_SELECTORS[slot] as u64) {
+            return false;
+        }
         if state == THREAD_EMPTY || state == THREAD_RETIRED {
             if QUEUE_KINDS[slot] != QUEUE_KIND_NONE
-                || PROCESS_REF_HELD[slot] != 0 {
+                || PROCESS_REF_HELD[slot] != 0
+                || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0 {
                 return false;
             }
         } else {
@@ -510,7 +526,8 @@ pub unsafe fn queue_invariants_hold() -> bool {
                 if QUEUE_KINDS[slot] != QUEUE_KIND_NONE
                     || runnable_hits != 0
                     || blocked_hits != 0
-                    || PROCESS_REF_HELD[slot] != 0 {
+                    || PROCESS_REF_HELD[slot] != 0
+                    || USER_FS_BASES[slot] != 0 || USER_FS_SELECTORS[slot] != 0 {
                     return false;
                 }
             }
@@ -894,6 +911,82 @@ pub unsafe fn current_handle() -> u64 {
     return CURRENT_THREAD;
 }
 
+pub fn valid_user_fs_base(base: u64) -> bool {
+    return base < USER_FS_BASE_LIMIT;
+}
+
+pub fn valid_user_fs_selector(selector: u64) -> bool {
+    // Only the null selectors and the existing readable CPL3 GDT descriptors
+    // are supported. No LDT or set_thread_area/GDT TLS interface is admitted.
+    // At CPL3, all four RPL variants can legally name these DPL3 descriptors.
+    // Preserve the captured RPL; mask only those two bits, including high bits
+    // in the comparison so out-of-width values cannot alias a legal selector.
+    let descriptor: u64 = selector & 0xffff_ffff_ffff_fffc;
+    return selector <= 3 || descriptor == 0x18 || descriptor == 0x20;
+}
+
+unsafe fn current_fs_slot() -> usize {
+    let slot: usize = checked_thread(current_handle());
+    if slot >= MAX_THREADS || current_process_handle() != PROCESS_HANDLES[slot]
+        || current_address_space_handle() != ADDRESS_SPACE_HANDLES[slot]
+        || !can_issue_operations(PROCESS_HANDLES[slot]) {
+        return MAX_THREADS;
+    }
+    return slot;
+}
+
+// Trusted kernel metadata operations. Hardware access is confined to boot.S,
+// after the user register frame is saved and before its eventual IRETQ.
+pub unsafe fn set_current_user_fs_base(base: u64) -> u64 {
+    let slot: usize = current_fs_slot();
+    if slot >= MAX_THREADS || !valid_user_fs_base(base) { return 0; }
+    USER_FS_BASES[slot] = base;
+    USER_FS_SELECTORS[slot] = 0;
+    return 1;
+}
+
+pub unsafe fn user_fs_base_for(handle: u64) -> u64 {
+    let slot: usize = checked_thread(handle);
+    if slot >= MAX_THREADS || !active_state(STATES[slot]) { return 0; }
+    return USER_FS_BASES[slot];
+}
+
+pub unsafe fn user_fs_selector_for(handle: u64) -> u64 {
+    let slot: usize = checked_thread(handle);
+    if slot >= MAX_THREADS || !active_state(STATES[slot]) { return 0; }
+    return USER_FS_SELECTORS[slot] as u64;
+}
+
+@export
+@no_mangle
+pub unsafe fn kernel_thread_capture_user_fs(base: u64, selector: u64) -> u64 {
+    // Unscheduled bootstrap payloads have no TCB and retain their legacy zero
+    // FS return. They cannot use the thread-owned arch_prctl API below.
+    if current_handle() == 0 { return 1; }
+    let slot: usize = current_fs_slot();
+    if slot >= MAX_THREADS || !valid_user_fs_base(base)
+        || !valid_user_fs_selector(selector) { return 0; }
+    USER_FS_BASES[slot] = base;
+    USER_FS_SELECTORS[slot] = selector as u16;
+    return 1;
+}
+
+@export
+@no_mangle
+pub unsafe fn kernel_thread_current_user_fs_base() -> u64 {
+    let slot: usize = current_fs_slot();
+    if slot >= MAX_THREADS { return 0; }
+    return USER_FS_BASES[slot];
+}
+
+@export
+@no_mangle
+pub unsafe fn kernel_thread_current_user_fs_selector() -> u64 {
+    let slot: usize = current_fs_slot();
+    if slot >= MAX_THREADS { return 0; }
+    return USER_FS_SELECTORS[slot] as u64;
+}
+
 pub unsafe fn prepared_handle() -> u64 {
     let slot: usize = checked_thread(PREPARED_THREAD);
     if slot >= MAX_THREADS || STATES[slot] != THREAD_DISPATCHING {
@@ -940,6 +1033,8 @@ pub unsafe fn terminate_current() -> u64 {
     }
     CURRENT_THREAD = 0;
     STATES[slot] = THREAD_EXITED;
+    USER_FS_BASES[slot] = 0;
+    USER_FS_SELECTORS[slot] = 0;
     QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
     PROCESS_REF_HELD[slot] = 0;
     QUANTUM_LEFT[slot] = 0;
@@ -1334,6 +1429,8 @@ pub unsafe fn terminate_process(process_handle: u64) -> u64 {
     while slot < MAX_THREADS {
         if PROCESS_HANDLES[slot] == process_handle && active_state(STATES[slot]) {
             STATES[slot] = THREAD_EXITED;
+            USER_FS_BASES[slot] = 0;
+            USER_FS_SELECTORS[slot] = 0;
             QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
             QUANTUM_LEFT[slot] = 0;
             WAKE_DEADLINES[slot] = 0;
@@ -1373,6 +1470,8 @@ pub unsafe fn cancel(handle: u64) -> u64 {
         return 0;
     }
     STATES[slot] = THREAD_EXITED;
+    USER_FS_BASES[slot] = 0;
+    USER_FS_SELECTORS[slot] = 0;
     QUEUE_KINDS[slot] = QUEUE_KIND_NONE;
     PROCESS_REF_HELD[slot] = 0;
     QUANTUM_LEFT[slot] = 0;

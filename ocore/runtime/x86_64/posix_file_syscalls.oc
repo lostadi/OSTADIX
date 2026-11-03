@@ -1,0 +1,182 @@
+module runtime::posix_file_syscalls;
+
+// Kernel-mediated read-only file ABI component. This is not yet installed in
+// the architectural syscall trap or an application/EL0 qualification. The
+// trusted dispatcher must serialize every complete call with the underlying
+// service and all store/codec users; address-space mutation is excluded during
+// a call. No SMP, per-process rooted namespace, cwd, or writable-file claim.
+// Only trusted kernel policy calls init/provision/revoke_process. Syscall
+// arguments never select process, address space, namespace, or generation.
+use runtime::process::current_process_handle;
+use runtime::process::current_address_space_handle;
+use runtime::process::address_space_for;
+use runtime::process::can_issue_operations;
+use runtime::address_space::is_live as space_is_live;
+use runtime::address_space::allows;
+use runtime::address_space::VM_USER;
+use runtime::address_space::VM_WRITE;
+use runtime::user_memory::copy_from_user;
+use runtime::user_memory::copy_to_user;
+use runtime::user_memory::COPY_OK;
+use runtime::common::posix_namespace_files::init as files_init;
+use runtime::common::posix_namespace_files::provision as files_provision;
+use runtime::common::posix_namespace_files::revoke as files_revoke;
+use runtime::common::posix_namespace_files::open_read as files_open;
+use runtime::common::posix_namespace_files::read as files_read;
+use runtime::common::posix_namespace_files::lseek as files_lseek;
+use runtime::common::posix_namespace_files::fstat as files_fstat;
+use runtime::common::posix_namespace_files::close as files_close;
+
+const CONTEXTS: usize = 8;
+const CHUNK: usize = 4096;
+const MAX_COUNT: usize = 0x7fff_f000;
+static mut OWNERS: [u64; 8] = [0; 8];
+static mut SPACES: [u64; 8] = [0; 8];
+static mut NAMESPACES: [u64; 8] = [0; 8];
+static mut GENERATIONS: [u64; 8] = [0; 8];
+static mut ENABLED: [u8; 8] = [0; 8];
+static mut PATH: [u8; 4096] = [0; 4096];
+static mut BUFFER: [u8; 4096] = [0; 4096];
+static mut METADATA: [u64; 6] = [0; 6];
+
+unsafe fn current() -> usize {
+    let owner: u64 = current_process_handle();
+    if owner == 0 || !can_issue_operations(owner) { return CONTEXTS; }
+    let space: u64 = current_address_space_handle();
+    if space == 0 || !space_is_live(space) || address_space_for(owner) != space { return CONTEXTS; }
+    let mut i: usize = 0;
+    while i < CONTEXTS {
+        if ENABLED[i] != 0 && OWNERS[i] == owner && SPACES[i] == space { return i; }
+        i += 1;
+    }
+    return CONTEXTS;
+}
+
+pub unsafe fn init(service_generation: u64) -> i64 {
+    let result: i64 = files_init(service_generation);
+    if result < 0 { return result; }
+    let mut i: usize = 0; while i < CONTEXTS { ENABLED[i] = 0; i += 1; }
+    return 0;
+}
+
+pub unsafe fn provision(owner: u64, namespace: u64, generation: u64) -> i64 {
+    if owner == 0 || !can_issue_operations(owner) { return -3; }
+    let space: u64 = address_space_for(owner);
+    if space == 0 || !space_is_live(space) { return -3; }
+    let mut slot: usize = CONTEXTS; let mut free: usize = CONTEXTS; let mut i: usize = 0;
+    while i < CONTEXTS {
+        if OWNERS[i] == owner { slot = i; break; }
+        if OWNERS[i] == 0 && free == CONTEXTS { free = i; }
+        i += 1;
+    }
+    if slot == CONTEXTS { slot = free; }
+    if slot == CONTEXTS { return -28; }
+    // A binding's namespace key is fixed; a different view requires a distinct
+    // trusted process binding rather than leaking old-context descriptions.
+    if OWNERS[slot] != 0 && NAMESPACES[slot] != namespace { return -22; }
+    let result: i64 = files_provision(owner, namespace, generation);
+    if result < 0 { return result; }
+    OWNERS[slot] = owner; SPACES[slot] = space; NAMESPACES[slot] = namespace;
+    GENERATIONS[slot] = generation; ENABLED[slot] = 1;
+    return 0;
+}
+
+pub unsafe fn revoke_process(owner: u64) -> i64 {
+    let mut i: usize = 0;
+    while i < CONTEXTS {
+        if OWNERS[i] == owner && ENABLED[i] != 0 {
+            ENABLED[i] = 0;
+            return files_revoke(owner, NAMESPACES[i], GENERATIONS[i]);
+        }
+        i += 1;
+    }
+    return -9;
+}
+
+// Absolute existing regular paths only. Relative cwd/dirfd resolution and
+// all flags except O_RDONLY/legacy O_LARGEFILE await explicit implementations.
+pub unsafe fn openat(dirfd: i64, path: usize, flags: u64, mode: u64) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    if (flags & 0xffff_ffff_ffff_7fff) != 0 { return -22; }
+    let mut length: usize = 0;
+    while length < 4096 {
+        if path > 0xffff_ffff_ffff_ffff - length { return -14; }
+        if copy_from_user(SPACES[slot], &mut PATH[length], (path + length) as *const u8, 1) != COPY_OK { return -14; }
+        if PATH[length] == 0 {
+            if length == 0 { return -2; }
+            if PATH[0] != 47 { return -38; }
+            return files_open(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], &PATH[0], length);
+        }
+        length += 1;
+    }
+    return -36;
+}
+
+pub unsafe fn read(fd: i64, destination: usize, count: usize) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    if count > 0x7fff_ffff_ffff_ffff { return -22; }
+    let mut length: usize = count; if length > MAX_COUNT { length = MAX_COUNT; }
+    if length == 0 { return files_read(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &mut BUFFER[0], 0); }
+    // Validate descriptor and current service authority before inspecting the
+    // destination. An invalid descriptor must still report EBADF when the
+    // caller also supplies an invalid pointer; withdrawal reports ESTALE.
+    let initial_position: i64 = files_lseek(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, 0, 1);
+    if initial_position < 0 { return initial_position; }
+    // Validate the whole declared destination before moving the file offset.
+    // This bounded profile requires one concrete writable mapped region.
+    if !allows(SPACES[slot], destination, length, VM_USER | VM_WRITE) { return -14; }
+    let mut delivered: usize = 0;
+    while delivered < length {
+        let before: i64 = files_lseek(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, 0, 1);
+        if before < 0 { if delivered != 0 { return delivered as i64; } return before; }
+        let mut bytes: usize = length - delivered; if bytes > CHUNK { bytes = CHUNK; }
+        let result: i64 = files_read(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &mut BUFFER[0], bytes);
+        if result <= 0 { if delivered != 0 { return delivered as i64; } return result; }
+        if copy_to_user(SPACES[slot], (destination + delivered) as *mut u8, &BUFFER[0], result as usize) != COPY_OK {
+            // Fault-copy primitives do not expose a partial byte count. Roll
+            // back this chunk and report only completed chunks. A failed
+            // chunk may have partially touched user memory, never later bytes.
+            // Serialized dispatch keeps this offset restoration authoritative.
+            let restored: i64 = files_lseek(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, before, 0);
+            if restored != before { return -5; }
+            if delivered != 0 { return delivered as i64; } return -14;
+        }
+        delivered += result as usize;
+        if result as usize < bytes { return delivered as i64; }
+    }
+    return delivered as i64;
+}
+
+pub unsafe fn lseek(fd: i64, offset: i64, whence: u64) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    return files_lseek(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, offset, whence);
+}
+
+pub unsafe fn close(fd: i64) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    return files_close(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd);
+}
+
+// A guarded copy of the component's six-u64 native metadata record. This is
+// deliberately separate from Linux struct stat, whose owner/device/link fields
+// the underlying service does not yet implement. Linux fstat stays ENOSYS.
+pub unsafe fn native_metadata(fd: i64, destination: usize) -> i64 {
+    let slot: usize = current(); if slot == CONTEXTS { return -13; }
+    if !allows(SPACES[slot], destination, 48, VM_USER | VM_WRITE) { return -14; }
+    let result: i64 = files_fstat(OWNERS[slot], NAMESPACES[slot], GENERATIONS[slot], fd, &mut METADATA[0], 6);
+    if result < 0 { return result; }
+    if copy_to_user(SPACES[slot], destination as *mut u8, (&METADATA[0]) as *const u8, 48) != COPY_OK { return -14; }
+    return 0;
+}
+
+// x86-64 Linux scalar calling convention only; trap-frame routing is separate.
+pub unsafe fn dispatch(number: u64, first: u64, second: u64, third: u64, fourth: u64) -> i64 {
+    if number == 0 { return read(first as i64, second as usize, third as usize); }
+    // Original x86-64 libc uses SYS_open when available. Both entry points
+    // share the same checked path/context implementation and bounded policy.
+    if number == 2 { return openat(-100, first as usize, second, third); }
+    if number == 3 { return close(first as i64); }
+    if number == 8 { return lseek(first as i64, second as i64, third); }
+    if number == 257 { return openat(first as i64, second as usize, third, fourth); }
+    return -38;
+}

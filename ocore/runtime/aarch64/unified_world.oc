@@ -1,0 +1,490 @@
+module runtime::aarch64::unified_world;
+
+use runtime::aarch64::kernel_world_monitor::kw_monitor_init as linux_init;
+use runtime::aarch64::kernel_world_monitor::kw_handle_exit as linux_exit;
+use runtime::aarch64::plan9_namespace_uart::init as plan9_wire_init;
+use runtime::aarch64::plan9_namespace_uart::mmio_read as plan9_wire_read;
+use runtime::aarch64::plan9_namespace_uart::mmio_write as plan9_wire_write;
+use runtime::aarch64::plan9_namespace_uart::healthy as plan9_wire_healthy;
+use runtime::aarch64::plan9_namespace_uart::diagnostic as plan9_wire_diagnostic;
+use runtime::aarch64::plan9_namespace_uart::revoke as plan9_wire_revoke;
+use runtime::aarch64::unified_gic::init as gic_init;
+use runtime::aarch64::unified_gic::reset as gic_reset;
+use runtime::aarch64::unified_gic::mmio_read as gic_read;
+use runtime::aarch64::unified_gic::mmio_write as gic_write;
+use runtime::aarch64::unified_gic::set_level;
+use runtime::aarch64::unified_gic::poll as gic_poll;
+use runtime::aarch64::unified_gic::send_sgi;
+use runtime::aarch64::coordinator_uart::init as coordinator_init;
+use runtime::aarch64::coordinator_uart::mmio_read as coordinator_read;
+use runtime::aarch64::coordinator_uart::mmio_write as coordinator_write;
+use runtime::aarch64::coordinator_uart::inject as coordinator_inject;
+
+extern "ocore" fn uw_domain_init(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
+extern "ocore" fn uw_domain_reset(domain: u64, pc: u64, x0: u64, pstate: u64) -> u64;
+extern "ocore" fn uw_current_domain() -> u64;
+extern "ocore" fn uw_counter_read() -> u64;
+extern "ocore" fn uw_counter_frequency() -> u64;
+extern "ocore" fn uw_irq_ack() -> u64;
+extern "ocore" fn uw_irq_eoi(irq: u64) -> void;
+extern "ocore" fn uw_timer_pending(domain: u64, kind: u64) -> u64;
+extern "ocore" fn uw_timer_read(domain: u64, kind: u64, field: u64) -> u64;
+extern "ocore" fn uw_timer_write(domain: u64, kind: u64, field: u64, value: u64) -> u64;
+extern "ocore" fn uw_serial_putc(value: u64) -> void;
+extern "ocore" fn uw_serial_try_read() -> u64;
+extern "ocore" fn uw_memory_barrier() -> void;
+extern "ocore" fn uw_halt() -> never;
+
+const MAX: u64 = 0xffff_ffff_ffff_ffff;
+static ONLINE: [u8; 35] = b"KW unified Linux/Plan9 EL2: online\n";
+static FAIL: [u8; 27] = b"KW unified domain failure: ";
+static P9READY: [u8; 11] = b"bootargs is";
+static mut LIVE: [u64; 2] = [0; 2];
+static mut DEADLINE: u64 = 0;
+static mut PERIOD: u64 = 0;
+static mut RTC_FLOOR: u64 = 0;
+static mut RTC_START: u64 = 0;
+static mut FREQUENCY: u64 = 0;
+static mut POLL_FRAME: [u64; 34] = [0; 34];
+static mut RX: [u8; 1024] = [0; 1024];
+static mut RX_HEAD: usize = 0;
+static mut RX_COUNT: usize = 0;
+static mut UART: [u32; 64] = [0; 64];
+static mut BOOT_MATCH: usize = 0;
+static mut BOOT_SEEN: u64 = 0;
+static mut INPUT_ALLOWED: u64 = 0;
+static mut INPUT_OFFSET: usize = 0;
+static mut INPUT_LAST: u64 = 0;
+static mut OUTPUT_LAST: u64 = 0;
+static mut SWITCHES: u64 = 0;
+static mut EXITS: [u64; 2] = [0; 2];
+static mut LAST_PC: [u64; 2] = [0; 2];
+static mut LAST_ESR: [u64; 2] = [0; 2];
+static mut CONSOLE_MODE: u64 = 0;
+static mut CONSOLE_PREFIX: u64 = 0;
+static mut INPUT_DROPPED: u64 = 0;
+static mut PLAN9_WITHDRAWN: u64 = 0;
+static mut LINUX_INPUT: [u8; 4096] = [0; 4096];
+static mut LINUX_INPUT_HEAD: usize = 0;
+static mut LINUX_INPUT_COUNT: usize = 0;
+static CONSOLE_LINUX: [u8; 66] = b"\r\n[O-core console: Linux; Ctrl-^ then 1 selects original Plan 9]\r\n";
+static CONSOLE_PLAN9: [u8; 66] = b"\r\n[O-core console: original Plan 9; Ctrl-^ then 0 selects Linux]\r\n";
+static INPUT_FULL: [u8; 38] = b"\r\n[O-core console input buffer full]\r\n";
+
+// Only native EL2 code writes these words. The complete native service request
+// runs with EL2 interrupts masked; a quantum may not interrupt its codec.
+unsafe fn busy(value: u64) -> void {
+    uw_memory_barrier();
+    volatile_store(0x6d00_0008 as *mut u64, value);
+    uw_memory_barrier();
+}
+unsafe fn append_linux(value: u8) -> void {
+    let position: u64 = volatile_load(0x6d04_0000 as *const u64);
+    if position == MAX { uw_halt(); }
+    volatile_store(((0x6d04_0008 as usize) + (position % 65536) as usize) as *mut u8, value);
+    uw_memory_barrier(); volatile_store(0x6d04_0000 as *mut u64, position + 1);
+}
+unsafe fn control_putc(value: u64) -> void { append_linux((value & 255) as u8); uw_serial_putc(value & 255); }
+unsafe fn emit(bytes: *const u8, count: usize) -> void {
+    let mut index: usize = 0;
+    while index < count { control_putc(volatile_load(bytes + index) as u64); index += 1; }
+}
+unsafe fn hex(value: u64) -> void {
+    let mut shift: usize = 60;
+    loop {
+        let digit: u64 = (value >> shift) & 15;
+        if digit < 10 { control_putc(48 + digit); } else { control_putc(87 + digit); }
+        if shift == 0 { break; } shift -= 4;
+    }
+}
+unsafe fn contain(domain: u64, esr: u64, ipa: u64, pc: u64) -> void {
+    emit((&FAIL[0]), 27); hex(domain); control_putc(32);
+    hex(esr); control_putc(32); hex(ipa); control_putc(32); hex(pc); control_putc(10);
+    if domain < 2 { LIVE[domain as usize] = 0; }
+    if domain == 1 { plan9_wire_revoke(); set_level(1, 33, 0); }
+}
+unsafe fn record_status() -> void {
+    volatile_store(0x6d00_0020 as *mut u64, LIVE[0] | (LIVE[1] << 1));
+    volatile_store(0x6d00_0028 as *mut u64, SWITCHES);
+    volatile_store(0x6d00_0030 as *mut u64, EXITS[0]);
+    volatile_store(0x6d00_0038 as *mut u64, EXITS[1]);
+    volatile_store(0x6d00_0040 as *mut u64, LAST_PC[0]);
+    volatile_store(0x6d00_0048 as *mut u64, LAST_PC[1]);
+    volatile_store(0x6d00_0050 as *mut u64, LAST_ESR[0]);
+    volatile_store(0x6d00_0058 as *mut u64, LAST_ESR[1]);
+    volatile_store(0x6d00_0060 as *mut u64, CONSOLE_MODE);
+    volatile_store(0x6d00_0068 as *mut u64, INPUT_DROPPED);
+}
+
+@export
+@no_mangle
+pub unsafe fn kw_serial_putc(value: u64) -> void {
+    append_linux((value & 255) as u8);
+    if CONSOLE_MODE == 0 { uw_serial_putc(value & 255); }
+}
+@export
+@no_mangle
+pub unsafe fn kw_serial_try_read() -> u64 {
+    if LINUX_INPUT_COUNT == 0 { return 0; }
+    let value: u64 = LINUX_INPUT[LINUX_INPUT_HEAD] as u64;
+    LINUX_INPUT_HEAD = (LINUX_INPUT_HEAD + 1) % 4096; LINUX_INPUT_COUNT -= 1;
+    return value | 256;
+}
+unsafe fn route_byte(value: u8) -> void {
+    if CONSOLE_MODE == 0 && LINUX_INPUT_COUNT < 4096 {
+        LINUX_INPUT[(LINUX_INPUT_HEAD + LINUX_INPUT_COUNT) % 4096] = value;
+        LINUX_INPUT_COUNT += 1; return;
+    }
+    if CONSOLE_MODE == 1 && RX_COUNT < 1024 {
+        RX[(RX_HEAD + RX_COUNT) % 1024] = value; RX_COUNT += 1; uart_irq(); return;
+    }
+    INPUT_DROPPED += 1;
+    if INPUT_DROPPED == 1 { emit((&INPUT_FULL[0]), 38); }
+}
+unsafe fn route_input() -> void {
+    let mut count: usize = 0;
+    while count < 64 {
+        let raw: u64 = uw_serial_try_read(); if (raw & 256) == 0 { break; }
+        count += 1; let value: u8 = (raw & 255) as u8;
+        if CONSOLE_PREFIX == 1 {
+            CONSOLE_PREFIX = 0;
+            if value == 48 { if CONSOLE_MODE != 0 { CONSOLE_MODE = 0; emit((&CONSOLE_LINUX[0]), 66); } }
+            else { if value == 49 { if CONSOLE_MODE != 1 { CONSOLE_MODE = 1; emit((&CONSOLE_PLAN9[0]), 66); } }
+            else { route_byte(30); if value != 30 { route_byte(value); } } }
+        } else {
+            if value == 30 { CONSOLE_PREFIX = 1; }
+            else { route_byte(value); }
+        }
+    }
+}
+
+// Existing Linux device code supplies source identities through fixed native
+// callbacks. No guest register can choose a target domain or interrupt number.
+@export
+@no_mangle
+pub unsafe fn kw_irq_level(asserted: u64) -> void { set_level(0, 48, asserted); }
+@export
+@no_mangle
+pub unsafe fn kw_net_irq_level(asserted: u64) -> void { set_level(0, 49, asserted); }
+@export
+@no_mangle
+pub unsafe fn kw_9p_irq_level(asserted: u64) -> void { set_level(0, 50, asserted); }
+@export
+@no_mangle
+pub unsafe fn kw_uart_irq_level(asserted: u64) -> void { set_level(0, 33, asserted); }
+@export
+@no_mangle
+pub unsafe fn p9_namespace_irq_level(asserted: u64) -> void { set_level(1, 50, asserted); }
+@export
+@no_mangle
+pub unsafe fn cu_irq_level(asserted: u64) -> void { set_level(0, 51, asserted); }
+
+unsafe fn uart_irq() -> void {
+    set_level(1, 33, ((RX_COUNT != 0) && ((UART[0x38 / 4] & 0x50) != 0)) as u64);
+}
+unsafe fn supply() -> void {
+    if INPUT_ALLOWED != 1 || LIVE[1] != 1 { uart_irq(); return; }
+    let now: u64 = uw_counter_read();
+    if now - INPUT_LAST < FREQUENCY / 200 { uart_irq(); return; }
+    INPUT_LAST = now;
+    let length: u64 = volatile_load(0x6d01_0000 as *const u64);
+    if length > 4096 { contain(1, 0x801, length, 0); return; }
+    let mut count: usize = 0;
+    while count < 8 && RX_COUNT < 1024 && INPUT_OFFSET < length as usize && INPUT_ALLOWED == 1 {
+        let byte: u8 = volatile_load(((0x6d01_0008 as usize) + INPUT_OFFSET) as *const u8);
+        INPUT_OFFSET += 1; RX[(RX_HEAD + RX_COUNT) % 1024] = byte; RX_COUNT += 1; count += 1;
+        if byte == 10 { INPUT_ALLOWED = 0; }
+    }
+    uart_irq();
+}
+unsafe fn plan9_output(value: u8) -> void {
+    let position: u64 = volatile_load(0x6d02_0000 as *const u64);
+    if position == MAX { contain(1, 0x802, position, 0); return; }
+    volatile_store(((0x6d02_0008 as usize) + (position % 65536) as usize) as *mut u8, value);
+    uw_memory_barrier(); volatile_store(0x6d02_0000 as *mut u64, position + 1);
+    if CONSOLE_MODE == 1 { uw_serial_putc(value as u64); }
+    if BOOT_SEEN == 0 {
+        if value == P9READY[BOOT_MATCH] { BOOT_MATCH += 1; }
+        else { BOOT_MATCH = 0; if value == P9READY[0] { BOOT_MATCH = 1; } }
+        if BOOT_MATCH == 11 { BOOT_SEEN = 1; INPUT_ALLOWED = 1; }
+    } else { if OUTPUT_LAST == 37 && value == 32 { INPUT_ALLOWED = 1; } }
+    OUTPUT_LAST = value as u64;
+}
+unsafe fn uart_read(offset: u64) -> u64 {
+    supply();
+    if offset == 0 {
+        if RX_COUNT == 0 { return 0; }
+        let value: u64 = RX[RX_HEAD] as u64; RX_HEAD = (RX_HEAD + 1) % 1024; RX_COUNT -= 1; uart_irq(); return value;
+    }
+    if offset == 0x18 { let mut value: u64 = 0x80; if RX_COUNT == 0 { value |= 0x10; } if RX_COUNT == 1024 { value |= 0x40; } return value; }
+    if offset == 0x3c || offset == 0x40 {
+        let mut value: u64 = 0; if RX_COUNT != 0 { value = 0x50; }
+        if offset == 0x40 { value &= UART[0x38 / 4] as u64; } return value;
+    }
+    if offset < 0x100 && (offset & 3) == 0 { return UART[(offset / 4) as usize] as u64; }
+    return 0;
+}
+unsafe fn uart_write(offset: u64, value: u64) -> bool {
+    if offset == 0 { plan9_output((value & 255) as u8); return true; }
+    if offset < 0x100 && (offset & 3) == 0 {
+        UART[(offset / 4) as usize] = value as u32;
+        if offset == 0x30 && (value & 1) == 0 { RX_HEAD = 0; RX_COUNT = 0; }
+        uart_irq(); return true;
+    }
+    return false;
+}
+
+@export
+@no_mangle
+pub unsafe fn uw_init() -> u64 {
+    FREQUENCY = uw_counter_frequency(); RTC_START = uw_counter_read();
+    RTC_FLOOR = volatile_load(0x6d00_0010 as *const u64);
+    if FREQUENCY < 100 || RTC_FLOOR == 0 || RTC_FLOOR > 0xffff_ffff { return 0; }
+    PERIOD = FREQUENCY / 100; DEADLINE = RTC_START + PERIOD;
+    if uw_domain_init(0, 0x4000_0000, 0x47e0_0000, 0x3c5) != 1
+        || uw_domain_init(1, 0x4010_0000, 0x4000_0000, 0x3c5) != 1 || gic_init() != 1 { return 0; }
+    // The original 9front platform expects firmware to leave its CPU awake;
+    // its GIC driver does not perform a redistributor WAKER transition.
+    if gic_write(1, 0x080a_0014, 4, 0) != 1 { return 0; }
+    busy(1);
+    if linux_init() != 1 || coordinator_init() != 1 { return 0; }
+    busy(1);
+    if volatile_load(0xb000_0000 as *const u32) != 0xedfe_0dd0
+        || plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) != 1 { return 0; }
+    LIVE[0] = 1; LIVE[1] = 1; UART[0x30 / 4] = 0x301;
+    record_status(); emit((&ONLINE[0]), 35);
+    busy(0); return 1;
+}
+
+@export
+@no_mangle
+pub unsafe fn uw_next_deadline() -> u64 { return DEADLINE; }
+
+@export
+@no_mangle
+pub unsafe fn uw_unexpected_exit(esr: u64, far: u64, pc: u64) -> never {
+    contain(uw_current_domain(), esr, far, pc);
+    record_status(); uw_halt();
+}
+
+unsafe fn system_register(domain: u64, frame: *mut u64, esr: u64) -> bool {
+    let op0: u64 = (esr >> 20) & 3; let op1: u64 = (esr >> 14) & 7;
+    let op2: u64 = (esr >> 17) & 7; let crn: u64 = (esr >> 10) & 15;
+    let crm: u64 = (esr >> 1) & 15; let reg: usize = ((esr >> 5) & 31) as usize;
+    let reading: bool = (esr & 1) != 0;
+    let mut value: u64 = 0; if reg != 31 { value = volatile_load(frame + reg); }
+    if op0 == 3 && op1 == 0 && crn == 12 && crm == 11 && !reading && op2 >= 5 && op2 <= 7 {
+        let mut group: u64 = 0; if op2 == 5 { group = 1; }
+        if send_sgi(domain, value, group) != 1 { return false; }
+    } else {
+        if op0 != 3 || op1 != 3 || crn != 14 || crm != 2 || op2 > 2 { return false; }
+        let mut field: u64 = 2; if op2 == 1 { field = 1; } if op2 == 2 { field = 0; }
+        if reading {
+            value = uw_timer_read(domain, 1, field);
+            if reg != 31 { volatile_store(frame + reg, value); }
+        } else { if uw_timer_write(domain, 1, field, value) != 1 { return false; } }
+    }
+    volatile_store(frame + 31, volatile_load(frame + 31) + 4); return true;
+}
+unsafe fn psci(frame: *mut u64, ec: u64) -> bool {
+    let function: u64 = volatile_load(frame);
+    let mut value: u64 = 0xffff_ffff_ffff_fffe;
+    if function == 0x8400_0000 { value = 2; }
+    else { if function == 0x8400_000a { value = MAX; } }
+    volatile_store(frame, value);
+    if ec == 0x17 { volatile_store(frame + 31, volatile_load(frame + 31) + 4); }
+    return true;
+}
+unsafe fn plan9_mmio(frame: *mut u64, esr: u64, ipa: u64) -> bool {
+    if (esr & (1 << 24)) == 0 || (esr & (1 << 25)) == 0
+        || (esr & (1 << 10)) != 0 || (esr & (1 << 7)) != 0 { return false; }
+    let width: u64 = (1 as u64) << (((esr >> 22) & 3) as usize);
+    if width > 4 || (ipa & (width - 1)) != 0 { return false; }
+    let reg: usize = ((esr >> 16) & 31) as usize; let writing: bool = (esr & 64) != 0;
+    let mut value: u64 = 0; if reg != 31 { value = volatile_load(frame + reg); }
+    if ipa >= 0x0900_0000 && ipa + width <= 0x0900_1000 {
+        if writing { if !uart_write(ipa - 0x0900_0000, value) { return false; } }
+        else { value = uart_read(ipa - 0x0900_0000); }
+    } else {
+        if ipa >= 0x0900_1000 && ipa + width <= 0x0900_2000 {
+            if width != 4 { return false; }
+            if writing { if plan9_wire_write(ipa - 0x0900_1000, value) != 1 { return false; } }
+            else { value = plan9_wire_read(ipa - 0x0900_1000); }
+            if plan9_wire_healthy() != 1 { return false; }
+        } else {
+            if ipa == 0x0901_0000 && width == 4 && !writing {
+                value = (RTC_FLOOR + (uw_counter_read() - RTC_START) / FREQUENCY) & 0xffff_ffff;
+            } else {
+                if ipa >= 0x3f00_0000 && ipa + width <= 0x4000_0000 && !writing { value = 0xffff_ffff; }
+                else { return false; }
+            }
+        }
+    }
+    if !writing && reg != 31 {
+        let mask: u64 = ((1 as u64) << ((width * 8) as usize)) - 1; value &= mask;
+        if (esr & (1 << 21)) != 0 && (value & ((1 as u64) << ((width * 8 - 1) as usize))) != 0 { value |= ~mask; }
+        if (esr & (1 << 15)) == 0 { value &= 0xffff_ffff; }
+        volatile_store(frame + reg, value);
+    }
+    volatile_store(frame + 31, volatile_load(frame + 31) + 4); return true;
+}
+unsafe fn controller_mmio(domain: u64, frame: *mut u64, esr: u64, ipa: u64) -> bool {
+    if (esr & (1 << 24)) == 0 || (esr & (1 << 25)) == 0
+        || (esr & (1 << 10)) != 0 || (esr & (1 << 7)) != 0 { return false; }
+    let width: u64 = (1 as u64) << (((esr >> 22) & 3) as usize);
+    if (ipa & (width - 1)) != 0 { return false; }
+    let reg: usize = ((esr >> 16) & 31) as usize;
+    if (esr & 64) != 0 {
+        let mut value: u64 = 0; if reg != 31 { value = volatile_load(frame + reg); }
+        if gic_write(domain, ipa, width, value) != 1 { return false; }
+    } else {
+        let mut value: u64 = gic_read(domain, ipa, width); if value == MAX { return false; }
+        if width < 8 {
+            let mask: u64 = ((1 as u64) << ((width * 8) as usize)) - 1;
+            value &= mask;
+            if (esr & (1 << 21)) != 0 && (value & ((1 as u64) << ((width * 8 - 1) as usize))) != 0 { value |= ~mask; }
+        }
+        if (esr & (1 << 15)) == 0 { value &= 0xffff_ffff; }
+        if reg != 31 { volatile_store(frame + reg, value); }
+    }
+    volatile_store(frame + 31, volatile_load(frame + 31) + 4); return true;
+}
+
+unsafe fn coordinator_mmio(frame: *mut u64, esr: u64, ipa: u64) -> bool {
+    if (esr & (1 << 24)) == 0 || (esr & (1 << 25)) == 0
+        || (esr & (1 << 10)) != 0 || (esr & (1 << 7)) != 0 { return false; }
+    let width: u64 = (1 as u64) << (((esr >> 22) & 3) as usize);
+    if width > 4 || (ipa & (width - 1)) != 0 || ipa < 0x0900_1000 || ipa + width > 0x0900_2000 { return false; }
+    let reg: usize = ((esr >> 16) & 31) as usize;
+    if (esr & 64) != 0 {
+        let mut value: u64 = 0; if reg != 31 { value = volatile_load(frame + reg); }
+        value &= ((1 as u64) << ((width * 8) as usize)) - 1;
+        if !coordinator_write(ipa - 0x0900_1000, value) { return false; }
+    } else {
+        let mut value: u64 = coordinator_read(ipa - 0x0900_1000);
+        let mask: u64 = ((1 as u64) << ((width * 8) as usize)) - 1; value &= mask;
+        if (esr & (1 << 21)) != 0 && (value & ((1 as u64) << ((width * 8 - 1) as usize))) != 0 { value |= ~mask; }
+        if (esr & (1 << 15)) == 0 { value &= 0xffff_ffff; }
+        if reg != 31 { volatile_store(frame + reg, value); }
+    }
+    volatile_store(frame + 31, volatile_load(frame + 31) + 4); return true;
+}
+
+// Device polling is serialized with both guest frontends. Only Linux-owned
+// RAM is accessed by its retained queues; Plan9 has no disk/network DMA grant.
+unsafe fn progress() -> void {
+    native_control();
+    route_input();
+    if LIVE[0] == 1 { busy(1); linux_exit((&mut POLL_FRAME[0]) as usize, 1 << 26, 0, 0); }
+    supply();
+    let mut domain: u64 = 0;
+    while domain < 2 {
+        if LIVE[domain as usize] == 1 {
+            set_level(domain, 27, uw_timer_pending(domain, 0));
+            set_level(domain, 30, uw_timer_pending(domain, 1));
+        }
+        domain += 1;
+    }
+}
+
+// Only the trusted host coordinator can address this private EL2 mailbox.
+// Both guests' stage-2 RAM mappings exclude it and the immutable recovery
+// copies. A marker in guest output or a namespace name cannot invoke it.
+// seq/op/ack/result/kernel_bytes/dtb_bytes occupy 0x6d000070..0x6d00009f.
+unsafe fn native_control() -> void {
+    let sequence: u64 = volatile_load(0x6d00_0070 as *const u64);
+    if sequence == 0 || sequence == volatile_load(0x6d00_0080 as *const u64) { return; }
+    let operation: u64 = volatile_load(0x6d00_0078 as *const u64);
+    let mut result: u64 = 0;
+    if operation == 1 && LIVE[0] == 1 {
+        LIVE[1] = 0; PLAN9_WITHDRAWN = 1;
+        plan9_wire_revoke();
+        set_level(1, 33, 0); set_level(1, 27, 0); set_level(1, 30, 0);
+        RX_HEAD = 0; RX_COUNT = 0; INPUT_ALLOWED = 0;
+        result = 1;
+    }
+    if operation == 2 && PLAN9_WITHDRAWN == 1 && LIVE[1] == 0 && uw_current_domain() == 0 {
+        let kernel_bytes: u64 = volatile_load(0x6d00_0090 as *const u64);
+        let dtb_bytes: u64 = volatile_load(0x6d00_0098 as *const u64);
+        if kernel_bytes != 0 && kernel_bytes <= 0x0100_0000 && dtb_bytes != 0 && dtb_bytes <= 0x0001_0000
+            && volatile_load(0xd100_0000 as *const u32) == 0xedfe_0dd0 {
+            // CPU stores deliberately perform the replacement: QEMU's
+            // translated-code invalidation sees these physical RAM writes.
+            let mut address: usize = 0xb000_0000 as usize;
+            while address < 0xd000_0000 as usize { volatile_store(address as *mut u64, 0); address += 8; }
+            let mut index: usize = 0;
+            while index < kernel_bytes as usize {
+                volatile_store(((0xb010_0000 as usize) + index) as *mut u8,
+                    volatile_load(((0xd000_0000 as usize) + index) as *const u8)); index += 1;
+            }
+            index = 0;
+            while index < dtb_bytes as usize {
+                volatile_store(((0xb000_0000 as usize) + index) as *mut u8,
+                    volatile_load(((0xd100_0000 as usize) + index) as *const u8)); index += 1;
+            }
+            if uw_domain_reset(1, 0x4010_0000, 0x4000_0000, 0x3c5) == 1 && gic_reset(1) == 1
+                && gic_write(1, 0x080a_0014, 4, 0) == 1
+                && plan9_wire_init(volatile_load(0x6d00_0000 as *const u64)) == 1 {
+                index = 0; while index < 64 { UART[index] = 0; index += 1; }
+                UART[0x30 / 4] = 0x301;
+                RX_HEAD = 0; RX_COUNT = 0; BOOT_MATCH = 0; BOOT_SEEN = 0;
+                INPUT_ALLOWED = 0; INPUT_OFFSET = 0; INPUT_LAST = uw_counter_read();
+                PLAN9_WITHDRAWN = 0; LIVE[1] = 1; result = 1;
+            }
+        }
+    }
+    if operation == 3 && LIVE[0] == 1 {
+        let length: u64 = volatile_load(0x6d06_0000 as *const u64);
+        if length <= 8192 { result = coordinator_inject(0x6d06_0008 as *const u8, length as usize); }
+    }
+    volatile_store(0x6d00_0088 as *mut u64, result);
+    uw_memory_barrier(); volatile_store(0x6d00_0080 as *mut u64, sequence);
+}
+
+@export
+@no_mangle
+pub unsafe fn uw_handle_exit(frame_address: usize, reason: u64, esr: u64, far: u64, hpfar: u64) -> u64 {
+    busy(1);
+    let domain: u64 = uw_current_domain(); if domain > 1 { return MAX; }
+    EXITS[domain as usize] += 1;
+    let frame: *mut u64 = frame_address as *mut u64;
+    let pc: u64 = volatile_load(frame + 31); let ec: u64 = esr >> 26;
+    LAST_PC[domain as usize] = pc; LAST_ESR[domain as usize] = esr;
+    let ipa: u64 = ((hpfar & 0x0000_ffff_ffff_fff0) << 8) | (far & 4095);
+    let mut yield_now: bool = false;
+    if reason == 1 {
+        let irq: u64 = uw_irq_ack();
+        if irq < 1020 { uw_irq_eoi(irq); }
+        if irq != 26 && irq != 1023 { contain(domain, 0x803, irq, pc); }
+        yield_now = true;
+    } else {
+        let mut accepted: bool = false;
+        if ec == 1 { volatile_store(frame + 31, pc + 4); accepted = true; yield_now = true; }
+        else { if ec == 0x18 { accepted = system_register(domain, frame, esr); }
+        else { if ec == 0x16 || ec == 0x17 { accepted = psci(frame, ec); }
+        else { if ec == 0x24 {
+            if (ipa >= 0x0800_0000 && ipa < 0x0801_0000) || (ipa >= 0x080a_0000 && ipa < 0x080c_0000) {
+                accepted = controller_mmio(domain, frame, esr, ipa);
+            } else {
+                if domain == 0 {
+                    if ipa >= 0x0900_1000 && ipa < 0x0900_2000 { accepted = coordinator_mmio(frame, esr, ipa); }
+                    else { accepted = linux_exit(frame_address, esr, far, hpfar) == 0; }
+                }
+                else { accepted = plan9_mmio(frame, esr, ipa); }
+            }
+        } } } }
+        if !accepted { contain(domain, esr, ipa, pc); }
+    }
+    progress();
+    let now: u64 = uw_counter_read();
+    let mut next: u64 = domain;
+    if yield_now || now >= DEADLINE || LIVE[domain as usize] == 0 {
+        let other: u64 = domain ^ 1;
+        if LIVE[other as usize] == 1 { next = other; }
+        DEADLINE = now + PERIOD;
+    }
+    if LIVE[next as usize] == 0 { record_status(); busy(0); return MAX; }
+    if next != domain { SWITCHES += 1; }
+    if gic_poll(next) != 1 { contain(next, 0x804, next, pc); record_status(); busy(0); return MAX; }
+    record_status(); busy(0); return next;
+}

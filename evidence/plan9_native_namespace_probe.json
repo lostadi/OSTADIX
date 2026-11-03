@@ -1,0 +1,65 @@
+{
+  "schema": "ostadix.plan9-native-namespace-handoff/v1",
+  "status": "PASS: original Plan9 ABI mounted the native namespace, read an exact Linux-generated file, and created/read a new unique file",
+  "proof": "/home/ustad/.local/state/ostadix/okernel/plan9-namespace-20261102-r2/result.json",
+  "scope": "Sequential isolated cross-ABI component qualification; no working/default OS mutation or simultaneous Linux/Plan9 domain claim",
+  "derived_kernel_sha256": "d09ac34283b2bc373c024ab1da335cc236f6151861a69242bd2339355c3026fa",
+  "kernel_derivation": "evidence/plan9_original_rebuild.json",
+  "native_transport": {
+    "module": "ocore/runtime/aarch64/plan9_namespace_uart.oc",
+    "device": "/dev/eia1",
+    "ipa": 150999040,
+    "irq": 50,
+    "authority": "Whole channel pregranted to native root-RW session1; native wire peer uses separate grant2; request names and magic bytes grant no authority",
+    "dma": false,
+    "withdrawal": "Trusted transport revoke latches inactive and guest CR writes cannot reacquire; malformed frames terminally halt the production monitor"
+  },
+  "source_roundtrip": {
+    "path": "/work/wire-proof-b1e2e9139ff449c0809fe776749546ad",
+    "text": "original-9p-b1e2e9139ff449c0809fe776749546ad\n"
+  },
+  "roundtrip": {
+    "path": "/work/original-plan9-51789cfe658c9a3c115f4953",
+    "text": "ORIGINAL_PLAN9_ef6351eac95197348e9873e34ca1c705\n"
+  },
+  "namespace_before_sha256": "a8f66fb355034c98b220a934d2d58126521a526faec6507cafa88cc2c088b526",
+  "namespace_after": {
+    "path": "/home/ustad/.local/state/ostadix/okernel/plan9-namespace-20261102-r2/namespace-after.raw",
+    "bytes": 16777216,
+    "sha256": "b9ea0536cbebec8dc836dd1334364a0eee9d8398a47d679fa1108c47163e8e7f"
+  },
+  "snapshot": {
+    "virtual_cpu_stopped_before_export": true,
+    "native_operations_quiescent_before_export": true,
+    "busy_word": 1828716552,
+    "policy": "QMP stops the isolated CPU, reads the private busy word, resumes/retries if busy, exports only when zero; no head is published"
+  },
+  "native_monitor_reproduction": {
+    "proof": "/home/ustad/.local/state/ostadix/okernel/plan9-namespace-20261102-r2/monitor-reproduction.json",
+    "monitor_elf_sha256": "b56baddb6a815ecb666522258b9c7a6d04e7fc49d7b81115872adc527c40fce5",
+    "guest_dtb_sha256": "568c3cc7add2f636c8743d8c0fe73519772c5a53116dc0869400ddee73c27301",
+    "profile_sha256": "556913d857b9640d3adfd0ba9b37278e4804d3ab76c5af041f614ac6c0832610",
+    "qualified": "All three complete files compare byte for byte across independent build directories with the same existing compiler/toolchain; no toolchain source-bootstrap claim"
+  },
+  "default_original_probe_regression": "/home/ustad/.local/state/ostadix/okernel/plan9-original-probe-20261102-r6/result.json",
+  "checks": [
+    "Exact derived-kernel receipt/source/patch binding and original ARM64 uImage CRC/type/load/entry admission",
+    "Original mount -n -c /dev/eia1 /n and original cat/echo operate on the native object store",
+    "Exact Linux-generated complete line observed between independent console markers",
+    "Unique Plan9 write read back in original userspace and verified again in the exported native volume",
+    "Input CAS remains unchanged; no main or fork head/disk is opened or published",
+    "Default original serial-only live probe still passes",
+    "Three production monitor/admission tests plus one production UART/store test pass, including native quiescence, LPI denial, trusted withdrawal and malformed-frame fail-stop"
+  ],
+  "next_step": "Simultaneous supervised domains, shared process/stdio dispatch and default-console original Plan9 execution remain unfinished",
+  "linux_return_path": {
+    "proof": "/home/ustad/.local/state/ostadix/okernel/integration-next-20261102/plan9-linux-handoff-acceptance.json",
+    "ok": true,
+    "checks": [
+      "Original Linux filesystem and original Plan9port 9p client read exact Plan9 nonce bytes",
+      "Installed source package verification reuses qualified outputs",
+      "Both clients recover exact bytes after a real saved-state restart"
+    ],
+    "scope": "root-owned stopped isolated fork; working/default VM remains unchanged"
+  }
+}

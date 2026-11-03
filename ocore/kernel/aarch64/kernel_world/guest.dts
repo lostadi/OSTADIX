@@ -60,4 +60,6 @@
         interrupts = <0 16 4>;
         dma-coherent;
     };
+    NETWORK_DEVICE
+    NAMESPACE_DEVICE
 };

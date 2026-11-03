@@ -7,6 +7,8 @@ USER_DIR="$ROOT/ocore/user"
 PASS_ONE="$BUILD_DIR/pass-one"
 PASS_TWO="$BUILD_DIR/pass-two"
 mkdir -p "$PASS_ONE" "$PASS_TWO"
+# A failed build or an unsupported replay host must not retain old PASS evidence.
+rm -f -- "$BUILD_DIR/native-linux-observation.json"
 
 for tool in clang objdump python3 rustc shasum; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -94,4 +96,11 @@ printf 'minimal Linux deterministic artifact build: PASS\n'
 printf 'elf-bytes: %s\n' "$(wc -c < "$ELF" | tr -d ' ')"
 printf 'elf: %s\n' "$ELF"
 printf 'sha256: %s\n' "$(shasum -a 256 "$ELF" | awk '{print $1}')"
-printf 'native-x86_64-linux-replay: PENDING\n'
+if [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] \
+    && command -v strace >/dev/null 2>&1; then
+  python3 "$USER_DIR/replay_linux_minimal.py" \
+    "$ELF" "$USER_DIR/linux-minimal-oracle.json" \
+    --output "$BUILD_DIR/native-linux-observation.json"
+else
+  printf 'native-x86_64-linux-replay: PENDING (requires native Linux x86_64 and strace)\n'
+fi

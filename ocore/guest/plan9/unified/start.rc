@@ -1,0 +1,19 @@
+#!/bin/rc
+# Original boot mounts the admitted PAQ before the emergency !rc prompt.
+# Arguments come from the trusted coordinator, never persistent request text.
+if(! ~ $#* 3){
+	echo 'usage: okernel-start /n/services/plan9 generation16 instance32' >[1=2]
+	exit usage
+}
+if(! test -f /arm64/bin/p9cmdsrv || ! test -f /arm64/bin/rc || ! test -f /arm64/bin/7c || ! test -f /arm64/bin/7l || ! test -f /arm64/lib/libc.a){
+	echo 'admitted original Plan9 userland/tool closure is missing' >[1=2]
+	exit closure
+}
+# Leave the original rc console available for keyboard and save commands.
+# Request jobs receive their own input/output pipes; the resident itself must
+# neither consume console input nor interleave diagnostics with that console.
+# Returning from this wrapper means only that launch was attempted. The
+# coordinator must validate the exact fresh ready(G,S), not this exit status.
+/arm64/bin/p9cmdsrv $* </dev/null >/dev/null >[2=1] &
+# Original rc keeps the last guard's status across an asynchronous launch.
+exit ''
