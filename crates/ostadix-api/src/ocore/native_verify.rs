@@ -857,7 +857,8 @@ fn linkage(value: &str, definition: bool, context: &str) -> Result<()> {
         return Err(fail(context, "weak linkage requires a definition"));
     }
     let valid = match value {
-        "external" | "extern_weak" => true,
+        "external" => true,
+        "extern_weak" => !definition,
         "private"
         | "internal"
         | "available_externally"
@@ -1829,6 +1830,12 @@ impl<'a> Verifier<'a> {
         let context = format!("global {:?}", global.name);
         let layout = self.sized(global.ty, &context)?;
         linkage(&global.linkage, global.initializer.is_some(), &context)?;
+        if global.linkage == "extern_weak" && global.thread_local {
+            return Err(fail(
+                &context,
+                "extern_weak TLS declarations are not implemented",
+            ));
+        }
         visibility(&global.linkage, global.visibility, &context)?;
         alignment(global.alignment, true, &context)?;
         if global.thread_local {

@@ -245,7 +245,7 @@ class Importer:
     CAST = {30: "trunc", 31: "z_ext", 32: "s_ext", 39: "ptr_to_int", 40: "int_to_ptr", 41: "bitcast"}
     CMP = dict(zip(range(32, 42), ("eq", "ne", "ugt", "uge", "ult", "ule", "sgt", "sge", "slt", "sle")))
     LINKAGES = {0: "external", 2: "linkonce", 3: "linkonce_odr", 5: "weak",
-                6: "weak_odr", 8: "internal", 9: "private"}
+                6: "weak_odr", 8: "internal", 9: "private", 12: "extern_weak"}
     BITCODE_LINKAGES = {0: 0, 2: 18, 3: 19, 5: 16, 6: 17, 8: 3, 9: 9}
     MERGEABLE_DEFINITIONS = {"linkonce", "linkonce_odr", "weak", "weak_odr"}
     # These assumptions may be erased because emission never uses them to optimize.
@@ -1124,6 +1124,12 @@ class Importer:
                 self.reject(f"{linkage} linkage requires a definition; mergeable declarations require separate resolution")
         if linkage == "weak":
             self.refinements.add(f"{self.symbol}: preserved ordinary weak definition (LLVMWeakAnyLinkage=5); native STB_WEAK binding and qualified closure/link selection required; no ODR or COMDAT contract inferred")
+        elif linkage == "extern_weak":
+            definition = (a.GetFirstBasicBlock(value) if a.IsAFunction(value)
+                          else a.GetInitializer(value))
+            if definition or comdat is not None or (not a.IsAFunction(value) and a.IsThreadLocal(value)):
+                self.reject("extern_weak requires a non-TLS declaration without COMDAT membership")
+            self.refinements.add(f"{self.symbol}: preserved external weak declaration (LLVMExternalWeakLinkage=12); ELF STB_WEAK undefined binding resolves absent providers to zero; native linkage and execution qualification remain required")
         elif linkage in self.MERGEABLE_DEFINITIONS:
             self.refinements.add(f"{self.symbol}: preserved exact LLVM {linkage} definition linkage; no collapse to ordinary weak or inferred COMDAT membership; native binding, qualified closure and whole-group selection remain explicit")
         if comdat is not None:
@@ -1133,7 +1139,9 @@ class Importer:
             self.refinements.add(f"{self.symbol}: unnamed-address identity optimization assumption erased")
         if visibility != "default":
             elf_code = 2 if visibility == "hidden" else 3
-            self.refinements.add(f"{self.symbol}: preserved {visibility} symbol visibility as ELF st_other={elf_code}; required own-emitter visibility directives on definitions and declarations within the static, non-preemptive native linkage profile; nondefault external symbols must resolve within the included native image")
+            resolution = ("optional external weak providers may be absent and resolve to zero" if linkage == "extern_weak"
+                          else "nondefault external symbols must resolve within the included native image")
+            self.refinements.add(f"{self.symbol}: preserved {visibility} symbol visibility as ELF st_other={elf_code}; required own-emitter visibility directives on definitions and declarations within the static, non-preemptive native linkage profile; {resolution}")
         self.metadata(value, global_value=True)
         return linkage, visibility, alignment, comdat
 

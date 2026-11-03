@@ -611,7 +611,14 @@ and sufficient selected-provider alignment, including overridden definitions.
 The original build's ordered link membership is separate evidence; a supplied
 module order alone does not qualify complete runtime linking. `linkonce`,
 `linkonce_odr` and `weak_odr` definitions and direct aliases retain their exact
-linkage names and ELF weak bindings. `extern_weak` declarations, common and
+linkage names and ELF weak bindings. Non-TLS `extern_weak` function/global
+declarations retain their undefined ELF weak binding. Address materialization
+and guarded direct calls use linker-resolved GOT entries on all three ISAs,
+so an absent provider has address zero; a supplied definition retains ordinary
+ELF provider selection, and an optional reference alone does not pull an archive
+member into the image. Definitions labeled `extern_weak` and external-weak TLS
+are rejected. This object-emission support does not waive the separate
+compiler-owned runtime dependency-closure gate. Common and
 `available_externally` definitions remain unsupported whole-unit contracts.
 
 ELF `any` and `nodeduplicate` COMDAT groups keep code, globals and their
