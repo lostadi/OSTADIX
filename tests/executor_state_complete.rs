@@ -428,8 +428,10 @@ raise RuntimeError("member-stop")
 let good = text^(ok)_text
 now(batch($bad, $good))
 "#,
-            true,
-            "[error]",
+            // SPEC.md:762-787: the failed member keeps its slot, the other
+            // member keeps its value, and the run still fails.
+            false,
+            &["[error]", "\"ok\"", "error: batch member 0 failed"][..],
         ),
         (
             r#"let bad = python{defer}^(
@@ -439,7 +441,7 @@ let good = text^(ok)_text
 now(all($bad, $good))
 "#,
             false,
-            "member-stop",
+            &["member-stop"][..],
         ),
         (
             r#"let bad = python{defer}^(
@@ -449,7 +451,7 @@ let good = text^(ok)_text
 now(any($bad, $good))
 "#,
             true,
-            "ok",
+            &["ok"][..],
         ),
         (
             r#"let bad = python{defer}^(
@@ -459,7 +461,7 @@ let good = text^(ok)_text
 now(race($bad, $good))
 "#,
             false,
-            "member-stop",
+            &["member-stop"][..],
         ),
     ];
 
@@ -473,10 +475,12 @@ now(race($bad, $good))
             String::from_utf8_lossy(&serial.output.stdout),
             normalized_stderr(&serial)
         );
-        assert!(
-            observable.contains(evidence),
-            "missing `{evidence}` in group outcome:\n{observable}"
-        );
+        for evidence in evidence {
+            assert!(
+                observable.contains(evidence),
+                "missing `{evidence}` in group outcome:\n{observable}"
+            );
+        }
     }
 }
 

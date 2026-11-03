@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Require Lee-only commit authorship and reject additional attribution credit.
+"""Check commit authors against the allowed-author list.
 
-Tooling references are allowed. This guard is deliberately limited to fields
-that Git, GitHub, Cargo, or CFF interpret as authorship or contribution credit.
+Mentions of tools in ordinary text pass. Only fields that Git, GitHub, Cargo,
+or CFF read as author fields are checked.
 """
 
 from __future__ import annotations
@@ -19,7 +19,9 @@ import tomllib
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_PATH = "scripts/check_attribution.py"
+POLICY_PATH = "scripts/check_commit_authors.py"
+# the name the check was introduced under, before its rename.
+LEGACY_POLICY_PATH = "scripts/check_attribution.py"
 PROJECT_AUTHOR = "Lee Daghlar Ostadi"
 PROJECT_ORCID = "0009-0001-6380-9558"
 OWNED_AUTHOR_MANIFESTS = frozenset({"Cargo.toml", "crates/ostadix-api/Cargo.toml"})
@@ -38,10 +40,10 @@ VENDOR_TOOL_IDENTITY = re.compile(
 COPILOT_IDENTITY = re.compile(
     r"(?i)(?<![a-z0-9])(?:github[- ]+)?copilot(?:\[bot\])?(?![a-z0-9])"
 )
-ATTRIBUTION_TRAILER = re.compile(
+AUTHOR_TRAILER = re.compile(
     r"(?im)^(?P<key>[a-z][a-z0-9-]*):[ \t]*(?P<value>[^\n]+)$"
 )
-ATTRIBUTION_TRAILER_KEYS = frozenset(
+AUTHOR_TRAILER_KEYS = frozenset(
     {
         "author",
         "authored-by",
@@ -66,7 +68,7 @@ SUPPLEMENTAL_TRAILER = re.compile(
     r"(?:^|[-_])(?:co-?author(?:ed)?|contributors?|assisted|assistance|"
     r"generated|credits?|session|transcript)(?:$|[-_])"
 )
-AI_CREDIT = re.compile(
+TOOL_CREDIT = re.compile(
     r"(?im)^[^\w\n]*(?:(?:this\s+)?(?:commit|change|code|patch)\s+"
     r"(?:was\s+|is\s+)?)?(?:generated|written|authored|coauthored|co-authored|created|"
     r"developed|implemented|coded|produced|assisted|reviewed)\s+(?:by|with|using)\s+"
@@ -74,7 +76,7 @@ AI_CREDIT = re.compile(
     r"LLM\b|ChatGPT\b|Codex\b|Claude\b|Copilot\b|Gemini\b|Grok\b|"
     r"OpenAI\b|Anthropic\b)"
 )
-AI_CREDIT_LABEL = re.compile(
+TOOL_CREDIT_LABEL = re.compile(
     r"(?im)^[^\w\n]*(?:AI|LLM)[ -](?:generated|assisted|authored)"
     r"(?:[.! \t]*$|[ \t]+(?:commit|change|patch|code)[.! \t]*$)"
 )
@@ -145,18 +147,18 @@ def commit_violations(commit: CommitMetadata) -> list[Violation]:
         ) or contains_forbidden_identity(value):
             violations.append(Violation(commit.oid, field, value))
 
-    for match in ATTRIBUTION_TRAILER.finditer(commit.message):
+    for match in AUTHOR_TRAILER.finditer(commit.message):
         key = match.group("key").lower()
         value = match.group("value").strip()
         if (
-            key in ATTRIBUTION_TRAILER_KEYS
+            key in AUTHOR_TRAILER_KEYS
             or key == "agent-logs-url"
             or SUPPLEMENTAL_TRAILER.search(key)
         ):
             violations.append(Violation(commit.oid, f"{key} trailer", value))
-    for pattern in (AI_CREDIT, AI_CREDIT_LABEL):
+    for pattern in (TOOL_CREDIT, TOOL_CREDIT_LABEL):
         for match in pattern.finditer(commit.message):
-            violations.append(Violation(commit.oid, "AI contribution credit", match.group(0)))
+            violations.append(Violation(commit.oid, "disallowed author line", match.group(0)))
     return violations
 
 
@@ -430,35 +432,55 @@ def project_metadata_violations(revision: str | None = None) -> list[Violation]:
 
 
 def policy_boundary(head: str) -> tuple[str | None, str]:
-    """Return the policy-introduction commit and its exclusive scan base.
+    """Return the author-check introduction commit and its exclusive scan base.
 
     Discovering this boundary from Git history keeps the guard valid when all
     descendant commit IDs change during a provenance-only history rewrite.
     Before the policy is committed, use the audited legacy tip so the working
     tree implementation remains testable.
     """
-    result = subprocess.run(
-        [
-            "git",
-            "log",
-            "--diff-filter=A",
-            "--reverse",
-            "--format=%H",
-            head,
-            "--",
-            POLICY_PATH,
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    introductions = result.stdout.split()
+    # the check was introduced as scripts/check_attribution.py and later
+    # renamed. both names are asked for, with rename detection off so the
+    # answer does not depend on how similar the two files are: the original
+    # introduction is the one commit that added the old name, and the new
+    # name may only appear by a commit that also deleted the old one. a head
+    # from before the rename has only the old name and resolves the same way.
+    def changes(path: str, status: str) -> list[str]:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                "--no-renames",
+                f"--diff-filter={status}",
+                "--reverse",
+                "--format=%H",
+                head,
+                "--",
+                path,
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.split()
+
+    introductions = changes(LEGACY_POLICY_PATH, "A")
+    if not introductions:
+        introductions = changes(POLICY_PATH, "A")
+    else:
+        removals = set(changes(LEGACY_POLICY_PATH, "D"))
+        for renamed in changes(POLICY_PATH, "A"):
+            if renamed not in removals:
+                raise RuntimeError(
+                    f"{POLICY_PATH} was added by {renamed} without replacing "
+                    f"{LEGACY_POLICY_PATH}"
+                )
     if not introductions:
         return None, LEGACY_POLICY_BASELINE
     if len(introductions) != 1:
         raise RuntimeError(
-            f"expected one attribution-policy introduction, found {len(introductions)}"
+            f"expected one author-check introduction, found {len(introductions)}"
         )
     policy_commit = introductions[0]
     parent_result = subprocess.run(
@@ -471,7 +493,7 @@ def policy_boundary(head: str) -> tuple[str | None, str]:
     parents = parent_result.stdout.split()
     if len(parents) != 1:
         raise RuntimeError(
-            "the attribution policy must be introduced by a single-parent commit"
+            "the author check must be introduced by a single-parent commit"
         )
     return policy_commit, parents[0]
 
@@ -509,7 +531,7 @@ def is_ancestor(base: str, head: str) -> bool:
         capture_output=True,
     )
     if result.returncode not in (0, 1):
-        raise RuntimeError(f"could not compare attribution base {base} with {head}")
+        raise RuntimeError(f"could not compare author-check base {base} with {head}")
     return result.returncode == 0
 
 
@@ -521,7 +543,7 @@ def commit_exists(revision: str) -> bool:
         capture_output=True,
     )
     if result.returncode not in (0, 1, 128):
-        raise RuntimeError(f"could not resolve attribution revision {revision}")
+        raise RuntimeError(f"could not resolve author-check revision {revision}")
     return result.returncode == 0
 
 
@@ -574,7 +596,7 @@ def read_commit(oid: str) -> CommitMetadata:
     )
     fields = result.stdout.decode("utf-8", errors="replace").split("\0", 4)
     if len(fields) != 5:
-        raise RuntimeError(f"could not parse attribution fields for commit {oid}")
+        raise RuntimeError(f"could not parse author fields for commit {oid}")
     return CommitMetadata(oid, *fields)
 
 
@@ -642,14 +664,14 @@ def pre_push_violations(text: str) -> list[Violation]:
         policy_commit, policy_base = policy_boundary(head)
         if policy_commit is None:
             raise RuntimeError(
-                f"{update.remote_ref} does not contain the attribution-policy introduction"
+                f"{update.remote_ref} does not contain the author-check introduction"
             )
         violations.extend(tag_violations(update.local_oid))
         if head not in checked_tips:
             violations.extend(project_metadata_violations(head))
             checked_tips.add(head)
         # A new branch, missing old object, or rewritten lineage uses the
-        # established policy boundary. Legacy history is never rewritten here.
+        # established author-check boundary. Legacy history is never rewritten here.
         commits = commits_in(update.remote_oid, head, fallback_base=policy_base)
         for oid in [head, *commits]:
             if oid not in checked_commits:
@@ -662,7 +684,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--base",
-        help="exclusive base commit; empty/all-zero uses the discovered policy boundary",
+        help="exclusive base commit; empty/all-zero uses the discovered author-check boundary",
     )
     parser.add_argument("--head", default="HEAD", help="inclusive head commit")
     parser.add_argument(
@@ -673,7 +695,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--ref-type",
         choices=("branch", "tag"),
         default="branch",
-        help="tags must contain the attribution-policy introduction commit",
+        help="tags must contain the author-check introduction commit",
     )
     return parser.parse_args(argv)
 
@@ -684,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             return report_violations(pre_push_violations(sys.stdin.read()))
         except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
-            print(f"attribution pre-push check failed: {error}", file=sys.stderr)
+            print(f"author check failed in the hook: {error}", file=sys.stderr)
             return 1
     policy_commit, policy_base = policy_boundary(args.head)
     base = policy_base if args.ref_type == "tag" else args.base
@@ -693,7 +715,7 @@ def main(argv: list[str] | None = None) -> int:
     ):
         boundary = policy_commit or "<not present>"
         print(
-            f"release tag {args.head} does not contain attribution-policy "
+            f"release tag {args.head} does not contain author-check "
             f"introduction {boundary}",
             file=sys.stderr,
         )
@@ -707,7 +729,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def report_violations(violations: list[Violation]) -> int:
     if violations:
-        print("Lee-only attribution policy failed:", file=sys.stderr)
+        print("author check failed:", file=sys.stderr)
         for violation in violations:
             print(
                 f"  {violation.location}: {violation.field}: {violation.value}",
@@ -715,7 +737,7 @@ def report_violations(violations: list[Violation]) -> int:
             )
         return 1
 
-    print("attribution policy: pass")
+    print("author check: pass")
     return 0
 
 

@@ -3,10 +3,9 @@ use std::fs;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
@@ -30,7 +29,6 @@ use crate::runtime_exec::BackendToolchain;
 use crate::value::{FloatFormat, ONumber, OValue};
 use crate::wire;
 
-static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 #[cfg(test)]
 const NATIVE_BACKEND_HANDLERS: &[&str] = &[
     "bash",
@@ -81,45 +79,134 @@ pub fn has_native_backend(lang: &str) -> bool {
 pub fn run_backend(lang: &str) -> Result<()> {
     let tools = BackendToolchain::from_env(lang)?;
     tools.verify_all()?;
+    if lang == "bash" {
+        // fail closed: without the subreaper bit a setsid or double-forked
+        // job escapes to init and outlives its block.
+        become_bash_subreaper()
+            .context("the bash backend could not become the subreaper of its jobs")?;
+    }
+    // a SIGTERM, from the host's cancel or from our parent's death, stops
+    // the backend's children (and for bash, its shell and reparented jobs)
+    // before this process exits.
+    install_backend_termination(lang == "bash")
+        .context("could not install the backend's SIGTERM cleanup")?;
+    // armed only after the handler: from here our parent's death runs
+    // the cleanup. a parent already gone sent no signal, so stop now.
+    #[cfg(target_os = "linux")]
+    if let Some(parent) = std::env::var_os(crate::process::BACKEND_PARENT_PID_ENV) {
+        let parent = parent
+            .to_str()
+            .and_then(|text| text.parse::<libc::pid_t>().ok())
+            .context("O_BACKEND_PARENT_PID is not a pid")?;
+        match crate::process::arm_parent_death_signal(parent) {
+            Ok(()) => {}
+            Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {
+                if lang == "bash" {
+                    terminate_bash_now();
+                } else {
+                    terminate_non_bash_backend_now();
+                }
+            }
+            Err(error) => {
+                return Err(error).context("could not arm the backend's parent death signal")
+            }
+        }
+    }
     if !has_native_backend(lang) {
         return proxy_legacy_backend(lang, &tools);
     }
-
     let mut backend = RustBackend::new(tools);
+    if lang == "bash" {
+        backend.bash_backend = true;
+        backend.plain_bash = std::env::var_os(crate::process::PLAIN_BASH_HELPER_ENV)
+            .is_some_and(|value| value == "1");
+        // the shell is spawned before the first request, so no block waits
+        // for a fork.
+        backend.prespawn_bash()?;
+    }
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut reader = stdin.lock();
-    let mut writer = stdout.lock();
+    if crate::process::shim_heartbeat_interval().is_some() {
+        let heartbeat = crate::process::HEARTBEAT_CAPABILITY.to_string();
+        wire::write_frame(
+            &mut stdout.lock(),
+            &BackendWireResponseV2::HelloV1 {
+                capabilities: vec![heartbeat],
+            },
+        )?;
+    }
 
-    while let Some(command) = wire::read_frame::<_, BackendWireCommandV2>(&mut reader)? {
-        if matches!(&command, BackendWireCommandV2::Shutdown) {
-            match backend.shutdown() {
-                Ok(()) => {
-                    wire::write_frame(&mut writer, &BackendWireResponseV2::ok(OValue::Null))?;
-                    crate::process::lifecycle_trace(
-                        "backend.shutdown_acknowledged",
-                        format!("language={lang}"),
-                    );
-                    break;
-                }
-                Err(error) => {
-                    wire::write_frame(
-                        &mut writer,
-                        &BackendWireResponseV2::err(format!("backend shutdown failed: {error:#}")),
-                    )?;
-                    return Err(error).context("backend shutdown failed");
+    // started by the first step that needs it.
+    let mut heartbeat: Option<Heartbeat> = None;
+    let mut shutdown_walked = false;
+    let loop_result: Result<()> = (|| {
+        while let Some(command) = wire::read_frame::<_, BackendWireCommandV2>(&mut reader)? {
+            if matches!(&command, BackendWireCommandV2::Shutdown) {
+                match backend.shutdown() {
+                    Ok(()) => {
+                        shutdown_walked = true;
+                        wire::write_frame(
+                            &mut stdout.lock(),
+                            &BackendWireResponseV2::ok(OValue::Null),
+                        )?;
+                        crate::process::lifecycle_trace(
+                            "backend.shutdown_acknowledged",
+                            format!("language={lang}"),
+                        );
+                        return Ok(());
+                    }
+                    Err(error) => {
+                        shutdown_walked = true;
+                        wire::write_frame(
+                            &mut stdout.lock(),
+                            &BackendWireResponseV2::err(format!(
+                                "backend shutdown failed: {error:#}"
+                            )),
+                        )?;
+                        return Err(error).context("backend shutdown failed");
+                    }
                 }
             }
-        }
-        let response = match command {
+            let response = match command {
             BackendWireCommandV2::ExecMorphismV1 { .. } => BackendWireResponseV2::err(
                 "morphism.unsupported-backend: this native adapter has no executable morphism contract",
             ),
-            BackendWireCommandV2::Exec { code, bindings } => {
+            BackendWireCommandV2::Exec {
+                code,
+                bindings,
+                plain_next,
+            } => {
                 let result = if lang == "javascript" && (code.contains("O.native_")
                     || bindings.values().any(|value| matches!(value, OValue::Native { .. }))) {
-                    run_javascript_native_bridge(&backend.tools, &code, &bindings, &mut reader, &mut writer)
-                } else { backend.exec(lang, &code, bindings) };
+                    run_javascript_native_bridge(&backend.tools, &code, &bindings, &mut reader, &mut stdout.lock())
+                } else {
+                    if heartbeat.is_none() {
+                        if let Some(interval) = crate::process::shim_heartbeat_interval() {
+                            heartbeat = Some(Heartbeat::start(backend.child_pid.clone(), interval)?);
+                        }
+                    }
+                    let _pulse = match &heartbeat {
+                        Some(heartbeat) => heartbeat.step(),
+                        None => HeartbeatStep { heartbeat: None },
+                    };
+                    backend.exec(lang, &code, bindings)
+                };
+                // the next plain block's shell, spawned before the answer so
+                // the host's next request finds it ready. only when the plan
+                // has another plain block ahead: a one-block program spawns
+                // exactly one shell.
+                if backend.plain_bash && plain_next {
+                    if let Err(error) = backend.prespawn_bash() {
+                        // the block itself succeeded or failed on its own; the
+                        // next block starts its shell inline and reports a
+                        // real failure there.
+                        crate::process::lifecycle_trace(
+                            "backend.plain_bash_prespawn_failed",
+                            format!("{error:#}"),
+                        );
+                    }
+                }
                 match result {
                     Ok(value) => BackendWireResponseV2::ok(value),
                     Err(error) => BackendWireResponseV2::err(format!("{error:#}")),
@@ -149,15 +236,864 @@ pub fn run_backend(lang: &str) -> Result<()> {
                 backend.restore_response(lang, checkpoint)
             }
         };
-        wire::write_frame(&mut writer, &response)?;
+            wire::write_frame(&mut stdout.lock(), &response)?;
+        }
+        Ok(())
+    })();
+
+    // stdin EOF or a broken pipe: the host is gone or closing us without a
+    // Shutdown frame (which already walked in backend.shutdown()). a bash
+    // backend still has its shell and maybe a session's jobs, so it stops
+    // them before it exits. a SIGTERM's walk that is already running ends
+    // the process itself; this waits on its lock meanwhile.
+    if lang == "bash" && !shutdown_walked {
+        let shell = SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
+        let mut sweep = stop_backend_descendants(JOB_CLEANUP_WINDOW, (shell != 0).then_some(shell));
+        sweep.quiet = true;
+        let report = sweep.report();
+        loop_result?;
+        report?;
+        return Ok(());
+    }
+    loop_result
+}
+
+/// Sends `heartbeat_v1` frames on stdout while a native step runs, so the
+/// host can tell a long step from a hung one. For bash it reports the session
+/// shell's kernel state.
+///
+/// why one long-lived thread: a thread per step cost every short block a
+/// spawn and a join. the thread starts with the first step, and each step
+/// only flips a flag under a lock; the first frame of a step comes one
+/// interval after it began, so a short step sends none. the heartbeat always
+/// runs, since it is how the host tells a dead backend from a slow one.
+struct Heartbeat {
+    shared: std::sync::Arc<(std::sync::Mutex<HeartbeatState>, std::sync::Condvar)>,
+}
+
+#[derive(Default)]
+struct HeartbeatState {
+    // the step now running, if any; numbered so a frame due for an earlier
+    // step is never sent for a later one.
+    step: Option<u64>,
+    next_step: u64,
+}
+
+/// Ends the step's heartbeat on drop, before the step's answer is written.
+/// the flag is cleared under the lock the thread writes under, so no frame
+/// can follow the answer.
+struct HeartbeatStep<'a> {
+    heartbeat: Option<&'a Heartbeat>,
+}
+
+impl Heartbeat {
+    fn start(
+        child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
+        interval: Duration,
+    ) -> io::Result<Self> {
+        let shared = std::sync::Arc::new((
+            std::sync::Mutex::new(HeartbeatState::default()),
+            std::sync::Condvar::new(),
+        ));
+        let watched = std::sync::Arc::clone(&shared);
+        thread::Builder::new()
+            .name("ostadix-backend-heartbeat".into())
+            .spawn(move || {
+                let (state, wake) = &*watched;
+                let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+                loop {
+                    let Some(step) = guard.step else {
+                        guard = wake.wait(guard).unwrap_or_else(|e| e.into_inner());
+                        continue;
+                    };
+                    // armed: one interval after the step began, then each
+                    // interval while the same step still runs.
+                    let (next, _) = wake
+                        .wait_timeout_while(guard, interval, |state| state.step == Some(step))
+                        .unwrap_or_else(|e| e.into_inner());
+                    guard = next;
+                    if guard.step != Some(step) {
+                        continue;
+                    }
+                    let pid = child_pid.load(std::sync::atomic::Ordering::Relaxed);
+                    let child = (pid != 0).then(|| heartbeat_child(pid));
+                    let frame = BackendWireResponseV2::HeartbeatV1 { child };
+                    if wire::write_frame(&mut io::stdout().lock(), &frame).is_err() {
+                        return;
+                    }
+                }
+            })?;
+        Ok(Self { shared })
     }
 
-    Ok(())
+    fn step(&self) -> HeartbeatStep<'_> {
+        let (state, wake) = &*self.shared;
+        let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+        guard.next_step = guard.next_step.wrapping_add(1);
+        guard.step = Some(guard.next_step);
+        wake.notify_all();
+        HeartbeatStep {
+            heartbeat: Some(self),
+        }
+    }
+}
+
+impl Drop for HeartbeatStep<'_> {
+    fn drop(&mut self) {
+        if let Some(heartbeat) = self.heartbeat.take() {
+            let (state, wake) = &*heartbeat.shared;
+            state.lock().unwrap_or_else(|e| e.into_inner()).step = None;
+            wake.notify_all();
+        }
+    }
+}
+
+/// `/proc/<pid>/stat` state letter and utime+stime ticks, or `"gone"`.
+fn heartbeat_child(pid: u32) -> crate::backend_state::BackendHeartbeatChildV1 {
+    let sampled = fs::read_to_string(format!("/proc/{pid}/stat"))
+        .ok()
+        .and_then(|stat| {
+            let fields = stat
+                .rsplit_once(')')?
+                .1
+                .split_whitespace()
+                .collect::<Vec<_>>();
+            let state = fields.first()?.to_string();
+            let utime = fields.get(11)?.parse::<u64>().ok()?;
+            let stime = fields.get(12)?.parse::<u64>().ok()?;
+            Some((state, utime + stime))
+        });
+    let (state, cpu_ticks) = match sampled {
+        Some((state, ticks)) if state != "Z" && state != "X" => (state, ticks),
+        _ => ("gone".to_string(), 0),
+    };
+    crate::backend_state::BackendHeartbeatChildV1 {
+        pid,
+        state,
+        cpu_ticks,
+    }
 }
 
 struct RustBackend {
     sql: Option<SqlState>,
+    bash: Option<BashSession>,
+    // pid of the process a step drives (the bash session shell or sqlite3;
+    // 0 when none), reported in heartbeats.
+    // signal that killed the bash session shell mid-block; later blocks fail.
+    bash_killed: Option<i32>,
+    // a plain-block helper: every block gets a fresh shell, ended (with its
+    // jobs) before the answer is written, and the next shell is spawned after.
+    plain_bash: bool,
+    // this backend serves bash, so it is the subreaper of bash's jobs.
+    bash_backend: bool,
+    child_pid: std::sync::Arc<std::sync::atomic::AtomicU32>,
     tools: BackendToolchain,
+}
+
+/// Helper-only variables a plain block's shell never inherits.
+const PLAIN_HELPER_PRIVATE_ENV: [&str; 4] = [
+    "O_BACKEND_SESSION_ID",
+    "O_BACKEND_LAUNCH_GENERATION",
+    "O_BACKEND_NATIVE_INSTANCE_ID",
+    crate::process::PLAIN_BASH_HELPER_ENV,
+];
+
+/// Persistent `bash` session for one backend process.
+///
+/// A backend process serves exactly one (language, environment) pair. Plain
+/// `bash^(...)_bash` blocks run in a reusable helper backend that gives every
+/// block a fresh shell and ends it, with its jobs, before answering, so their
+/// variables vanish when the block finishes. Numbered environments such as
+/// `bash[0]^(...)_bash[0]` reuse one backend process, and this session keeps
+/// shell variables, functions, options, and the working directory across the
+/// blocks of that environment only. Each block runs through `source` in the
+/// session shell with stdout and stderr redirected to per-block files; a
+/// sentinel line on the session's own stdout reports the block's status. A
+/// block that exits the shell ends the session, reports that exit status, and
+/// the next block of the environment starts a fresh session.
+struct BashSession {
+    dir: TempDir,
+    child: Child,
+    stdin: Option<BufWriter<ChildStdin>>,
+    stdout: BufReader<ChildStdout>,
+    serial: u64,
+}
+
+const BASH_SESSION_SENTINEL: &str = "__O_BASH_BLOCK_DONE__";
+
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+// ############################################################################
+// bash let injection
+// ############################################################################
+
+/// Shell text that assigns the received `let` values before a block, and
+/// shell text that undoes it after the block.
+///
+/// An ordinary name is assigned with `declare +x`, so it is never exported
+/// even when the session or the O process already exported that name, and it
+/// is unset afterwards. A writable bash special such as `PATH`, `HOME`, or
+/// `IFS` is assigned with `declare --`, which keeps its export flag,
+/// and is left as it is afterwards: in a `bash[N]` session the let value
+/// persists for later blocks exactly as the block left it, and a plain block
+/// starts a fresh session anyway. Readonly specials never get here; the plan
+/// rejects them. Every assignment is checked: one that fails, for example
+/// on a name an earlier `bash[N]` block made readonly, clears
+/// `__o_inject_ok` and the block does not run.
+fn bash_injection(env: &[(String, String)]) -> (String, String) {
+    let mut inject = String::new();
+    let mut unset = Vec::new();
+    for (name, value) in env {
+        let quoted = shell_single_quote(value);
+        let special = crate::ir::bash_special_name(name);
+        if special == Some(crate::ir::BashSpecial::Writable) {
+            // session state such as PATH stays assigned, so later blocks of
+            // the session see the let value from the first block naming it.
+            inject.push_str(&format!("declare -- {name}={quoted} || __o_inject_ok=0; "));
+        } else {
+            inject.push_str(&format!("declare +x {name}={quoted} || __o_inject_ok=0; "));
+            unset.push(name.as_str());
+        }
+    }
+    let restore = if unset.is_empty() {
+        String::new()
+    } else {
+        // a readonly name refuses the unset; `|| :` keeps a persisted
+        // `set -e` from ending the session on that.
+        format!("unset -v {} 2>/dev/null || :; ", unset.join(" "))
+    };
+    (inject, restore)
+}
+
+/// Shell text for each `let` value a bash block receives, sorted by name.
+/// The evaluator already rendered structured values and rejected NUL bytes
+/// (`eval_core::bash_let_value`); this repeats the checks for direct callers.
+/// It cannot call that helper: eval_core sits on backend's own layer.
+fn bash_values(bindings: HashMap<String, OValue>) -> Result<Vec<(String, String)>> {
+    let mut values = Vec::with_capacity(bindings.len());
+    for (name, value) in bindings {
+        let special = crate::ir::bash_special_name(&name).is_some();
+        if special && !matches!(value, OValue::Text { .. }) {
+            let type_name = value.type_name();
+            bail!(
+                "let `{name}` names a bash special variable, so a bash block can only receive \
+                 it as text, got {type_name}"
+            );
+        }
+        let text = scalar_string(&value).unwrap_or_else(|| value.splice_repr());
+        if text.contains('\0') {
+            bail!("let `{name}` contains a NUL byte, which a bash variable cannot hold");
+        }
+        values.push((name, text));
+    }
+    values.sort();
+    Ok(values)
+}
+
+impl BashSession {
+    fn start(tools: &BackendToolchain, plain: bool) -> Result<Self> {
+        let dir = TempDir::new("o-bash-session")?;
+        let mut command = tools.command("bash")?;
+        // the host's pid is for this backend only.
+        command.env_remove(crate::process::BACKEND_PARENT_PID_ENV);
+        if plain {
+            // a helper serves many plain blocks; its own identity is not the
+            // block's, so the shell does not see it.
+            for name in PLAIN_HELPER_PRIVATE_ENV {
+                command.env_remove(name);
+            }
+        }
+        // the shell stays in the backend's process group: the host kills
+        // that group on cancellation or the opt-in limit, and the group kill
+        // must reach the shell and the jobs it started.
+        let mut child = command
+            .args(["--noprofile", "--norc", "-s"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("failed to launch admitted `bash` executable")?;
+        if let Ok(pid) = i32::try_from(child.id()) {
+            SHELL_PID.store(pid, std::sync::atomic::Ordering::SeqCst);
+        }
+        let stdin = child.stdin.take().context("bash session has no stdin")?;
+        let stdout = child.stdout.take().context("bash session has no stdout")?;
+        Ok(Self {
+            dir,
+            child,
+            stdin: Some(BufWriter::new(stdin)),
+            stdout: BufReader::new(stdout),
+            serial: 0,
+        })
+    }
+
+    /// Run one block and return its captured output and exit status, plus
+    /// whether the session shell is still alive afterwards.
+    fn run(&mut self, code: &str, env: &[(String, String)]) -> Result<(Output, bool)> {
+        use std::os::unix::process::ExitStatusExt;
+        self.serial += 1;
+        let base = self.dir.path().join(format!("block-{}", self.serial));
+        let code_path = base.with_extension("sh");
+        let out_path = base.with_extension("out");
+        let err_path = base.with_extension("err");
+        // the block file holds only the user's code, so bash's line numbers
+        // in error messages match the block; injection happens on the
+        // request line instead.
+        let mut script = String::with_capacity(code.len() + 1);
+        script.push_str(code);
+        script.push('\n');
+        fs::write(&code_path, script)?;
+        let (inject, restore) = bash_injection(env);
+        let request = format!(
+            // the injection runs inside the block's capture, so a failed
+            // assignment's message reaches the user, and `||` keeps a
+            // persisted `set -e` from killing the session on it.
+            // the refusal sets the status instead of failing a command, so a
+            // persisted `set -e` cannot end the session on it.
+            "__o_status=125; {{ __o_inject_ok=1; {inject}if (( __o_inject_ok )); then source {}; __o_status=$?; else printf 'o: a let value could not be assigned, so the block did not run\\n' >&2; fi; }} </dev/null >{} 2>{}; unset -v __o_inject_ok; {restore}printf '\\n{BASH_SESSION_SENTINEL}%d\\n' \"$__o_status\"; unset -v __o_status\n",
+            shell_single_quote(&code_path.to_string_lossy()),
+            shell_single_quote(&out_path.to_string_lossy()),
+            shell_single_quote(&err_path.to_string_lossy()),
+        );
+        let stdin = self.stdin.as_mut().context("bash session stdin closed")?;
+        stdin.write_all(request.as_bytes())?;
+        stdin.flush()?;
+        let mut status_code = None;
+        let mut line = String::new();
+        loop {
+            line.clear();
+            if self.stdout.read_line(&mut line)? == 0 {
+                break;
+            }
+            if let Some(rest) = line.trim_end().strip_prefix(BASH_SESSION_SENTINEL) {
+                status_code = Some(rest.parse::<i32>().unwrap_or(1));
+                break;
+            }
+        }
+        let alive = status_code.is_some();
+        let status = match status_code {
+            Some(code) => std::process::ExitStatus::from_raw((code & 0xff) << 8),
+            None => {
+                self.stdin.take();
+                self.child.wait()?
+            }
+        };
+        // bash names the sourced file in its messages; the session's temp
+        // path is an implementation detail, so it reads as `bash` instead.
+        // the shell created the capture files before the block ran, so once
+        // it has answered, a missing or unreadable one means the output is
+        // unknown, never empty. a shell that died before answering already
+        // fails the block, and may have died before creating them.
+        let capture = |path: &Path, stream: &str| -> Result<Vec<u8>> {
+            match fs::read(path) {
+                Ok(bytes) => Ok(bytes),
+                Err(_) if !alive => Ok(Vec::new()),
+                Err(error) => Err(error).with_context(|| {
+                    format!("bash block {stream} capture is missing or unreadable")
+                }),
+            }
+        };
+        let stderr = capture(&err_path, "stderr")?;
+        let stderr = String::from_utf8_lossy(&stderr)
+            .replace(&*code_path.to_string_lossy(), "bash")
+            .replace(&*self.dir.path().to_string_lossy(), "<bash session>")
+            .into_bytes();
+        let output = Output {
+            status,
+            stdout: capture(&out_path, "stdout")?,
+            stderr,
+        };
+        for path in [&code_path, &out_path, &err_path] {
+            let _ = fs::remove_file(path);
+        }
+        Ok((output, alive))
+    }
+
+    /// End the shell and every job it left. an error means the jobs could
+    /// not be enumerated, so some may still run.
+    fn shutdown(&mut self) -> Result<()> {
+        self.stdin.take();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        // jobs the blocks left behind, including setsid, nohup, and
+        // double-forked ones, were reparented to this backend, which is
+        // their subreaper; stop them so nothing outlives the block (plain
+        // bash) or the session (bash[N]).
+        let shell = i32::try_from(self.child.id()).ok();
+        stop_backend_descendants(JOB_CLEANUP_WINDOW, shell).report()
+    }
+}
+
+// ############################################################################
+// bash background jobs
+// ############################################################################
+
+/// Make this backend process the subreaper of everything bash starts, so a
+/// job that leaves its process group or session (`setsid`, `nohup`, a double
+/// fork) is reparented here instead of to init. Only the bash backend
+/// process does this, never the O process, so other backends' orphans are
+/// not mixed in. A descendant that makes itself a subreaper, or that a
+/// service manager starts, still escapes; only a cgroup could hold those.
+#[cfg(target_os = "linux")]
+fn become_bash_subreaper() -> io::Result<()> {
+    // SAFETY: PR_SET_CHILD_SUBREAPER takes one integer flag and changes only
+    // this process's reparenting attribute.
+    if unsafe { libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn become_bash_subreaper() -> io::Result<()> {
+    Ok(())
+}
+
+/// How long job cleanup may keep killing and reaping before it reports the
+/// jobs still alive. it bounds cleanup only, never a block.
+const JOB_CLEANUP_WINDOW: Duration = Duration::from_secs(2);
+
+/// The live children of this process, from `/proc/self/task/*/children`.
+///
+/// why not a /proc scan: reading every process's stat cost a few ms per plain
+/// block on a busy host. as the subreaper this process inherits every orphan
+/// bash leaves, so its own children are all that cleanup has to visit; killing
+/// one reparents its children here for the next pass. an empty children file
+/// is the whole check when nothing is left.
+///
+/// a task that exited between the listing and the read is skipped; any other
+/// unreadable file is an error, since a child it hides would escape cleanup.
+/// a kernel without the children files (CONFIG_PROC_CHILDREN off) falls back
+/// to the /proc scan, after a one-time warning.
+#[cfg(target_os = "linux")]
+fn backend_descendants() -> io::Result<Vec<i32>> {
+    children_of(None)
+}
+
+/// The children of `pid`, or of this process for None; see
+/// [`backend_descendants`].
+#[cfg(target_os = "linux")]
+fn children_of(pid: Option<i32>) -> io::Result<Vec<i32>> {
+    let root = match pid {
+        Some(pid) => format!("/proc/{pid}/task"),
+        None => "/proc/self/task".to_string(),
+    };
+    let mut children = Vec::new();
+    for task in fs::read_dir(&root)? {
+        let task = task?;
+        let path = task.path().join("children");
+        let list = match fs::read_to_string(&path) {
+            Ok(list) => list,
+            // the task is there but the file is not: no children files on
+            // this kernel.
+            Err(error)
+                if error.kind() == io::ErrorKind::NotFound && task.path().join("stat").exists() =>
+            {
+                warn_no_children_files();
+                let parent = pid.unwrap_or_else(|| std::process::id() as i32);
+                return children_by_scan(parent);
+            }
+            Err(error)
+                if error.kind() == io::ErrorKind::NotFound
+                    || error.raw_os_error() == Some(libc::ESRCH) =>
+            {
+                continue
+            }
+            Err(error) => {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!("{}: {error}", path.display()),
+                ))
+            }
+        };
+        for child in list.split_whitespace() {
+            children.push(child.parse::<i32>().map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("unreadable child pid `{child}` in {root}"),
+                )
+            })?);
+        }
+    }
+    children.sort_unstable();
+    children.dedup();
+    Ok(children)
+}
+
+/// The children of `parent` from every /proc/*/stat: the slow path, only
+/// for a kernel without the children files.
+#[cfg(target_os = "linux")]
+fn children_by_scan(parent: i32) -> io::Result<Vec<i32>> {
+    let mut children = Vec::new();
+    for entry in fs::read_dir("/proc")? {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) if crate::process::linux_process_observation_disappeared(&error) => continue,
+            Err(error) => return Err(error),
+        };
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<i32>().ok())
+        else {
+            continue;
+        };
+        let stat = match fs::read_to_string(entry.path().join("stat")) {
+            Ok(stat) => stat,
+            Err(error) if crate::process::linux_process_observation_disappeared(&error) => continue,
+            Err(error) => return Err(error),
+        };
+        // fields after the parenthesised command: state, ppid.
+        let ppid = stat
+            .rsplit_once(')')
+            .and_then(|(_, rest)| rest.split_whitespace().nth(1))
+            .and_then(|field| field.parse::<i32>().ok());
+        if ppid == Some(parent) {
+            children.push(pid);
+        }
+    }
+    children.sort_unstable();
+    Ok(children)
+}
+
+/// Said once per backend: this kernel has no /proc/<pid>/task/*/children.
+#[cfg(target_os = "linux")]
+fn warn_no_children_files() {
+    static WARNED: std::sync::Once = std::sync::Once::new();
+    WARNED.call_once(|| {
+        eprintln!(
+            "bash backend: /proc/<pid>/task/*/children is missing (CONFIG_PROC_CHILDREN off); \
+             job cleanup scans /proc instead"
+        );
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+fn backend_descendants() -> io::Result<Vec<i32>> {
+    Ok(Vec::new())
+}
+
+/// What one cleanup pass did.
+#[derive(Debug, Default)]
+struct JobSweep {
+    // background jobs stopped: every live (non-zombie) descendant of this
+    // backend except the block's own bash, as one snapshot taken before
+    // the first kill. why a snapshot: counting what each pass happened to
+    // kill or reap depended on timing (a job's children reach this
+    // subreaper only as the job dies). `sleep 1 | sleep 2 &` is two jobs; a
+    // setsid job is one.
+    stopped: usize,
+    // children still present when the window ran out.
+    survivors: Vec<i32>,
+    // why the children could not be listed or reaped, if they could not.
+    error: Option<String>,
+    // a walk at stdin EOF: the session's jobs were never a block's to
+    // report, so only a failure is said.
+    quiet: bool,
+    // a SIGTERM's walk: the count includes the block's foreground command,
+    // so the notice does not call them background processes.
+    cancelled: bool,
+}
+
+impl JobSweep {
+    /// The stderr notice for the block, and an error when cleanup could not
+    /// see every job.
+    fn report(self) -> Result<()> {
+        // one line, written once the walk has finished.
+        if self.stopped > 0 && !self.quiet {
+            if self.cancelled {
+                eprintln!("bash block cancelled; stopped {} process(es)", self.stopped);
+            } else {
+                eprintln!(
+                    "bash block left {} background process(es); they were stopped",
+                    self.stopped
+                );
+            }
+        }
+        let failed = crate::process::JOB_CLEANUP_FAILED;
+        if let Some(error) = self.error {
+            bail!("{failed}: {error}");
+        }
+        // a job that outlived the window means cleanup failed: the block
+        // fails, and the host retires this backend instead of reusing it.
+        if !self.survivors.is_empty() {
+            let pids = self
+                .survivors
+                .iter()
+                .map(i32::to_string)
+                .collect::<Vec<_>>()
+                .join(" ");
+            bail!(
+                "{failed}: {} job(s) still alive after {} ms: pid {pids}",
+                self.survivors.len(),
+                JOB_CLEANUP_WINDOW.as_millis()
+            );
+        }
+        Ok(())
+    }
+}
+
+/// SIGKILL every child and its process group and reap, until waitpid says
+/// no child is left (ECHILD) or `budget` runs out. `shell` is the block's own
+/// bash, which the job count leaves out.
+///
+/// why ECHILD and not an empty scan: a job killed in this pass reparents its
+/// own children here only as it dies, so a scan can come back empty while a
+/// grandchild is still on its way.
+fn stop_backend_descendants(budget: Duration, shell: Option<i32>) -> JobSweep {
+    // why one lock over the whole walk: a SIGTERM's walk and the block-end
+    // walk can overlap; they run one after the other.
+    let _walk = WALK.lock().unwrap_or_else(|poison| poison.into_inner());
+    let deadline = std::time::Instant::now() + budget;
+    let mut sweep = JobSweep::default();
+    // a snapshot that cannot be read fails the cleanup, but the kill loop
+    // still runs: it kills what it can list.
+    let mut initial_empty = false;
+    match live_descendant_tree() {
+        Ok(tree) => {
+            initial_empty = tree.is_empty();
+            sweep.stopped = tree.iter().filter(|pid| Some(**pid) != shell).count();
+        }
+        Err(error) => sweep.error = Some(format!("cannot list the jobs: {error}")),
+    }
+    let mut walk_error = None;
+    // when the initial snapshot saw no live children at all and waitpid(-1)
+    // confirms ECHILD, no child or zombie exists, saving a second /proc walk
+    // on every plain bash block exit.
+    if initial_empty {
+        let mut status = 0;
+        let reaped = unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) };
+        if reaped < 0 && io::Error::last_os_error().raw_os_error() == Some(libc::ECHILD) {
+            return finish_walk(sweep);
+        }
+    }
+    loop {
+        let live = match backend_descendants() {
+            Ok(live) => live,
+            Err(error) => {
+                walk_error = Some(error.to_string());
+                break;
+            }
+        };
+        for pid in &live {
+            // a job that called setsid leads its own group; killing the group
+            // takes its pipeline down in one pass.
+            // SAFETY: killpg and kill only signal a pid found as our child.
+            unsafe {
+                libc::killpg(*pid, libc::SIGKILL);
+                libc::kill(*pid, libc::SIGKILL);
+            }
+        }
+        // reap every child that has exited, including reparented ones.
+        let mut no_children = false;
+        loop {
+            let mut status = 0;
+            // SAFETY: waitpid with WNOHANG on any child of this process.
+            let reaped = unsafe { libc::waitpid(-1, &mut status, libc::WNOHANG) };
+            if reaped > 0 {
+                continue;
+            }
+            if reaped < 0 {
+                let error = io::Error::last_os_error();
+                match error.raw_os_error() {
+                    Some(libc::EINTR) => continue,
+                    Some(libc::ECHILD) => no_children = true,
+                    _ => walk_error = Some(format!("waitpid: {error}")),
+                }
+            }
+            break;
+        }
+        if no_children || walk_error.is_some() {
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            sweep.survivors = backend_descendants().unwrap_or(live);
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    if sweep.error.is_none() {
+        sweep.error = walk_error;
+    }
+    finish_walk(sweep)
+}
+
+/// The one exit of a cleanup walk. a SIGTERM that landed during the walk
+/// reuses it: this walk already signalled every job, so it reports and
+/// exits here, still holding the lock, instead of the SIGTERM waiting for
+/// it and walking again. that keeps the whole cleanup inside one window,
+/// and inside the host's.
+fn finish_walk(mut sweep: JobSweep) -> JobSweep {
+    if TERMINATING.load(std::sync::atomic::Ordering::SeqCst) {
+        sweep.quiet = false;
+        sweep.cancelled = true;
+        if let Err(error) = sweep.report() {
+            eprintln!("{error:#}");
+        }
+        std::process::exit(128 + libc::SIGTERM);
+    }
+    sweep
+}
+
+/// Every live descendant of this process: its children, theirs, and so on.
+/// a pid that exits during the walk is skipped.
+#[cfg(target_os = "linux")]
+fn live_descendant_tree() -> io::Result<Vec<i32>> {
+    #[cfg(test)]
+    if FAIL_SNAPSHOT.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(io::Error::other("injected /proc read failure"));
+    }
+    let mut found = Vec::new();
+    let mut pending = backend_descendants()?;
+    while let Some(pid) = pending.pop() {
+        if found.contains(&pid) {
+            continue;
+        }
+        if live_process_group(pid).is_some() {
+            found.push(pid);
+        }
+        // a pid that exits meanwhile has no children left to list.
+        if let Ok(children) = children_of(Some(pid)) {
+            pending.extend(children);
+        }
+    }
+    Ok(found)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn live_descendant_tree() -> io::Result<Vec<i32>> {
+    backend_descendants()
+}
+
+/// Test-only: makes the next job snapshots fail as a /proc read would.
+#[cfg(test)]
+static FAIL_SNAPSHOT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Serializes the cleanup walks; see [`stop_backend_descendants`].
+static WALK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Set once a SIGTERM is being handled.
+static TERMINATING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The pid of the bash this backend started last, left out of the job count
+/// of a SIGTERM's walk.
+static SHELL_PID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+/// The process group of `pid`, or None for a zombie or a vanished pid.
+#[cfg(target_os = "linux")]
+fn live_process_group(pid: i32) -> Option<i32> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    // fields after the parenthesised command: state, ppid, pgrp.
+    let mut fields = stat.rsplit_once(')')?.1.split_whitespace();
+    let state = fields.next()?;
+    if state == "Z" || state == "X" {
+        return None;
+    }
+    fields.nth(1)?.parse().ok()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn live_process_group(pid: i32) -> Option<i32> {
+    Some(pid)
+}
+
+// ############################################################################
+// bash backend termination
+// ############################################################################
+
+/// SIGTERM cleanup for the bash backend. the host's cancel and our parent's
+/// death (PR_SET_PDEATHSIG) both send SIGTERM; the handler only wakes a
+/// thread, which stops the shell and every job and then exits. a SIGKILL
+/// would end this subreaper first and hand its setsid jobs to init.
+#[cfg(target_os = "linux")]
+static BASH_SIGTERM_WAKE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+
+#[cfg(target_os = "linux")]
+extern "C" fn on_bash_sigterm(_: libc::c_int) {
+    let fd = BASH_SIGTERM_WAKE.load(std::sync::atomic::Ordering::Relaxed);
+    if fd >= 0 {
+        let byte = 1u8;
+        // SAFETY: write is async-signal-safe; fd is our pipe's write end.
+        unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn install_backend_termination(bash_subreaper: bool) -> io::Result<()> {
+    use std::io::Read;
+    use std::os::fd::FromRawFd;
+    use std::sync::atomic::Ordering;
+    if BASH_SIGTERM_WAKE.load(Ordering::Relaxed) >= 0 {
+        return Ok(());
+    }
+    let mut fds = [0; 2];
+    // SAFETY: pipe2 fills two fds; O_CLOEXEC keeps them from child processes.
+    if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: fds[0] is a fresh fd owned from here on.
+    let mut wake = unsafe { std::fs::File::from_raw_fd(fds[0]) };
+    BASH_SIGTERM_WAKE.store(fds[1], Ordering::Relaxed);
+    std::thread::Builder::new()
+        .name("ostadix-backend-sigterm".into())
+        .spawn(move || {
+            let mut byte = [0u8; 1];
+            loop {
+                match wake.read(&mut byte) {
+                    Ok(1) => {
+                        if bash_subreaper {
+                            terminate_bash_now()
+                        } else {
+                            terminate_non_bash_backend_now()
+                        }
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                    _ => return,
+                }
+            }
+        })?;
+    // SAFETY: a zeroed sigaction with a plain handler and an empty mask.
+    let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+    action.sa_sigaction = on_bash_sigterm as *const () as usize;
+    action.sa_flags = libc::SA_RESTART;
+    // SAFETY: sigemptyset and sigaction on a local struct.
+    unsafe { libc::sigemptyset(&mut action.sa_mask) };
+    if unsafe { libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut()) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+/// Stop the shell and every job, say what was left, and exit.
+#[cfg(target_os = "linux")]
+fn terminate_bash_now() -> ! {
+    TERMINATING.store(true, std::sync::atomic::Ordering::SeqCst);
+    let shell = SHELL_PID.load(std::sync::atomic::Ordering::SeqCst);
+    // a walk already running sees TERMINATING when it ends, reports and
+    // exits, so this only gets the lock if that walk had finished. the
+    // walk exits too; should it ever return, say so and exit anyway.
+    let _ = stop_backend_descendants(JOB_CLEANUP_WINDOW, (shell != 0).then_some(shell));
+    eprintln!("bash job cleanup failed: the SIGTERM walk returned instead of exiting");
+    std::process::exit(128 + libc::SIGTERM)
+}
+
+/// Stop a non-bash backend and its owned process group when its parent dies.
+#[cfg(target_os = "linux")]
+fn terminate_non_bash_backend_now() -> ! {
+    // every backend runs in its own process group (`process_group(0)`), so
+    // killing group 0 takes down any legacy shim (`python3`) or tool child
+    // in the group as well as this proxy process.
+    unsafe {
+        libc::kill(0, libc::SIGKILL);
+        libc::_exit(128 + libc::SIGTERM);
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn install_backend_termination(_bash_subreaper: bool) -> std::io::Result<()> {
+    Ok(())
 }
 
 /// Persistent `sqlite3` CLI session.
@@ -172,14 +1108,40 @@ struct SqlState {
     db_path: PathBuf,
     child: Child,
     stdin: Option<BufWriter<ChildStdin>>,
-    stdout: BufReader<ChildStdout>,
+    // why a reader thread: an untimed read_line on the session stdout hung
+    // the backend forever on a locked or runaway query. lines arrive over a
+    // channel so the wait can be bounded by the per-step limit.
+    stdout_rx: Receiver<io::Result<String>>,
     stderr_rx: Receiver<String>,
     checkpoint_safe: bool,
+    // set once a per-step limit killed the session; its state is gone.
+    lost: bool,
 }
 
 impl RustBackend {
     fn new(tools: BackendToolchain) -> Self {
-        Self { sql: None, tools }
+        Self {
+            sql: None,
+            bash: None,
+            child_pid: Default::default(),
+            bash_killed: None,
+            plain_bash: false,
+            bash_backend: false,
+            tools,
+        }
+    }
+
+    /// Spawn the shell the next block will use, so the block itself never
+    /// waits for a fork.
+    fn prespawn_bash(&mut self) -> Result<()> {
+        if self.bash.is_none() {
+            let session = BashSession::start(&self.tools, self.plain_bash)?;
+            // the heartbeat watches this shell from its block on.
+            self.child_pid
+                .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
+            self.bash = Some(session);
+        }
+        Ok(())
     }
 
     fn exec(
@@ -189,19 +1151,73 @@ impl RustBackend {
         bindings: HashMap<String, OValue>,
     ) -> Result<OValue> {
         match lang {
-            "bash" => run_shell(
-                &self.tools,
-                "bash",
-                &["-c", code],
-                Some(scalar_env(bindings)),
-            ),
+            "bash" => {
+                if let Some(signal) = self.bash_killed {
+                    bail!(
+                        "bash session was killed by signal {signal} during an earlier block; its state is gone"
+                    );
+                }
+                let env = bash_values(bindings)?;
+                // a bare `$name` splice renders its value into the block text;
+                // bash would silently drop a NUL there, so it is an error like
+                // a NUL in an injected let.
+                if code.contains('\0') {
+                    bail!(
+                        "bash block contains a NUL byte, probably from a spliced value; \
+                         bash cannot hold NUL, so the block did not run"
+                    );
+                }
+                if self.bash.is_none() {
+                    let session = BashSession::start(&self.tools, self.plain_bash)?;
+                    self.child_pid
+                        .store(session.child.id(), std::sync::atomic::Ordering::Relaxed);
+                    self.bash = Some(session);
+                }
+                let session = self.bash.as_mut().expect("bash session started");
+                let (output, alive) = session.run(code, &env)?;
+                if self.plain_bash {
+                    return self.finish_plain_bash_block(output, alive);
+                }
+                if !alive {
+                    self.child_pid
+                        .store(0, std::sync::atomic::Ordering::Relaxed);
+                    // a shell killed by a signal lost its state without any
+                    // block asking for that: fail this block and every later
+                    // one (fail closed) instead of starting a fresh shell.
+                    // latched before cleanup, so a failed cleanup cannot
+                    // leave the session looking alive.
+                    use std::os::unix::process::ExitStatusExt;
+                    if let Some(signal) = output.status.signal() {
+                        self.bash_killed = Some(signal);
+                    }
+                    if let Some(mut ended) = self.bash.take() {
+                        ended.shutdown()?;
+                    }
+                    if let Some(signal) = output.status.signal() {
+                        bail!(
+                            "bash session was killed by signal {signal} during this block; its state is gone"
+                        );
+                    }
+                    // a failing block that ends the session, for example
+                    // under a persisted `set -e`, also drops every variable,
+                    // function, and option; say so instead of resetting
+                    // silently.
+                    return output_to_value(
+                        "bash session ended during this block, dropping its \
+                         variables, functions, and options; the next block starts \
+                         a fresh session. bash",
+                        output,
+                    );
+                }
+                output_to_value("bash", output)
+            }
             "shell" => run_shell(&self.tools, "sh", &["-c", code], Some(scalar_env(bindings))),
             "javascript" => run_script(
                 &self.tools,
                 "javascript",
                 "node",
                 "js",
-                &javascript_preamble(&bindings),
+                &javascript_preamble(&bindings)?,
                 code,
             ),
             "ruby" => run_script(
@@ -209,7 +1225,7 @@ impl RustBackend {
                 "ruby",
                 "ruby",
                 "rb",
-                &ruby_preamble(&bindings),
+                &ruby_preamble(&bindings)?,
                 code,
             ),
             "rust" => run_rust(&self.tools, code),
@@ -237,7 +1253,10 @@ impl RustBackend {
             return Ok(OValue::Null);
         }
 
+        let child_pid = std::sync::Arc::clone(&self.child_pid);
         let state = self.sql_state()?;
+        // heartbeats report the sqlite3 process, as they report the bash shell.
+        child_pid.store(state.child.id(), std::sync::atomic::Ordering::Relaxed);
         state.exec(code)
     }
 
@@ -249,8 +1268,17 @@ impl RustBackend {
     }
 
     fn cleanup(&mut self) -> Result<()> {
+        if let Some(mut bash) = self.bash.take() {
+            bash.shutdown()?;
+        } else if self.bash_backend {
+            // no shell now, but a job an earlier block left may still be
+            // ours; the walk is one read of an empty children file when not.
+            let mut sweep = stop_backend_descendants(JOB_CLEANUP_WINDOW, None);
+            sweep.quiet = true;
+            sweep.report()?;
+        }
         if let Some(mut sql) = self.sql.take() {
-            sql.shutdown(crate::process::backend_shutdown_timeout())?;
+            sql.shutdown(crate::process::backend_shutdown_timeout()?)?;
         }
         Ok(())
     }
@@ -404,6 +1432,33 @@ impl RustBackend {
     fn shutdown(&mut self) -> Result<()> {
         self.cleanup()
     }
+
+    /// End a plain block's shell and every job it left, then report the
+    /// block. a plain block never shares a shell, so nothing latches: a shell
+    /// killed by a signal fails only its own block.
+    fn finish_plain_bash_block(&mut self, output: Output, alive: bool) -> Result<OValue> {
+        self.child_pid
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        if let Some(mut ended) = self.bash.take() {
+            ended.shutdown()?;
+        }
+        use std::os::unix::process::ExitStatusExt;
+        if !alive {
+            if let Some(signal) = output.status.signal() {
+                bail!(
+                    "bash session was killed by signal {signal} during this block; its state is gone"
+                );
+            }
+            // the same words a plain block got from its own backend before.
+            return output_to_value(
+                "bash session ended during this block, dropping its \
+                 variables, functions, and options; the next block starts \
+                 a fresh session. bash",
+                output,
+            );
+        }
+        output_to_value("bash", output)
+    }
 }
 
 #[derive(Debug)]
@@ -477,14 +1532,16 @@ impl SqlState {
             }
         });
 
+        let stdout_rx = spawn_line_reader(stdout);
         let mut state = Self {
             _dir: dir,
             db_path,
             child,
             stdin: Some(stdin),
-            stdout,
+            stdout_rx,
             stderr_rx,
             checkpoint_safe: true,
+            lost: false,
         };
         // JSON row output for SELECT/WITH/PRAGMA, matching the old -json flag.
         state.write_raw(".mode json\n")?;
@@ -494,6 +1551,14 @@ impl SqlState {
     }
 
     fn write_raw(&mut self, text: &str) -> Result<()> {
+        if self.lost {
+            bail!("sqlite3 session was terminated after a timeout; its state is gone");
+        }
+        if text.len() > crate::process::BOUNDED_WRITE_THRESHOLD {
+            if let Some(limit) = crate::process::backend_step_timeout()? {
+                return self.write_large(text, limit);
+            }
+        }
         let stdin = self
             .stdin
             .as_mut()
@@ -503,6 +1568,43 @@ impl SqlState {
             .context("failed to write to sqlite3 session")?;
         stdin.flush().context("failed to flush sqlite3 session")?;
         Ok(())
+    }
+
+    // why: a payload larger than the pipe buffer blocks until sqlite3 reads,
+    // which it never does while a previous statement is stuck.
+    #[cold]
+    fn write_large(&mut self, text: &str, limit: Duration) -> Result<()> {
+        let stdin = self
+            .stdin
+            .as_mut()
+            .ok_or_else(|| anyhow!("sqlite3 session command pipe is closed"))?;
+        stdin.flush().context("failed to flush sqlite3 session")?;
+        use std::os::fd::AsRawFd;
+        let fd = stdin.get_ref().as_raw_fd();
+        match crate::process::write_all_bounded(fd, text.as_bytes(), limit) {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(self.kill_after_step_limit(limit, "read no input for")),
+            Err(error) => {
+                Err(anyhow::Error::new(error).context("failed to write to sqlite3 session"))
+            }
+        }
+    }
+
+    #[cold]
+    fn kill_after_step_limit(&mut self, limit: Duration, what: &str) -> anyhow::Error {
+        self.lost = true;
+        self.stdin.take();
+        let _ = self.child.kill();
+        let reaped = reap_legacy_child(&mut self.child, Duration::from_secs(2));
+        let limit_text = crate::process::step_limit_text(limit);
+        let limit_env = crate::process::BACKEND_STEP_TIMEOUT_ENV;
+        let mut message = format!(
+            "backend `sql` {what} {limit_text} (opt-in per-step limit {limit_env}); sqlite3 session was killed",
+        );
+        if let Err(error) = reaped {
+            message.push_str(&format!("; sqlite3 reap also failed: {error:#}"));
+        }
+        anyhow!(message)
     }
 
     fn shutdown(&mut self, timeout: Duration) -> Result<()> {
@@ -549,14 +1651,31 @@ impl SqlState {
         payload.push_str(".print __O_SQL_DONE__\n");
         self.write_raw(&payload)?;
 
+        // without the opt-in limit the read waits as long as sqlite3 runs;
+        // cancellation still ends it, because the host kills this backend's
+        // whole process group, sqlite3 included.
+        let limit = crate::process::backend_step_timeout()?;
+        let deadline = limit.map(|limit| std::time::Instant::now() + limit);
         let mut out = String::new();
         loop {
-            let mut line = String::new();
-            let n = self
-                .stdout
-                .read_line(&mut line)
-                .context("failed to read sqlite3 session stdout")?;
-            if n == 0 {
+            let received = match deadline {
+                Some(deadline) => self
+                    .stdout_rx
+                    .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now())),
+                None => self
+                    .stdout_rx
+                    .recv()
+                    .map_err(|_| mpsc::RecvTimeoutError::Disconnected),
+            };
+            let line = match received {
+                Ok(line) => line.context("failed to read sqlite3 session stdout")?,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    let limit = limit.expect("a timeout implies a limit");
+                    return Err(self.kill_after_step_limit(limit, "step exceeded"));
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => String::new(),
+            };
+            if line.is_empty() {
                 let err = self.drain_stderr();
                 bail!(
                     "sqlite3 session closed unexpectedly{}",
@@ -627,6 +1746,30 @@ fn sql_checkpoint_profile_accepts(code: &str) -> bool {
         && !lower.contains("\n.")
 }
 
+/// Forward lines from `reader` over a channel; EOF ends the channel.
+fn spawn_line_reader<R: io::Read + Send + 'static>(reader: R) -> Receiver<io::Result<String>> {
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let mut reader = BufReader::new(reader);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => return,
+                Ok(_) => {
+                    if sender.send(Ok(line)).is_err() {
+                        return;
+                    }
+                }
+                Err(error) => {
+                    let _ = sender.send(Err(error));
+                    return;
+                }
+            }
+        }
+    });
+    receiver
+}
+
 impl Drop for SqlState {
     fn drop(&mut self) {
         self.stdin.take();
@@ -658,6 +1801,10 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
     }
 
     let mut command = tools.command("python3")?;
+    command.env(
+        crate::process::BACKEND_PARENT_PID_ENV,
+        std::process::id().to_string(),
+    );
     let mut child = command
         .arg(&shim)
         .stdin(Stdio::piped())
@@ -701,7 +1848,23 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
         }
     };
     let mut child_stdin = Some(BufWriter::new(child_stdin));
-    let mut child_stdout = BufReader::new(child_stdout);
+    // why a reader thread: a grandchild of the shim can hold the shim's
+    // stdout open after the shim died, so a blocking read would never see
+    // eof. frames arrive over a channel and the wait polls the shim's exit.
+    let (frames_tx, frames) = mpsc::channel();
+    thread::Builder::new()
+        .name("ostadix-proxy-reader".into())
+        .spawn(move || {
+            let mut child_stdout = BufReader::new(child_stdout);
+            loop {
+                let frame = wire::read_frame::<_, BackendWireResponseV2>(&mut child_stdout);
+                let last = !matches!(frame, Ok(Some(_)));
+                if frames_tx.send(frame).is_err() || last {
+                    return;
+                }
+            }
+        })
+        .context("failed to create legacy backend reader")?;
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut reader = stdin.lock();
@@ -717,7 +1880,8 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
             // that compatibility translation, so every shim gets one uniform
             // terminal command without duplicating protocol branches.
             child_stdin.take();
-            let status = reap_legacy_child(&mut child, crate::process::backend_shutdown_timeout())?;
+            let status =
+                reap_legacy_child(&mut child, crate::process::backend_shutdown_timeout()?)?;
             if !status.success() {
                 wire::write_frame(
                     &mut writer,
@@ -745,9 +1909,44 @@ fn proxy_legacy_backend(lang: &str, tools: &BackendToolchain) -> Result<()> {
                 .context("legacy backend command pipe is closed")?,
             &command,
         )?;
-        let response = wire::read_frame::<_, BackendWireResponseV2>(&mut child_stdout)?
-            .ok_or_else(|| anyhow!("legacy backend shim closed stdout unexpectedly"))?;
-        wire::write_frame(&mut writer, &response)?;
+        // hello and heartbeat frames are forwarded as they arrive; the
+        // command's answer is the first frame that is neither.
+        loop {
+            let response = match frames.recv_timeout(Duration::from_millis(100)) {
+                Ok(frame) => frame?
+                    .ok_or_else(|| anyhow!("legacy backend shim closed stdout unexpectedly"))?,
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    bail!("legacy backend shim closed stdout unexpectedly")
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if let Some(status) = child.try_wait()? {
+                        // a last answer may have been read just before the exit.
+                        if let Ok(Ok(Some(response))) =
+                            frames.recv_timeout(Duration::from_millis(50))
+                        {
+                            if !matches!(
+                                response,
+                                BackendWireResponseV2::HeartbeatV1 { .. }
+                                    | BackendWireResponseV2::HelloV1 { .. }
+                            ) {
+                                wire::write_frame(&mut writer, &response)?;
+                                break;
+                            }
+                        }
+                        bail!("legacy backend shim exited with status {status} during the step");
+                    }
+                    continue;
+                }
+            };
+            let heartbeat = matches!(
+                response,
+                BackendWireResponseV2::HeartbeatV1 { .. } | BackendWireResponseV2::HelloV1 { .. }
+            );
+            wire::write_frame(&mut writer, &response)?;
+            if !heartbeat {
+                break;
+            }
+        }
     }
 
     child_stdin.take();
@@ -852,7 +2051,7 @@ fn run_javascript_native_bridge(
         &source,
         format!(
             "{JAVASCRIPT_NATIVE_BRIDGE}\n{}\n{code}",
-            javascript_preamble(bindings)
+            javascript_preamble(bindings)?
         ),
     )?;
     let (socket, child_socket) = UnixStream::pair()?;
@@ -1669,52 +2868,123 @@ fn number_scalar_string(value: &ONumber) -> Option<String> {
     }
 }
 
-fn javascript_preamble(bindings: &HashMap<String, OValue>) -> String {
+fn javascript_number_literal(value: &ONumber) -> Option<String> {
+    match value {
+        ONumber::Int { v } => {
+            let max_safe = num_bigint::BigInt::from(9_007_199_254_740_991_i64);
+            let min_safe = -&max_safe;
+            if v >= &min_safe && v <= &max_safe {
+                Some(v.to_string())
+            } else {
+                Some(format!("{v}n"))
+            }
+        }
+        ONumber::BinaryFloat {
+            format: FloatFormat::F32,
+            bits,
+        } if bits.len() == 4 => {
+            let mut raw = [0_u8; 4];
+            raw.copy_from_slice(bits);
+            let value = f32::from_bits(u32::from_be_bytes(raw)) as f64;
+            if !value.is_finite() {
+                None
+            } else if value == 0.0 && value.is_sign_negative() {
+                Some("-0".to_string())
+            } else {
+                Some(value.to_string())
+            }
+        }
+        ONumber::BinaryFloat {
+            format: FloatFormat::F64,
+            bits,
+        } if bits.len() == 8 => {
+            let mut raw = [0_u8; 8];
+            raw.copy_from_slice(bits);
+            let value = f64::from_bits(u64::from_be_bytes(raw));
+            if !value.is_finite() {
+                None
+            } else if value == 0.0 && value.is_sign_negative() {
+                Some("-0".to_string())
+            } else {
+                Some(value.to_string())
+            }
+        }
+        _ => None,
+    }
+}
+
+fn javascript_value_literal(value: &OValue, path: &str) -> Result<String> {
+    match value {
+        OValue::Text { v } => Ok(serde_json::to_string(&v.utf8).unwrap_or_else(|_| "null".to_string())),
+        OValue::Number { v } => javascript_number_literal(v).ok_or_else(|| {
+            anyhow!(
+                "javascript binding `{path}` has unsupported numeric value `{}` (non-finite float or exact rational/decimal/complex cannot cross as a JavaScript binding)",
+                value.type_name()
+            )
+        }),
+        OValue::Bool { v } => Ok(if *v { "true".to_string() } else { "false".to_string() }),
+        OValue::Null => Ok("null".to_string()),
+        OValue::List { v } => {
+            let mut items = Vec::with_capacity(v.len());
+            for (idx, item) in v.iter().enumerate() {
+                items.push(javascript_value_literal(item, &format!("{path}[{idx}]"))?);
+            }
+            Ok(format!("[{}]", items.join(", ")))
+        }
+        OValue::Map { v } => {
+            let mut keys = v.keys().collect::<Vec<_>>();
+            keys.sort();
+            let mut entries = Vec::with_capacity(keys.len());
+            for key in keys {
+                let key_json = serde_json::to_string(key)?;
+                let item = javascript_value_literal(&v[key], &format!("{path}.{key}"))?;
+                entries.push(format!("{key_json}: {item}"));
+            }
+            Ok(format!("{{{}}}", entries.join(", ")))
+        }
+        OValue::Native { .. } => Ok(serde_json::to_string(value)?),
+        other => bail!(
+            "javascript binding `{path}` has unsupported value type `{}`",
+            other.type_name()
+        ),
+    }
+}
+
+fn javascript_preamble(bindings: &HashMap<String, OValue>) -> Result<String> {
+    let mut names = bindings.keys().collect::<Vec<_>>();
+    names.sort();
     let mut preamble = String::new();
-    for (name, value) in bindings {
+    for name in names {
         if !is_identifier(name) {
             continue;
         }
+        let value = &bindings[name];
         match value {
-            OValue::Text { v } => {
-                preamble.push_str(&format!(
-                    "const {name} = {};\n",
-                    serde_json::to_string(&v.utf8).unwrap_or_else(|_| "null".to_string())
-                ));
+            OValue::Text { .. }
+            | OValue::Number { .. }
+            | OValue::Bool { .. }
+            | OValue::Null
+            | OValue::List { .. }
+            | OValue::Map { .. }
+            | OValue::Native { .. } => {
+                let expr = javascript_value_literal(value, name)?;
+                preamble.push_str(&format!("const {name} = {expr};\n"));
             }
-            OValue::Number { v } => {
-                if let Some(value) = number_scalar_string(v) {
-                    preamble.push_str(&format!("const {name} = {value};\n"));
-                }
-            }
-            OValue::Bool { v } => {
-                preamble.push_str(&format!(
-                    "const {name} = {};\n",
-                    if *v { "true" } else { "false" }
-                ));
-            }
-            OValue::Null => preamble.push_str(&format!("const {name} = null;\n")),
-            OValue::List { v } => push_json_const(&mut preamble, name, v),
-            OValue::Map { v } => push_json_const(&mut preamble, name, v),
-            OValue::Native { .. } => push_json_const(&mut preamble, name, value),
             _ => {}
         }
     }
-    preamble
+    Ok(preamble)
 }
 
-fn push_json_const<T: serde::Serialize>(preamble: &mut String, name: &str, value: &T) {
-    if let Ok(json) = serde_json::to_string(value) {
-        preamble.push_str(&format!("const {name} = {json};\n"));
-    }
-}
-
-fn ruby_preamble(bindings: &HashMap<String, OValue>) -> String {
+fn ruby_preamble(bindings: &HashMap<String, OValue>) -> Result<String> {
+    let mut names = bindings.keys().collect::<Vec<_>>();
+    names.sort();
     let mut preamble = String::new();
-    for (name, value) in bindings {
+    for name in names {
         if !is_identifier(name) {
             continue;
         }
+        let value = &bindings[name];
         match value {
             OValue::Text { v } => {
                 preamble.push_str(&format!(
@@ -1723,9 +2993,13 @@ fn ruby_preamble(bindings: &HashMap<String, OValue>) -> String {
                 ));
             }
             OValue::Number { v } => {
-                if let Some(value) = number_scalar_string(v) {
-                    preamble.push_str(&format!("{name} = {value}\n"));
-                }
+                let Some(scalar) = number_scalar_string(v) else {
+                    bail!(
+                        "ruby binding `{name}` has unsupported numeric value `{}`",
+                        value.type_name()
+                    );
+                };
+                preamble.push_str(&format!("{name} = {scalar}\n"));
             }
             OValue::Bool { v } => {
                 preamble.push_str(&format!("{name} = {}\n", if *v { "true" } else { "false" }));
@@ -1734,7 +3008,7 @@ fn ruby_preamble(bindings: &HashMap<String, OValue>) -> String {
             _ => {}
         }
     }
-    preamble
+    Ok(preamble)
 }
 
 fn is_identifier(name: &str) -> bool {
@@ -1768,16 +3042,25 @@ struct TempDir {
 }
 
 impl TempDir {
+    /// A fresh directory only this user can enter: block files hold user code.
+    /// the name is random and `create` refuses an existing path, symlinks
+    /// included, so honouring TMPDIR cannot hand the files to someone else.
     fn new(prefix: &str) -> Result<Self> {
         let base = std::env::temp_dir();
-        for _ in 0..100 {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0);
-            let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-            let path = base.join(format!("{prefix}-{}-{now}-{counter}", std::process::id()));
-            match fs::create_dir(&path) {
+        let mut builder = fs::DirBuilder::new();
+        {
+            use std::os::unix::fs::DirBuilderExt as _;
+            builder.mode(0o700);
+        }
+        for _ in 0..16 {
+            let mut random = [0u8; 16];
+            getrandom::fill(&mut random).map_err(|error| anyhow!("{error}"))?;
+            let path = base.join(format!(
+                "{prefix}-{}-{}",
+                std::process::id(),
+                hex::encode(random)
+            ));
+            match builder.create(&path) {
                 Ok(()) => return Ok(Self { path }),
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
                 Err(error) => return Err(error).context("failed to create backend temp dir"),
@@ -1799,6 +3082,190 @@ impl Drop for TempDir {
 
 #[cfg(test)]
 mod tests {
+
+    // the /proc scan that stands in for missing children files finds the
+    // same child as the children files do.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_children_scan_fallback_finds_what_the_children_files_list() {
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = child.id() as i32;
+        let listed = super::children_of(None).unwrap();
+        let scanned = super::children_by_scan(std::process::id() as i32).unwrap();
+        child.kill().unwrap();
+        child.wait().unwrap();
+        assert!(listed.contains(&pid), "{listed:?}");
+        assert!(scanned.contains(&pid), "{scanned:?}");
+    }
+
+    // 08c-M2: a job snapshot that cannot be read must not stop the SIGTERM
+    // walk. the walk still kills the setsid job, reports the failure, and
+    // exits 143; nothing panics. it runs in a child copy of this test
+    // binary, because the walk reaps every child of its process and exits.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_failed_job_snapshot_still_stops_the_jobs_on_sigterm() {
+        use std::time::{Duration, Instant};
+        const CHILD: &str = "O_TEST_FAILED_SNAPSHOT_CHILD";
+        if let Some(pidfile) = std::env::var_os(CHILD) {
+            super::become_bash_subreaper().unwrap();
+            let pidfile = std::path::PathBuf::from(pidfile);
+            let status = std::process::Command::new("bash")
+                .arg("-c")
+                .arg(format!(
+                    "setsid sleep 7996 >/dev/null 2>&1 </dev/null & echo $! > {}",
+                    pidfile.display()
+                ))
+                .status()
+                .unwrap();
+            assert!(status.success());
+            // bash has exited, so the setsid job is now this process's child.
+            super::FAIL_SNAPSHOT.store(true, std::sync::atomic::Ordering::SeqCst);
+            super::terminate_bash_now();
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let pidfile = dir.path().join("job.pid");
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "backend::tests::a_failed_job_snapshot_still_stops_the_jobs_on_sigterm",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(CHILD, &pidfile)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let started = Instant::now();
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if started.elapsed() > Duration::from_secs(20) {
+                let _ = child.kill();
+                panic!("the SIGTERM walk did not exit");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let mut stderr = String::new();
+        std::io::Read::read_to_string(&mut child.stderr.take().unwrap(), &mut stderr).unwrap();
+        let job: i32 = std::fs::read_to_string(&pidfile)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        let alive = |pid: i32| {
+            std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+                stat.rsplit_once(')')
+                    .and_then(|(_, rest)| rest.split_whitespace().next())
+                    .is_some_and(|state| state != "Z" && state != "X")
+            })
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while alive(job) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let survived = alive(job);
+        if survived {
+            // SAFETY: the test stops the job its child started.
+            unsafe { libc::kill(job, libc::SIGKILL) };
+        }
+        assert!(!stderr.contains("panicked"), "the walk panicked: {stderr}");
+        assert!(
+            !survived,
+            "the setsid job {job} outlived the SIGTERM walk: {stderr}"
+        );
+        assert_eq!(status.code(), Some(128 + libc::SIGTERM), "{stderr}");
+        assert!(
+            stderr.contains("bash job cleanup failed: cannot list the jobs"),
+            "{stderr}"
+        );
+    }
+
+    #[test]
+    fn backend_temp_dirs_are_private_and_unpredictable() -> anyhow::Result<()> {
+        use std::os::unix::fs::PermissionsExt as _;
+        let first = super::TempDir::new("o-backend-mode-test")?;
+        let second = super::TempDir::new("o-backend-mode-test")?;
+        let mode = std::fs::metadata(first.path())?.permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700, "backend temp dir is {mode:o}");
+        // the random part is 32 hex digits, so a planted name cannot be guessed.
+        let name = first
+            .path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let random = name.rsplit('-').next().unwrap();
+        assert_eq!(random.len(), 32, "{name}");
+        assert_ne!(first.path(), second.path());
+        Ok(())
+    }
+
+    #[test]
+    fn sqlite_session_read_is_bounded_by_the_step_limit() -> anyhow::Result<()> {
+        // y-d-08: the session read_line had no bound; a stuck statement hung
+        // the backend forever. a stand-in child that never answers plays a
+        // locked sqlite3.
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            crate::process::set_step_timeout_override(Some(std::time::Duration::from_millis(300)));
+            let outcome = (|| -> anyhow::Result<()> {
+                let dir = super::TempDir::new("o-backend-sql-test")?;
+                let mut child = std::process::Command::new("sh")
+                    .args(["-c", "exec sleep 5"])
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?;
+                let stdin = std::io::BufWriter::new(child.stdin.take().unwrap());
+                let stdout_rx = super::spawn_line_reader(child.stdout.take().unwrap());
+                let (_stderr_tx, stderr_rx) = std::sync::mpsc::channel();
+                let mut state = super::SqlState {
+                    db_path: dir.path().join("state.sqlite3"),
+                    _dir: dir,
+                    child,
+                    stdin: Some(stdin),
+                    stdout_rx,
+                    stderr_rx,
+                    checkpoint_safe: true,
+                    lost: false,
+                };
+                let error = state
+                    .exec("SELECT 1;")
+                    .expect_err("a silent sqlite3 must not hang");
+                assert!(
+                    format!("{error:#}").contains(
+                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    ),
+                    "{error:#}"
+                );
+                let error = state
+                    .exec("SELECT 1;")
+                    .expect_err("a killed session must stay dead");
+                assert!(
+                    format!("{error:#}").contains("its state is gone"),
+                    "{error:#}"
+                );
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(std::time::Duration::from_secs(20)) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                panic!("sqlite session read hung past the per-step limit")
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
     use std::path::Path;
     use std::process::Command;
 

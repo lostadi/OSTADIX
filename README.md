@@ -3865,9 +3865,9 @@ request is built, checked again when it is forced, and can be revoked.
 
 `current_system()` returns the current profile as a referential OSystem value.
 
-`nixos_test^(...)_nixos_test` runs a NixOS test derivation with a default
-600-second wait for `nix build`. Set `O_NIXOS_TEST_TIMEOUT_SECONDS` to a positive,
-finite number of seconds when a cold build or emulated guest needs longer:
+`nixos_test^(...)_nixos_test` runs a NixOS test derivation and waits for
+`nix build` with no limit by default. Set `O_NIXOS_TEST_TIMEOUT_SECONDS` to a
+positive, finite number of seconds to opt in to a limit:
 
 ```sh
 O_NIXOS_TEST_TIMEOUT_SECONDS=3600 o run examples/nixos_test.O
@@ -4883,7 +4883,7 @@ Native computation
 ```text
 Ostadix-lang/
 ├── crates/ostadix-api/src/
-│   ├── lib.rs                  # 51 engine modules, 43 public
+│   ├── lib.rs                  # 53 engine modules, 43 public
 │   ├── parser.rs               # hosted typed-parenthesis parser
 │   ├── value.rs                # OValue and hosted wire protocol
 │   ├── ir.rs                   # OIR and ExecutionPlan
@@ -4954,8 +4954,12 @@ and macOS, completion additionally requires proof that no active descendant
 remains in the leader's inherited process group. A descendant that deliberately
 creates a new session or process group is outside this v1 boundary; other
 platforms do not receive the stronger group-quiescence claim.
-`O_BACKEND_OPERATION_TIMEOUT_MS` and `O_BACKEND_SHUTDOWN_TIMEOUT_MS` set bounded
-operation and shutdown deadlines; their defaults are 60,000 ms and 2,000 ms.
+`O_BACKEND_OPERATION_TIMEOUT_MS` is an opt-in operation deadline with no
+default: unset, an operation may run as long as it needs.
+`O_BACKEND_SHUTDOWN_TIMEOUT_MS` bounds teardown only and defaults to 2,000 ms
+(at most 60,000 ms). A malformed, zero or oversized value of either is an
+error, never a silent default. The shutdown budget and the session caps are
+checked when a backend starts, so a file with no backend ignores them.
 The same absolute operation deadline is inherited by recursive `O.eval`
 callbacks. Native backends and the primary Python shim acknowledge `shutdown`
 directly; the production compatibility proxy translates it into command-channel

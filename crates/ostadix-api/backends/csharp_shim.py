@@ -13,6 +13,7 @@ import shutil
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import o_shim_common
 from o_shim_common import command_loop, write_wire_message
 from o_shim_common import stdout_result
 
@@ -34,14 +35,14 @@ def try_mono(code, tmpdir):
 
     comp = subprocess.run(
         ["mcs", "-out:" + binary, src],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
     )
     if comp.returncode != 0:
         return comp
 
     return subprocess.run(
         ["mono", binary],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, timeout=o_shim_common.step_timeout(),
     )
 
 
@@ -58,14 +59,14 @@ def try_dotnet_run(code, tmpdir):
     # Create a minimal console project
     subprocess.run(
         ["dotnet", "new", "console", "--force", "-o", tmpdir],
-        capture_output=True, text=True, timeout=60, env=environment,
+        capture_output=True, text=True, timeout=o_shim_common.step_timeout(), env=environment,
     )
     src = os.path.join(tmpdir, "Program.cs")
     with open(src, "w") as f:
         f.write(code)
     return subprocess.run(
         ["dotnet", "run", "--project", tmpdir],
-        capture_output=True, text=True, timeout=120, env=environment,
+        capture_output=True, text=True, timeout=o_shim_common.step_timeout(), env=environment,
     )
 
 

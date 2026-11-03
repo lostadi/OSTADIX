@@ -47,9 +47,10 @@ pub enum Policy {
     /// independent requests as concurrent threads (up to `parallelism` at a
     /// time). Results are stored in a two-level cache (L1 memory + L2 disk).
     ///
-    /// `RequestKind::Eval` is excluded from buffering — Eval needs the
-    /// ProcessRegistry (which is !Send) and is executed eagerly even under
-    /// this policy. Full Eval parallelism is a STEP5 goal.
+    /// `RequestKind::Eval` is excluded from buffering — Eval needs exclusive
+    /// `&mut` access to the ProcessRegistry (`Send + !Sync`) on the evaluator
+    /// thread and is executed eagerly even under this policy. Full Eval
+    /// parallelism is a STEP5 goal.
     ///
     /// Activated via the `autonomous(expr)` built-in function, which evaluates
     /// `expr` under this policy, flushes the buffer on exit, and returns the
@@ -173,6 +174,11 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                 mode,
                 args,
             } => {
+                if fn_name == crate::ir::NATIVE_LEAF_BUILTIN {
+                    bail!(
+                        "OIR invocation `{fn_name}` must be lowered as a typed OIr::NativeLeaf node"
+                    );
+                }
                 let canonical_mode = InvokeMode::for_name(fn_name);
                 if *mode != canonical_mode {
                     bail!(
@@ -203,6 +209,17 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                     InvokeMode::Eager => {}
                 }
             }
+            OIr::NativeLeaf {
+                interface, args, ..
+            } => {
+                if interface.parameter_count() != args.len().saturating_sub(1) {
+                    bail!(
+                        "OIR NativeLeaf interface parameter count {} does not match argument count {}",
+                        interface.parameter_count(),
+                        args.len().saturating_sub(1)
+                    );
+                }
+            }
             OIr::Exec {
                 lang,
                 attr,
@@ -210,6 +227,44 @@ pub(crate) fn validate_execution_metadata(flat: &[&OIr]) -> Result<()> {
                 ..
             } => validate_exec_metadata(lang, attr.as_deref(), backend)?,
             _ => {}
+        }
+    }
+    validate_bash_special_lets(flat)
+}
+
+/// A bash block that references a `let` named like a readonly bash variable
+/// (`UID`, `EUID`, `PPID`, `BASHPID`, ...) can never receive it: bash
+/// refuses or ignores the assignment and the block would run with bash's own
+/// value. That is a compile error, not a silent fallback.
+fn validate_bash_special_lets(flat: &[&OIr]) -> Result<()> {
+    let lets = flat
+        .iter()
+        .filter_map(|node| match node {
+            OIr::Store { name, .. } => Some(name.as_str()),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    for node in flat {
+        let OIr::Exec { backend, body, .. } = node else {
+            continue;
+        };
+        if backend.canonical != "bash" {
+            continue;
+        }
+        let mut names = crate::ir::bash_braced_references(body)
+            .into_iter()
+            .chain(crate::ir::bash_arithmetic_references(body))
+            .filter(|name| lets.contains(name.as_str()))
+            .collect::<Vec<_>>();
+        names.sort();
+        names.dedup();
+        for name in names {
+            if crate::ir::bash_special_name(&name) == Some(crate::ir::BashSpecial::Readonly) {
+                bail!(
+                    "let `{name}` is referenced by a bash block, but `{name}` is a readonly \
+                     bash variable, so the block could never see the let value; rename the let"
+                );
+            }
         }
     }
     Ok(())

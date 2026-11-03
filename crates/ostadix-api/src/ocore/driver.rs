@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+#[cfg(test)]
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
@@ -290,12 +291,13 @@ pub fn compile_with_function_sections(
     }
     let mut parsed = Vec::new();
     for path in inputs {
+        let file = path.display().to_string();
+        parser::reject_orchestration_input(&file, None)?;
         let source = fs::read_to_string(path).map_err(|error| Diagnostic {
-            file: path.display().to_string(),
+            file: file.clone(),
             span: Span::default(),
             message: format!("failed to read source: {error}"),
         })?;
-        let file = path.display().to_string();
         parsed.push((file.clone(), parser::parse(&file, &source)?));
     }
 
@@ -374,17 +376,20 @@ fn emit_object(
                 .map_err(|e| driver_error(format!("failed to create {}: {e}", parent.display())))?;
         }
     }
+    // the scratch dir is removed when this guard drops, including on a panic.
+    let mut scratch = None;
     let assembly_path = if options.keep_assembly {
-        options.output.with_extension("s")
+        let path = options.output.with_extension("s");
+        fs::write(&path, assembly)
+            .map_err(|e| driver_error(format!("failed to write {}: {e}", path.display())))?;
+        path
     } else {
-        std::env::temp_dir().join(format!(
-            "ocorec-{}-{}.s",
-            std::process::id(),
-            monotonic_nonce()
-        ))
+        let dir = PrivateScratch::new()?;
+        let path = dir.0.join("module.s");
+        write_new_private(&path, assembly)?;
+        scratch = Some(dir);
+        path
     };
-    fs::write(&assembly_path, assembly)
-        .map_err(|e| driver_error(format!("failed to write {}: {e}", assembly_path.display())))?;
 
     let clang = which::which("clang").map_err(|_| {
         driver_error(format!(
@@ -418,9 +423,7 @@ fn emit_object(
         .output()
         .map_err(|e| driver_error(format!("failed to run {}: {e}", clang.display())))?;
 
-    if !options.keep_assembly {
-        let _ = fs::remove_file(&assembly_path);
-    }
+    drop(scratch);
     if !output.status.success() {
         return Err(driver_error(format!(
             "{} assembler failed:\n{}",
@@ -510,8 +513,68 @@ fn hir_text(hir: &HirProgram) -> String {
     out
 }
 
+#[cfg(test)]
 static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
 
+// ############################################################################
+// private scratch for the transient assembly file
+// ############################################################################
+
+/// A fresh 0700 directory with a random name under the temp dir. why: the
+/// old `ocorec-<pid>-<nanos>.s` name was predictable, the file was 0644,
+/// and `fs::write` followed a planted symlink.
+struct PrivateScratch(PathBuf);
+
+impl PrivateScratch {
+    fn new() -> Result<Self, Diagnostic> {
+        use std::os::unix::fs::DirBuilderExt as _;
+        let base = std::env::temp_dir();
+        for _ in 0..16 {
+            let mut random = [0u8; 16];
+            getrandom::fill(&mut random)
+                .map_err(|e| driver_error(format!("no randomness for a scratch dir: {e}")))?;
+            let dir = base.join(format!("ocorec-{}", hex::encode(random)));
+            match fs::DirBuilder::new().mode(0o700).create(&dir) {
+                Ok(()) => return Ok(Self(dir)),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => {
+                    return Err(driver_error(format!(
+                        "failed to create {}: {e}",
+                        dir.display()
+                    )))
+                }
+            }
+        }
+        Err(driver_error(format!(
+            "no free scratch dir name under {}",
+            base.display()
+        )))
+    }
+}
+
+impl Drop for PrivateScratch {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Write `text` to a file that must not exist yet, 0600, never through a
+/// symlink.
+fn write_new_private(path: &Path, text: &str) -> Result<(), Diagnostic> {
+    use std::io::Write as _;
+    use std::os::unix::fs::OpenOptionsExt as _;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)
+        .map_err(|e| driver_error(format!("failed to create {}: {e}", path.display())))?;
+    file.write_all(text.as_bytes())
+        .map_err(|e| driver_error(format!("failed to write {}: {e}", path.display())))
+}
+
+#[cfg(test)]
 fn monotonic_nonce() -> String {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -531,6 +594,32 @@ fn driver_error(message: impl Into<String>) -> Diagnostic {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn transient_assembly_lives_in_a_private_random_dir_that_is_removed() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let first = PrivateScratch::new().unwrap();
+        let second = PrivateScratch::new().unwrap();
+        assert_ne!(first.0, second.0);
+        let mode = fs::metadata(&first.0).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700);
+        let path = first.0.join("module.s");
+        write_new_private(&path, "nop\n").unwrap();
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        // an existing file or a planted symlink is refused, not followed.
+        assert!(write_new_private(&path, "again").is_err());
+        let target = second.0.join("victim");
+        std::os::unix::fs::symlink(&target, second.0.join("module.s")).unwrap();
+        assert!(write_new_private(&second.0.join("module.s"), "x").is_err());
+        assert!(!target.exists());
+        let kept = first.0.clone();
+        drop(first);
+        assert!(!kept.exists());
+    }
+
     use super::*;
 
     #[test]

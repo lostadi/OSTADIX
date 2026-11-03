@@ -1,17 +1,124 @@
 #!/usr/bin/env python3
 """Backend shim for bash^(...)_bash blocks.
 
-Executes code in a bash subprocess and captures stdout as the result.
+Executes code in a bash session and captures stdout as the result.
+
+One shim process serves one (language, environment) pair. Plain
+bash^(...)_bash blocks get a fresh shim per block, so their variables vanish
+when the block finishes. Numbered environments such as bash[0]^(...)_bash[0]
+reuse one shim, and its session keeps shell variables, functions, options,
+and the working directory across the blocks of that environment only.
+Received let values are non-exported variables of one block, unset afterwards.
+A writable bash special such as PATH keeps its export flag, is not unset,
+and persists in a numbered session from the first block that names it.
 """
 import sys
-import json
-import subprocess
 import os
+import decimal
+import math
+import shlex
+import signal
+import struct
+import subprocess
+import tempfile
+import time
 import traceback
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from o_shim_common import command_loop, write_wire_message
 from o_shim_common import stdout_result
+import o_shim_common
+
+SENTINEL = "__O_BASH_BLOCK_DONE__"
+_session = None
+# signal that killed the session shell mid-block; every later block fails
+# instead of silently starting a fresh shell (its state is gone).
+_killed_by = None
+# a plain-block helper gives every block a fresh shell and ends it before
+# answering, so nothing a block leaves reaches the next one.
+_plain = os.environ.get("O_BACKEND_PLAIN_BASH_HELPER") == "1"
+
+# a helper serves many plain blocks; its own identity is not the block's.
+_PLAIN_HELPER_PRIVATE_ENV = ("O_BACKEND_SESSION_ID", "O_BACKEND_LAUNCH_GENERATION",
+                             "O_BACKEND_NATIVE_INSTANCE_ID", "O_BACKEND_PLAIN_BASH_HELPER",
+                             "O_BACKEND_PARENT_PID")
+
+
+def _shell_env():
+    if not _plain:
+        return None
+    return {k: v for k, v in os.environ.items() if k not in _PLAIN_HELPER_PRIVATE_ENV}
+
+
+# keep in step with BASH_WRITABLE_SPECIAL_NAMES in crates/ostadix-api/src/ir.rs
+WRITABLE_SPECIALS = {
+    "BASH", "BASH_COMPAT", "BASH_ENV", "BASH_VERSION", "BASH_XTRACEFD", "CDPATH",
+    "COLUMNS", "ENV", "FIGNORE", "GLOBIGNORE", "HISTCONTROL", "HISTFILE",
+    "HISTFILESIZE", "HISTIGNORE", "HISTSIZE", "HOME", "HOSTNAME", "HOSTTYPE", "IFS",
+    "INPUTRC", "LANG", "LINES", "LOGNAME", "MACHTYPE", "MAIL", "MAILCHECK",
+    "MAILPATH", "OLDPWD", "OPTARG", "OPTERR", "OPTIND", "OSTYPE", "PATH",
+    "POSIXLY_CORRECT", "PROMPT_COMMAND", "PS1", "PS2", "PS3", "PS4", "PWD", "SHELL",
+    "SHLVL", "TERM", "TIMEFORMAT", "TMOUT", "TMPDIR", "TZ", "USER",
+    "AUTO_RESUME",
+    "BASH_ALIASES",
+    "BASH_ARGV0",
+    "BASH_CMDS",
+    "BASH_LOADABLES_PATH",
+    "BASH_REMATCH",
+    "CHILD_MAX",
+    "COMPREPLY",
+    "COMP_CWORD",
+    "COMP_KEY",
+    "COMP_LINE",
+    "COMP_POINT",
+    "COMP_TYPE",
+    "COMP_WORDBREAKS",
+    "COMP_WORDS",
+    "COPROC",
+    "DIRSTACK",
+    "EMACS",
+    "EXECIGNORE",
+    "FCEDIT",
+    "FUNCNEST",
+    "HISTCHARS",
+    "HISTTIMEFORMAT",
+    "HOSTFILE",
+    "IGNOREEOF",
+    "INSIDE_EMACS",
+    "MAPFILE",
+    "PIPESTATUS",
+    "PROMPT_DIRTRIM",
+    "PS0",
+    "READLINE_ARGUMENT",
+    "READLINE_LINE",
+    "READLINE_MARK",
+    "READLINE_POINT",
+    "REPLY",
+    "TEXTDOMAIN",
+    "TEXTDOMAINDIR",
+}
+
+
+def _is_writable_special(name):
+    return name in WRITABLE_SPECIALS or name.startswith("LC_")
+
+
+def _injection(env):
+    """Shell text that assigns the let values, and text that undoes it."""
+    inject, restore, unset = [], [], []
+    for name in sorted(env):
+        quoted = shlex.quote(env[name])
+        if _is_writable_special(name):
+            # session state such as PATH stays assigned for later blocks.
+            inject.append(f"declare -- {name}={quoted} || __o_inject_ok=0; ")
+        else:
+            # declare +x so a name the session already exported stays
+            # invisible to child processes.
+            inject.append(f"declare +x {name}={quoted} || __o_inject_ok=0; ")
+            unset.append(name)
+    if unset:
+        restore.append(f"unset -v {' '.join(unset)} 2>/dev/null || :; ")
+    return "".join(inject), "".join(restore)
 
 
 def send_ok(value):
@@ -22,32 +129,348 @@ def send_err(message):
     write_wire_message({"status": "err", "message": message})
 
 
+# ############################################################################
+# plain-block job cleanup
+# ############################################################################
+
+# keep in step with JOB_CLEANUP_WINDOW in crates/ostadix-api/src/backend.rs
+_JOB_CLEANUP_WINDOW = 2.0
+_PR_SET_CHILD_SUBREAPER = 36
+
+
+def _become_subreaper():
+    """Make this shim the subreaper of every job bash starts, so a setsid or
+    double-forked job is reparented here, not to init. fail closed."""
+    import ctypes
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(_PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) != 0:
+        raise OSError(ctypes.get_errno(), "prctl(PR_SET_CHILD_SUBREAPER) failed")
+
+
+def _children():
+    """This process's children, from /proc/self/task/*/children. a task that
+    exited meanwhile is skipped; any other unreadable file is an error."""
+    found = set()
+    for task in os.listdir("/proc/self/task"):
+        try:
+            with open(f"/proc/self/task/{task}/children") as handle:
+                found.update(int(pid) for pid in handle.read().split())
+        except FileNotFoundError:
+            continue
+    return sorted(found)
+
+
+def _live(pid):
+    """Whether pid is a live process (a zombie or a vanished pid is not)."""
+    try:
+        with open(f"/proc/{pid}/stat") as handle:
+            state = handle.read().rsplit(")", 1)[1].split()[0]
+    except (OSError, IndexError):
+        return False
+    return state not in ("Z", "X")
+
+
+def _live_tree():
+    """Every live descendant of this process."""
+    found, pending = [], _children()
+    while pending:
+        pid = pending.pop()
+        if pid in found:
+            continue
+        if _live(pid):
+            found.append(pid)
+        try:
+            tasks = os.listdir(f"/proc/{pid}/task")
+        except OSError:
+            continue
+        for task in tasks:
+            try:
+                with open(f"/proc/{pid}/task/{task}/children") as handle:
+                    pending.extend(int(child) for child in handle.read().split())
+            except OSError:
+                continue
+    return found
+
+
+def _stop_jobs(shell=None):
+    """SIGKILL every child and its group and reap until no child is left
+    (ECHILD) or the window ends. returns (stopped, survivors, error), where
+    stopped is one snapshot, taken before the first kill, of every live
+    descendant except the block's own bash, as in the rust backend."""
+    deadline = time.monotonic() + _JOB_CLEANUP_WINDOW
+    # a snapshot that cannot be read fails the cleanup, but the kill loop
+    # still runs and kills what it can list.
+    first_error = None
+    try:
+        stopped = len([pid for pid in _live_tree() if pid != shell])
+    except OSError as error:
+        stopped, first_error = 0, f"cannot list the jobs: {error}"
+    while True:
+        try:
+            live = _children()
+        except OSError as error:
+            return stopped, [], first_error or f"cannot list the jobs: {error}"
+        for pid in live:
+            for kill in (os.killpg, os.kill):
+                try:
+                    kill(pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+        try:
+            while os.waitpid(-1, os.WNOHANG)[0] > 0:
+                pass
+        except ChildProcessError:
+            # ECHILD: nothing left, not even a job still being reparented.
+            return stopped, [], first_error
+        if time.monotonic() >= deadline:
+            try:
+                survivors = _children()
+            except OSError:
+                survivors = live
+            return stopped, survivors, first_error
+        time.sleep(0.001)
+
+
+def _report_jobs(stopped, survivors, error, cancelled=False):
+    """The stderr notice; the error text when cleanup failed: the jobs could
+    not be listed, or some outlived the window."""
+    if stopped and cancelled:
+        # a cancel's count includes the block's foreground command.
+        print(f"bash block cancelled; stopped {stopped} process(es)",
+              file=sys.stderr, flush=True)
+    elif stopped:
+        print(f"bash block left {stopped} background process(es); they were stopped",
+              file=sys.stderr, flush=True)
+    if error is not None:
+        return f"bash job cleanup failed: {error}"
+    if survivors:
+        pids = " ".join(str(pid) for pid in survivors)
+        return (f"bash job cleanup failed: {len(survivors)} job(s) still alive after "
+                f"{int(_JOB_CLEANUP_WINDOW * 1000)} ms: pid {pids}")
+    return None
+
+
+def _on_sigterm(_signum, _frame):
+    # the host's cancel: stop the shell and every job, then exit. a SIGKILL
+    # would end this subreaper first and hand its setsid jobs to init.
+    shell = _session.proc.pid if _session is not None else None
+    error = _report_jobs(*_stop_jobs(shell), cancelled=True)
+    if error:
+        print(error, file=sys.stderr, flush=True)
+    os._exit(128 + signal.SIGTERM)
+
+
+# linux only, as in the rust backend: elsewhere there is no subreaper bit
+# and no /proc children list.
+_sweep_jobs = _plain and sys.platform.startswith("linux")
+if sys.platform.startswith("linux"):
+    _become_subreaper()
+    signal.signal(signal.SIGTERM, _on_sigterm)
+
+
+class BashSession:
+    def __init__(self):
+        self.dir = tempfile.TemporaryDirectory(prefix="o-bash-session-")
+        self.proc = subprocess.Popen(
+            ["bash", "--noprofile", "--norc", "-s"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, env=_shell_env(),
+        )
+        self.serial = 0
+
+    def run(self, code, env):
+        self.serial += 1
+        base = os.path.join(self.dir.name, f"block-{self.serial}")
+        code_path, out_path, err_path = base + ".sh", base + ".out", base + ".err"
+        # the file holds only the user's code so bash's line numbers match.
+        with open(code_path, "w") as f:
+            f.write(code)
+            f.write("\n")
+        inject, restore = _injection(env)
+        self.proc.stdin.write(
+            # injection runs inside the capture and is checked, like the
+            # native backend.
+            # the refusal sets the status rather than failing a command, so
+            # a persisted `set -e` cannot end the session on it.
+            f"__o_status=125; {{ __o_inject_ok=1; {inject}if (( __o_inject_ok )); then "
+            f"source {shlex.quote(code_path)}; __o_status=$?; else printf 'o: a let value "
+            f"could not be assigned, so the block did not run\\n' >&2; fi; }} "
+            f"</dev/null >{shlex.quote(out_path)} "
+            f"2>{shlex.quote(err_path)}; unset -v __o_inject_ok; {restore}"
+            f"printf '\\n{SENTINEL}%d\\n' \"$__o_status\"; unset -v __o_status\n"
+        )
+        self.proc.stdin.flush()
+        status = None
+        for line in self.proc.stdout:
+            line = line.rstrip("\n")
+            if line.startswith(SENTINEL):
+                status = int(line[len(SENTINEL):] or "1")
+                break
+        alive = status is not None
+        if not alive:
+            status = self.proc.wait()
+        # once the shell answered, its capture files exist; a missing one
+        # means the output is unknown, never empty. a shell that died before
+        # answering already fails the block.
+        def capture(path, stream):
+            try:
+                with open(path, errors="replace") as f:
+                    return f.read()
+            except OSError:
+                if not alive:
+                    return ""
+                raise RuntimeError(f"bash block {stream} capture is missing or unreadable") from None
+        stdout = capture(out_path, "stdout")
+        stderr = capture(err_path, "stderr")
+        # the session temp path is an implementation detail.
+        stderr = stderr.replace(code_path, "bash").replace(self.dir.name, "<bash session>")
+        for path in (code_path, out_path, err_path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        return status, stdout, stderr, alive
+
+    def close(self):
+        """End the shell, and in a plain helper every job it left. returns an
+        error text when that could not be done, else None."""
+        errors = []
+        try:
+            self.proc.stdin.close()
+        except OSError as error:
+            errors.append(f"closing the shell's stdin: {error}")
+        try:
+            self.proc.kill()
+        except ProcessLookupError:
+            pass
+        except OSError as error:
+            errors.append(f"killing the shell: {error}")
+        try:
+            self.proc.wait()
+        except (OSError, ChildProcessError) as error:
+            errors.append(f"reaping the shell: {error}")
+        if _sweep_jobs:
+            job_error = _report_jobs(*_stop_jobs(self.proc.pid))
+            if job_error:
+                errors.append(job_error)
+        try:
+            self.dir.cleanup()
+        except OSError as error:
+            errors.append(f"removing the session dir: {error}")
+        return "; ".join(errors) or None
+
+
+def _scalar(oval):
+    """Shell text for a scalar OValue, or None for structured values."""
+    tag = oval.get("t")
+    value = oval.get("v")
+    if tag in ("str", "int"):
+        return str(value)
+    if tag == "float":
+        return _float_text(float(value))
+    # bools keep the base shim's python rendering.
+    if tag == "bool":
+        return str(bool(value))
+    if tag == "text" and isinstance(value, dict):
+        return value.get("utf8")
+    if tag == "number" and isinstance(value, dict):
+        return _number(value)
+    return None
+
+
+def _number(number):
+    """Shell text for a number OValue: ints and binary floats, as Rust does."""
+    kind = number.get("kind")
+    if kind == "int":
+        return str(number.get("v"))
+    if kind == "binary_float":
+        bits = bytes(number.get("bits") or [])
+        if len(bits) == 8:
+            return _float_text(struct.unpack(">d", bits)[0])
+        if len(bits) == 4:
+            return _float_text(struct.unpack(">f", bits)[0])
+    return None
+
+
+def _float_text(value):
+    """Rust's f64 Display: shortest digits, never an exponent, `2` for 2.0."""
+    if not math.isfinite(value):
+        return None
+    if value == int(value):
+        return str(int(value))
+    return format(decimal.Decimal(repr(value)), "f")
+
+
 def handle_exec(cmd):
+    global _session, _killed_by
+    if _killed_by is not None:
+        send_err(f"bash session was killed by signal {_killed_by} during an earlier block; its state is gone")
+        return
     code = cmd.get("code", "")
     bindings = cmd.get("bindings", {})
+    # a bare `$name` splice renders its value into the block text; bash would
+    # silently drop a NUL there, so it is an error like a NUL in a let.
+    if "\0" in code:
+        send_err("bash block contains a NUL byte, probably from a spliced value; "
+                 "bash cannot hold NUL, so the block did not run")
+        return
 
-    # Pass bindings as environment variables (string values only).
-    env = os.environ.copy()
+    # Bindings become non-exported shell variables for this block only.
+    env = {}
     for name, oval in bindings.items():
-        if oval.get("t") in ("str", "int", "float", "bool"):
-            env[name] = str(oval.get("v", ""))
+        value = _scalar(oval)
+        if value is None:
+            continue
+        if "\0" in value:
+            send_err(f"let `{name}` contains a NUL byte, which a bash variable cannot hold")
+            return
+        env[name] = value
 
     try:
-        result = subprocess.run(
-            ["bash", "-c", code],
-            capture_output=True, text=True, timeout=60, env=env,
-        )
-        if result.returncode != 0:
-            stderr = result.stderr.strip()
-            send_err(f"bash exited with code {result.returncode}\n{stderr}")
+        if _session is None:
+            _session = BashSession()
+        returncode, stdout, stderr, alive = _session.run(code, env)
+        if _plain or not alive:
+            close_error = _session.close()
+            _session = None
+            if close_error:
+                send_err(close_error)
+                return
+        if not alive:
+            if returncode < 0:
+                if not _plain:
+                    _killed_by = -returncode
+                send_err(f"bash session was killed by signal {-returncode} during this block; its state is gone")
+                return
+        if returncode != 0 and not alive:
+            # a failing block that ended the session, e.g. under a persisted
+            # `set -e`, also dropped its variables, functions, and options.
+            send_err(
+                "bash session ended during this block, dropping its variables, "
+                "functions, and options; the next block starts a fresh session. "
+                f"bash exited with code {returncode}\n{stderr.strip()}"
+            )
+        elif returncode != 0:
+            send_err(f"bash exited with code {returncode}\n{stderr.strip()}")
         else:
-            send_ok(stdout_result(result.stdout))
-    except subprocess.TimeoutExpired:
-        send_err("bash execution timed out (60s)")
+            send_ok(stdout_result(stdout))
     except FileNotFoundError:
         send_err("bash is not installed or not in PATH")
+    except RuntimeError as error:
+        send_err(str(error))
     except Exception:
         send_err(traceback.format_exc())
 
 
+o_shim_common.heartbeat_child_pid = lambda: _session.proc.pid if _session is not None else None
 command_loop(handle_exec)
+
+# stdin EOF: the host is gone or closing us. a bash[N] session keeps its jobs
+# between blocks, so stop them before exiting; only a failure is said.
+if sys.platform.startswith("linux"):
+    _shell = _session.proc.pid if _session is not None else None
+    _, _survivors, _error = _stop_jobs(_shell)
+    _error = _report_jobs(0, _survivors, _error)
+    if _error:
+        print(_error, file=sys.stderr, flush=True)
+        sys.exit(1)

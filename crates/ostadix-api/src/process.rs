@@ -2,13 +2,13 @@ use anyhow::{anyhow, bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::error::Error as StdError;
 use std::fmt;
-use std::io::{self, BufReader, BufWriter};
+use std::io::{self, BufReader, BufWriter, Write};
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -20,13 +20,32 @@ use crate::backend_state::{
     BackendWireResponseV2, EvaluatorActorCheckpointV1, EvaluatorStateSnapshotV1,
 };
 use crate::capability::BackendSandboxPolicy;
+use crate::step_knobs::parse_timeout_knob;
+pub(crate) use crate::step_knobs::{
+    BACKEND_STEP_TIMEOUT_ENV, DEFAULT_HEARTBEAT_WARNING, HEARTBEAT_INTERVAL_ENV,
+};
 use crate::value::OValue;
 use crate::wire;
 
 static BACKEND_SESSION_COUNTER: AtomicU64 = AtomicU64::new(0);
-const DEFAULT_BACKEND_OPERATION_TIMEOUT: Duration = Duration::from_secs(60);
 const DEFAULT_BACKEND_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
-const BACKEND_FALLBACK_REAP_TIMEOUT: Duration = Duration::from_millis(250);
+// why 2 s: after sigkill the kernel must tear down the whole address space
+// before the leader is waitable and stdout hits eof. with no swap and a large
+// python heap that teardown can take longer than 250 ms, which turned a clean
+// kill into "forced termination also failed". 2 s matches the default shutdown
+// budget. it is a budget, not a sleep: a healthy kill returns as soon as the
+// leader, reader and group settle. it is spent on kill paths only (timeouts,
+// cancellation, drop of a non-terminal actor, spawn-failure cleanup), and
+// registry teardown shares one budget across all actors (force_terminate_all).
+const BACKEND_FALLBACK_REAP_TIMEOUT: Duration = Duration::from_secs(2);
+// how often a step wait wakes to poll for leader exit, check heartbeats and
+// redraw the spinner. bounds crash detection when a grandchild keeps the
+// response pipe open.
+const STEP_WATCH_TICK: Duration = Duration::from_millis(100);
+// why 64 KiB: linux pipe capacity. a frame at or below it fits in an empty
+// pipe, so the existing blocking write cannot wedge on it; only larger frames
+// pay for the nonblocking, deadline-bounded write.
+pub(crate) const BOUNDED_WRITE_THRESHOLD: usize = 64 * 1024;
 const DEFAULT_MAX_OPEN_BACKEND_SESSIONS: usize = 128;
 const DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND: usize = 32;
 
@@ -111,6 +130,11 @@ pub(crate) fn is_infrastructure_error(error: &anyhow::Error) -> bool {
 
 pub(crate) use crate::lifecycle_trace::lifecycle_trace;
 use crate::lifecycle_trace::monotonic_nanos;
+
+/// Silence backend progress lines and spinner output (`--quiet` / `-q`).
+pub fn set_quiet(quiet: bool) {
+    crate::progress::set_quiet(quiet);
+}
 
 #[cfg(test)]
 const PYTHON_POLICY_BOOTSTRAP: &str = r#"
@@ -212,6 +236,13 @@ struct PendingMorphismV1 {
 
 struct BackendProcess {
     language: String,
+    // "python[1]" for numbered sessions, the language otherwise; used in
+    // status lines.
+    label: String,
+    pulse: Arc<Mutex<Pulse>>,
+    // the request's cancellation token while a command is written, so a
+    // large write to a shim that stopped reading ends on cancel.
+    write_cancellation: Option<crate::cancellation::CancellationToken>,
     session_id: String,
     native_instance: String,
     child: Child,
@@ -223,34 +254,491 @@ struct BackendProcess {
     pending_morphism: Option<PendingMorphismV1>,
     awaiting_callback: bool,
     native_operation_depth: usize,
+    // set on a plain bash helper: where it is parked again after a block.
+    plain_bash_key: Option<PlainBashHelperKey>,
+    // set for one exec: the plan has another plain bash block ahead.
+    plain_bash_next: bool,
+    // a forced kill began with SIGTERM to a plain bash helper.
+    graceful_term_sent: bool,
+    // the backend said its job cleanup failed; it is never reused.
+    job_cleanup_failed: bool,
+    // the leader child has already been waited/reaped by reap_leader_only.
+    leader_reaped: bool,
 }
 
-pub(crate) fn backend_operation_timeout() -> Duration {
-    duration_from_env(
-        "O_BACKEND_OPERATION_TIMEOUT_MS",
-        DEFAULT_BACKEND_OPERATION_TIMEOUT,
-        Duration::from_secs(60 * 60),
+// why no default: an operation (an ephemeral exec, a state checkpoint or
+// restore, a native operation) may run as long as a step may, so it is only
+// bounded when the user opts in with O_BACKEND_OPERATION_TIMEOUT_MS. the
+// value is validated like O_BACKEND_STEP_TIMEOUT_MS.
+pub(crate) const BACKEND_OPERATION_TIMEOUT_ENV: &str = "O_BACKEND_OPERATION_TIMEOUT_MS";
+
+pub(crate) fn backend_operation_timeout() -> Result<Option<Duration>> {
+    parse_timeout_knob(
+        BACKEND_OPERATION_TIMEOUT_ENV,
+        std::env::var_os(BACKEND_OPERATION_TIMEOUT_ENV).as_deref(),
     )
 }
 
-pub(crate) fn backend_shutdown_timeout() -> Duration {
-    duration_from_env(
-        "O_BACKEND_SHUTDOWN_TIMEOUT_MS",
-        DEFAULT_BACKEND_SHUTDOWN_TIMEOUT,
-        Duration::from_secs(60),
+/// Parse the opt-in `O_BACKEND_STEP_TIMEOUT_MS`. Unset means no limit.
+/// Anything set must be a whole number of milliseconds in `1..=MAXIMUM`; a
+/// malformed, zero or oversized value is a hard error rather than a silent
+/// fallback, because a knob the user set and the runtime ignored is a silent
+/// failure.
+#[cfg(test)]
+fn parse_backend_step_timeout(raw: Option<&std::ffi::OsStr>) -> Result<Option<Duration>> {
+    parse_timeout_knob(BACKEND_STEP_TIMEOUT_ENV, raw)
+}
+
+// why cached: the value is fixed for the process lifetime, so it is parsed
+// once and a bad value fails every step the same way instead of drifting.
+pub(crate) fn backend_step_timeout() -> Result<Option<Duration>> {
+    #[cfg(test)]
+    if let Some(timeout) = STEP_TIMEOUT_OVERRIDE.with(std::cell::Cell::get) {
+        return Ok(Some(timeout));
+    }
+    crate::step_knobs::step_timeout()
+}
+
+/// "N s" for whole or fractional seconds, "N ms" below one second.
+pub(crate) fn step_limit_text(limit: Duration) -> String {
+    if limit < Duration::from_secs(1) {
+        format!("{} ms", limit.as_millis())
+    } else {
+        format!("{} s", limit.as_secs_f64())
+    }
+}
+
+fn session_label(lang: &str, env_id: u32) -> String {
+    if env_id <= crate::environment::MAX_PERSISTENT_ENV_ID {
+        format!("{lang}[{env_id}]")
+    } else {
+        lang.to_string()
+    }
+}
+
+/// The session as errors name it. a fresh environment's id is a sentinel
+/// (u32::MAX), never shown: it reads as `plain bash block` or `L[*ephemeral*]`,
+/// like the evaluator's own label.
+fn session_name(lang: &str, env_id: u32) -> String {
+    if env_id <= crate::environment::MAX_PERSISTENT_ENV_ID {
+        format!("{lang}[{env_id}]")
+    } else if lang == "bash" {
+        "plain bash block".to_string()
+    } else {
+        format!("{lang}[*ephemeral*]")
+    }
+}
+
+pub(crate) fn step_limit_exceeded_message(language: &str, limit: Duration) -> String {
+    format!("backend `{language}` {}", step_limit_exceeded_reason(limit))
+}
+
+/// The reason alone, for callers that already name the backend.
+fn step_limit_exceeded_reason(limit: Duration) -> String {
+    format!(
+        "step exceeded {} (opt-in per-step limit {BACKEND_STEP_TIMEOUT_ENV})",
+        step_limit_text(limit)
     )
 }
 
-fn duration_from_env(name: &str, default: Duration, maximum: Duration) -> Duration {
-    let Ok(raw) = std::env::var(name) else {
-        return default;
-    };
-    raw.parse::<u64>()
+/// "30 s" for whole seconds, "400 ms" otherwise (test timings).
+fn warning_text(duration: Duration) -> String {
+    if duration.subsec_millis() == 0 {
+        format!("{} s", duration.as_secs())
+    } else {
+        format!("{} ms", duration.as_millis())
+    }
+}
+
+pub(crate) fn heartbeat_interval() -> Result<Duration> {
+    #[cfg(test)]
+    if let Some(timing) = HEARTBEAT_OVERRIDE.with(std::cell::Cell::get) {
+        return Ok(timing.0);
+    }
+    crate::step_knobs::heartbeat_interval()
+}
+
+/// The protocol feature a shim lists in `hello_v1` when it sends heartbeats.
+pub(crate) const HEARTBEAT_CAPABILITY: &str = "heartbeat_v1";
+
+/// Set to `1` on a bash backend that serves plain blocks: it gives each block
+/// a fresh shell and ends that shell and its jobs before answering.
+pub(crate) const PLAIN_BASH_HELPER_ENV: &str = "O_BACKEND_PLAIN_BASH_HELPER";
+
+/// The words a bash backend's failed job cleanup starts with.
+pub(crate) const JOB_CLEANUP_FAILED: &str = "bash job cleanup failed";
+
+/// The bash backend's job cleanup window (JOB_CLEANUP_WINDOW in backend.rs).
+const PLAIN_BASH_CLEANUP_WINDOW: Duration = Duration::from_secs(2);
+
+/// Inside a backend: the interval the host asked for, or None when the host
+/// did not set `O_BACKEND_HEARTBEAT_INTERVAL_MS`. Without it a shim sends no
+/// hello or heartbeat frames, so hosts that predate them see no change.
+pub(crate) fn shim_heartbeat_interval() -> Option<Duration> {
+    std::env::var(HEARTBEAT_INTERVAL_ENV)
         .ok()
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
         .filter(|millis| *millis > 0)
         .map(Duration::from_millis)
-        .map(|duration| duration.min(maximum))
-        .unwrap_or(default)
+}
+
+pub(crate) fn heartbeat_warning() -> Result<Duration> {
+    #[cfg(test)]
+    if let Some(timing) = HEARTBEAT_OVERRIDE.with(std::cell::Cell::get) {
+        return Ok(timing.1);
+    }
+    crate::step_knobs::heartbeat_warning()
+}
+
+/// Liveness observed by the response reader from heartbeat frames.
+#[derive(Default)]
+struct Pulse {
+    // the shim listed heartbeat_v1 in its hello frame. an old shim never
+    // does, so it is never warned about.
+    capable: bool,
+    last: Option<Instant>,
+    beats: u64,
+    child: Option<crate::backend_state::BackendHeartbeatChildV1>,
+    child_d_since: Option<Instant>,
+}
+
+/// Watchdog for one step wait: warns once on a missing heartbeat, once more
+/// if heartbeats resume, and draws the spinner. It never kills.
+struct StepWatch {
+    started: Instant,
+    warning: Duration,
+    silent_warned: bool,
+    beats_at_warning: u64,
+    child_warned: bool,
+    last_draw: Option<Instant>,
+    spinner: bool,
+}
+
+/// Time between spinner frames, and before the first one.
+const SPINNER_FRAME: Duration = Duration::from_millis(200);
+
+impl StepWatch {
+    fn new(pulse: &Mutex<Pulse>) -> Self {
+        // child state seen during an earlier wait (say a shell that exited at
+        // the end of the previous block) must not trigger a warning now.
+        {
+            let mut pulse = pulse.lock().unwrap_or_else(|poison| poison.into_inner());
+            pulse.child = None;
+            pulse.child_d_since = None;
+        }
+        Self {
+            started: Instant::now(),
+            // the knob was validated when the backend was spawned, so an
+            // error cannot appear here; the default only satisfies the type.
+            warning: heartbeat_warning().unwrap_or(DEFAULT_HEARTBEAT_WARNING),
+            silent_warned: false,
+            beats_at_warning: 0,
+            child_warned: false,
+            last_draw: None,
+            spinner: crate::progress::spinner_enabled(),
+        }
+    }
+
+    fn observe(&mut self, label: &str, pulse: &Mutex<Pulse>) {
+        let now = Instant::now();
+        let pulse = pulse.lock().unwrap_or_else(|poison| poison.into_inner());
+        // an old shim has no heartbeat capability, so it is never warned about.
+        if pulse.capable {
+            let since = pulse
+                .last
+                .map_or(self.started, |last| last.max(self.started));
+            let silent = now.saturating_duration_since(since);
+            if !self.silent_warned && silent >= self.warning {
+                self.silent_warned = true;
+                self.beats_at_warning = pulse.beats;
+                crate::progress::line(&format!(
+                    "no heartbeat from {label} for {}; it may be hanging (still running)",
+                    warning_text(self.warning)
+                ));
+            } else if self.silent_warned && pulse.beats > self.beats_at_warning {
+                self.silent_warned = false;
+                crate::progress::line(&format!(
+                    "{label} resumed sending heartbeats (still running)"
+                ));
+            }
+        }
+        if !self.child_warned {
+            if let Some(child) = &pulse.child {
+                if child.state == "gone" {
+                    self.child_warned = true;
+                    crate::progress::line(&format!(
+                        "{label} child process {} is gone while the backend is still running",
+                        child.pid
+                    ));
+                } else if pulse
+                    .child_d_since
+                    .is_some_and(|since| now.saturating_duration_since(since) >= self.warning)
+                {
+                    self.child_warned = true;
+                    crate::progress::line(&format!(
+                        "{label} child process {} has been in uninterruptible wait (state D) for {}; it may be hanging (still running)",
+                        child.pid,
+                        warning_text(self.warning)
+                    ));
+                }
+            }
+        }
+        drop(pulse);
+        // why the first draw waits a frame: a step shorter than that would
+        // only draw and erase a line.
+        if self.spinner
+            && now.saturating_duration_since(self.started) >= SPINNER_FRAME
+            && self
+                .last_draw
+                .is_none_or(|drawn| now.saturating_duration_since(drawn) >= SPINNER_FRAME)
+        {
+            self.last_draw = Some(now);
+            crate::progress::spinner(label, now.saturating_duration_since(self.started));
+        }
+    }
+
+    fn finish(&self) {
+        if self.last_draw.is_some() {
+            crate::progress::clear_spinner();
+        }
+    }
+}
+
+/// Marker for "a backend was killed mid-step" (deadline, cancellation, or it
+/// exited). A persistent session that ends this way is recorded as lost (see
+/// `ProcessRegistry::lost_sessions`); `cause` completes "terminated after ...".
+#[derive(Debug)]
+pub(crate) struct BackendSessionKilled {
+    cause: &'static str,
+    message: String,
+    // the request's own execution deadline (not a per-step limit) ended it.
+    request_deadline: bool,
+}
+
+impl fmt::Display for BackendSessionKilled {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl StdError for BackendSessionKilled {}
+
+pub(crate) const KILLED_BY_TIMEOUT: &str = "a timeout";
+const KILLED_BY_CANCELLATION: &str = "cancellation";
+const KILLED_BY_EXIT: &str = "its backend exited";
+
+fn session_killed(cause: &'static str, message: String) -> anyhow::Error {
+    anyhow::Error::new(BackendSessionKilled {
+        cause,
+        message,
+        request_deadline: false,
+    })
+}
+
+pub(crate) fn is_request_deadline_kill(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .filter_map(|cause| cause.downcast_ref::<BackendSessionKilled>())
+        .any(|killed| killed.request_deadline)
+}
+
+pub(crate) fn session_killed_cause(error: &anyhow::Error) -> Option<&'static str> {
+    error
+        .chain()
+        .find_map(|cause| cause.downcast_ref::<BackendSessionKilled>())
+        .map(|killed| killed.cause)
+}
+
+/// Which deadline a response read runs under; only the step limit names the
+/// knob that raises it.
+#[derive(Clone, Copy)]
+enum ResponseLimit {
+    Other,
+}
+
+/// Shrink the step bound for the calling thread only, for tests in other roots.
+#[cfg(test)]
+pub(crate) fn set_step_timeout_override(timeout: Option<Duration>) {
+    STEP_TIMEOUT_OVERRIDE.with(|cell| cell.set(timeout));
+}
+
+#[cfg(test)]
+thread_local! {
+    // lets a test shrink the step bound for its own thread without touching
+    // the process environment shared by parallel tests.
+    static STEP_TIMEOUT_OVERRIDE: std::cell::Cell<Option<Duration>> =
+        const { std::cell::Cell::new(None) };
+    // (heartbeat interval sent to new backends, warning threshold).
+    static HEARTBEAT_OVERRIDE: std::cell::Cell<Option<(Duration, Duration)>> =
+        const { std::cell::Cell::new(None) };
+    // records kill and settle order so a test can prove teardown signals
+    // every actor before it waits on any of them.
+    static KILL_TRACE: std::cell::RefCell<Option<Vec<&'static str>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn kill_trace(event: &'static str) {
+    KILL_TRACE.with(|trace| {
+        if let Some(trace) = trace.borrow_mut().as_mut() {
+            trace.push(event);
+        }
+    });
+}
+
+/// Write `bytes` to a pipe without blocking past `limit` of no progress. The
+/// fd is nonblocking only for the duration of this call. Returns `Ok(false)`
+/// when the reader made no progress for `limit`.
+#[cfg(unix)]
+pub(crate) fn write_all_bounded(
+    fd: std::os::fd::RawFd,
+    bytes: &[u8],
+    limit: Duration,
+) -> io::Result<bool> {
+    write_all_polled(fd, bytes, Some(limit), &|| false).map(|outcome| outcome == PolledWrite::Done)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum PolledWrite {
+    Done,
+    // no byte was taken for `limit`.
+    Stalled,
+    Cancelled,
+}
+
+/// Write all of `bytes` to a pipe in poll slices of at most 100 ms. Stops
+/// when no byte is taken for `limit` (when set) or when `cancelled` turns
+/// true. The idle timer restarts on every byte written.
+#[cfg(unix)]
+pub(crate) fn write_all_polled(
+    fd: std::os::fd::RawFd,
+    bytes: &[u8],
+    limit: Option<Duration>,
+    cancelled: &dyn Fn() -> bool,
+) -> io::Result<PolledWrite> {
+    // SAFETY: fcntl on a caller-owned open fd only reads/sets status flags.
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    if flags < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let outcome = (|| {
+        let mut written = 0;
+        let mut deadline = limit.map(|limit| Instant::now() + limit);
+        while written < bytes.len() {
+            if cancelled() {
+                return Ok(PolledWrite::Cancelled);
+            }
+            // SAFETY: the pointer/length pair stays inside `bytes`.
+            let n =
+                unsafe { libc::write(fd, bytes[written..].as_ptr().cast(), bytes.len() - written) };
+            if n > 0 {
+                written += n as usize;
+                deadline = limit.map(|limit| Instant::now() + limit);
+                continue;
+            }
+            let error = io::Error::last_os_error();
+            match error.kind() {
+                io::ErrorKind::Interrupted => continue,
+                io::ErrorKind::WouldBlock => {
+                    let remaining = deadline.map_or(STEP_WATCH_TICK, |deadline| {
+                        deadline.saturating_duration_since(Instant::now())
+                    });
+                    if remaining.is_zero() {
+                        return Ok(PolledWrite::Stalled);
+                    }
+                    let remaining = remaining.min(STEP_WATCH_TICK);
+                    let mut poll = libc::pollfd {
+                        fd,
+                        events: libc::POLLOUT,
+                        revents: 0,
+                    };
+                    let millis = remaining.as_millis().clamp(1, i32::MAX as u128) as i32;
+                    // SAFETY: one valid pollfd for the duration of the call.
+                    if unsafe { libc::poll(&mut poll, 1, millis) } < 0 {
+                        let error = io::Error::last_os_error();
+                        if error.kind() != io::ErrorKind::Interrupted {
+                            return Err(error);
+                        }
+                    }
+                }
+                _ => return Err(error),
+            }
+        }
+        Ok(PolledWrite::Done)
+    })();
+    // SAFETY: restores the flags read above on the same fd.
+    unsafe { libc::fcntl(fd, libc::F_SETFL, flags) };
+    outcome
+}
+
+const BACKEND_SHUTDOWN_TIMEOUT_ENV: &str = "O_BACKEND_SHUTDOWN_TIMEOUT_MS";
+const MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60);
+const MAX_OPEN_SESSIONS_ENV: &str = "O_BACKEND_MAX_OPEN_SESSIONS";
+const MAX_OPEN_SESSIONS_PER_BACKEND_ENV: &str = "O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND";
+
+/// The teardown budget: `O_BACKEND_SHUTDOWN_TIMEOUT_MS`, or the default when
+/// unset. parsed once; a malformed value is an error at every read, never the
+/// default.
+pub(crate) fn backend_shutdown_timeout() -> Result<Duration> {
+    static TIMEOUT: OnceLock<std::result::Result<Option<Duration>, String>> = OnceLock::new();
+    let value = TIMEOUT
+        .get_or_init(|| {
+            checked_duration_from_env(
+                BACKEND_SHUTDOWN_TIMEOUT_ENV,
+                MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT,
+            )
+            .map_err(|error| format!("{error:#}"))
+        })
+        .clone()
+        .map_err(anyhow::Error::msg)?;
+    Ok(value.unwrap_or(DEFAULT_BACKEND_SHUTDOWN_TIMEOUT))
+}
+
+/// The knob's value, None when unset, or an error naming the bad value.
+fn checked_duration_from_env(name: &str, maximum: Duration) -> Result<Option<Duration>> {
+    let Some(raw) = std::env::var_os(name) else {
+        return Ok(None);
+    };
+    duration_knob(name, &raw, maximum).map(Some)
+}
+
+fn duration_knob(name: &str, raw: &std::ffi::OsStr, maximum: Duration) -> Result<Duration> {
+    let millis = positive_integer_knob(name, raw)?;
+    let duration = Duration::from_millis(millis as u64);
+    if duration > maximum {
+        bail!(
+            "{name}={millis} exceeds the maximum of {} ms",
+            maximum.as_millis()
+        );
+    }
+    Ok(duration)
+}
+
+fn positive_integer_knob(name: &str, raw: &std::ffi::OsStr) -> Result<usize> {
+    let text = raw
+        .to_str()
+        .ok_or_else(|| anyhow!("{name} is not valid UTF-8"))?;
+    // the same whitespace rule as the step knobs: surrounding blanks are
+    // trimmed, anything else is a malformed value.
+    let value = text
+        .trim()
+        .parse::<usize>()
+        .map_err(|_| anyhow!("{name}={text:?} is not a positive whole number"))?;
+    if value == 0 {
+        bail!("{name}={text:?} is invalid: it must be at least 1");
+    }
+    Ok(value)
+}
+
+/// Validate the teardown budget and the session caps, so a malformed value
+/// fails the spawn instead of silently becoming the default.
+fn check_process_knobs() -> Result<()> {
+    backend_shutdown_timeout()?;
+    BackendSessionLimits::from_env()?;
+    Ok(())
 }
 
 fn bounded_deadline(timeout: Duration, subject: &str) -> Result<Instant> {
@@ -273,6 +761,41 @@ pub(crate) fn linux_process_observation_disappeared(error: &io::Error) -> bool {
 /// Linux cgroup or a Windows job object.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn owned_group_has_no_active_descendants(group: i32) -> io::Result<bool> {
+    // SAFETY: signal zero performs existence/permission checks only.
+    let probe = unsafe { libc::kill(-group, 0) };
+    let errno = (probe != 0).then(io::Error::last_os_error);
+    if group_probe_says_empty(errno.as_ref())? {
+        return Ok(true);
+    }
+    scan_owned_group(group)
+}
+
+/// What `kill(-group, 0)` says about the group.
+///
+/// why probe first: the scan below reads every /proc/*/stat on the host,
+/// a few ms on a busy box, and it ran at every backend exit (bash_hello
+/// paid it once the helper was reaped). ESRCH means no process is left in
+/// the group, so it is empty at once. success or EPERM means something is
+/// still in it, maybe only a zombie, so the scan decides (zombies count as
+/// finished). any other errno is unexpected and fails closed.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn group_probe_says_empty(errno: Option<&io::Error>) -> io::Result<bool> {
+    match errno.map(io::Error::raw_os_error) {
+        None => Ok(false),
+        Some(Some(libc::ESRCH)) => Ok(true),
+        Some(Some(libc::EPERM)) => Ok(false),
+        Some(_) => Err(io::Error::new(
+            errno.map_or(io::ErrorKind::Other, io::Error::kind),
+            format!(
+                "cannot probe the backend process group: {}",
+                errno.map_or_else(String::new, ToString::to_string)
+            ),
+        )),
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn scan_owned_group(group: i32) -> io::Result<bool> {
     for entry in std::fs::read_dir("/proc")? {
         let entry = match entry {
             Ok(entry) => entry,
@@ -442,6 +965,7 @@ fn kill_and_reap_process_group(child: &mut Child, timeout: Duration) -> Result<(
     let deadline = Instant::now()
         .checked_add(timeout)
         .ok_or_else(|| anyhow!("backend reap deadline overflowed"))?;
+    let mut waiter = ExitWaiter::new(child.id());
     loop {
         if child.try_wait()?.is_some() {
             return signal_result;
@@ -453,7 +977,7 @@ fn kill_and_reap_process_group(child: &mut Child, timeout: Duration) -> Result<(
                 timeout.as_millis()
             ));
         }
-        thread::sleep(Duration::from_millis(2));
+        waiter.wait(deadline.saturating_duration_since(Instant::now()));
     }
 }
 
@@ -658,6 +1182,16 @@ impl BackendProcess {
         sandbox: &BackendSandboxPolicy,
         executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
     ) -> Result<Self> {
+        Self::new_ephemeral(lang, shim_path, sandbox, executable_leases, false)
+    }
+
+    fn new_ephemeral(
+        lang: &str,
+        shim_path: &Path,
+        sandbox: &BackendSandboxPolicy,
+        executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
+        plain_bash_helper: bool,
+    ) -> Result<Self> {
         let ordinal = BACKEND_SESSION_COUNTER.fetch_add(1, Ordering::Relaxed);
         let session_id = hex::encode(Sha256::digest(format!(
             "ostadix-ephemeral-session-v1\0{}\0{}\0{}",
@@ -665,13 +1199,14 @@ impl BackendProcess {
             ordinal,
             lang
         )));
-        Self::new_with_session(
+        Self::spawn(
             lang,
             shim_path,
             sandbox,
             executable_leases,
             &session_id,
             "unmanaged",
+            lang == "bash" && plain_bash_helper,
         )
     }
 
@@ -682,6 +1217,26 @@ impl BackendProcess {
         executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
         session_id: &str,
         launch_generation: &str,
+    ) -> Result<Self> {
+        Self::spawn(
+            lang,
+            shim_path,
+            sandbox,
+            executable_leases,
+            session_id,
+            launch_generation,
+            false,
+        )
+    }
+
+    fn spawn(
+        lang: &str,
+        shim_path: &Path,
+        sandbox: &BackendSandboxPolicy,
+        executable_leases: Option<&crate::runtime_exec::ExecutableLeaseSet>,
+        session_id: &str,
+        launch_generation: &str,
+        plain_bash_helper: bool,
     ) -> Result<Self> {
         if session_id.len() != 64 || !session_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             bail!("backend session identity must be a 64-character SHA-256 digest");
@@ -708,20 +1263,61 @@ impl BackendProcess {
         )?;
 
         let native_instance = fresh_registry_identity();
+        let heartbeat = heartbeat_interval()?;
+        // checked here so a bad warning knob fails the spawn, not a later wait.
+        heartbeat_warning()?;
+        check_process_knobs()?;
         command
             .env("O_BACKEND_SESSION_ID", session_id)
             .env("O_BACKEND_LAUNCH_GENERATION", launch_generation)
-            .env("O_BACKEND_NATIVE_INSTANCE_ID", &native_instance);
+            .env("O_BACKEND_NATIVE_INSTANCE_ID", &native_instance)
+            .env(HEARTBEAT_INTERVAL_ENV, heartbeat.as_millis().to_string());
+        if plain_bash_helper {
+            command.env(PLAIN_BASH_HELPER_ENV, "1");
+        } else {
+            command.env_remove(PLAIN_BASH_HELPER_ENV);
+        }
 
         #[cfg(unix)]
         command.process_group(0);
+        // a backend must not outlive O: after exec it arms its parent death
+        // signal and checks that this pid is still its parent. why not a
+        // pre_exec hook: any hook makes std fork in full instead of using
+        // vfork-style spawning, which cost every bash_hello a slower spawn.
+        command.env(BACKEND_PARENT_PID_ENV, std::process::id().to_string());
 
-        let mut child = command
+        // while the spinner is on, backend stderr goes through the one
+        // status writer so a block's stderr never lands inside the spinner
+        // line. otherwise it is inherited exactly as before.
+        let route_stderr = crate::progress::spinner_enabled();
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .with_context(|| format!("failed to spawn backend process for `{lang}`"))?;
+            .stderr(if route_stderr {
+                Stdio::piped()
+            } else {
+                Stdio::inherit()
+            });
+        // every backend is forked from one long-lived thread: the parent
+        // death signal fires when the forking thread exits, and a worker
+        // thread may exit while its helper is parked or its session lives on.
+        let spawned = spawn_from_long_lived_thread(command);
+        let mut child =
+            spawned.with_context(|| format!("failed to spawn backend process for `{lang}`"))?;
+        if let Some(mut stderr) = child.stderr.take() {
+            let _ = thread::Builder::new()
+                .name(format!("ostadix-backend-stderr-{}", child.id()))
+                .spawn(move || {
+                    use std::io::Read;
+                    let mut buffer = [0u8; 8192];
+                    while let Ok(read) = stderr.read(&mut buffer) {
+                        if read == 0 {
+                            break;
+                        }
+                        crate::progress::backend_stderr(&buffer[..read]);
+                    }
+                });
+        }
 
         lifecycle_trace(
             "worker.backend_spawned",
@@ -762,10 +1358,35 @@ impl BackendProcess {
         // memory queue while retaining timeout-capable receives.
         let (responses_tx, responses) = mpsc::sync_channel(1);
         let reader_name = format!("ostadix-backend-reader-{}", child.id());
+        let pulse = Arc::new(Mutex::new(Pulse::default()));
+        let reader_pulse = Arc::clone(&pulse);
         let reader = match thread::Builder::new().name(reader_name).spawn(move || {
             let mut stdout = BufReader::new(stdout);
             loop {
                 match wire::read_frame::<_, BackendWireResponseV2>(&mut stdout) {
+                    Ok(Some(BackendWireResponseV2::HelloV1 { capabilities })) => {
+                        // capability negotiation only, never queued as a reply.
+                        reader_pulse
+                            .lock()
+                            .unwrap_or_else(|poison| poison.into_inner())
+                            .capable = capabilities.iter().any(|name| name == HEARTBEAT_CAPABILITY);
+                    }
+                    Ok(Some(BackendWireResponseV2::HeartbeatV1 { child })) => {
+                        // liveness only: consumed here, never queued as a reply.
+                        let now = Instant::now();
+                        let mut pulse = reader_pulse
+                            .lock()
+                            .unwrap_or_else(|poison| poison.into_inner());
+                        pulse.last = Some(now);
+                        pulse.beats += 1;
+                        let in_d = child.as_ref().is_some_and(|child| child.state == "D");
+                        pulse.child_d_since = match (in_d, pulse.child_d_since) {
+                            (true, Some(since)) => Some(since),
+                            (true, None) => Some(now),
+                            (false, _) => None,
+                        };
+                        pulse.child = child;
+                    }
                     Ok(Some(response)) => {
                         if responses_tx.send(Ok(response)).is_err() {
                             return;
@@ -807,6 +1428,14 @@ impl BackendProcess {
             pending_morphism: None,
             awaiting_callback: false,
             native_operation_depth: 0,
+            plain_bash_key: None,
+            plain_bash_next: false,
+            graceful_term_sent: false,
+            job_cleanup_failed: false,
+            leader_reaped: false,
+            label: lang.to_string(),
+            pulse,
+            write_cancellation: None,
         })
     }
 
@@ -815,7 +1444,68 @@ impl BackendProcess {
             .stdin
             .as_mut()
             .ok_or_else(|| anyhow!("backend command channel is closed"))?;
-        wire::write_frame(stdin, command).context("failed to write backend wire command")
+        let payload =
+            wire::encode_message(command).context("failed to write backend wire command")?;
+        // the plain blocking write unless the frame can outgrow the pipe and
+        // something can end the wait (the opt-in limit or a cancellation
+        // token). an empty pipe always holds a small frame; without either an
+        // unbounded write is no worse than the unbounded wait that follows.
+        if payload.len() + 4 <= BOUNDED_WRITE_THRESHOLD
+            || (backend_step_timeout()?.is_none() && self.write_cancellation.is_none())
+        {
+            return wire::write_frame_payload(stdin, &payload)
+                .context("failed to write backend wire command");
+        }
+        self.send_large_frame(&payload)
+    }
+
+    // why: a frame larger than the pipe buffer blocks in write until the shim
+    // reads, and a shim stalled before reading would hang the caller with no
+    // step limit running yet. bound the write by the same per-step limit.
+    #[cold]
+    fn send_large_frame(&mut self, payload: &[u8]) -> Result<()> {
+        let limit = backend_step_timeout()?;
+        let cancellation = self.write_cancellation.clone();
+        let stdin = self
+            .stdin
+            .as_mut()
+            .ok_or_else(|| anyhow!("backend command channel is closed"))?;
+        stdin
+            .flush()
+            .context("failed to flush backend wire command")?;
+        let length =
+            u32::try_from(payload.len()).context("wire payload exceeded u32 frame length")?;
+        let mut frame = Vec::with_capacity(payload.len() + 4);
+        frame.extend_from_slice(&length.to_be_bytes());
+        frame.extend_from_slice(payload);
+        #[cfg(unix)]
+        {
+            use std::os::fd::AsRawFd;
+            let fd = stdin.get_ref().as_raw_fd();
+            let cancelled = || {
+                cancellation
+                    .as_ref()
+                    .is_some_and(crate::cancellation::CancellationToken::is_cancelled)
+            };
+            match write_all_polled(fd, &frame, limit, &cancelled) {
+                Ok(PolledWrite::Done) => Ok(()),
+                Ok(PolledWrite::Stalled) => Err(self.retire_after_timeout(anyhow!(
+                    "backend `{}` read no input for {} (opt-in per-step limit {BACKEND_STEP_TIMEOUT_ENV})",
+                    self.language,
+                    step_limit_text(limit.unwrap_or_default())
+                ))),
+                Ok(PolledWrite::Cancelled) => Err(self.retire_after_write_cancel()),
+                Err(error) => Err(anyhow::Error::new(error).context("failed to write backend wire command")),
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = limit;
+            stdin
+                .get_mut()
+                .write_all(&frame)
+                .context("failed to write backend wire command")
+        }
     }
 
     fn recv_step(&mut self) -> Result<ExecStep> {
@@ -828,10 +1518,86 @@ impl BackendProcess {
     }
 
     fn recv_response(&mut self) -> Result<BackendWireResponseV2> {
-        self.responses
-            .recv()
-            .map_err(|_| anyhow!("backend process closed stdout unexpectedly"))?
-            .map_err(anyhow::Error::msg)
+        let limit = backend_step_timeout().map_err(infrastructure_error)?;
+        self.recv_response_watched(limit)
+    }
+
+    /// Wait for one response in `STEP_WATCH_TICK` slices. Each slice checks
+    /// the opt-in limit (kill and evict), leader exit (fail fast even when a
+    /// grandchild holds the pipe), heartbeats (warn only) and the spinner.
+    fn recv_response_watched(&mut self, limit: Option<Duration>) -> Result<BackendWireResponseV2> {
+        let deadline = match limit {
+            Some(limit) => Some(bounded_deadline(limit, "backend step")?),
+            None => None,
+        };
+        let mut watch = StepWatch::new(&self.pulse);
+        let outcome =
+            loop {
+                let wait = deadline.map_or(STEP_WATCH_TICK, |deadline| {
+                    deadline
+                        .saturating_duration_since(Instant::now())
+                        .min(STEP_WATCH_TICK)
+                });
+                match self.responses.recv_timeout(wait) {
+                    Ok(response) => break response.map_err(anyhow::Error::msg),
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        // reader eof mid-step: the backend died. fail now, and
+                        // record the session lost (fail closed).
+                        break Err(self.retire_after_exit());
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => {}
+                }
+                if let (Some(limit), Some(deadline)) = (limit, deadline) {
+                    if Instant::now() >= deadline {
+                        break Err(self.retire_after_timeout(anyhow!(
+                            step_limit_exceeded_message(&self.language, limit)
+                        )));
+                    }
+                }
+                if let Err(error) = self.watch_tick(&mut watch) {
+                    break Err(error);
+                }
+            };
+        watch.finish();
+        outcome
+    }
+
+    /// One watchdog tick during a step wait. Fails fast when the backend
+    /// leader has exited even though a grandchild keeps the response pipe
+    /// open (so reader eof never comes); otherwise only warns and redraws.
+    fn watch_tick(&mut self, watch: &mut StepWatch) -> Result<()> {
+        if self.leader_exited_without_reaping()? {
+            // a final answer may be in flight just ahead of the exit.
+            if let Ok(Ok(response)) = self.responses.recv_timeout(Duration::from_millis(50)) {
+                lifecycle_trace("worker.late_answer_after_exit", format!("{response:?}"));
+            }
+            return Err(self.retire_after_exit());
+        }
+        watch.observe(&self.label, &self.pulse);
+        Ok(())
+    }
+
+    #[cold]
+    fn retire_after_write_cancel(&mut self) -> anyhow::Error {
+        let stalled = format!(
+            "request cancelled while backend `{}` was still reading its command",
+            self.language
+        );
+        let message = match self.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
+            Ok(()) => stalled,
+            Err(termination) => format!("{stalled}; backend cleanup also failed: {termination:#}"),
+        };
+        infrastructure_error(session_killed(KILLED_BY_CANCELLATION, message))
+    }
+
+    #[cold]
+    fn retire_after_exit(&mut self) -> anyhow::Error {
+        let stalled = format!("backend `{}` exited during the step", self.label);
+        let message = match self.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
+            Ok(()) => stalled,
+            Err(termination) => format!("{stalled}; backend cleanup also failed: {termination:#}"),
+        };
+        infrastructure_error(session_killed(KILLED_BY_EXIT, message))
     }
 
     fn recv_step_timeout(&mut self, timeout: Duration) -> Result<ExecStep> {
@@ -851,7 +1617,7 @@ impl BackendProcess {
             Ok(response) => response.map_err(anyhow::Error::msg)?,
             Err(mpsc::RecvTimeoutError::Timeout) => return Ok(None),
             Err(mpsc::RecvTimeoutError::Disconnected) => {
-                return Err(anyhow!("backend process closed stdout unexpectedly"));
+                return Err(self.retire_after_exit());
             }
         };
         let step = self.response_step(response);
@@ -861,20 +1627,58 @@ impl BackendProcess {
         step.map(Some)
     }
 
+    /// Read the answer to a state or native operation: bounded only by the
+    /// opt-in operation limit, otherwise watched like a step (exit detection
+    /// and heartbeat warning) for as long as it runs.
+    fn recv_operation_response(&mut self) -> Result<BackendWireResponseV2> {
+        match backend_operation_timeout().map_err(infrastructure_error)? {
+            Some(timeout) => self.recv_response_timeout(timeout),
+            None => self.recv_response_watched(None),
+        }
+    }
+
     fn recv_response_timeout(&mut self, timeout: Duration) -> Result<BackendWireResponseV2> {
-        self.responses
-            .recv_timeout(timeout)
-            .map_err(|error| match error {
-                mpsc::RecvTimeoutError::Timeout => anyhow!(
+        self.recv_response_limited(timeout, ResponseLimit::Other)
+    }
+
+    fn recv_response_limited(
+        &mut self,
+        timeout: Duration,
+        limit: ResponseLimit,
+    ) -> Result<BackendWireResponseV2> {
+        match self.responses.recv_timeout(timeout) {
+            Ok(response) => response.map_err(anyhow::Error::msg),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                let ResponseLimit::Other = limit;
+                let message = format!(
                     "backend `{}` did not answer within {} ms",
                     self.language,
                     timeout.as_millis()
-                ),
-                mpsc::RecvTimeoutError::Disconnected => {
-                    anyhow!("backend process closed stdout unexpectedly")
-                }
-            })?
-            .map_err(anyhow::Error::msg)
+                );
+                Err(self.retire_after_timeout(anyhow!(message)))
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                Err(anyhow!("backend process closed stdout unexpectedly"))
+            }
+        }
+    }
+
+    // why: a timed-out step leaves an answer in flight. if this actor stayed
+    // live, that late answer would be read as the reply to the next request,
+    // so the timeout kills it here rather than trusting every caller (or drop)
+    // to evict, and a failed kill is reported instead of swallowed.
+    // force_terminate takes stdin first, so even a failed kill leaves the actor
+    // unable to accept another command: it fails closed either way.
+    #[cold]
+    fn retire_after_timeout(&mut self, stalled: anyhow::Error) -> anyhow::Error {
+        let stalled = format!("{stalled:#}");
+        let message = match self.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
+            Ok(()) => format!("{stalled}; stalled backend was forcibly reaped"),
+            Err(termination) => {
+                format!("{stalled}; stalled backend termination also failed: {termination:#}")
+            }
+        };
+        infrastructure_error(session_killed(KILLED_BY_TIMEOUT, message))
     }
 
     fn response_step(&mut self, response: BackendWireResponseV2) -> Result<ExecStep> {
@@ -897,6 +1701,9 @@ impl BackendProcess {
             }
         }
         match response {
+            BackendWireResponseV2::HeartbeatV1 { .. } | BackendWireResponseV2::HelloV1 { .. } => {
+                bail!("backend heartbeat reached a request; the reader must consume it")
+            }
             BackendWireResponseV2::NativeOperationResultV1 { .. } => {
                 bail!("native.unexpected-receipt: no native operation is pending")
             }
@@ -905,6 +1712,9 @@ impl BackendProcess {
             }
             BackendWireResponseV2::Ok { value } => Ok(ExecStep::Done(value)),
             BackendWireResponseV2::Err { message } => {
+                if message.contains(JOB_CLEANUP_FAILED) {
+                    self.job_cleanup_failed = true;
+                }
                 Err(anyhow::Error::new(BackendSemanticError(message)))
             }
             BackendWireResponseV2::EvalRequest { src, scope } => {
@@ -927,6 +1737,17 @@ impl BackendProcess {
         self.send_command(&BackendWireCommandV2::EvalResult { value })?;
         self.awaiting_callback = false;
         Ok(())
+    }
+
+    /// Between operations with a live, unread pipe: safe to hand to another
+    /// caller.
+    fn idle(&self) -> bool {
+        !self.terminal
+            && !self.job_cleanup_failed
+            && !self.exec_pending
+            && !self.awaiting_callback
+            && self.native_operation_depth == 0
+            && self.pending_morphism.is_none()
     }
 
     fn begin_exec_with_morphism(
@@ -955,9 +1776,12 @@ impl BackendProcess {
                 bindings,
             });
         } else {
+            let plain_next =
+                std::mem::take(&mut self.plain_bash_next) && self.plain_bash_key.is_some();
             self.send_command(&BackendWireCommandV2::Exec {
                 code: code.to_string(),
                 bindings,
+                plain_next,
             })?;
         }
         self.exec_pending = true;
@@ -990,7 +1814,7 @@ impl BackendProcess {
     fn state_capabilities(&mut self) -> Result<BackendStateCapabilitiesV1> {
         self.ensure_state_boundary()?;
         self.send_command(&BackendWireCommandV2::StateCapabilitiesV1)?;
-        match self.recv_response_timeout(backend_operation_timeout())? {
+        match self.recv_operation_response()? {
             BackendWireResponseV2::StateCapabilitiesV1 { capabilities } => {
                 capabilities.validate()?;
                 Ok(capabilities)
@@ -1002,7 +1826,7 @@ impl BackendProcess {
     fn checkpoint(&mut self, max_bytes: u64) -> Result<BackendCheckpointV1> {
         self.ensure_state_boundary()?;
         self.send_command(&BackendWireCommandV2::CheckpointV1 { max_bytes })?;
-        match self.recv_response_timeout(backend_operation_timeout())? {
+        match self.recv_operation_response()? {
             BackendWireResponseV2::CheckpointV1 { checkpoint } => {
                 checkpoint.validate()?;
                 crate::backend_state::ensure_checkpoint_bound(&checkpoint, max_bytes)?;
@@ -1031,7 +1855,7 @@ impl BackendProcess {
         self.send_command(&BackendWireCommandV2::RestoreV1 {
             checkpoint: checkpoint.clone(),
         })?;
-        match self.recv_response_timeout(backend_operation_timeout())? {
+        match self.recv_operation_response()? {
             BackendWireResponseV2::RestoreV1 { receipt } => {
                 if !receipt.restored
                     || receipt.backend != checkpoint.backend
@@ -1214,6 +2038,13 @@ impl BackendProcess {
     fn finish_graceful_shutdown(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
         self.wait_for_leader_exit_before(deadline, timeout)?;
         self.finish_reader_before(deadline, timeout)?;
+        // on linux, kill(-group, 0) checks whether any member remains in the
+        // process group without requiring an unreaped leader to anchor the
+        // group. reaping the leader first removes its zombie from the group so
+        // an empty group returns ESRCH at once instead of falling back to a
+        // full /proc/*/stat scan on every backend exit.
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        self.reap_leader_only()?;
         self.wait_for_owned_group_quiescence_before(deadline, timeout)?;
         self.reap_leader_and_mark_terminal()
     }
@@ -1223,10 +2054,71 @@ impl BackendProcess {
             return self.finish_reader_bounded(timeout);
         }
         let deadline = bounded_deadline(timeout, "forced backend termination")?;
-        self.stdin.take();
+        let failures = self.send_forced_kill();
+        self.settle_forced_kill(deadline, timeout, failures)
+    }
+
+    /// First half of a forced termination: close stdin and SIGKILL the owned
+    /// group, without waiting.
+    fn send_forced_kill(&mut self) -> Vec<String> {
+        #[cfg(test)]
+        kill_trace("kill");
         let mut failures = Vec::new();
+        // a bash backend (plain helper or bash[N]) is its jobs' subreaper; a
+        // group SIGKILL would end it first and hand its setsid jobs to init.
+        // it gets SIGTERM, stops its shell and jobs, and exits; the group
+        // kill follows only if it does not. why SIGTERM before closing
+        // stdin: an idle backend reads EOF first otherwise, and its walk
+        // would race the SIGTERM's.
+        #[cfg(unix)]
+        if self.language == "bash" {
+            // SAFETY: the pid is our own unreaped child, the group leader.
+            if unsafe { libc::kill(self.child.id() as libc::pid_t, libc::SIGTERM) } == 0 {
+                self.graceful_term_sent = true;
+                self.stdin.take();
+                return failures;
+            }
+        }
+        self.stdin.take();
         if let Err(error) = signal_owned_process_group(&mut self.child) {
             failures.push(format!("backend SIGKILL failed: {error:#}"));
+        }
+        failures
+    }
+
+    /// Second half: wait for leader, reader and group against `deadline`.
+    fn settle_forced_kill(
+        &mut self,
+        deadline: Instant,
+        timeout: Duration,
+        mut failures: Vec<String>,
+    ) -> Result<()> {
+        #[cfg(test)]
+        kill_trace("settle");
+
+        let mut deadline = deadline;
+        if std::mem::take(&mut self.graceful_term_sent) {
+            // the helper's own cleanup gets the window a normal block end
+            // gets, plus a little to exit; it is cleanup, not a step limit.
+            // only then is its group killed, and the reap gets its own
+            // budget after that.
+            let window = PLAIN_BASH_CLEANUP_WINDOW + Duration::from_millis(500);
+            if self
+                .wait_for_leader_exit_before(Instant::now() + window, window)
+                .is_err()
+            {
+                eprintln!(
+                    "bash helper {} did not finish stopping its jobs within {} ms; \
+                     its process group was killed, and a job that left that group \
+                     (setsid) may still be alive",
+                    self.child.id(),
+                    window.as_millis()
+                );
+            }
+            if let Err(error) = signal_owned_process_group(&mut self.child) {
+                failures.push(format!("backend SIGKILL failed: {error:#}"));
+            }
+            deadline = Instant::now() + timeout;
         }
 
         let leader_exited = match self.wait_for_leader_exit_before(deadline, timeout) {
@@ -1243,6 +2135,20 @@ impl BackendProcess {
                 false
             }
         };
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        let leader_reaped = if leader_exited && reader_finished {
+            match self.reap_leader_only() {
+                Ok(()) => true,
+                Err(error) => {
+                    failures.push(format!("backend leader reap failed: {error:#}"));
+                    false
+                }
+            }
+        } else {
+            false
+        };
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        let leader_reaped = true;
         let group_quiescent = match self.wait_for_owned_group_quiescence_before(deadline, timeout) {
             Ok(()) => true,
             Err(error) => {
@@ -1250,7 +2156,7 @@ impl BackendProcess {
                 false
             }
         };
-        if leader_exited && reader_finished && group_quiescent {
+        if leader_exited && reader_finished && leader_reaped && group_quiescent {
             if let Err(error) = self.reap_leader_and_mark_terminal() {
                 failures.push(format!("backend leader reap failed: {error:#}"));
             }
@@ -1264,6 +2170,10 @@ impl BackendProcess {
     }
 
     fn wait_for_leader_exit_before(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
+        if self.leader_reaped || self.leader_exited_without_reaping()? {
+            return Ok(());
+        }
+        let mut waiter = ExitWaiter::new(self.child.id());
         loop {
             if self.leader_exited_without_reaping()? {
                 return Ok(());
@@ -1277,7 +2187,7 @@ impl BackendProcess {
                 ));
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
-            thread::sleep(Duration::from_millis(2).min(remaining));
+            waiter.wait(remaining);
         }
     }
 
@@ -1323,6 +2233,7 @@ impl BackendProcess {
     ) -> Result<()> {
         let group = i32::try_from(self.child.id())
             .map_err(|_| anyhow!("backend pid does not fit process-group identifier"))?;
+        let mut backoff = EXIT_BACKOFF_START;
         loop {
             if owned_group_has_no_active_descendants(group).with_context(|| {
                 format!(
@@ -1341,14 +2252,21 @@ impl BackendProcess {
                 ));
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
-            thread::sleep(Duration::from_millis(2).min(remaining));
+            thread::sleep(backoff.min(remaining));
+            backoff = (backoff * 2).min(EXIT_BACKOFF_MAX);
         }
     }
 
-    fn reap_leader_and_mark_terminal(&mut self) -> Result<()> {
+    fn reap_leader_only(&mut self) -> Result<()> {
         self.child
             .wait()
             .context("failed to reap backend leader after termination")?;
+        self.leader_reaped = true;
+        Ok(())
+    }
+
+    fn reap_leader_and_mark_terminal(&mut self) -> Result<()> {
+        self.reap_leader_only()?;
         self.terminal = true;
         lifecycle_trace(
             "worker.backend_wait_returned",
@@ -1363,21 +2281,26 @@ impl BackendProcess {
     }
 
     fn finish_reader_before(&mut self, deadline: Instant, timeout: Duration) -> Result<()> {
-        while self
-            .reader
-            .as_ref()
-            .is_some_and(|reader| !reader.is_finished())
-        {
-            while self.responses.try_recv().is_ok() {}
-            if Instant::now() >= deadline {
-                return Err(anyhow!(
-                    "backend `{}` response reader did not terminate within {} ms",
-                    self.language,
-                    timeout.as_millis()
-                ));
+        // why recv_timeout and not a sleep: the reader owns the only sender
+        // and drops it when it returns, so Disconnected wakes this the
+        // moment the reader is done; a fixed 2 ms sleep on the first check
+        // cost bash_hello up to 2 ms at exit.
+        if self.reader.is_some() {
+            loop {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                match self.responses.recv_timeout(remaining) {
+                    // late frames are discarded; the process is finishing.
+                    Ok(_) => continue,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        return Err(anyhow!(
+                            "backend `{}` response reader did not terminate within {} ms",
+                            self.language,
+                            timeout.as_millis()
+                        ));
+                    }
+                }
             }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            thread::sleep(Duration::from_millis(2).min(remaining));
         }
         if let Some(reader) = self.reader.take() {
             reader
@@ -1390,6 +2313,8 @@ impl BackendProcess {
 
 fn unexpected_state_response(operation: &str, response: BackendWireResponseV2) -> anyhow::Error {
     let kind = match response {
+        BackendWireResponseV2::HeartbeatV1 { .. } => "heartbeat_v1",
+        BackendWireResponseV2::HelloV1 { .. } => "hello_v1",
         BackendWireResponseV2::NativeOperationResultV1 { .. } => "native_operation_result_v1",
         BackendWireResponseV2::MorphismResultV1 { .. } => "morphism_result_v1",
         BackendWireResponseV2::Ok { .. } => "ok",
@@ -1402,6 +2327,112 @@ fn unexpected_state_response(operation: &str, response: BackendWireResponseV2) -
         BackendWireResponseV2::StateErrorV1 { .. } => "state_error_v1",
     };
     anyhow!("backend returned `{kind}` while answering `{operation}`")
+}
+
+/// Waits for one child to exit, waking the moment it does.
+///
+/// why a pidfd: polling in 2 ms steps made every backend teardown wait up
+/// to 2 ms after the backend had already exited, which bash_hello paid at
+/// exit. poll on a pidfd (linux >= 5.3) wakes on the exit itself. each poll
+/// is bounded by the heartbeat interval, so a caller's loop keeps running
+/// (and the heartbeats keep being read) during a long wait. without a pidfd
+/// the wait backs off from 50 us to 2 ms, after a one-time stderr warning.
+struct ExitWaiter {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    pidfd: Option<std::os::fd::OwnedFd>,
+    backoff: Duration,
+    chunk: Duration,
+}
+
+const EXIT_BACKOFF_START: Duration = Duration::from_micros(50);
+const EXIT_BACKOFF_MAX: Duration = Duration::from_millis(2);
+
+impl ExitWaiter {
+    fn new(pid: u32) -> Self {
+        let chunk = heartbeat_interval().unwrap_or(crate::step_knobs::DEFAULT_HEARTBEAT_INTERVAL);
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            use std::os::fd::FromRawFd;
+            // SAFETY: pidfd_open takes a pid and flags and returns a new fd.
+            let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid as libc::pid_t, 0) };
+            let pidfd = if fd >= 0 {
+                // SAFETY: fd is a fresh descriptor owned from here on.
+                Some(unsafe { std::os::fd::OwnedFd::from_raw_fd(fd as libc::c_int) })
+            } else {
+                warn_no_pidfd(&io::Error::last_os_error());
+                None
+            };
+            Self {
+                pidfd,
+                backoff: EXIT_BACKOFF_START,
+                chunk,
+            }
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        {
+            let _ = pid;
+            Self {
+                backoff: EXIT_BACKOFF_START,
+                chunk,
+            }
+        }
+    }
+
+    /// Block until the child exits, `limit` passes, or one heartbeat
+    /// interval passes, whichever is first.
+    fn wait(&mut self, limit: Duration) {
+        let limit = limit.min(self.chunk);
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        if let Some(pidfd) = &self.pidfd {
+            use std::os::fd::AsRawFd;
+            let mut ready = libc::pollfd {
+                fd: pidfd.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            // round up so a sub-millisecond remainder does not spin.
+            let millis = limit.as_micros().div_ceil(1000).clamp(1, i32::MAX as u128) as libc::c_int;
+            // SAFETY: one valid pollfd owned by self. EINTR just returns early;
+            // the caller re-checks the child.
+            unsafe { libc::poll(&mut ready, 1, millis) };
+            return;
+        }
+        thread::sleep(self.backoff.min(limit));
+        self.backoff = (self.backoff * 2).min(EXIT_BACKOFF_MAX);
+    }
+}
+
+/// Said once per process: this kernel has no pidfd, so exits are polled.
+fn warn_no_pidfd(error: &io::Error) {
+    static WARNED: std::sync::Once = std::sync::Once::new();
+    WARNED.call_once(|| {
+        eprintln!("o: pidfd_open is not available ({error}); waiting for backend exits by polling");
+    });
+}
+
+/// Kill many actors against one shared budget: SIGKILL every group first so
+/// the kernel tears them down in parallel, then reap each against the same
+/// deadline. N stuck actors cost one budget, not N.
+fn force_terminate_all(processes: &mut [BackendProcess], timeout: Duration) -> Vec<String> {
+    let mut failures = Vec::new();
+    let deadline = match bounded_deadline(timeout, "forced backend teardown") {
+        Ok(deadline) => deadline,
+        Err(error) => return vec![format!("{error:#}")],
+    };
+    let pending = processes
+        .iter_mut()
+        .map(|process| (!process.terminal).then(|| process.send_forced_kill()))
+        .collect::<Vec<_>>();
+    for (process, kill_failures) in processes.iter_mut().zip(pending) {
+        let outcome = match kill_failures {
+            Some(kill_failures) => process.settle_forced_kill(deadline, timeout, kill_failures),
+            None => process.finish_reader_before(deadline, timeout),
+        };
+        if let Err(error) = outcome {
+            failures.push(format!("{error:#}"));
+        }
+    }
+    failures
 }
 
 impl Drop for BackendProcess {
@@ -1423,6 +2454,7 @@ impl Drop for BackendProcess {
 
 /// Execute one cancellation-aware ephemeral backend operation and close its
 /// physical process before returning the semantic result to the worker pool.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_ephemeral_with_eval_callback_controlled<F>(
     language: &str,
     code: &str,
@@ -1430,29 +2462,49 @@ pub(crate) fn run_ephemeral_with_eval_callback_controlled<F>(
     launch: BackendLaunchContext<'_>,
     morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
     cancellation: Option<&crate::cancellation::CancellationToken>,
+    plain_bash_next: bool,
     mut evaluate: F,
 ) -> Result<OValue>
 where
-    F: FnMut(String, Option<OValue>, Duration) -> Result<OValue>,
+    F: FnMut(String, Option<OValue>, Option<Duration>) -> Result<OValue>,
 {
     if let Some(contract) = morphism_contract {
         contract
             .validate_bindings(language, &bindings)
             .map_err(anyhow::Error::msg)?;
     }
-    let mut process = BackendProcess::new(
-        language,
-        launch.shim_path,
-        launch.sandbox,
-        launch.executable_leases.map(AsRef::as_ref),
-    )
+    let mut process = if language == "bash" && morphism_contract.is_none() {
+        let key = PlainBashHelperKey::new(&launch, None).map_err(infrastructure_error)?;
+        plain_bash_helper(key, || {
+            BackendProcess::new_ephemeral(
+                language,
+                launch.shim_path,
+                launch.sandbox,
+                launch.executable_leases.map(AsRef::as_ref),
+                true,
+            )
+        })
+    } else {
+        BackendProcess::new(
+            language,
+            launch.shim_path,
+            launch.sandbox,
+            launch.executable_leases.map(AsRef::as_ref),
+        )
+    }
     .with_context(|| format!("failed to start ephemeral backend `{language}`"))
     .map_err(infrastructure_error)?;
-    let operation_timeout = backend_operation_timeout();
-    let operation_deadline = Instant::now()
-        .checked_add(operation_timeout)
-        .ok_or_else(|| infrastructure_error(anyhow!("backend operation deadline overflowed")))?;
+    let operation_timeout = backend_operation_timeout().map_err(infrastructure_error)?;
+    let operation_deadline = match operation_timeout {
+        Some(timeout) => Some(Instant::now().checked_add(timeout).ok_or_else(|| {
+            infrastructure_error(anyhow!("backend operation deadline overflowed"))
+        })?),
+        None => None,
+    };
+    let mut watch = StepWatch::new(&process.pulse);
+    let mut last_watch = Instant::now();
 
+    process.plain_bash_next = plain_bash_next;
     let execution = (|| {
         process
             .begin_exec_with_morphism(code, bindings, morphism_contract)
@@ -1469,16 +2521,27 @@ where
                     )),
                 )));
             }
-            let remaining = operation_deadline
-                .checked_duration_since(Instant::now())
-                .ok_or_else(|| {
-                    infrastructure_error(anyhow!(
-                        "backend `{language}` operation exceeded {} ms",
-                        operation_timeout.as_millis()
-                    ))
-                })?;
+            let remaining = match (operation_deadline, operation_timeout) {
+                (Some(deadline), Some(timeout)) => Some(
+                    deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
+                        infrastructure_error(anyhow!(
+                            "backend `{language}` operation exceeded {} ms (opt-in limit {BACKEND_OPERATION_TIMEOUT_ENV})",
+                            timeout.as_millis()
+                        ))
+                    })?,
+                ),
+                _ => None,
+            };
+            if last_watch.elapsed() >= STEP_WATCH_TICK {
+                last_watch = Instant::now();
+                process
+                    .watch_tick(&mut watch)
+                    .map_err(infrastructure_error)?;
+            }
             let step = process
-                .poll_step(remaining.min(Duration::from_millis(25)))
+                .poll_step(remaining.map_or(Duration::from_millis(25), |remaining| {
+                    remaining.min(Duration::from_millis(25))
+                }))
                 .map_err(|error| {
                     if error.is::<BackendSemanticError>() {
                         error
@@ -1504,11 +2567,27 @@ where
             }
         }
     })();
+    watch.finish();
 
+    // a plain bash helper already ended the block's shell and jobs before it
+    // answered, so after a plain answer, value or bash error, it is as fresh
+    // as a new one and goes back for the next plain block.
+    // a helper whose cleanup failed may still hold jobs: it is retired,
+    // never parked, so no later block runs beside them.
+    let answered = match &execution {
+        Ok(_) => true,
+        Err(error) => {
+            error.is::<BackendSemanticError>() && !format!("{error:#}").contains(JOB_CLEANUP_FAILED)
+        }
+    };
+    if answered && process.plain_bash_key.is_some() && process.idle() {
+        park_plain_bash_helper(process);
+        return execution;
+    }
     match execution {
         Ok(value) => {
             process
-                .retire_fresh_attempt(backend_shutdown_timeout())
+                .retire_fresh_attempt(backend_shutdown_timeout().map_err(infrastructure_error)?)
                 .with_context(|| {
                     format!(
                         "ephemeral backend `{language}` returned a value but could not be retired"
@@ -1534,6 +2613,167 @@ where
     }
 }
 
+// ############################################################################
+// plain bash helpers
+// ############################################################################
+
+// why reuse: starting a backend process cost more than most plain blocks
+// themselves. the helper keeps no shell between blocks, so reuse shares only
+// the launch identity below, which is what a fresh helper would get anyway.
+const PLAIN_BASH_HELPER_IDLE_MAX: usize = 8;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PlainBashHelperKey {
+    shim_path: PathBuf,
+    sandbox: BackendSandboxPolicy,
+    // the admitted bash executables; a different admission never reuses one.
+    executables: Option<String>,
+    // the registry's launch generation; None for autonomous ephemeral runs.
+    launch_generation: Option<String>,
+}
+
+impl PlainBashHelperKey {
+    fn new(launch: &BackendLaunchContext<'_>, launch_generation: Option<&str>) -> Result<Self> {
+        Ok(Self {
+            shim_path: launch.shim_path.to_path_buf(),
+            sandbox: launch.sandbox.clone(),
+            executables: launch
+                .executable_leases
+                .map(|leases| leases.backend_manifest_json("bash"))
+                .transpose()?,
+            launch_generation: launch_generation.map(str::to_string),
+        })
+    }
+}
+
+static PLAIN_BASH_HELPERS: Mutex<Vec<BackendProcess>> = Mutex::new(Vec::new());
+
+/// A parked helper for `key`, or a new one from `spawn`.
+/// Set on every backend: the host's pid, for [`arm_parent_death_signal`].
+pub(crate) const BACKEND_PARENT_PID_ENV: &str = "O_BACKEND_PARENT_PID";
+
+/// PR_SET_PDEATHSIG with SIGTERM, then a check that the parent is still
+/// `expected_parent`. why the check: a parent that died before the prctl
+/// sends no signal, so a backend that finds itself reparented stops at once.
+/// async-signal-safe, so the unit test can call it in a forked child.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+pub(crate) fn arm_parent_death_signal(expected_parent: libc::pid_t) -> io::Result<()> {
+    // SAFETY: prctl with an integer signal number affects only this process.
+    if unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: getppid has no preconditions.
+    if unsafe { libc::getppid() } != expected_parent {
+        // no allocation here: this runs between fork and exec.
+        return Err(io::Error::from_raw_os_error(libc::ESRCH));
+    }
+    Ok(())
+}
+
+type SpawnRequest = (Command, mpsc::Sender<io::Result<Child>>);
+
+/// Spawn `command` from one thread that lives as long as the process.
+fn spawn_from_long_lived_thread(command: Command) -> io::Result<Child> {
+    static SPAWNER: OnceLock<std::result::Result<Mutex<mpsc::Sender<SpawnRequest>>, String>> =
+        OnceLock::new();
+    let spawner = SPAWNER
+        .get_or_init(|| {
+            let (requests, incoming) = mpsc::channel::<SpawnRequest>();
+            thread::Builder::new()
+                .name("ostadix-plain-bash-spawner".into())
+                .spawn(move || {
+                    for (mut command, reply) in incoming {
+                        let _ = reply.send(command.spawn());
+                    }
+                })
+                .map(|_| Mutex::new(requests))
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .map_err(|error| io::Error::other(format!("no helper spawner thread: {error}")))?;
+    let (reply, answer) = mpsc::channel();
+    spawner
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .send((command, reply))
+        .map_err(|_| io::Error::other("the helper spawner thread is gone"))?;
+    answer
+        .recv()
+        .map_err(|_| io::Error::other("the helper spawner thread is gone"))?
+}
+
+fn plain_bash_helper(
+    key: PlainBashHelperKey,
+    spawn: impl FnOnce() -> Result<BackendProcess>,
+) -> Result<BackendProcess> {
+    {
+        let mut idle = PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner());
+        while let Some(index) = idle
+            .iter()
+            .position(|held| held.plain_bash_key.as_ref() == Some(&key))
+        {
+            let mut process = idle.swap_remove(index);
+            // a helper that died while parked is reported and dropped, which
+            // reaps it; a fresh one replaces it.
+            let gone = match process.child.try_wait() {
+                Ok(None) => return Ok(process),
+                Ok(Some(status)) => format!("exited ({status})"),
+                Err(error) => format!("could not be checked ({error})"),
+            };
+            lifecycle_trace(
+                "worker.plain_bash_helper_dead",
+                format!("backend_pid={} {gone}", process.child.id()),
+            );
+            eprintln!(
+                "a parked bash helper (pid {}) {gone}; a new helper runs this block",
+                process.child.id()
+            );
+        }
+    }
+    let mut process = spawn()?;
+    process.plain_bash_key = Some(key);
+    Ok(process)
+}
+
+fn park_plain_bash_helper(process: BackendProcess) {
+    let mut idle = PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner());
+    if idle.len() < PLAIN_BASH_HELPER_IDLE_MAX {
+        idle.push(process);
+    }
+    // over the cap the helper drops here, which kills and reaps its group.
+}
+
+/// Stop every parked plain bash helper. Called when a process registry is
+/// torn down, so no helper outlives the evaluation that started it.
+pub(crate) fn retire_plain_bash_helpers() {
+    let processes =
+        std::mem::take(&mut *PLAIN_BASH_HELPERS.lock().unwrap_or_else(|e| e.into_inner()));
+    // why graceful first: an idle helper answers shutdown at once, after
+    // stopping its spare shell itself, while a forced kill polls the leader
+    // and the group in 2 ms steps, which a one-block program paid at exit.
+    // a malformed budget cannot be honoured, so the helpers are force-killed.
+    let timeout = backend_shutdown_timeout().ok();
+    let mut stuck = Vec::new();
+    for mut process in processes {
+        let outcome = match timeout {
+            Some(timeout) => process.retire_fresh_attempt(timeout),
+            None => Err(anyhow!("no valid {BACKEND_SHUTDOWN_TIMEOUT_ENV}")),
+        };
+        if let Err(error) = outcome {
+            lifecycle_trace(
+                "worker.plain_bash_helper_shutdown_failed",
+                format!("{error:#}"),
+            );
+            if !process.terminal {
+                stuck.push(process);
+            }
+        }
+    }
+    for error in force_terminate_all(&mut stuck, BACKEND_FALLBACK_REAP_TIMEOUT) {
+        lifecycle_trace("worker.plain_bash_helper_cleanup_failed", error);
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct BackendSessionLimits {
     pub(crate) total: usize,
@@ -1541,26 +2781,37 @@ pub(crate) struct BackendSessionLimits {
 }
 
 impl BackendSessionLimits {
-    fn from_env() -> Self {
-        let total = positive_usize_from_env(
-            "O_BACKEND_MAX_OPEN_SESSIONS",
-            DEFAULT_MAX_OPEN_BACKEND_SESSIONS,
-        );
-        let per_backend = positive_usize_from_env(
-            "O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND",
-            DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND,
-        )
-        .min(total);
-        Self { total, per_backend }
+    /// The session caps, parsed once. a malformed cap is an error at every
+    /// read instead of silently becoming the default.
+    fn from_env() -> Result<Self> {
+        static LIMITS: OnceLock<std::result::Result<BackendSessionLimits, String>> =
+            OnceLock::new();
+        LIMITS
+            .get_or_init(|| {
+                (|| -> Result<Self> {
+                    let total = positive_usize_from_env(
+                        MAX_OPEN_SESSIONS_ENV,
+                        DEFAULT_MAX_OPEN_BACKEND_SESSIONS,
+                    )?;
+                    let per_backend = positive_usize_from_env(
+                        MAX_OPEN_SESSIONS_PER_BACKEND_ENV,
+                        DEFAULT_MAX_OPEN_BACKEND_SESSIONS_PER_BACKEND,
+                    )?
+                    .min(total);
+                    Ok(Self { total, per_backend })
+                })()
+                .map_err(|error| format!("{error:#}"))
+            })
+            .clone()
+            .map_err(anyhow::Error::msg)
     }
 }
 
-fn positive_usize_from_env(name: &str, default: usize) -> usize {
-    std::env::var(name)
-        .ok()
-        .and_then(|raw| raw.parse::<usize>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(default)
+fn positive_usize_from_env(name: &str, default: usize) -> Result<usize> {
+    match std::env::var_os(name) {
+        Some(raw) => positive_integer_knob(name, &raw),
+        None => Ok(default),
+    }
 }
 
 pub struct ProcessRegistry {
@@ -1569,9 +2820,18 @@ pub struct ProcessRegistry {
     // Ownership tombstones survive cleanup and prevent the old evaluator
     // from silently recreating actors after an acknowledged migration.
     migrated_actors: HashSet<(String, u32, BackendSandboxPolicy)>,
-    session_limits: BackendSessionLimits,
+    // a malformed cap fails the first session that needs it.
+    session_limits: std::result::Result<BackendSessionLimits, String>,
     registry_identity_sha256: String,
     morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+    // persistent sessions killed by a response deadline. their interpreter
+    // state is gone, and silently starting a fresh session under the same id
+    // would turn that loss into a far-away NameError or a wrong default, so
+    // later blocks on the id fail instead. kept for the registry lifetime.
+    lost_sessions: HashMap<(String, u32, BackendSandboxPolicy), &'static str>,
+    request_cancellation: Option<crate::cancellation::CancellationToken>,
+    // for the next send_exec only; see [`Self::set_plain_bash_next`].
+    plain_bash_next: bool,
 }
 
 pub(crate) struct FreshActorSuspension(String);
@@ -1695,10 +2955,14 @@ impl ProcessRegistry {
     pub(crate) fn recv_native_operation(
         &mut self,
         ticket: &mut NativeOperationTicket,
-        timeout: Duration,
+        timeout: Option<Duration>,
     ) -> Result<ExecStep> {
         let process = self.native_process_mut(&ticket.instance)?;
-        match process.recv_response_timeout(timeout)? {
+        let response = match timeout {
+            Some(timeout) => process.recv_response_timeout(timeout)?,
+            None => process.recv_response_watched(None)?,
+        };
+        match response {
             BackendWireResponseV2::NativeOperationResultV1 { request_id, value }
                 if request_id == ticket.request_id =>
             {
@@ -1745,6 +3009,48 @@ impl ProcessRegistry {
         }
     }
 
+    /// Remove an actor after a non-semantic failure. A persistent session
+    /// that a response deadline killed is recorded as lost.
+    fn evict_failed(
+        &mut self,
+        key: &(String, u32, BackendSandboxPolicy, String),
+        error: &anyhow::Error,
+    ) -> Option<BackendProcess> {
+        if let Some(cause) = session_killed_cause(error) {
+            self.mark_session_lost(key, cause);
+        }
+        self.registry.remove(key)
+    }
+
+    fn mark_session_lost(
+        &mut self,
+        key: &(String, u32, BackendSandboxPolicy, String),
+        cause: &'static str,
+    ) {
+        if key.1 <= crate::environment::MAX_PERSISTENT_ENV_ID {
+            self.lost_sessions
+                .insert((key.0.clone(), key.1, key.2.clone()), cause);
+        }
+    }
+
+    fn reject_lost_session(
+        &self,
+        lang: &str,
+        env_id: u32,
+        sandbox: &BackendSandboxPolicy,
+    ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
+        if let Some(cause) = self
+            .lost_sessions
+            .get(&(lang.to_string(), env_id, sandbox.clone()))
+        {
+            return Err(infrastructure_error(anyhow!(
+                "session {lang_env} was terminated after {cause}; its state is gone"
+            )));
+        }
+        Ok(())
+    }
+
     pub(crate) fn set_morphism_contract(
         &mut self,
         contract: crate::backend_morphism::BackendCrossingContractV1,
@@ -1763,9 +3069,12 @@ impl ProcessRegistry {
             registry: HashMap::new(),
             suspended_fresh: Vec::new(),
             migrated_actors: HashSet::new(),
-            session_limits: BackendSessionLimits::from_env(),
+            session_limits: BackendSessionLimits::from_env().map_err(|error| format!("{error:#}")),
             registry_identity_sha256: fresh_registry_identity(),
             morphism_contract: None,
+            lost_sessions: HashMap::new(),
+            request_cancellation: None,
+            plain_bash_next: false,
         }
     }
 
@@ -1776,9 +3085,12 @@ impl ProcessRegistry {
             registry: HashMap::new(),
             suspended_fresh: Vec::new(),
             migrated_actors: HashSet::new(),
-            session_limits: BackendSessionLimits { total, per_backend },
+            session_limits: Ok(BackendSessionLimits { total, per_backend }),
             registry_identity_sha256: fresh_registry_identity(),
             morphism_contract: None,
+            lost_sessions: HashMap::new(),
+            request_cancellation: None,
+            plain_bash_next: false,
         }
     }
 
@@ -1798,6 +3110,7 @@ impl ProcessRegistry {
                 .validate_bindings(lang, &bindings)
                 .map_err(anyhow::Error::msg)?;
         }
+        self.reject_lost_session(lang, env_id, launch.sandbox)?;
         let launch_generation_sha256 = actor_launch_generation(&launch, lang)?;
         self.reject_generation_conflict(lang, env_id, launch.sandbox, &launch_generation_sha256)?;
         let key = (
@@ -1814,27 +3127,51 @@ impl ProcessRegistry {
                 env_id,
                 launch.sandbox,
             );
-            let process = BackendProcess::new_with_session(
-                lang,
-                launch.shim_path,
-                launch.sandbox,
-                launch.executable_leases.map(AsRef::as_ref),
-                &session_id,
-                &key.3,
-            )
-            .with_context(|| format!("failed to start backend for language `{lang}`"))?;
+            let mut process = self
+                .spawn_actor(lang, env_id, &launch, &session_id, &key.3)
+                .with_context(|| format!("failed to start backend for language `{lang}`"))?;
+            process.label = session_label(lang, env_id);
             self.registry.insert(key.clone(), process);
         }
-        self.registry
+        let morphism_contract = self.morphism_contract;
+        let process = self
+            .registry
             .get_mut(&key)
-            .expect("backend was just inserted but is missing")
-            .begin_exec_with_morphism(code, bindings, self.morphism_contract)
-            .with_context(|| format!("failed to send Exec to backend `{lang}`"))?;
+            .expect("backend was just inserted but is missing");
+        process.write_cancellation = self.request_cancellation.clone();
+        process.plain_bash_next = std::mem::take(&mut self.plain_bash_next);
+        let sent = process.begin_exec_with_morphism(code, bindings, morphism_contract);
+        process.write_cancellation = None;
+        if let Err(error) = &sent {
+            // a write ended by the opt-in limit or cancellation killed the
+            // backend: evict it and record a numbered session as lost.
+            if session_killed_cause(error).is_some() {
+                drop(self.evict_failed(&key, error));
+            }
+        }
+        sent.with_context(|| format!("failed to send Exec to backend `{lang}`"))?;
         lifecycle_trace(
             "worker.exec_sent",
             format!("language={lang} environment={env_id}"),
         );
         Ok(())
+    }
+
+    /// The request cancellation token that bounds large command writes
+    /// (see `BackendProcess::send_command`). Set by the evaluator for the
+    /// duration of a cancellable request.
+    pub(crate) fn set_request_cancellation(
+        &mut self,
+        token: Option<crate::cancellation::CancellationToken>,
+    ) {
+        self.request_cancellation = token;
+    }
+
+    /// Tell the next `send_exec` that the plan has another plain bash block
+    /// ahead. a hint only: a wrong value costs a spare shell or one inline
+    /// fork, never a result.
+    pub(crate) fn set_plain_bash_next(&mut self, ahead: bool) {
+        self.plain_bash_next = ahead;
     }
 
     /// Read the next step from the shim for `(lang, env_id)`.
@@ -1844,20 +3181,20 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<ExecStep> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         let step = self
             .registry
             .get_mut(&key)
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
             .recv_step();
 
-        if step
-            .as_ref()
-            .is_err_and(|error| !error.is::<BackendSemanticError>())
-        {
-            self.registry.remove(&key);
+        if let Err(error) = step.as_ref() {
+            if !error.is::<BackendSemanticError>() {
+                self.evict_failed(&key, error);
+            }
         }
-        let step = step.with_context(|| format!("backend `{lang}[{env_id}]` recv_step failed"))?;
+        let step = step.with_context(|| format!("backend `{lang_env}` recv_step failed"))?;
         if matches!(step, ExecStep::Done(_)) {
             lifecycle_trace(
                 "worker.done_received",
@@ -1878,27 +3215,28 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         timeout: Duration,
     ) -> Result<ExecStep> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         let step = self
             .registry
             .get_mut(&key)
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
             .recv_step_timeout(timeout);
         let step = match step {
             Ok(step) => step,
             Err(error) if error.is::<BackendSemanticError>() => {
-                return Err(error).with_context(|| {
-                    format!("backend `{lang}[{env_id}]` returned an execution error")
-                });
+                return Err(error)
+                    .with_context(|| format!("backend `{lang_env}` returned an execution error"));
             }
             Err(error) => {
+                self.mark_session_lost(&key, KILLED_BY_TIMEOUT);
                 let mut process = self
                     .registry
                     .remove(&key)
                     .expect("timed receive process was present before removal");
                 let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
                 let error = error.context(format!(
-                    "backend `{lang}[{env_id}]` did not settle within the inherited callback deadline"
+                    "backend `{lang_env}` did not settle within the inherited callback deadline"
                 ));
                 return match termination {
                     Err(termination) => Err(infrastructure_error(anyhow!(
@@ -1933,27 +3271,65 @@ impl ProcessRegistry {
     where
         F: FnMut() -> bool,
     {
+        let lang_env = session_name(lang, env_id);
         const POLL_INTERVAL: Duration = Duration::from_millis(25);
         let key = self.process_key(lang, env_id, sandbox)?;
-        loop {
+        // the opt-in per-step limit applies here too. one call reads one
+        // response, so the limit restarts per response exactly as on the
+        // uncontrolled path. without it only cancellation, the request
+        // deadline or a backend exit end the wait.
+        let step_limit = backend_step_timeout().map_err(infrastructure_error)?;
+        let step_deadline = match step_limit {
+            Some(limit) => {
+                Some(bounded_deadline(limit, "backend step").map_err(infrastructure_error)?)
+            }
+            None => None,
+        };
+        let mut watch = StepWatch::new(
+            &self
+                .registry
+                .get(&key)
+                .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
+                .pulse,
+        );
+        let mut last_watch = Instant::now();
+        let outcome = loop {
             let request_cancelled = is_cancelled();
+            let now = Instant::now();
+            let mut timed_out = false;
+            let mut request_deadline = false;
             let terminal_reason = if request_cancelled {
                 Some("request cancellation was observed".to_string())
-            } else if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
-                Some("request execution deadline expired".to_string())
+            } else if deadline.is_some_and(|deadline| now >= deadline) {
+                timed_out = true;
+                request_deadline = true;
+                Some(crate::cancellation::RequestDeadlineExpired("during execution").to_string())
+            } else if let (Some(limit), Some(step_deadline)) = (step_limit, step_deadline) {
+                (now >= step_deadline).then(|| {
+                    timed_out = true;
+                    step_limit_exceeded_reason(limit)
+                })
             } else {
                 None
             };
             if let Some(reason) = terminal_reason {
+                self.mark_session_lost(
+                    &key,
+                    if timed_out {
+                        KILLED_BY_TIMEOUT
+                    } else {
+                        KILLED_BY_CANCELLATION
+                    },
+                );
                 let mut process = self
                     .registry
                     .remove(&key)
                     .expect("controlled receive process was present before removal");
                 let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
                 let error = match termination {
-                    Ok(()) => anyhow!("backend `{lang}[{env_id}]` {reason}; actor forcibly reaped"),
+                    Ok(()) => anyhow!("backend `{lang_env}` {reason}; actor forcibly reaped"),
                     Err(termination) => anyhow!(
-                        "backend `{lang}[{env_id}]` {reason}; actor termination also failed: {termination:#}"
+                        "backend `{lang_env}` {reason}; actor termination also failed: {termination:#}"
                     ),
                 };
                 let error = if request_cancelled {
@@ -1961,53 +3337,77 @@ impl ProcessRegistry {
                         "{error:#}"
                     )))
                 } else {
-                    error
+                    anyhow::Error::new(BackendSessionKilled {
+                        cause: KILLED_BY_TIMEOUT,
+                        message: format!("{error:#}"),
+                        request_deadline,
+                    })
                 };
-                return Err(infrastructure_error(error));
+                break Err(infrastructure_error(error));
             }
 
-            let wait = deadline
-                .and_then(|deadline| deadline.checked_duration_since(Instant::now()))
-                .map(|remaining| remaining.min(POLL_INTERVAL))
-                .unwrap_or(POLL_INTERVAL);
+            let wait = match (deadline, step_deadline) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            }
+            .map_or(POLL_INTERVAL, |until| {
+                until
+                    .saturating_duration_since(Instant::now())
+                    .min(POLL_INTERVAL)
+            });
             let step = self
                 .registry
                 .get_mut(&key)
-                .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+                .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
                 .poll_step(wait);
+            let step = match step {
+                Ok(None) if last_watch.elapsed() < STEP_WATCH_TICK => continue,
+                Ok(None) => {
+                    last_watch = Instant::now();
+                    let process = self
+                        .registry
+                        .get_mut(&key)
+                        .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?;
+                    match process.watch_tick(&mut watch) {
+                        Ok(()) => continue,
+                        Err(error) => Err(error),
+                    }
+                }
+                other => other.map(|step| step.expect("empty poll handled above")),
+            };
             match step {
-                Ok(None) => continue,
-                Ok(Some(step)) => {
+                Ok(step) => {
                     if matches!(step, ExecStep::Done(_)) {
                         lifecycle_trace(
                             "worker.done_received",
                             format!("language={lang} environment={env_id}"),
                         );
                     }
-                    return Ok(step);
+                    break Ok(step);
                 }
                 Err(error) if error.is::<BackendSemanticError>() => {
-                    return Err(error).with_context(|| {
-                        format!("backend `{lang}[{env_id}]` returned an execution error")
+                    break Err(error).with_context(|| {
+                        format!("backend `{lang_env}` returned an execution error")
                     });
                 }
                 Err(error) => {
                     let mut process = self
-                        .registry
-                        .remove(&key)
+                        .evict_failed(&key, &error)
                         .expect("failed controlled receive process was present before removal");
                     let termination = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT);
-                    return match termination {
+                    break match termination {
                         Ok(()) => Err(infrastructure_error(error.context(format!(
-                            "backend `{lang}[{env_id}]` controlled receive failed"
+                            "backend `{lang_env}` controlled receive failed"
                         )))),
                         Err(termination) => Err(infrastructure_error(anyhow!(
-                            "backend `{lang}[{env_id}]` controlled receive failed: {error:#}; actor termination also failed: {termination:#}"
+                            "backend `{lang_env}` controlled receive failed: {error:#}; actor termination also failed: {termination:#}"
                         ))),
                     };
                 }
             }
-        }
+        };
+        watch.finish();
+        outcome
     }
 
     /// Send an eval_result back to the shim so it can resume execution.
@@ -2018,10 +3418,11 @@ impl ProcessRegistry {
         value: OValue,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         self.registry
             .get_mut(&key)
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?
             .send_eval_result(value)
             .with_context(|| format!("failed to send eval_result to backend `{lang}`"))
     }
@@ -2089,14 +3490,11 @@ impl ProcessRegistry {
             .filter(|key| key.0 == actor.key.0 && key.1 == actor.key.1 && key.2 == actor.key.2)
             .cloned()
             .collect::<Vec<_>>();
-        let mut failures = Vec::new();
-        for key in residual {
-            if let Some(mut process) = self.registry.remove(&key) {
-                if let Err(error) = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
-                    failures.push(format!("{error:#}"));
-                }
-            }
-        }
+        let mut residual = residual
+            .into_iter()
+            .filter_map(|key| self.registry.remove(&key))
+            .collect::<Vec<_>>();
+        let failures = force_terminate_all(&mut residual, BACKEND_FALLBACK_REAP_TIMEOUT);
         self.registry.insert(actor.key, actor.process);
         if !failures.is_empty() {
             bail!(
@@ -2134,10 +3532,8 @@ impl ProcessRegistry {
                 processes.push(process);
             }
         }
-        for mut process in processes {
-            if let Err(error) = process.force_terminate(BACKEND_FALLBACK_REAP_TIMEOUT) {
-                lifecycle_trace("callback.panic_cleanup_failed", format!("{error:#}"));
-            }
+        for error in force_terminate_all(&mut processes, BACKEND_FALLBACK_REAP_TIMEOUT) {
+            lifecycle_trace("callback.panic_cleanup_failed", error);
         }
     }
 
@@ -2154,6 +3550,7 @@ impl ProcessRegistry {
                 .validate_bindings(lang, &bindings)
                 .map_err(anyhow::Error::msg)?;
         }
+        self.reject_lost_session(lang, env_id, launch.sandbox)?;
         let launch_generation_sha256 = actor_launch_generation(&launch, lang)?;
         self.reject_generation_conflict(lang, env_id, launch.sandbox, &launch_generation_sha256)?;
         let key = (
@@ -2171,15 +3568,10 @@ impl ProcessRegistry {
                 env_id,
                 launch.sandbox,
             );
-            let process = BackendProcess::new_with_session(
-                lang,
-                launch.shim_path,
-                launch.sandbox,
-                launch.executable_leases.map(AsRef::as_ref),
-                &session_id,
-                &key.3,
-            )
-            .with_context(|| format!("failed to start backend for language `{lang}`"))?;
+            let mut process = self
+                .spawn_actor(lang, env_id, &launch, &session_id, &key.3)
+                .with_context(|| format!("failed to start backend for language `{lang}`"))?;
+            process.label = session_label(lang, env_id);
             self.registry.insert(key.clone(), process);
         }
 
@@ -2189,11 +3581,10 @@ impl ProcessRegistry {
             .expect("backend was just inserted but is missing")
             .exec_with_morphism(code, bindings, self.morphism_contract);
 
-        if result
-            .as_ref()
-            .is_err_and(|error| !error.is::<BackendSemanticError>())
-        {
-            self.registry.remove(&key);
+        if let Err(error) = result.as_ref() {
+            if !error.is::<BackendSemanticError>() {
+                self.evict_failed(&key, error);
+            }
         }
 
         result.with_context(|| {
@@ -2216,14 +3607,13 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<BackendStateCapabilitiesV1> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         self.registry
             .get_mut(&key)
             .expect("resolved backend process is missing")
             .state_capabilities()
-            .with_context(|| {
-                format!("failed to query backend state capabilities for `{lang}[{env_id}]`")
-            })
+            .with_context(|| format!("failed to query backend state capabilities for `{lang_env}`"))
     }
 
     pub(crate) fn checkpoint_env(
@@ -2233,12 +3623,13 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         max_bytes: u64,
     ) -> Result<BackendCheckpointV1> {
+        let lang_env = session_name(lang, env_id);
         let key = self.process_key(lang, env_id, sandbox)?;
         self.registry
             .get_mut(&key)
             .expect("resolved backend process is missing")
             .checkpoint(max_bytes)
-            .with_context(|| format!("failed to checkpoint backend `{lang}[{env_id}]`"))
+            .with_context(|| format!("failed to checkpoint backend `{lang_env}`"))
     }
 
     /// Capture every settled persistent actor without removing, replacing, or
@@ -2365,6 +3756,7 @@ impl ProcessRegistry {
         checkpoint: BackendCheckpointV1,
         launch: BackendLaunchContext<'_>,
     ) -> Result<BackendRestoreReceiptV1> {
+        let lang_env = session_name(lang, env_id);
         self.ensure_actor_not_migrated(lang, env_id, launch.sandbox)?;
         checkpoint.validate()?;
         if checkpoint.backend != lang {
@@ -2382,9 +3774,7 @@ impl ProcessRegistry {
                     && candidate_sandbox == launch.sandbox
             })
         {
-            bail!(
-                "state.restore-conflict: backend `{lang}[{env_id}]` already owns an open session"
-            );
+            bail!("state.restore-conflict: backend `{lang_env}` already owns an open session");
         }
         self.ensure_session_capacity(lang)?;
         let launch_generation_sha256 = actor_launch_generation(&launch, lang)?;
@@ -2404,7 +3794,7 @@ impl ProcessRegistry {
             &session_id,
             &key.3,
         )
-        .with_context(|| format!("failed to start restore target for `{lang}[{env_id}]`"))?;
+        .with_context(|| format!("failed to start restore target for `{lang_env}`"))?;
         match process.restore(checkpoint) {
             Ok(receipt) => {
                 self.registry.insert(key, process);
@@ -2422,6 +3812,39 @@ impl ProcessRegistry {
         }
     }
 
+    /// Start the backend for one registry key. a plain bash block (a fresh
+    /// environment) runs in a reusable helper; numbered sessions and every
+    /// other language get their own backend.
+    fn spawn_actor(
+        &self,
+        lang: &str,
+        env_id: u32,
+        launch: &BackendLaunchContext<'_>,
+        session_id: &str,
+        launch_generation: &str,
+    ) -> Result<BackendProcess> {
+        let spawn = |plain_bash_helper| {
+            BackendProcess::spawn(
+                lang,
+                launch.shim_path,
+                launch.sandbox,
+                launch.executable_leases.map(AsRef::as_ref),
+                session_id,
+                launch_generation,
+                plain_bash_helper,
+            )
+        };
+        if lang == "bash"
+            && env_id > crate::environment::MAX_PERSISTENT_ENV_ID
+            && self.morphism_contract.is_none()
+        {
+            let key = PlainBashHelperKey::new(launch, Some(launch_generation))?;
+            plain_bash_helper(key, || spawn(true))
+        } else {
+            spawn(false)
+        }
+    }
+
     pub fn cleanup_env(&mut self, lang: &str, env_id: u32) -> Result<()> {
         let keys = self
             .registry
@@ -2433,7 +3856,13 @@ impl ProcessRegistry {
             .collect::<Vec<_>>();
         for key in keys {
             if let Some(mut process) = self.registry.remove(&key) {
-                process.retire_fresh_attempt(backend_shutdown_timeout())?;
+                // a plain bash helper ended the block's shell and jobs before
+                // it answered; it goes back for the next plain block.
+                if process.plain_bash_key.is_some() && process.idle() {
+                    park_plain_bash_helper(process);
+                    continue;
+                }
+                process.retire_fresh_attempt(backend_shutdown_timeout()?)?;
             }
         }
         Ok(())
@@ -2470,6 +3899,7 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<(String, u32, BackendSandboxPolicy, String)> {
+        let lang_env = session_name(lang, env_id);
         let mut matching =
             self.registry
                 .keys()
@@ -2481,18 +3911,19 @@ impl ProcessRegistry {
         let key = matching
             .next()
             .cloned()
-            .ok_or_else(|| anyhow!("no live backend process for `{lang}[{env_id}]`"))?;
+            .ok_or_else(|| anyhow!("no live backend process for `{lang_env}`"))?;
         if matching.next().is_some() {
-            bail!("multiple launch generations are live for backend `{lang}[{env_id}]`");
+            bail!("multiple launch generations are live for backend `{lang_env}`");
         }
         Ok(key)
     }
 
     fn ensure_session_capacity(&self, lang: &str) -> Result<()> {
-        if self.registry.len() + self.suspended_fresh.len() >= self.session_limits.total {
+        let limits = self.session_limits.clone().map_err(anyhow::Error::msg)?;
+        if self.registry.len() + self.suspended_fresh.len() >= limits.total {
             bail!(
                 "session.capacity-exhausted: open backend sessions reached configured total quota {}",
-                self.session_limits.total
+                limits.total
             );
         }
         let backend_count = self
@@ -2505,10 +3936,10 @@ impl ProcessRegistry {
                 .iter()
                 .filter(|actor| actor.key.0 == lang)
                 .count();
-        if backend_count >= self.session_limits.per_backend {
+        if backend_count >= limits.per_backend {
             bail!(
                 "session.capacity-exhausted: backend `{lang}` reached configured per-backend quota {}",
-                self.session_limits.per_backend
+                limits.per_backend
             );
         }
         Ok(())
@@ -2521,6 +3952,7 @@ impl ProcessRegistry {
         sandbox: &BackendSandboxPolicy,
         launch_generation_sha256: &str,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         self.ensure_actor_not_migrated(lang, env_id, sandbox)?;
         let conflicting_generation = self
             .registry
@@ -2536,7 +3968,7 @@ impl ProcessRegistry {
             .map(|(_, _, _, digest)| digest);
         if let Some(conflicting_generation) = conflicting_generation {
             bail!(
-                "session.generation-conflict: backend `{lang}[{env_id}]` remains pinned to launch generation `{conflicting_generation}`; explicitly checkpoint/cleanup/restore before using `{launch_generation_sha256}`"
+                "session.generation-conflict: backend `{lang_env}` remains pinned to launch generation `{conflicting_generation}`; explicitly checkpoint/cleanup/restore before using `{launch_generation_sha256}`"
             );
         }
         Ok(())
@@ -2548,11 +3980,12 @@ impl ProcessRegistry {
         env_id: u32,
         sandbox: &BackendSandboxPolicy,
     ) -> Result<()> {
+        let lang_env = session_name(lang, env_id);
         if self
             .migrated_actors
             .contains(&(lang.to_string(), env_id, sandbox.clone()))
         {
-            bail!("state.actor-migrated: backend `{lang}[{env_id}]` ownership left this evaluator");
+            bail!("state.actor-migrated: backend `{lang_env}` ownership left this evaluator");
         }
         Ok(())
     }
@@ -2591,7 +4024,8 @@ impl ProcessRegistry {
         }
         let mut failures = Vec::new();
         for mut process in retired {
-            if let Err(error) = process.shutdown(backend_shutdown_timeout()) {
+            let outcome = backend_shutdown_timeout().and_then(|timeout| process.shutdown(timeout));
+            if let Err(error) = outcome {
                 failures.push(format!("{error:#}"));
             }
         }
@@ -2672,16 +4106,199 @@ fn fresh_or_persistent_session_identity(
 
 impl Drop for ProcessRegistry {
     fn drop(&mut self) {
-        // `BackendProcess::drop` performs only bounded best-effort local
-        // termination. Explicit protocol shutdown belongs to callers such as
-        // `cleanup_env`, never to this destructor.
-        self.registry.clear();
+        // bounded best-effort local termination only. explicit protocol
+        // shutdown belongs to callers such as `cleanup_env`, never to this
+        // destructor. every actor is killed before any is waited on, so N
+        // stuck actors share one reap budget instead of costing N of them.
+        let mut processes = self
+            .registry
+            .drain()
+            .map(|(_, process)| process)
+            .chain(self.suspended_fresh.drain(..).map(|actor| actor.process))
+            .collect::<Vec<_>>();
+        for error in force_terminate_all(&mut processes, BACKEND_FALLBACK_REAP_TIMEOUT) {
+            lifecycle_trace("worker.registry_drop_cleanup_failed", error);
+        }
+        retire_plain_bash_helpers();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // the group probe: ESRCH is empty at once; success and EPERM fall back
+    // to the scan; any other errno fails closed.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn the_group_probe_reads_each_errno_one_way() {
+        assert!(!group_probe_says_empty(None).unwrap());
+        let esrch = io::Error::from_raw_os_error(libc::ESRCH);
+        assert!(group_probe_says_empty(Some(&esrch)).unwrap());
+        let eperm = io::Error::from_raw_os_error(libc::EPERM);
+        assert!(!group_probe_says_empty(Some(&eperm)).unwrap());
+        let einval = io::Error::from_raw_os_error(libc::EINVAL);
+        let error = group_probe_says_empty(Some(&einval)).unwrap_err();
+        assert!(error.to_string().contains("cannot probe"), "{error}");
+    }
+
+    // a live group is not empty (probe succeeds, scan finds it); a reaped
+    // one is empty (probe gives ESRCH); a group whose only member is an
+    // unreaped zombie is empty (probe succeeds, the scan skips zombies).
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn the_group_probe_and_scan_agree_on_live_zombie_and_reaped_groups() -> Result<()> {
+        use std::os::unix::process::CommandExt as _;
+        let mut live = Command::new("sleep").arg("30").process_group(0).spawn()?;
+        let group = live.id() as i32;
+        // the leader is skipped by the scan, so give the group a second member.
+        let mut member = Command::new("sleep")
+            .arg("30")
+            .process_group(group)
+            .spawn()?;
+        assert!(!owned_group_has_no_active_descendants(group)?);
+        member.kill()?;
+        member.wait()?;
+        live.kill()?;
+        // the leader is a zombie until it is reaped: kill(-group, 0) still
+        // succeeds, and the scan treats the zombie as finished.
+        let started = Instant::now();
+        while !owned_group_has_no_active_descendants(group)? {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "zombie group never read empty"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+        // SAFETY: signal zero only probes the group.
+        assert_eq!(
+            unsafe { libc::kill(-group, 0) },
+            0,
+            "the zombie leader keeps the group"
+        );
+        live.wait()?;
+        // SAFETY: as above.
+        assert_ne!(unsafe { libc::kill(-group, 0) }, 0);
+        assert_eq!(io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
+        assert!(owned_group_has_no_active_descendants(group)?);
+        Ok(())
+    }
+
+    // the host's exit wait is chunked by the heartbeat interval, so a long
+    // wait on a pidfd still returns to its caller once per interval to read
+    // heartbeats, and it wakes at once when the process exits.
+    #[test]
+    fn exit_wait_returns_each_heartbeat_interval_and_wakes_on_exit() -> Result<()> {
+        HEARTBEAT_OVERRIDE.with(|cell| {
+            cell.set(Some((
+                Duration::from_millis(50),
+                Duration::from_millis(400),
+            )))
+        });
+        let mut child = Command::new("sleep").arg("30").spawn()?;
+        let mut waiter = ExitWaiter::new(child.id());
+        let started = Instant::now();
+        let mut returns = 0;
+        while started.elapsed() < Duration::from_millis(600) {
+            // a long limit: only the heartbeat interval bounds each wait.
+            waiter.wait(Duration::from_secs(10));
+            returns += 1;
+        }
+        assert!(
+            returns >= 6,
+            "the wait returned only {returns} times in 600 ms"
+        );
+        assert!(child.try_wait()?.is_none());
+        child.kill()?;
+        let killed = Instant::now();
+        // waitid(WNOWAIT) is not needed here: the pidfd becomes readable on
+        // the exit itself, before any reap.
+        waiter.wait(Duration::from_secs(10));
+        assert!(
+            killed.elapsed() < Duration::from_millis(45),
+            "the wait did not wake on exit: {:?}",
+            killed.elapsed()
+        );
+        child.wait()?;
+        HEARTBEAT_OVERRIDE.with(|cell| cell.set(None));
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_teardown_and_session_knobs_are_errors_not_defaults() {
+        use std::ffi::OsStr;
+        let max = MAXIMUM_BACKEND_SHUTDOWN_TIMEOUT;
+        assert_eq!(
+            duration_knob("K", OsStr::new("2500"), max).unwrap(),
+            Duration::from_millis(2500)
+        );
+        // surrounding blanks are trimmed as the step knobs do.
+        assert_eq!(positive_integer_knob("K", OsStr::new(" 5 ")).unwrap(), 5);
+        assert_eq!(
+            duration_knob("K", OsStr::new("\t2500\n"), max).unwrap(),
+            Duration::from_millis(2500)
+        );
+        for bad in ["", " ", "abc", "0", "-1", "1.5", "5 5"] {
+            assert!(duration_knob("K", OsStr::new(bad), max).is_err(), "{bad:?}");
+            assert!(
+                positive_integer_knob("K", OsStr::new(bad)).is_err(),
+                "{bad:?}"
+            );
+        }
+        assert!(duration_knob("K", OsStr::new("60001"), max).is_err());
+        assert_eq!(positive_integer_knob("K", OsStr::new("8")).unwrap(), 8);
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[test]
+    fn a_helper_whose_parent_is_already_gone_stops_at_once() {
+        // a live parent: armed, nothing to do.
+        let parent = std::process::id() as libc::pid_t;
+        // SAFETY: the child calls only async-signal-safe functions, then _exit.
+        let child = unsafe { libc::fork() };
+        assert!(child >= 0);
+        if child == 0 {
+            let code = if arm_parent_death_signal(parent).is_ok() {
+                0
+            } else {
+                1
+            };
+            unsafe { libc::_exit(code) };
+        }
+        let mut status = 0;
+        assert_eq!(unsafe { libc::waitpid(child, &mut status, 0) }, child);
+        assert!(libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0);
+
+        // a parent that died before the prctl: the helper is told to stop.
+        let mut fds = [0; 2];
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+        // SAFETY: as above; the middle process only forks and exits.
+        let middle = unsafe { libc::fork() };
+        assert!(middle >= 0);
+        if middle == 0 {
+            let middle_pid = unsafe { libc::getpid() };
+            if unsafe { libc::fork() } == 0 {
+                while unsafe { libc::getppid() } == middle_pid {
+                    unsafe { libc::usleep(1000) };
+                }
+                let byte: u8 = match arm_parent_death_signal(middle_pid) {
+                    Err(error) if error.raw_os_error() == Some(libc::ESRCH) => b'y',
+                    _ => b'n',
+                };
+                unsafe {
+                    libc::write(fds[1], (&byte as *const u8).cast(), 1);
+                    libc::_exit(0);
+                }
+            }
+            unsafe { libc::_exit(0) };
+        }
+        unsafe { libc::close(fds[1]) };
+        assert_eq!(unsafe { libc::waitpid(middle, &mut status, 0) }, middle);
+        let mut byte = 0u8;
+        let read = unsafe { libc::read(fds[0], (&mut byte as *mut u8).cast(), 1) };
+        unsafe { libc::close(fds[0]) };
+        assert_eq!((read, byte), (1, b'y'));
+    }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     #[test]
@@ -2816,7 +4433,7 @@ mod tests {
         let value = expect_done(process.recv_step()?);
 
         assert_eq!(value, OValue::Null);
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2827,7 +4444,7 @@ mod tests {
         let value = process.exec("__oval_result__ = 42", HashMap::new())?;
 
         assert_eq!(value, OValue::int(42));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2848,7 +4465,7 @@ mod tests {
             }
             other => panic!("expected number/int OValue, got {other:?}"),
         }
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2893,7 +4510,7 @@ mod tests {
             OValue::bool_(true),
         );
 
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2934,7 +4551,7 @@ mod tests {
             scope,
         );
 
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2951,7 +4568,7 @@ mod tests {
             }
             other => panic!("expected bytes OValue, got {other:?}"),
         }
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2971,7 +4588,7 @@ mod tests {
             }
             other => panic!("expected structural set OValue, got {other:?}"),
         }
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -2998,7 +4615,7 @@ mod tests {
             "{message}"
         );
         assert!(!message.contains("silently-erased-object"), "{message}");
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3010,7 +4627,7 @@ mod tests {
         let value = process.exec("__oval_result__ = msg.upper()", bindings)?;
 
         assert_eq!(value, OValue::str_("HELLO"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3023,7 +4640,7 @@ mod tests {
             .unwrap_err();
 
         assert!(err.to_string().contains("boom from shim"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3035,7 +4652,7 @@ mod tests {
         let value = expect_done(process.recv_step()?);
 
         assert_eq!(value, OValue::Null);
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3047,7 +4664,7 @@ mod tests {
             HashMap::new(),
         )?;
         let checkpoint = source.checkpoint(1024 * 1024)?;
-        source.shutdown(backend_shutdown_timeout())?;
+        source.shutdown(backend_shutdown_timeout()?)?;
 
         let mut target = spawn_python_shim()?;
         let receipt = target.restore(checkpoint.clone())?;
@@ -3057,7 +4674,7 @@ mod tests {
             target.exec("__oval_result__ = x is y and x[0] is x", HashMap::new())?,
             OValue::bool_(true)
         );
-        target.shutdown(backend_shutdown_timeout())?;
+        target.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3073,7 +4690,7 @@ mod tests {
             HashMap::new(),
         )?;
         let checkpoint = source.checkpoint(1024 * 1024)?;
-        source.shutdown(backend_shutdown_timeout())?;
+        source.shutdown(backend_shutdown_timeout()?)?;
 
         let mut target = spawn_python_shim()?;
         target.restore(checkpoint)?;
@@ -3090,7 +4707,7 @@ mod tests {
             )?,
             OValue::bool_(true)
         );
-        target.shutdown(backend_shutdown_timeout())?;
+        target.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3109,7 +4726,7 @@ mod tests {
             process.exec("__oval_result__ = f()", HashMap::new())?,
             OValue::int(42)
         );
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3429,7 +5046,9 @@ mod tests {
     fn nonresponsive_shutdown_is_bounded_and_fails_explicitly() -> Result<()> {
         let temp = tempfile::tempdir()?;
         let shim = temp.path().join("nonresponsive.py");
-        std::fs::write(&shim, "import time\ntime.sleep(60)\n")?;
+        // a short sleep: if the kill under test ever regresses, the child
+        // still exits on its own instead of outliving the test run.
+        std::fs::write(&shim, "import time\ntime.sleep(5)\n")?;
         let mut process =
             BackendProcess::new("python", &shim, &BackendSandboxPolicy::none(), None)?;
         let started = Instant::now();
@@ -3448,6 +5067,741 @@ mod tests {
     }
 
     #[test]
+    fn stalled_backend_step_fails_closed_instead_of_hanging() -> Result<()> {
+        // regression: recv_response used an untimed recv, so a backend that
+        // stopped answering mid-step hung the caller with no error at all. the
+        // timeout itself must retire the actor: this test never kills it, and a
+        // late answer from the stalled actor must not reach any later request.
+        let temp = tempfile::tempdir()?;
+        let hex = |value: &str| -> Result<String> {
+            let mut frame = Vec::new();
+            wire::write_frame(
+                &mut frame,
+                &BackendWireResponseV2::Ok {
+                    value: OValue::str_(value),
+                },
+            )?;
+            Ok(frame.iter().map(|byte| format!("{byte:02x}")).collect())
+        };
+        let stale_hex = hex("stale")?;
+        let fresh_hex = hex("fresh")?;
+        // while the stall marker exists, a launch stalls past the deadline and
+        // then emits the stale answer. once the marker is removed, a launch is
+        // a responder that answers every command with "fresh". backend
+        // sandboxes deny file access, so the test owns the marker and frames.
+        let stalling_shim = |name: &str| -> Result<(std::path::PathBuf, std::path::PathBuf)> {
+            let marker = temp.path().join(format!("{name}.stall"));
+            std::fs::write(&marker, b"")?;
+            let shim = temp.path().join(format!("{name}.py"));
+            std::fs::write(
+                &shim,
+                format!(
+                    "import os, sys, time\n\
+                     marker = {marker:?}\n\
+                     if not os.path.exists(marker):\n    \
+                         while True:\n        \
+                             head = sys.stdin.buffer.read(4)\n        \
+                             if len(head) < 4: sys.exit(0)\n        \
+                             sys.stdin.buffer.read(int.from_bytes(head, 'big'))\n        \
+                             sys.stdout.buffer.write(bytes.fromhex('{fresh_hex}'))\n        \
+                             sys.stdout.buffer.flush()\n\
+                     sys.stdin.buffer.read(4)\n\
+                     time.sleep(0.8)\n\
+                     sys.stdout.buffer.write(bytes.fromhex('{stale_hex}'))\n\
+                     sys.stdout.buffer.flush()\n\
+                     time.sleep(5)\n",
+                    marker = marker.display().to_string(),
+                ),
+            )?;
+            Ok((shim, marker))
+        };
+        let alive = |pid: i32| std::path::Path::new(&format!("/proc/{pid}")).exists();
+        let (direct_shim, direct_marker) = stalling_shim("direct")?;
+        let (pooled_shim, pooled_marker) = stalling_shim("pooled")?;
+
+        let (done_tx, done_rx) = mpsc::channel();
+        thread::spawn(move || {
+            STEP_TIMEOUT_OVERRIDE.with(|cell| cell.set(Some(Duration::from_millis(300))));
+            let outcome = (|| -> Result<()> {
+                // the actor itself: error, dead, and unusable for a later request.
+                let mut process = BackendProcess::new(
+                    "python",
+                    &direct_shim,
+                    &BackendSandboxPolicy::none(),
+                    None,
+                )?;
+                let pid = process.child.id() as i32;
+                let error = process
+                    .exec("__oval_result__ = 1", HashMap::new())
+                    .expect_err("a stalled backend must not produce a value");
+                let message = format!("{error:#}");
+                assert!(
+                    message.contains(
+                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    ),
+                    "{message}"
+                );
+                assert!(
+                    process.terminal,
+                    "step timeout did not reap the stalled backend"
+                );
+                assert!(!alive(pid), "stalled backend {pid} is still alive");
+                std::fs::remove_file(&direct_marker)?;
+                thread::sleep(Duration::from_millis(1200));
+                let reused = process.exec("__oval_result__ = 'fresh'", HashMap::new());
+                assert!(
+                    !matches!(&reused, Ok(value) if value == &OValue::str_("stale")),
+                    "late answer from the stalled backend reached a later request"
+                );
+                assert!(reused.is_err(), "retired backend accepted another request");
+
+                // the pool: the later request gets a fresh actor, never the stale answer.
+                // a fresh (non-persistent) environment, because a killed persistent
+                // session is reported lost instead (see the session-lost test).
+                let sandbox = BackendSandboxPolicy::none();
+                let mut registry = ProcessRegistry::new();
+                let pid_code = "__oval_result__ = 'fresh'";
+                registry.send_exec(
+                    "python",
+                    u32::MAX,
+                    pid_code,
+                    HashMap::new(),
+                    test_launch_context(&pooled_shim, &sandbox, "stall-gen"),
+                )?;
+                let pid = registry
+                    .registry
+                    .values()
+                    .map(|process| process.child.id() as i32)
+                    .next()
+                    .expect("pooled backend was published");
+                let error = registry
+                    .recv_exec_step("python", u32::MAX, &sandbox)
+                    .expect_err("a stalled pooled backend must not produce a value");
+                assert!(
+                    format!("{error:#}").contains(
+                        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    ),
+                    "{error:#}"
+                );
+                assert!(!alive(pid), "stalled pooled backend {pid} is still alive");
+                std::fs::remove_file(&pooled_marker)?;
+                assert!(
+                    registry.registry.is_empty(),
+                    "stalled backend stayed in the pool"
+                );
+                thread::sleep(Duration::from_millis(1200));
+                let next = registry.exec(
+                    "python",
+                    u32::MAX,
+                    pid_code,
+                    HashMap::new(),
+                    test_launch_context(&pooled_shim, &sandbox, "stall-gen"),
+                )?;
+                assert_eq!(
+                    next,
+                    OValue::str_("fresh"),
+                    "late answer reached the next pooled request"
+                );
+                let next_pid = registry
+                    .registry
+                    .values()
+                    .map(|process| process.child.id() as i32)
+                    .next()
+                    .expect("next request published a backend");
+                assert_ne!(next_pid, pid, "next request reused the stalled backend");
+                // the stand-in responder has no shutdown verb; dropping the
+                // registry reaps it through the ordinary drop fallback.
+                drop(registry);
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(Duration::from_secs(30)) {
+            Ok(outcome) => outcome,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                panic!("stalled backend read hung past its deadline")
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    /// Run `body` on a thread whose per-step limit is 300 ms, guarded so a
+    /// regression fails instead of hanging.
+    fn with_short_step_limit(body: impl FnOnce() -> Result<()> + Send + 'static) -> Result<()> {
+        let (done_tx, done_rx) = mpsc::channel();
+        thread::spawn(move || {
+            STEP_TIMEOUT_OVERRIDE.with(|cell| cell.set(Some(Duration::from_millis(300))));
+            let _ = done_tx.send(body());
+        });
+        match done_rx.recv_timeout(Duration::from_secs(30)) {
+            Ok(outcome) => outcome,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                panic!("backend wait hung past the per-step limit")
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    /// A shim that reads one frame header and then stays silent for 5 s.
+    fn silent_shim(dir: &Path, name: &str, reads_stdin: bool) -> Result<std::path::PathBuf> {
+        let shim = dir.join(format!("{name}.py"));
+        let read = if reads_stdin {
+            "sys.stdin.buffer.read(4)\n"
+        } else {
+            ""
+        };
+        std::fs::write(&shim, format!("import sys, time\n{read}time.sleep(5)\n"))?;
+        Ok(shim)
+    }
+
+    const STEP_LIMIT_300_MS: &str =
+        "step exceeded 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)";
+
+    #[test]
+    fn cancellation_polled_step_is_bounded_without_a_deadline() -> Result<()> {
+        // y-d-02: a request with a cancellation token and no deadline used to
+        // poll a silent backend forever.
+        let temp = tempfile::tempdir()?;
+        let shim = silent_shim(temp.path(), "controlled", true)?;
+        with_short_step_limit(move || {
+            let sandbox = BackendSandboxPolicy::none();
+            let mut registry = ProcessRegistry::new();
+            registry.send_exec(
+                "python",
+                4,
+                "x = 1",
+                HashMap::new(),
+                test_launch_context(&shim, &sandbox, "ctl-gen"),
+            )?;
+            let error = registry
+                .recv_exec_step_controlled("python", 4, &sandbox, None, || false)
+                .expect_err("a silent backend must not be polled forever");
+            assert!(
+                format!("{error:#}").contains(STEP_LIMIT_300_MS),
+                "{error:#}"
+            );
+            assert!(
+                registry.registry.is_empty(),
+                "stalled backend stayed in the pool"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn session_killed_by_step_limit_is_reported_lost_not_recreated() -> Result<()> {
+        // y-d-03: python[1] killed by the limit must not come back as a fresh
+        // empty session under the same id.
+        let temp = tempfile::tempdir()?;
+        let shim = silent_shim(temp.path(), "lost", true)?;
+        with_short_step_limit(move || {
+            let sandbox = BackendSandboxPolicy::none();
+            let mut registry = ProcessRegistry::new();
+            let launch = || test_launch_context(&shim, &sandbox, "lost-gen");
+            let error = registry
+                .exec("python", 1, "x = 1", HashMap::new(), launch())
+                .expect_err("a silent backend must not produce a value");
+            assert!(
+                format!("{error:#}").contains(STEP_LIMIT_300_MS),
+                "{error:#}"
+            );
+            let error = registry
+                .exec("python", 1, "x", HashMap::new(), launch())
+                .expect_err("a lost session must not be recreated silently");
+            assert!(
+                format!("{error:#}").contains(
+                    "session python[1] was terminated after a timeout; its state is gone"
+                ),
+                "{error:#}"
+            );
+            assert!(
+                registry.registry.is_empty(),
+                "a fresh session was started under a lost id"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn step_limit_knob_rejects_invalid_values() {
+        // y-d-04: unset is the default; anything set must be valid.
+        use std::ffi::OsStr;
+        assert_eq!(parse_backend_step_timeout(None).unwrap(), None);
+        assert_eq!(
+            parse_backend_step_timeout(Some(OsStr::new("2000"))).unwrap(),
+            Some(Duration::from_secs(2))
+        );
+        for bad in ["0", "", "abc", "-5", "1.5", "604800001"] {
+            let error = parse_backend_step_timeout(Some(OsStr::new(bad))).expect_err(bad);
+            assert!(
+                format!("{error:#}").contains("O_BACKEND_STEP_TIMEOUT_MS"),
+                "{error:#}"
+            );
+        }
+        assert_eq!(step_limit_text(Duration::from_millis(300)), "300 ms");
+        assert_eq!(step_limit_text(Duration::from_secs(2)), "2 s");
+        assert_eq!(step_limit_text(Duration::from_millis(1500)), "1.5 s");
+    }
+
+    #[test]
+    fn registry_teardown_kills_every_actor_before_reaping_any() -> Result<()> {
+        // y-d-05: serial kill-then-reap cost n reap budgets for n stuck actors.
+        let temp = tempfile::tempdir()?;
+        let shim = silent_shim(temp.path(), "teardown", true)?;
+        let sandbox = BackendSandboxPolicy::none();
+        let mut registry = ProcessRegistry::new();
+        for env_id in 0..3 {
+            registry.send_exec(
+                "python",
+                env_id,
+                "x = 1",
+                HashMap::new(),
+                test_launch_context(&shim, &sandbox, "td-gen"),
+            )?;
+        }
+        KILL_TRACE.with(|trace| *trace.borrow_mut() = Some(Vec::new()));
+        drop(registry);
+        let trace = KILL_TRACE
+            .with(|trace| trace.borrow_mut().take())
+            .unwrap_or_default();
+        assert_eq!(
+            trace,
+            ["kill", "kill", "kill", "settle", "settle", "settle"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn large_command_to_backend_that_never_reads_is_bounded() -> Result<()> {
+        // y-d-06: a frame larger than the pipe buffer blocked in write_all
+        // before any step limit was running.
+        let temp = tempfile::tempdir()?;
+        let shim = silent_shim(temp.path(), "deaf", false)?;
+        with_short_step_limit(move || {
+            let mut process =
+                BackendProcess::new("python", &shim, &BackendSandboxPolicy::none(), None)?;
+            let bindings = HashMap::from([("big".to_string(), OValue::str_("x".repeat(1 << 20)))]);
+            let error = process
+                .exec("__oval_result__ = 1", bindings)
+                .expect_err("a backend that never reads must not wedge the writer");
+            assert!(
+                format!("{error:#}").contains(
+                    "read no input for 300 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                ),
+                "{error:#}"
+            );
+            assert!(process.terminal, "deaf backend was not reaped");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn small_command_keeps_the_blocking_write_path() -> Result<()> {
+        // the hot path is unchanged: small frames still answer normally.
+        let mut process = spawn_python_shim()?;
+        assert_eq!(
+            process.exec("__oval_result__ = 41 + 1", HashMap::new())?,
+            OValue::int(42)
+        );
+        process.shutdown(Duration::from_secs(2))?;
+        Ok(())
+    }
+
+    fn frame_hex(response: &BackendWireResponseV2) -> Result<String> {
+        let mut frame = Vec::new();
+        wire::write_frame(&mut frame, response)?;
+        Ok(frame.iter().map(|byte| format!("{byte:02x}")).collect())
+    }
+
+    /// Run `body` with fast heartbeat timing (50 ms beats, 400 ms warning) and
+    /// captured status lines; returns the body's result and the lines.
+    fn with_fast_heartbeats<T: Send + 'static>(
+        body: impl FnOnce() -> Result<T> + Send + 'static,
+    ) -> Result<(T, Vec<String>)> {
+        let (done_tx, done_rx) = mpsc::channel();
+        thread::spawn(move || {
+            HEARTBEAT_OVERRIDE.with(|cell| {
+                cell.set(Some((
+                    Duration::from_millis(50),
+                    Duration::from_millis(400),
+                )))
+            });
+            crate::progress::capture_lines_for_test(true);
+            let outcome = body();
+            let lines = crate::progress::capture_lines_for_test(false);
+            let _ = done_tx.send(outcome.map(|value| (value, lines)));
+        });
+        match done_rx.recv_timeout(Duration::from_secs(30)) {
+            Ok(outcome) => outcome,
+            Err(mpsc::RecvTimeoutError::Timeout) => panic!("step wait hung"),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    #[test]
+    fn heartbeats_keep_a_long_step_free_of_warnings() -> Result<()> {
+        // the real shim beats while time.sleep releases the gil: a step that
+        // runs far past the warning threshold stays quiet.
+        let (value, lines) = with_fast_heartbeats(|| {
+            let mut process = spawn_python_shim()?;
+            let value = process.exec(
+                "import time\ntime.sleep(1.5)\n__oval_result__ = 7",
+                HashMap::new(),
+            )?;
+            process.shutdown(Duration::from_secs(2))?;
+            Ok(value)
+        })?;
+        assert_eq!(value, OValue::int(7));
+        assert!(lines.is_empty(), "{lines:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn gil_holding_step_warns_once_and_still_completes() -> Result<()> {
+        // a c call that keeps the gil starves the heartbeat thread, which is
+        // the hang signal: one warning, no kill, the answer still arrives.
+        let (value, lines) = with_fast_heartbeats(|| {
+            let mut process = spawn_python_shim()?;
+            // one sum() call is a single c call that never yields the gil;
+            // size it from a short calibration call to last about 1.5 s.
+            let value = process.exec(
+                "import time\nt = time.time()\nsum(range(10**6))\n\
+                 per = max(time.time() - t, 1e-4)\n\
+                 sum(range(int(10**6 * 1.5 / per)))\n\
+                 __oval_result__ = 1",
+                HashMap::new(),
+            )?;
+            process.shutdown(Duration::from_secs(2))?;
+            Ok(value)
+        })?;
+        assert_eq!(value, OValue::int(1));
+        let warnings = lines
+            .iter()
+            .filter(|line| line.contains("no heartbeat from"))
+            .count();
+        assert_eq!(warnings, 1, "{lines:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn stalled_heartbeat_warns_once_resumes_once_and_completes() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let hello = frame_hex(&BackendWireResponseV2::HelloV1 {
+            capabilities: vec![HEARTBEAT_CAPABILITY.to_string()],
+        })?;
+        let beat = frame_hex(&BackendWireResponseV2::HeartbeatV1 { child: None })?;
+        let done = frame_hex(&BackendWireResponseV2::Ok {
+            value: OValue::int(5),
+        })?;
+        let shim = temp.path().join("stall_then_resume.py");
+        std::fs::write(
+            &shim,
+            format!(
+                "import sys, time\n\
+                 head = sys.stdin.buffer.read(4)\n\
+                 sys.stdin.buffer.read(int.from_bytes(head, 'big'))\n\
+                 out = sys.stdout.buffer\n\
+                 out.write(bytes.fromhex('{hello}')); out.flush()\n\
+                 def beats(n):\n    \
+                     for _ in range(n):\n        \
+                         out.write(bytes.fromhex('{beat}')); out.flush(); time.sleep(0.05)\n\
+                 beats(4)\n\
+                 time.sleep(1.0)\n\
+                 beats(6)\n\
+                 out.write(bytes.fromhex('{done}')); out.flush()\n\
+                 time.sleep(5)\n"
+            ),
+        )?;
+        let (value, lines) = with_fast_heartbeats(move || {
+            let mut process =
+                BackendProcess::new("python", &shim, &BackendSandboxPolicy::none(), None)?;
+            process.exec("x = 1", HashMap::new())
+        })?;
+        assert_eq!(value, OValue::int(5));
+        assert_eq!(
+            lines,
+            [
+                "no heartbeat from python for 400 ms; it may be hanging (still running)",
+                "python resumed sending heartbeats (still running)"
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn old_shim_without_heartbeats_never_warns() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let done = frame_hex(&BackendWireResponseV2::Ok {
+            value: OValue::int(3),
+        })?;
+        let shim = temp.path().join("old.py");
+        std::fs::write(
+            &shim,
+            format!(
+                "import sys, time\n\
+                 head = sys.stdin.buffer.read(4)\n\
+                 sys.stdin.buffer.read(int.from_bytes(head, 'big'))\n\
+                 time.sleep(1.0)\n\
+                 sys.stdout.buffer.write(bytes.fromhex('{done}')); sys.stdout.buffer.flush()\n\
+                 time.sleep(5)\n"
+            ),
+        )?;
+        let (value, lines) = with_fast_heartbeats(move || {
+            let mut process =
+                BackendProcess::new("python", &shim, &BackendSandboxPolicy::none(), None)?;
+            process.exec("x = 1", HashMap::new())
+        })?;
+        assert_eq!(value, OValue::int(3));
+        assert!(lines.is_empty(), "{lines:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn backend_killed_mid_step_fails_fast_even_with_the_pipe_held_open() -> Result<()> {
+        // y-d-10: no default limit, so a dead backend must be noticed. here a
+        // background child keeps the response pipe open, so reader eof never
+        // comes; only the leader-exit poll can see the death.
+        let temp = tempfile::tempdir()?;
+        let shim = temp.path().join("holder");
+        std::fs::write(&shim, "#!/bin/sh\nsleep 5 &\nexec sleep 5\n")?;
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755))?;
+        let sandbox = BackendSandboxPolicy::none();
+        let mut registry = ProcessRegistry::new();
+        registry.send_exec(
+            "python",
+            2,
+            "x",
+            HashMap::new(),
+            test_launch_context(&shim, &sandbox, "exit-gen"),
+        )?;
+        let pid = registry
+            .registry
+            .values()
+            .map(|process| process.child.id() as i32)
+            .next()
+            .expect("backend was published");
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            // SAFETY: signals the test's own backend leader.
+            unsafe { libc::kill(pid, libc::SIGKILL) };
+        });
+        let started = Instant::now();
+        let error = registry
+            .recv_exec_step("python", 2, &sandbox)
+            .expect_err("a killed backend must fail the step");
+        assert!(
+            started.elapsed() < Duration::from_secs(3),
+            "{:?}",
+            started.elapsed()
+        );
+        assert!(
+            format!("{error:#}").contains("exited during the step"),
+            "{error:#}"
+        );
+        assert!(registry.registry.is_empty());
+        let error = registry
+            .exec(
+                "python",
+                2,
+                "x",
+                HashMap::new(),
+                test_launch_context(&shim, &sandbox, "exit-gen"),
+            )
+            .expect_err("the lost session must not restart silently");
+        assert!(
+            format!("{error:#}").contains(
+                "session python[2] was terminated after its backend exited; its state is gone"
+            ),
+            "{error:#}"
+        );
+        Ok(())
+    }
+
+    /// Run `body` on its own thread (so thread-local overrides start clean)
+    /// with a guard that fails instead of hanging.
+    fn guarded<T: Send + 'static>(body: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+        let (done_tx, done_rx) = mpsc::channel();
+        thread::spawn(move || {
+            let _ = done_tx.send(body());
+        });
+        match done_rx.recv_timeout(Duration::from_secs(30)) {
+            Ok(outcome) => outcome,
+            Err(mpsc::RecvTimeoutError::Timeout) => panic!("step wait hung"),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    #[test]
+    fn no_default_limit_lets_a_long_silent_step_finish() -> Result<()> {
+        // lee's rule: steps may run for days, so nothing is killed unless the
+        // user opts in. no override and no knob set here.
+        assert_eq!(parse_backend_step_timeout(None)?, None);
+        assert_eq!(
+            parse_timeout_knob(BACKEND_OPERATION_TIMEOUT_ENV, None)?,
+            None
+        );
+        let value = guarded(|| {
+            let mut process = spawn_python_shim()?;
+            let value = process.exec(
+                "import time\ntime.sleep(1.5)\n__oval_result__ = 'finished'",
+                HashMap::new(),
+            )?;
+            process.shutdown(Duration::from_secs(2))?;
+            Ok(value)
+        })?;
+        assert_eq!(value, OValue::str_("finished"));
+        Ok(())
+    }
+
+    #[test]
+    fn operation_timeout_knob_rejects_invalid_values() {
+        use std::ffi::OsStr;
+        for bad in ["0", "abc", "604800001"] {
+            let error = parse_timeout_knob(BACKEND_OPERATION_TIMEOUT_ENV, Some(OsStr::new(bad)))
+                .expect_err(bad);
+            assert!(
+                format!("{error:#}").contains(BACKEND_OPERATION_TIMEOUT_ENV),
+                "{error:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn cancellation_kills_evicts_and_loses_the_session_without_a_limit() -> Result<()> {
+        // cancel ends a silent step with no opt-in limit; the killed python[4]
+        // is reported lost on its next block.
+        let temp = tempfile::tempdir()?;
+        let shim = silent_shim(temp.path(), "cancelled", true)?;
+        guarded(move || {
+            let sandbox = BackendSandboxPolicy::none();
+            let mut registry = ProcessRegistry::new();
+            let launch = || test_launch_context(&shim, &sandbox, "cancel-gen");
+            registry.send_exec("python", 4, "x = 1", HashMap::new(), launch())?;
+            let pid = registry
+                .registry
+                .values()
+                .map(|process| process.child.id() as i32)
+                .next()
+                .expect("backend was published");
+            let started = Instant::now();
+            let error = registry
+                .recv_exec_step_controlled("python", 4, &sandbox, None, || {
+                    started.elapsed() >= Duration::from_millis(300)
+                })
+                .expect_err("a cancelled step must fail");
+            assert!(
+                format!("{error:#}").contains("request cancellation was observed"),
+                "{error:#}"
+            );
+            assert!(
+                started.elapsed() < Duration::from_secs(3),
+                "{:?}",
+                started.elapsed()
+            );
+            assert!(
+                registry.registry.is_empty(),
+                "cancelled backend stayed in the pool"
+            );
+            assert!(
+                !std::path::Path::new(&format!("/proc/{pid}")).exists() || {
+                    // a zombie-free check: the leader must at least not be running.
+                    std::fs::read_to_string(format!("/proc/{pid}/stat"))
+                        .map(|stat| stat.contains(") Z "))
+                        .unwrap_or(true)
+                },
+                "cancelled backend {pid} is still alive"
+            );
+            let error = registry
+                .exec("python", 4, "x", HashMap::new(), launch())
+                .expect_err("a cancelled session must not restart silently");
+            assert!(
+                format!("{error:#}").contains(
+                    "session python[4] was terminated after cancellation; its state is gone"
+                ),
+                "{error:#}"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn large_write_to_a_deaf_backend_ends_on_cancellation() -> Result<()> {
+        // w3: a frame above the pipe size to a shim that never reads blocks
+        // the write; under a cancellation token the write is polled and the
+        // backend is killed and evicted when the request is cancelled.
+        let temp = tempfile::tempdir()?;
+        let shim = silent_shim(temp.path(), "deaf", false)?;
+        guarded(move || {
+            let sandbox = BackendSandboxPolicy::none();
+            let mut registry = ProcessRegistry::new();
+            let token = crate::cancellation::CancellationToken::new();
+            registry.set_request_cancellation(Some(token.clone()));
+            let canceller = token.clone();
+            thread::spawn(move || {
+                thread::sleep(Duration::from_millis(300));
+                canceller.cancel();
+            });
+            let bindings = HashMap::from([("big".to_string(), OValue::str_("x".repeat(1 << 20)))]);
+            let started = Instant::now();
+            let error = registry
+                .send_exec(
+                    "python",
+                    5,
+                    "x = 1",
+                    bindings,
+                    test_launch_context(&shim, &sandbox, "deaf-gen"),
+                )
+                .expect_err("a cancelled write must fail");
+            assert!(
+                started.elapsed() < Duration::from_secs(3),
+                "{:?}",
+                started.elapsed()
+            );
+            assert!(
+                format!("{error:#}").contains(
+                    "request cancelled while backend `python` was still reading its command"
+                ),
+                "{error:#}"
+            );
+            assert!(
+                registry.registry.is_empty(),
+                "deaf backend stayed in the pool"
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn spinner_does_not_change_step_results() -> Result<()> {
+        // stdout is never written by the status writer; a step returns the
+        // same value with the spinner forced on and off.
+        let run = |spinner: bool| {
+            guarded(move || {
+                crate::progress::force_spinner_for_test(Some(spinner));
+                let mut process = spawn_python_shim()?;
+                let value = process.exec(
+                    "import sys, time\nprint('out line')\nsys.stderr.write('err line\\n')\ntime.sleep(0.5)\n__oval_result__ = 'same'",
+                    HashMap::new(),
+                )?;
+                process.shutdown(Duration::from_secs(2))?;
+                crate::progress::force_spinner_for_test(None);
+                Ok(value)
+            })
+        };
+        assert_eq!(run(true)?, run(false)?);
+        Ok(())
+    }
+
+    #[test]
     fn restricted_python_shim_denies_process_spawn() -> Result<()> {
         let mut process = spawn_python_shim()?;
         let error = process
@@ -3457,7 +5811,7 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("denies process spawn"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3472,7 +5826,7 @@ mod tests {
             .unwrap_err();
         assert!(error.to_string().contains("denies filesystem write"));
         assert!(!Path::new("/tmp/o-backend-forbidden").exists());
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3486,7 +5840,7 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("denies filesystem read"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3500,7 +5854,7 @@ mod tests {
             HashMap::new(),
         )?;
         assert_eq!(value, OValue::bool_(true));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3514,7 +5868,7 @@ mod tests {
             )
             .unwrap_err();
         assert!(error.to_string().contains("denies network access"));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 
@@ -3528,7 +5882,7 @@ mod tests {
             HashMap::new(),
         )?;
         assert_eq!(value, OValue::int(0));
-        process.shutdown(backend_shutdown_timeout())?;
+        process.shutdown(backend_shutdown_timeout()?)?;
         Ok(())
     }
 

@@ -255,7 +255,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                 },
             ],
         )
-        self.assertEqual(len(roots), 51)
+        self.assertEqual(len(roots), 53)
         api_root = next(root for root in roots if root["name"] == "api")
         self.assertIn("ir", api_root["allowed_dependencies"])
         boot_object_root = next(root for root in roots if root["name"] == "boot_objects")
@@ -999,10 +999,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
         roots = {spec["name"]: spec for spec in manifest["root"]}
         self.assertFalse(roots["native_leaf"]["compatibility_export"])
-        self.assertEqual(roots["native_leaf"]["allowed_dependencies"], ["lifecycle_trace", "native_leaf_identity", "ocore", "value"])
-        for name in ("lifecycle_trace", "native_leaf_identity"):
+        self.assertEqual(roots["native_leaf"]["allowed_dependencies"], ["cancellation", "lifecycle_trace", "native_leaf_identity", "ocore", "progress", "step_knobs", "value"])
+        for name in ("progress", "native_leaf_identity"):
             self.assertEqual(roots[name]["layer"], 0)
             self.assertEqual(roots[name]["allowed_dependencies"], [])
+        self.assertEqual(roots["lifecycle_trace"]["layer"], 1)
+        self.assertEqual(roots["lifecycle_trace"]["allowed_dependencies"], ["progress"])
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_minimal_tree(root)

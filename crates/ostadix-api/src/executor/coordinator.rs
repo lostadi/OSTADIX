@@ -10,8 +10,9 @@
 //! execute as owned tasks on one bounded worker pool reused for the entire
 //! coordinator run. Each physical completion immediately reopens scheduling;
 //! semantic settlement remains ordinal and deterministic. Every other
-//! operation — anything that needs the evaluator's `!Send` process registry or
-//! mutable state — runs on the coordinator thread. State/control inputs,
+//! operation — anything that needs exclusive `&mut` access to the evaluator's
+//! `Send + !Sync` process registry or mutable state — runs on the coordinator
+//! thread. State/control inputs,
 //! rather than commit order, preserve externally observable effect ordering.
 
 use std::collections::{HashMap, HashSet};
@@ -203,6 +204,8 @@ impl<'a> Coordinator<'a> {
             base_scope: std::collections::HashMap::new(),
             node_policy,
             trace: ExecutionTrace::new(),
+            failed_batch_members: std::collections::HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
 
         Ok(Self {
@@ -1193,6 +1196,31 @@ impl<'a> Coordinator<'a> {
                             kind: WorkerFailureKind::Infrastructure,
                         });
                     }
+                    if let Some((failure, value)) = crate::eval_core::settle_batch_member_failure(
+                        self.plan,
+                        &mut self.frame,
+                        id,
+                        &error,
+                        batch_member_error_is_absorbable(&error),
+                    ) {
+                        self.trace.batch_member_failed(failure);
+                        let output_type = value.type_name().to_string();
+                        let fingerprint = trace_fingerprint(&value);
+                        if let Err(error) = self.frame.set_value(id, value) {
+                            return Some(WorkerFailure {
+                                index,
+                                error,
+                                kind: WorkerFailureKind::Infrastructure,
+                            });
+                        }
+                        self.trace.finished(id, output_type, fingerprint);
+                        self.materialize_member_error(index);
+                        crate::process::lifecycle_trace(
+                            "coordinator.result_settled",
+                            format!("token={index} plan_node={} outcome=member_error", id.0),
+                        );
+                        continue;
+                    }
                     self.trace.failed(id, error.to_string());
                     self.record_failure(index, &error.to_string());
                     crate::process::lifecycle_trace(
@@ -1398,6 +1426,9 @@ impl<'a> Coordinator<'a> {
 
         match outcome {
             Ok(value) => {
+                for failure in std::mem::take(&mut self.frame.forced_batch_failures) {
+                    self.trace.batch_member_failed(failure);
+                }
                 if let Some(crossing) = self.trace.crossing_mut(id) {
                     crossing.observe_result(&value);
                 }
@@ -1414,6 +1445,23 @@ impl<'a> Coordinator<'a> {
                     } else {
                         RuntimeCrossingStateV1::Failed
                     };
+                }
+                if let Some((failure, value)) = crate::eval_core::settle_batch_member_failure(
+                    self.plan,
+                    &mut self.frame,
+                    id,
+                    &err,
+                    batch_member_error_is_absorbable(&err),
+                ) {
+                    self.trace.batch_member_failed(failure);
+                    self.trace.finished(
+                        id,
+                        value.type_name().to_string(),
+                        trace_fingerprint(&value),
+                    );
+                    self.frame.set_value(id, value)?;
+                    self.materialize_member_error(index);
+                    return Ok(());
                 }
                 self.trace.failed(id, err.to_string());
                 self.record_failure(index, &err.to_string());
@@ -1466,6 +1514,15 @@ impl<'a> Coordinator<'a> {
     fn materialize_success(&mut self, index: usize) {
         self.publish_outputs(index);
         self.record_publication(index);
+        self.ops[index].state = OpRunState::Settled;
+    }
+
+    /// A `batch(...)` member that failed settles as its error value: its
+    /// outputs are released so the batch can assemble, but nothing is recorded
+    /// as a publication, since publications list successful settlements only.
+    /// the member is already in `failed_batch_members`.
+    fn materialize_member_error(&mut self, index: usize) {
+        self.publish_outputs(index);
         self.ops[index].state = OpRunState::Settled;
     }
 
@@ -1547,6 +1604,44 @@ impl<'a> Coordinator<'a> {
             }
         }
         Ok(last)
+    }
+}
+
+// ### batch member classification ###########################################
+// lives in the executor because the graph-evaluation contract may not see
+// process errors.
+
+/// Whether `error` is a member execution error that a `batch(...)` may
+/// settle as an error value.
+pub(crate) fn batch_member_error_is_absorbable(error: &anyhow::Error) -> bool {
+    // project cancellation is not checked here: project sits above eval and the
+    // executor, so its errors wrap a document run and never surface inside one
+    // batch member. the cooperative token check below covers a member that saw
+    // the request's cancellation.
+    let request_fatal = crate::process::is_infrastructure_error(error)
+        || crate::cancellation::is_request_cancellation(error)
+        || crate::process::is_request_deadline_kill(error)
+        || error.chain().any(|cause| {
+            cause.is::<crate::eval_core::StrictCacheMiss>()
+                // the deadline belongs to the whole request, not to one member.
+                || cause.is::<crate::cancellation::RequestDeadlineExpired>()
+        });
+    !request_fatal
+}
+
+#[cfg(test)]
+mod deadline_member_tests {
+    use super::batch_member_error_is_absorbable;
+    use crate::cancellation::RequestDeadlineExpired;
+
+    #[test]
+    fn deadline_expiry_is_never_absorbed_as_a_batch_member_error() {
+        let deadline =
+            anyhow::Error::new(RequestDeadlineExpired("during execution")).context("member 2");
+        assert!(!batch_member_error_is_absorbable(&deadline));
+        assert!(batch_member_error_is_absorbable(&anyhow::anyhow!(
+            "ordinary failure"
+        )));
     }
 }
 
@@ -2355,8 +2450,8 @@ mod tests {
                     fn_name: "autonomous".into(),
                     mode: InvokeMode::Autonomous,
                     args: vec![OIr::Invoke {
-                        fn_name: "batch".into(),
-                        mode: InvokeMode::Group(crate::value::GroupMode::Batch),
+                        fn_name: "all".into(),
+                        mode: InvokeMode::Group(crate::value::GroupMode::All),
                         args: vec![
                             exec("python", vec![OIr::Text("left".into())]),
                             exec(

@@ -43,7 +43,10 @@ use crate::eval_core::{
     data_predecessors, derive_policy_contexts, render_with, trace_fingerprint, GraphEvalFrame,
     GraphEvaluationHost,
 };
-pub use crate::eval_core::{render_fidelity, ExecutionTrace, RenderFidelity, TraceEvent};
+pub use crate::eval_core::{
+    render_fidelity, BatchMemberFailure, BatchMemberFailures, ExecutionTrace, RenderFidelity,
+    TraceEvent,
+};
 pub use crate::execution_contract::Policy;
 use crate::execution_contract::{
     is_o_identifier, validate_execution_metadata, BlockEvalPolicy, BlockOptions,
@@ -344,6 +347,17 @@ impl ImmediateExecutor {
 // Evaluator
 // ═════════════════════════════════════════════════════════════════════════════
 
+/// The record of an ordinary member failure in a `batch(...)` forced with
+/// `now(...)`, or the error itself when it must stay fatal: cancellation,
+/// deadlines, infrastructure failures and the Strict cache miss.
+fn forced_batch_member_failure(error: anyhow::Error) -> Result<String> {
+    if crate::executor::coordinator::batch_member_error_is_absorbable(&error) {
+        Ok(format!("{error:#}"))
+    } else {
+        Err(error)
+    }
+}
+
 pub struct Evaluator {
     registry: ProcessRegistry,
     /// Directory containing one backend shim executable per language.
@@ -420,6 +434,9 @@ pub struct Evaluator {
 
     /// Deterministic lifecycle trace for the most recent OIR execution.
     last_execution_trace: Option<ExecutionTrace>,
+    /// Member failures of a `batch(...)` forced at runtime by `now(...)`,
+    /// as (member index, message), waiting for the plan node that forced it.
+    forced_batch_failures: Vec<(usize, String)>,
     crossing_observations: bool,
 
     /// Digest-bound pre-execution decision that authorized the most recent
@@ -823,6 +840,7 @@ impl Evaluator {
             autonomous_buffer: Vec::new(),
             last_execution_plan: None,
             last_execution_trace: None,
+            forced_batch_failures: Vec::new(),
             crossing_observations: false,
             last_execution_admission: None,
             last_hgraph_schedule: None,
@@ -1448,8 +1466,9 @@ impl Evaluator {
     /// Dispatch a Request to the right performer.
     ///
     /// Routing rules:
-    ///   - `RequestKind::Eval` always goes to `exec_eval` (needs ProcessRegistry,
-    ///     which is !Send and not accessible to the scheduler).
+    ///   - `RequestKind::Eval` always goes to `exec_eval` (needs exclusive `&mut`
+    ///     access to the ProcessRegistry, which is `Send + !Sync` and not shared
+    ///     with scheduler worker threads).
     ///   - All other kinds under `Policy::Autonomous` go to the
     ///     `AutonomousScheduler`, which checks its two-level cache and, on a
     ///     miss, executes the request (and its source chain) using concurrent
@@ -1586,11 +1605,14 @@ impl Evaluator {
                         OValue::Request { fingerprint, .. } => fingerprint_preview(fingerprint),
                         _ => "?",
                     };
-                    bail!(
-                        "autonomous: scheduler failed to materialize \
-                             request fp={}; cache miss after flush",
-                        fp
-                    )
+                    // after an autonomous flush every planned node is cached,
+                    // so a miss here can only come from a scheduler bug; no
+                    // document can force one, which is why the batch test is
+                    // unit-level (strict_cache_miss_inside_batch_is_fatal).
+                    Err(crate::eval_core::StrictCacheMiss {
+                        fingerprint: fp.to_string(),
+                    }
+                    .into())
                 }
             },
             _ => Ok(value),
@@ -1619,8 +1641,9 @@ impl Evaluator {
 
     /// Returns `true` if `m` is a Nix-family Request (Instantiate, Realise, or
     /// Activate) that can be dispatched to a background thread during concurrent
-    /// group resolution. Eval Requests are excluded because they require the
-    /// ProcessRegistry (which is !Send) and must stay on the evaluator thread.
+    /// group resolution. Eval Requests are excluded because they require
+    /// exclusive `&mut` access to the ProcessRegistry (`Send + !Sync`) on the
+    /// evaluator thread.
     fn is_threadable_member(m: &OValue) -> bool {
         Self::is_schedulable_request(m)
     }
@@ -1659,11 +1682,10 @@ impl Evaluator {
             OValue::Request { fingerprint, .. } => match mode {
                 CacheMode::Fresh => self.force_request(m),
                 CacheMode::Strict => self.resolve_from_cache(m).ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "autonomous: scheduler failed to materialize \
-                             request fp={}; cache miss after flush",
-                        fingerprint_preview(fingerprint)
-                    )
+                    crate::eval_core::StrictCacheMiss {
+                        fingerprint: fingerprint_preview(fingerprint).to_string(),
+                    }
+                    .into()
                 }),
             },
             OValue::Group {
@@ -1697,7 +1719,8 @@ impl Evaluator {
     ///   Nix-family Request, members are dispatched concurrently (up to
     ///   `self.scheduler.parallelism` threads at a time). Eval Requests and
     ///   plain values always resolve serially on the evaluator thread (Eval
-    ///   needs the ProcessRegistry which is !Send).
+    ///   needs exclusive `&mut` access to the ProcessRegistry, which is
+    ///   `Send + !Sync`).
     ///
     ///   Under `Strict` after an autonomous flush, results are already in L1
     ///   memory and sequential cache reads are used.
@@ -1728,11 +1751,14 @@ impl Evaluator {
                     // autonomous scheduler failed to materialize a buffered
                     // request, so it remains a hard invariant error.
                     let mut out = Vec::with_capacity(members.len());
-                    for m in members {
+                    let mut failures = Vec::new();
+                    for (index, m) in members.iter().enumerate() {
                         match self.resolve_member(m, cache_mode) {
                             Ok(v) => out.push(v),
                             Err(e) if cache_mode == CacheMode::Fresh => {
-                                out.push(OValue::error(e.to_string()))
+                                let slot = OValue::error(e.to_string());
+                                failures.push((index, forced_batch_member_failure(e)?));
+                                out.push(slot)
                             }
                             Err(e) => {
                                 return Err(e)
@@ -1740,7 +1766,9 @@ impl Evaluator {
                             }
                         }
                     }
-                    Ok(OValue::list(out))
+                    // recorded only once every member settled, so a nested
+                    // plan run by a later member cannot claim them.
+                    self.settle_forced_batch(out, failures)
                 } else {
                     // All: hard all-or-nothing barrier — fail on first error.
                     let mut out = Vec::with_capacity(members.len());
@@ -1861,14 +1889,21 @@ impl Evaluator {
 
         // Phase 4 — assemble result list with mode-specific failure semantics.
         let mut out = Vec::with_capacity(members.len());
+        let mut failures = Vec::new();
         for (i, slot) in results.into_iter().enumerate() {
             let member_result = slot.expect("every member slot must be filled after phases 1-3");
             match mode {
                 GroupMode::Batch => {
-                    // Batch: collect every outcome; failures become OError values.
+                    // Batch: ordinary failures become OError values and are
+                    // recorded; cancellation, deadlines and infrastructure
+                    // failures stay fatal.
                     match member_result {
                         Ok(v) => out.push(v),
-                        Err(e) => out.push(OValue::error(format!("member {}: {}", i, e))),
+                        Err(e) => {
+                            let slot = OValue::error(format!("member {}: {}", i, e));
+                            failures.push((i, forced_batch_member_failure(e)?));
+                            out.push(slot)
+                        }
                     }
                 }
                 _ => {
@@ -1880,6 +1915,26 @@ impl Evaluator {
                 }
             }
         }
+        self.settle_forced_batch(out, failures)
+    }
+
+    /// The value of a forced `batch(...)` once every member settled. SPEC
+    /// 772-773: when every direct member failed, the batch yields no value and
+    /// raises its summary error, which reports the members itself; otherwise
+    /// it yields its list and the failures are recorded for the run.
+    fn settle_forced_batch(
+        &mut self,
+        out: Vec<OValue>,
+        failures: Vec<(usize, String)>,
+    ) -> Result<OValue> {
+        if !out.is_empty() && failures.len() == out.len() {
+            return Err(crate::eval_core::BatchAllMembersFailed {
+                fn_name: "batch".to_string(),
+                members: failures,
+            }
+            .into());
+        }
+        self.forced_batch_failures.extend(failures);
         Ok(OValue::list(out))
     }
 
@@ -2190,14 +2245,13 @@ impl Evaluator {
         &mut self,
         src: &str,
         caller_scope: &HashMap<String, OValue>,
-        deadline: Instant,
+        deadline: Option<Instant>,
     ) -> Result<OValue> {
         let outer_deadline = self.callback_operation_deadline;
-        self.callback_operation_deadline = Some(
-            outer_deadline
-                .map(|outer| outer.min(deadline))
-                .unwrap_or(deadline),
-        );
+        self.callback_operation_deadline = match (outer_deadline, deadline) {
+            (Some(outer), Some(deadline)) => Some(outer.min(deadline)),
+            (outer, deadline) => outer.or(deadline),
+        };
         let outcome = self.eval_source_with_scope(src, caller_scope);
         self.callback_operation_deadline = outer_deadline;
         outcome
@@ -2611,7 +2665,9 @@ impl Evaluator {
             .checked_duration_since(Instant::now())
             .is_none_or(|remaining| remaining.is_zero())
         {
-            bail!("request execution deadline expired before dispatch");
+            return Err(anyhow::Error::new(
+                crate::cancellation::RequestDeadlineExpired("before dispatch"),
+            ));
         }
         self.callback_operation_deadline = Some(effective_deadline);
         let execution = self.eval_ir_program_with_mode(program, scope, Some(false), None);
@@ -2690,8 +2746,8 @@ impl Evaluator {
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
             self.last_execution_trace = Some(ExecutionTrace::new());
-            Err(anyhow::anyhow!(
-                "request execution deadline expired before dispatch"
+            Err(anyhow::Error::new(
+                crate::cancellation::RequestDeadlineExpired("before dispatch"),
             ))
         } else {
             self.eval_ir_program_with_mode(program, scope, forced, required_execution_intent)
@@ -2735,7 +2791,34 @@ impl Evaluator {
     /// executor, `Some(false)` forces the graph coordinator, and `None` follows
     /// the `O_EXECUTOR` environment variable (graph by default, with `serial`
     /// retaining the reference semantics used by the differential suite).
+    /// Every `eval_document*` and `eval_ir_program*` entry point lands here,
+    /// so a partially failed `batch(...)` reaches every embedder as an
+    /// error, with the produced value kept inside [`BatchMemberFailures`].
     fn eval_ir_program_with_mode(
+        &mut self,
+        program: &OIrProgram,
+        scope: &mut HashMap<String, OValue>,
+        forced: Option<bool>,
+        required_execution_intent: Option<(&str, &str, &str)>,
+    ) -> Result<OValue> {
+        let value = self.eval_ir_program_with_mode_unchecked(
+            program,
+            scope,
+            forced,
+            required_execution_intent,
+        )?;
+        let failures = self
+            .last_execution_trace
+            .as_ref()
+            .map(|trace| trace.failed_batch_members.clone())
+            .unwrap_or_default();
+        if failures.is_empty() {
+            return Ok(value);
+        }
+        Err(crate::eval_core::BatchMemberFailures { value, failures }.into())
+    }
+
+    fn eval_ir_program_with_mode_unchecked(
         &mut self,
         program: &OIrProgram,
         scope: &mut HashMap<String, OValue>,
@@ -2940,6 +3023,8 @@ impl Evaluator {
             base_scope: scope.clone(),
             node_policy,
             trace: ExecutionTrace::new(),
+            failed_batch_members: HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
 
         let execution_order = frame.plan_index.topological_order().to_vec();
@@ -2980,6 +3065,8 @@ impl Evaluator {
 
             match value {
                 Ok(value) => {
+                    let forced = std::mem::take(&mut frame.forced_batch_failures);
+                    frame.trace.failed_batch_members.extend(forced);
                     frame.trace.events.push(TraceEvent::NodeFinished {
                         id,
                         value_type: value.type_name().to_string(),
@@ -2988,6 +3075,22 @@ impl Evaluator {
                     frame.set_value(id, value)?;
                 }
                 Err(err) => {
+                    if let Some((failure, value)) = crate::eval_core::settle_batch_member_failure(
+                        plan,
+                        &mut frame,
+                        id,
+                        &err,
+                        crate::executor::coordinator::batch_member_error_is_absorbable(&err),
+                    ) {
+                        frame.trace.failed_batch_members.push(failure);
+                        frame.trace.events.push(TraceEvent::NodeFinished {
+                            id,
+                            value_type: value.type_name().to_string(),
+                            fingerprint: trace_fingerprint(&value),
+                        });
+                        frame.set_value(id, value)?;
+                        continue;
+                    }
                     frame.trace.events.push(TraceEvent::NodeFailed {
                         id,
                         message: err.to_string(),
@@ -3030,7 +3133,34 @@ impl Evaluator {
     // Executable OIR dispatch
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// Run one ready plan node. Member failures of a `batch(...)` the node
+    /// forced with `now(...)` land in `frame.forced_batch_failures`, attributed
+    /// to this node, for the caller's trace.
     pub(crate) fn execute_ready_plan_node(
+        &mut self,
+        node_id: PlanNodeId,
+        node: &OIr,
+        plan: &ExecutionPlan,
+        frame: &mut GraphEvalFrame,
+    ) -> Result<OValue> {
+        let pending = std::mem::take(&mut self.forced_batch_failures);
+        let outcome = self.execute_ready_plan_node_inner(node_id, node, plan, frame);
+        let forced = std::mem::replace(&mut self.forced_batch_failures, pending);
+        if outcome.is_ok() {
+            frame
+                .forced_batch_failures
+                .extend(forced.into_iter().map(|(member, message)| {
+                    crate::eval_core::BatchMemberFailure {
+                        node: node_id,
+                        member,
+                        message,
+                    }
+                }));
+        }
+        outcome
+    }
+
+    fn execute_ready_plan_node_inner(
         &mut self,
         node_id: PlanNodeId,
         node: &OIr,
@@ -3054,6 +3184,22 @@ impl Evaluator {
                 mode,
                 args,
             } => self.execute_ready_invoke(fn_name, *mode, args, node_id, plan, frame),
+            OIr::NativeLeaf { .. } => {
+                let descriptor_sha = crate::ir::native_leaf_source_descriptor_sha256(node)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("native scalar source descriptor is not static")
+                    })?;
+                let leaf = self.executable_leases()?.native_leaf(descriptor_sha)?;
+                let task =
+                    crate::executor::parallel::prepare_native(leaf, frame, plan, node_id, node)?;
+                let (events, _rx) = std::sync::mpsc::channel();
+                let context = crate::executor::task::TaskContext::new(
+                    crate::executor::task::TaskToken(node_id.0),
+                    events,
+                    self.active_request_cancellation.clone(),
+                );
+                task.execute(&context)
+            }
             OIr::Exec {
                 lang,
                 env_id,
@@ -3139,6 +3285,28 @@ impl Evaluator {
         } else if let InvokeMode::Group(mode) = invoke_mode {
             if arg_vals.is_empty() {
                 bail!("{}(...) takes at least 1 argument, got 0", fn_name);
+            }
+            // the all-failed check reads the failure flags, not the value
+            // shape: a member that returns an error value did not fail.
+            if mode == crate::value::GroupMode::Batch
+                && planned_args
+                    .iter()
+                    .all(|(id, _)| frame.failed_batch_members.contains(id))
+            {
+                let members = planned_args
+                    .iter()
+                    .zip(&arg_vals)
+                    .enumerate()
+                    .map(|(member, (_, value))| match value {
+                        OValue::Error { msg } => (member, msg.clone()),
+                        other => (member, other.type_name().to_string()),
+                    })
+                    .collect();
+                return Err(crate::eval_core::BatchAllMembersFailed {
+                    fn_name: fn_name.to_string(),
+                    members,
+                }
+                .into());
             }
             Ok(OValue::group(mode, arg_vals))
         } else {
@@ -3229,7 +3397,7 @@ impl Evaluator {
                     buf.push_str(text);
                 }
 
-                OIr::Load(_) | OIr::Exec { .. } | OIr::Invoke { .. } => {
+                OIr::Load(_) | OIr::Exec { .. } | OIr::Invoke { .. } | OIr::NativeLeaf { .. } => {
                     let raw = frame.value(*child_id)?.clone();
                     let resolved = self.resolve_for_splice(raw)?;
                     if backend.execution == ExecutionMode::Shim {
@@ -3239,7 +3407,17 @@ impl Evaluator {
                                 .map_err(anyhow::Error::msg)?;
                         }
                     }
-                    buf.push_str(&render_with(backend.renderer, &resolved));
+                    let rendered = render_with(backend.renderer, &resolved);
+                    let name = match child {
+                        OIr::Load(name) => Some(name.as_str()),
+                        _ => None,
+                    };
+                    crate::eval_core::refuse_nul_in_bash_splice(
+                        &backend.canonical,
+                        name,
+                        &rendered,
+                    )?;
+                    buf.push_str(&rendered);
                     if constructs_thunk {
                         deps.push(resolved);
                     }
@@ -3285,6 +3463,8 @@ impl Evaluator {
         let environment = EnvironmentRefV2::from_encoded(env_id);
         let runtime_env_id = environment.runtime_env_id();
         let env_label = match environment {
+            // the same name the registry's messages use for this block.
+            EnvironmentRefV2::Ephemeral if runtime_lang == "bash" => "plain bash block".to_string(),
             EnvironmentRefV2::Ephemeral => format!("{runtime_lang}[*ephemeral*]"),
             EnvironmentRefV2::LinkerIsolated => format!("{runtime_lang}[*linked*]"),
             EnvironmentRefV2::Persistent(id) => format!("{runtime_lang}[{id}]"),
@@ -3313,6 +3493,10 @@ impl Evaluator {
             &launch_generation,
         )?;
         let execution: Result<OValue> = (|| {
+            self.registry
+                .set_request_cancellation(self.active_request_cancellation.clone());
+            self.registry
+                .set_plain_bash_next(frame.plain_bash_block_ahead(plan, node_id));
             self.registry
                 .send_exec(
                     runtime_lang,
@@ -3785,21 +3969,32 @@ impl Evaluator {
         operation: &str,
         arguments: Vec<OValue>,
     ) -> Result<OValue> {
-        let deadline = Instant::now()
-            .checked_add(crate::process::backend_operation_timeout())
-            .context("native operation deadline overflow")?;
-        let deadline = self
-            .callback_operation_deadline
-            .map_or(deadline, |outer| outer.min(deadline));
+        let deadline = match crate::process::backend_operation_timeout()? {
+            Some(timeout) => Some(
+                Instant::now()
+                    .checked_add(timeout)
+                    .context("native operation deadline overflow")?,
+            ),
+            None => None,
+        };
+        let deadline = match (self.callback_operation_deadline, deadline) {
+            (Some(outer), Some(deadline)) => Some(outer.min(deadline)),
+            (outer, deadline) => outer.or(deadline),
+        };
         let mut ticket = self
             .registry
             .begin_native_operation(handle, operation, arguments)?;
         let outcome =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<OValue> {
                 loop {
-                    let remaining = deadline
-                        .checked_duration_since(Instant::now())
-                        .context("native.operation-timeout: owner operation deadline expired")?;
+                    let remaining = match deadline {
+                        Some(deadline) => {
+                            Some(deadline.checked_duration_since(Instant::now()).context(
+                                "native.operation-timeout: owner operation deadline expired",
+                            )?)
+                        }
+                        None => None,
+                    };
                     match self
                         .registry
                         .recv_native_operation(&mut ticket, remaining)?
@@ -3958,7 +4153,7 @@ fn program_contains_obvious_o_eval(program: &OIrProgram) -> bool {
             }
             OIr::Load(_) => false,
             OIr::Store { expr, .. } => visit(expr),
-            OIr::Invoke { args, .. } => args.iter().any(visit),
+            OIr::Invoke { args, .. } | OIr::NativeLeaf { args, .. } => args.iter().any(visit),
             OIr::Exec { body, .. } => body.iter().any(visit),
         }
     }
@@ -4105,7 +4300,9 @@ impl GraphEvaluationHost for Evaluator {
             .callback_operation_deadline
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
-            bail!("request execution deadline expired during execution");
+            return Err(anyhow::Error::new(
+                crate::cancellation::RequestDeadlineExpired("during execution"),
+            ));
         }
         Ok(())
     }
@@ -4138,7 +4335,7 @@ impl GraphEvaluationHost for Evaluator {
         &mut self,
         src: &str,
         caller_scope: &HashMap<String, OValue>,
-        deadline: Instant,
+        deadline: Option<Instant>,
     ) -> Result<OValue> {
         Evaluator::eval_source_with_scope_until(self, src, caller_scope, deadline)
     }
@@ -5855,6 +6052,124 @@ mod tests {
     }
 
     #[test]
+    fn bash_child_killed_mid_block_fails_fast_and_loses_its_session() -> Result<()> {
+        // no default limit: a bash[n] whose session shell is killed mid-block
+        // must still end with an error within seconds, and the next block on
+        // bash[n] must fail instead of starting an empty session.
+        if which::which("bash").is_err() {
+            return Ok(());
+        }
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let outcome = (|| -> Result<()> {
+                let backends: HashSet<String> = ["bash"].iter().map(|s| s.to_string()).collect();
+                let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+                let mut evaluator =
+                    Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+                assert_eq!(
+                    eval_test_source(
+                        &mut evaluator,
+                        &backends,
+                        "bash[2]^(kept=1; printf 7)_bash[2]"
+                    )?,
+                    OValue::int(7)
+                );
+                let started = std::time::Instant::now();
+                let outcome = eval_test_source(
+                    &mut evaluator,
+                    &backends,
+                    "bash[2]^((sleep 0.3; kill -9 $$) & sleep 20; printf survived)_bash[2]",
+                );
+                assert!(
+                    started.elapsed() < std::time::Duration::from_secs(10),
+                    "{:?}",
+                    started.elapsed()
+                );
+                let error = outcome.expect_err("a killed bash[2] shell must fail the block");
+                let error = format!("{error:#}");
+                assert!(!error.contains("survived"), "{error}");
+                let error = eval_test_source(
+                    &mut evaluator,
+                    &backends,
+                    "bash[2]^(printf ${kept:-FRESH})_bash[2]",
+                )
+                .expect_err("the lost bash[2] session must not restart silently");
+                assert!(
+                    format!("{error:#}")
+                        .contains("killed by signal 9 during an earlier block; its state is gone"),
+                    "{error:#}"
+                );
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(std::time::Duration::from_secs(60)) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => panic!("killed bash block hung"),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    #[test]
+    fn hanging_numbered_bash_block_hits_the_step_limit_and_loses_its_session() -> Result<()> {
+        // bash has no default limit; the opt-in per-step limit must still
+        // cover bash[n], and the killed session must be reported lost rather
+        // than silently restarted.
+        if which::which("bash").is_err() {
+            return Ok(());
+        }
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            crate::process::set_step_timeout_override(Some(std::time::Duration::from_millis(500)));
+            let outcome = (|| -> Result<()> {
+                let backends: HashSet<String> = ["bash"].iter().map(|s| s.to_string()).collect();
+                let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+                let mut evaluator =
+                    Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+                assert_eq!(
+                    eval_test_source(
+                        &mut evaluator,
+                        &backends,
+                        "bash[1]^(kept=1; printf 7)_bash[1]"
+                    )?,
+                    OValue::int(7)
+                );
+                let error =
+                    eval_test_source(&mut evaluator, &backends, "bash[1]^(sleep 5)_bash[1]")
+                        .expect_err("a hanging bash[1] block must fail");
+                assert!(
+                    format!("{error:#}").contains(
+                        "step exceeded 500 ms (opt-in per-step limit O_BACKEND_STEP_TIMEOUT_MS)"
+                    ),
+                    "{error:#}"
+                );
+                let error =
+                    eval_test_source(&mut evaluator, &backends, "bash[1]^(printf 9)_bash[1]")
+                        .expect_err("a lost bash[1] session must not restart silently");
+                assert!(
+                    format!("{error:#}").contains(
+                        "session bash[1] was terminated after a timeout; its state is gone"
+                    ),
+                    "{error:#}"
+                );
+                Ok(())
+            })();
+            let _ = done_tx.send(outcome);
+        });
+        match done_rx.recv_timeout(std::time::Duration::from_secs(30)) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                panic!("hanging bash[1] block was not bounded by the per-step limit")
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("test body panicked; see the assertion above")
+            }
+        }
+    }
+
+    #[test]
     fn bash_stdout_scalar_decodes_to_ovalue() {
         if which::which("bash").is_err() {
             return;
@@ -5868,6 +6183,649 @@ mod tests {
             .unwrap();
 
         assert_eq!(evaluator.eval_document(nodes).unwrap(), OValue::int(42));
+    }
+
+    #[test]
+    fn bash_braced_expansions_see_referenced_lets_without_exporting_them() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash^(echo ${secret_val} ${secret_val:-x} ${#secret_val} ${secret_val%2} ${secret_val/4/9} \"[$(bash -c 'echo ${secret_val}')]\")_bash\n";
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        assert_eq!(
+            evaluator.eval_document(nodes).unwrap(),
+            OValue::str_("42 42 2 4 92 []")
+        );
+    }
+
+    #[test]
+    fn bash_arithmetic_contexts_read_bare_let_names() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let run = |block: &str| {
+            let source = format!(
+                "let secret_val = python^(__oval_result__ = 42)_python\nbash^({block})_bash\n"
+            );
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(&source, &backends).parse().unwrap();
+            evaluator.eval_document(nodes).unwrap()
+        };
+        let text = |value: &str| OValue::str_(value);
+        // e06, a03, a04 with a nonzero subscript, and `(( ))`.
+        assert_eq!(run("echo $((secret_val + 1))"), OValue::int(43));
+        assert_eq!(
+            run("[[ secret_val -gt 10 ]] && echo big || echo small"),
+            text("big")
+        );
+        assert_eq!(
+            run("a=(0 1 2 3 4); echo ${a[secret_val % 5]}"),
+            OValue::int(2)
+        );
+        assert_eq!(run("(( secret_val > 10 )) && echo big"), text("big"));
+        // r03, r04, r06, r07, r08.
+        assert_eq!(run("echo $[secret_val + 1]"), OValue::int(43));
+        assert_eq!(
+            run("s=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP; echo ${s:secret_val:2}"),
+            text("GH")
+        );
+        assert_eq!(
+            run("a=(); a[secret_val]=x; echo ${#a[@]} ${!a[@]}"),
+            text("1 42")
+        );
+        assert_eq!(
+            run("a=(0 1 2 3 4 5); echo ${a[secret_val % 4]}"),
+            OValue::int(2)
+        );
+        assert_eq!(run("echo $(( secret_val > 10 ? 1 : 0 ))"), OValue::int(1));
+        // a for (( )) header, with the loop variable read as `\$i`.
+        assert_eq!(
+            run(r#"for ((i=secret_val; i<secret_val+2; i++)); do printf "%s," \$i; done"#),
+            text("42,43,")
+        );
+        // a runtime-built name gets nothing, like `${!v}`.
+        assert_eq!(run("v=secret_val; echo $((v + 1))"), OValue::int(1));
+        assert_eq!(run("v=secret_val; echo \"v=${!v}.\""), text("v=."));
+    }
+
+    #[test]
+    fn referenced_let_wins_over_numbered_bash_session_variable() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash[1]^(secret_val=5; other=7)_bash[1]\n\
+             let braced = bash[1]^(echo ${secret_val})_bash[1]\n\
+             let both = bash[1]^(echo $secret_val ${secret_val} ${other})_bash[1]\n\
+             python^(__oval_result__ = f'{$braced}|{$both}')_python\n";
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        assert_eq!(
+            evaluator.eval_document(nodes).unwrap(),
+            OValue::str_("42|42 42 7")
+        );
+    }
+
+    // ------------------------------------------------------------------------
+    // bash let injection
+    // ------------------------------------------------------------------------
+
+    fn run_bash_document(source: &str) -> Option<Result<OValue>> {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return None;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        Some(evaluator.eval_document(nodes))
+    }
+
+    #[test]
+    fn injected_let_is_never_exported_even_when_the_name_was() {
+        let Some(result) = run_bash_document(
+            "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash[1]^(export secret_val=5)_bash[1]\n\
+             bash[1]^(echo \"[${secret_val}][$(bash -c 'echo \\$secret_val')]\")_bash[1]\n",
+        ) else {
+            return;
+        };
+        assert_eq!(result.unwrap(), OValue::str_("[42][]"));
+    }
+
+    #[test]
+    fn failed_let_assignment_is_a_reported_error() {
+        let Some(result) = run_bash_document(
+            "let secret_val = python^(__oval_result__ = 42)_python\n\
+             bash[1]^(set -e; readonly secret_val=1)_bash[1]\n\
+             bash[1]^(echo ran ${secret_val})_bash[1]\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("readonly variable"), "{error}");
+        assert!(error.contains("could not be assigned"), "{error}");
+        assert!(!error.contains("session ended"), "{error}");
+    }
+
+    #[test]
+    fn structured_let_renders_the_same_through_dollar_and_braces() {
+        let Some(result) = run_bash_document(
+            "let x = python^(__oval_result__ = [1, 2])_python\n\
+             let m = python^(__oval_result__ = {'k': 1})_python\n\
+             let n = python^(__oval_result__ = None)_python\n\
+             bash^(echo \"$x|${x}|$n|${n}\"; echo ''${m}'')_bash\n",
+        ) else {
+            return;
+        };
+        let text = match result.unwrap() {
+            OValue::Text { v } => v.utf8,
+            other => panic!("expected text, got {other:?}"),
+        };
+        // `${x}` carries the text the `$x` splice renders; a spliced map's
+        // quotes are bash syntax once spliced, so the map is compared with
+        // its rendering directly.
+        assert_eq!(text, "[1, 2]|[1, 2]|null|null\n{\"k\": 1}", "{text}");
+    }
+
+    #[test]
+    fn bash_shim_passes_floats_and_python_bools() {
+        let Some(result) = run_bash_document(
+            "let f = python^(__oval_result__ = 1.5)_python\n\
+             let g = python^(__oval_result__ = 1e20)_python\n\
+             let b = python^(__oval_result__ = True)_python\n\
+             bash^(echo \"${f}|${g}|${b}\")_bash\n",
+        ) else {
+            return;
+        };
+        assert_eq!(
+            result.unwrap(),
+            OValue::str_("1.5|100000000000000000000|True")
+        );
+    }
+
+    #[test]
+    fn nul_in_a_bash_let_is_an_explicit_error() {
+        let Some(result) = run_bash_document(
+            "let x = python^(__oval_result__ = 'a\\x00b')_python\n\
+             bash^(echo ${#x})_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("NUL"), "{error}");
+    }
+
+    #[test]
+    fn a_bash_block_that_removes_its_capture_file_is_an_error_not_empty_output() {
+        // fd 3 copies the block's stdout capture, so the command substitution
+        // sees the capture file rather than its own pipe.
+        let Some(result) = run_bash_document(
+            "bash^(exec 3>&1; rm -f \"$(readlink /proc/self/fd/3)\"; exec 3>&-; echo lost)_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("stdout capture is missing"), "{error}");
+    }
+
+    #[test]
+    fn nul_in_a_bare_bash_splice_is_an_explicit_error() {
+        let Some(result) = run_bash_document(
+            "let x = python^(__oval_result__ = 'a\\x00b')_python\n\
+             bash^(echo [$x])_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(
+            error.contains("`$x` contains a NUL byte, which a bash block cannot hold"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn plain_bash_blocks_share_a_helper_but_never_a_shell() {
+        // b splices a, so the blocks run one after the other; both shells
+        // report their parent, the helper.
+        let Some(result) = run_bash_document(
+            "let a = bash^(o_left=1; echo \"${PPID}\")_bash\n\
+             bash^(echo \"${o_left:-unset} ${PPID} $a ${O_BACKEND_SESSION_ID:-none}\")_bash\n",
+        ) else {
+            return;
+        };
+        let value = result.unwrap();
+        let text = value.splice_repr();
+        let words: Vec<&str> = text.split_whitespace().collect();
+        assert_eq!(words.len(), 4, "{text}");
+        assert_eq!(
+            words[0], "unset",
+            "a plain block saw the last block's shell: {text}"
+        );
+        assert_eq!(
+            words[1], words[2],
+            "plain blocks did not reuse the helper: {text}"
+        );
+        assert_eq!(
+            words[3], "none",
+            "the helper's identity reached a block: {text}"
+        );
+    }
+
+    #[test]
+    fn bash_errors_name_the_block_not_the_session_temp_path() {
+        let Some(result) = run_bash_document("bash^(no_such_command_o_test)_bash\n") else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(!error.contains("o-bash-session"), "{error}");
+        assert!(error.contains("bash: line 1:"), "{error}");
+    }
+
+    #[test]
+    fn persisted_set_e_ending_the_session_is_reported() {
+        let Some(result) = run_bash_document(
+            "bash[0]^(set -e; X=1)_bash[0]\n\
+             bash[0]^(false)_bash[0]\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("bash session ended"), "{error}");
+    }
+
+    #[test]
+    fn readonly_bash_name_as_a_let_is_a_compile_error() {
+        let Some(result) = run_bash_document(
+            "let UID = python^(__oval_result__ = '5')_python\n\
+             bash^(echo ${UID})_bash\n",
+        ) else {
+            return;
+        };
+        let error = format!("{:#}", result.unwrap_err());
+        assert!(error.contains("readonly bash variable"), "{error}");
+    }
+
+    #[test]
+    fn let_named_path_persists_in_a_session_from_the_first_block_naming_it() {
+        let Some(result) = run_bash_document(
+            "let PATH = python^(__oval_result__ = '/opt/let-only/bin:/usr/bin:/bin')_python\n\
+             let before = bash[1]^(echo \"\\$PATH $(export -p | grep -c ' PATH=')\")_bash[1]\n\
+             let inside = bash[1]^(echo \"in:${PATH}\"; ls / >/dev/null && echo ls-ok; bash -c 'env | grep -c ^PATH=')_bash[1]\n\
+             let after = bash[1]^(echo \"\\$PATH $(export -p | grep -c ' PATH=')\")_bash[1]\n\
+             let plain = bash^(echo \"in:${PATH}\")_bash\n\
+             let fresh = bash^(echo \"\\$PATH\")_bash\n\
+             python^(__oval_result__ = '|'.join([$before, $inside, $after, $plain, $fresh]))_python\n",
+        ) else {
+            return;
+        };
+        let text = match result.unwrap() {
+            OValue::Text { v } => v.utf8,
+            other => panic!("expected text, got {other:?}"),
+        };
+        let parts = text.split('|').collect::<Vec<_>>();
+        assert_eq!(parts.len(), 5, "{text}");
+        let value = "/opt/let-only/bin:/usr/bin:/bin";
+        // the session's own PATH until a block names the let.
+        assert!(
+            parts[0].ends_with(" 1") && !parts[0].contains("let-only"),
+            "{text}"
+        );
+        assert_eq!(
+            parts[1].lines().collect::<Vec<_>>(),
+            vec![format!("in:{value}").as_str(), "ls-ok", "1"],
+            "{text}"
+        );
+        // then the let value, still exported, for later session blocks.
+        assert_eq!(parts[2], format!("{value} 1"), "{text}");
+        // plain blocks start fresh: only the naming block sees the let.
+        assert_eq!(parts[3], format!("in:{value}"), "{text}");
+        assert!(
+            !parts[4].contains("let-only") && !parts[4].is_empty(),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn dollar_splice_of_a_writable_special_sets_it_for_the_session() {
+        let Some(result) = run_bash_document(
+            "let PATH = python^(__oval_result__ = '/opt/let-only/bin:/usr/bin:/bin')_python\n\
+             let first = bash[1]^(echo \"b1:$PATH\")_bash[1]\n\
+             let second = bash[1]^(echo \"b2:$(/usr/bin/printenv PATH)\")_bash[1]\n\
+             python^(__oval_result__ = '|'.join([$first, $second]))_python\n",
+        ) else {
+            return;
+        };
+        let value = "/opt/let-only/bin:/usr/bin:/bin";
+        assert_eq!(
+            result.unwrap(),
+            OValue::str_(format!("b1:{value}|b2:{value}").as_str())
+        );
+    }
+
+    #[test]
+    fn escaped_dollar_opts_out_of_let_references_in_bash() {
+        if which::which("bash").is_err() || which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let run = |block: &str| {
+            let source = format!(
+                "let secret_val = python^(__oval_result__ = 42)_python\nbash^({block})_bash\n"
+            );
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(&source, &backends).parse().unwrap();
+            evaluator.eval_document(nodes).unwrap()
+        };
+        assert_eq!(run(r#"echo "v=[\$secret_val]""#), OValue::str_("v=[]"));
+        assert_eq!(run(r#"echo "v=[\\\$secret_val]""#), OValue::str_("v=[\\]"));
+        assert_eq!(
+            run(r#"echo "v=[\\$secret_val]""#),
+            OValue::str_("v=[$secret_val]")
+        );
+    }
+
+    #[test]
+    fn numbered_bash_environments_persist_and_plain_bash_is_ephemeral() {
+        if which::which("bash").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["bash", "python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let source = "bash[0]^(X=5; f() { echo fn; })_bash[0]\n\
+             bash[1]^(X=6)_bash[1]\n\
+             bash^(Y=7)_bash\n\
+             let p = bash[0]^(echo \"x=\\$X $(f)\")_bash[0]\n\
+             let q = bash[1]^(echo \"x=\\$X\")_bash[1]\n\
+             let r = bash^(echo \"y=\\${Y:-unset}\")_bash\n\
+             python^(__oval_result__ = ' '.join(str(v) for v in [$p, $q, $r]))_python\n";
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        assert_eq!(
+            evaluator.eval_document(nodes).unwrap(),
+            OValue::str_("x=5 fn x=6 y=unset")
+        );
+    }
+
+    fn run_python_document(source: &str) -> Option<Result<OValue>> {
+        if which::which("python3").is_err() {
+            return None;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(source, &backends).parse().unwrap();
+        Some(evaluator.eval_document(nodes))
+    }
+
+    const FORCED_BATCH: &str = "let g = lazy(batch(\n\
+         python^(__oval_result__ = 42)_python,\n\
+         python^(raise KeyError('missing'))_python\n\
+         ))\n\
+         now($g)\n";
+
+    #[test]
+    fn now_batch_whose_every_member_failed_raises_its_summary() {
+        // SPEC 772-773: no value, the batch's summary error instead.
+        let Some(result) = run_python_document(
+            "let g = lazy(batch(\n\
+             python^(raise KeyError('first'))_python,\n\
+             python^(raise KeyError('second'))_python\n\
+             ))\n\
+             now($g)\n",
+        ) else {
+            return;
+        };
+        let error = result.expect_err("an all-failed forced batch yielded a value");
+        let text = format!("{error:#}");
+        assert!(text.contains("every batch(...) member failed"), "{text}");
+        assert!(
+            text.contains("member 0") && text.contains("first"),
+            "{text}"
+        );
+        assert!(
+            text.contains("member 1") && text.contains("second"),
+            "{text}"
+        );
+        assert!(
+            error.downcast_ref::<BatchMemberFailures>().is_none(),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn now_batch_keeps_a_member_error_in_its_own_slot() {
+        let Some(result) = run_python_document(FORCED_BATCH) else {
+            return;
+        };
+        let error = result.unwrap_err();
+        let partial = error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("{error:#}"));
+        let OValue::List { v: slots } = &partial.value else {
+            panic!("now(batch) did not yield its list: {:?}", partial.value);
+        };
+        assert_eq!(slots.len(), 2);
+        assert_eq!(slots[0], OValue::int(42), "the other member kept its value");
+        assert!(
+            matches!(&slots[1], OValue::Error { msg } if msg.contains("missing")),
+            "{:?}",
+            slots[1]
+        );
+    }
+
+    #[test]
+    fn now_batch_with_a_failed_member_fails_the_run() {
+        let Some(result) = run_python_document(FORCED_BATCH) else {
+            return;
+        };
+        let error = result.expect_err("a forced batch with a failed member reported success");
+        let partial = error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("{error:#}"));
+        assert_eq!(partial.failures.len(), 1, "{error:#}");
+        assert_eq!(partial.failures[0].member, 1);
+        assert!(partial.failures[0].message.contains("missing"));
+        assert!(
+            format!("{error}").contains("batch member 1 failed"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn now_batch_lets_cancellation_deadline_infrastructure_and_strict_miss_out() {
+        use crate::cancellation::{RequestCancellationObserved, RequestDeadlineExpired};
+        let fatal = [
+            anyhow::Error::new(RequestCancellationObserved("cancelled".into())),
+            anyhow::Error::new(RequestDeadlineExpired("during execution")),
+            crate::process::infrastructure_error(anyhow::anyhow!("backend vanished")),
+            anyhow::Error::new(crate::eval_core::StrictCacheMiss {
+                fingerprint: "abc".into(),
+            }),
+        ];
+        for error in fatal {
+            let text = format!("{error:#}");
+            let out = forced_batch_member_failure(error.context("member 1"))
+                .expect_err("a request-fatal error was absorbed into a slot");
+            assert!(format!("{out:#}").contains(&text), "{out:#}");
+            assert!(!crate::executor::coordinator::batch_member_error_is_absorbable(&out));
+        }
+        assert_eq!(
+            forced_batch_member_failure(anyhow::anyhow!("KeyError: missing")).unwrap(),
+            "KeyError: missing"
+        );
+    }
+
+    #[test]
+    fn failing_batch_member_reports_its_own_error() {
+        if which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let run = |source: &str| {
+            let mut evaluator =
+                Evaluator::new(shim_dir.clone()).with_registered_backends(backends.clone());
+            let nodes = Parser::new(source, &backends).parse().unwrap();
+            evaluator.eval_document(nodes)
+        };
+        // a partial failure is an error at the api boundary, so embedders
+        // that only look at the result cannot mistake it for success.
+        let partial_error = run("autonomous(batch(\n\
+             python^(__oval_result__ = 42)_python,\n\
+             python^(raise KeyError('missing'))_python\n\
+             ))")
+        .unwrap_err();
+        let partial_failure = partial_error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("expected a batch failure, got {partial_error:#}"));
+        assert_eq!(partial_failure.failures.len(), 1, "{partial_error:#}");
+        assert_eq!(partial_failure.failures[0].member, 1);
+        assert!(partial_failure.failures[0].message.contains("missing"));
+        let partial = partial_failure.value.clone();
+        let members = match &partial {
+            OValue::List { v } => v,
+            OValue::Group { members, .. } => members,
+            other => panic!("expected the batch members, got {other:?}"),
+        };
+        assert_eq!(members.len(), 2, "{partial:?}");
+        assert_eq!(members[0], OValue::int(42));
+        assert!(
+            matches!(&members[1], OValue::Error { msg } if msg.contains("missing")),
+            "{partial:?}"
+        );
+
+        let all_failed = run("autonomous(batch(\n\
+             python^(raise KeyError('first'))_python,\n\
+             python^(raise KeyError('second'))_python\n\
+             ))")
+        .unwrap_err();
+        let message = format!("{all_failed:#}");
+        assert!(
+            message.contains("every batch(...) member failed"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn batch_of_a_returned_error_value_did_not_fail() {
+        // a member that returns an error value succeeded; only failure flags
+        // make the whole batch fail.
+        let backends: HashSet<String> = HashSet::new();
+        let mut evaluator = Evaluator::new(PathBuf::from("/tmp"));
+        let nodes = Parser::new("batch($e)", &backends).parse().unwrap();
+        let mut scope = HashMap::from([("e".to_string(), OValue::error("returned"))]);
+        let value = evaluator
+            .eval_document_with_scope(nodes, &mut scope)
+            .unwrap();
+        let members = match &value {
+            OValue::List { v } => v.clone(),
+            OValue::Group { members, .. } => members.clone(),
+            other => panic!("expected the batch members, got {other:?}"),
+        };
+        assert_eq!(members, vec![OValue::error("returned")]);
+    }
+
+    #[test]
+    fn nested_batch_failures_are_reported_once_with_member_index() {
+        if which::which("python3").is_err() {
+            return;
+        }
+        let backends: HashSet<String> = ["python"].iter().map(|s| s.to_string()).collect();
+        let shim_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("backends");
+        let mut evaluator = Evaluator::new(shim_dir).with_registered_backends(backends.clone());
+        let nodes = Parser::new(
+            "autonomous(batch(\n\
+             python^(__oval_result__ = 1)_python,\n\
+             batch(\n\
+             python^(raise KeyError('alpha'))_python,\n\
+             python^(raise KeyError('beta'))_python\n\
+             )\n\
+             ))",
+            &backends,
+        )
+        .parse()
+        .unwrap();
+        let error = evaluator.eval_document(nodes).unwrap_err();
+        let failure = error
+            .downcast_ref::<BatchMemberFailures>()
+            .unwrap_or_else(|| panic!("expected a batch failure, got {error:#}"));
+        let rendered = format!("{error}");
+        for name in ["alpha", "beta"] {
+            assert_eq!(rendered.matches(name).count(), 1, "{rendered}");
+        }
+        let members = failure
+            .failures
+            .iter()
+            .map(|failure| failure.member)
+            .collect::<Vec<_>>();
+        assert_eq!(members, vec![0, 1, 1], "{rendered}");
+        assert!(rendered.contains("batch member 1 failed: every batch(...) member failed"));
+    }
+
+    #[test]
+    fn strict_cache_miss_inside_batch_is_fatal() {
+        // inject a buffered request with no cached result, as if the
+        // autonomous flush had lost it, and resolve it the strict way.
+        let mut evaluator = Evaluator::new(PathBuf::from("/tmp"));
+        let missing = OValue::request(RequestKind::Instantiate, OValue::str_("never-cached"));
+        let error = evaluator
+            .resolve_group(GroupMode::Batch, &[missing], CacheMode::Strict)
+            .unwrap_err();
+        assert!(
+            error
+                .chain()
+                .any(|cause| cause.is::<crate::eval_core::StrictCacheMiss>()),
+            "{error:#}"
+        );
+        // as a failure of a direct batch member it must stay fatal, while an
+        // ordinary member error settles as the member's value.
+        let backends: HashSet<String> = HashSet::new();
+        let nodes = Parser::new("batch($a, $b)", &backends).parse().unwrap();
+        let program = OIrProgram::lower(&nodes);
+        let plan = program.plan();
+        let plan_index = ExecutionPlanIndex::new(&plan).unwrap();
+        let member = crate::eval_core::structural_children_for_test(&plan_index, plan.roots[0])[0];
+        let mut frame = GraphEvalFrame {
+            plan_index,
+            values: vec![None; plan.nodes.len()],
+            base_scope: HashMap::new(),
+            node_policy: vec![Policy::Eager; plan.nodes.len()],
+            trace: ExecutionTrace::new(),
+            failed_batch_members: HashSet::new(),
+            forced_batch_failures: Vec::new(),
+        };
+        assert!(
+            crate::eval_core::settle_batch_member_failure(
+                &plan,
+                &mut frame,
+                member,
+                &error,
+                crate::executor::coordinator::batch_member_error_is_absorbable(&error)
+            )
+            .is_none(),
+            "a strict cache miss was absorbed as a member error"
+        );
+        let ordinary = anyhow::anyhow!("member broke");
+        assert!(crate::eval_core::settle_batch_member_failure(
+            &plan,
+            &mut frame,
+            member,
+            &ordinary,
+            crate::executor::coordinator::batch_member_error_is_absorbable(&ordinary)
+        )
+        .is_some());
     }
 
     #[test]
@@ -9674,8 +10632,8 @@ python[0]^(O.eval($q, $captured))_python[0]
     fn later_fallible_worker_cannot_preempt_earlier_coordinator_failure() {
         let program = OIrProgram {
             nodes: vec![OIr::Invoke {
-                fn_name: "batch".into(),
-                mode: InvokeMode::Group(GroupMode::Batch),
+                fn_name: "all".into(),
+                mode: InvokeMode::Group(GroupMode::All),
                 args: vec![
                     OIr::Invoke {
                         fn_name: "definitely_unknown_builtin".into(),

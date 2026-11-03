@@ -21,7 +21,7 @@ from o_shim_common import (
     validate_checkpoint,
     write_wire_message,
 )
-from o_shim_common import stdout_result
+from o_shim_common import step_timeout, stdout_result
 
 UBUNTU_RESOURCE_CODEC_V1 = "ostadix.multipass-resource/v1"
 
@@ -89,7 +89,7 @@ def handle_exec(cmd):
     try:
         result = subprocess.run(
             [multipass_command(), "exec", VM_NAME, "--", "bash"],
-            input=script, capture_output=True, text=True, timeout=600
+            input=script, capture_output=True, text=True, timeout=step_timeout(),
         )
         if result.returncode != 0:
             stderr = result.stderr.strip()
@@ -97,7 +97,7 @@ def handle_exec(cmd):
         else:
             send_ok(stdout_result(result.stdout))
     except subprocess.TimeoutExpired:
-        send_err("ubuntu_vm execution timed out (600s)")
+        send_err("ubuntu_vm execution exceeded the opt-in limit O_BACKEND_STEP_TIMEOUT_MS")
     except Exception:
         send_err(traceback.format_exc())
 

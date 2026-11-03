@@ -502,6 +502,14 @@ remain the affected member's result rather than suppress independent members.
 Actor identity in V6 is a serialization constraint only and MUST NOT close an
 unknown hosted footprint.
 
+An admitted `ocore_i64` native leaf (docs/OCORE.md, "Admitted scalar native
+leaves in ordinary O") divides as NativeIR does. A zero divisor in `udiv`,
+`sdiv`, `urem` or `srem` traps at every integer width, and the leaf's
+operation fails. Signed minimum divided by `-1` does not trap: `sdiv` yields
+the minimum and `srem` yields `0`. This matches WebAssembly for division by
+zero and for `rem_s`. It differs only for `div_s` of minimum by `-1`, which
+traps in WebAssembly and yields the minimum here.
+
 Graph V2 and Evidence/Admission V6 bind the complete canonical
 `FidelityAssessmentV2`, including absence versus an explicit unsupported
 assessment. A present Graph V2 `fidelity_assessment` requires legacy
@@ -762,10 +770,25 @@ A group with no members is rejected at construction time; calling
 #### Batch result shape
 
 `batch(a, b, …)` returns an `OList` with exactly one element per input member,
-in declaration order, for ordinary Fresh-mode resolution. Failures are NOT
-fatal in that path: a member that fails is wrapped as an `OValue::Error` in the
-list so every input slot has a corresponding output slot. Callers can
-distinguish success from failure by testing `is_error()` on each element.
+in declaration order, for ordinary Fresh-mode resolution. A member execution
+error is not fatal to the other members: the failed member settles as an
+`OValue::Error` in its own slot, so every input slot has a corresponding output
+slot, and the other members still return their values. Only member execution
+errors are absorbed this way; infrastructure failures, cancellation, and the
+Strict cache miss below stay fatal. If any member failed, the batch and the
+run are marked failed. When some members succeeded, the batch still yields its
+list (failed slots hold `<error>`). When every direct member failed, the batch
+yields no value and raises its summary error. These checks read which members
+failed, not the value shape, so a member that returns an `OValue::Error` value
+did not fail.
+
+A run with any failed member is still a failed run. Every `eval_document*` and
+`eval_ir_program*` entry point returns a `BatchMemberFailures` error that
+carries the produced value and one record per failed member (its zero-based
+index in its own `batch(...)` and its message). A nested batch whose members
+all failed is reported once by its summary, since its members are listed on
+their own. `O` prints the value, then `error: batch member N failed` for each
+record, and exits with status 1.
 
 Under `CacheMode::Strict`, used after an autonomous scheduler flush, a cache
 miss is not an ordinary member failure. It is a scheduler invariant failure and
@@ -1029,6 +1052,13 @@ Adding a new language: write a Backend subclass, add it to
 
 ---
 
+The teardown and session knobs, `O_BACKEND_SHUTDOWN_TIMEOUT_MS`,
+`O_BACKEND_MAX_OPEN_SESSIONS` and `O_BACKEND_MAX_OPEN_SESSIONS_PER_BACKEND`,
+are validated when a backend starts, so a file that starts no backend ignores
+them. Surrounding whitespace is trimmed; any other malformed, zero or (for the
+shutdown budget) oversized value fails that start and every later use, never a
+silent default.
+
 ## 7. Known limitations / current status
 
 * **`$var` splice** is supported for top-level `let` bindings in both
@@ -1038,22 +1068,117 @@ Adding a new language: write a Backend subclass, add it to
   execution plan and HGraph, each shim block is given only the visible `let`
   bindings whose names its body references, either as a `$name` splice or as a
   whole identifier token anywhere in its OIR subtree, including nested typed
-  blocks. This applies to every backend, including bash and sh, and to each
-  branch of `autonomous(...)` and coordination groups separately. Access that
-  does not name a binding gets nothing: Python `globals()`, `vars()`, or frame
-  access, JavaScript `globalThis` or a read of the script source, a shell
-  `${!name}` indirection, and a child process reading environment variables by
-  a computed name see only the referenced bindings. `O.scope` inside a block
-  and an O-level `scope()` call are O syntax and reference every visible `let`
-  binding, and `O.eval` of a quoted expression references the names that
-  expression uses. Variables created inside a block belong to that block's
-  environment: a plain block such as `bash^(...)_bash` or
-  `python^(...)_python` is ephemeral, and its state disappears when the block
-  finishes. A numbered environment such as `python[0]^(...)_python[0]` keeps
-  its interpreter state across blocks with the same number and never shares it
-  with another number. Effect ordering is unaffected: source sequence edges
-  and resource-state chains are independent of these data edges. The Python
-  ref impl threads the complete scope through `_eval_expression`.
+  blocks, and this applies to each branch of `autonomous(...)` and
+  coordination groups separately. Shell blocks (`bash`, `sh`, `shell`) are the
+  exception: they use only the reference rules below, which also cover bare
+  names in arithmetic contexts and array subscripts, not whole-token matching.
+  Access that does not name a binding gets nothing: Python `globals()`,
+  `vars()`, or frame access, JavaScript `globalThis` or a read of the script
+  source, a shell `${!name}` indirection, and a child process reading
+  environment variables by a computed name see only the referenced bindings.
+  `O.scope` inside a block and an O-level `scope()` call are O syntax and
+  reference every visible `let` binding, and `O.eval` of a quoted expression
+  references the names that expression uses. Variables created inside a block
+  belong to that block's environment: a plain block such as `bash^(...)_bash`
+  or `python^(...)_python` is ephemeral, and its state disappears when the
+  block finishes. A numbered environment such as `bash[0]^(...)_bash[0]` or
+  `python[0]^(...)_python[0]` keeps its interpreter state across blocks with
+  the same number and never shares it with another number. In a numbered bash
+  environment, an injected `let` value with an ordinary name is unset after
+  each block that references it, so it does not persist as session state. A
+  `let` named like a writable bash special (`PATH`, `HOME`, `IFS`, `LC_*`) is
+  the exception: it is neither restored nor unset, and stays as the last block
+  left it (see below). Shell blocks (`bash`, `sh`, `shell`) receive no `let`
+  bindings as environment variables. A shell block reads a `let` value through
+  a `$name` splice, which O substitutes into the block text. A bash block also
+  references a `let` through braced parameter expansion: `${name}`,
+  `${#name}`, or `${name` followed by an operator such as `:-`, `%`, `/`, or
+  `^`. Each such reference is a data edge from the binding to the block. A
+  reference is a textual occurrence, not a shell parse: `'${x}'` in single
+  quotes, a `# ${x}` comment, and a quoted heredoc body also count, which only
+  over-includes. `\${x}`, like `\$x`, is the opt-out escape: no edge and no
+  value. The value is assigned with `declare +x` just before that block only,
+  so bash evaluates the operator itself, child processes never see it even
+  when the name was already exported, and in a numbered environment it takes
+  precedence over a session variable of the same name. Text, numbers, and
+  booleans arrive as their scalar text; a list, map, null, or other value
+  arrives as the text the `$name` splice renders. A value with a NUL byte is
+  an error. A `let` named like a readonly bash variable (`UID`, `EUID`,
+  `PPID`, `BASHPID`, `SHELLOPTS`, ...) that a bash block references is a
+  compile error. A writable bash special such as `PATH`, `HOME`, `IFS`, or
+  `LC_*` must hold text. A block that references it, including through a
+  `$name` splice, assigns the `let` value with the export flag unchanged, and
+  nothing restores or unsets it afterwards: in a `bash[N]` session the `let`
+  takes effect from the first block that names it and stays for later blocks
+  exactly as left, whereas plain blocks are fresh processes, so a later plain
+  block that does not name it sees the host value. A block that names such a
+  `let` and then runs `export PATH=...`, or `cd` for `PWD`, keeps its own
+  change for later blocks, since nothing restores the special. The readonly
+  check covers the document's own `let` bindings; a readonly name that reaches
+  a block another way, such as an embedder's base scope, fails at runtime
+  instead, because every injected assignment is checked. Bash also reads a
+  bare name as a variable in arithmetic context, so a bare `let` name is a
+  reference there too, with the same edge and injection: inside `$(( ))`, `((
+  ))`, `for (( ; ; ))`, and `$[ ]`; in the arguments of the `let` builtin; on
+  the right of a `declare -i`, `local -i`, or `typeset -i` assignment in the
+  same statement; in the offset and length of `${s:offset:length}`; as an
+  operand of the `[[ ]]` operators `-eq`, `-ne`, `-lt`, `-le`, `-gt`, and
+  `-ge`; and in any array subscript, `name[...]=` or `${name[...]}`. A `let`
+  name in a subscript counts as a reference whatever the array kind. `[[ ==
+  ]]`, `!=`, and `=~` compare strings and are not references, and `[ ]` or
+  `test` is not arithmetic. These rules are textual as well: `((`, `name[`,
+  `let`, or `[[` inside quotes, comments, or heredocs also count, which only
+  over-includes, and `\$((x))` or `\$[x]` opts out like `\${x}`. A bare word
+  such as `v=name` is not a reference, and indirection `${!v}` names no
+  binding. Names built at runtime get nothing: with `v=name`, both `${!v}` and
+  `$((v + 1))` read an unset `name`, and the same holds for a later plain
+  assignment to a `-i` variable, a nameref (`declare -n`), and `eval`. Session
+  variables of a `bash[N]` environment must be read as `\$z`, because O
+  splices every `$IDENT`; `$z` is an O splice and fails as an undefined
+  variable. Any session variable with a `let`'s name, other than a writable
+  bash special, is unset after every block that references that `let`,
+  including the block that assigned it, so a later block that does not
+  reference the `let` sees it unset. Sibling `bash[N]` branches of one
+  `batch(...)` or other parallel group share the one session of environment N:
+  they run in no fixed order and never concurrently, and each sees whatever
+  state the other left behind, so a result that depends on which branch ran
+  first is order-dependent by design. If a block ends the session, for example through
+  `exit` or a failing command under a persisted `set -e`, the block fails with
+  a message saying the session ended, and the next block of that environment
+  starts a fresh session. Bash error messages name the block as `bash: line
+  N:` with the block's own line numbers. In bash blocks a bare `$name` is
+  always an O splice, so a bash local or session variable must be written
+  `\$name`. Each plain bash block runs in a fresh bash under one long-lived
+  helper per pooled slot/session; the helper spawns the first block's bash at
+  startup and the next block's bash before it answers, when the plan has
+  another plain block ahead. That helper, never the O process, is the
+  subreaper of everything the block starts. On a cancel, and when O dies (the
+  helper's parent death signal), the helper gets SIGTERM, stops its bash and
+  every job the same way, and exits. The block ends at
+  the end-of-script sentinel line, not at stdout EOF, so a job holding stdout
+  open cannot stall it: when the block ends, every background job it left,
+  including ones detached with `setsid`, `nohup`, `disown`, or a double fork,
+  is killed and reaped within 2 s, and stderr says `bash block left N
+  background process(es); they were stopped`. N is the number of distinct
+  live (non-zombie) processes below the helper other than the block's own
+  bash, taken once, when the block's bash has exited and before anything is
+  signalled, so `sleep 900 | sleep 901 & setsid sleep 902 &` gives 3 on every
+  run. On a cancel the snapshot is taken when the helper's SIGTERM arrives,
+  so it also counts the block's foreground command, and stderr says `bash
+  block cancelled; stopped N process(es)`: the same block cancelled
+  while `sleep 60` runs in the foreground gives 4. A process list that cannot
+  be read fails the cleanup, but the walk still kills every job it can list.
+  The line is written once the cleanup has finished. A process still
+  alive after the 2 s, or a process list that cannot be read, fails the block
+  with `bash job cleanup failed: ...`, which names the pids, and the helper is
+  retired. A `bash[N]` session's jobs live until the session ends, and are
+  stopped the same way then: on its shutdown, on a cancel, and when its stdin
+  closes (O exiting, or killed), without a notice unless cleanup fails. A descendant that makes
+  itself a subreaper, or one started by an external service manager, is not
+  caught; only a cgroup could hold it. Effect ordering is unaffected: source
+  sequence edges and resource-state chains are independent of these data
+  edges. The Python ref impl threads the complete scope through
+  `_eval_expression`.
 * **Async coordination.** `{lazy}` and `{defer}` attributes create
   deferred Requests (Thunks). Lazy requests can be auto-forced by a splice;
   deferred requests require explicit `now()`. `lazy(…)` and `autonomous(…)`

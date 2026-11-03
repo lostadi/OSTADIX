@@ -509,16 +509,29 @@ fn batch_scopes_missing_nix_to_nix_member_and_runs_activation_member() {
         return;
     }
     let (output, activated) = run_mixed_group_without_nix("batch");
-    assert!(
-        output.status.success(),
-        "batch should collect the Nix failure\n{}",
-        String::from_utf8_lossy(&output.stderr)
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    // a batch forced by now() fails the run when a member failed (SPEC.md
+    // batch rules, as autonomous(batch) already did), so the missing Nix has
+    // to surface as member 0's failure and not as a successful run.
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "the failed Nix member must fail the forced batch\n{stderr}"
     );
     assert!(
         activated,
         "missing Nix suppressed the independent activation"
     );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("required runtime command `nix`"));
+    assert!(stderr.contains("batch member 0 failed"), "{stderr}");
+    assert!(
+        stderr.contains("required runtime command `nix`"),
+        "{stderr}"
+    );
+    // the failure stays scoped to the Nix member.
+    assert!(
+        !stderr.contains("batch member 1 failed"),
+        "the activation member must not be reported failed\n{stderr}"
+    );
 }
 
 #[test]

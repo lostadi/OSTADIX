@@ -948,6 +948,26 @@ pub(super) fn fidelity_for_value_with_capabilities(
     match value {
         OValue::Native { .. } => Fidelity::NativeCapsule,
         OValue::Number { v } => fidelity_for_number(v, capabilities),
+        OValue::List { v }
+        | OValue::Seq { items: v, .. }
+        | OValue::Set { items: v, .. }
+        | OValue::Group { members: v, .. } => v.iter().fold(Fidelity::Lossless, |acc, item| {
+            acc.compose(fidelity_for_value_with_capabilities(item, capabilities))
+        }),
+        OValue::Map { v } => {
+            let mut keys = v.keys().collect::<Vec<_>>();
+            keys.sort();
+            keys.into_iter().fold(Fidelity::Lossless, |acc, key| {
+                acc.compose(fidelity_for_value_with_capabilities(&v[key], capabilities))
+            })
+        }
+        OValue::Object { fields } => fields.values().fold(Fidelity::Lossless, |acc, item| {
+            acc.compose(fidelity_for_value_with_capabilities(item, capabilities))
+        }),
+        OValue::EntriesMap { entries } => entries.iter().fold(Fidelity::Lossless, |acc, (k, v)| {
+            acc.compose(fidelity_for_value_with_capabilities(k, capabilities))
+                .compose(fidelity_for_value_with_capabilities(v, capabilities))
+        }),
         OValue::Graph { .. } => Fidelity::structural([GeneratedLoss::Identity.annotation()]),
         OValue::Capability { .. } => Fidelity::structural([GeneratedLoss::Capability.annotation()]),
         _ => Fidelity::Lossless,
