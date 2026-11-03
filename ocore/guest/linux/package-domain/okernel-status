@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+namespace_helper="${OSTADIX_PKG_NAMESPACE_HELPER:-/usr/local/bin/pkg-namespace}"
+printf 'OKernel status\nHost: '
+hostname
+uname -a
+if [ -x "$namespace_helper" ] && "$namespace_helper" status; then
+    echo 'Common workspace: /n/okernel/work'
+else
+    echo 'Native shared namespace: unavailable'
+fi
+printf '\nRoot package storage:\n'
+df -h /
+printf '\nInstalled APK packages: '
+apk info | wc -l
+for command in rc mk 9p; do
+    if command -v "$command" >/dev/null 2>&1; then
+        printf 'Command %s: %s\n' "$command" "$(command -v "$command")"
+    fi
+done
+echo 'Install by name: pkg install NAME | Source rebuild: pkg source NAME'
+echo 'Save and exit: Ctrl+] (syncs and snapshots root and granted native namespace)'
+echo 'Detach: Ctrl+B then D | Reconnect from the host: okernel'
