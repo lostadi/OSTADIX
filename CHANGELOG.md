@@ -207,6 +207,20 @@ Package SemVer is only one of the independent coordinates documented in
   local fallback, and preservation of Hosted and Mesh ALPN routes. It makes no
   physical-multinode, distinct-kernel, or heterogeneous-architecture claim.
 
+- O-core now carries a native u9fs peer. The original u9fs wire codecs and
+  their musl memory/string dependency compile unchanged through
+  `olangc --native-runtime`, alongside a native 9P namespace peer and
+  object-store service. A codec manifest validator and a live verifier check
+  the pinned sources, recipes and objects. Kernel-world selection of the peer
+  is not yet wired; default kernel selection is unchanged.
+
+- The LLVM importer admits `fshl`/`fshr` funnel shifts, and native code uses
+  compact stack addressing on x86-64, AArch64 and RV64, with a full-width
+  fallback for large frames. Compiler wrappers capture a stdin translation unit
+  as a replayable source. LLVM `extern_weak` declarations keep undefined weak
+  binding on all three ISAs. `strictfp` scopes require the `integer_only_v1`
+  strict floating-point profile, and unknown profile names are rejected.
+
 ### Changed
 
 - Backend steps have no default time limit: a step may run for days. A
