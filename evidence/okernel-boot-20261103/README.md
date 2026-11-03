@@ -66,7 +66,10 @@ and [artifact index](manifest.json).
 same failure; all five relevant tracked blobs remain identical. The other 145
 architecture tests pass. That policy was retained, and the failed check is
 recorded in [the baseline proof](bm-architecture-baseline-failure.json).
-These results do not claim that every repository-wide check passes.
+The full canonical HTML export check also reports existing drift in
+`CHANGELOG.html` and `SPEC.html`; their Markdown and HTML bytes remain identical
+to the original master. Updated boot documentation exports match the pinned
+renderer. These results do not claim that every repository-wide check passes.
 
 This is a QEMU system integration. Linux and Plan9port tools still run as guest
 code; the selected original codec is lowered through O-core. Full kernel/source

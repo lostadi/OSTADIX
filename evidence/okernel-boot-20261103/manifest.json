@@ -6,8 +6,8 @@
     {
       "path": "qualification.json",
       "source_path": "/home/ustad/.cache/okernel-boot-integration-20261103/qualification.json",
-      "bytes": 6956,
-      "sha256": "a542e3a7a07d9b1ab3cd04e2e0c3a2dd09d47ffa42b4b2a48b6ec499307912cd"
+      "bytes": 8006,
+      "sha256": "0c7abfdb598ac036bf4bd997c0733aca022f9bd20ec92c9e20b1b123a28e1fc2"
     },
     {
       "path": "canonical-default-entry.json",
@@ -112,8 +112,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 4856,
-      "sha256": "2ff46a2cc8f177efddf48f84decb1006ab1f6dfbce64d268a6d3693a8fd6742a"
+      "bytes": 5091,
+      "sha256": "f3d6d00e9e4082f4bdf71e27c8347c5551f2f17cf936792db7c489a5bf16528b"
     }
   ]
 }
