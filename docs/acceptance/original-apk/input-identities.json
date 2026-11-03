@@ -1,0 +1,746 @@
+{
+  "archive_count": 44,
+  "archive_total_bytes": 94063364,
+  "bootstrap_archives": [
+    {
+      "architecture": "x86_64",
+      "bytes": 3704080,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/ostadix/package-domain/alpine-minirootfs-3.24.3-x86_64.tar.gz",
+      "recorded_release_signer": "0482D84022F52DF1C4E7CD43293ACD0907D9495A",
+      "sha256": "f8e1cafba9b1b283b5d30d06f9885c8d2bc161ffe9083ade8e2e157813a53407",
+      "type": "file"
+    },
+    {
+      "bytes": 870,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/ostadix/package-domain/alpine-minirootfs-3.24.3-x86_64.tar.gz.asc",
+      "sha256": "9fb9545fd998909fda58196d98ac48571487b2883ef07f227b936813dbcfe05f",
+      "type": "file"
+    },
+    {
+      "architecture": "aarch64",
+      "bytes": 4029999,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/ostadix/package-domain/alpine-minirootfs-3.24.3-aarch64.tar.gz",
+      "recorded_release_signer": "0482D84022F52DF1C4E7CD43293ACD0907D9495A",
+      "sha256": "4d3f80afaebd447c5591a63a73bde380a149fe8b2d85488cafabb2ff97551f50",
+      "type": "file"
+    },
+    {
+      "bytes": 870,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/ostadix/package-domain/alpine-minirootfs-3.24.3-aarch64.tar.gz.asc",
+      "sha256": "caf4f001efb8961c6ce9f065a16e58d0f4180ac3ea8db1b2171237c89c493b7a",
+      "type": "file"
+    }
+  ],
+  "candidate_executions": [],
+  "created_utc": "2026-11-03T02:10:15.187638+00:00",
+  "historical_evidence": [
+    {
+      "bytes": 756,
+      "mode": "0o664",
+      "path": "/home/ustad/.local/state/ostadix/okernel/package-domain/acceptance.json",
+      "sha256": "2899e27492859aaee56c53ddddfe1da23e7795942a639f8b86fb4fe95291cdd9",
+      "type": "file"
+    },
+    {
+      "bytes": 8584,
+      "mode": "0o664",
+      "path": "/home/ustad/.local/state/ostadix/okernel/single-system-native-foundation-progress-20261102.json",
+      "sha256": "442a429823c09e2a2d85c18f8e565d99e8ff77794e7c0d8ba12ab9a456bd6b1d",
+      "type": "file"
+    },
+    {
+      "bytes": 6164,
+      "mode": "0o664",
+      "path": "/home/ustad/.local/state/ostadix/okernel/single-system-foundation-checks-hynzv8sp/result.json",
+      "sha256": "f65d15263dbe92857651dc5eb5757219ca9d1830aad4b9d0ee866ae3cf565293",
+      "type": "file"
+    },
+    {
+      "bytes": 46014,
+      "mode": "0o400",
+      "path": "/home/ustad/.local/state/ostadix/okernel/native-posix-foundation-20261102/native-proof/result.json",
+      "sha256": "1b60b5598ce6afb3f3d0220b258f403a9fbfde390ef5427f72cf1974b4976154",
+      "type": "file"
+    },
+    {
+      "bytes": 72899,
+      "mode": "0o400",
+      "path": "/home/ustad/.local/state/ostadix/okernel/native-posix-foundation-20261102/linux-baseline/result.json",
+      "sha256": "56f4afef065f0bd121923daa11bc028520a62c9d9c973415ca6b2b893e5bac4a",
+      "type": "file"
+    }
+  ],
+  "original_trigger": {
+    "archive": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/apk/db/scripts.tar.gz",
+    "bytes": 576,
+    "member": "busybox-1.37.0-r31.X171cffc2981f2d54b3937c25be2f5169b3fb04532.trigger",
+    "sha256": "c7840b111dd82669de2074ea3c7e345c063928db2bbff650a81289777b3ff98f"
+  },
+  "repo": "/home/ustad/ostadix-BM",
+  "repository_bundle": {
+    "bytes": 15917,
+    "mode": "0o664",
+    "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-bundle.json",
+    "sha256": "b3bb603590e42eb00260553c4113b36c78056c174559069997481bb8ba0294c8",
+    "type": "file"
+  },
+  "retained_repository_archives": [
+    {
+      "bytes": 3321769,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/binutils-2.45.1-r1.apk",
+      "repository": "main",
+      "sha256": "bac4a00e73296dfebf5f587c2b304b7d110e7de658cd2b05491f87c2b228420c",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/binutils-2.45.1-r1.apk"
+    },
+    {
+      "bytes": 424994,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/brotli-libs-1.2.1-r0.apk",
+      "repository": "main",
+      "sha256": "f802b9d5a329c216f02e73607cb8f662c434767e41686367ac0afcf6d0d45d64",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/brotli-libs-1.2.1-r0.apk"
+    },
+    {
+      "bytes": 1325,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/build-base-0.5-r4.apk",
+      "repository": "main",
+      "sha256": "c7ca776b4dc4044d34a9f089d4c78ac787fbc937485f7680d43b6edf4c22b386",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/build-base-0.5-r4.apk"
+    },
+    {
+      "bytes": 521974,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/busybox-1.37.0-r31.apk",
+      "repository": "main",
+      "sha256": "18e3490a6f024004b2b13dd4b54bd50ccd82894938023b2d4eab389a4edcba70",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/busybox-1.37.0-r31.apk"
+    },
+    {
+      "bytes": 1547,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/busybox-binsh-1.37.0-r31.apk",
+      "repository": "main",
+      "sha256": "f3a1b2257cfa114ff20de05c665f380695385d589908bfc9af5768f39fef9ef5",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/busybox-binsh-1.37.0-r31.apk"
+    },
+    {
+      "bytes": 111041,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/c-ares-1.34.9-r0.apk",
+      "repository": "main",
+      "sha256": "1bda7f36597a3f6d616b0c8bd25cd611299bf353ec5ee2ae102e97694885c2f1",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/c-ares-1.34.9-r0.apk"
+    },
+    {
+      "bytes": 130942,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/ca-certificates-20261020-r0.apk",
+      "repository": "main",
+      "sha256": "6e3a34ed8b40718f9b9291319f7890638156a3d63807284a66d9672d3a8b1d3e",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/ca-certificates-20261020-r0.apk"
+    },
+    {
+      "bytes": 107099,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/ca-certificates-bundle-20261020-r0.apk",
+      "repository": "main",
+      "sha256": "d0a573c27d337c369ad3abe3f39f09ffe67b95af23861577a8d134738375176a",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/ca-certificates-bundle-20261020-r0.apk"
+    },
+    {
+      "bytes": 180122,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/curl-8.23.0-r0.apk",
+      "repository": "main",
+      "sha256": "3748c544ab475033cb028e415858b8a671ca7d43756e0149732c860588882ced",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/curl-8.23.0-r0.apk"
+    },
+    {
+      "bytes": 10233,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/file-5.47-r2.apk",
+      "repository": "main",
+      "sha256": "fb1ccc520c2e80cb1d3b739500826cedf4b35b8a43ff78aa683c6f6bd48dd3e5",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/file-5.47-r2.apk"
+    },
+    {
+      "bytes": 7328,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/fortify-headers-3.0.1-r2.apk",
+      "repository": "main",
+      "sha256": "72bf2a77475f2550a7345683c77b39487ee94ecbc2ca11ed5314161f3b927d76",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/fortify-headers-3.0.1-r2.apk"
+    },
+    {
+      "bytes": 17241310,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/g++-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "dc16babd6fdd7154ece263ca625ff832b03528d58f5060f9e92ca3b0bc0c079a",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/g++-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 52501295,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/gcc-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "ff3fecfc32c9a1bed4a47a32ccfee6f6f575708258f912c218dce8ed0d892221",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/gcc-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 221014,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/gmp-6.3.0-r4.apk",
+      "repository": "main",
+      "sha256": "4dab6e86b850fe1b5bc0cf2fac17efa4d7f648bea44f3d9019694cc1e1cb12b7",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/gmp-6.3.0-r4.apk"
+    },
+    {
+      "bytes": 870482,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/isl26-0.26-r2.apk",
+      "repository": "main",
+      "sha256": "c195ea26929ada2bb9e66b7bc6d64b340123591b8f4c8ed158693e4dac0923d8",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/isl26-0.26-r2.apk"
+    },
+    {
+      "bytes": 49825,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/jansson-2.15.0-r0.apk",
+      "repository": "main",
+      "sha256": "a13822f5ca1772cced4bb7d3d178ec5dee770d8accba5b4816b2ddc413e6f055",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/jansson-2.15.0-r0.apk"
+    },
+    {
+      "bytes": 151467,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/jq-1.8.2-r0.apk",
+      "repository": "main",
+      "sha256": "1c146410d19ea643e81414352bc259ef9d2bf75d8c7208334614cca124a13f43",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/jq-1.8.2-r0.apk"
+    },
+    {
+      "bytes": 10362,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libatomic-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "31a45fec053c43a006370f83238f16f959838a9a703fbf26bfd1a36da4f538b2",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libatomic-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 2286800,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libcrypto3-3.5.9-r0.apk",
+      "repository": "main",
+      "sha256": "2676a2b0b6e23ea2edccf3ee982b9842a665d52603d047de3d0a185dc316d983",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libcrypto3-3.5.9-r0.apk"
+    },
+    {
+      "bytes": 365707,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libcurl-8.23.0-r0.apk",
+      "repository": "main",
+      "sha256": "64ae89f6e5d318ed5209778232191806ce49644ce9e09540b7d7830a5330d127",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libcurl-8.23.0-r0.apk"
+    },
+    {
+      "bytes": 66323,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libgcc-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "369aaa6e9d099a737bad6dd3e6c2fe7bb1547ca26d22b94ee0411228f709b403",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libgcc-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 2187958,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libgcc-static-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "2ec3dc4be953d842cc51193248367d86829ed699a1ed094fb5149b1b3fc62919",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libgcc-static-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 146527,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libgomp-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "90576a8899c560d3983b8ac8442b5b75957a917bc1c4e950e005945080f8682f",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libgomp-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 105430,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libidn2-2.3.8-r0.apk",
+      "repository": "main",
+      "sha256": "d02ffda4510652f89c5fb89cd2e7ff721afb0c74e7d75476ad60bebe7ac0ae20",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libidn2-2.3.8-r0.apk"
+    },
+    {
+      "bytes": 527434,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libmagic-5.47-r2.apk",
+      "repository": "main",
+      "sha256": "bcd233f28a6f1c07cd789c47df2234eb35d2bac295aa223ea2ccef17d75ce0f0",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libmagic-5.47-r2.apk"
+    },
+    {
+      "bytes": 55302,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libpsl-0.21.5-r3.apk",
+      "repository": "main",
+      "sha256": "b31e91371425d5f80c1db5cba2a849956b65c802add0b49de844b2ca961aa8da",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libpsl-0.21.5-r3.apk"
+    },
+    {
+      "bytes": 373023,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libssl3-3.5.9-r0.apk",
+      "repository": "main",
+      "sha256": "20ac252b276d73f2c69c1d25f84537c7fba81caefc026c6be1094b394af2082e",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libssl3-3.5.9-r0.apk"
+    },
+    {
+      "bytes": 908984,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libstdc++-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "2302e766d4e4926038ec166ecb85837ee884576115236ddb565e3a5fca4a11d7",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libstdc++-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 4132711,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libstdc++-dev-15.2.0-r5.apk",
+      "repository": "main",
+      "sha256": "8385c811d93b64ee1877005a5473cde8ebabe82d346301f2b153ff8cb6a71510",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libstdc++-dev-15.2.0-r5.apk"
+    },
+    {
+      "bytes": 746169,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/libunistring-1.4.2-r0.apk",
+      "repository": "main",
+      "sha256": "58abfcbce2459071c505771a572a79953d6043d72b643ed0d5285ca39cdaf85c",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/libunistring-1.4.2-r0.apk"
+    },
+    {
+      "bytes": 1964140,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/linux-headers-7.0.0-r1.apk",
+      "repository": "main",
+      "sha256": "d61656e81116040ebac0bc8d9046a3ba97f01a00ee085809103576e8a437468f",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-headers-7.0.0-r1.apk"
+    },
+    {
+      "bytes": 117543,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/make-4.4.1-r4.apk",
+      "repository": "main",
+      "sha256": "0a2c6c3fa0d90b652bbaeac362d1bfe54b75aae57631a6b448826f8b51c85170",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/make-4.4.1-r4.apk"
+    },
+    {
+      "bytes": 53688,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/mpc1-1.3.1-r1.apk",
+      "repository": "main",
+      "sha256": "c4e03923cf1b958ba0d3665196f521a00fb091132e79c39493298019fb59ae60",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/mpc1-1.3.1-r1.apk"
+    },
+    {
+      "bytes": 294772,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/mpfr4-4.2.2-r0.apk",
+      "repository": "main",
+      "sha256": "81cb276c1e050138fed90c8f1ef584cf5bfce26739733753fce138fc0a092b35",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/mpfr4-4.2.2-r0.apk"
+    },
+    {
+      "bytes": 417730,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/musl-1.2.6-r3.apk",
+      "repository": "main",
+      "sha256": "2e17864102278d9049c3a56f1bceed9e8cf287065617e579325123443daed8a5",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/musl-1.2.6-r3.apk"
+    },
+    {
+      "bytes": 2540248,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/musl-dev-1.2.6-r3.apk",
+      "repository": "main",
+      "sha256": "45afe0a9f78de3402b6b5d11f5153ed955bf59d59b45344d9c3fed9f4bbf2f66",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/musl-dev-1.2.6-r3.apk"
+    },
+    {
+      "bytes": 63644,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/nghttp2-libs-1.70.0-r0.apk",
+      "repository": "main",
+      "sha256": "7ef451f4dcdc065aa872c2f3c78b9d9bb4348caa5bcc70dee0c9e1fcf8e4c1fd",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/nghttp2-libs-1.70.0-r0.apk"
+    },
+    {
+      "bytes": 186461,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/oniguruma-6.9.10-r0.apk",
+      "repository": "main",
+      "sha256": "df2b17f23b16edb362db6cc4750c4e51afe91573616c2c123365b94fdec29036",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/oniguruma-6.9.10-r0.apk"
+    },
+    {
+      "bytes": 70892,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/patch-2.8-r0.apk",
+      "repository": "main",
+      "sha256": "c6c7bf0a5d7a9a06d6d6e4dbf44ab6b31308472ba0e15ca1b120f2281b35cf0a",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/patch-2.8-r0.apk"
+    },
+    {
+      "bytes": 5078,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/ssl_client-1.37.0-r31.apk",
+      "repository": "main",
+      "sha256": "fa2911d412b7922b17a07829914ee630c2cd7091ef558abd4329ffb6020f879d",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/ssl_client-1.37.0-r31.apk"
+    },
+    {
+      "bytes": 10879,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/community/aarch64/tcc-0.9.27_git20250619-r1.apk",
+      "repository": "community",
+      "sha256": "5329d1702d2a7ff39efdab46b915308d1479a37595619a9002ec4b3e35eba209",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/community/aarch64/tcc-0.9.27_git20250619-r1.apk"
+    },
+    {
+      "bytes": 152075,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/community/aarch64/tcc-libs-0.9.27_git20250619-r1.apk",
+      "repository": "community",
+      "sha256": "b46e95d8dc6e643b836ea3809d964f9c0628adc621602c29d94207d99a9e1e7c",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/community/aarch64/tcc-libs-0.9.27_git20250619-r1.apk"
+    },
+    {
+      "bytes": 54334,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/zlib-1.3.2-r1.apk",
+      "repository": "main",
+      "sha256": "1f77a542ac6634761b9fe38d8bdca19b154071dcfa25432e73f2bc8a0740a33f",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/zlib-1.3.2-r1.apk"
+    },
+    {
+      "bytes": 365383,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/zstd-libs-1.5.7-r2.apk",
+      "repository": "main",
+      "sha256": "2bb5136c89f5b0bbe1554c8915a3b520d5aa63ae2a51d4d821eb81698db5a818",
+      "type": "file",
+      "upstream_url_recorded": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/zstd-libs-1.5.7-r2.apk"
+    }
+  ],
+  "runtime_inventory_scope": "Selected reference inputs, not a complete qualified source/build/runtime/helper closure. Bootstrap archives bind the original binary rootfs inputs; this selected extracted-file inventory is not a complete runtime/helper or source/build closure. No candidate profile admitted.",
+  "schema": "ostadix.support.original-apk-input-review/v1",
+  "selected_runtime_and_database_files": [
+    {
+      "bytes": 135248,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/sbin/apk",
+      "sha256": "304e62b9494b79cef24d621f4538b83496201252e32fce76c7f7e27760594fee",
+      "type": "file"
+    },
+    {
+      "bytes": 919304,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/bin/busybox",
+      "sha256": "97d52efa149563c8d886e3670e2496d4140d3c54138017afd3a105e0397fae2e",
+      "type": "file"
+    },
+    {
+      "mode": "0o777",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/bin/sh",
+      "target": "/bin/busybox",
+      "type": "symlink"
+    },
+    {
+      "mode": "0o777",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/bin/yes",
+      "target": "/bin/busybox",
+      "type": "symlink"
+    },
+    {
+      "bytes": 330360,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libapk.so.3.0.0",
+      "sha256": "8b2cb7e779832b06fcd570ef7e12492792d54ce1a7f45031e36bcba62b7f0d0a",
+      "type": "file"
+    },
+    {
+      "bytes": 868240,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libssl.so.3",
+      "sha256": "74d73f8a6ded282a7e5c305b92772815b2b9ceee9fb67e3082e2412d282658e6",
+      "type": "file"
+    },
+    {
+      "bytes": 4533144,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libcrypto.so.3",
+      "sha256": "699d362147ff3d99d23aa84bdb353a86cc5cdc56a6bf3e1fafea7a9304f37b3e",
+      "type": "file"
+    },
+    {
+      "mode": "0o777",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libz.so.1",
+      "target": "libz.so.1.3.2",
+      "type": "symlink"
+    },
+    {
+      "bytes": 133008,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/usr/lib/libz.so.1.3.2",
+      "sha256": "afe41fdd58868461eae3b04068f334bfad2d4ecd0e11c7e30f9afafe06f28528",
+      "type": "file"
+    },
+    {
+      "bytes": 723480,
+      "mode": "0o755",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/ld-musl-aarch64.so.1",
+      "sha256": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793",
+      "type": "file"
+    },
+    {
+      "mode": "0o777",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/libc.musl-aarch64.so.1",
+      "target": "ld-musl-aarch64.so.1",
+      "type": "symlink"
+    },
+    {
+      "bytes": 74,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/etc/apk/world",
+      "sha256": "bf2e4562deee401d11a98d9873fc6823e963b2fc5833df25302682701feb8869",
+      "type": "file"
+    },
+    {
+      "bytes": 103,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/etc/apk/repositories",
+      "sha256": "7b8b3e6fe030eeb4ee7619b42c9419aa846bff1c632442d3f00ed9fb97c6fa36",
+      "type": "file"
+    },
+    {
+      "bytes": 15097,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/apk/db/installed",
+      "sha256": "c23a62ca067a055376b25deb897432c054aece98b87668f2820fd2999893a97d",
+      "type": "file"
+    },
+    {
+      "bytes": 95,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/apk/db/triggers",
+      "sha256": "25ce406d0c95a70966e82aa736b854bf6580405698fada32a269fed52cb45f77",
+      "type": "file"
+    },
+    {
+      "bytes": 1916,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/lib/apk/db/scripts.tar.gz",
+      "sha256": "080ddaaf1016748453a415d255d9fe6dcee707481ba413a93e15898c839ab8e9",
+      "type": "file"
+    }
+  ],
+  "signed_indexes": [
+    {
+      "bytes": 529506,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/main/aarch64/APKINDEX.tar.gz",
+      "sha256": "9fbf68d0dde99ee139192dd4355d6b91448095f5a3269387bfc3e9d49b6cb7b8",
+      "type": "file"
+    },
+    {
+      "bytes": 2506040,
+      "historical_signature_verified": true,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/repository-cache/community/aarch64/APKINDEX.tar.gz",
+      "sha256": "5aa7e07e743ee5e207cd81eae53f492df422d13d50cdb3284be87f1ea764327f",
+      "type": "file"
+    }
+  ],
+  "sources": [
+    {
+      "bytes": 19549,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/docs/OKERNEL_UNIFIED_IMPLEMENTATION.md",
+      "sha256": "b6758db1cf21795471a36308ef141b9c865647be39868b6a5f0dfa5287a9aae7",
+      "type": "file"
+    },
+    {
+      "bytes": 17536,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/ocore/runtime/common/posix_namespace_files.oc",
+      "sha256": "ff161dd8db9d024200a9318a7fc62941bd726635e5c599085e44dc7cf582f36a",
+      "type": "file"
+    },
+    {
+      "bytes": 35864,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/ocore/runtime/common/namespace_store.oc",
+      "sha256": "13cffe0c19b455314f23e8a53914b585ba43d19d606c07c3f6706793c5f41c53",
+      "type": "file"
+    },
+    {
+      "bytes": 5904,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/ocore/runtime/common/u9fs_codec.oc",
+      "sha256": "920ac6fcf2d237a5d0b91bc5b6f67425ee1ce12b07f768c51eb8bb4da8504248",
+      "type": "file"
+    },
+    {
+      "bytes": 17546,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/ocore/runtime/x86_64/linux_personality.oc",
+      "sha256": "859c0ebf2d625b6551b9ce001515303fd659050d41cde6237c37f7b394ccf033",
+      "type": "file"
+    },
+    {
+      "bytes": 24822,
+      "mode": "0o755",
+      "path": "/home/ustad/ostadix-BM/ocore/guest/linux/package-domain/build.py",
+      "sha256": "e4646e00cc990fe0898dad43a7f018e15806e5b4de0702b240ac83754f152a4b",
+      "type": "file"
+    },
+    {
+      "bytes": 5063,
+      "mode": "0o755",
+      "path": "/home/ustad/ostadix-BM/ocore/guest/linux/package-domain/pkg",
+      "sha256": "54454075f379f2754de3b131aa7ce0a126d9207d20a428712179b8332cdadb2f",
+      "type": "file"
+    },
+    {
+      "bytes": 18250,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/tests/test_posix_namespace_files.py",
+      "sha256": "dad25881e8f721dbe89b055aabc41c3e2011bcabd8ef4f430e5fa7f4dbd0bd15",
+      "type": "file"
+    },
+    {
+      "bytes": 12684,
+      "mode": "0o664",
+      "path": "/home/ustad/ostadix-BM/tests/test_linux_package_domain_builder.py",
+      "sha256": "c5db08d8406dc152a895b9dd77e1c75162c847eb3eab05e997024487684610ba",
+      "type": "file"
+    }
+  ],
+  "status": "proposal-only",
+  "trust_keys": [
+    {
+      "bytes": 451,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/etc/apk/keys/alpine-devel@lists.alpinelinux.org-58199dcc.rsa.pub",
+      "sha256": "73867d92083f2f8ab899a26ccda7ef63dfaa0032a938620eda605558958a8041",
+      "type": "file"
+    },
+    {
+      "bytes": 800,
+      "mode": "0o644",
+      "path": "/home/ustad/.cache/okernel-plan9port-musl-repository/rootfs/etc/apk/keys/alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub",
+      "sha256": "d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+      "type": "file"
+    }
+  ],
+  "verification_scope": "Fresh SHA256/size agreement with retained manifest only. Historical signature assertions are recorded, not freshly reverified. No APK, installer, build, test, or VM executed."
+}

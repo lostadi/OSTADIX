@@ -1,0 +1,120 @@
+{
+  "cases": [
+    {
+      "compare": [
+        "exit/status and raw stdout/stderr",
+        "original selected package/dependency/provider/version/architecture decisions",
+        "world and installed DB plus scripts/triggers",
+        "payload bytes/type/mode/uid/gid/links/xattrs when specified",
+        "no unresolved pending scripts/triggers"
+      ],
+      "id": "install-resolve",
+      "phase": "positive",
+      "status": "retained-input-seed; new-reference-and-candidate-runs-required",
+      "stimulus": "In one original APK transaction, install names jq and curl from the declared signed offline repositories into a fresh qualified Alpine environment. Resolve dependency versions through unchanged APK."
+    },
+    {
+      "id": "execute-payload",
+      "phase": "positive",
+      "scope": "No HTTPS/network qualification from the curl local-file case.",
+      "status": "input-and-oracle-to-be-frozen",
+      "stimulus": "Run installed jq against pinned JSON including a regex operation requiring oniguruma; run installed curl against a pinned local file using its original file transport. Record exact argv/stdin/output/status."
+    },
+    {
+      "id": "trigger-effect",
+      "phase": "positive",
+      "scope": "Non-vacuous trigger effect only; not qualification of every script or trigger path.",
+      "status": "original-trigger-bytes-retained; behavior-case-not-run",
+      "stimulus": "On paired fresh private states only, remove the baseline /usr/bin/yes symlink after recording its exact original target. Install jq/curl with unchanged APK, BusyBox and its original registered trigger. Verify original trigger executes and restores the exact link and program behavior; Linux establishes the expected result first."
+    },
+    {
+      "id": "upgrade",
+      "phase": "positive",
+      "status": "blocked-missing-genuine-two-version-fixture",
+      "stimulus": "Install an older genuine signed version, select a later declared signed snapshot/version through original APK, execute new payload, compare DB/metadata/scripts/config handling, and restart."
+    },
+    {
+      "id": "remove",
+      "phase": "positive",
+      "status": "reference-and-candidate-runs-required",
+      "stimulus": "Use original APK to remove selected installed roots; compare original dependency cleanup, world/DB/payload and script effects, then restart and query both retained and removed state."
+    },
+    {
+      "id": "restart",
+      "phase": "positive",
+      "scope": "Normal restart is not power-loss consistency; crash gates must be separately specified.",
+      "status": "blocked-native-durable-commit-and-candidate",
+      "stimulus": "After successful install and after upgrade/remove, perform the declared durable commit then restart the single-system candidate and matched Linux reference from their own resulting state. Re-run installed programs and original DB queries."
+    },
+    {
+      "id": "wrong-key",
+      "phase": "negative",
+      "status": "fixture-to-be-frozen",
+      "stimulus": "Use an isolated keyset with the actual repository signer absent or replaced by a declared unrelated public key. Original signature policy remains enabled."
+    },
+    {
+      "id": "tampered-index",
+      "phase": "negative",
+      "status": "mutation-and-reference-outcome-to-be-frozen",
+      "stimulus": "Modify a private copy of a signed index without resigning; retain the mutation and format validity. Compare the original authentication failure, not merely a decompression parse failure."
+    },
+    {
+      "id": "tampered-package",
+      "phase": "negative",
+      "status": "mutation-and-reference-outcome-to-be-frozen",
+      "stimulus": "Modify a private copy of a selected authentic APK without resigning, retaining parseability and exact mutation record. Compare original verification failure and resulting state."
+    },
+    {
+      "id": "missing-archive",
+      "phase": "negative",
+      "scope": "Repository availability failure, not dependency-resolver conflict proof.",
+      "status": "can-derive-from-retained-inputs; not-run",
+      "stimulus": "Remove an archive required by the unmodified signed index from a private no-network repository copy."
+    },
+    {
+      "id": "unsatisfied-dependency",
+      "phase": "negative",
+      "status": "exact-request-fixture-and-reference-outcome-to-be-frozen",
+      "stimulus": "Choose a manifest-declared unsatisfiable request or a genuine package whose required dependency is absent from the declared authenticated repository set. Record original resolver rejection and state effects."
+    },
+    {
+      "id": "dependency-conflict",
+      "phase": "negative",
+      "scope": "An invented missing version does not establish a genuine conflict case.",
+      "status": "blocked-no-qualified-conflict-fixture",
+      "stimulus": "Use genuine authenticated incompatible packages/providers that cannot coexist in the requested original APK transaction. Preserve original policy and selection decisions."
+    },
+    {
+      "id": "architecture-policy",
+      "phase": "negative",
+      "status": "fixture-not-qualified",
+      "stimulus": "Use a declared genuine wrong-architecture input through the normal original manager path and compare the original rejection/selection behavior."
+    }
+  ],
+  "fixed_reference": {
+    "alpine": "3.24.3",
+    "apk_tools": "3.0.8-r0",
+    "architecture": "aarch64",
+    "input_identities_file": "input-identities.json",
+    "invocation": "direct original apk; exact complete argv to be pinned against declared runtime",
+    "original_manager_sha256": "304e62b9494b79cef24d621f4538b83496201252e32fce76c7f7e27760594fee"
+  },
+  "native_candidate_admitted": false,
+  "package_manager_executions": [],
+  "prerequisites": [
+    "Complete source/build/dependency/helper provenance or explicitly separated supplied-original-binary ABI profile",
+    "Protected native application startup, Linux ABI and common writable filesystem semantics",
+    "Real manager-specific namespace/runtime/database ownership, not descriptor labels",
+    "Two-version signed upgrade pair and genuine conflict fixtures",
+    "Offline repository config, absent/stale cache rules and original signature checks pinned identically",
+    "Observable original script/trigger effects and durable commit/restart"
+  ],
+  "result_rules": {
+    "missing_case": "unqualified",
+    "negative_failures": "Compare original exit class/status, diagnostics and actual DB/filesystem/script effects; do not assume failure is side-effect-free.",
+    "normalization": "Keep raw bytes and allow only explicitly declared nondeterministic fields; never normalize package decisions, scripts, payload or trust outcomes.",
+    "performance": "Separate all-system matched measurements; no efficiency conclusion until both comparable systems exist."
+  },
+  "schema": "ostadix.support.original-apk-gate-proposal/v1",
+  "status": "proposal-only"
+}

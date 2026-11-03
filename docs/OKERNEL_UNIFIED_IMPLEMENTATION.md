@@ -240,6 +240,16 @@ must produce the original manager's expected failures and state effects.
 Online HTTPS behavior is qualified separately. Other managers receive the same
 standard through their own original engines, not a custom format extractor.
 
+The archived [original APK acceptance proposal](acceptance/original-apk/PROPOSAL.md)
+specifies 13 unexecuted cases, including one direct `apk add jq curl`
+transaction and an observable effect from the unchanged original BusyBox
+trigger. A genuine signed two-version upgrade pair and a genuine dependency
+conflict remain mandatory missing fixtures. The [snapshot record](acceptance/original-apk/capture.json)
+pins the received plan and manifests, including their updated hashes and two
+changed documentation/progress references that need refreshing before an
+execution manifest is frozen. Byte checks here do not reverify signatures;
+native APK execution, durability and efficiency remain unqualified.
+
 Required native services include real user-memory/syscall layouts, ELF startup,
 TLS/allocation, writable filesystem metadata and links, permissions, locks,
 open-file lifetimes, replacement/commit behavior, subprocesses, signals,

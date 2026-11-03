@@ -1,0 +1,59 @@
+{
+  "schema": "ostadix.original-apk-proposal-snapshot/v1",
+  "status": "proposal-only",
+  "captured_unix": 1793703238.47466,
+  "base_commit": "ecfd617679cf8b9f9bfa7783bec417c6408f29b4",
+  "source_bundle": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5",
+  "files": {
+    "PROPOSAL.md": {
+      "bytes": 10233,
+      "sha256": "87ba940d68314c78dfc94caed5f0051714e3e85d864611aeb05c9b8e6eb38c49"
+    },
+    "input-identities.json": {
+      "bytes": 32399,
+      "sha256": "5e3092f2b1f7fa34b3efbb6bbeaceae4abcc4e330c368a96134673810619cd5e"
+    },
+    "gate-plan.json": {
+      "bytes": 6898,
+      "sha256": "4eb6a93e6d3870643203137241c969f48420dcd910e02d928e6f51b1b2acb6c2"
+    },
+    "validation.json": {
+      "bytes": 1579,
+      "sha256": "12e86825aa0b31cb8e1d6ea9d5e2c2987ca11c51a171a10f85836efc771e0a30"
+    }
+  },
+  "previously_reported_hashes": {
+    "input-identities.json": "3a53d3f0ec236aa86ada6f33adc84aa26fada8825ff58d28d0d924fa17130f6f",
+    "validation.json": "425acff173cba963385bf1631f069aa7b638220030a9c55be4b6b4e623ab2187"
+  },
+  "snapshot_artifact_bindings_consistent": true,
+  "fresh_regular_file_hash_matches": 77,
+  "referenced_regular_files": 79,
+  "changed_documentation_progress_references": [
+    {
+      "path": "/home/ustad/.local/state/ostadix/okernel/single-system-native-foundation-progress-20261102.json",
+      "expected_bytes": 8584,
+      "expected_sha256": "442a429823c09e2a2d85c18f8e565d99e8ff77794e7c0d8ba12ab9a456bd6b1d",
+      "observed_bytes": 24332,
+      "observed_sha256": "33b18a3df1e99c027268f448da1c12ccd042a8b8d382cd4fb65b497a543ba3c2"
+    },
+    {
+      "path": "/home/ustad/ostadix-BM/docs/OKERNEL_UNIFIED_IMPLEMENTATION.md",
+      "expected_bytes": 19549,
+      "expected_sha256": "b6758db1cf21795471a36308ef141b9c865647be39868b6a5f0dfa5287a9aae7",
+      "observed_bytes": 39022,
+      "observed_sha256": "c6ade9b5738d18bfc877c9555fb0117518fef02c62467e9b45782bf8d542f96d"
+    }
+  ],
+  "execution_manifest_ready": false,
+  "required_before_execution": "Freeze exact runtime/repositories/no-network policy/initial database and oracles; refresh changed documentation/progress references. Preserve all mandatory missing cases.",
+  "fresh_signature_verification": false,
+  "native_candidate_admitted": false,
+  "package_manager_executions": [],
+  "unexecuted_case_count": 13,
+  "mandatory_missing_fixtures": [
+    "genuine signed two-version upgrade pair",
+    "genuine authenticated dependency/provider conflict"
+  ],
+  "scope": "Reviewed unexecuted original APK acceptance specification and byte identities only; not source lowering, APK execution, native ABI admission, durability or efficiency qualification."
+}

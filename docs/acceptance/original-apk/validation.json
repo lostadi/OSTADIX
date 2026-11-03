@@ -1,0 +1,45 @@
+{
+  "artifacts": [
+    {
+      "bytes": 10233,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/PROPOSAL.md",
+      "sha256": "87ba940d68314c78dfc94caed5f0051714e3e85d864611aeb05c9b8e6eb38c49",
+      "type": "file"
+    },
+    {
+      "bytes": 32399,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/input-identities.json",
+      "sha256": "5e3092f2b1f7fa34b3efbb6bbeaceae4abcc4e330c368a96134673810619cd5e",
+      "type": "file"
+    },
+    {
+      "bytes": 6898,
+      "mode": "0o664",
+      "path": "/home/ustad/.cache/okernel-unified-backend/original-apk-gate-current-u8n_l6d5/gate-plan.json",
+      "sha256": "4eb6a93e6d3870643203137241c969f48420dcd910e02d928e6f51b1b2acb6c2",
+      "type": "file"
+    }
+  ],
+  "candidate_admitted": false,
+  "changed_source_or_vm_state": false,
+  "created_files": [
+    "PROPOSAL.md",
+    "input-identities.json",
+    "gate-plan.json",
+    "validation.json"
+  ],
+  "fresh_signature_verification": false,
+  "independent_review": {
+    "note": "Clarified that bootstrap archives contain original binary rootfs inputs, not original source code. No package/runtime execution.",
+    "result": "no material semantic overclaims found"
+  },
+  "manager_build_test_vm_executions": 0,
+  "retained_archive_hash_matches": 44,
+  "retained_bootstrap_hash_matches": 2,
+  "retained_index_hash_matches": 2,
+  "schema": "ostadix.support.proposal-validation/v1",
+  "source_bindings_stable": true,
+  "status": "inspection-only"
+}
