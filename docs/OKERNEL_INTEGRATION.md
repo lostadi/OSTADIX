@@ -44,6 +44,14 @@ language sources parsed, and the protected x86-64 FS/TLS QEMU fixture passed
 with matching kernel rebuilds. These checks qualify their stated components;
 they do not qualify the unfinished whole-system target.
 
+A later native session-identity run passed 16 tests without skips, including
+eight added collision cases. These exercise production Linux virtqueue and
+Plan 9 UART version/revocation paths with constructed trusted generations,
+plus read-only authority and stale-handle checks. They run against the current
+store's existing monotonic issuer; the historical R9 issuer patch is not
+applied. Coverage is x86-64 native execution and AArch64 MIR validation, with
+the previously admitted R9 monitor and live VMs preserved.
+
 Build fresh branch tools without replacing the original checkout's compilers:
 
 ```sh
