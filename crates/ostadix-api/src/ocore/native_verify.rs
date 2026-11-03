@@ -1025,6 +1025,19 @@ pub fn is_builtin_intrinsic(name: &str) -> bool {
     builtin_signature(name).is_some()
         || integer_overflow_intrinsic(name).is_some()
         || integer_minmax_intrinsic(name).is_some()
+        || funnel_shift_intrinsic(name).is_some()
+}
+
+/// Scalar funnel shifts are expanded by the importer into verified ordinary
+/// integer operations. Retain and validate the original owned declaration;
+/// it never becomes an unresolved native runtime dependency.
+pub fn funnel_shift_intrinsic(name: &str) -> Option<u16> {
+    let (operation, width) = name.strip_prefix("llvm.")?.split_once(".i")?;
+    if !matches!(operation, "fshl" | "fshr") {
+        return None;
+    }
+    let bits = width.parse::<u16>().ok()?;
+    ((1..=64).contains(&bits) && width == bits.to_string()).then_some(bits)
 }
 
 /// Compiler-only declarations have no ordinary native ABI or executable
@@ -1977,6 +1990,12 @@ impl<'a> Verifier<'a> {
                         if fields.len() == 2
                         && matches!(self.module.types.get(fields[0]), Some(Type::Int { bits: actual }) if *actual == bits)
                         && matches!(self.module.types.get(fields[1]), Some(Type::Int { bits: 1 })))
+            } else if let Some(bits) = funnel_shift_intrinsic(&function.name) {
+                sig.params.len() == 3
+                    && sig.params.iter().all(|ty| {
+                        matches!(self.module.types.get(*ty), Some(Type::Int { bits: actual }) if *actual == bits)
+                    })
+                    && matches!(self.module.types.get(sig.result), Some(Type::Int { bits: actual }) if *actual == bits)
             } else if let Some((_, bits)) = integer_minmax_intrinsic(&function.name) {
                 sig.params.len() == 2
                     && sig.params.iter().all(|ty| {
