@@ -295,7 +295,7 @@ class Importer:
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
                 "immarg", "dead_on_unwind", "dead_on_return", "allockind", "allocsize", "allocalign", "allocptr",
                 "writable", "returned", "builtin", "sret",
-                "nocreateundeforpoison"}:
+                "nocreateundeforpoison", "strictfp"}:
             kind = api.GetEnumAttributeKindForName(name.encode(), len(name))
             if kind:
                 self.attribute_names[kind] = name
@@ -482,6 +482,13 @@ class Importer:
                 self.reject(f"unsupported string attribute {key}={text}")
             kind = a.GetEnumAttributeKind(attribute)
             name = self.attribute_names.get(kind)
+            if name == "strictfp":
+                # This is an execution requirement, not an erasable optimizer
+                # promise. In particular musl formatting uses constrained FP
+                # with round.dynamic; integer-only signature admission cannot
+                # establish the floating environment of its body/providers.
+                site = "callsite" if call else "function"
+                self.reject(f"strictfp {site} attribute requires faithful floating-point environment support (dynamic rounding mode and exception state), floating value/ABI support and explicit constrained-intrinsic lowering; strictfp cannot be erased or replaced by fixed-rounding arithmetic")
             pointer_indices = {1} if intrinsic and intrinsic.startswith("llvm.memset.") else {1, 2}
             if intrinsic == "llvm.threadlocal.address.p0" and name == "align":
                 if (not a.IsEnumAttribute(attribute) or index not in {0, 1}
@@ -1933,6 +1940,8 @@ class Importer:
         linkage, visibility, alignment, comdat = self.global_contract(value)
         intrinsic = None
         if a.GetIntrinsicID(value) or self.symbol.startswith("llvm."):
+            if self.symbol.startswith("llvm.experimental.constrained."):
+                self.reject(f"constrained floating-point intrinsic {self.symbol} requires explicit lowering preserving its rounding-mode and exception-behavior metadata; floating value/ABI and environment support are not implemented")
             if self.symbol not in self.INTRINSICS or not a.GetIntrinsicID(value):
                 self.reject(f"intrinsic {self.symbol} requires explicit lowering")
             intrinsic = self.symbol
