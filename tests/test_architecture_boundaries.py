@@ -109,6 +109,7 @@ def write_minimal_tree(root: Path) -> None:
         "crates/ostadix-api/src/ocore/native_codegen.rs": (
             'mod atomic { include!("native_atomic_codegen.rs"); }\n'
             'mod float_layout { include!("native_float_layout.rs"); }\n'
+            'mod variadic { include!("native_variadic_codegen.rs"); }\n'
         ),
         "crates/ostadix-api/src/world/mod.rs": "pub use crate::resource_identity as identity;\n",
     }
@@ -258,6 +259,12 @@ class ArchitectureBoundaryTests(unittest.TestCase):
                     "owner": "ocore",
                     "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
                     "module_path": ["ocore", "native_codegen", "float_layout"],
+                },
+                {
+                    "path": "crates/ostadix-api/src/ocore/native_variadic_codegen.rs",
+                    "owner": "ocore",
+                    "included_from": "crates/ostadix-api/src/ocore/native_codegen.rs",
+                    "module_path": ["ocore", "native_codegen", "variadic"],
                 },
             ],
         )
@@ -889,6 +896,7 @@ class ArchitectureBoundaryTests(unittest.TestCase):
             ("crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_core.rs", "ocore"),
             ("crates/ostadix-api/src/ocore/native_float_layout.rs", "ocore"),
+            ("crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "ocore"),
         ):
             with self.subTest(fragment=relative):
                 with tempfile.TemporaryDirectory() as directory:
