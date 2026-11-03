@@ -1,0 +1,57 @@
+{
+  "schema": "ostadix.okernel-boot-source-release-validation/v1",
+  "status": "passed",
+  "scope": "Source archive closure and preservation; no kernel runtime code changed by this followup",
+  "baseline_commit": "b47ff1e002cdf940138995ee4f693a33677c22ca",
+  "code_commit_before_metadata_followup": "5d60b5bf5e397066696547d082e2a8f21727ce46",
+  "sources": [
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/scripts/build_source_release.py",
+      "bytes": 198321,
+      "sha256": "7e69ec54b2832751fa82cd011de17b3d702205a48c5b48f4ce3f2200bd7aeef5"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tests/test_source_release.py",
+      "bytes": 235363,
+      "sha256": "a7cbf3b6295eadb1d9a3c21db2da8443422d8f810fdeaf3a2a46bd642bcb10ae"
+    }
+  ],
+  "tests": [
+    {
+      "suite": "SourceReleaseTests",
+      "methods": 87,
+      "passed": 87,
+      "skipped": 0,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-source-release-final.log",
+        "bytes": 14823,
+        "sha256": "daabeaab056386ffd4e49f1232b142f61609cbb14d1aafe6d2f00a0432c308fb"
+      }
+    },
+    {
+      "suite": "WorkspaceFacadeReleaseValidationTests",
+      "methods": 9,
+      "passed": 9,
+      "skipped": 0,
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-source-release-workspace-final.log",
+        "bytes": 1725,
+        "sha256": "e8a91948f6149c115ae037df66cfb869b4f870649ef67affea4f47775db295a3"
+      }
+    }
+  ],
+  "coverage": [
+    "Actual-tree CLI archive build, deterministic byte equality and verification",
+    "Default boot entry and native-codec source/provider closure retained",
+    "Missing boot dependency or private runtime helper source rejected",
+    "Non-executable boot script rejected",
+    "Only exact reviewed u9fs hardening source patch retained; arbitrary patches remain excluded",
+    "Private progress/step_knobs helper modules included without public API export",
+    "No previously allowed source-release path removed across2877 baseline tracked paths"
+  ],
+  "preservation_review": {
+    "path": "/home/ustad/.cache/okernel-boot-preservation-review.json",
+    "bytes": 12943,
+    "sha256": "bfef2d5a1376823e4756cbd37759b15e0102dac1000f21800112bc0192409fa7"
+  }
+}
