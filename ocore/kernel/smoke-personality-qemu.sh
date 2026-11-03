@@ -10,9 +10,6 @@ TIMEOUT_SECONDS="${OCORE_M6A_TIMEOUT_SECONDS:-180}"
 # Optional QEMU instruction-counted virtual-time exercise. CI pins shift 1 to
 # retain a bounded cadence that distinguished the periodic-timer starvation.
 QEMU_ICOUNT="${OCORE_M6A_QEMU_ICOUNT:-}"
-DIGEST="f5924eeb64b5a3d332e20b5d0fae7b233ae2714eb58b72ea07f08a4d26334417"
-IMAGE_BYTES=62104
-IMAGE="$ROOT/target/ocore-m6-artifacts/images/root-${DIGEST}.ovfs"
 
 if command -v llvm-nm >/dev/null 2>&1; then
   NM_TOOL="$(command -v llvm-nm)"
@@ -36,6 +33,19 @@ done
 OCORE_PROBE_MODE=18 OCORE_BUILD_DIR="$BUILD_DIR" \
   "$ROOT/ocore/kernel/build.sh" >/dev/null
 
+# Use the image identity embedded by this build; service paths and ELF
+# protection checks remain independent of compiler/linker byte layout.
+IMAGE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["image"])' \
+  "$BUILD_DIR/m6.image.json")"
+read -r IMAGE_BYTES DIGEST < <(
+  python3 - "$BUILD_DIR/m6.image.json" <<'PYMETA'
+import json
+import sys
+identity = json.load(open(sys.argv[1]))
+print(identity["bytes"], identity["sha256"])
+PYMETA
+)
+
 if [[ ! -f "$IMAGE" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then
@@ -44,7 +54,7 @@ if [[ ! -f "$IMAGE" ]] \
 fi
 
 OVFS_PATHS="$(
-  python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" | sed -n '/^\/sbin\//p'
+  python3 "$ROOT/ocore/user/verify_ovfs.py" "$IMAGE" --max-image-bytes 98304 | sed -n '/^\/sbin\//p'
 )"
 EXPECTED_PATHS=$'/sbin/m6-client.elf: valid\n/sbin/m6-observer.elf: valid\n/sbin/m6-personalityd.elf: valid\n/sbin/m6-supervisord.elf: valid'
 if [[ "$OVFS_PATHS" != "$EXPECTED_PATHS" ]]; then

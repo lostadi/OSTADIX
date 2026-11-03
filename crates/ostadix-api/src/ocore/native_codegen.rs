@@ -948,12 +948,22 @@ impl<'a> Emitter<'a> {
     }
     fn stack_address(&self, out: &mut String, offset: i64) {
         match self.target {
+            Target::X86_64UnknownNone if i32::try_from(offset).is_ok() => {
+                writeln!(out, "  lea r11, [rbp + {offset}]").unwrap();
+            }
             Target::X86_64UnknownNone => {
                 writeln!(out, "  mov r11, {offset}\n  add r11, rbp").unwrap()
+            }
+            Target::Aarch64UnknownNone if (-4095..=4095).contains(&offset) => {
+                let operation = if offset < 0 { "sub" } else { "add" };
+                writeln!(out, "  {operation} x17, x29, #{}", offset.unsigned_abs()).unwrap();
             }
             Target::Aarch64UnknownNone => {
                 arm_immediate(out, "x17", offset as u64);
                 out.push_str("  add x17, x29, x17\n");
+            }
+            Target::Riscv64UnknownNone if (-2048..=2047).contains(&offset) => {
+                writeln!(out, "  addi ra, s0, {offset}").unwrap();
             }
             Target::Riscv64UnknownNone => {
                 writeln!(out, "  li ra, {offset}\n  add ra, s0, ra").unwrap();
@@ -961,8 +971,30 @@ impl<'a> Emitter<'a> {
         }
     }
     fn stack_load(&self, out: &mut String, reg: usize, offset: i64) {
-        self.stack_address(out, offset);
         let r = self.reg(reg);
+        // Loads/stores promise only their value or memory result. Callers that
+        // need the address scratch explicitly use stack_address instead. The
+        // direct forms do not clobber any additional register or condition code.
+        match self.target {
+            Target::X86_64UnknownNone if i32::try_from(offset).is_ok() => {
+                writeln!(out, "  mov {r}, qword ptr [rbp + {offset}]").unwrap();
+                return;
+            }
+            Target::Aarch64UnknownNone if (-256..=255).contains(&offset) => {
+                writeln!(out, "  ldur {r}, [x29, #{offset}]").unwrap();
+                return;
+            }
+            Target::Aarch64UnknownNone if (0..=32760).contains(&offset) && offset % 8 == 0 => {
+                writeln!(out, "  ldr {r}, [x29, #{offset}]").unwrap();
+                return;
+            }
+            Target::Riscv64UnknownNone if (-2048..=2047).contains(&offset) => {
+                writeln!(out, "  ld {r}, {offset}(s0)").unwrap();
+                return;
+            }
+            _ => {}
+        }
+        self.stack_address(out, offset);
         match self.target {
             Target::X86_64UnknownNone => writeln!(out, "  mov {r}, qword ptr [r11]").unwrap(),
             Target::Aarch64UnknownNone => writeln!(out, "  ldr {r}, [x17]").unwrap(),
@@ -970,8 +1002,27 @@ impl<'a> Emitter<'a> {
         }
     }
     fn stack_store(&self, out: &mut String, reg: usize, offset: i64) {
-        self.stack_address(out, offset);
         let r = self.reg(reg);
+        match self.target {
+            Target::X86_64UnknownNone if i32::try_from(offset).is_ok() => {
+                writeln!(out, "  mov qword ptr [rbp + {offset}], {r}").unwrap();
+                return;
+            }
+            Target::Aarch64UnknownNone if (-256..=255).contains(&offset) => {
+                writeln!(out, "  stur {r}, [x29, #{offset}]").unwrap();
+                return;
+            }
+            Target::Aarch64UnknownNone if (0..=32760).contains(&offset) && offset % 8 == 0 => {
+                writeln!(out, "  str {r}, [x29, #{offset}]").unwrap();
+                return;
+            }
+            Target::Riscv64UnknownNone if (-2048..=2047).contains(&offset) => {
+                writeln!(out, "  sd {r}, {offset}(s0)").unwrap();
+                return;
+            }
+            _ => {}
+        }
+        self.stack_address(out, offset);
         match self.target {
             Target::X86_64UnknownNone => writeln!(out, "  mov qword ptr [r11], {r}").unwrap(),
             Target::Aarch64UnknownNone => writeln!(out, "  str {r}, [x17]").unwrap(),

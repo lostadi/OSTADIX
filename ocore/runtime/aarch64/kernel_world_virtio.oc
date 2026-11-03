@@ -12,6 +12,16 @@ const QUEUE_MAX: u64 = 32;
 const FEATURES_LOW: u64 = 102;
 // SIZE_MAX, SEG_MAX, RO and BLK_SIZE. VERSION_1 is high word bit zero.
 const CAPACITY: u64 = 2048;
+// Explicit EL2-only provisioning window. It is outside both the monitor's
+// reserved 0x40000000..0x41000000 region and guest-owned outer RAM
+// 0x48000000..0x68000000. The persistent profile provisions 2 GiB outer RAM.
+const BACKING_WINDOW_BASE: u64 = 0x6800_0000;
+const BACKING_WINDOW_END: u64 = 0xb000_0000;
+const HOST_NET_DMA_BASE: u64 = 0x6e00_0000;
+const HOST_NET_DMA_END: u64 = 0x6e20_0000;
+const NAMESPACE_STORE_BASE: u64 = 0x6c00_0000;
+// Include the separately granted epoch/quiescence/clock control page.
+const NAMESPACE_STORE_END: u64 = 0x6d00_1000;
 const SEGMENT_MAX: u64 = 4096;
 const STATE_EMPTY: u64 = 0;
 const STATE_LIVE: u64 = 1;
@@ -53,6 +63,74 @@ static mut CONSUMED: u64 = 0;
 static mut SUCCESS_COUNT: u64 = 0;
 static mut IOERR_COUNT: u64 = 0;
 static mut DENIED_COUNT: u64 = 0;
+static mut BACKING_BASE: usize = 0;
+static mut BACKING_LENGTH: u64 = 0;
+static mut BACKING_WRITABLE: u64 = 0;
+static mut WRITE_COUNT: u64 = 0;
+static mut FLUSH_COUNT: u64 = 0;
+static mut READ_BYTES: u64 = 0;
+static mut WRITTEN_BYTES: u64 = 0;
+static mut FAILURE: u64 = 0;
+static mut FAILURE_DETAIL: [u64; 8] = [0; 8];
+static mut MMIO_OFFSET: u64 = 0;
+static mut MMIO_VALUE: u64 = 0;
+
+unsafe fn features_low() -> u64 {
+    if BACKING_LENGTH == 0 { return FEATURES_LOW; }
+    // Backed images implement ordered FLUSH. Read-only is advertised only
+    // when the monitor explicitly withholds write authority.
+    if BACKING_WRITABLE == 1 { return 582; }
+    return 614;
+}
+
+unsafe fn capacity() -> u64 {
+    if BACKING_LENGTH != 0 { return BACKING_LENGTH / 512; }
+    return CAPACITY;
+}
+
+// Only EL2 calls this API; no guest register, descriptor or image name can
+// choose a backing pointer. Configuration is immutable for a live generation.
+pub unsafe fn configure_backing(base: usize, length: usize, writable: u64) -> u64 {
+    if STATE == STATE_LIVE || STATE == STATE_WITHDRAWING || PENDING != 0
+        || writable > 1
+        || (STATE == STATE_RETIRED && (CONSUMED != 1 || INTERRUPT != 0))
+        || (STATE == STATE_FAILED && COMPLETION != 0) {
+        return 0;
+    }
+    if base == 0 && length == 0 && writable == 0 {
+        BACKING_BASE = 0;
+        BACKING_LENGTH = 0;
+        BACKING_WRITABLE = 0;
+        return 1;
+    }
+    if base as u64 < BACKING_WINDOW_BASE || base as u64 >= BACKING_WINDOW_END
+        || (base & 4095) != 0 || length == 0 || (length & 511) != 0
+        || length as u64 > BACKING_WINDOW_END - base as u64 {
+        return 0;
+    }
+    // The separately delegated outer NIC owns its private DMA rings/buffers.
+    // Even an EL2 configuration mistake must not turn them into disk sectors.
+    if base as u64 < HOST_NET_DMA_END
+        && HOST_NET_DMA_BASE < base as u64 + length as u64 {
+        return 0;
+    }
+    if base as u64 < NAMESPACE_STORE_END
+        && NAMESPACE_STORE_BASE < base as u64 + length as u64 {
+        return 0;
+    }
+    BACKING_BASE = base;
+    BACKING_LENGTH = length as u64;
+    BACKING_WRITABLE = writable;
+    return 1;
+}
+
+unsafe fn backing_overlaps(physical: usize, length: u64) -> bool {
+    if BACKING_LENGTH == 0 { return false; }
+    let start: u64 = physical as u64;
+    if start > 0xffff_ffff_ffff_ffff - length { return true; }
+    return start < BACKING_BASE as u64 + BACKING_LENGTH
+        && BACKING_BASE as u64 < start + length;
+}
 
 unsafe fn address(gpa: u64, length: u64) -> usize {
     if length == 0 || gpa < RAM_BASE || length > RAM_SIZE {
@@ -62,7 +140,9 @@ unsafe fn address(gpa: u64, length: u64) -> usize {
     if offset > RAM_SIZE - length {
         return 0;
     }
-    return kw_guest_address(gpa, length);
+    let translated: usize = kw_guest_address(gpa, length);
+    if translated == 0 || backing_overlaps(translated, length) { return 0; }
+    return translated;
 }
 
 unsafe fn load16(gpa: u64) -> u64 {
@@ -99,6 +179,13 @@ unsafe fn queue_valid() -> bool {
 }
 
 unsafe fn fail_queue() -> u64 {
+    if FAILURE == 0 {
+        FAILURE = 100;
+        FAILURE_DETAIL[0] = MMIO_OFFSET; FAILURE_DETAIL[1] = MMIO_VALUE;
+        FAILURE_DETAIL[2] = STATUS; FAILURE_DETAIL[3] = QUEUE_READY;
+        FAILURE_DETAIL[4] = QUEUE_SIZE; FAILURE_DETAIL[5] = LAST_AVAIL;
+        FAILURE_DETAIL[6] = LAST_USED; FAILURE_DETAIL[7] = PENDING_TYPE;
+    }
     STATE = STATE_FAILED;
     STATUS = STATUS | 64;
     DENIED_COUNT += 1;
@@ -147,6 +234,12 @@ pub unsafe fn init(guest_base: u64, guest_size: u64, generation: u64) -> u64 {
     SUCCESS_COUNT = 0;
     IOERR_COUNT = 0;
     DENIED_COUNT = 0;
+    WRITE_COUNT = 0;
+    FLUSH_COUNT = 0;
+    READ_BYTES = 0;
+    WRITTEN_BYTES = 0;
+    FAILURE = 0;
+    let mut detail: usize = 0; while detail < 8 { FAILURE_DETAIL[detail] = 0; detail += 1; }
     reset_transport();
     return 1;
 }
@@ -157,7 +250,7 @@ pub unsafe fn mmio_read(offset: u64) -> u64 {
     if offset == 8 { return 2; }
     if offset == 12 { return 0x4f43_4f52; }
     if offset == 16 {
-        if DEVICE_FEATURE_SEL == 0 { return FEATURES_LOW; }
+        if DEVICE_FEATURE_SEL == 0 { return features_low(); }
         if DEVICE_FEATURE_SEL == 1 { return 1; }
         return 0;
     }
@@ -172,8 +265,8 @@ pub unsafe fn mmio_read(offset: u64) -> u64 {
     if offset == 96 { return INTERRUPT; }
     if offset == 112 { return STATUS; }
     if offset == 252 { return GENERATION & 0xff; }
-    if offset == 256 { return CAPACITY; }
-    if offset == 260 { return 0; }
+    if offset == 256 { return capacity() & 0xffff_ffff; }
+    if offset == 260 { return capacity() >> 32; }
     if offset == 264 { return SEGMENT_MAX; }
     if offset == 268 { return QUEUE_MAX - 2; }
     if offset == 276 { return 512; }
@@ -181,6 +274,7 @@ pub unsafe fn mmio_read(offset: u64) -> u64 {
 }
 
 pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
+    MMIO_OFFSET = offset; MMIO_VALUE = value;
     if value > 0xffff_ffff || (offset & 3) != 0 {
         if STATE == STATE_LIVE { return fail_queue(); }
         return 0;
@@ -216,7 +310,7 @@ pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
     if offset == 112 {
         if (value & STATUS) != STATUS { return fail_queue(); }
         if (value & 8) != 0
-            && ((DRIVER_LOW & ~FEATURES_LOW) != 0 || DRIVER_HIGH != 1) {
+            && ((DRIVER_LOW & ~features_low()) != 0 || DRIVER_HIGH != 1) {
             STATUS = value & ~8;
             return 1;
         }
@@ -252,34 +346,41 @@ pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
     return 0;
 }
 
+// Capture failure context before transitioning the queue to FAILED. Fields:
+// chain index, current start/length/flags, peer start/length/flags, request type.
+unsafe fn chain_failure(reason: u64, start: u64, length: u64, flags: u64,
+                        peer: u64, peer_length: u64, peer_flags: u64) -> bool {
+    FAILURE = reason;
+    FAILURE_DETAIL[0] = CHAIN_COUNT as u64;
+    FAILURE_DETAIL[1] = start; FAILURE_DETAIL[2] = length; FAILURE_DETAIL[3] = flags;
+    FAILURE_DETAIL[4] = peer; FAILURE_DETAIL[5] = peer_length; FAILURE_DETAIL[6] = peer_flags;
+    FAILURE_DETAIL[7] = 0xffff_ffff;
+    if CHAIN_COUNT != 0 && LENGTHS[0] >= 16 && (FLAGS[0] & 2) == 0 {
+        FAILURE_DETAIL[7] = load32(ADDRESSES[0]);
+    }
+    return false;
+}
+
 unsafe fn capture_chain(head: u64) -> bool {
     CHAIN_COUNT = 0;
     let mut id: u64 = head;
     let mut walking: bool = true;
     while walking {
-        if id >= QUEUE_SIZE || CHAIN_COUNT >= 32 { return false; }
+        if id >= QUEUE_SIZE || CHAIN_COUNT >= 32 { return chain_failure(210, id, QUEUE_SIZE, 0, head, 0, 0); }
         let mut previous: usize = 0;
         while previous < CHAIN_COUNT {
-            if CHAIN_IDS[previous] == id { return false; }
+            if CHAIN_IDS[previous] == id { return chain_failure(211, id, 0, 0, previous as u64, 0, 0); }
             previous += 1;
         }
         let entry: u64 = DESC + id * 16;
         let start: u64 = load64(entry);
         let length: u64 = load32(entry + 8);
         let flags: u64 = load16(entry + 12);
-        if (flags & ~3) != 0 || address(start, length) == 0
-            || overlaps(start, length, DESC, QUEUE_SIZE * 16)
-            || overlaps(start, length, AVAIL, 4 + QUEUE_SIZE * 2)
-            || overlaps(start, length, USED, 4 + QUEUE_SIZE * 8) {
-            return false;
-        }
-        previous = 0;
-        while previous < CHAIN_COUNT {
-            if overlaps(start, length, ADDRESSES[previous], LENGTHS[previous]) {
-                return false;
-            }
-            previous += 1;
-        }
+        if (flags & ~3) != 0 { return chain_failure(212, start, length, flags, 0, 0, 0); }
+        if address(start, length) == 0 { return chain_failure(213, start, length, flags, RAM_BASE, RAM_SIZE, 0); }
+        if overlaps(start, length, DESC, QUEUE_SIZE * 16) { return chain_failure(214, start, length, flags, DESC, QUEUE_SIZE * 16, 0); }
+        if overlaps(start, length, AVAIL, 4 + QUEUE_SIZE * 2) { return chain_failure(215, start, length, flags, AVAIL, 4 + QUEUE_SIZE * 2, 0); }
+        if overlaps(start, length, USED, 4 + QUEUE_SIZE * 8) { return chain_failure(216, start, length, flags, USED, 4 + QUEUE_SIZE * 8, 0); }
         CHAIN_IDS[CHAIN_COUNT] = id;
         ADDRESSES[CHAIN_COUNT] = start;
         LENGTHS[CHAIN_COUNT] = length;
@@ -290,27 +391,71 @@ unsafe fn capture_chain(head: u64) -> bool {
     }
     if CHAIN_COUNT < 2 || LENGTHS[0] != 16 || (FLAGS[0] & 2) != 0
         || LENGTHS[CHAIN_COUNT - 1] != 1 || FLAGS[CHAIN_COUNT - 1] != 2 {
-        return false;
+        return chain_failure(218, head, CHAIN_COUNT as u64, 0, 0, 0, 0);
     }
     PENDING_TYPE = load32(ADDRESSES[0]);
     PENDING_SECTOR = load64(ADDRESSES[0] + 8);
     let mut index: usize = 1;
     let mut total: u64 = 0;
     while index + 1 < CHAIN_COUNT {
-        if LENGTHS[index] > SEGMENT_MAX { return false; }
-        if PENDING_TYPE == 0 && (FLAGS[index] & 2) == 0 { return false; }
-        if PENDING_TYPE == 1 && (FLAGS[index] & 2) != 0 { return false; }
+        if LENGTHS[index] > SEGMENT_MAX { return chain_failure(219, ADDRESSES[index], LENGTHS[index], FLAGS[index], index as u64, 0, 0); }
+        if PENDING_TYPE == 0 && (FLAGS[index] & 2) == 0 { return chain_failure(220, ADDRESSES[index], LENGTHS[index], FLAGS[index], index as u64, 0, 0); }
+        if PENDING_TYPE == 1 && (FLAGS[index] & 2) != 0 { return chain_failure(221, ADDRESSES[index], LENGTHS[index], FLAGS[index], index as u64, 0, 0); }
         total += LENGTHS[index];
         index += 1;
     }
     if PENDING_TYPE == 0 || PENDING_TYPE == 1 {
-        if total == 0 || (total & 511) != 0 || PENDING_SECTOR >= CAPACITY
-            || total / 512 > CAPACITY - PENDING_SECTOR {
-            return false;
+        if total == 0 || (total & 511) != 0 || PENDING_SECTOR >= capacity()
+            || total / 512 > capacity() - PENDING_SECTOR {
+            return chain_failure(222, PENDING_SECTOR, total, PENDING_TYPE, capacity(), 0, 0);
         }
+    }
+    if PENDING_TYPE == 4 && (CHAIN_COUNT != 2 || total != 0) { return chain_failure(223, PENDING_SECTOR, total, PENDING_TYPE, CHAIN_COUNT as u64, 0, 0); }
+    // Linux may submit the same ZERO_PAGE repeatedly for inode-table zeroing.
+    // OUT payload descriptors are device-readable inputs, so aliasing between
+    // them is legal: copy every segment, in order, into distinct disk sectors.
+    // Header/status/ring isolation and every device-writable buffer remain
+    // strict. Validate this only after complete framing/type/direction checks.
+    index = 0;
+    while index < CHAIN_COUNT {
+        let mut previous: usize = 0;
+        while previous < index {
+            if overlaps(ADDRESSES[index], LENGTHS[index], ADDRESSES[previous], LENGTHS[previous]) {
+                let input_alias: bool = PENDING_TYPE == 1
+                    && index > 0 && index + 1 < CHAIN_COUNT
+                    && previous > 0 && previous + 1 < CHAIN_COUNT
+                    && (FLAGS[index] & 2) == 0 && (FLAGS[previous] & 2) == 0;
+                if !input_alias {
+                    chain_failure(217, ADDRESSES[index], LENGTHS[index], FLAGS[index],
+                                  ADDRESSES[previous], LENGTHS[previous], FLAGS[previous]);
+                    FAILURE_DETAIL[0] = index as u64;
+                    return false;
+                }
+            }
+            previous += 1;
+        }
+        index += 1;
     }
     PENDING_HEAD = head;
     return true;
+}
+
+unsafe fn copy_backing(destination: usize, source: usize, length: u64) -> void {
+    let mut offset: u64 = 0;
+    // Aligned page/sector traffic is common for filesystems. Range and
+    // nonoverlap checks precede this routine; byte tails remain valid for SG.
+    if ((destination | source) & 7) == 0 {
+        while offset + 8 <= length {
+            volatile_store((destination + offset as usize) as *mut u64,
+                volatile_load((source + offset as usize) as *const u64));
+            offset += 8;
+        }
+    }
+    while offset < length {
+        volatile_store((destination + offset as usize) as *mut u8,
+            volatile_load((source + offset as usize) as *const u8));
+        offset += 1;
+    }
 }
 
 unsafe fn publish(status: u64) -> u64 {
@@ -318,23 +463,54 @@ unsafe fn publish(status: u64) -> u64 {
     let status_address: usize = address(ADDRESSES[CHAIN_COUNT - 1], 1);
     if status_address == 0 { return fail_queue(); }
     let mut length: u64 = 1;
-    if status == 0 {
+    if status == 0 && (PENDING_TYPE == 0 || PENDING_TYPE == 1) {
         let mut index: usize = 1;
         let mut disk_offset: u64 = PENDING_SECTOR * 512;
+        // Revalidate the complete retained request before any storage copy.
+        // A malformed later segment cannot leave a partial write behind.
+        while index + 1 < CHAIN_COUNT {
+            if address(ADDRESSES[index], LENGTHS[index]) == 0 { return fail_queue(); }
+            if BACKING_LENGTH != 0
+                && (disk_offset > BACKING_LENGTH
+                    || LENGTHS[index] > BACKING_LENGTH - disk_offset) {
+                return fail_queue();
+            }
+            disk_offset += LENGTHS[index];
+            index += 1;
+        }
+        index = 1;
+        disk_offset = PENDING_SECTOR * 512;
         while index + 1 < CHAIN_COUNT {
             let destination: usize = address(ADDRESSES[index], LENGTHS[index]);
             if destination == 0 { return fail_queue(); }
-            let mut byte: u64 = 0;
-            while byte < LENGTHS[index] {
-                // Deterministic immutable block contents; no persistence claim.
-                volatile_store((destination + byte as usize) as *mut u8,
-                    ((disk_offset + byte) ^ 0x5a) as u8);
-                byte += 1;
+            if BACKING_LENGTH != 0 {
+                let storage: usize = BACKING_BASE + disk_offset as usize;
+                if PENDING_TYPE == 0 {
+                    copy_backing(destination, storage, LENGTHS[index]);
+                } else {
+                    copy_backing(storage, destination, LENGTHS[index]);
+                }
+            } else {
+                let mut byte: u64 = 0;
+                while byte < LENGTHS[index] {
+                    // Historical immutable withdrawal-test data.
+                    volatile_store((destination + byte as usize) as *mut u8,
+                        ((disk_offset + byte) ^ 0x5a) as u8);
+                    byte += 1;
+                }
             }
             disk_offset += LENGTHS[index];
-            length += LENGTHS[index];
+            if PENDING_TYPE == 0 { length += LENGTHS[index]; READ_BYTES += LENGTHS[index]; }
+            if PENDING_TYPE == 1 { WRITTEN_BYTES += LENGTHS[index]; }
             index += 1;
         }
+        if PENDING_TYPE == 1 { WRITE_COUNT += 1; }
+    }
+    if status == 0 && PENDING_TYPE == 4 {
+        // Ordered visibility in this explicitly RAM-backed device. Host disk
+        // durability requires a separately acknowledged snapshot/export.
+        kw_memory_barrier();
+        FLUSH_COUNT += 1;
     }
     volatile_store(status_address as *mut u8, status as u8);
     let used_entry: u64 = USED + 4 + (LAST_USED % QUEUE_SIZE) * 8;
@@ -367,11 +543,11 @@ pub unsafe fn poll() -> u64 {
     }
     if PENDING != 0 { return 2; }
     if QUEUE_READY != 1 || (STATUS & 4) == 0 || (STATUS & 192) != 0 { return 0; }
-    if !queue_valid() { return fail_queue(); }
+    if !queue_valid() { FAILURE = 101; return fail_queue(); }
     kw_memory_barrier();
     let available: u64 = load16(AVAIL + 2);
     let distance: u64 = (available + 65536 - LAST_AVAIL) & 0xffff;
-    if distance > QUEUE_SIZE { return fail_queue(); }
+    if distance > QUEUE_SIZE { FAILURE = 102; FAILURE_DETAIL[0] = available; FAILURE_DETAIL[1] = LAST_AVAIL; return fail_queue(); }
     if distance == 0 { return 0; }
     let head: u64 = load16(AVAIL + 4 + (LAST_AVAIL % QUEUE_SIZE) * 2);
     if !capture_chain(head) { return fail_queue(); }
@@ -382,7 +558,11 @@ pub unsafe fn poll() -> u64 {
         return 2;
     }
     if PENDING_TYPE == 0 { return publish(0); }
-    if PENDING_TYPE == 1 { return publish(1); }
+    if PENDING_TYPE == 1 {
+        if BACKING_LENGTH != 0 && BACKING_WRITABLE == 1 { return publish(0); }
+        return publish(1);
+    }
+    if PENDING_TYPE == 4 && BACKING_LENGTH != 0 { return publish(0); }
     return publish(2);
 }
 
@@ -436,3 +616,13 @@ pub unsafe fn generation() -> u64 { return GENERATION; }
 pub unsafe fn successes() -> u64 { return SUCCESS_COUNT; }
 pub unsafe fn ioerrs() -> u64 { return IOERR_COUNT; }
 pub unsafe fn denials() -> u64 { return DENIED_COUNT; }
+pub unsafe fn healthy() -> u64 { return (STATE == STATE_LIVE || STATE == STATE_WITHDRAWING || STATE == STATE_RETIRED) as u64; }
+pub unsafe fn diagnostic() -> u64 { return FAILURE; }
+pub unsafe fn detail(index: u64) -> u64 { if index >= 8 { return 0; } return FAILURE_DETAIL[index as usize]; }
+pub unsafe fn writes() -> u64 { return WRITE_COUNT; }
+pub unsafe fn flushes() -> u64 { return FLUSH_COUNT; }
+pub unsafe fn read_bytes() -> u64 { return READ_BYTES; }
+pub unsafe fn written_bytes() -> u64 { return WRITTEN_BYTES; }
+pub unsafe fn backing_base() -> usize { return BACKING_BASE; }
+pub unsafe fn backing_length() -> u64 { return BACKING_LENGTH; }
+pub unsafe fn backing_writable() -> u64 { return BACKING_WRITABLE; }

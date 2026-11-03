@@ -145,13 +145,13 @@ class NativeSourceRecipeTests(unittest.TestCase):
     def write_recipe(self):
         self.recipe_path.write_text(json.dumps(self.recipe))
 
-    def invoke(self, output=None, kind="ir", extra=(), jobs=2):
+    def invoke(self, output=None, kind="ir", extra=(), jobs=2, cwd=None):
         output = output or self.case / "compiled"
         result = run([self.olangc, self.recipe_path, "--native-runtime", "--native-runtime-source", self.source,
                       "--native-isa", self.target, "--native-runtime-output", kind,
                       "--native-runtime-cc", self.sdk / "clang", "--native-runtime-cxx", self.sdk / "clang++",
                       "--native-runtime-llvm-nm", self.sdk / "llvm-nm", "--native-runtime-jobs", str(jobs),
-                      *self.import_options, *extra, "-o", output])
+                      *self.import_options, *extra, "-o", output], cwd=cwd)
         return result, output
 
     def assert_original_source(self):
@@ -178,8 +178,8 @@ class NativeSourceRecipeTests(unittest.TestCase):
             if "bytes" in record:
                 self.assertEqual(len(data), record["bytes"], record)
 
-    def successful_lowering(self, kind):
-        result, output = self.invoke(kind=kind)
+    def successful_lowering(self, kind, cwd=None):
+        result, output = self.invoke(kind=kind, cwd=cwd)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         receipt = json.loads((output / "source-recipe.json").read_text())
         self.assertEqual(receipt["schema"], "ocore-native-source-recipe-v1")
@@ -213,6 +213,61 @@ class NativeSourceRecipeTests(unittest.TestCase):
 
     def test_one_invocation_captures_and_lowers_all_original_sources_to_verified_ir(self):
         self.successful_lowering("ir")
+
+    def test_detached_compiler_materializes_its_registered_resources_from_unrelated_cwd(self):
+        installed = self.case / "installed"
+        installed.mkdir()
+        for compiler in (self.olangc, self.ocorec):
+            shutil.copy2(compiler, installed / compiler.name)
+        self.olangc = installed / "olangc"
+        unrelated = self.case / "unrelated"
+        unrelated.mkdir()
+        # Neither an installed executable's neighbors nor the caller's cwd
+        # may provide an ambient registry or replace the embedded worker.
+        poison = b"not a trusted capture resource\n"
+        ambient = []
+        for directory in (installed, unrelated):
+            scripts = directory / "scripts"
+            scripts.mkdir()
+            for name in ("ocore_runtime_capture.py", "ocore_producer_registry.json"):
+                path = scripts / name
+                path.write_bytes(poison)
+                ambient.append(path)
+        output = self.successful_lowering("ir", cwd=unrelated)
+        receipt = json.loads((output / "source-recipe.json").read_text())
+        capture = json.loads((output / "capture/report.json").read_text())
+        for key, relative in (
+                ("capture_worker", "scripts/ocore_runtime_capture.py"),
+                ("producer_registry", "scripts/ocore_producer_registry.json"),
+                ("rust_payload_helper", "tools/ocore-runtime/rust/payload_inventory.py")):
+            with self.subTest(resource=key):
+                materialized = output / "driver" / relative
+                original = ROOT / relative
+                self.assertEqual(Path(receipt[key]["path"]), materialized)
+                self.assertEqual(materialized.read_bytes(), original.read_bytes())
+        registry = capture["capture_worker"]["producer_registry"]
+        snapshot = Path(registry["artifact"]["path"])
+        self.assertEqual(snapshot, output / "capture/ocore_producer_registry.json")
+        self.assertEqual(registry["source"], receipt["producer_registry"])
+        self.assertEqual(snapshot.read_bytes(), (ROOT / "scripts/ocore_producer_registry.json").read_bytes())
+        for path in ambient:
+            self.assertEqual(path.read_bytes(), poison)
+
+    def test_original_build_cannot_replace_the_embedded_producer_registry(self):
+        self.recipe["commands"].append({
+            "name": "change-driver-registry",
+            "argv": [sys.executable, "-c",
+                     "from pathlib import Path; import sys; p=Path(sys.argv[1]); "
+                     "p.write_bytes(p.read_bytes()+b'\\n')",
+                     "{output}/../driver/scripts/ocore_producer_registry.json"]})
+        self.write_recipe()
+        diagnostics = self.capture_failure()
+        self.assertIn("embedded capture implementation changed during orchestration", diagnostics)
+        receipt = json.loads((self.case / "compiled/source-recipe.json").read_text())
+        self.assertTrue(receipt["worker_capture_complete"])
+        self.assertFalse((self.case / "compiled/lowered").exists())
+        snapshot = self.case / "compiled/capture/ocore_producer_registry.json"
+        self.assertEqual(snapshot.read_bytes(), (ROOT / "scripts/ocore_producer_registry.json").read_bytes())
 
     def test_one_invocation_emits_owned_native_objects_and_executes_fixture_arithmetic(self):
         output = self.successful_lowering("obj")

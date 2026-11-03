@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1157,6 +1158,106 @@ def ordered_dependency_paths(path: Path, cwd: Path) -> list[Path]:
     return [(cwd / name).absolute() for name in tokens]
 
 
+def original_linker_map(args: list[str], cwd: Path) -> dict | None:
+    """Find GNU ld's last explicit map filename without changing its argv.
+
+    Directory/percent/stdout destinations need separate realization support.
+    Refusing capture of those cases must not prevent the original link.
+    """
+    selected = None
+    i = 0
+    paired = PAIR_OPTIONS | {"-l", "-L", "-e", "-z", "-m", "-T", "-R", "-Y", "-y", "-b", "-c",
+                             "--script", "--default-script", "--entry", "--output", "--dynamic-linker",
+                             "--library", "--library-path", "--rpath", "--rpath-link", "-rpath", "-rpath-link",
+                             "--retain-symbols-file", "--just-symbols", "--defsym", "--wrap", "--format",
+                             "--oformat", "--version-script", "--dynamic-list", "--exclude-libs",
+                             "--orphan-handling", "--section-start", "--sort-section", "-plugin", "--plugin"}
+    while i < len(args):
+        arg = args[i]
+        if arg in {"-M", "--print-map"}:
+            raise CaptureError("original linker stdout map requires separate capture support")
+        if arg in {"-Map", "--Map"}:
+            if i + 1 >= len(args):
+                raise CaptureError("original linker map option lacks its filename")
+            selected = {"argv_index": i, "argv": args[i:i + 2], "spelling": args[i + 1]}
+            i += 2
+            continue
+        if arg.startswith(("-Map=", "--Map=")):
+            selected = {"argv_index": i, "argv": [arg], "spelling": arg.split("=", 1)[1]}
+        elif arg.startswith(("-Map", "--Map")):
+            raise CaptureError("unsupported original linker map option syntax")
+        if arg in paired:
+            i += 2
+        else:
+            i += 1
+    if selected is None:
+        return None
+    spelling = selected["spelling"]
+    path = (cwd / spelling).absolute()
+    if not spelling or spelling == "-" or "%" in spelling or path.is_symlink() or path.is_dir():
+        raise CaptureError("original linker map requires an ordinary explicit file destination")
+    return {**selected, "path": str(path)}
+
+
+def snapshot_linker_map(selection: dict, directory: Path, output: str) -> dict:
+    """Retain this producer's map before a later link reuses its filename.
+
+    The descriptor/path identities and a second streamed hash reject observed
+    concurrent mutation. Like other native traces this is a trusted-producer
+    observation, not authentication of unrelated concurrent writers.
+    """
+    path = Path(selection["path"])
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    destination = directory / "producer-link.map"
+    created = False
+
+    def identity(value):
+        return [value.st_dev, value.st_ino, value.st_mode, value.st_size,
+                value.st_mtime_ns, value.st_ctime_ns]
+
+    try:
+        with os.fdopen(descriptor, "rb") as source:
+            before = os.fstat(source.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise CaptureError("original linker map is not a regular file")
+            if "before_link" in selection and selection["before_link"] == identity(before):
+                raise CaptureError("original linker map was not rewritten by this invocation")
+            digest = hashlib.sha256()
+            with destination.open("xb") as snapshot:
+                created = True
+                for block in iter(lambda: source.read(1024 * 1024), b""):
+                    digest.update(block)
+                    snapshot.write(block)
+            source.seek(0)
+            repeated = hashlib.sha256()
+            for block in iter(lambda: source.read(1024 * 1024), b""):
+                repeated.update(block)
+            if (identity(before) != identity(os.fstat(source.fileno()))
+                    or identity(before) != identity(path.lstat()) or digest.digest() != repeated.digest()):
+                raise CaptureError("original linker map changed while snapshotting")
+        # An original map name may be reused by multiple links. Bind the
+        # producer's OUTPUT record, rather than treating any existing map as
+        # evidence for this invocation. Ambiguous/custom maps remain incomplete.
+        outputs = []
+        with destination.open("rb") as snapshot:
+            for line in snapshot:
+                line = line.rstrip(b"\r\n")
+                if line.startswith(b"OUTPUT(") and line.endswith(b")"):
+                    spelling, separator, target = line[7:-1].rpartition(b" ")
+                    if separator and target:
+                        outputs.append(os.fsdecode(spelling))
+        if outputs != [output]:
+            raise CaptureError("original linker map does not identify this exact output")
+        destination.chmod(0o444)
+        return {"selection": selection,
+                "original": {"path": str(path), "sha256": digest.hexdigest(), "bytes": before.st_size},
+                "snapshot": file_info(destination)}
+    except BaseException:
+        if created:
+            destination.unlink(missing_ok=True)
+        raise
+
+
 def preserve_native_input(path: Path, directory: Path) -> dict:
     """Keep linker-read temporary inputs before the compiler removes them."""
     original = file_info(path)
@@ -1291,28 +1392,60 @@ def native_tool(session_path: Path, name: str, original_args: list[str]) -> int:
                  "ordered_argv": args, "providers": [], "archive_members": [], "issues": []}
         event["native_linkage"] = trace
         if event["kind"] == "linker":
-            supported = "LLD" in tool["version"] or "GNU ld" in tool["version"]
-            occupied = any(arg.startswith(("--dependency-file", "--why-extract", "-Map", "--Map")) for arg in args)
-            if supported and not occupied and not any(arg in {"--version", "--help", "-V"} for arg in args):
+            is_lld = "LLD" in tool["version"]
+            supported = is_lld or "GNU ld" in tool["version"]
+            occupied = any(arg.startswith(("--dependency-file", "--why-extract")) for arg in args)
+            producer_map = None
+            if supported and not occupied and not any(arg in {"--version", "--help", "-V", "--"} for arg in args):
                 depfile, mapfile = directory / "link.d", directory / "link.map"
-                effective += ["--dependency-file=" + str(depfile)]
-                if "LLD" in tool["version"]:
-                    mapfile = directory / "why-extract.tsv"
-                    effective += ["--why-extract=" + str(mapfile)]
-                else:
-                    effective += ["-Map=" + str(mapfile)]
-                trace["instrumentation"] = "actual-linker-dependency-and-archive-trace"
+                try:
+                    if not is_lld:
+                        producer_map = original_linker_map(args, cwd)
+                        if producer_map is not None:
+                            if output is None:
+                                raise CaptureError("original linker map capture requires an explicit output")
+                            try:
+                                before = Path(producer_map["path"]).lstat()
+                                producer_map["before_link"] = [before.st_dev, before.st_ino, before.st_mode,
+                                                               before.st_size, before.st_mtime_ns, before.st_ctime_ns]
+                            except FileNotFoundError:
+                                producer_map["before_link"] = None
+                except CaptureError as error:
+                    trace["issues"].append(str(error))
+                if not trace["issues"]:
+                    effective += ["--dependency-file=" + str(depfile)]
+                    if is_lld:
+                        mapfile = directory / "why-extract.tsv"
+                        effective += ["--why-extract=" + str(mapfile)]
+                    elif producer_map is None:
+                        effective += ["-Map=" + str(mapfile)]
+                    trace["instrumentation"] = "actual-linker-dependency-and-archive-trace"
             else:
                 trace["issues"].append("unknown or conflicting linker trace instrumentation")
             event["effective_argv"] = effective
             executed = True
             code = subprocess.run([program, *effective]).returncode
+            # Snapshot the original selected map as soon as the producer
+            # returns. A failed link can produce a useful diagnostic map but
+            # cannot establish complete membership; unchanged stale maps fail
+            # the before/after identity check instead of claiming new output.
+            if producer_map is not None and not trace["issues"]:
+                try:
+                    observed_map = snapshot_linker_map(producer_map, directory, output)
+                    trace["producer_map"] = observed_map
+                    trace["archive_trace"] = observed_map["snapshot"]
+                except (CaptureError, OSError, ValueError) as error:
+                    trace["issues"].append(str(error))
             if code == 0 and not trace["issues"]:
-                trace["dependency_trace"] = file_info(depfile)
-                trace["archive_trace"] = file_info(mapfile)
-                for path in ordered_dependency_paths(depfile, cwd):
-                    trace["providers"].append(preserve_native_input(path, session_path))
-                trace["complete"] = bool(output and trace["providers"])
+                try:
+                    trace["dependency_trace"] = file_info(depfile)
+                    if producer_map is None:
+                        trace["archive_trace"] = file_info(mapfile)
+                    for path in ordered_dependency_paths(depfile, cwd):
+                        trace["providers"].append(preserve_native_input(path, session_path))
+                    trace["complete"] = bool(output and trace["providers"])
+                except (CaptureError, OSError, ValueError) as error:
+                    trace["issues"].append(str(error))
         else:
             # Archive contents, including cold/unextracted members, belong to
             # the declared closure. MRI scripts/thin archives remain explicit

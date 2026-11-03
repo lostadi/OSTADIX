@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+"""Publish private p9 client sessions received on the native Linux-only UART.
+
+Production: p9-controller --device /dev/ttyAMA1 --control-dir /run/okernel/p9
+The device is a native-assigned grant channel, not a guest console or 9P file.
+Explicit device/directory overrides support private PTY fixtures only; deploying
+an override requires the same trusted-device and private-filesystem contract.
+No session or recovery identity is discovered from shared namespace contents.
+
+Input is one UTF-8 JSON object followed by LF, at most8192 bytes before LF:
+{seq:uint64>0,current:SESSION,recovered:ACK(optional)}. Success replies bind
+the exact pre-LF bytes with SHA256. Sequences increase, not necessarily by one.
+Recovered ACK is durable before current.json is atomically published LAST.
+controller-state.json reserves accepted sequence numbers before publication;
+after an interrupted publication the sender must retry with a larger sequence.
+The client may hold client.lock throughout recovery: this daemon never opens it.
+"""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import secrets
+import select
+import stat
+import sys
+import termios
+
+MAX_FRAME = 8192
+MAX_LOCAL = 3 * 1048576
+SESSION_SCHEMA = "ostadix.p9.client-session/v1"
+RECOVERY_SCHEMA = "ostadix.p9.recovered/v1"
+STATE_SCHEMA = "ostadix.p9.controller-state/v1"
+LOCAL_FILESYSTEMS = {"ext2", "ext3", "ext4", "tmpfs", "ramfs", "rootfs", "overlay", "btrfs", "xfs", "zfs"}
+MAPPING = {"service_root": "/n/okernel/services/plan9", "linux_mount": "/n/okernel", "plan9_mount": "/n"}
+
+
+class ControlError(ValueError):
+    pass
+
+
+def integer(value, name):
+    if type(value) is not int or not 0 < value < 1 << 64:
+        raise ControlError(name + " must be a positive uint64")
+    return value
+
+
+def hexadecimal(value, length, name):
+    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{%d}" % length, value):
+        raise ControlError("invalid " + name)
+    if name == "generation" and value == "0" * 16:
+        raise ControlError("generation must be nonzero")
+    return value
+
+
+def unique_object(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ControlError("duplicate JSON member")
+        value[key] = item
+    return value
+
+
+def decode(data):
+    try:
+        value = json.loads(data.decode("utf-8"), object_pairs_hook=unique_object,
+                           parse_constant=lambda _: (_ for _ in ()).throw(ControlError("invalid JSON number")))
+    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
+        raise ControlError("invalid JSON object") from error
+    if type(value) is not dict:
+        raise ControlError("expected JSON object")
+    return value
+
+
+def validate_session(value):
+    required = {"schema", "generation", "instance", "service_root", "linux_mount", "plan9_mount", "recovery_mode"}
+    if type(value) is not dict or not required <= value.keys() or value.keys() - required - {"state", "program_dir"}:
+        raise ControlError("invalid session fields")
+    if value["schema"] != SESSION_SCHEMA:
+        raise ControlError("invalid session schema")
+    hexadecimal(value["generation"], 16, "generation")
+    hexadecimal(value["instance"], 32, "instance")
+    if any(value[key] != item for key, item in MAPPING.items()):
+        raise ControlError("invalid fixed namespace mapping")
+    if value["recovery_mode"] not in ("disabled", "controller-v1"):
+        raise ControlError("invalid recovery mode")
+    if value.get("state", "ready") not in ("ready", "recovering"):
+        raise ControlError("invalid admission state")
+    if value.get("program_dir", "/arm64/bin") not in ("/arm64/bin", "/bin"):
+        raise ControlError("invalid program directory")
+    return value
+
+
+def validate_recovered(value, current):
+    fields = {"schema", "generation", "old_instance", "request_id", "request_sha256", "result_sha256",
+              "reset_sha256", "done_sha256", "new_instance", "ready_sha256", "outcome"}
+    if type(value) is not dict or value.keys() != fields or value["schema"] != RECOVERY_SCHEMA:
+        raise ControlError("invalid recovery fields/schema")
+    hexadecimal(value["generation"], 16, "generation")
+    for key in ("old_instance", "request_id", "new_instance"):
+        hexadecimal(value[key], 32, key)
+    for key in ("request_sha256", "ready_sha256"):
+        hexadecimal(value[key], 64, key)
+    if value["old_instance"] == value["new_instance"]:
+        raise ControlError("recovery must replace the instance")
+    if (current["generation"], current["instance"], current["recovery_mode"], current.get("state", "ready")) != (
+            value["generation"], value["new_instance"], "controller-v1", "ready"):
+        raise ControlError("recovery does not bind current ready session")
+    ready = ("OC9READY1 " + value["generation"] + " " + value["new_instance"] + "\n").encode("ascii")
+    if value["ready_sha256"] != hashlib.sha256(ready).hexdigest():
+        raise ControlError("recovery ready digest mismatch")
+    if value["outcome"] == "interrupted":
+        for key in ("result_sha256", "reset_sha256", "done_sha256"):
+            hexadecimal(value[key], 64, key)
+    elif value["outcome"] == "unknown":
+        if any(value[key] is not None for key in ("result_sha256", "reset_sha256", "done_sha256")):
+            raise ControlError("unknown outcome must not invent completion hashes")
+    else:
+        raise ControlError("invalid recovered outcome")
+    return value
+
+
+def check_directory(fd, *, leaf=False):
+    info = os.fstat(fd)
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid not in (0, os.geteuid()):
+        raise ControlError("untrusted control directory owner/type")
+    if info.st_mode & 0o022 and (leaf or not info.st_mode & stat.S_ISVTX):
+        raise ControlError("writable control directory ancestry")
+    mount_id = None
+    with open("/proc/self/fdinfo/" + str(fd), encoding="ascii") as stream:
+        for line in stream:
+            if line.startswith("mnt_id:"):
+                mount_id = line.split()[1]
+    with open("/proc/self/mountinfo", encoding="utf-8") as stream:
+        for line in stream:
+            before, after = line.rstrip().split(" - ", 1)
+            if before.split()[0] == mount_id:
+                if after.split()[0] not in LOCAL_FILESYSTEMS:
+                    raise ControlError("control directory must be on a private local filesystem")
+                return
+    raise ControlError("cannot establish control directory filesystem")
+
+
+def open_control(path):
+    text = str(path)
+    parsed = PurePosixPath(text)
+    if not parsed.is_absolute() or str(parsed) != text or text.startswith("//") or ".." in parsed.parts:
+        raise ControlError("control directory must be an absolute canonical path")
+    # A shared mount is never an acceptable override, even before it is mounted.
+    if text == "/n" or text.startswith("/n/"):
+        raise ControlError("control directory cannot be in the shared namespace")
+    fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        check_directory(fd)
+        for index, part in enumerate(parsed.parts[1:]):
+            try:
+                os.mkdir(part, 0o700, dir_fd=fd)
+            except FileExistsError:
+                pass
+            new = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = new
+            check_directory(fd, leaf=index == len(parsed.parts) - 2)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def checked_file(fd):
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode) or info.st_uid not in (0, os.geteuid()) or info.st_mode & 0o022:
+        raise ControlError("untrusted private controller file")
+    return info
+
+
+def read_local(directory, name, limit=MAX_FRAME):
+    try:
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+    except FileNotFoundError:
+        return None
+    try:
+        if checked_file(fd).st_size > limit:
+            raise ControlError("private file exceeds size bound")
+        data = bytearray()
+        while len(data) <= limit:
+            part = os.read(fd, min(65536, limit + 1 - len(data)))
+            if not part:
+                return decode(bytes(data))
+            data.extend(part)
+        raise ControlError("private file exceeds size bound")
+    finally:
+        os.close(fd)
+
+
+def write_all(fd, data):
+    view = memoryview(data)
+    while view:
+        count = os.write(fd, view)
+        if count <= 0:
+            raise OSError("short controller write")
+        view = view[count:]
+
+
+def atomic_json(directory, name, value):
+    # Reject symlink/special destinations rather than silently replacing them.
+    try:
+        previous = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+    except FileNotFoundError:
+        pass
+    else:
+        try:
+            checked_file(previous)
+        finally:
+            os.close(previous)
+    temporary = ".controller-" + secrets.token_hex(12)
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory)
+    try:
+        write_all(fd, json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii") + b"\n")
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    try:
+        os.replace(temporary, name, src_dir_fd=directory, dst_dir_fd=directory)
+        os.fsync(directory)
+    finally:
+        try:
+            os.unlink(temporary, dir_fd=directory)
+        except FileNotFoundError:
+            pass
+
+
+class Controller:
+    def __init__(self, directory):
+        self.directory = directory
+        self.current = None  # Never adopt preexisting current/namespace markers on startup.
+        self.unknown_seen = None
+        stored = read_local(directory, "controller-state.json")
+        self.sequence = 0
+        if stored is not None:
+            if stored.keys() != {"schema", "seq", "sha256"} or stored["schema"] != STATE_SCHEMA:
+                raise ControlError("invalid durable controller sequence state")
+            self.sequence = integer(stored["seq"], "stored sequence")
+            hexadecimal(stored["sha256"], 64, "stored frame digest")
+
+    def apply(self, raw):
+        if len(raw) > MAX_FRAME or b"\x00" in raw:
+            raise ControlError("invalid frame length/bytes")
+        frame = decode(raw)
+        if not {"seq", "current"} <= frame.keys() or frame.keys() - {"seq", "current", "recovered"}:
+            raise ControlError("invalid frame fields")
+        sequence = integer(frame["seq"], "sequence")
+        if sequence <= self.sequence:
+            raise ControlError("replayed controller sequence")
+        current = validate_session(frame["current"])
+        recovered = frame.get("recovered")
+        if "recovered" in frame:
+            validate_recovered(recovered, current)
+            if self.current is not None:
+                if self.current["generation"] != recovered["generation"] or self.current["instance"] not in (
+                        recovered["old_instance"], recovered["new_instance"]):
+                    raise ControlError("recovery is unrelated to provisioned session")
+                if self.current.get("program_dir", "/arm64/bin") != current.get("program_dir", "/arm64/bin"):
+                    raise ControlError("recovery changes program mapping")
+        # Reserve first: a crash cannot reopen a previously accepted sequence.
+        atomic_json(self.directory, "controller-state.json", {"schema": STATE_SCHEMA, "seq": sequence,
+                    "sha256": hashlib.sha256(raw).hexdigest()})
+        self.sequence = sequence
+        if recovered is not None:
+            try:
+                os.mkdir("recovered", 0o700, dir_fd=self.directory)
+                os.fsync(self.directory)
+            except FileExistsError:
+                pass
+            folder = os.open("recovered", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=self.directory)
+            try:
+                check_directory(folder, leaf=True)
+                name = "g{generation}-s{old_instance}-r{request_id}.json".format(**recovered)
+                existing = read_local(folder, name)
+                if existing is not None and existing != recovered:
+                    raise ControlError("conflicting existing recovery acknowledgement")
+                atomic_json(folder, name, recovered)
+            finally:
+                os.close(folder)
+        atomic_json(self.directory, "current.json", current)
+        self.current = current
+
+    def unknown_event(self):
+        if self.current is None or self.current["recovery_mode"] != "controller-v1":
+            return None
+        try:
+            value = read_local(self.directory, "pending.json", MAX_LOCAL)
+            if value is None or value.get("schema") != "ostadix.p9.client-pending/v1" or value.get("phase") != "unknown":
+                return None
+            g = hexadecimal(value.get("generation"), 16, "generation")
+            s = hexadecimal(value.get("instance"), 32, "instance")
+            r = hexadecimal(value.get("request_id"), 32, "request ID")
+            h = hexadecimal(value.get("request_sha256"), 64, "request digest")
+            if (g, s, value.get("service_root")) != (self.current["generation"], self.current["instance"], self.current["service_root"]):
+                return None
+            wire = value.get("request_hex")
+            if (not isinstance(wire, str) or len(wire) % 2 or not re.fullmatch("[0-9a-f]+", wire)
+                    or hashlib.sha256(bytes.fromhex(wire)).hexdigest() != h):
+                return None
+            identity = g, s, r, h
+            if identity == self.unknown_seen:
+                return None
+            self.unknown_seen = identity
+            return {"event": "unknown", "generation": g, "instance": s, "request_id": r, "request_sha256": h}
+        except (OSError, ControlError, RecursionError):
+            return None  # Partial/malformed private journals never authorize recovery.
+
+
+def open_device(path):
+    fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        if not stat.S_ISCHR(os.fstat(fd).st_mode) or not os.isatty(fd):
+            raise ControlError("controller device must be a character terminal")
+        original = termios.tcgetattr(fd)
+        raw = termios.tcgetattr(fd)
+        raw[0] = raw[1] = raw[3] = 0
+        raw[2] &= ~(termios.CSIZE | termios.PARENB | termios.CSTOPB | getattr(termios, "CRTSCTS", 0))
+        raw[2] |= termios.CS8 | termios.CREAD | termios.CLOCAL
+        raw[4] = raw[5] = termios.B115200
+        raw[6][termios.VMIN], raw[6][termios.VTIME] = 1, 0
+        termios.tcsetattr(fd, termios.TCSANOW, raw)
+        os.set_blocking(fd, True)
+        return fd, original
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def serve(controller, device):
+    pending = bytearray()
+    digest = hashlib.sha256()
+    oversized = False
+    while True:
+        if select.select([device], [], [], .1)[0]:
+            addition = os.read(device, 4096)
+            if not addition:
+                return
+            for byte in addition:
+                if byte != 10:
+                    digest.update(bytes((byte,)))
+                    if len(pending) < MAX_FRAME:
+                        pending.append(byte)
+                    else:
+                        oversized = True
+                    continue
+                response = {"seq": None, "sha256": digest.hexdigest(), "ok": False}
+                try:
+                    if oversized:
+                        raise ControlError("frame exceeds8192 bytes")
+                    parsed = decode(bytes(pending))
+                    if type(parsed.get("seq")) is int and 0 < parsed["seq"] < 1 << 64:
+                        response["seq"] = parsed["seq"]
+                    controller.apply(bytes(pending))
+                    response["ok"] = True
+                except (OSError, ValueError, RecursionError) as error:
+                    response["error"] = str(error)[:192]
+                write_all(device, json.dumps(response, separators=(",", ":")).encode("ascii") + b"\n")
+                pending.clear()
+                digest = hashlib.sha256()
+                oversized = False
+        event = controller.unknown_event()
+        if event is not None:
+            write_all(device, json.dumps(event, separators=(",", ":")).encode("ascii") + b"\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--device", default="/dev/ttyAMA1", help="native-assigned Linux-only UART; PTY override for fixtures")
+    parser.add_argument("--control-dir", default="/run/okernel/p9", help="private local Linux control directory")
+    args = parser.parse_args()
+    directory = lock = device = None
+    original = None
+    try:
+        directory = open_control(args.control_dir)
+        lock = os.open("controller.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=directory)
+        checked_file(lock)
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        controller = Controller(directory)
+        device, original = open_device(args.device)
+        print("p9-controller ready", file=sys.stderr, flush=True)
+        serve(controller, device)
+        return 0
+    except (OSError, ValueError, termios.error) as error:
+        print("p9-controller: " + str(error), file=sys.stderr)
+        return 1
+    finally:
+        if device is not None:
+            if original is not None:
+                termios.tcsetattr(device, termios.TCSANOW, original)
+            os.close(device)
+        if lock is not None:
+            os.close(lock)
+        if directory is not None:
+            os.close(directory)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

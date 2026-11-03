@@ -1,0 +1,95 @@
+{
+  "schema": "ostadix.original-plan9-probe-inputs/v1",
+  "status": "PASS: unchanged official9front kernel and original ARM64 rc/env/paqfs commands execute below isolated O-core EL2 with the complete GICR RD-control window mediated",
+  "build": "12115",
+  "source_commit": "350266104f1fed81c78c3d05fa44f523bec0ae4d",
+  "official_status_url": "https://build.9front.org/9front/12115.status",
+  "official_build_log_url": "https://build.9front.org/9front/9front-12115.log",
+  "archive": {
+    "url": "https://build.9front.org/9front/9front-12115.arm64.qcow2.gz",
+    "bytes": 297523045,
+    "sha256": "5d148190fba4d0ceab491b2afe2639e01c9abd8cb21f93c1ec7ac814a6f2c584",
+    "local_cache": "/home/ustad/.cache/ostadix/plan9-original/9front-12115-arm64/9front-12115.arm64.qcow2.gz",
+    "integrity_scope": "Observed exact SHA256 of official build download; no upstream signature or checksum publication was located"
+  },
+  "expanded_qcow2_bytes": 597164032,
+  "fat_boot_partition_offset": 4128768,
+  "kernel_file": "9qemu.u",
+  "uimage_contract": {
+    "os": 23,
+    "architecture": 22,
+    "kind": 2,
+    "compression": 0,
+    "load": 1074790400,
+    "entry": 1074790400
+  },
+  "original_ram_userspace": "Stock qemu kernel embeds original ARM64 boot, paqfs, factotum and bootfs.paq containing rc/cat/ls/bind/mount; !rc at the bootargs prompt enters original rc without an HJFS disk",
+  "prototype": {
+    "runner": "scripts/probe_okernel_plan9.py",
+    "builder": "ocore/kernel/build-aarch64-plan9-probe.sh",
+    "native_monitor": "ocore/runtime/aarch64/plan9_probe.oc",
+    "platform_directory": "ocore/kernel/aarch64/plan9_probe",
+    "guest_ram_ipa": [
+      1073741824,
+      1610612736
+    ],
+    "guest_ram_pa": [
+      1207959552,
+      1744830464
+    ],
+    "dtb_ipa": 1073741824,
+    "kernel_entry_ipa": 1074790400,
+    "gic": "Only GICv3 distributor64KiB and SGI/PPI64KiB directly assigned; entire GICR RD-control64KiB trapped with exact read-only facade and no LPI enable/base/SETLPI writes; ITS off alone does not disable QEMU has-lpi",
+    "uart": "O-core mediated PL011 at guest09000000/IRQ33; physical UART never mapped to the guest",
+    "rtc": "Only read-only PL031 data register09010000, provisioned Unix-second floor at private6d000000 plus native counter elapsed time; outer RTC is not mapped",
+    "pci": "Empty configuration bus; no disk, NIC, BAR or DMA assignment"
+  },
+  "nonclaims": [
+    "This additive component does not change or replace the running default Linux profile",
+    "No full Plan 9 ABI exists in the old personality ID4; that ID names only the bounded 9P wire client",
+    "A successful isolated original-kernel probe is not yet a shared native namespace mount or a complete merged OS",
+    "No physical X12, Intel VMX, multiprocessor or multidomain interrupt virtualization qualification"
+  ],
+  "qualified_evidence": "/home/ustad/.local/state/ostadix/okernel/plan9-original-probe-20261102-r5/result.json",
+  "original_kernel": {
+    "container": {
+      "path": "/home/ustad/.local/state/ostadix/okernel/plan9-original-probe-20261102-r5/9qemu.u",
+      "bytes": 4292048,
+      "sha256": "df704b7fff3417eeb9924fed7170fed5e0aeb52829d11fabcbf4e9f6732b34ae"
+    },
+    "uimage": {
+      "os": 23,
+      "architecture": 22,
+      "kind": 2,
+      "compression": 0,
+      "load": 1074790400,
+      "entry": 1074790400,
+      "timestamp": 1793431073,
+      "name": "9qemu",
+      "header_crc32": 3574015532,
+      "payload_crc32": 2593136497,
+      "payload_bytes": 4291984
+    },
+    "payload": {
+      "path": "/home/ustad/.local/state/ostadix/okernel/plan9-original-probe-20261102-r5/kernel.raw",
+      "bytes": 4291984,
+      "sha256": "d079f9db3841390a0ca823000bc4a10991d73f6ba47a941bc9fd9d6e1df64bee"
+    }
+  },
+  "monitor": {
+    "path": "/home/ustad/.local/state/ostadix/okernel/plan9-original-probe-20261102-r5/monitor/monitor.elf",
+    "bytes": 29696,
+    "sha256": "f5c60671cea8a7378acb959fca733e1144a17e75da68dc190a7c25a4a4bd7b30"
+  },
+  "qualified_checks": [
+    "original Plan9 kernel banner, timer and embedded bootfs",
+    "stock !rc enters original ARM64 rc",
+    "unpredictable original rc echo marker",
+    "Plan9 environment write/read through original kernel ABI",
+    "original /boot/paqfs listing",
+    "entire GICR RD-control64KiB unmapped; only exact read-only facade registers",
+    "native LPI-enable/property/pending/SETLPI write and unknown-read denial tests preserve physical RD bytes",
+    "SMC trapped-ELR advances4; HVC saved-ELR remains unchanged"
+  ],
+  "next_missing_interface": "A governed transport must let this original Plan9 kernel mount the same authoritative native namespace; no native shared-store mount or simultaneous Linux/Plan9 domain scheduling is implemented by this probe."
+}

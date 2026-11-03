@@ -119,7 +119,7 @@ check_elf() {
 pack_image() {
   local pass_dir="$1"
   local image_dir="$2"
-  python3 "$USER_DIR/pack_ovfs.py" "$image_dir" \
+  python3 "$USER_DIR/pack_ovfs.py" "$image_dir" --max-image-bytes 98304 \
     --entry /sbin/m6-client.elf "$pass_dir/client.elf" 3 \
     --entry /sbin/m6-personalityd.elf "$pass_dir/personalityd.elf" 3 \
     --entry /sbin/m6-supervisord.elf "$pass_dir/supervisord.elf" 3 \
@@ -131,7 +131,7 @@ verify_image() {
   local verification
   local actual
   local expected
-  verification="$(python3 "$USER_DIR/verify_ovfs.py" "$image")"
+  verification="$(python3 "$USER_DIR/verify_ovfs.py" "$image" --max-image-bytes 98304)"
   actual="$(printf '%s\n' "$verification" | sed -n '/^\/sbin\//p')"
   expected=$'/sbin/m6-client.elf: valid\n/sbin/m6-observer.elf: valid\n/sbin/m6-personalityd.elf: valid\n/sbin/m6-supervisord.elf: valid'
   if ! grep -Eq '^OVFSIMG1 verified: 4 files, [0-9]+ bytes, sha256=[0-9a-f]{64}$' <<<"$verification" \

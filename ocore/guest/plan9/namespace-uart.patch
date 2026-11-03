@@ -1,0 +1,32 @@
+--- a/sys/src/9/arm64/uartqemu.c
++++ b/sys/src/9/arm64/uartqemu.c
+@@ -61,9 +61,20 @@
+ 
+ extern PhysUart qemuphysuart;
+ 
++/* O-core grants this separate byte stream to the native namespace service.
++ * The original console remains uart0. No physical device or DMA is assigned. */
++static Uart namespaceuart = {
++	.regs	= (u32int*)(VIRTIO+0x1001000ULL),
++	.name	= "uart1",
++	.freq	= 24*Mhz,
++	.baud	= 115200,
++	.phys	= &qemuphysuart,
++};
++
+ static Uart qemuuart = {
+ 	.regs	= (u32int*)(VIRTIO+0x1000000ULL),
+ 	.name	= "uart0",
++	.next	= &namespaceuart,
+ 	.freq	= 24*Mhz,
+ 	.baud	= 115200,
+ 	.phys	= &qemuphysuart,
+@@ -148,7 +159,7 @@
+ 
+ 	disable(uart);
+ 	if(ie){
+-		intrenable(IRQuart, interrupt, uart, BUSUNKNOWN, uart->name);
++		intrenable(uart == &namespaceuart ? 50 : IRQuart, interrupt, uart, BUSUNKNOWN, uart->name);
+ 		reg[IMSC] = TXIM|RXIM;
+ 	}
+ 	uarton(uart);

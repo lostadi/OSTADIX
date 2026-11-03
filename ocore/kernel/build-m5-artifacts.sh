@@ -11,9 +11,13 @@ IMAGE_DIR_TWO="$BUILD_DIR/rebuild-images"
 mkdir -p "$PASS_ONE" "$PASS_TWO" "$IMAGE_DIR_ONE" "$IMAGE_DIR_TWO"
 
 find_lld() {
-  if [[ -n "${OCORE_LLD:-}" && -x "${OCORE_LLD:-}" ]]; then
-    printf '%s\n' "$OCORE_LLD"
-    return 0
+  if [[ -n "${OCORE_LLD:-}" ]]; then
+    if [[ -x "$OCORE_LLD" ]]; then
+      printf '%s\n' "$OCORE_LLD"
+      return 0
+    fi
+    echo "error: OCORE_LLD is set but not executable: $OCORE_LLD" >&2
+    return 1
   fi
   local rust_lld
   rust_lld="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/rust-lld"
@@ -32,8 +36,19 @@ find_lld() {
   return 1
 }
 
-cargo build --quiet --manifest-path "$ROOT/Cargo.toml" --package o-lang --bin ocorec
-OCOREC="$ROOT/target/debug/ocorec"
+if [[ -n "${OCOREC_BIN:-}" ]]; then
+  OCOREC="$OCOREC_BIN"
+else
+  cargo build --quiet --locked --manifest-path "$ROOT/Cargo.toml" --package o-lang --bin ocorec
+  case "${CARGO_TARGET_DIR:-$ROOT/target}" in
+    /*) OCOREC="${CARGO_TARGET_DIR:-$ROOT/target}/debug/ocorec" ;;
+    *) OCOREC="$PWD/$CARGO_TARGET_DIR/debug/ocorec" ;;
+  esac
+fi
+if [[ -L "$OCOREC" || ! -f "$OCOREC" || ! -x "$OCOREC" ]]; then
+  echo "error: expected a regular executable ocorec binary: $OCOREC" >&2
+  exit 1
+fi
 LLD="$(find_lld)"
 
 link_service() {

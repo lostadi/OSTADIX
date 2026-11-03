@@ -1,0 +1,307 @@
+module runtime::common::posix_namespace_files;
+
+// A bounded, synchronous native regular-file service, not a POSIX kernel or
+// application admission. All buffers are trusted native allocations, never
+// EL0/user pointers. A later IPC/memory-view boundary must validate user memory.
+// The original u9fs codec and musl dependency closure handles every 9P frame;
+// namespace_store remains the only object store and authority implementation.
+// This service exclusively owns role 1. Do not link it beside legacy Linux's
+// role-1 transport. Owner/namespace labels come from trusted provisioning and
+// separate descriptor tables; they do not select another server grant/root.
+// The native dispatcher must serialize each ENTIRE public operation with
+// every other service/codec user, through return after reply getters/copies.
+// Fcall/Dir, request/reply/path scratch and descriptor allocation are shared;
+// serializing only encode/handle/decode is insufficient. No SMP claim.
+// Quotas: eight distinct owner/namespace pairs per native process, eight fds
+// per pair, 64 descriptions, 4096-byte paths/255-byte components. These bound
+// metadata resources; file/read sizes are not capped to one protocol frame.
+// Namespace IDs are descriptor-context keys, not chroot/mount capabilities.
+// UID/GID permission checks, writes, dup, pipes and a syscall ABI are absent.
+// The backing store does not retain unlinked-open objects. A removed object
+// reports ESTALE for that description; other files/sessions remain usable.
+use runtime::common::namespace_store::session_claim;
+use runtime::common::namespace_store::session_is_current;
+use runtime::common::namespace_store::revoke_if_current;
+use runtime::common::namespace_store::handle;
+use runtime::common::u9fs_codec::begin as codec_begin;
+use runtime::common::u9fs_codec::set_version;
+use runtime::common::u9fs_codec::set_attach;
+use runtime::common::u9fs_codec::set_walk;
+use runtime::common::u9fs_codec::set_open;
+use runtime::common::u9fs_codec::set_fid;
+use runtime::common::u9fs_codec::set_io;
+use runtime::common::u9fs_codec::encode;
+use runtime::common::u9fs_codec::decode;
+use runtime::common::u9fs_codec::kind;
+use runtime::common::u9fs_codec::tag;
+use runtime::common::u9fs_codec::msize;
+use runtime::common::u9fs_codec::version;
+use runtime::common::u9fs_codec::walk_count;
+use runtime::common::u9fs_codec::walk_type;
+use runtime::common::u9fs_codec::count;
+use runtime::common::u9fs_codec::data;
+use runtime::common::u9fs_codec::error_text;
+use runtime::common::u9fs_codec::iounit;
+use runtime::common::u9fs_codec::decode_stat;
+use runtime::common::u9fs_codec::stat_inode;
+use runtime::common::u9fs_codec::stat_version;
+use runtime::common::u9fs_codec::stat_mode;
+use runtime::common::u9fs_codec::stat_atime;
+use runtime::common::u9fs_codec::stat_mtime;
+use runtime::common::u9fs_codec::stat_length;
+
+const CONTEXTS: usize = 8;
+const PER_CONTEXT: usize = 8;
+const DESCRIPTIONS: usize = 64;
+const WIRE_BYTES: usize = 8192;
+const MAX_POSITION: u64 = 0x7fff_ffff_ffff_ffff;
+static mut REQUEST: [u8; 8192] = [0; 8192];
+static mut RESPONSE: [u8; 8192] = [0; 8192];
+static mut NAME: [u8; 256] = [0; 256];
+static mut SESSION: u64 = 0;
+static mut SERVICE_GENERATION: u64 = 0;
+static mut ACTIVE: u64 = 0;
+static mut TAG: u64 = 0;
+static mut NEXT_FID: u64 = 1;
+// Retain owner/ns/generation even after withdrawal and service reinit, so
+// reprovisioning the same native identity must advance its generation.
+static mut OWNER: [u64; 8] = [0; 8];
+static mut NAMESPACE: [u64; 8] = [0; 8];
+static mut GENERATION: [u64; 8] = [0; 8];
+static mut ENABLED: [u64; 8] = [0; 8];
+static mut FD_DESCRIPTION: [u64; 64] = [0; 64];
+static mut DESCRIPTION_OWNER: [u64; 64] = [0; 64];
+static mut FID: [u64; 64] = [0; 64];
+static mut POSITION: [u64; 64] = [0; 64];
+static mut IO_UNIT: [u64; 64] = [0; 64];
+static mut STALE_DESCRIPTION: [u64; 64] = [0; 64];
+static VERSION: [u8; 7] = b"9P2000\0";
+static EMPTY: [u8; 1] = b"\0";
+static MISSING: [u8; 20] = b"file does not exist\0";
+static DENIED: [u8; 18] = b"permission denied\0";
+static NOTDIR: [u8; 16] = b"not a directory\0";
+static STALE: [u8; 28] = b"fid unknown or out of range\0";
+static SPACE: [u8; 24] = b"No space left on device\0";
+
+unsafe fn begin(request: u64) -> void {
+    TAG = (TAG + 1) & 0xffff; if TAG == 0xffff { TAG = 1; }
+    if request == 100 { TAG = 0xffff; }
+    codec_begin(request as u8, TAG as u16);
+}
+unsafe fn matches(text: usize, end: usize, expected: *const u8, bytes: usize) -> bool {
+    if text > end || bytes > end - text { return false; }
+    let mut i: usize = 0; while i < bytes {
+        if volatile_load((text + i) as *const u8) != volatile_load(expected + i) { return false; }
+        i += 1;
+    } return true;
+}
+unsafe fn exchange(expected: u64) -> i64 {
+    let length: usize = encode(&mut REQUEST[0], WIRE_BYTES);
+    if SESSION == 0 || length < 7 { return -5; }
+    let received: usize = handle(SESSION, &REQUEST[0], length, &mut RESPONSE[0], WIRE_BYTES);
+    if received < 7 || received > WIRE_BYTES || decode(&mut RESPONSE[0], received) != received || tag() != TAG { return -5; }
+    if kind() == expected { return received as i64; }
+    if kind() != 107 { return -5; }
+    let text: usize = error_text() as usize;
+    let base: usize = (&RESPONSE[0]) as usize; let end: usize = base + received;
+    if text < base || text >= end { return -5; }
+    if matches(text, end, &MISSING[0], 20) { return -2; }
+    if matches(text, end, &DENIED[0], 18) { return -13; }
+    if matches(text, end, &NOTDIR[0], 16) { return -20; }
+    if matches(text, end, &SPACE[0], 24) { return -28; }
+    if matches(text, end, &STALE[0], 28) {
+        // One removed object/fid can be stale while the service's session and
+        // every other open file remain valid. Do not withdraw the whole owner.
+        if session_is_current(1, SESSION) != 1 { invalidate(); }
+        return -116;
+    }
+    return -5;
+}
+unsafe fn clunk(fid: u64) -> i64 {
+    begin(120); set_fid(fid as u32); let result: i64 = exchange(121);
+    if result == 7 { return 0; } if result >= 0 { return -5; } return result;
+}
+unsafe fn context(owner: u64, namespace: u64, generation: u64) -> usize {
+    let mut i: usize = 0; while i < CONTEXTS {
+        if OWNER[i] == owner && NAMESPACE[i] == namespace && GENERATION[i] == generation && ENABLED[i] == 1 { return i; }
+        i += 1;
+    } return CONTEXTS;
+}
+unsafe fn description(owner: u64, namespace: u64, generation: u64, fd: i64) -> usize {
+    let slot: usize = context(owner, namespace, generation);
+    if slot == CONTEXTS || fd < 3 || fd >= 3 + PER_CONTEXT as i64 { return DESCRIPTIONS; }
+    let mapped: u64 = FD_DESCRIPTION[slot * PER_CONTEXT + (fd - 3) as usize];
+    if mapped == 0 || mapped > DESCRIPTIONS as u64 { return DESCRIPTIONS; }
+    let index: usize = (mapped - 1) as usize;
+    if DESCRIPTION_OWNER[index] != (slot + 1) as u64 || FID[index] == 0 { return DESCRIPTIONS; }
+    return index;
+}
+unsafe fn clear_description(index: usize) -> void {
+    DESCRIPTION_OWNER[index] = 0; FID[index] = 0; POSITION[index] = 0; IO_UNIT[index] = 0; STALE_DESCRIPTION[index] = 0;
+}
+unsafe fn invalidate() -> void {
+    ACTIVE = 0;
+    let mut i: usize = 0; while i < CONTEXTS { ENABLED[i] = 0; i += 1; }
+    i = 0; while i < DESCRIPTIONS { FD_DESCRIPTION[i] = 0; clear_description(i); i += 1; }
+}
+unsafe fn live() -> bool {
+    if ACTIVE == 0 { return false; }
+    if session_is_current(1, SESSION) != 1 { invalidate(); return false; }
+    return true;
+}
+unsafe fn drop_context(slot: usize) -> i64 {
+    let mut result: i64 = 0; let mut fd: usize = 0;
+    while fd < PER_CONTEXT {
+        let mapping: usize = slot * PER_CONTEXT + fd;
+        let mapped: u64 = FD_DESCRIPTION[mapping]; FD_DESCRIPTION[mapping] = 0;
+        if mapped != 0 && mapped <= DESCRIPTIONS as u64 {
+            let index: usize = (mapped - 1) as usize;
+            let closed: i64 = clunk(FID[index]); clear_description(index);
+            if closed < 0 { result = closed; }
+        } fd += 1;
+    } ENABLED[slot] = 0; return result;
+}
+unsafe fn query_stat(fid: u64) -> i64 {
+    begin(124); set_fid(fid as u32); let result: i64 = exchange(125);
+    if result < 0 { return result; }
+    if decode_stat() != 1 { return -5; } return 0;
+}
+
+// Only trusted policy calls init/provision/revoke. Numeric return values are
+// Linux/POSIX-style negative errno values, not a claim of a syscall ABI.
+pub unsafe fn init(generation: u64) -> i64 {
+    if ACTIVE != 0 && session_is_current(1, SESSION) != 1 { invalidate(); }
+    if generation == 0 { return -22; }
+    if generation <= SERVICE_GENERATION { return -116; }
+    let mut session: u64 = session_claim(1, generation, SESSION);
+    // A store reinitialization clears all role slots. Retry only the empty
+    // slot; never replace a session provisioned by another native owner.
+    if session == 0 && SESSION != 0 { session = session_claim(1, generation, 0); }
+    if session == 0 { return -116; }
+    SESSION = session; SERVICE_GENERATION = generation; invalidate();
+    begin(100); set_version(WIRE_BYTES as u32, &VERSION[0]);
+    if exchange(101) != 19 || msize() != WIRE_BYTES as u64 { revoke_if_current(1, SESSION); return -5; }
+    let text: *const u8 = version(); let mut i: usize = 0;
+    while i < 7 { if volatile_load(text + i) != VERSION[i] { revoke_if_current(1, SESSION); return -5; } i += 1; }
+    begin(104); set_attach(1, 0xffff_ffff, &EMPTY[0], &EMPTY[0]);
+    if exchange(105) != 20 { revoke_if_current(1, SESSION); return -5; }
+    ACTIVE = 1; return 0;
+}
+pub unsafe fn provision(owner: u64, namespace: u64, generation: u64) -> i64 {
+    if !live() { return -116; }
+    if owner == 0 || namespace == 0 || generation == 0 { return -22; }
+    let mut slot: usize = CONTEXTS; let mut free: usize = CONTEXTS; let mut i: usize = 0;
+    while i < CONTEXTS {
+        if OWNER[i] == owner && NAMESPACE[i] == namespace { slot = i; break; }
+        if OWNER[i] == 0 && free == CONTEXTS { free = i; } i += 1;
+    }
+    if slot == CONTEXTS { slot = free; }
+    if slot == CONTEXTS { return -28; }
+    if generation <= GENERATION[slot] { return -116; }
+    let closed: i64 = drop_context(slot); if closed < 0 { return closed; }
+    OWNER[slot] = owner; NAMESPACE[slot] = namespace; GENERATION[slot] = generation; ENABLED[slot] = 1;
+    return 0;
+}
+pub unsafe fn revoke(owner: u64, namespace: u64, generation: u64) -> i64 {
+    if !live() { return -116; }
+    let slot: usize = context(owner, namespace, generation); if slot == CONTEXTS { return -9; }
+    return drop_context(slot);
+}
+// Existing regular files, O_RDONLY only. This is not the variadic POSIX open.
+pub unsafe fn open_read(owner: u64, namespace: u64, generation: u64, path: *const u8, length: usize) -> i64 {
+    if !live() { return -116; }
+    let slot: usize = context(owner, namespace, generation); if slot == CONTEXTS { return -9; }
+    if length == 0 { return -2; } if length > 4096 { return -36; }
+    if path as usize == 0 || path as usize > 0xffff_ffff_ffff_ffff - length { return -14; }
+    let mut i: usize = 0; while i < length { if volatile_load(path + i) == 0 { return -22; } i += 1; }
+    let mut fd: usize = 0; while fd < PER_CONTEXT { if FD_DESCRIPTION[slot * PER_CONTEXT + fd] == 0 { break; } fd += 1; }
+    if fd == PER_CONTEXT { return -24; }
+    let mut index: usize = 0; while index < DESCRIPTIONS { if DESCRIPTION_OWNER[index] == 0 { break; } index += 1; }
+    if index == DESCRIPTIONS || NEXT_FID >= 0xffff_fffe { return -23; }
+    NEXT_FID += 1; let fid: u64 = NEXT_FID;
+    begin(110); set_walk(1, fid as u32, 0 as *const u8);
+    let mut result: i64 = exchange(111); if result < 0 { return result; }
+    if result != 9 || walk_count() != 0 { clunk(fid); return -5; }
+    i = 0;
+    while i < length {
+        if volatile_load(path + i) == 47 { i += 1; }
+        else {
+            let start: usize = i; while i < length && volatile_load(path + i) != 47 { i += 1; }
+            let size: usize = i - start; if size > 255 { clunk(fid); return -36; }
+            let mut n: usize = 0; while n < size { NAME[n] = volatile_load(path + start + n); n += 1; } NAME[size] = 0;
+            begin(110); set_walk(fid as u32, fid as u32, &NAME[0]); result = exchange(111);
+            if result < 0 { clunk(fid); return result; }
+            if result != 22 || walk_count() != 1 { clunk(fid); return -5; }
+            if i < length && (walk_type() & 0x80) == 0 { clunk(fid); return -20; }
+        }
+    }
+    result = query_stat(fid); if result < 0 { clunk(fid); return result; }
+    if (stat_mode() & 0x8000_0000) != 0 { clunk(fid); return -21; }
+    if volatile_load(path + length - 1) == 47 { clunk(fid); return -20; }
+    if stat_length() > MAX_POSITION { clunk(fid); return -75; }
+    begin(112); set_open(fid as u32, 0); result = exchange(113);
+    if result < 0 { clunk(fid); return result; } if result != 24 { clunk(fid); return -5; }
+    let mut unit: u64 = iounit(); if unit == 0 || unit > (WIRE_BYTES - 11) as u64 { unit = (WIRE_BYTES - 11) as u64; }
+    DESCRIPTION_OWNER[index] = (slot + 1) as u64; FID[index] = fid; POSITION[index] = 0; IO_UNIT[index] = unit;
+    FD_DESCRIPTION[slot * PER_CONTEXT + fd] = (index + 1) as u64; return (fd + 3) as i64;
+}
+pub unsafe fn read(owner: u64, namespace: u64, generation: u64, fd: i64, output: *mut u8, length: usize) -> i64 {
+    if !live() { return -116; }
+    let index: usize = description(owner, namespace, generation, fd); if index == DESCRIPTIONS { return -9; }
+    if STALE_DESCRIPTION[index] != 0 { return -116; }
+    if length > MAX_POSITION as usize { return -22; }
+    if length != 0 && (output as usize == 0 || output as usize > 0xffff_ffff_ffff_ffff - length) { return -14; }
+    let mut completed: usize = 0;
+    while completed < length {
+        let mut wanted: usize = length - completed; if wanted > IO_UNIT[index] as usize { wanted = IO_UNIT[index] as usize; }
+        begin(116); set_io(FID[index] as u32, POSITION[index], wanted as u32, 0 as *const u8);
+        let result: i64 = exchange(117);
+        if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } if completed != 0 { return completed as i64; } return result; }
+        let received: usize = count() as usize;
+        if received > wanted || result != (received + 11) as i64 || received as u64 > MAX_POSITION - POSITION[index] {
+            if completed != 0 { return completed as i64; } return -5;
+        }
+        let bytes: usize = data() as usize; let base: usize = (&RESPONSE[0]) as usize;
+        if bytes < base || bytes > base + result as usize || received > base + result as usize - bytes {
+            if completed != 0 { return completed as i64; } return -5;
+        }
+        let mut i: usize = 0; while i < received { volatile_store(output + completed + i, volatile_load((bytes + i) as *const u8)); i += 1; }
+        completed += received; POSITION[index] += received as u64;
+        if received < wanted { break; }
+    } return completed as i64;
+}
+pub unsafe fn lseek(owner: u64, namespace: u64, generation: u64, fd: i64, offset: i64, whence: u64) -> i64 {
+    if !live() { return -116; }
+    let index: usize = description(owner, namespace, generation, fd); if index == DESCRIPTIONS { return -9; }
+    if STALE_DESCRIPTION[index] != 0 { return -116; }
+    let mut base: u64 = 0;
+    if whence == 1 { base = POSITION[index]; }
+    else { if whence == 2 { let result: i64 = query_stat(FID[index]); if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } return result; } base = stat_length(); }
+        else { if whence != 0 { return -22; } } }
+    if base > MAX_POSITION { return -75; }
+    let mut next: u64 = 0;
+    if offset >= 0 { if offset as u64 > MAX_POSITION - base { return -75; } next = base + offset as u64; }
+    else { let magnitude: u64 = ((offset as u64) ^ 0xffff_ffff_ffff_ffff) + 1; if magnitude > base { return -22; } next = base - magnitude; }
+    POSITION[index] = next; return next as i64;
+}
+// Native metadata record (six u64 words): size, S_IFREG|permissions, object
+// identity, QID version, mtime, atime. This is not an architecture's struct stat.
+pub unsafe fn fstat(owner: u64, namespace: u64, generation: u64, fd: i64, record: *mut u64, words: usize) -> i64 {
+    if !live() { return -116; }
+    let index: usize = description(owner, namespace, generation, fd); if index == DESCRIPTIONS { return -9; }
+    if STALE_DESCRIPTION[index] != 0 { return -116; }
+    if words < 6 { return -22; }
+    if record as usize == 0 || record as usize % 8 != 0 || record as usize > 0xffff_ffff_ffff_ffff - 48 { return -14; }
+    let result: i64 = query_stat(FID[index]); if result < 0 { if result == -116 && ACTIVE != 0 { STALE_DESCRIPTION[index] = 1; } return result; }
+    if (stat_mode() & 0x8000_0000) != 0 || stat_length() > MAX_POSITION { return -75; }
+    volatile_store(record, stat_length()); volatile_store(record + 1, 0x8000 | (stat_mode() & 0x1ff));
+    volatile_store(record + 2, stat_inode()); volatile_store(record + 3, stat_version());
+    volatile_store(record + 4, stat_mtime()); volatile_store(record + 5, stat_atime()); return 0;
+}
+pub unsafe fn close(owner: u64, namespace: u64, generation: u64, fd: i64) -> i64 {
+    if !live() { return -116; }
+    let index: usize = description(owner, namespace, generation, fd); if index == DESCRIPTIONS { return -9; }
+    let slot: usize = (DESCRIPTION_OWNER[index] - 1) as usize;
+    FD_DESCRIPTION[slot * PER_CONTEXT + (fd - 3) as usize] = 0;
+    let fid: u64 = FID[index]; clear_description(index); return clunk(fid);
+}

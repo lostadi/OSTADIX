@@ -1,0 +1,45 @@
+{
+  "schema": "ostadix.unified-world-core-context-handoff/v1",
+  "status": "PASS: actual EL2 preemption and architectural state isolation for two synthetic EL1 worlds",
+  "scope": "Native scheduler-core qualification under QEMU8.2 A57; original Linux/Plan9 dual-boot and process dispatch are qualified separately by the unified runner",
+  "proof": "/home/ustad/.local/state/ostadix/okernel/unified-core-context-20261102-r2/result.json",
+  "assembly": "ocore/kernel/aarch64/unified_world/monitor.S",
+  "assembly_sha256": "a5a572be782374d12780cd6329248d4987843ab4a7a8b9aa7e3ff1c4ceab52cd",
+  "linker": "ocore/kernel/aarch64/unified_world/linker.ld",
+  "test": "tests/test_unified_world_context.py",
+  "abi": {
+    "contexts": 2,
+    "context_bytes": 4096,
+    "x0_to_x30_offset": 0,
+    "pc_offset": 248,
+    "pstate_offset": 256,
+    "entry": "uw_init()->1 calls uw_domain_init(domain,pc,x0,0x3c5); virtual GIC initialization follows context creation",
+    "exit": "uw_handle_exit(frame,reason,esr,far,hpfar)->next domain0/1, otherwise halt; reason0 sync/reason1 physicalIRQ",
+    "deadline": "uw_next_deadline returns an absolute physical counter deadline; guest FP state is restored only after this native call",
+    "physical_irq": "PPI26 only; vector acknowledges real IAR before deasserting timer, uw_irq_ack returns the latched INTID and dispatcher EOIs once",
+    "timers": "uw_timer_read/write(domain,kind,field),kind0CNTV/kind1CNTP,field0CVAL/1CTL/2TVAL; validwrite returns1",
+    "cnthctl": "1: guest counter reads allowed, CNTP registers trapped and emulated without live-state overwrite; CNTV state saved directly",
+    "virtual_gic": "LR/VMCR/HCR hooks operate on private saved banks, with hardware LR count and implemented APR count from ICH_VTR",
+    "console": "uw_serial_putc/uw_serial_try_read are raw physical hooks; kw_serial_putc/kw_serial_try_read belong to the native O-core console mux"
+  },
+  "memory": {
+    "linux": {"vmid": 1, "ipa": [1073741824, 1610612736], "pa": [1207959552, 1744830464]},
+    "plan9": {"vmid": 2, "ipa": [1073741824, 1610612736], "pa": [2952790016, 3489660928]},
+    "devices": "All guest device accesses trap; no physical GIC or other MMIO is stage2-mapped"
+  },
+  "checks": [
+    "At least15 physical timer preemptions of each CPU-bound IRQ-masked world without cooperative WFI/MMIO/HVC",
+    "A second fixture preempts both worlds while holding active virtual IRQ27 and verifies LR, APR1 and running-priority state",
+    "All32 SIMD registers plus FPCR/FPSR, both SPs, TPIDR0/RO/1 and CONTEXTIDR retained independently",
+    "Native handlers use canonical zero FPCR/FPSR",
+    "PMU cycle/event counters, event types, debug BVR/WVR, OS lock and DBGCLAIM state remain private",
+    "CNTP shadow CVAL/CTL survives context save without physical register overwrite",
+    "Absolute timer deadline prevents sync-exit loops from resetting the preemption interval",
+    "Independent review found no further concrete boot blocker"
+  ],
+  "limits": [
+    "OSDoubleLock clear/restore is qualified only for the explicit QEMU8.2 A57 model, not physical hardware",
+    "Synthetic guest fixtures do not substitute for original foreign-kernel execution proofs",
+    "Existing profiles, source artifacts and working default VM state were preserved"
+  ]
+}

@@ -15,7 +15,13 @@ import shlex
 import subprocess
 
 MUSL_COMMIT = "0784374d561435f7c787a555aeab8ede699ed298"
-WORKER_SHA = "4eedaad775ad6283547a0204d01c644822fef0be4fd99d6441384476c97f4777"
+# The existing qualified compiler embeds the first worker. The second adds
+# noninterfering original-link-map capture. Both are independently pinned;
+# session metadata alone never selects arbitrary executable Python source.
+WORKER_SHAS = frozenset({
+    "a18a349afb994a8a3035209bc43f480cfeb399be4198022b29ef4d776cfc7779",
+    "0f3cee8f19faa091281bc11033d20b18a6aad10915b07713cedc8a93a89de059",
+})
 PROFILES = {
     "x86_64": {"triple": "x86_64-unknown-linux-musl", "flags": []},
     "aarch64": {"triple": "aarch64-unknown-linux-musl", "flags": []},
@@ -200,7 +206,7 @@ def plan(source: Path, build: Path, capture: Path, isa: str) -> dict:
 def load_worker(capture: Path):
     session = json.loads((capture / "session.json").read_text())
     worker = Path(session["capture_worker"]["artifact"]["path"])
-    if info(worker)["sha256"] != WORKER_SHA or info(worker) != session["capture_worker"]["artifact"]:
+    if info(worker)["sha256"] not in WORKER_SHAS or info(worker) != session["capture_worker"]["artifact"]:
         raise InventoryError("immutable source capture worker provenance differs")
     scope = {"__name__": "ocore_musl_source_inventory", "__file__": str(worker)}
     exec(compile(worker.read_bytes(), str(worker), "exec"), scope)

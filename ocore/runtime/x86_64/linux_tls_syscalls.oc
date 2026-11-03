@@ -1,0 +1,44 @@
+module runtime::linux_tls_syscalls;
+
+// Opt-in ARCH_SET_FS/ARCH_GET_FS for the declared four-level x86-64 profile.
+// This is kernel platform behavior, not libc/TLS runtime implementation or
+// original application admission. TCB state is activated by boot.S only at
+// a validated CPL3 return; kernel code itself always has FS selector/base 0.
+// No GS, LDT, set_thread_area, clone, clear_child_tid or futex API is supplied.
+use runtime::thread::current_handle;
+use runtime::thread::process_for;
+use runtime::thread::address_space_for_thread;
+use runtime::thread::set_current_user_fs_base;
+use runtime::thread::kernel_thread_current_user_fs_base;
+use runtime::thread::valid_user_fs_base;
+use runtime::process::current_process_handle;
+use runtime::process::current_address_space_handle;
+use runtime::process::can_issue_operations;
+use runtime::user_memory::copy_to_user;
+use runtime::user_memory::COPY_OK;
+
+pub unsafe fn arch_prctl(operation: u64, argument: u64) -> i64 {
+    let thread: u64 = current_handle();
+    let process: u64 = current_process_handle();
+    let space: u64 = current_address_space_handle();
+    if thread == 0 || process == 0 || space == 0
+        || process_for(thread) != process
+        || address_space_for_thread(thread) != space
+        || !can_issue_operations(process) { return -3; }
+    if operation == 0x1002 {
+        if !valid_user_fs_base(argument) { return -1; }
+        if set_current_user_fs_base(argument) == 0 { return -3; }
+        return 0;
+    }
+    if operation == 0x1003 {
+        let value: u64 = kernel_thread_current_user_fs_base();
+        if copy_to_user(space, argument as *mut u8, (&value) as *const u8, 8) != COPY_OK { return -14; }
+        return 0;
+    }
+    return -22;
+}
+
+pub unsafe fn dispatch(number: u64, first: u64, second: u64) -> i64 {
+    if number == 158 { return arch_prctl(first, second); }
+    return -38;
+}

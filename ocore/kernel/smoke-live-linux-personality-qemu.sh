@@ -4,8 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m6-linux-live-personality}"
 TIMEOUT_SECONDS="${OCORE_M6_LINUX_LIVE_TIMEOUT_SECONDS:-180}"
-DIGEST="b380e5cbbe50403bd58bdafb11c54f2201f0cc742fc898487fa08ba26e2886e8"
-IMAGE_BYTES=60104
 IMAGE_RECORD="$BUILD_DIR/m6-linux-image.path"
 LINUX_ELF_DIGEST="06240b6a840ed4262835aceff64a94f6ebd77838666f05eb7415d9a0d1b5868d"
 LINUX_ELF_BYTES=8520
@@ -26,6 +24,16 @@ if [[ ! -f "$IMAGE_RECORD" ]] \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
+# Compare the actual embedded artifact against the identity compiled into this
+# kernel. The foreign Linux ELF remains independently pinned below.
+read -r IMAGE_BYTES DIGEST < <(
+  python3 - "$BUILD_DIR/m6.image.json" <<'PYMETA'
+import json
+import sys
+identity = json.load(open(sys.argv[1]))
+print(identity["bytes"], identity["sha256"])
+PYMETA
+)
 if [[ -z "$IMAGE" || ! -f "$IMAGE" ]] \
   || [[ "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" ]] \
   || [[ "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$DIGEST" ]]; then

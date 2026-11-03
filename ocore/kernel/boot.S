@@ -1512,6 +1512,12 @@ ocore_restore_management_context:
   mov qword ptr [rip + percpu_entry + 24], rdx
   lea rax, [rip + p4_table]
   mov cr3, rax
+  // Kernel/management code never inherits a user's FS selector or TLS base.
+  xor eax, eax
+  mov fs, ax
+  mov ecx, 0xc0000100
+  xor edx, edx
+  wrmsr
   mov eax, 1
   ret
 .size ocore_restore_management_context, .-ocore_restore_management_context
@@ -1771,12 +1777,56 @@ ocore_boot_probe_mode:
   ret
 .size ocore_boot_probe_mode, .-ocore_boot_probe_mode
 
+// FS is user register state, not kernel authority. Every CPL3 entry saves the
+// actual selector/base to the running generation-owned TCB after its GPR frame
+// is safe. MOV-to-FS may change the base without an arch_prctl call, so reading
+// only a software SET_FS shadow would lose legitimate state. Kernel code runs
+// with null FS/base zero; only the selected TCB is restored at user return.
+// These macros execute with interrupts masked and kernel GS active. The
+// restore macro clobbers R12 while all user GPRs remain saved in their frame.
+// Call it before selecting a synthetic TCB frame as RSP: that saved frame is
+// metadata, not a guarded kernel stack on which callbacks may make calls.
+.macro OCORE_CAPTURE_USER_FS
+  xor esi, esi
+  mov si, fs
+  mov ecx, 0xc0000100
+  rdmsr
+  shl rdx, 32
+  or rax, rdx
+  mov rdi, rax
+  xor eax, eax
+  mov fs, ax
+  xor edx, edx
+  mov ecx, 0xc0000100
+  wrmsr
+  call kernel_thread_capture_user_fs
+  test rax, rax
+  jz .fatal_exception
+.endm
+
+.macro OCORE_RESTORE_USER_FS
+  call kernel_thread_current_user_fs_base
+  mov r12, rax
+  call kernel_thread_current_user_fs_selector
+  mov fs, ax
+  mov rax, r12
+  mov rdx, rax
+  shr rdx, 32
+  mov ecx, 0xc0000100
+  wrmsr
+.endm
+
 // Install the architectural SYSCALL boundary. STAR selects kernel CS 0x08;
 // its SYSRET base is 0x10, which corresponds to user SS 0x1b and CS 0x23.
 // The entry path currently returns with IRETQ so RIP/RSP can be validated.
 .globl ocore_syscall_init
 .type ocore_syscall_init, @function
 ocore_syscall_init:
+  xor eax, eax
+  mov fs, ax
+  mov ecx, 0xc0000100
+  xor edx, edx
+  wrmsr
   // The boot CPU starts with its own entry state active. CPL3 receives a null
   // GS base, and SWAPGS selects this record before SYSCALL stores user state.
   mov ecx, 0xc0000101
@@ -1837,6 +1887,13 @@ ocore_enter_user:
   push 0x202
   push 0x23
   push r8
+  // RDI is this bootstrap entry's explicit user argument. Other user state
+  // is still uninitialized; preserve that argument around the TCB lookup.
+  push rdi
+  sub rsp, 8
+  OCORE_RESTORE_USER_FS
+  add rsp, 8
+  pop rdi
   swapgs
   iretq
 .size ocore_enter_user, .-ocore_enter_user
@@ -1889,6 +1946,8 @@ ocore_syscall_entry:
   mov qword ptr [rsp + 160], rax
   mov qword ptr [rsp + 168], 0x1b
 
+  OCORE_CAPTURE_USER_FS
+
   // Mode 0 uses R11 as the hardware receipt for the caller's pre-entry
   // RFLAGS. Bind that focused proof to the live IA32_FMASK result without
   // charging every syscall in the other capacity-sensitive kernel modes.
@@ -1935,6 +1994,7 @@ ocore_syscall_entry:
   mov qword ptr [rsp + 152], 0x202
   mov rax, qword ptr [rsp + 136]
   mov qword ptr [rsp + 96], rax
+  OCORE_RESTORE_USER_FS
   jmp .restore_syscall_frame
 
 .schedule_from_syscall:
@@ -1956,6 +2016,7 @@ ocore_syscall_entry:
   // Project that exact asynchronous frame just as the timer-return path does
   // below; the caller frame sanitized above is no longer consumed by IRETQ.
   OCORE_PROJECT_ASYNC_USER_RFLAGS rbx
+  OCORE_RESTORE_USER_FS
   mov rsp, rbx
 
 .restore_syscall_frame:
@@ -2032,6 +2093,7 @@ ocore_timer_interrupt_entry:
   test al, 3
   jz .timer_kernel_gs_active
   swapgs
+  OCORE_CAPTURE_USER_FS
 .timer_kernel_gs_active:
   mov rdi, rsp
   call kernel_timer_dispatch
@@ -2056,6 +2118,11 @@ ocore_timer_interrupt_entry:
   // validation work is complete. RBX is callee-saved and still names the exact
   // frame selected above; the saved frame itself absorbs other clobbers.
   call kernel_timer_rearm
+  mov rax, qword ptr [rbx + 144]
+  test al, 3
+  jz .timer_fs_restored
+  OCORE_RESTORE_USER_FS
+.timer_fs_restored:
   mov rsp, rbx
 
   // The selected frame, rather than the interrupted frame, decides whether
@@ -2176,7 +2243,10 @@ ocore_exception_common:
   jnz .user_exception
 
   // The only recoverable CPL0 page faults are exact fault sites in an active
-  // CPU-local user-copy operation, with CR2 inside the bootstrap user window.
+  // CPU-local user-copy operation, with CR2 inside a declared user window.
+  // user_memory checks current-space permissions before calling either copy
+  // primitive. Keep both the bootstrap window and elf_loader's static image
+  // window recoverable, while rejecting the gap and all other addresses.
   cmp qword ptr [rsp + 120], 14
   jne .dispatch_kernel_exception
   mov rax, qword ptr gs:[32]
@@ -2186,7 +2256,12 @@ ocore_exception_common:
   cmp rdx, 0x01000000
   jb .dispatch_kernel_exception
   cmp rdx, 0x01400000
+  jb .copy_user_address_valid
+  cmp rdx, 0x02000000
+  jb .dispatch_kernel_exception
+  cmp rdx, 0x02100000
   jae .dispatch_kernel_exception
+.copy_user_address_valid:
   mov rcx, qword ptr [rsp + 128]
   cmp rax, 1
   je .recover_copy_from
@@ -2224,6 +2299,7 @@ ocore_exception_common:
 
 .user_exception:
   swapgs
+  OCORE_CAPTURE_USER_FS
   mov rdi, rsp
   call kernel_exception_dispatch
   cmp rax, 1
@@ -2246,6 +2322,11 @@ ocore_exception_common:
   jz .fatal_exception
   OCORE_PROJECT_ASYNC_USER_RFLAGS rbx
 .scheduled_exception_frame_validated:
+  mov rax, qword ptr [rbx + 144]
+  test al, 3
+  jz .exception_fs_restored
+  OCORE_RESTORE_USER_FS
+.exception_fs_restored:
   mov rsp, rbx
   mov rax, qword ptr [rsp + 144]
   test al, 3

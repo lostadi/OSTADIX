@@ -1,0 +1,55 @@
+{
+  "schema": "ostadix.original-plan9-native-rebuild-handoff/v1",
+  "status": "PASS: unmodified native-tool kernel build, followed by two byte-identical UART-platform builds in independent private overlays",
+  "source_commit": "350266104f1fed81c78c3d05fa44f523bec0ae4d",
+  "official_image": {
+    "url": "https://build.9front.org/9front/9front-12115.arm64.qcow2.gz",
+    "qcow2_bytes": 597164032,
+    "qcow2_sha256": "67484f032a13eb9760a6287a1c0136a178da38b3c01e19ca7381d2e14a40a20f",
+    "integrity_scope": "Explicit observed project-download pin; no upstream signature verification claimed"
+  },
+  "builder": "scripts/build_okernel_plan9_original.py",
+  "builder_sha256": "4eec79e738476474c2acc859760be7a97beeb35b9904d460b1cccf06be2c720b",
+  "platform_patch": "ocore/guest/plan9/namespace-uart.patch",
+  "patch_sha256": "9e264301ac0f6311e3790caaefe9996138af63e62bd6c15da3fac8073b0593d3",
+  "proof": "/home/ustad/.local/state/ostadix/okernel/plan9-native-rebuild-20261102-r3/result.json",
+  "kernel": {
+    "path": "/home/ustad/.local/state/ostadix/okernel/plan9-native-rebuild-20261102-r3/patched-1/artifacts/NATIVE.U",
+    "independent_second_path": "/home/ustad/.local/state/ostadix/okernel/plan9-native-rebuild-20261102-r3/patched-2/artifacts/NATIVE.U",
+    "bytes": 4296672,
+    "sha256": "d09ac34283b2bc373c024ab1da335cc236f6151861a69242bd2339355c3026fa",
+    "load_and_entry": 1074790400,
+    "native_C_compilations_per_build": 96,
+    "native_assembly_compilations_per_build": 5
+  },
+  "reproducibility_boundary": {
+    "clock_unix_seconds": 1793431069,
+    "clock_mechanism": "Private build namespace binds a fixed big-endian bintime file; original time/date/compiler/linker/container tools are unchanged",
+    "seed_boot_paq_sha256": "025f23890dd227de53325e65fb2c9c9b23d1273df9c0a060ade1d1840d92b487",
+    "admitted_inputs": "Official original native tools, static libraries, userland and one frozen boot PAQ; exact native tool hashes and complete kernel-tree file receipts are exported beside each kernel",
+    "qualified_output": "Complete UART-patched ARM64 uImage bytes from two fresh official-image disk overlays",
+    "excluded": "Compiler/toolchain source bootstrap, byte-reproducible PAQ construction, upstream release binary reproduction"
+  },
+  "second_uart_contract": {
+    "device": "/dev/eia1",
+    "ipa": 150999040,
+    "irq": 50,
+    "console": "Original UART0/IRQ33 remains unchanged",
+    "scope": "Only original uartqemu.c hardware discovery/IRQ routing is patched; original Plan9 ABI, mount client and userspace engines remain unchanged"
+  },
+  "checks": [
+    "Original ARM64 7c/7a/7l and mk executed inside the private full HJFS build VM",
+    "Original git/query reports the pinned commit; original UART source hash is checked before patching",
+    "Fixed native date observed before and after a real two-second sleep",
+    "Original dossrv exports flushed and original HJFS fshalt completed before host extraction",
+    "Both uImage header/payload CRCs, architecture, load/entry and fixed timestamps validated",
+    "Both complete patched uImages compare byte for byte",
+    "Four builder admission/regression tests pass"
+  ],
+  "nonclaims": [
+    "This host-QEMU VM is a build environment, not an O-core execution qualification",
+    "The optional O-core Plan9 monitor/runtime transport was not modified by this builder task",
+    "A native shared-store mount and simultaneous unified domains are not established by a successful kernel build",
+    "Working OKernel disk/head and running default VM were not opened or changed"
+  ]
+}

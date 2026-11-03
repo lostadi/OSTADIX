@@ -1,0 +1,34 @@
+#!/bin/sh
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root TERM=vt100 PS1='pkg> '
+export NAMESPACE=/run/okernel-9p
+mkdir -p /run /tmp /dev/pts /work
+mountpoint -q /run || mount -t tmpfs tmpfs /run
+mountpoint -q /tmp || mount -t tmpfs tmpfs /tmp
+mountpoint -q /dev/pts || mount -t devpts devpts /dev/pts
+chmod 1777 /tmp
+exec </dev/console >/dev/console 2>&1
+hostname okernel
+if /usr/local/bin/pkg-namespace mount; then
+    export OSTADIX_PKG_NAMESPACE_REQUIRED=1
+    if [ -x /usr/local/plan9/bin/okernel-9p-bridge ] && [ -x /usr/local/bin/pkg-9p ]; then
+        if ! /usr/local/bin/pkg-9p start; then
+            echo 'Original 9P bridge startup failed; use pkg-9p status and its supervisor log to repair it.'
+        fi
+    fi
+else
+    echo 'Native namespace unavailable; the original Linux root remains accessible.'
+fi
+echo 'OKERNEL PACKAGE DOMAIN READY'
+echo 'OKernel: install commands by name with pkg install NAME; registered source recipes are preferred.'
+echo 'Source providers: zlib; plan9port (original rc/mk/9p tools for the Linux ABI).'
+if [ "${OSTADIX_PKG_NAMESPACE_REQUIRED:-0}" = 1 ]; then
+    echo 'Shared workspace: /n/okernel/work. Provider build/cache files remain in /work.'
+    cd /n/okernel/work || cd /work || cd /
+else
+    cd /work || cd /
+fi
+while :; do
+    setsid /bin/sh -c 'exec /bin/sh -i </dev/ttyAMA0 >/dev/ttyAMA0 2>&1'
+    echo 'Shell exited; starting a new shell.'
+done

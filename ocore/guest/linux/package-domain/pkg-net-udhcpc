@@ -1,0 +1,44 @@
+#!/bin/sh
+# Ordinary BusyBox udhcpc event hook. It receives no host-side special channel.
+set -eu
+set -f
+run_dir="${OSTADIX_PKG_NET_RUN:-/run/pkg-net}"
+resolver="${OSTADIX_PKG_RESOLV_CONF:-/etc/resolv.conf}"
+: "${interface:?DHCP did not identify an interface}"
+case "$interface" in ''|*[!a-zA-Z0-9_.:-]*) exit 2 ;; esac
+mkdir -p "$run_dir"
+case "${1:-}" in
+    deconfig)
+        ip address flush dev "$interface"
+        rm -f "$run_dir/$interface.lease"
+        ;;
+    bound|renew)
+        rm -f "$run_dir/$interface.lease"
+        : "${ip:?DHCP did not provide an address}"
+        : "${subnet:?DHCP did not provide a subnet mask}"
+        : "${router:?DHCP did not provide a gateway}"
+        : "${dns:?DHCP did not provide DNS servers}"
+        prefix="$(ipcalc -p "$ip" "$subnet")"
+        prefix="${prefix#PREFIX=}"
+        case "$prefix" in ''|*[!0-9]*) exit 2 ;; esac
+        [ "$prefix" -le 32 ]
+        ip address flush dev "$interface"
+        ip address add "$ip/$prefix" dev "$interface"
+        # udhcpc supplies a whitespace-separated router list; select the first
+        # normal IPv4 gateway rather than evaluating shell text from a lease.
+        gateway="${router%% *}"
+        ip route replace default via "$gateway" dev "$interface"
+        candidate="$(mktemp "${resolver}.XXXXXX")"
+        trap 'rm -f "$candidate"' EXIT HUP INT TERM
+        for server in $dns; do
+            case "$server" in ''|*[!0-9a-fA-F.:]*) echo 'Invalid DHCP DNS address' >&2; exit 2 ;; esac
+            printf 'nameserver %s\n' "$server" >> "$candidate"
+        done
+        chmod 0644 "$candidate"
+        mv "$candidate" "$resolver"
+        trap - EXIT HUP INT TERM
+        printf '%s/%s via %s\n' "$ip" "$prefix" "$gateway" > "$run_dir/$interface.lease"
+        ;;
+    nak|leasefail) rm -f "$run_dir/$interface.lease" ;;
+    *) ;;
+esac

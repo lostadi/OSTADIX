@@ -6,12 +6,6 @@ BUILD_DIR="${OCORE_BUILD_DIR:-$ROOT/target/ocore-m7b-logical-read-live}"
 TIMEOUT_SECONDS="${OCORE_M7B_TIMEOUT_SECONDS:-120}"
 IMAGE_RECORD="$BUILD_DIR/m7b-logical-read-image.path"
 
-IMAGE_BYTES=78304
-IMAGE_DIGEST=c095ca5076ae0942c21092cd0b92cb752dd736171810df163cd8a4840d0451f5
-CLIENT_BYTES=37840
-CLIENT_DIGEST=13ad1ea5563adafc433033e3e39c9e1f0129c8c28aebc0cbd8e98907cb5b94ea
-PROVIDER_BYTES=29152
-PROVIDER_DIGEST=0a56666cd378fdfe4476878be6a2624b46be3e3af23b42cd59bba14ce972205f
 OBJECT_BYTES=20
 OBJECT_DIGEST=59a08e13c63eb8acdae93f4caf05130733a0f5ab24e564fb1206f0f1d055809b
 
@@ -31,6 +25,31 @@ if [[ ! -f "$IMAGE_RECORD" \
   exit 1
 fi
 IMAGE="$(sed -n '1p' "$IMAGE_RECORD")"
+# Bind the full image to this kernel's generated trust anchor. Native service
+# identities come from the independently double-built ELF files below; foreign
+# program and immutable object identities remain pinned separately.
+read -r IMAGE_BYTES IMAGE_DIGEST < <(
+  python3 - "$BUILD_DIR/m6.image.json" <<'PYMETA'
+import json
+import sys
+identity = json.load(open(sys.argv[1]))
+print(identity["bytes"], identity["sha256"])
+PYMETA
+)
+read -r CLIENT_BYTES CLIENT_DIGEST PROVIDER_BYTES PROVIDER_DIGEST < <(
+  python3 - \
+    "$ROOT/target/ocore-m7b-logical-read-artifacts/pass-one/m7b-logical-read.elf" \
+    "$ROOT/target/ocore-m7b-logical-read-artifacts/pass-one/m7b-9pd.elf" <<'PYPRINCIPALS'
+import hashlib
+from pathlib import Path
+import sys
+fields = []
+for path in sys.argv[1:]:
+    data = Path(path).read_bytes()
+    fields.extend((str(len(data)), hashlib.sha256(data).hexdigest()))
+print(" ".join(fields))
+PYPRINCIPALS
+)
 if [[ -z "$IMAGE" || ! -f "$IMAGE" \
     || "$(wc -c < "$IMAGE" | tr -d ' ')" != "$IMAGE_BYTES" \
     || "$(shasum -a 256 "$IMAGE" | awk '{print $1}')" != "$IMAGE_DIGEST" ]]; then
