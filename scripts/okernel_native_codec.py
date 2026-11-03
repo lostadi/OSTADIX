@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Validate and snapshot the optional original-u9fs native monitor dependency.
+
+The seven exact own-emitter objects must match completed compiler-owned source
+and coverage receipts. The default monitor never calls this optional helper.
+"""
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+
+SYMBOLS = {"convM2S", "convS2M", "convM2D", "convD2M", "sizeD2M", "statcheck", "memcpy", "memmove", "strlen"}
+ABI = {"pointer_bits": 64, "Fcall_bytes": 712, "Fcall_alignment": 8, "Qid_bytes": 24}
+
+
+def identity(path: Path, data: bytes | None = None) -> dict:
+    if data is None:
+        data = path.read_bytes()
+    return {"path": str(path.resolve()), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def checked(record: dict) -> tuple[Path, bytes]:
+    if not isinstance(record, dict) or not isinstance(record.get("path"), str):
+        raise ValueError("native codec identity lacks a path")
+    path = Path(record["path"])
+    if not path.is_absolute() or path.is_symlink() or not path.is_file():
+        raise ValueError("native codec artifact must be an absolute regular file: " + str(path))
+    data = path.read_bytes()
+    if type(record.get("bytes")) is not int or len(data) != record["bytes"] or not isinstance(record.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", record["sha256"]):
+        raise ValueError("invalid native codec byte/digest identity: " + str(path))
+    if hashlib.sha256(data).hexdigest() != record["sha256"]:
+        raise ValueError("native codec artifact changed: " + str(path))
+    return path, data
+
+
+def key(record: dict) -> tuple:
+    return record["path"], record["bytes"], record["sha256"]
+
+
+def json_record(record: dict) -> tuple[dict, bytes]:
+    _, data = checked(record)
+    result = json.loads(data)
+    if not isinstance(result, dict):
+        raise ValueError("native codec receipt must be an object")
+    return result, data
+
+
+def validate(manifest_path: Path, isa: str) -> dict:
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise ValueError("native codec manifest must be a regular file")
+    manifest_bytes = manifest_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    if not isinstance(manifest, dict):
+        raise ValueError("native codec manifest must be an object")
+    if manifest.get("schema") != "ostadix.native-u9fs-codec/v1" or manifest.get("isa") != isa:
+        raise ValueError("native codec manifest schema/ISA mismatch")
+    if manifest.get("abi") != ABI or manifest.get("unresolved_symbols") != [] or set(manifest.get("symbols", [])) != SYMBOLS:
+        raise ValueError("native codec ABI or declared symbol closure mismatch")
+    semantic = manifest.get("semantic_test")
+    if not isinstance(semantic, dict) or semantic.get("ok") is not True:
+        raise ValueError("native codec manifest requires successful original-component semantic execution")
+    if len(manifest.get("objects", [])) != 7 or len(manifest.get("source_recipe_receipts", [])) != 2 or len(manifest.get("coverage_receipts", [])) != 2 or len(manifest.get("native_module_sets", [])) != 2:
+        raise ValueError("native codec needs four codec and three memory objects with both receipt chains")
+    receipts = []
+    covered = []
+    coverage_ids = {key(item) for item in manifest["coverage_receipts"]}
+    module_ids = {key(item) for item in manifest["native_module_sets"]}
+    bound_coverage = []
+    for item in manifest["source_recipe_receipts"]:
+        value, data = json_record(item)
+        if value.get("schema") != "ocore-native-source-recipe-v1" or value.get("stage") != "complete" or value.get("requested_target") != isa + "-unknown-none" or value.get("output_kind") != "obj" or not all(value.get(name) is True for name in ("success", "capture_complete", "lowering_complete")):
+            raise ValueError("native source recipe did not complete for the selected target")
+        if key(value["lowering_receipt"]) not in coverage_ids:
+            raise ValueError("source recipe does not bind a supplied coverage receipt")
+        bound_coverage.append(key(value["lowering_receipt"]))
+        receipts.append((item, data))
+    if Counter(bound_coverage) != Counter(key(item) for item in manifest["coverage_receipts"]):
+        raise ValueError("both native source recipe chains must bind distinct coverage receipts")
+    bound_modules = []
+    for item in manifest["coverage_receipts"]:
+        value, data = json_record(item)
+        if value.get("schema") != "ocore-runtime-lowering-v1" or value.get("architecture") != isa or value.get("requested_target") != isa + "-unknown-none" or value.get("output_kind") != "obj" or not all(value.get(name) is True for name in ("capture_complete", "module_set_complete", "native_module_dependency_closure_complete", "symbol_closure_complete")):
+            raise ValueError("native coverage/module dependency closure is incomplete")
+        if key(value["module_set_artifact"]) not in module_ids:
+            raise ValueError("coverage receipt does not bind a supplied native module set")
+        units = [unit for unit in value["units"] if unit.get("required_for_lowering") is True]
+        if len(units) != value.get("required_lowering_unit_count") or len(units) != value.get("lowered_unit_count") or not all(unit.get("verified") is True and unit.get("lowered") is True for unit in units):
+            raise ValueError("native coverage contains missing/unverified required units")
+        bound_modules.append(key(value["module_set_artifact"]))
+        covered.extend(key(unit["object"]) for unit in units)
+        receipts.append((item, data))
+    if Counter(bound_modules) != Counter(key(item) for item in manifest["native_module_sets"]):
+        raise ValueError("both coverage receipts must bind distinct native module sets")
+    if Counter(covered) != Counter(key(item) for item in manifest["objects"]) or len(set(covered)) != 7:
+        raise ValueError("native objects differ from compiler-owned lowered unit identities")
+    for item in manifest["native_module_sets"]:
+        value, data = json_record(item)
+        if value.get("format") != "ocore-native-module-set-v1":
+            raise ValueError("invalid native module-set artifact")
+        receipts.append((item, data))
+    # Bind the producer's semantic report to its exact executable, fixture,
+    # carrier and successful recorded invocation. This does not rerun it or
+    # independently authenticate the producer; live monitor execution follows.
+    evidence = []
+    for name in ("binary", "harness", "carrier"):
+        item = semantic[name]
+        _, data = checked(item)
+        evidence.append((item, data))
+    commands, command_bytes = json_record(manifest["commands"])
+    marker = semantic.get("stdout")
+    if not isinstance(marker, str) or "Original u9fs and musl via O-core: PASS; checks=" not in marker or not any(
+            record.get("exit_code") == 0 and record.get("stdout") == marker
+            and record.get("argv", [])[-1:] == [semantic["binary"]["path"]]
+            for record in commands.get("commands", [])):
+        raise ValueError("native codec semantic execution report lacks its recorded successful invocation")
+    evidence.append((manifest["commands"], command_bytes))
+    objects = []
+    machine = {"x86_64": 62, "aarch64": 183}[isa]
+    definitions, undefined = [], set()
+    for item in manifest["objects"]:
+        path, data = checked(item)
+        if len(data) < 64 or data[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<HH", data, 16) != (1, machine):
+            raise ValueError("native object is not relocatable ELF64 for the selected ISA")
+        # Inspect the exact frozen bytes, not a source path that could change
+        # between digest validation and symbol inventory.
+        with tempfile.NamedTemporaryFile(suffix=".o") as frozen:
+            frozen.write(data); frozen.flush()
+            listing = subprocess.run(["nm", "--format=posix", "--extern-only", frozen.name], text=True, capture_output=True, check=True).stdout
+        for line in listing.splitlines():
+            fields = line.split()
+            if len(fields) < 2:
+                raise ValueError("unrecognized native object symbol inventory")
+            name, kind = fields[:2]
+            if kind in ("U", "w", "v"):
+                undefined.add(name)
+            else:
+                definitions.append(name)
+        objects.append((item, data))
+    if set(definitions) != SYMBOLS or len(definitions) != len(SYMBOLS) or undefined - set(definitions):
+        raise ValueError("actual native object symbols do not form the exact closed codec component")
+    return {"manifest": manifest, "manifest_bytes": manifest_bytes, "manifest_identity": identity(manifest_path, manifest_bytes), "objects": objects, "receipts": receipts, "evidence": evidence}
+
+
+def stage(manifest_path: Path, build: Path, isa: str = "aarch64") -> dict:
+    validated = validate(manifest_path, isa)
+    build.mkdir(parents=True, exist_ok=True)
+    snapshot = Path(tempfile.mkdtemp(prefix="native-u9fs-", dir=build))
+    def capture(name, data):
+        path = snapshot / name
+        with path.open("xb") as stream:
+            stream.write(data)
+        path.chmod(0o444)
+        return identity(path, data)
+    manifest_copy = capture("native-codec.json", validated["manifest_bytes"])
+    objects = [capture(f"object-{index:02}.o", data) for index, (_, data) in enumerate(validated["objects"])]
+    receipts = [{"source": item, "snapshot": capture(f"receipt-{index:02}.json", data)} for index, (item, data) in enumerate(validated["receipts"])]
+    evidence = [{"source": item, "snapshot": capture(f"evidence-{index:02}.bin", data)} for index, (item, data) in enumerate(validated["evidence"])]
+    result = {"schema": "ostadix.monitor-native-u9fs/v1", "isa": isa, "source_manifest": validated["manifest_identity"], "captured_manifest": manifest_copy, "objects": objects, "receipts": receipts, "semantic_evidence": evidence, "abi": ABI, "symbols": sorted(SYMBOLS), "scope": "native namespace peer request/reply codec; unchanged native object-store authority; not full u9fs or merged OS"}
+    pending = snapshot / "monitor-native-codec.json"
+    pending.write_text(json.dumps(result, indent=2) + "\n")
+    os.replace(pending, build / "native-9p.json")
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument("--build", required=True, type=Path)
+    parser.add_argument("--isa", choices=("x86_64", "aarch64"), default="aarch64")
+    args = parser.parse_args()
+    try:
+        result = stage(args.manifest.expanduser().absolute(), args.build.expanduser().absolute(), args.isa)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        parser.exit(1, f"Native codec admission failed: {error}\n")
+    for item in result["objects"]:
+        sys.stdout.buffer.write(os.fsencode(item["path"]) + b"\0")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

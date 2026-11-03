@@ -1,0 +1,636 @@
+module runtime::common::namespace_store;
+
+// Native shared namespace. The transport supplies the grant, never an attach
+// name or a guest fid. This single-threaded service owns an explicitly granted
+// RAM volume; no host filesystem or guest address is used as a backing store.
+// Persistent metadata contains object identities, never sessions/capabilities.
+// Snapshots must be taken while the owning monitor is stopped. This format is
+// structurally checked, not a crash journal or a cryptographic authentication.
+const VOLUME_BYTES: usize = 16_777_216;
+const NODE_COUNT: usize = 1024;
+const NODE_BYTES: usize = 384;
+const DATA_OFFSET: usize = 397_312;
+const BLOCK_COUNT: usize = 3999;
+const BLOCK_BYTES: usize = 4096;
+const BLOCK_DATA: usize = 4088;
+const FID_COUNT: usize = 512;
+const MAX_FRAME: usize = 8192;
+// Transport identity and authority are provisioned by the native monitor.
+// Linux (1) and original Plan 9 (4) each have root RW authority, but separate
+// sessions and revocation domains. Native peer (2) remains /work RW; (3) is
+// /work RO. Slot zero is never a valid grant. None are selected by wire names.
+const GRANT_SLOTS: usize = 5;
+const MAGIC: u64 = 0x3130_3050_3953_4e4f;
+const DIR: u64 = 0x8000_0000;
+const NOFID: u64 = 0xffff_ffff;
+
+static mut BASE: usize = 0;
+static mut READY: u64 = 0;
+static mut EPOCH: u64 = 0;
+static mut SERIAL: u64 = 0;
+static mut CLOCK: u64 = 0;
+static mut USED: [u8; 3999] = [0; 3999];
+static mut FREE_BLOCKS: usize = 0;
+static mut SESSION: [u64; 5] = [0; 5];
+static mut GENERATION: [u64; 5] = [0; 5];
+static mut VERSIONED: [u8; 5] = [0; 5];
+static mut MSIZE: [usize; 5] = [0; 5];
+static mut F_SESSION: [u64; 512] = [0; 512];
+static mut F_NUMBER: [u64; 512] = [0; 512];
+static mut F_OBJECT: [usize; 512] = [0; 512];
+static mut F_GENERATION: [u64; 512] = [0; 512];
+static mut F_MODE: [u64; 512] = [0; 512];
+
+// Per-dispatch parser/writer state is private to the synchronous service.
+static mut REQUEST: usize = 0;
+static mut REQUEST_LEN: usize = 0;
+static mut POSITION: usize = 0;
+static mut BAD: u64 = 0;
+static mut STRING_LEN: usize = 0;
+static mut RESPONSE: usize = 0;
+static mut RESPONSE_CAP: usize = 0;
+static mut OUT: usize = 0;
+static mut TAG: u64 = 0;
+
+static VERSION: [u8; 6] = b"9P2000";
+static OWNER: [u8; 5] = b"ocore";
+static README: [u8; 163] = b"O-core owns this namespace. Linux and the native Plan 9 wire peer share these objects through separately granted 9P2000 sessions. Full Plan 9 ABI is not provided.\n";
+static ERR_PROTOCOL: [u8; 14] = b"Protocol error";
+static ERR_DENIED: [u8; 17] = b"permission denied";
+static ERR_MISSING: [u8; 19] = b"file does not exist";
+static ERR_STALE: [u8; 27] = b"fid unknown or out of range";
+static ERR_SPACE: [u8; 23] = b"No space left on device";
+static ERR_EXISTS: [u8; 19] = b"file already exists";
+static ERR_NOTDIR: [u8; 15] = b"not a directory";
+static ERR_NOTEMPTY: [u8; 22] = b"directory is not empty";
+static ERR_UNSUPPORTED: [u8; 23] = b"Operation not supported";
+
+unsafe fn byte(address: usize) -> u64 { return volatile_load(address as *const u8) as u64; }
+unsafe fn putbyte(address: usize, value: u64) -> void { volatile_store(address as *mut u8, value as u8); }
+unsafe fn le(address: usize, width: usize) -> u64 {
+    let mut value: u64 = 0; let mut i: usize = 0;
+    while i < width { value |= byte(address + i) << (i * 8); i += 1; }
+    return value;
+}
+unsafe fn putle(address: usize, value: u64, width: usize) -> void {
+    let mut i: usize = 0;
+    while i < width { putbyte(address + i, value >> (i * 8)); i += 1; }
+}
+unsafe fn copy(destination: usize, source: usize, count: usize) -> void {
+    let mut i: usize = 0;
+    while i < count { putbyte(destination + i, byte(source + i)); i += 1; }
+}
+unsafe fn zero(destination: usize, count: usize) -> void {
+    let mut i: usize = 0;
+    while i < count { putbyte(destination + i, 0); i += 1; }
+}
+unsafe fn equal(a: usize, b: usize, count: usize) -> bool {
+    let mut i: usize = 0;
+    while i < count { if byte(a + i) != byte(b + i) { return false; } i += 1; }
+    return true;
+}
+unsafe fn hash(address: usize, count: usize) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325; let mut i: usize = 0;
+    while i < count { h = (h ^ byte(address + i)) * 0x100_0000_01b3; i += 1; }
+    return h;
+}
+unsafe fn node(id: usize) -> usize { return BASE + 4096 + (id - 1) * NODE_BYTES; }
+unsafe fn field(id: usize, offset: usize) -> u64 { return le(node(id) + offset, 8); }
+unsafe fn setfield(id: usize, offset: usize, value: u64) -> void { putle(node(id) + offset, value, 8); }
+unsafe fn seal(id: usize) -> void { setfield(id, 376, hash(node(id), 376)); }
+unsafe fn live(id: usize) -> bool {
+    if id == 0 || id > NODE_COUNT { return false; }
+    return field(id, 0) == 1;
+}
+unsafe fn directory(id: usize) -> bool { return (field(id, 32) & DIR) != 0; }
+unsafe fn block(id: usize) -> usize { return BASE + DATA_OFFSET + (id - 1) * BLOCK_BYTES; }
+unsafe fn valid_name(name: usize, length: usize) -> bool {
+    if length == 0 || length > 255 { return false; }
+    if length == 1 && byte(name) == 46 { return false; }
+    if length == 2 && byte(name) == 46 && byte(name + 1) == 46 { return false; }
+    let mut i: usize = 0;
+    while i < length { if byte(name + i) == 0 || byte(name + i) == 47 { return false; } i += 1; }
+    return true;
+}
+unsafe fn lookup(parent: usize, name: usize, length: usize) -> usize {
+    let mut id: usize = 2;
+    while id <= NODE_COUNT {
+        if live(id) && field(id, 8) == parent as u64 && field(id, 64) == length as u64
+            && equal(node(id) + 72, name, length) { return id; }
+        id += 1;
+    }
+    return 0;
+}
+unsafe fn within(id: usize, root: usize) -> bool {
+    let mut current: usize = id; let mut steps: usize = 0;
+    while steps < NODE_COUNT {
+        if !live(current) { return false; }
+        if current == root { return true; }
+        if current == 1 { return false; }
+        current = field(current, 8) as usize; steps += 1;
+    }
+    return false;
+}
+unsafe fn root_for(grant: usize) -> usize { if grant == 1 || grant == 4 { return 1; } return 2; }
+unsafe fn writable(grant: usize) -> bool { return grant == 1 || grant == 2 || grant == 4; }
+unsafe fn clock_room(count: u64) -> bool { return CLOCK <= 0xffff_fffe && count <= 0xffff_fffe - CLOCK; }
+unsafe fn save_clock() -> void { putle(BASE + 56, CLOCK, 8); putle(BASE + 64, hash(BASE + 56, 8), 8); }
+unsafe fn tick() -> u64 { CLOCK += 1; save_clock(); return CLOCK; }
+unsafe fn next_version(id: usize) -> bool { return field(id, 24) < 0xffff_ffff && clock_room(1); }
+unsafe fn changed(id: usize) -> void {
+    let value: u64 = field(id, 24) + 1;
+    setfield(id, 24, value); setfield(id, 56, tick()); seal(id);
+}
+unsafe fn allocate_node(parent: usize, name: usize, length: usize, mode: u64) -> usize {
+    if !clock_room(1) { return 0; }
+    let mut id: usize = 1;
+    while id <= NODE_COUNT {
+        if !live(id) && field(id, 16) < 0xffff_ffff {
+            let generation: u64 = field(id, 16) + 1;
+            zero(node(id), NODE_BYTES);
+            setfield(id, 0, 1); setfield(id, 8, parent as u64);
+            setfield(id, 16, generation); setfield(id, 24, 1); setfield(id, 32, mode);
+            setfield(id, 56, tick()); setfield(id, 64, length as u64);
+            copy(node(id) + 72, name, length); seal(id); return id;
+        }
+        id += 1;
+    }
+    return 0;
+}
+unsafe fn blocks_needed(length: u64) -> usize {
+    if length == 0 { return 0; }
+    return ((length - 1) / BLOCK_DATA as u64 + 1) as usize;
+}
+unsafe fn allocate_block() -> usize {
+    let mut i: usize = 0;
+    while i < BLOCK_COUNT {
+        if USED[i] == 0 { USED[i] = 1; FREE_BLOCKS -= 1; zero(block(i + 1), BLOCK_BYTES); return i + 1; }
+        i += 1;
+    }
+    return 0;
+}
+unsafe fn resize(id: usize, length: u64) -> bool {
+    if length > (BLOCK_COUNT * BLOCK_DATA) as u64 { return false; }
+    let old: usize = blocks_needed(field(id, 40)); let needed: usize = blocks_needed(length);
+    if needed > old && needed - old > FREE_BLOCKS { return false; }
+    let mut head: usize = field(id, 48) as usize; let mut current: usize = head;
+    let mut previous: usize = 0; let mut i: usize = 0;
+    while i < needed {
+        if current == 0 {
+            current = allocate_block();
+            if previous == 0 { head = current; } else { putle(block(previous), current as u64, 8); }
+        }
+        previous = current; current = le(block(current), 8) as usize; i += 1;
+    }
+    if previous != 0 { putle(block(previous), 0, 8); } else { head = 0; }
+    while current != 0 {
+        let next: usize = le(block(current), 8) as usize;
+        USED[current - 1] = 0; FREE_BLOCKS += 1; zero(block(current), BLOCK_BYTES); current = next;
+    }
+    // Zero the truncated tail. Growing a hole inside an existing block cannot
+    // reveal data that existed before an earlier truncate.
+    if needed != 0 && length % BLOCK_DATA as u64 != 0 {
+        let tail: usize = (length % BLOCK_DATA as u64) as usize;
+        zero(block(previous) + 8 + tail, BLOCK_DATA - tail);
+    }
+    setfield(id, 48, head as u64); setfield(id, 40, length); seal(id); return true;
+}
+unsafe fn transfer(id: usize, offset: u64, memory: usize, count: usize, writing: bool) -> void {
+    let mut current: usize = field(id, 48) as usize;
+    let mut skip: usize = (offset / BLOCK_DATA as u64) as usize;
+    while skip != 0 { current = le(block(current), 8) as usize; skip -= 1; }
+    let mut inside: usize = (offset % BLOCK_DATA as u64) as usize;
+    let mut done: usize = 0;
+    while done < count {
+        let mut part: usize = BLOCK_DATA - inside;
+        if part > count - done { part = count - done; }
+        if writing { copy(block(current) + 8 + inside, memory + done, part); }
+        else { copy(memory + done, block(current) + 8 + inside, part); }
+        done += part; inside = 0; if done < count { current = le(block(current), 8) as usize; }
+    }
+}
+
+unsafe fn validate() -> bool {
+    if le(BASE, 8) != MAGIC || le(BASE + 8, 8) != 1 || le(BASE + 16, 8) != NODE_COUNT as u64
+        || le(BASE + 24, 8) != VOLUME_BYTES as u64 || le(BASE + 32, 8) != DATA_OFFSET as u64
+        || le(BASE + 40, 8) != BLOCK_COUNT as u64 || le(BASE + 48, 8) != hash(BASE, 48) { return false; }
+    // The counter is a backwards-compatible v1 header extension. Old images
+    // have zero words here. A nonzero counter must have its own valid seal.
+    let stored_clock: u64 = le(BASE + 56, 8); let clock_seal: u64 = le(BASE + 64, 8);
+    if stored_clock == 0 && clock_seal != 0 { return false; }
+    if stored_clock != 0 && (stored_clock > 0xffff_fffe || clock_seal != hash(BASE + 56, 8)) { return false; }
+    CLOCK = stored_clock;
+    let mut i: usize = 0; while i < BLOCK_COUNT { USED[i] = 0; i += 1; }
+    let mut id: usize = 1;
+    while id <= NODE_COUNT {
+        let state: u64 = field(id, 0);
+        if state > 2 { return false; }
+        if state == 0 {
+            let mut reserved: usize = 0;
+            while reserved < NODE_BYTES { if byte(node(id) + reserved) != 0 { return false; } reserved += 1; }
+        }
+        if state != 0 {
+            if field(id, 376) != hash(node(id), 376) || field(id, 16) == 0 || field(id, 16) > 0xffff_ffff { return false; }
+            if field(id, 56) > 0xffff_fffe { return false; }
+            if field(id, 56) > CLOCK { CLOCK = field(id, 56); }
+        }
+        if state == 1 {
+            if field(id, 24) == 0 || field(id, 24) > 0xffff_ffff || (field(id, 32) & 0x7fff_fe00) != 0 { return false; }
+            let length: usize = field(id, 64) as usize;
+            if id == 1 {
+                if field(id, 8) != 1 || !directory(id) || length != 1 || byte(node(id) + 72) != 47 { return false; }
+            } else {
+                if !valid_name(node(id) + 72, length) { return false; }
+                let parent: usize = field(id, 8) as usize;
+                if !live(parent) || !directory(parent) || !within(id, 1) { return false; }
+                if lookup(parent, node(id) + 72, length) != id { return false; }
+            }
+            if directory(id) && (field(id, 40) != 0 || field(id, 48) != 0) { return false; }
+            let count: usize = blocks_needed(field(id, 40));
+            if count > BLOCK_COUNT { return false; }
+            let mut current: usize = field(id, 48) as usize; let mut seen: usize = 0;
+            while seen < count {
+                if current == 0 || current > BLOCK_COUNT || USED[current - 1] != 0 { return false; }
+                USED[current - 1] = 1; current = le(block(current), 8) as usize; seen += 1;
+            }
+            if current != 0 { return false; }
+        }
+        id += 1;
+    }
+    if !live(1) { return false; }
+    // These stable directories are the roots of provisioned grants.
+    id = 2; while id <= 5 { if !live(id) || !directory(id) || field(id, 8) != 1 { return false; } id += 1; }
+    FREE_BLOCKS = 0; i = 0;
+    while i < BLOCK_COUNT { if USED[i] == 0 { FREE_BLOCKS += 1; } i += 1; }
+    save_clock();
+    return true;
+}
+
+pub unsafe fn init(base: usize, bytes: usize, epoch: u64) -> u64 {
+    READY = 0;
+    if base == 0 || base % 4096 != 0 || bytes != VOLUME_BYTES || base > 0xffff_ffff_ffff_ffff - bytes || epoch == 0 { return 0; }
+    BASE = base; EPOCH = epoch; SERIAL = 0; CLOCK = 0;
+    let mut i: usize = 0;
+    while i < GRANT_SLOTS { SESSION[i] = 0; GENERATION[i] = 0; VERSIONED[i] = 0; MSIZE[i] = MAX_FRAME; i += 1; }
+    i = 0; while i < FID_COUNT { F_SESSION[i] = 0; i += 1; }
+    if le(BASE, 8) == 0 {
+        i = 0; while i < VOLUME_BYTES { if byte(BASE + i) != 0 { return 0; } i += 1; }
+        putle(BASE, MAGIC, 8); putle(BASE + 8, 1, 8); putle(BASE + 16, NODE_COUNT as u64, 8);
+        putle(BASE + 24, VOLUME_BYTES as u64, 8); putle(BASE + 32, DATA_OFFSET as u64, 8);
+        putle(BASE + 40, BLOCK_COUNT as u64, 8); putle(BASE + 48, hash(BASE, 48), 8);
+        i = 0; while i < BLOCK_COUNT { USED[i] = 0; i += 1; } FREE_BLOCKS = BLOCK_COUNT;
+        let slash: [u8; 1] = b"/"; let work: [u8; 4] = b"work"; let pkg: [u8; 3] = b"pkg";
+        let build: [u8; 5] = b"build"; let services: [u8; 8] = b"services"; let readme: [u8; 12] = b"nativeREADME";
+        if allocate_node(1, (&slash[0]) as usize, 1, DIR | 0x1ed) != 1 { return 0; }
+        if allocate_node(1, (&work[0]) as usize, 4, DIR | 0x1ed) != 2 { return 0; }
+        if allocate_node(1, (&pkg[0]) as usize, 3, DIR | 0x1ed) != 3 { return 0; }
+        if allocate_node(1, (&build[0]) as usize, 5, DIR | 0x1ed) != 4 { return 0; }
+        if allocate_node(1, (&services[0]) as usize, 8, DIR | 0x1ed) != 5 { return 0; }
+        let file: usize = allocate_node(1, (&readme[0]) as usize, 12, 0x1a4);
+        if file != 6 || !resize(file, 163) { return 0; }
+        transfer(file, 0, (&README[0]) as usize, 163, true); seal(file);
+    }
+    if !validate() { return 0; }
+    READY = 1; return 1;
+}
+
+pub unsafe fn healthy() -> u64 { return READY; }
+// The trusted monitor supplies a Unix-second floor, never a guest request.
+// Subsequent mutations use globally ordered logical seconds so ordinary
+// second-resolution 9P2000 make/mk clients can compare different objects.
+// Heavy activity can advance this logical time ahead of the wall clock; exact
+// real-time timestamps and subsecond/cross-filesystem ordering are not claimed.
+pub unsafe fn provision_clock(unix_seconds: u64) -> u64 {
+    if READY == 0 || unix_seconds == 0 || unix_seconds > 0xffff_fffe { return 0; }
+    if unix_seconds > CLOCK { CLOCK = unix_seconds; save_clock(); }
+    return 1;
+}
+unsafe fn clear_fids(handle: u64) -> void {
+    let mut i: usize = 0; while i < FID_COUNT { if F_SESSION[i] == handle { F_SESSION[i] = 0; } i += 1; }
+}
+pub unsafe fn revoke(grant: u64) -> u64 {
+    if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 { return 0; }
+    let slot: usize = grant as usize; clear_fids(SESSION[slot]); SESSION[slot] = 0; VERSIONED[slot] = 0; return 1;
+}
+pub unsafe fn session_init(grant: u64, generation: u64) -> u64 {
+    if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 || generation == 0 { return 0; }
+    let slot: usize = grant as usize;
+    if generation <= GENERATION[slot] || SERIAL == 0xffff_ffff_ffff_ffff { return 0; }
+    clear_fids(SESSION[slot]); SERIAL += 1;
+    let mut handle: u64 = EPOCH ^ (SERIAL * 0x9e37_79b9_7f4a_7c15) ^ (grant << 56) ^ generation;
+    if handle == 0 { handle = 0xffff_ffff_ffff_ffff; }
+    SESSION[slot] = handle; GENERATION[slot] = generation; VERSIONED[slot] = 0; MSIZE[slot] = MAX_FRAME;
+    return handle;
+}
+unsafe fn find_fid(handle: u64, number: u64) -> usize {
+    let mut i: usize = 0;
+    while i < FID_COUNT { if F_SESSION[i] == handle && F_NUMBER[i] == number { return i; } i += 1; }
+    return FID_COUNT;
+}
+unsafe fn spare_fid() -> usize {
+    let mut i: usize = 0; while i < FID_COUNT { if F_SESSION[i] == 0 { return i; } i += 1; } return FID_COUNT;
+}
+unsafe fn valid_fid(index: usize, grant: usize) -> bool {
+    if index == FID_COUNT { return false; }
+    let object: usize = F_OBJECT[index];
+    return live(object) && F_GENERATION[index] == field(object, 16) && within(object, root_for(grant));
+}
+unsafe fn bind(index: usize, handle: u64, number: u64, object: usize) -> void {
+    F_SESSION[index] = handle; F_NUMBER[index] = number; F_OBJECT[index] = object;
+    F_GENERATION[index] = field(object, 16); F_MODE[index] = 255;
+}
+unsafe fn take(width: usize) -> u64 {
+    if BAD != 0 || width > REQUEST_LEN - POSITION { BAD = 1; return 0; }
+    let result: u64 = le(REQUEST + POSITION, width); POSITION += width; return result;
+}
+unsafe fn string() -> usize {
+    let length: usize = take(2) as usize;
+    if BAD != 0 || length > REQUEST_LEN - POSITION { BAD = 1; STRING_LEN = 0; return 0; }
+    let result: usize = REQUEST + POSITION; POSITION += length; STRING_LEN = length; return result;
+}
+unsafe fn exact() -> bool { return BAD == 0 && POSITION == REQUEST_LEN; }
+unsafe fn start(kind: u64, size: usize) -> bool {
+    if size > RESPONSE_CAP { return false; }
+    putle(RESPONSE, size as u64, 4); putbyte(RESPONSE + 4, kind); putle(RESPONSE + 5, TAG, 2); OUT = 7; return true;
+}
+unsafe fn emit(value: u64, width: usize) -> void { putle(RESPONSE + OUT, value, width); OUT += width; }
+unsafe fn emit_bytes(address: usize, count: usize) -> void { copy(RESPONSE + OUT, address, count); OUT += count; }
+unsafe fn emit_string(address: usize, count: usize) -> void { emit(count as u64, 2); emit_bytes(address, count); }
+unsafe fn qid(id: usize) -> void {
+    let mut kind: u64 = 0; if directory(id) { kind = 128; }
+    emit(kind, 1); emit(field(id, 24), 4); emit((field(id, 16) << 32) | id as u64, 8);
+}
+unsafe fn error(code: u64) -> usize {
+    let mut address: usize = (&ERR_PROTOCOL[0]) as usize; let mut count: usize = 14;
+    if code == 2 { address = (&ERR_DENIED[0]) as usize; count = 17; }
+    if code == 3 { address = (&ERR_MISSING[0]) as usize; count = 19; }
+    if code == 4 { address = (&ERR_STALE[0]) as usize; count = 27; }
+    if code == 5 { address = (&ERR_SPACE[0]) as usize; count = 23; }
+    if code == 6 { address = (&ERR_EXISTS[0]) as usize; count = 19; }
+    if code == 7 { address = (&ERR_NOTDIR[0]) as usize; count = 15; }
+    if code == 8 { address = (&ERR_NOTEMPTY[0]) as usize; count = 22; }
+    if code == 9 { address = (&ERR_UNSUPPORTED[0]) as usize; count = 23; }
+    if !start(107, 9 + count) { return 0; }
+    emit_string(address, count); return OUT;
+}
+unsafe fn stat_size(id: usize) -> usize { return 64 + field(id, 64) as usize; }
+unsafe fn stat(id: usize) -> void {
+    // 9P2000 stat including its own two-byte length. Owner strings are native
+    // metadata labels; they never establish authority or select a grant.
+    emit((stat_size(id) - 2) as u64, 2); emit(0, 2); emit(0, 4); qid(id);
+    emit(field(id, 32), 4); emit(field(id, 56), 4); emit(field(id, 56), 4); emit(field(id, 40), 8);
+    emit_string(node(id) + 72, field(id, 64) as usize);
+    emit_string((&OWNER[0]) as usize, 5); emit_string((&OWNER[0]) as usize, 5);
+    emit_string((&OWNER[0]) as usize, 5);
+}
+
+unsafe fn version(grant: usize, handle: u64) -> usize {
+    let size: usize = take(4) as usize; let name: usize = string(); let length: usize = STRING_LEN;
+    if !exact() || size < 256 || length != 6 || !equal(name, (&VERSION[0]) as usize, 6) { return error(1); }
+    if !start(101, 19) { return 0; }
+    let mut agreed: usize = size; if agreed > MAX_FRAME { agreed = MAX_FRAME; }
+    clear_fids(handle); VERSIONED[grant] = 1; MSIZE[grant] = agreed;
+    emit(agreed as u64, 4); emit_string((&VERSION[0]) as usize, 6); return OUT;
+}
+unsafe fn attach(grant: usize, handle: u64) -> usize {
+    let number: u64 = take(4); let afid: u64 = take(4); string(); string();
+    if !exact() || number == NOFID || afid != NOFID { return error(1); }
+    if find_fid(handle, number) != FID_COUNT { return error(6); }
+    let index: usize = spare_fid(); if index == FID_COUNT { return error(5); }
+    if !start(105, 20) { return 0; }
+    bind(index, handle, number, root_for(grant)); qid(F_OBJECT[index]); return OUT;
+}
+unsafe fn walk(grant: usize, handle: u64) -> usize {
+    let number: u64 = take(4); let new_number: u64 = take(4); let count: usize = take(2) as usize;
+    let index: usize = find_fid(handle, number);
+    if BAD != 0 || new_number == NOFID || count > 16 { return error(1); }
+    if !valid_fid(index, grant) || F_MODE[index] != 255 { return error(4); }
+    let mut target: usize = index;
+    if number != new_number {
+        if find_fid(handle, new_number) != FID_COUNT { return error(6); }
+        target = spare_fid(); if target == FID_COUNT { return error(5); }
+    }
+    let mut objects: [usize; 16] = [0; 16]; let mut current: usize = F_OBJECT[index];
+    let mut completed: usize = 0; let mut i: usize = 0; let mut missing: bool = false;
+    while i < count {
+        let name: usize = string(); let length: usize = STRING_LEN;
+        if BAD != 0 { return error(1); }
+        if !missing {
+            if !directory(current) { missing = true; }
+            else {
+                let mut next: usize = 0;
+                if length == 1 && byte(name) == 46 { next = current; }
+                else {
+                    if length == 2 && byte(name) == 46 && byte(name + 1) == 46 {
+                        next = current; if current != root_for(grant) { next = field(current, 8) as usize; }
+                    } else { if valid_name(name, length) { next = lookup(current, name, length); } }
+                }
+                if next == 0 || !within(next, root_for(grant)) { missing = true; }
+                else { current = next; objects[completed] = current; completed += 1; }
+            }
+        }
+        i += 1;
+    }
+    if !exact() { return error(1); }
+    if count != 0 && completed == 0 { return error(3); }
+    if !start(111, 9 + completed * 13) { return 0; }
+    // Partial walks return their qids but do not establish the destination fid.
+    if completed == count { bind(target, handle, new_number, current); }
+    emit(completed as u64, 2); i = 0; while i < completed { qid(objects[i]); i += 1; } return OUT;
+}
+unsafe fn open(grant: usize, handle: u64, creating: bool) -> usize {
+    let number: u64 = take(4); let index: usize = find_fid(handle, number);
+    let mut name: usize = 0; let mut length: usize = 0; let mut permission: u64 = 0;
+    if creating { name = string(); length = STRING_LEN; permission = take(4); }
+    let mode: u64 = take(1);
+    if !exact() || (mode & 0xffff_ffff_ffff_ffec) != 0 { return error(1); }
+    if !valid_fid(index, grant) || F_MODE[index] != 255 { return error(4); }
+    let parent: usize = F_OBJECT[index]; let access: u64 = mode & 3;
+    if (access == 1 || access == 2) && !writable(grant) { return error(2); }
+    if (mode & 16) != 0 && (!writable(grant) || access == 0) { return error(2); }
+    if creating {
+        if !writable(grant) { return error(2); }
+        if !directory(parent) { return error(7); }
+        if !valid_name(name, length) || (permission & 0x7fff_fe00) != 0 { return error(1); }
+        if lookup(parent, name, length) != 0 { return error(6); }
+        if (permission & DIR) != 0 && (access != 0 || (mode & 16) != 0) { return error(2); }
+        if !next_version(parent) || !clock_room(2) { return error(5); }
+        // Reserve the maximum success reply before allocating metadata.
+        if RESPONSE_CAP < 24 { return 0; }
+        let object: usize = allocate_node(parent, name, length, permission);
+        if object == 0 { return error(5); }
+        changed(parent); bind(index, handle, number, object);
+    } else {
+        if directory(parent) && (access != 0 || (mode & 16) != 0) { return error(2); }
+        if RESPONSE_CAP < 24 { return 0; }
+        if (mode & 16) != 0 {
+            if !next_version(parent) { return error(5); }
+            resize(parent, 0); changed(parent);
+        }
+    }
+    let mut reply: u64 = 113; if creating { reply = 115; }
+    start(reply, 24); F_MODE[index] = access; qid(F_OBJECT[index]); emit((MSIZE[grant] - 24) as u64, 4); return OUT;
+}
+unsafe fn read(grant: usize, handle: u64) -> usize {
+    let number: u64 = take(4); let offset: u64 = take(8); let requested: usize = take(4) as usize;
+    if !exact() { return error(1); }
+    let index: usize = find_fid(handle, number);
+    if !valid_fid(index, grant) || F_MODE[index] == 255 { return error(4); }
+    if F_MODE[index] == 1 { return error(2); }
+    if RESPONSE_CAP < 11 { return 0; }
+    let mut count: usize = requested;
+    if count > MSIZE[grant] - 11 { count = MSIZE[grant] - 11; }
+    if count > RESPONSE_CAP - 11 { count = RESPONSE_CAP - 11; }
+    let object: usize = F_OBJECT[index];
+    if directory(object) {
+        start(117, 11); emit(0, 4); let mut position: u64 = 0; let mut id: usize = 2;
+        while id <= NODE_COUNT {
+            if live(id) && field(id, 8) == object as u64 {
+                let size: usize = stat_size(id);
+                if position < offset && size as u64 > offset - position { return error(1); }
+                if position >= offset {
+                    if size > count - (OUT - 11) { break; }
+                    stat(id);
+                }
+                position += size as u64;
+            }
+            id += 1;
+        }
+        putle(RESPONSE + 7, (OUT - 11) as u64, 4); putle(RESPONSE, OUT as u64, 4); return OUT;
+    }
+    let length: u64 = field(object, 40);
+    if offset >= length { count = 0; } else { if count as u64 > length - offset { count = (length - offset) as usize; } }
+    start(117, 11 + count); emit(count as u64, 4);
+    if count != 0 { transfer(object, offset, RESPONSE + OUT, count, false); OUT += count; }
+    return OUT;
+}
+unsafe fn write(grant: usize, handle: u64) -> usize {
+    let number: u64 = take(4); let offset: u64 = take(8); let count: usize = take(4) as usize;
+    if BAD != 0 || count != REQUEST_LEN - POSITION { return error(1); }
+    let index: usize = find_fid(handle, number);
+    if !valid_fid(index, grant) || F_MODE[index] == 255 { return error(4); }
+    if !writable(grant) || (F_MODE[index] != 1 && F_MODE[index] != 2) { return error(2); }
+    let object: usize = F_OBJECT[index]; if directory(object) { return error(2); }
+    if offset > 0xffff_ffff_ffff_ffff - count as u64 || !next_version(object) { return error(5); }
+    if RESPONSE_CAP < 11 { return 0; }
+    if count != 0 {
+        let end: u64 = offset + count as u64;
+        if end > field(object, 40) { if !resize(object, end) { return error(5); } }
+        transfer(object, offset, REQUEST + POSITION, count, true); changed(object);
+    }
+    start(119, 11); emit(count as u64, 4); return OUT;
+}
+unsafe fn remove_object(object: usize) -> u64 {
+    if object <= 5 { return 2; }
+    if directory(object) {
+        let mut id: usize = 2; while id <= NODE_COUNT { if live(id) && field(id, 8) == object as u64 { return 8; } id += 1; }
+    }
+    let parent: usize = field(object, 8) as usize;
+    if !next_version(parent) { return 5; }
+    resize(object, 0); setfield(object, 0, 2); seal(object); changed(parent); return 0;
+}
+unsafe fn clunk(grant: usize, handle: u64, removing: bool) -> usize {
+    let number: u64 = take(4); if !exact() { return error(1); }
+    let index: usize = find_fid(handle, number);
+    if index == FID_COUNT { return error(4); }
+    if RESPONSE_CAP < 7 { return 0; }
+    // Clunk releases an existing session-local fid even when another fid has
+    // already removed its object. Requiring a live object here would leak the
+    // old slot on every ordinary unlink/close lifecycle.
+    if !removing { F_SESSION[index] = 0; start(121, 7); return OUT; }
+    if !valid_fid(index, grant) {
+        if RESPONSE_CAP < 36 { return 0; }
+        F_SESSION[index] = 0; return error(4);
+    }
+    if removing {
+        if !writable(grant) { return error(2); }
+        // A failed remove must also clunk its fid. Reserve an error reply
+        // before attempting a removal that may fail, so a too-small output
+        // buffer cannot silently revoke a fid without returning any reply.
+        let object: usize = F_OBJECT[index];
+        if object <= 5 && RESPONSE_CAP < 26 { return 0; }
+        if directory(object) {
+            let mut child: usize = 2;
+            while child <= NODE_COUNT {
+                if live(child) && field(child, 8) == object as u64 && RESPONSE_CAP < 31 { return 0; }
+                child += 1;
+            }
+        }
+        if !next_version(field(object, 8) as usize) && RESPONSE_CAP < 32 { return 0; }
+        let result: u64 = remove_object(object);
+        // A remove clunks its fid even when removal fails, per 9P2000.
+        F_SESSION[index] = 0; if result != 0 { return error(result); }
+    }
+    let mut kind: u64 = 121; if removing { kind = 123; }
+    start(kind, 7); return OUT;
+}
+unsafe fn getstat(grant: usize, handle: u64) -> usize {
+    let number: u64 = take(4); if !exact() { return error(1); }
+    let index: usize = find_fid(handle, number); if !valid_fid(index, grant) { return error(4); }
+    let object: usize = F_OBJECT[index]; let size: usize = stat_size(object);
+    if !start(125, 9 + size) { return 0; } emit(size as u64, 2); stat(object); return OUT;
+}
+unsafe fn wstat(grant: usize, handle: u64) -> usize {
+    let number: u64 = take(4); let packed: usize = take(2) as usize; let begin: usize = POSITION;
+    let inner: usize = take(2) as usize; let type_: u64 = take(2); let device: u64 = take(4);
+    let qtype: u64 = take(1); let qversion: u64 = take(4); let qpath: u64 = take(8);
+    let mode: u64 = take(4); let atime: u64 = take(4); let mtime: u64 = take(4); let length: u64 = take(8);
+    let name: usize = string(); let name_length: usize = STRING_LEN;
+    string(); let uid_length: usize = STRING_LEN; string(); let gid_length: usize = STRING_LEN; string(); let muid_length: usize = STRING_LEN;
+    if !exact() || packed != POSITION - begin || inner + 2 != packed { return error(1); }
+    let index: usize = find_fid(handle, number); if !valid_fid(index, grant) { return error(4); }
+    if !writable(grant) { return error(2); }
+    // Identity, ownership, qid and device type cannot be chosen over the wire.
+    // Linux sends its user label in muid during rename; accept that metadata
+    // label without using it as an identity or changing any trusted grant.
+    // 9P uses all-ones/empty strings to leave these stat fields unchanged.
+    if type_ != 0xffff || device != 0xffff_ffff || qtype != 255 || qversion != 0xffff_ffff
+        || qpath != 0xffff_ffff_ffff_ffff || uid_length != 0 || gid_length != 0 { return error(2); }
+    let object: usize = F_OBJECT[index]; let parent: usize = field(object, 8) as usize;
+    if object <= 5 && name_length != 0 { return error(2); }
+    if name_length != 0 {
+        if !valid_name(name, name_length) { return error(1); }
+        let other: usize = lookup(parent, name, name_length); if other != 0 && other != object { return error(6); }
+        if !next_version(parent) || !clock_room(2) { return error(5); }
+    }
+    if mode != 0xffff_ffff && ((mode & 0x7fff_fe00) != 0 || (mode & DIR) != (field(object, 32) & DIR)) { return error(2); }
+    if directory(object) && length != 0xffff_ffff_ffff_ffff && length != 0 { return error(2); }
+    if !next_version(object) { return error(5); }
+    if RESPONSE_CAP < 7 { return 0; }
+    if length != 0xffff_ffff_ffff_ffff { if !resize(object, length) { return error(5); } }
+    if name_length != 0 {
+        zero(node(object) + 72, 256); copy(node(object) + 72, name, name_length); setfield(object, 64, name_length as u64); changed(parent);
+    }
+    if mode != 0xffff_ffff { setfield(object, 32, mode); }
+    // Synthetic atime is not an authority source. Accept requested timestamp
+    // updates for ordinary cp/touch; persist the explicit mtime when supplied.
+    changed(object); if mtime != 0xffff_ffff { setfield(object, 56, mtime); seal(object); }
+    start(127, 7); return OUT;
+}
+
+pub unsafe fn handle(session: u64, request: *const u8, req_len: usize, response: *mut u8, response_cap: usize) -> usize {
+    if READY == 0 || request as usize == 0 || response as usize == 0 || req_len < 7 || req_len > MAX_FRAME || response_cap < 7 { return 0; }
+    REQUEST = request as usize; REQUEST_LEN = req_len; RESPONSE = response as usize; RESPONSE_CAP = response_cap;
+    if RESPONSE_CAP > MAX_FRAME { RESPONSE_CAP = MAX_FRAME; }
+    TAG = le(REQUEST + 5, 2); POSITION = 7; BAD = 0; OUT = 0;
+    if le(REQUEST, 4) != req_len as u64 { return error(1); }
+    let mut grant: usize = 1; while grant < GRANT_SLOTS { if SESSION[grant] == session && session != 0 { break; } grant += 1; }
+    if grant == GRANT_SLOTS { return error(4); }
+    let kind: u64 = byte(REQUEST + 4);
+    if kind == 100 { return version(grant, session); }
+    if VERSIONED[grant] == 0 || req_len > MSIZE[grant] { return error(1); }
+    if kind == 104 { return attach(grant, session); }
+    if kind == 108 {
+        take(2); if !exact() { return error(1); } if !start(109, 7) { return 0; } return OUT;
+    }
+    if kind == 110 { return walk(grant, session); }
+    if kind == 112 { return open(grant, session, false); }
+    if kind == 114 { return open(grant, session, true); }
+    if kind == 116 { return read(grant, session); }
+    if kind == 118 { return write(grant, session); }
+    if kind == 120 { return clunk(grant, session, false); }
+    if kind == 122 { return clunk(grant, session, true); }
+    if kind == 124 { return getstat(grant, session); }
+    if kind == 126 { return wstat(grant, session); }
+    return error(9);
+}
