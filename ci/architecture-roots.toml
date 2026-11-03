@@ -8,7 +8,7 @@ schema_version = 1
 package_manifest = "crates/ostadix-api/Cargo.toml"
 source_root = "crates/ostadix-api/src"
 crate_root = "crates/ostadix-api/src/lib.rs"
-excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/ocore/native_core.rs", "crates/ostadix-api/src/ocore/native_float_layout.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
+excluded_files = ["crates/ostadix-api/src/backend_catalog.inc.rs", "crates/ostadix-api/src/lib.rs", "crates/ostadix-api/src/ocore/native_atomic_codegen.rs", "crates/ostadix-api/src/ocore/native_core.rs", "crates/ostadix-api/src/ocore/native_float_layout.rs", "crates/ostadix-api/src/ocore/native_variadic_codegen.rs", "crates/ostadix-api/src/project/input_kind.inc.rs"]
 excluded_directories = []
 
 # Token fragments compiled with include!() are scanned under their owning root
@@ -44,6 +44,12 @@ path = "crates/ostadix-api/src/ocore/native_float_layout.rs"
 owner = "ocore"
 included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
 module_path = ["ocore", "native_codegen", "float_layout"]
+
+[[compiled_fragment]]
+path = "crates/ostadix-api/src/ocore/native_variadic_codegen.rs"
+owner = "ocore"
+included_from = "crates/ostadix-api/src/ocore/native_codegen.rs"
+module_path = ["ocore", "native_codegen", "variadic"]
 
 # These physical paths are compiled under roots that differ from their
 # conventional on-disk module path. They are part of the dependency identity,
@@ -97,7 +103,7 @@ allowed_dependencies = ["backend_morphism", "cancellation", "eval", "evidence", 
 [[root]]
 name = "backend"
 layer = 9
-allowed_dependencies = ["backend_catalog", "backend_state", "process", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_catalog", "backend_state", "ir", "process", "runtime_exec", "value", "wire"]
 
 [[root]]
 name = "backend_catalog"
@@ -235,14 +241,24 @@ layer = 8
 allowed_dependencies = ["live_system", "world"]
 
 [[root]]
+name = "step_knobs"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
+name = "progress"
+layer = 0
+allowed_dependencies = []
+
+[[root]]
 name = "live_system"
 layer = 2
 allowed_dependencies = ["capability", "value", "wire"]
 
 [[root]]
 name = "lifecycle_trace"
-layer = 0
-allowed_dependencies = []
+layer = 1
+allowed_dependencies = ["progress"]
 
 [[root]]
 name = "native_leaf_identity"
@@ -252,7 +268,7 @@ allowed_dependencies = []
 [[root]]
 name = "native_leaf"
 layer = 3
-allowed_dependencies = ["lifecycle_trace", "native_leaf_identity", "ocore", "value"]
+allowed_dependencies = ["cancellation", "lifecycle_trace", "native_leaf_identity", "ocore", "progress", "step_knobs", "value"]
 compatibility_export = false
 
 [[root]]
@@ -288,12 +304,12 @@ allowed_dependencies = ["resource_identity"]
 [[root]]
 name = "process"
 layer = 8
-allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "runtime_exec", "value", "wire"]
+allowed_dependencies = ["backend_morphism", "backend_state", "cancellation", "capability", "environment", "lifecycle_trace", "progress", "runtime_exec", "step_knobs", "value", "wire"]
 
 [[root]]
 name = "project"
 layer = 11
-allowed_dependencies = ["backend_catalog", "effects", "executor", "hgraph", "ir", "parser", "process", "value", "world"]
+allowed_dependencies = ["backend_catalog", "effects", "executor", "hgraph", "ir", "parser", "process", "shims", "value", "world"]
 
 [[root]]
 name = "registry"

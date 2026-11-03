@@ -4,7 +4,29 @@ use crate::eval::{Evaluator, TraceEvent};
 use crate::hgraph::from_oir::build_program;
 use crate::hgraph::solve::solve_types;
 use crate::hgraph::HNodeKind;
-use crate::ir::{InvokeMode, OIr};
+use crate::ir::{InvokeMode, NativeLeafInterface, NativeLeafKind, NativeLeafProvenance, OIr};
+use crate::value::GroupMode;
+
+fn native_leaf_node(trap: bool) -> OIr {
+    let descriptor = crate::native_leaf::test_descriptor(1, trap);
+    let descriptor_sha256 = Some(crate::native_leaf::digest(descriptor.as_bytes()));
+    OIr::NativeLeaf {
+        kind: NativeLeafKind::OcoreI64,
+        interface: NativeLeafInterface::ScalarI64AcyclicV1 { parameter_count: 1 },
+        provenance: NativeLeafProvenance { descriptor_sha256 },
+        descriptor: Some(descriptor.clone()),
+        args: vec![
+            OIr::Exec {
+                lang: "text".into(),
+                env_id: u32::MAX,
+                attr: None,
+                backend: BackendRegistry::global().interface_for("text"),
+                body: vec![OIr::Text(descriptor)],
+            },
+            OIr::Load("x".into()),
+        ],
+    }
+}
 
 fn program(trap: bool) -> OIrProgram {
     OIrProgram {
@@ -15,20 +37,7 @@ fn program(trap: bool) -> OIrProgram {
             },
             OIr::Store {
                 name: "x".into(),
-                expr: Box::new(OIr::Invoke {
-                    fn_name: crate::native_leaf::BUILTIN.into(),
-                    mode: InvokeMode::Eager,
-                    args: vec![
-                        OIr::Exec {
-                            lang: "text".into(),
-                            env_id: u32::MAX,
-                            attr: None,
-                            backend: BackendRegistry::global().interface_for("text"),
-                            body: vec![OIr::Text(crate::native_leaf::test_descriptor(1, trap))],
-                        },
-                        OIr::Load("x".into()),
-                    ],
-                }),
+                expr: Box::new(native_leaf_node(trap)),
             },
             OIr::Load("x".into()),
         ],
@@ -178,7 +187,7 @@ fn native_leaf_graph_invalid_descriptor_never_acquires_execution_authority() {
     let OIr::Store { expr, .. } = &mut program.nodes[1] else {
         unreachable!()
     };
-    let OIr::Invoke { args, .. } = expr.as_mut() else {
+    let OIr::NativeLeaf { args, .. } = expr.as_mut() else {
         unreachable!()
     };
     args[0] = OIr::Load("descriptor-must-not-be-dynamic".into());
@@ -218,4 +227,78 @@ fn native_leaf_graph_rejects_deleted_resource_dependency() {
         error.contains("ScopeBinding") || error.contains("resource"),
         "{error}"
     );
+}
+
+#[test]
+fn native_leaf_trap_inside_a_batch_is_a_member_error_and_never_a_publication() {
+    // the trap has to come from a really compiled leaf; without a trusted
+    // clang and ld the member fails at tool lookup, which proves nothing here.
+    if let Some(reason) = crate::native_leaf::missing_native_tool() {
+        eprintln!("SKIP-OPTIONAL: a native trap needs real native tools: {reason}");
+        return;
+    }
+    let text = BackendRegistry::global().interface_for("text");
+    let program = OIrProgram {
+        nodes: vec![
+            OIr::Store {
+                name: "x".into(),
+                expr: Box::new(OIr::Text("41".into())),
+            },
+            OIr::Invoke {
+                fn_name: "batch".into(),
+                mode: InvokeMode::Group(GroupMode::Batch),
+                args: vec![
+                    native_leaf_node(true),
+                    OIr::Exec {
+                        lang: "text".into(),
+                        env_id: u32::MAX,
+                        attr: None,
+                        backend: text,
+                        body: vec![OIr::Text("sibling".into())],
+                    },
+                ],
+            },
+        ],
+    };
+    let plan = program.plan();
+    let native = plan
+        .nodes
+        .iter()
+        .find(|node| matches!(node.kind, PlanNodeKind::NativeI64 { .. }))
+        .unwrap()
+        .id;
+    let mut evaluator = Evaluator::new("/tmp".into());
+    let mut scope = HashMap::new();
+    // every api caller fails on a failed member; the trace still records how
+    // the batch settled.
+    let error = evaluator
+        .eval_ir_program_graph_with_scope(&program, &mut scope)
+        .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("native scalar leaf failed"),
+        "{error:#}"
+    );
+    let trace = evaluator.last_execution_trace().unwrap();
+    assert_eq!(
+        trace
+            .failed_batch_members
+            .iter()
+            .map(|failure| (failure.node, failure.member))
+            .collect::<Vec<_>>(),
+        vec![(native, 0)]
+    );
+    // the trapped leaf must not be listed among the successful settlements.
+    assert!(
+        !trace
+            .publications
+            .iter()
+            .any(|publication| publication["plan_node"] == native.0),
+        "{:?}",
+        trace.publications
+    );
+    assert!(!trace
+        .publications
+        .iter()
+        .flat_map(|publication| publication["outputs"].as_array().unwrap())
+        .any(|output| output["kind"] == "completion" && output["producer"] == native.0));
 }

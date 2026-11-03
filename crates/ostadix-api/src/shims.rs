@@ -2,7 +2,6 @@ use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const BUNDLED_SHIMS: &[(&str, &[u8])] = &[
     ("bash_shim.py", include_bytes!("../backends/bash_shim.py")),
@@ -165,13 +164,19 @@ pub fn extract_bundled_shims(prefix: &str) -> Result<ExtractedShims> {
     extract_shims(prefix, &read_shims(None)?)
 }
 
+// the private directory helper lives in its own file so generated project
+// runtimes, whose materializer calls it, compile the very same bytes.
+include!("private_dir.inc.rs");
+
+/// Create a fresh private directory `<temp>/<prefix>_<pid>_<random>`.
+pub fn create_private_dir(prefix: &str) -> Result<PathBuf> {
+    create_private_dir_with_separator(prefix, '_')
+}
+
 pub fn extract_shims(prefix: &str, shims: &[(String, Vec<u8>)]) -> Result<ExtractedShims> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("{prefix}_{}_{}", std::process::id(), now));
-    fs::create_dir_all(&dir)?;
+    let dir = create_private_dir(prefix)?;
+    // the guard owns the directory from here, so a failed write removes it.
+    let extracted = ExtractedShims { path: dir.clone() };
 
     for (name, content) in shims {
         let dest = dir.join(name);
@@ -184,12 +189,27 @@ pub fn extract_shims(prefix: &str, shims: &[(String, Vec<u8>)]) -> Result<Extrac
         }
     }
 
-    Ok(ExtractedShims { path: dir })
+    Ok(extracted)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn extracted_shims_live_in_a_fresh_private_directory() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let first = extract_shims("o_test_private", &[("a.py".into(), b"x".to_vec())]).unwrap();
+        let second = extract_shims("o_test_private", &[]).unwrap();
+        assert_ne!(first.path(), second.path(), "names must not be predictable");
+        let meta = fs::symlink_metadata(first.path()).unwrap();
+        assert!(meta.is_dir() && !meta.file_type().is_symlink());
+        assert_eq!(meta.permissions().mode() & 0o777, 0o700);
+        let path = first.path().to_path_buf();
+        drop(first);
+        assert!(!path.exists(), "the guard removes the directory");
+    }
 
     #[test]
     fn bundled_shims_include_python_runtime_pair() {

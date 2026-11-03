@@ -47,9 +47,9 @@ class NixOSTestBackendTests(unittest.TestCase):
     def test_external_and_embedded_shims_match(self):
         self.assertEqual(SHIMS[0].read_bytes(), SHIMS[1].read_bytes())
 
-    def test_default_fractional_and_long_budgets_reach_nix(self):
+    def test_unset_fractional_and_long_budgets_reach_nix(self):
         for name, module in self.targets:
-            for raw, seconds in ((None, 600), ("0.125", 0.125), ("86400", 86400)):
+            for raw, seconds in ((None, None), ("0.125", 0.125), ("86400", 86400)):
                 environment = {} if raw is None else {NAME: raw}
                 with self.subTest(target=name, budget=raw), \
                         mock.patch.dict(os.environ, environment, clear=True), \

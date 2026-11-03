@@ -6,8 +6,8 @@
 //! are preserved, but hidden host effects among already-started members are
 //! unordered. Ordinary ephemeral shims remain coordinator-owned and strict.
 //! Every task receives owned materialized inputs, so no reference to the
-//! `!Send` evaluator crosses a thread boundary. Results and failures still
-//! settle through the coordinator in deterministic O order.
+//! `Send + !Sync` evaluator crosses a thread boundary. Results and failures
+//! still settle through the coordinator in deterministic O order.
 
 use anyhow::{bail, Result};
 
@@ -68,6 +68,8 @@ enum ParallelTaskBody {
         sandbox: BackendSandboxPolicy,
         executable_leases: Arc<crate::runtime_exec::ExecutableLeaseSet>,
         morphism_contract: Option<crate::backend_morphism::BackendCrossingContractV1>,
+        // another plain bash block is still ahead in the plan.
+        plain_bash_next: bool,
     },
 }
 
@@ -538,7 +540,13 @@ fn build_task(
                                 .validate_value(&language, value)
                                 .map_err(anyhow::Error::msg)?;
                         }
-                        code.push_str(&render_with(renderer, value));
+                        let rendered = render_with(renderer, value);
+                        let name = match &plan.nodes[child.0].kind {
+                            PlanNodeKind::Load { name } => Some(name.as_str()),
+                            _ => None,
+                        };
+                        crate::eval_core::refuse_nul_in_bash_splice(&language, name, &rendered)?;
+                        code.push_str(&rendered);
                     }
                 }
             }
@@ -550,6 +558,7 @@ fn build_task(
                 sandbox,
                 executable_leases,
                 morphism_contract,
+                plain_bash_next: frame.plain_bash_block_ahead(plan, id),
             }
         }
         TaskKind::Renderer {
@@ -655,13 +664,22 @@ struct NativeI64Task {
     arguments: Vec<OValue>,
 }
 impl PreparedTask for NativeI64Task {
-    fn execute(self: Box<Self>, _context: &TaskContext) -> Result<OValue> {
+    fn execute(self: Box<Self>, context: &TaskContext) -> Result<OValue> {
         let arguments = self
             .arguments
             .iter()
             .map(crate::native_leaf::argument)
             .collect::<Result<Vec<_>>>()?;
-        self.leaf.execute(&arguments)
+        #[cfg(target_os = "linux")]
+        {
+            let watch = crate::native_leaf::ChildWatch::from_knobs(context.cancellation_token())?;
+            self.leaf.execute_watched(&arguments, &watch)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = context;
+            self.leaf.execute(&arguments)
+        }
     }
 }
 pub(crate) fn prepare_native(
@@ -746,6 +764,7 @@ fn execute_prepared(task: &ParallelTask, context: &TaskContext) -> Result<OValue
             sandbox,
             executable_leases,
             morphism_contract,
+            plain_bash_next,
         } => {
             let lexical_bindings = bindings.clone();
             run_ephemeral_with_eval_callback_controlled(
@@ -760,6 +779,7 @@ fn execute_prepared(task: &ParallelTask, context: &TaskContext) -> Result<OValue
                 },
                 *morphism_contract,
                 context.cancellation_token(),
+                *plain_bash_next,
                 |src, explicit_scope, remaining| {
                     let callback_scope = match explicit_scope {
                         None => lexical_bindings.clone(),
@@ -879,6 +899,8 @@ mod tests {
             base_scope: HashMap::from([("bound".to_string(), OValue::str_("value"))]),
             node_policy: vec![Policy::Eager; plan.nodes.len()],
             trace: ExecutionTrace::new(),
+            failed_batch_members: std::collections::HashSet::new(),
+            forced_batch_failures: Vec::new(),
         };
 
         let error = prepare(

@@ -215,7 +215,7 @@ __oval_result__ = "{mine}"
             .unwrap();
     }
     let (failed, envelope) = run_observed(
-        "autonomous(batch(python^(raise ValueError('first'))_python, python^(42)_python))",
+        "autonomous(all(python^(raise ValueError('first'))_python, python^(42)_python))",
     );
     assert!(!failed.status.success());
     let observations = envelope["backend_crossings"]
@@ -356,13 +356,18 @@ console.log(JSON.stringify({"nested":[1,true,null,"x"]}));
         FidelityAssessmentV2::Structural { .. }
     ));
 
-    // Catalog V5 binds this bounded profile, but the compatibility capability
-    // model still reports this generic container as lossless. The V1 morphism
-    // remains a shadow result and exposes the current native-binding gap
-    // without reducing execution capacity.
+    // Recursive container inspection composes element fidelities across the
+    // container, so the integer element inside `expected` contributes its
+    // JavaScript rich-number structural loss while the V1 scalar profile
+    // remains a shadow assessment for container bindings.
+    let expected_container_fidelity = fidelity_for_value(&OValue::int(1), "javascript");
+    assert!(matches!(
+        expected_container_fidelity,
+        Fidelity::Structural { .. }
+    ));
     assert_eq!(
         fidelity_for_value(&expected, "javascript"),
-        Fidelity::Lossless
+        expected_container_fidelity
     );
     let mut graph = HGraph::default();
     let input = graph.add_node(HNode::with_value(expected.clone()));
@@ -386,8 +391,8 @@ console.log(JSON.stringify({"nested":[1,true,null,"x"]}));
     solve_types(&mut graph).unwrap();
     assert_eq!(
         graph.node(output).and_then(|node| node.fidelity.clone()),
-        Some(Fidelity::Lossless),
-        "Catalog V5 profile data must not rewrite production BackendCrossing fidelity"
+        Some(expected_container_fidelity),
+        "BackendCrossing must compose element fidelities across container values"
     );
     let shadow = backend_morphism_shadow_assessment_for_value(&expected, "javascript").unwrap();
     assert!(!shadow.is_supported());
@@ -420,8 +425,8 @@ console.log(payload.reduce((a, b) => a + b, 0));
     ));
     assert_eq!(
         native_use,
-        OValue::text("0[object Object][object Object]"),
-        "a changed JavaScript container binding requires a simultaneous morphism-profile update"
+        OValue::int(3),
+        "the default JavaScript preamble must project container elements as native JS values"
     );
 }
 
@@ -478,5 +483,65 @@ fn main() {
     assert_eq!(
         error.kind,
         BackendMorphismRejectionKindV1::CurrentAdapterDoesNotBindContainers
+    );
+}
+
+#[test]
+fn default_javascript_preamble_lifts_bigint_containers_and_fails_closed_on_unsupported_numbers() {
+    if !support::require_runtimes(&["node", "python3"]) {
+        return;
+    }
+
+    let big_value = successful_value(&run_o(
+        r#"let big = python^(2**53 + 1)_python
+javascript^(console.log("[" + typeof big + "] " + big.toString());)_javascript"#,
+    ));
+    assert_eq!(
+        big_value,
+        OValue::text("[bigint] 9007199254740993"),
+        "integers outside [-2^53 + 1, 2^53 - 1] must lift to BigInt in the default JavaScript preamble"
+    );
+
+    let list_value = successful_value(&run_o(
+        r#"let xs = python^([1, 2, 2**53 + 1])_python
+javascript^(console.log(typeof xs[0], xs[0] + xs[1], typeof xs[2], xs[2].toString());)_javascript"#,
+    ));
+    assert_eq!(
+        list_value,
+        OValue::text("number 3 bigint 9007199254740993"),
+        "containers must recursively project nested elements in the default JavaScript preamble"
+    );
+
+    let fraction_out = run_o(
+        r#"let third = python^(
+from fractions import Fraction
+Fraction(1, 3)
+)_python
+javascript^(console.log(third);)_javascript"#,
+    );
+    assert!(
+        !fraction_out.status.success(),
+        "rational numbers must fail closed before launching node"
+    );
+    let fraction_err = String::from_utf8_lossy(&fraction_out.stdout);
+    assert!(
+        fraction_err.contains("javascript binding `third` has unsupported numeric value")
+            && !fraction_err.contains("ReferenceError"),
+        "expected boundary rejection instead of ReferenceError, got: {fraction_err}"
+    );
+
+    let nan_out = run_o(
+        r#"let nanv = python^(float("nan"))_python
+javascript^(console.log(nanv);)_javascript"#,
+    );
+    assert!(
+        !nan_out.status.success(),
+        "non-finite floats must fail closed before launching node"
+    );
+    let nan_err = String::from_utf8_lossy(&nan_out.stdout);
+    assert!(
+        nan_err.contains("javascript binding `nanv` has unsupported numeric value")
+            && !nan_err.contains("ReferenceError"),
+        "expected boundary rejection instead of ReferenceError, got: {nan_err}"
     );
 }

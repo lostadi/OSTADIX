@@ -167,12 +167,21 @@ reject. The native result crosses back as an O integer. Traps and malformed
 protocol responses fail the operation. There is no hosted evaluation fallback.
 The wrapper disables core dumping before entering module code.
 
-Before fresh graph admission, the adapter resolves `clang` and `ld` from a
-single captured search path, reads their exact ELF bytes, and runs sealed
+Before fresh graph admission, the adapter resolves `clang` and `ld`. A tool
+is taken from `O_NATIVE_CLANG` or `O_NATIVE_LD` when that is set, and the value
+must be an absolute path to an executable file. Otherwise the tool is looked up
+in the absolute entries of a single captured search path. Empty, `.` and
+relative entries are skipped, so the caller's working directory never supplies
+a tool. `O_NATIVE_CLANG_SHA256` and `O_NATIVE_LD_SHA256`, when set, pin each
+tool's bytes: a tool with a different SHA-256 is refused, and a pin that is
+not 64 lowercase hex digits is an error. The adapter reads the tools' exact
+ELF bytes and runs sealed
 copies to assemble and statically link the owned assembly. It preserves their
 original invocation paths as `argv[0]`. Both tools use one captured working
-directory and an otherwise cleared environment containing `LC_ALL=C` and the
-same optional `LD_LIBRARY_PATH` snapshot. The manifest binds the working
+directory and an otherwise cleared environment containing `LC_ALL=C`. The
+caller's `LD_LIBRARY_PATH` never reaches them. When a pinned toolchain needs a
+library path, `O_NATIVE_TOOL_LIBRARY_PATH` supplies it, and every entry must be
+absolute. The manifest binds the working
 directory and an unambiguous environment digest without exposing its raw
 values. These selected tools, their loaded libraries, the owned emitter and
 adapter, and the Linux kernel are explicit trusted components; pinning tool
@@ -357,6 +366,22 @@ restrictions. LLVM assumptions remain explicit IR operations and are verified;
 the unoptimized emitter does not use them to change computation. Intrinsic
 declarations remain in the source inventory and cannot escape as native addresses.
 This contract is distinct from `.oc` integer division and shift semantics.
+
+NativeIR integer division (`udiv`, `sdiv`, `urem`, `srem`) has one rule at
+every width from 1 through 64, in the native code generator and the reference
+interpreter alike. Only a zero divisor traps, with the target's explicit trap
+instruction (`ud2`, `brk #1`, `unimp`). Signed minimum divided by `-1` does
+not trap: `sdiv` yields the minimum, the wrapped quotient, and `srem` yields
+`0`. At `i1` the minimum and `-1` are the same value, so `-1 sdiv -1` is `-1`
+and `-1 srem -1` is `0`. The generator emits the zero check and the
+minimum-by-`-1` compare as explicit branches before the divide instruction,
+so the hardware never divides by zero or overflows (x86 `idiv` faults on
+both). A check is left out only when a literal operand proves it can never
+fire: a non-zero divisor needs no zero check, and a divisor other than `-1`
+or a dividend other than the minimum needs no overflow compare. Compared with
+WebAssembly, division by zero traps in both and `rem_s` of minimum by `-1`
+is `0` in both. The only difference is `div_s` of minimum by `-1`, which
+traps in WebAssembly and yields the minimum here.
 
 The imported scalar `llvm.smin.iN`, `llvm.smax.iN`, `llvm.umin.iN` and
 `llvm.umax.iN` families use one typed `integer_min_max` NativeIR operation.

@@ -5,7 +5,7 @@
 //! evaluator state and authority remain behind `GraphEvaluationHost`, so the
 //! executor depends on this narrow seam rather than on `eval`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -20,7 +20,9 @@ use crate::execution_contract::Policy;
 use crate::ir::{
     ExecutionPlan, ExecutionPlanIndex, InvokeMode, OIr, PlanEdgeKind, PlanNodeId, PlanNodeKind,
 };
-use crate::value::{fingerprint_preview, DecimalSpecial, FloatFormat, ONumber, OValue, SeqKind};
+use crate::value::{
+    fingerprint_preview, DecimalSpecial, FloatFormat, GroupMode, ONumber, OValue, SeqKind,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecutionTrace {
@@ -28,6 +30,80 @@ pub struct ExecutionTrace {
     pub backend_crossings: Vec<crate::backend_morphism::BackendCrossingObservationV1>,
     /// Actual successful settlement outputs; no static or predicted state.
     pub publications: Vec<serde_json::Value>,
+    /// `batch(...)` members that failed and settled as their own error value.
+    /// The document still produces a value, but its run is reported failed.
+    pub failed_batch_members: Vec<BatchMemberFailure>,
+}
+
+/// One `batch(...)` member that failed and settled as its own error value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchMemberFailure {
+    /// Plan node of the failed member.
+    pub node: PlanNodeId,
+    /// Zero-based position of the member in its `batch(...)` call.
+    pub member: usize,
+    /// The member's error, rendered once; a nested batch whose members all
+    /// failed reports only its summary here, since its members are listed
+    /// on their own.
+    pub message: String,
+}
+
+/// A document finished and produced `value`, but `failures` members of a
+/// `batch(...)` failed. Every `eval_document*` and `eval_ir_program*` entry
+/// point returns this as its error, so embedders cannot mistake a partial
+/// batch failure for success.
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("{}", render_batch_failures(.failures))]
+pub struct BatchMemberFailures {
+    pub value: OValue,
+    pub failures: Vec<BatchMemberFailure>,
+}
+
+fn render_batch_failures(failures: &[BatchMemberFailure]) -> String {
+    failures
+        .iter()
+        .map(|failure| {
+            format!(
+                "batch member {} failed: {}",
+                failure.member, failure.message
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Every direct member of a `batch(...)` failed, so the batch itself fails.
+/// Its own text lists each member once; as a member of an outer batch it is
+/// reported by [`BatchAllMembersFailed::summary`] only, because its members
+/// were already recorded on their own.
+#[derive(Debug, thiserror::Error)]
+#[error("every {fn_name}(...) member failed{}", render_member_lines(.members))]
+pub(crate) struct BatchAllMembersFailed {
+    pub(crate) fn_name: String,
+    pub(crate) members: Vec<(usize, String)>,
+}
+
+impl BatchAllMembersFailed {
+    pub(crate) fn summary(&self) -> String {
+        format!("every {}(...) member failed", self.fn_name)
+    }
+}
+
+fn render_member_lines(members: &[(usize, String)]) -> String {
+    members
+        .iter()
+        .map(|(member, message)| format!("\nmember {member}: {message}"))
+        .collect()
+}
+
+/// A buffered request had no cached result after an `autonomous(...)`
+/// flush. This is a scheduler invariant failure, never a member failure.
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "autonomous: scheduler failed to materialize request fp={fingerprint}; cache miss after flush"
+)]
+pub(crate) struct StrictCacheMiss {
+    pub(crate) fingerprint: String,
 }
 
 impl ExecutionTrace {
@@ -36,6 +112,7 @@ impl ExecutionTrace {
             events: Vec::new(),
             backend_crossings: Vec::new(),
             publications: Vec::new(),
+            failed_batch_members: Vec::new(),
         }
     }
 }
@@ -68,6 +145,30 @@ pub enum TraceEvent {
     },
 }
 
+/// bash drops a NUL in its script text without a word, so a bare splice that
+/// renders one is refused, naming the variable when the splice is a `$name`.
+/// shared by the serial and graph paths so both say the same thing.
+pub(crate) fn refuse_nul_in_bash_splice(
+    canonical: &str,
+    name: Option<&str>,
+    rendered: &str,
+) -> Result<()> {
+    if canonical == "bash" && rendered.contains('\0') {
+        let what = match name {
+            Some(name) => format!("`${name}`"),
+            None => "a spliced value".to_string(),
+        };
+        bail!("{what} contains a NUL byte, which a bash block cannot hold");
+    }
+    Ok(())
+}
+
+/// Whether a plan node is a plain bash block: a fresh-environment bash exec
+/// that a reusable plain helper runs.
+pub(crate) fn is_plain_bash_exec(kind: &PlanNodeKind) -> bool {
+    kind.is_plain_bash_exec()
+}
+
 /// Materialized values and policy context for one graph evaluation.
 pub(crate) struct GraphEvalFrame {
     pub(crate) plan_index: ExecutionPlanIndex,
@@ -75,9 +176,27 @@ pub(crate) struct GraphEvalFrame {
     pub(crate) base_scope: HashMap<String, OValue>,
     pub(crate) node_policy: Vec<Policy>,
     pub(crate) trace: ExecutionTrace,
+    /// Batch members whose failure settled as their own error value. The
+    /// all-failed check reads these flags, never the value shape, because a
+    /// member may legitimately return an error value.
+    pub(crate) failed_batch_members: HashSet<PlanNodeId>,
+    /// Member failures of a `batch(...)` forced by `now(...)` inside the node
+    /// that just ran, waiting to be moved into the run's trace.
+    pub(crate) forced_batch_failures: Vec<BatchMemberFailure>,
 }
 
 impl GraphEvalFrame {
+    /// Whether the plan still holds a plain bash block, other than `id`, that
+    /// has no value yet. the helper uses it to spawn the next block's shell
+    /// before answering, and to skip that spawn for the last block.
+    pub(crate) fn plain_bash_block_ahead(&self, plan: &ExecutionPlan, id: PlanNodeId) -> bool {
+        plan.nodes.iter().enumerate().any(|(index, node)| {
+            index != id.0
+                && self.values.get(index).is_some_and(Option::is_none)
+                && is_plain_bash_exec(&node.kind)
+        })
+    }
+
     pub(crate) fn value(&self, id: PlanNodeId) -> Result<&OValue> {
         self.values
             .get(id.0)
@@ -119,8 +238,43 @@ impl GraphEvalFrame {
                 scope.insert(name.clone(), self.value(child)?.clone());
             }
         }
+        if matches!(
+            &plan.nodes[node_id.0].kind,
+            PlanNodeKind::Exec { backend, .. } if backend.canonical == "bash"
+        ) {
+            for (name, value) in scope.iter_mut() {
+                *value = bash_let_value(name, value)?;
+            }
+        }
         Ok(scope)
     }
+}
+
+/// The value a bash block receives for a referenced `let`, the same for the
+/// shim and the native backend. Text, numbers, and booleans pass through and
+/// the backend renders them as scalars. A list, map, null, or any other value
+/// becomes the text the `$name` splice renders, so `$x` and `${x}` agree. A
+/// NUL byte cannot live in a bash variable, so it is an error instead of a
+/// silent truncation. A writable bash special such as `PATH` replaces
+/// session state, so it must receive text.
+pub(crate) fn bash_let_value(name: &str, value: &OValue) -> Result<OValue> {
+    if crate::ir::bash_special_name(name).is_some() && !matches!(value, OValue::Text { .. }) {
+        bail!(
+            "let `{name}` names a bash special variable, so a bash block can only receive \
+             it as text, got {}",
+            value.type_name()
+        );
+    }
+    let value = match value {
+        OValue::Text { .. } | OValue::Number { .. } | OValue::Bool { .. } => value.clone(),
+        other => OValue::str_(render_with(SpliceRenderer::Default, other)),
+    };
+    if let OValue::Text { v } = &value {
+        if v.utf8.contains('\0') {
+            bail!("let `{name}` contains a NUL byte, which a bash variable cannot hold");
+        }
+    }
+    Ok(value)
 }
 
 /// Original inputs temporarily replaced at one operation's execution boundary.
@@ -219,7 +373,7 @@ pub(crate) trait GraphEvaluationHost {
         &mut self,
         src: &str,
         caller_scope: &HashMap<String, OValue>,
-        deadline: Instant,
+        deadline: Option<Instant>,
     ) -> Result<OValue>;
 
     fn execute_ready_plan_node(
@@ -258,6 +412,66 @@ pub(crate) fn data_predecessors(
         .collect::<Vec<_>>();
     sources.sort_by_key(|id| id.0);
     sources
+}
+
+/// Settle a failed node as a `batch(...)` member error, if it is one: the
+/// record for the trace, and the error value the member slot holds. `None`
+/// means the failure stays fatal.
+pub(crate) fn settle_batch_member_failure(
+    plan: &ExecutionPlan,
+    frame: &mut GraphEvalFrame,
+    node_id: PlanNodeId,
+    error: &anyhow::Error,
+    absorbable: bool,
+) -> Option<(BatchMemberFailure, OValue)> {
+    // the caller classifies the error: process errors are not visible here.
+    if !absorbable {
+        return None;
+    }
+    let member = batch_member_index(plan, &frame.plan_index, node_id)?;
+    frame.failed_batch_members.insert(node_id);
+    // a nested batch whose members all failed already listed them, so only
+    // its summary is reported here; the slot value keeps the full text.
+    let message = match error.downcast_ref::<BatchAllMembersFailed>() {
+        Some(nested) => nested.summary(),
+        None => format!("{error:#}"),
+    };
+    let failure = BatchMemberFailure {
+        node: node_id,
+        member,
+        message,
+    };
+    Some((failure, OValue::error(format!("{error:#}"))))
+}
+
+/// Position of `node_id` among the members of the `batch(...)` group it
+/// directly belongs to, if any.
+pub(crate) fn batch_member_index(
+    plan: &ExecutionPlan,
+    index: &ExecutionPlanIndex,
+    node_id: PlanNodeId,
+) -> Option<usize> {
+    let group = index.outgoing(node_id).iter().find(|edge| {
+        edge.kind == PlanEdgeKind::Structural
+            && matches!(
+                plan.nodes[edge.to.0].kind,
+                PlanNodeKind::Group {
+                    mode: GroupMode::Batch,
+                    ..
+                }
+            )
+    })?;
+    structural_children(index, group.to)
+        .iter()
+        .position(|member| *member == node_id)
+}
+
+#[cfg(test)]
+pub(crate) fn structural_children_for_test(
+    index: &ExecutionPlanIndex,
+    parent: PlanNodeId,
+) -> Vec<PlanNodeId> {
+    structural_children(index, parent)
 }
 
 fn structural_children(index: &ExecutionPlanIndex, parent: PlanNodeId) -> Vec<PlanNodeId> {

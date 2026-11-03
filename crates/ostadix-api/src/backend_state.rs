@@ -490,6 +490,11 @@ pub enum BackendWireCommandV2 {
     Exec {
         code: String,
         bindings: HashMap<String, OValue>,
+        // a hint to a plain bash helper that the plan has another plain block
+        // ahead, so it spawns that block's shell before it answers. absent on
+        // the wire when false, which keeps the legacy shape byte-identical.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        plain_next: bool,
     },
     Cleanup,
     Shutdown,
@@ -510,9 +515,36 @@ pub enum BackendWireCommandV2 {
     },
 }
 
+/// State of the process a shim drives (the bash session shell), sampled
+/// from `/proc/<pid>/stat`. `state` is the one-letter kernel state, or
+/// `"gone"` once the process no longer exists.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackendHeartbeatChildV1 {
+    pub pid: u32,
+    pub state: String,
+    pub cpu_ticks: u64,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "lowercase")]
 pub enum BackendWireResponseV2 {
+    /// Liveness pulse sent by a shim while a step runs. Not an answer to any
+    /// command: the host consumes it in the response reader and never
+    /// forwards it to a waiting request. Older shims never send it.
+    /// Sent once, unprompted, when a shim starts under a host that asked for
+    /// heartbeats (`O_BACKEND_HEARTBEAT_INTERVAL_MS` set). `capabilities`
+    /// lists the optional protocol features the shim speaks; the host warns
+    /// about a missing heartbeat only for a shim that listed `heartbeat_v1`.
+    #[serde(rename = "hello_v1")]
+    HelloV1 {
+        #[serde(default)]
+        capabilities: Vec<String>,
+    },
+    #[serde(rename = "heartbeat_v1")]
+    HeartbeatV1 {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        child: Option<BackendHeartbeatChildV1>,
+    },
     #[serde(rename = "native_operation_result_v1")]
     NativeOperationResultV1 {
         request_id: String,
@@ -790,6 +822,7 @@ mod tests {
                 BackendWireCommandV2::Exec {
                     code: "value + 1".to_string(),
                     bindings,
+                    plain_next: false,
                 },
             ),
             (OWireCommand::Ping, BackendWireCommandV2::Ping),

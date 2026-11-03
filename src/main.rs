@@ -49,6 +49,7 @@ fn run_cli() -> Result<()> {
                 | "--executor"
                 | "--workers"
                 | "--json"
+                | "--quiet"
                 | "--check"
                 | "--crossing-evidence"
                 | "--morphism-contract"
@@ -64,6 +65,7 @@ fn run_cli() -> Result<()> {
                     .context("--backend-grant requires NAME=LANG[:RIGHT,...]")?,
             ),
             "--json" => json_output = true,
+            "--quiet" => o_lang::process::set_quiet(true),
             "--check" => check_only = true,
             "--crossing-evidence" => {
                 crossing_evidence = true;
@@ -317,6 +319,17 @@ fn run_cli() -> Result<()> {
         } else {
             None
         };
+        // a partially failed batch is an error at the api boundary; the cli
+        // still prints its value, then each member error once.
+        let (evaluation, failed_batch_members) = match evaluation {
+            Err(error) if error.is::<o_lang::eval::BatchMemberFailures>() => {
+                let partial = error
+                    .downcast::<o_lang::eval::BatchMemberFailures>()
+                    .expect("checked batch failure type");
+                (Ok(partial.value), partial.failures)
+            }
+            other => (other, Vec::new()),
+        };
         let result = match evaluation {
             Ok(result) => result,
             Err(e) if crossing_evidence => {
@@ -347,7 +360,7 @@ fn run_cli() -> Result<()> {
         let elapsed = start.elapsed();
         if json_output {
             let mut envelope = serde_json::json!({
-                "ok": true,
+                "ok": failed_batch_members.is_empty(),
                 "value": result,
                 "type": result.type_name(),
                 "elapsed_ms": elapsed.as_millis() as u64,
@@ -389,9 +402,25 @@ fn run_cli() -> Result<()> {
                 envelope["crossing_coverage"] =
                     serde_json::json!("direct-admitted-graph-bindings-and-lifted-results");
             }
+            if !failed_batch_members.is_empty() {
+                envelope["failed_batch_members"] = serde_json::json!(failed_batch_members
+                    .iter()
+                    .map(|failure| serde_json::json!({
+                        "member": failure.member,
+                        "node": failure.node.0,
+                        "error": failure.message,
+                    }))
+                    .collect::<Vec<_>>());
+            }
             println!("{envelope}");
         } else {
             print_result(&result);
+            for failure in &failed_batch_members {
+                eprintln!(
+                    "error: batch member {} failed\n{}",
+                    failure.member, failure.message
+                );
+            }
         }
 
         if !json_output && io::stderr().is_terminal() {
@@ -402,6 +431,9 @@ fn run_cli() -> Result<()> {
             }
         }
 
+        if !failed_batch_members.is_empty() {
+            return Ok(1);
+        }
         Ok(0)
     })();
     // Backend/process and extracted-shim owners must settle before restoring
@@ -500,6 +532,28 @@ fn observed_graph_execution(evaluator: Option<&Evaluator>) -> serde_json::Value 
                 {
                     let mut record =
                         serde_json::to_value(manifest).expect("serialize native manifest identity");
+                    // the admission digest binds the working directory the
+                    // tools ran in; the evidence never publishes it, since it is
+                    // a local path and not part of what the leaf computes.
+                    if let Some(record) = record.as_object_mut() {
+                        record.remove("tool_working_directory");
+                        // the tools' absolute paths are local too; the file
+                        // name and the bound executable hash identify them.
+                        for tool in ["assembler", "linker"] {
+                            if let Some(invocation) = record
+                                .get_mut(tool)
+                                .and_then(|tool| tool.get_mut("invocation"))
+                            {
+                                let name = invocation
+                                    .as_str()
+                                    .and_then(|path| std::path::Path::new(path).file_name())
+                                    .map(|name| name.to_string_lossy().into_owned());
+                                if let Some(name) = name {
+                                    *invocation = serde_json::json!(name);
+                                }
+                            }
+                        }
+                    }
                     record["plan_node"] = serde_json::json!(node.id.0);
                     leaves.push(record);
                 }
@@ -529,6 +583,10 @@ fn print_usage(out: &mut impl Write) -> io::Result<()> {
     writeln!(
         out,
         "  O --check <input.O>                  # parse-only validation (combine with --json)"
+    )?;
+    writeln!(
+        out,
+        "  O --quiet <input.O>                  # no progress spinner on stderr"
     )?;
     writeln!(
         out,

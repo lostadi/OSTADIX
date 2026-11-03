@@ -22,7 +22,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use crate::environment::EnvironmentRefV2;
-use crate::native_leaf_identity::{digest as native_leaf_digest, BUILTIN as NATIVE_LEAF_BUILTIN};
+pub(crate) use crate::native_leaf_identity::{
+    digest as native_leaf_digest, BUILTIN as NATIVE_LEAF_BUILTIN,
+};
 use crate::parser::ONode;
 use crate::value::GroupMode;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -35,20 +37,41 @@ pub use crate::backend_catalog::{
     BACKEND_CATALOG_SCHEMA_V4, BACKEND_CATALOG_SCHEMA_V5, BACKEND_CATALOG_SCHEMA_V6,
 };
 
-/// Only an eager call and a literal, attribute-free text descriptor qualify.
-/// A missing/static-shape error remains a NativeI64 plan node and fails closed.
-pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
-    let OIr::Invoke {
-        fn_name,
-        mode: InvokeMode::Eager,
-        args,
-    } = oir
-    else {
-        return None;
-    };
-    if fn_name != NATIVE_LEAF_BUILTIN {
-        return None;
+/// Typed kind of a native scalar leaf in executable OIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeLeafKind {
+    OcoreI64,
+}
+
+impl NativeLeafKind {
+    pub const fn builtin_name(self) -> &'static str {
+        match self {
+            Self::OcoreI64 => NATIVE_LEAF_BUILTIN,
+        }
     }
+}
+
+/// Typed ABI and calling interface of a native leaf instruction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeLeafInterface {
+    ScalarI64AcyclicV1 { parameter_count: usize },
+}
+
+impl NativeLeafInterface {
+    pub const fn parameter_count(self) -> usize {
+        match self {
+            Self::ScalarI64AcyclicV1 { parameter_count } => parameter_count,
+        }
+    }
+}
+
+/// Static provenance of a native leaf instruction frozen during OIR lowering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeLeafProvenance {
+    pub descriptor_sha256: Option<String>,
+}
+
+fn extract_static_text_descriptor(args: &[OIr]) -> Option<&str> {
     match args.first()? {
         OIr::Exec {
             backend,
@@ -63,8 +86,45 @@ pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
     }
 }
 
+/// Only a typed `OIr::NativeLeaf` whose static descriptor matches its first
+/// literal, attribute-free text argument qualifies. A missing/static-shape
+/// error remains a `NativeI64` plan node and fails closed.
+pub(crate) fn native_leaf_source_descriptor(oir: &OIr) -> Option<&str> {
+    let OIr::NativeLeaf {
+        kind: NativeLeafKind::OcoreI64,
+        interface: NativeLeafInterface::ScalarI64AcyclicV1 { parameter_count },
+        provenance,
+        descriptor: Some(descriptor),
+        args,
+    } = oir
+    else {
+        return None;
+    };
+    if *parameter_count != args.len().saturating_sub(1) {
+        return None;
+    }
+    let arg_text = extract_static_text_descriptor(args)?;
+    if arg_text != descriptor {
+        return None;
+    }
+    let expected_sha = native_leaf_digest(descriptor.as_bytes());
+    if provenance.descriptor_sha256.as_deref() != Some(expected_sha.as_str()) {
+        return None;
+    }
+    Some(descriptor)
+}
+
+pub(crate) fn native_leaf_source_descriptor_sha256(oir: &OIr) -> Option<&str> {
+    let _ = native_leaf_source_descriptor(oir)?;
+    let OIr::NativeLeaf { provenance, .. } = oir else {
+        return None;
+    };
+    provenance.descriptor_sha256.as_deref()
+}
+
+#[cfg(test)]
 pub(crate) fn is_native_leaf_call(oir: &OIr) -> bool {
-    matches!(oir, OIr::Invoke {fn_name, mode: InvokeMode::Eager, ..} if fn_name == NATIVE_LEAF_BUILTIN)
+    matches!(oir, OIr::NativeLeaf { .. })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -129,6 +189,15 @@ pub enum OIr {
     Invoke {
         fn_name: String,
         mode: InvokeMode,
+        args: Vec<OIr>,
+    },
+
+    /// Execute a typed native scalar leaf (`ocore_i64(...)`).
+    NativeLeaf {
+        kind: NativeLeafKind,
+        interface: NativeLeafInterface,
+        provenance: NativeLeafProvenance,
+        descriptor: Option<String>,
         args: Vec<OIr>,
     },
 
@@ -216,7 +285,7 @@ fn flatten_node_for_plan<'a>(node: &'a OIr, out: &mut Vec<&'a OIr>) {
     match node {
         OIr::Text(_) | OIr::Load(_) => {}
         OIr::Store { expr, .. } => flatten_node_for_plan(expr, out),
-        OIr::Invoke { args, .. } => {
+        OIr::Invoke { args, .. } | OIr::NativeLeaf { args, .. } => {
             for arg in args {
                 flatten_node_for_plan(arg, out);
             }
@@ -249,11 +318,30 @@ pub fn lower_node(node: &ONode) -> OIr {
             name: name.clone(),
             expr: Box::new(lower_node(expr)),
         },
-        ONode::Call { fn_name, args } => OIr::Invoke {
-            fn_name: fn_name.clone(),
-            mode: InvokeMode::for_name(fn_name),
-            args: args.iter().map(lower_node).collect(),
-        },
+        ONode::Call { fn_name, args } => {
+            let lowered_args: Vec<OIr> = args.iter().map(lower_node).collect();
+            if fn_name == NATIVE_LEAF_BUILTIN {
+                let descriptor = extract_static_text_descriptor(&lowered_args).map(str::to_owned);
+                let descriptor_sha256 = descriptor
+                    .as_deref()
+                    .map(|text| native_leaf_digest(text.as_bytes()));
+                OIr::NativeLeaf {
+                    kind: NativeLeafKind::OcoreI64,
+                    interface: NativeLeafInterface::ScalarI64AcyclicV1 {
+                        parameter_count: lowered_args.len().saturating_sub(1),
+                    },
+                    provenance: NativeLeafProvenance { descriptor_sha256 },
+                    descriptor,
+                    args: lowered_args,
+                }
+            } else {
+                OIr::Invoke {
+                    fn_name: fn_name.clone(),
+                    mode: InvokeMode::for_name(fn_name),
+                    args: lowered_args,
+                }
+            }
+        }
         ONode::TypedExpr {
             lang,
             env_id,
@@ -294,6 +382,17 @@ fn reconstruct_node(node: &OIr, out: &mut String) {
         }
         OIr::Invoke { fn_name, args, .. } => {
             out.push_str(fn_name);
+            out.push('(');
+            for (index, arg) in args.iter().enumerate() {
+                if index > 0 {
+                    out.push_str(", ");
+                }
+                reconstruct_node(arg, out);
+            }
+            out.push(')');
+        }
+        OIr::NativeLeaf { kind, args, .. } => {
+            out.push_str(kind.builtin_name());
             out.push('(');
             for (index, arg) in args.iter().enumerate() {
                 if index > 0 {
@@ -360,6 +459,16 @@ fn dump_node(node: &OIr, depth: usize, out: &mut String) {
                 "{indent}invoke {fn_name}/{} [{}]\n",
                 args.len(),
                 mode.label()
+            ));
+            for arg in args {
+                dump_node(arg, depth + 1, out);
+            }
+        }
+        OIr::NativeLeaf { kind, args, .. } => {
+            out.push_str(&format!(
+                "{indent}invoke {}/{} [eager]\n",
+                kind.builtin_name(),
+                args.len()
             ));
             for arg in args {
                 dump_node(arg, depth + 1, out);
@@ -756,6 +865,21 @@ impl ExecutionPlan {
 }
 
 impl PlanNodeKind {
+    /// Whether a plan node is a plain bash block: a fresh-environment bash
+    /// exec that a reusable plain helper runs.
+    pub(crate) fn is_plain_bash_exec(&self) -> bool {
+        match self {
+            Self::Exec {
+                env_id, backend, ..
+            } => {
+                backend.canonical == "bash"
+                    && backend.execution == crate::backend_catalog::ExecutionMode::Shim
+                    && *env_id > crate::environment::MAX_PERSISTENT_ENV_ID
+            }
+            _ => false,
+        }
+    }
+
     pub fn class(&self) -> PlanNodeClass {
         match self {
             Self::Text
@@ -978,6 +1102,14 @@ impl PlanBuilder {
                 }
                 scope_stack.pop();
             }
+            OIr::NativeLeaf { args, .. } => {
+                scope_stack.push(std::collections::HashMap::new());
+                let mut prev = None;
+                for arg in args {
+                    prev = Some(self.add_node(arg, scope_stack, Some(id), prev));
+                }
+                scope_stack.pop();
+            }
             OIr::Exec {
                 attr,
                 backend,
@@ -985,12 +1117,13 @@ impl PlanBuilder {
                 ..
             } => {
                 // A shim receives exactly the visible `let` bindings that its
-                // body references by whole identifier token or `$name`
-                // splice, anywhere in its OIR subtree, for every backend
-                // including bash and sh. Reflective or runtime-built access to
+                // body references, anywhere in its OIR subtree: by whole
+                // identifier token or `$name` splice for most backends, by
+                // braced expansion or a bare name in arithmetic context for
+                // bash, and never for sh or shell. Reflective or runtime-built access to
                 // an unreferenced name gets nothing (see
                 // REFLECTION_FULL_SCOPE_FALLBACK). Persistent state lives only
-                // in numbered environments such as python[0];
+                // in numbered environments such as python[0] or bash[0];
                 // plain blocks are ephemeral. Effect ordering does not depend
                 // on these Data edges: Sequence edges and resource-state
                 // chains preserve it independently.
@@ -1050,10 +1183,6 @@ impl PlanBuilder {
                     arg_count: args.len(),
                 },
                 InvokeMode::Eager => match fn_name.as_str() {
-                    NATIVE_LEAF_BUILTIN => PlanNodeKind::NativeI64 {
-                        descriptor: native_leaf_source_descriptor(node).map(str::to_owned),
-                        argument_count: args.len().saturating_sub(1),
-                    },
                     "instantiate" => PlanNodeKind::Request {
                         fn_name: fn_name.clone(),
                         kind: PlanRequestKind::Instantiate,
@@ -1086,6 +1215,10 @@ impl PlanBuilder {
                     },
                 },
             },
+            OIr::NativeLeaf { args, .. } => PlanNodeKind::NativeI64 {
+                descriptor: native_leaf_source_descriptor(node).map(str::to_owned),
+                argument_count: args.len().saturating_sub(1),
+            },
             OIr::Exec {
                 lang,
                 env_id,
@@ -1102,13 +1235,15 @@ impl PlanBuilder {
     }
 }
 
-/// Shell backends. Their shims export received `let` values as environment
-/// variables for that block only.
+/// Shell backends. They receive no `let` bindings as environment variables.
+/// A shell block sees a `let` value through a `$name` splice, and a bash
+/// block also through braced parameter expansion (see
+/// [`bash_braced_references`]).
 const SHELL_BACKENDS: &[&str] = &["bash", "shell", "sh"];
 
-/// Whether shell blocks receive the `let` bindings they reference. Set to
-/// `false` to pass no `let` values to shell blocks at all.
-const SHELL_RECEIVES_REFERENCED_LETS: bool = true;
+/// Whether shell blocks receive the `let` bindings they reference as
+/// environment variables. Disabled: shell blocks get no `let` values.
+const SHELL_RECEIVES_REFERENCED_LETS: bool = false;
 
 /// Restores the conservative marker fallback: when `true`, a non-shell block
 /// whose text contains a reflective token (Python namespace or frame access,
@@ -1228,6 +1363,9 @@ fn collect_exec_references(
                 }
                 dynamic |= collect_exec_references(args, tokens, o_scope);
             }
+            OIr::NativeLeaf { args, .. } => {
+                dynamic |= collect_exec_references(args, tokens, o_scope);
+            }
             OIr::Exec { backend, body, .. } => {
                 if backend.canonical == "quote" {
                     dynamic = true;
@@ -1239,9 +1377,579 @@ fn collect_exec_references(
     dynamic
 }
 
+/// Names a bash block references through braced parameter expansion:
+/// `${name}`, `${#name}`, and `${name` followed by an operator such as `:-`,
+/// `%`, `/`, `#`, or `^`. A bare word is not a reference, and indirection
+/// `${!v}` names no binding. The bash backend assigns each received value as
+/// a non-exported shell variable for the block, so bash evaluates every
+/// operator itself and child processes see nothing. Bare `$name` is an O
+/// splice and is handled by the `Load` node instead.
+///
+/// The escape `\${name}` carries through from the parser: an escaped `$`
+/// always ends its `Text` node and the source after it starts a new one,
+/// so each node is scanned on its own and never sees `${` across that
+/// boundary. Both bash scanners rely on that and never join nodes.
+pub(crate) fn bash_braced_references(body: &[OIr]) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    for node in body {
+        let OIr::Text(text) = node else { continue };
+        let bytes = text.as_bytes();
+        let mut i = 0;
+        while i + 1 < bytes.len() {
+            if bytes[i] != b'$' || bytes[i + 1] != b'{' {
+                i += 1;
+                continue;
+            }
+            let mut start = i + 2;
+            if start < bytes.len() && bytes[start] == b'#' {
+                start += 1;
+            }
+            let mut end = start;
+            if end < bytes.len() && (bytes[end].is_ascii_alphabetic() || bytes[end] == b'_') {
+                end += 1;
+                while end < bytes.len()
+                    && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_')
+                {
+                    end += 1;
+                }
+                if end < bytes.len() && b"}:-=+?#%/^,@[".contains(&bytes[end]) {
+                    names.insert(text[start..end].to_string());
+                }
+            }
+            i = end.max(i + 2);
+        }
+    }
+    names
+}
+
+// ############################################################################
+// bash special names
+// ############################################################################
+
+/// How bash treats a variable name that it defines itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BashSpecial {
+    /// readonly or dynamic: an assignment fails or is ignored, so a `let`
+    /// of that name can never reach the block.
+    Readonly,
+    /// session state such as `PATH` or `IFS`: a received `let` value is
+    /// assigned for one block and the session's own value is restored.
+    Writable,
+}
+
+const BASH_READONLY_NAMES: &[&str] = &[
+    "BASHOPTS",
+    "BASHPID",
+    "BASH_ARGC",
+    "BASH_ARGV",
+    "BASH_COMMAND",
+    "BASH_LINENO",
+    "BASH_MONOSECONDS",
+    "BASH_SOURCE",
+    "BASH_SUBSHELL",
+    "BASH_VERSINFO",
+    "EPOCHREALTIME",
+    "EPOCHSECONDS",
+    "EUID",
+    "FUNCNAME",
+    "GROUPS",
+    "HISTCMD",
+    "LINENO",
+    "PPID",
+    "RANDOM",
+    "SECONDS",
+    "SHELLOPTS",
+    "SRANDOM",
+    "UID",
+];
+
+const BASH_WRITABLE_SPECIAL_NAMES: &[&str] = &[
+    "BASH",
+    "BASH_COMPAT",
+    "BASH_ENV",
+    "BASH_VERSION",
+    "BASH_XTRACEFD",
+    "CDPATH",
+    "COLUMNS",
+    "ENV",
+    "FIGNORE",
+    "GLOBIGNORE",
+    "HISTCONTROL",
+    "HISTFILE",
+    "HISTFILESIZE",
+    "HISTIGNORE",
+    "HISTSIZE",
+    "HOME",
+    "HOSTNAME",
+    "HOSTTYPE",
+    "IFS",
+    "INPUTRC",
+    "LANG",
+    "LINES",
+    "LOGNAME",
+    "MACHTYPE",
+    "MAIL",
+    "MAILCHECK",
+    "MAILPATH",
+    "OLDPWD",
+    "OPTARG",
+    "OPTERR",
+    "OPTIND",
+    "OSTYPE",
+    "PATH",
+    "POSIXLY_CORRECT",
+    "PROMPT_COMMAND",
+    "PS1",
+    "PS2",
+    "PS3",
+    "PS4",
+    "PWD",
+    "SHELL",
+    "SHLVL",
+    "TERM",
+    "TIMEFORMAT",
+    "TMOUT",
+    "TMPDIR",
+    "TZ",
+    "USER",
+    // the rest of the bash manual's shell variables (5.2, "Bash Variables").
+    "AUTO_RESUME",
+    "BASH_ALIASES",
+    "BASH_ARGV0",
+    "BASH_CMDS",
+    "BASH_LOADABLES_PATH",
+    "BASH_REMATCH",
+    "CHILD_MAX",
+    "COMPREPLY",
+    "COMP_CWORD",
+    "COMP_KEY",
+    "COMP_LINE",
+    "COMP_POINT",
+    "COMP_TYPE",
+    "COMP_WORDBREAKS",
+    "COMP_WORDS",
+    "COPROC",
+    "DIRSTACK",
+    "EMACS",
+    "EXECIGNORE",
+    "FCEDIT",
+    "FUNCNEST",
+    "HISTCHARS",
+    "HISTTIMEFORMAT",
+    "HOSTFILE",
+    "IGNOREEOF",
+    "INSIDE_EMACS",
+    "MAPFILE",
+    "PIPESTATUS",
+    "PROMPT_DIRTRIM",
+    "PS0",
+    "READLINE_ARGUMENT",
+    "READLINE_LINE",
+    "READLINE_MARK",
+    "READLINE_POINT",
+    "REPLY",
+    "TEXTDOMAIN",
+    "TEXTDOMAINDIR",
+];
+
+/// Whether bash defines `name` itself, and how; `LC_*` locale names count
+/// as writable session state.
+pub(crate) fn bash_special_name(name: &str) -> Option<BashSpecial> {
+    if BASH_READONLY_NAMES.contains(&name) {
+        Some(BashSpecial::Readonly)
+    } else if BASH_WRITABLE_SPECIAL_NAMES.contains(&name) || name.starts_with("LC_") {
+        Some(BashSpecial::Writable)
+    } else {
+        None
+    }
+}
+
+// ############################################################################
+// bash arithmetic references
+// ############################################################################
+
+/// Where a bracket or paren region opened by the arithmetic scanner closes.
+#[derive(Clone, Copy, PartialEq)]
+enum ArithClose {
+    /// `$(( ))`, `(( ))`, and `for (( ; ; ))`: closes at `))` at depth zero.
+    Parens,
+    /// `$[ ]` and `name[ ]` subscripts: closes at `]` at depth zero.
+    Bracket,
+    /// `${s:offset:length}`: closes at `}` at depth zero.
+    Brace,
+    /// a whole slice that bash evaluates as arithmetic; never closes.
+    Never,
+}
+
+struct ArithFrame {
+    close: ArithClose,
+    depth: usize,
+}
+
+fn is_bash_ident_start(byte: u8) -> bool {
+    byte.is_ascii_alphabetic() || byte == b'_'
+}
+
+fn is_bash_ident_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_'
+}
+
+/// Whether the word starting at `start` is in command position, so a
+/// builtin such as `let` or `declare` there is the builtin and not an
+/// argument of another command.
+fn bash_command_position(bytes: &[u8], start: usize) -> bool {
+    let mut p = start;
+    while p > 0 && (bytes[p - 1] == b' ' || bytes[p - 1] == b'\t') {
+        p -= 1;
+    }
+    if p == 0 || b";&|({\n".contains(&bytes[p - 1]) {
+        return true;
+    }
+    let before = &bytes[..p];
+    // compound-command keywords also start a command, so `if [[ x -gt 1 ]]`
+    // and `while let ...` scan like a bare `[[` or `let`.
+    [
+        &b"do"[..],
+        b"then",
+        b"else",
+        b"!",
+        b"if",
+        b"elif",
+        b"while",
+        b"until",
+        b"time",
+    ]
+    .iter()
+    .any(|word| {
+        before.ends_with(word)
+            && (before.len() == word.len()
+                || !is_bash_ident_byte(before[before.len() - word.len() - 1]))
+    })
+}
+
+/// End of the simple command that starts at `start`: the first unquoted
+/// `;`, `&`, `|`, `)`, or newline.
+fn bash_command_end(bytes: &[u8], start: usize) -> usize {
+    let mut i = start;
+    let mut quote = None;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        match quote {
+            Some(q) if byte == q => quote = None,
+            Some(_) => {}
+            None if byte == b'\\' => i += 1,
+            None if byte == b'\'' || byte == b'"' => quote = Some(byte),
+            None if b";&|)\n".contains(&byte) => return i,
+            None => {}
+        }
+        i += 1;
+    }
+    bytes.len()
+}
+
+/// Words of a simple command with their quote characters removed, so
+/// `let "x = y + 1"` yields the expression text bash evaluates.
+fn bash_command_words(segment: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quote = None;
+    for ch in segment.chars() {
+        match quote {
+            Some(q) if ch == q => quote = None,
+            Some(_) => word.push(ch),
+            None if ch == '\'' || ch == '"' => quote = Some(ch),
+            None if ch.is_whitespace() => {
+                if !word.is_empty() {
+                    words.push(std::mem::take(&mut word));
+                }
+            }
+            None => word.push(ch),
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
+}
+
+/// A `declare`, `local`, or `typeset` command at `start`: its option
+/// letters and its operand words.
+fn bash_declaration(bytes: &[u8], text: &str, start: usize) -> Option<(String, Vec<String>)> {
+    let word_end = start
+        + bytes[start..]
+            .iter()
+            .take_while(|byte| is_bash_ident_byte(**byte))
+            .count();
+    if !matches!(&text[start..word_end], "declare" | "local" | "typeset")
+        || !bash_command_position(bytes, start)
+    {
+        return None;
+    }
+    let end = bash_command_end(bytes, word_end);
+    let mut options = String::new();
+    let mut operands = Vec::new();
+    for word in bash_command_words(&text[word_end..end]) {
+        if let Some(letters) = word.strip_prefix('-') {
+            options.push_str(letters);
+        } else {
+            operands.push(word);
+        }
+    }
+    Some((options, operands))
+}
+
+/// Names a bash block reads as bare identifiers in arithmetic context:
+/// inside `$(( ))`, `(( ))`, `for (( ; ; ))`, and `$[ ]`; in indexed array
+/// subscripts `name[...]` and `${name[...]}`, for reads and writes; in the
+/// offset and length of `${s:offset:length}`; in the arguments of the `let`
+/// builtin; on the right of `declare -i`, `local -i`, or `typeset -i`
+/// assignments; and as operands of the `[[ ]]` operators `-eq`, `-ne`,
+/// `-lt`, `-le`, `-gt`, and `-ge`. Bash reads such a name as a variable,
+/// so it is a reference just like `${name}`. Every subscript counts, with no
+/// classification of the array kind: an associative key that happens to be
+/// a `let` name only gets a harmless extra edge. `[[ == ]]`, `!=`, and `=~`
+/// compare strings, and their operands are not references. A bare word
+/// outside these contexts, `$name`, and a name built at runtime, such as
+/// `v=name; echo $((v))`, are not references.
+///
+/// The scan is textual, so a match inside a double-quoted string, a comment,
+/// or a heredoc body (`echo "(( x ))"`, `# let x`, `foo[x]` as a glob) also
+/// counts. That only over-includes: an extra edge and an unexported value.
+pub(crate) fn bash_arithmetic_references(body: &[OIr]) -> HashSet<String> {
+    let mut names = HashSet::new();
+    scan_bash_arithmetic(&bash_scan_text(body), false, &mut names);
+    names
+}
+
+/// One string for the arithmetic scan of a whole bash body, so a region
+/// that a `$name` splice interrupts, as in `$(( $n + x ))` or
+/// `[[ $n -gt x ]]`, still reads `x` in arithmetic context. A splice or
+/// nested block stands in as `0`, which is a number and names nothing. An
+/// escaped `$` always ends its `Text` node, so a node ending in `$` before
+/// more text becomes `\$`, which the scanner skips: `\$((x))` opts out like
+/// `\${x}`.
+fn bash_scan_text(body: &[OIr]) -> String {
+    let mut joined = String::new();
+    for (index, node) in body.iter().enumerate() {
+        match node {
+            OIr::Text(text) => {
+                let escaped =
+                    text.ends_with('$') && matches!(body.get(index + 1), Some(OIr::Text(_)));
+                if escaped {
+                    joined.push_str(&text[..text.len() - 1]);
+                    joined.push_str("\\$");
+                } else {
+                    joined.push_str(text);
+                }
+            }
+            _ => joined.push('0'),
+        }
+    }
+    joined
+}
+
+fn scan_bash_arithmetic(text: &str, whole: bool, names: &mut HashSet<String>) {
+    let bytes = text.as_bytes();
+    let mut stack = Vec::new();
+    if whole {
+        stack.push(ArithFrame {
+            close: ArithClose::Never,
+            depth: 0,
+        });
+    }
+    let at = |index: usize| bytes.get(index).copied();
+    let mut i = 0;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        let arith = !stack.is_empty();
+        if byte == b'\\' {
+            // an escaped `$((` or `$[` is not an arithmetic opener, so its
+            // parens or bracket must not open a region either.
+            i += match (at(i + 1), at(i + 2), at(i + 3)) {
+                (Some(b'$'), Some(b'('), Some(b'(')) => 4,
+                (Some(b'$'), Some(b'['), _) => 3,
+                _ => 2,
+            };
+            continue;
+        }
+        // single quotes keep their text literal outside arithmetic, and a
+        // child `bash -c '...'` never sees the non-exported value anyway.
+        if byte == b'\'' && !arith {
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'\'' {
+                i += 1;
+            }
+            i += 1;
+            continue;
+        }
+        // ---- region openers ----
+        if byte == b'$' && at(i + 1) == Some(b'(') && at(i + 2) == Some(b'(') {
+            stack.push(ArithFrame {
+                close: ArithClose::Parens,
+                depth: 0,
+            });
+            i += 3;
+            continue;
+        }
+        if byte == b'$' && at(i + 1) == Some(b'[') {
+            stack.push(ArithFrame {
+                close: ArithClose::Bracket,
+                depth: 0,
+            });
+            i += 2;
+            continue;
+        }
+        if byte == b'(' && at(i + 1) == Some(b'(') && !arith {
+            stack.push(ArithFrame {
+                close: ArithClose::Parens,
+                depth: 0,
+            });
+            i += 2;
+            continue;
+        }
+        if byte == b'[' && at(i + 1) == Some(b'[') && !arith && bash_command_position(bytes, i) {
+            scan_bash_test_operands(text, i + 2, names);
+            i += 2;
+            continue;
+        }
+        // ---- region closers ----
+        if let Some(frame) = stack.last_mut() {
+            let closed = match (frame.close, byte) {
+                (ArithClose::Parens, b'(')
+                | (ArithClose::Bracket, b'[')
+                | (ArithClose::Brace, b'{') => {
+                    frame.depth += 1;
+                    false
+                }
+                (ArithClose::Parens, b')') if frame.depth == 0 && at(i + 1) == Some(b')') => {
+                    i += 1;
+                    true
+                }
+                (ArithClose::Bracket, b']') | (ArithClose::Brace, b'}') if frame.depth == 0 => true,
+                (ArithClose::Parens, b')')
+                | (ArithClose::Bracket, b']')
+                | (ArithClose::Brace, b'}') => {
+                    frame.depth = frame.depth.saturating_sub(1);
+                    false
+                }
+                _ => false,
+            };
+            if closed {
+                stack.pop();
+                i += 1;
+                continue;
+            }
+        }
+        // ---- identifiers ----
+        if is_bash_ident_start(byte) && (i == 0 || !is_bash_ident_byte(bytes[i - 1])) {
+            let start = i;
+            let mut end = i + 1;
+            while end < bytes.len() && is_bash_ident_byte(bytes[end]) {
+                end += 1;
+            }
+            let word = &text[start..end];
+            let prev = start.checked_sub(1).map(|p| bytes[p]);
+            let braced = prev == Some(b'{')
+                || (matches!(prev, Some(b'!') | Some(b'#'))
+                    && start >= 2
+                    && bytes[start - 2] == b'{');
+            // `$x` is an O splice or an escaped session read, `${x}` belongs
+            // to the braced scanner, and `16#ff` is a base, not a name.
+            let named = !matches!(prev, Some(b'$') | Some(b'#') | Some(b'{'))
+                && !(prev == Some(b'!') && braced);
+            if arith && named {
+                names.insert(word.to_string());
+            }
+            if at(end) == Some(b'[') {
+                stack.push(ArithFrame {
+                    close: ArithClose::Bracket,
+                    depth: 0,
+                });
+                i = end + 1;
+                continue;
+            }
+            // `${s:offset:length}`; `${s:-x}`, `${s:=x}`, `${s:+x}`, and
+            // `${s:?x}` are defaults, not offsets.
+            if braced
+                && prev == Some(b'{')
+                && at(end) == Some(b':')
+                && !matches!(
+                    at(end + 1),
+                    Some(b'-') | Some(b'=') | Some(b'+') | Some(b'?')
+                )
+            {
+                stack.push(ArithFrame {
+                    close: ArithClose::Brace,
+                    depth: 0,
+                });
+                i = end + 1;
+                continue;
+            }
+            if !arith && bash_command_position(bytes, start) {
+                if word == "let" {
+                    let stop = bash_command_end(bytes, end);
+                    for expr in bash_command_words(&text[end..stop]) {
+                        scan_bash_arithmetic(&expr, true, names);
+                    }
+                } else if let Some((options, operands)) = bash_declaration(bytes, text, start) {
+                    if options.contains('i') && !options.contains('A') {
+                        for operand in operands {
+                            if let Some((_, value)) = operand.split_once('=') {
+                                scan_bash_arithmetic(value, true, names);
+                            }
+                        }
+                    }
+                }
+            }
+            i = end;
+            continue;
+        }
+        i += 1;
+    }
+}
+
+/// Operands of the `[[ ]]` arithmetic operators in the test that starts at
+/// `start`, just after its `[[`.
+fn scan_bash_test_operands(text: &str, start: usize, names: &mut HashSet<String>) {
+    let end = text[start..]
+        .find("]]")
+        .map_or(text.len(), |offset| start + offset);
+    let words = bash_command_words(&text[start..end]);
+    for (index, word) in words.iter().enumerate() {
+        if !matches!(word.as_str(), "-eq" | "-ne" | "-lt" | "-le" | "-gt" | "-ge") {
+            continue;
+        }
+        for operand in [index.checked_sub(1), Some(index + 1)]
+            .into_iter()
+            .flatten()
+        {
+            if let Some(operand) = words.get(operand) {
+                scan_bash_arithmetic(operand, true, names);
+            }
+        }
+    }
+}
+
+/// Writable bash specials that a bash body splices as `$name`. The splice
+/// already puts the text into the block, but the session's own copy of the
+/// special must take the `let` value too, as it does for `${PATH}`.
+fn bash_special_splices(body: &[OIr]) -> HashSet<String> {
+    body.iter()
+        .filter_map(|node| match node {
+            // only the session state matters here; a readonly name stays a
+            // plain splice, since nothing is assigned for it.
+            OIr::Load(name) if bash_special_name(name) == Some(BashSpecial::Writable) => {
+                Some(name.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// Plan sources of the visible `let` bindings a shim block receives: exactly
-/// the bindings whose names its body references by whole identifier token
-/// or `$name` splice, for every backend and every parallel branch. With
+/// the bindings whose names its body references, for every parallel branch.
+/// Bash references are braced expansions and bare names in arithmetic
+/// context; sh and shell receive none. With
 /// [`REFLECTION_FULL_SCOPE_FALLBACK`] enabled, a non-shell block with a
 /// reflective token or O scope node receives the complete visible scope.
 fn shim_scope_sources(
@@ -1252,7 +1960,23 @@ fn shim_scope_sources(
 ) -> Vec<PlanNodeId> {
     let shell = SHELL_BACKENDS.contains(&backend.canonical.as_str());
     if shell && !SHELL_RECEIVES_REFERENCED_LETS {
-        return Vec::new();
+        if backend.canonical != "bash" {
+            return Vec::new();
+        }
+        let mut names = bash_braced_references(body);
+        names.extend(bash_arithmetic_references(body));
+        names.extend(bash_special_splices(body));
+        let mut seen = std::collections::HashSet::new();
+        let mut sources = Vec::new();
+        for lexical_scope in scope_stack.iter().rev() {
+            for (name, source) in lexical_scope {
+                if seen.insert(name.clone()) && names.contains(name) {
+                    sources.push(*source);
+                }
+            }
+        }
+        sources.sort_by_key(|source| source.0);
+        return sources;
     }
     let mut tokens = std::collections::HashSet::new();
     let mut o_scope = false;
@@ -1524,18 +2248,19 @@ mod tests {
             ));
         }
         let mut attributed = node.clone();
-        if let OIr::Invoke { args, .. } = &mut attributed {
+        if let OIr::NativeLeaf { args, .. } = &mut attributed {
             if let OIr::Exec { attr, .. } = &mut args[0] {
                 *attr = Some("cache".into());
             }
         }
         assert_eq!(native_leaf_source_descriptor(&attributed), None);
-        let mut lazy = node.clone();
-        if let OIr::Invoke { mode, .. } = &mut lazy {
-            *mode = InvokeMode::Lazy;
-        }
-        assert!(!is_native_leaf_call(&lazy));
-        assert_eq!(native_leaf_source_descriptor(&lazy), None);
+        let forged_invoke = OIr::Invoke {
+            fn_name: NATIVE_LEAF_BUILTIN.into(),
+            mode: InvokeMode::Eager,
+            args: vec![],
+        };
+        assert!(!is_native_leaf_call(&forged_invoke));
+        assert_eq!(native_leaf_source_descriptor(&forged_invoke), None);
     }
 
     #[test]
@@ -2095,14 +2820,110 @@ mod tests {
     }
 
     #[test]
-    fn shell_blocks_receive_only_referenced_bindings() {
+    fn bash_braced_expansion_references_only_named_bindings() {
         for (body, expected) in [
-            ("bash^(echo \\$c)_bash", vec!["c".to_string()]),
+            ("bash^(echo ${c})_bash", vec!["c"]),
+            ("bash^(echo \"${a:-x}\" ${#b})_bash", vec!["a", "b"]),
+            ("bash^(echo ${c%2} ${a/4/9})_bash", vec!["a", "c"]),
+            ("bash^(v=a; echo ${!v})_bash", vec![]),
+            ("bash^(echo a b c ${HOME})_bash", vec![]),
+            ("bash[0]^(echo ${b})_bash[0]", vec!["b"]),
+            ("sh^(echo ${c})_sh", vec![]),
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            let expected: Vec<String> = expected.into_iter().map(String::from).collect();
+            assert_eq!(execs.last().unwrap(), &expected, "{body}");
+        }
+    }
+
+    #[test]
+    fn bash_shim_writable_specials_match_the_native_list() {
+        // the python shim decides how to inject on its own copy of the list,
+        // so the two must never drift.
+        let shim = include_str!("../backends/bash_shim.py");
+        let start = shim.find("WRITABLE_SPECIALS = {").expect("shim list");
+        let end = start + shim[start..].find('}').expect("shim list end");
+        let mut shim_names = shim[start..end]
+            .split('"')
+            .skip(1)
+            .step_by(2)
+            .collect::<Vec<_>>();
+        shim_names.sort_unstable();
+        let mut native = BASH_WRITABLE_SPECIAL_NAMES.to_vec();
+        native.sort_unstable();
+        assert_eq!(shim_names, native);
+        for name in BASH_READONLY_NAMES {
+            assert!(!native.contains(name), "{name} is in both lists");
+        }
+    }
+
+    #[test]
+    fn bash_arithmetic_contexts_reference_bare_let_names() {
+        for (body, expected) in [
+            ("bash^(echo $((c + 1)))_bash", vec!["c"]),
+            ("bash^((( c > 1 )) && echo big)_bash", vec!["c"]),
+            (
+                "bash^(for ((i=a; i<b; i++)); do :; done)_bash",
+                vec!["a", "b"],
+            ),
+            ("bash^(echo $[c + 1])_bash", vec!["c"]),
+            ("bash^(let \"x = a * 2\" y=b)_bash", vec!["a", "b"]),
+            ("bash^(declare -i y=c+1; echo ok)_bash", vec!["c"]),
+            (
+                "bash^([[ a -gt 10 && 3 -le b ]] && echo big)_bash",
+                vec!["a", "b"],
+            ),
+            ("bash^(s=abcdef; echo ${s:a:b})_bash", vec!["a", "b"]),
+            ("bash^(x=(0 1 2 3); echo ${x[c % 4]})_bash", vec!["c"]),
+            ("bash^(x=(); x[c]=v; echo ${!x[@]})_bash", vec!["c"]),
+            ("bash^(echo $(( a > 1 ? b : c )))_bash", vec!["a", "b", "c"]),
+            ("bash^(declare -A m; m[c]=k; echo ${m[c]})_bash", vec!["c"]),
+            (
+                "bash^(if [[ a -gt 1 ]]; then echo y; fi; while let b; do :; done)_bash",
+                vec!["a", "b"],
+            ),
+            // runtime-built names, string tests, and bare words stay unreferenced.
+            ("bash^(v=c; echo $((v + 1)))_bash", vec![]),
+            ("bash^(v=c; echo ${!v})_bash", vec![]),
+            (
+                "bash^([[ a == b ]] && [[ c =~ x ]] && [[ a != b ]])_bash",
+                vec![],
+            ),
+            ("bash^([ a -gt 1 ]; echo a b c)_bash", vec![]),
+            (
+                "bash^(declare -i y; y=c+1; declare -n r=a; eval b)_bash",
+                vec![],
+            ),
+            ("bash^(echo $((16#ff + 0x1c)))_bash", vec![]),
+            ("bash^(echo ${s:-a})_bash", vec![]),
+            ("sh^(echo $((c + 1)))_sh", vec![]),
+            // a `$name` splice does not end an arithmetic region.
+            ("bash^(echo $(( $c + a )))_bash", vec!["a"]),
+            ("bash^([[ $c -gt a ]] && echo y)_bash", vec!["a"]),
+            (
+                "bash^(s=abc; echo ${s:$c:a}; x[$c+b]=1)_bash",
+                vec!["a", "b"],
+            ),
+            // escaped arithmetic opts out like `\${x}`.
+            (r#"bash^(echo \$((a + 1)) \$[b])_bash"#, vec![]),
+            // the escape carries from the parser: `\${x}` names nothing.
+            (r#"bash^(echo \${c} "x\${a:-d}" \${#b})_bash"#, vec![]),
+        ] {
+            let execs = exec_data_sources(&three_bindings(body));
+            let expected: Vec<String> = expected.into_iter().map(String::from).collect();
+            assert_eq!(execs.last().unwrap(), &expected, "{body}");
+        }
+    }
+
+    #[test]
+    fn shell_blocks_receive_no_let_bindings() {
+        for (body, expected) in [
+            ("bash^(echo \\$c)_bash", Vec::<String>::new()),
             (
                 "bash^(awk 'BEGIN{print ENVIRON[toupper(\"q\")]}')_bash",
                 vec![],
             ),
-            ("bash[0]^(echo \\$b)_bash[0]", vec!["b".to_string()]),
+            ("bash[0]^(echo \\$b)_bash[0]", vec![]),
             ("shell^(echo hello)_shell", vec![]),
         ] {
             let execs = exec_data_sources(&three_bindings(body));
@@ -2134,7 +2955,7 @@ mod tests {
             Vec::new()
         };
         assert_eq!(execs[5], reflective, "{execs:?}");
-        assert_eq!(execs[6], vec!["c".to_string()], "{execs:?}");
+        assert_eq!(execs[6], Vec::<String>::new(), "{execs:?}");
     }
 
     #[test]
