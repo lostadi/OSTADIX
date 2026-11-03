@@ -23,6 +23,10 @@ from scripts.check_commit_authors import (
 )
 
 
+LEE_IDENTITY = "Lee Daghlar Ostadi <34668360+lostadi@users.noreply.github.com>"
+GITHUB_IDENTITY = "GitHub <noreply@github.com>"
+
+
 def commit(**overrides: str) -> CommitMetadata:
     values = {
         "oid": "a" * 40,
@@ -276,10 +280,12 @@ class AuthorCheckPrePushTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
-    def git(self, *args: str, env: dict[str, str] | None = None) -> str:
+    def git(
+        self, *args: str, env: dict[str, str] | None = None, check: bool = True
+    ) -> str:
         return subprocess.run(
             ["git", *args], cwd=self.repo, env=env or self.env,
-            check=True, capture_output=True, text=True,
+            check=check, capture_output=True, text=True,
         ).stdout.strip()
 
     def make_commit(self, message: str, author: str = "Lee Daghlar Ostadi") -> str:
@@ -350,6 +356,92 @@ class AuthorCheckPrePushTests(unittest.TestCase):
             self.assertIn("invalid pre-push", result.stderr)
         blob = self.git("rev-parse", "HEAD:README.md")
         self.assertNotEqual(self.push_check(blob).returncode, 0)
+
+    def make_merge(
+        self,
+        author: str = LEE_IDENTITY,
+        committer: str = GITHUB_IDENTITY,
+        side_author: str = "Lee Daghlar Ostadi",
+    ) -> str:
+        # a side branch and a main-line commit give the merge two real parents.
+        self.git("checkout", "-q", "-b", "side")
+        self.make_commit("Side change", author=side_author)
+        self.git("checkout", "-q", "main")
+        self.make_commit("Main change")
+        self.git(
+            "-c", "commit.gpgsign=false", "merge", "-q", "--no-ff",
+            "-m", "Merge side", "side", env=self.identity_env(author, committer),
+        )
+        return self.git("rev-parse", "HEAD")
+
+    def identity_env(self, author: str, committer: str) -> dict[str, str]:
+        author_name, author_email = author[:-1].split(" <")
+        committer_name, committer_email = committer[:-1].split(" <")
+        return dict(
+            self.env,
+            GIT_AUTHOR_NAME=author_name,
+            GIT_AUTHOR_EMAIL=author_email,
+            GIT_COMMITTER_NAME=committer_name,
+            GIT_COMMITTER_EMAIL=committer_email,
+        )
+
+    def both_checks(self, head: str) -> list[subprocess.CompletedProcess[str]]:
+        # ci uses --base/--head while the hook reads stdin; both must agree.
+        range_check = subprocess.run(
+            [
+                "python3", str(self.repo / "scripts/check_commit_authors.py"),
+                "--base", self.policy, "--head", head,
+            ],
+            cwd=self.repo, env=self.env, capture_output=True, text=True,
+        )
+        return [self.push_check(head, self.policy), range_check]
+
+    def test_github_committed_merge_authored_by_lee_passes(self) -> None:
+        head = self.make_merge()
+        for result in self.both_checks(head):
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("author check: pass", result.stdout)
+
+    def test_single_parent_commit_with_github_committer_fails(self) -> None:
+        self.git(
+            "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q",
+            "-m", "Web edit", env=self.identity_env(LEE_IDENTITY, GITHUB_IDENTITY),
+        )
+        head = self.git("rev-parse", "HEAD")
+        for result in self.both_checks(head):
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("committer name: GitHub", result.stderr)
+
+    def test_github_committed_merge_authored_by_someone_else_fails(self) -> None:
+        for author in (
+            "Someone Else <34668360+lostadi@users.noreply.github.com>",
+            "Lee Daghlar Ostadi <lee@example.invalid>",
+        ):
+            with self.subTest(author=author):
+                self.git("checkout", "-q", "main")
+                self.git("reset", "-q", "--hard", self.policy)
+                self.git("branch", "-q", "-D", "side", check=False)
+                head = self.make_merge(author=author)
+                for result in self.both_checks(head):
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("committer name: GitHub", result.stderr)
+
+    def test_github_merge_cannot_hide_foreign_commit_on_second_parent(self) -> None:
+        # the exception covers the merge only, never the history it brings in.
+        head = self.make_merge(side_author="Someone Else")
+        for result in self.both_checks(head):
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("author name: Someone Else", result.stderr)
+            self.assertNotIn("committer name: GitHub", result.stderr)
+
+    def test_normal_lee_commit_passes(self) -> None:
+        self.git(
+            "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q",
+            "-m", "Ordinary change", env=self.identity_env(LEE_IDENTITY, LEE_IDENTITY),
+        )
+        head = self.git("rev-parse", "HEAD")
+        for result in self.both_checks(head):
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_annotated_tag_message_and_tagger_are_checked(self) -> None:
         env = dict(self.env, GIT_COMMITTER_NAME="Other Tagger")
