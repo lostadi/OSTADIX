@@ -603,6 +603,17 @@ controls. The immutable owned report SHA-256 is
 This compiler fixture evidence uses Linux/QEMU carriers and explicit test
 providers; it does not establish lowering or closure of an upstream engine.
 
+LLVM `strictfp` scopes require the serialized NativeIR target field
+`strict_fp_profile: "integer_only_v1"`. The importer admits only audited
+integer/pointer operations and ABI values under this profile. Native verification
+and emission independently enforce the profile, including rejection of floating
+atomic operations; unknown profile names fail deserialization. Modules without
+the field retain the ordinary realization. Native execution preserves ambient
+floating control/status state and the ordered effects of original provider
+calls. Floating SSA/ABI values, constrained arithmetic/conversions, and extended
+precision formatting still require separate lowering; this profile does not
+qualify musl `vfprintf` or complete original-runtime dependencies.
+
 LLVM `weak` function and global definitions retain their bodies, initializers,
 relocations and actual ELF weak bindings. Symbol closure selects a compatible
 strong definition over weak definitions, or the first weak definition in the
