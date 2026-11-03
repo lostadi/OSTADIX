@@ -330,12 +330,14 @@ OSTADIX_API_ROOT_MODULE_PATHS = {
     "placement": f"{OSTADIX_API_SOURCE_ROOT}/placement/mod.rs",
     "placement_protocol": f"{OSTADIX_API_SOURCE_ROOT}/placement/protocol/mod.rs",
     "process": f"{OSTADIX_API_SOURCE_ROOT}/process.rs",
+    "progress": f"{OSTADIX_API_SOURCE_ROOT}/progress.rs",
     "project": f"{OSTADIX_API_SOURCE_ROOT}/project/mod.rs",
     "registry": f"{OSTADIX_API_SOURCE_ROOT}/registry/mod.rs",
     "resource_identity": f"{OSTADIX_API_SOURCE_ROOT}/world/identity.rs",
     "runtime_exec": f"{OSTADIX_API_SOURCE_ROOT}/runtime_exec.rs",
     "scheduler": f"{OSTADIX_API_SOURCE_ROOT}/scheduler.rs",
     "shims": f"{OSTADIX_API_SOURCE_ROOT}/shims.rs",
+    "step_knobs": f"{OSTADIX_API_SOURCE_ROOT}/step_knobs.rs",
     "syntax_dialect": f"{OSTADIX_API_SOURCE_ROOT}/syntax_dialect.rs",
     "value": f"{OSTADIX_API_SOURCE_ROOT}/value.rs",
     "version": f"{OSTADIX_API_SOURCE_ROOT}/version.rs",
@@ -380,6 +382,8 @@ HUMAN_LLM_INTERFACE_RELEASE_PATHS = frozenset(
 )
 ALLOWED_EXACT_PATHS = frozenset(
     {
+        "boot/boot.sh",
+        "boot/README.md",
         "benchmarks/fidelity/README.md",
         "benchmarks/fidelity/RESULTS.md",
         "benchmarks/fidelity/integer_precision.O",
@@ -519,6 +523,65 @@ NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS = frozenset(
         "tests/test_native_cluster_harness.py",
         "tests/test_kernel_world_real_linux.py",
     }
+)
+
+# The normal boot entry delegates to this complete source/runtime closure.
+# Keep these paths required so a source ZIP cannot retain boot-and-test.sh
+# while dropping its default launcher, rootfs patch, or native codec builder.
+OKERNEL_PACKAGE_BOOT_RELEASE_PATHS = frozenset(
+    {
+        "boot/boot.sh",
+        "boot/README.md",
+        "docs/OKERNEL_PACKAGE_BOOT.md",
+        "ocore/guest/linux/package-domain/README.md",
+        "ocore/guest/linux/package-domain/build.py",
+        "ocore/guest/linux/package-domain/glibc-cc",
+        "ocore/guest/linux/package-domain/init",
+        "ocore/guest/linux/package-domain/okernel-9p-bridge.c",
+        "ocore/guest/linux/package-domain/okernel-status",
+        "ocore/guest/linux/package-domain/package-domain-init",
+        "ocore/guest/linux/package-domain/pkg",
+        "ocore/guest/linux/package-domain/pkg-9p",
+        "ocore/guest/linux/package-domain/pkg-namespace",
+        "ocore/guest/linux/package-domain/pkg-net",
+        "ocore/guest/linux/package-domain/pkg-net-udhcpc",
+        "ocore/guest/linux/package-domain/pkg-plan9port",
+        "ocore/guest/linux/package-domain/plan9port-activate",
+        "ocore/guest/linux/package-domain/u9fs-path-hardening.patch",
+        "ocore/runtime/aarch64/kernel_world_9p.oc",
+        "ocore/runtime/aarch64/kernel_world_net.oc",
+        "ocore/runtime/aarch64/kernel_world_net_host.oc",
+        "ocore/runtime/common/namespace_peer.oc",
+        "ocore/runtime/common/namespace_store.oc",
+        "ocore/runtime/common/u9fs_codec.oc",
+        "ocore/runtime/common/u9fs_namespace_peer.oc",
+        "scripts/boot_okernel.py",
+        "scripts/build_glibc_abi.py",
+        "scripts/fork_okernel_state.py",
+        "scripts/okernel_native_codec.py",
+        "scripts/okernel_native_volume.py",
+        "scripts/okernel_package_domain.py",
+        "scripts/stage_okernel_repository.py",
+        "scripts/update_okernel_guest_tools.py",
+        "scripts/verify_okernel_native_codec.py",
+        "tools/ocore-runtime/u9fs/NATIVE_PEER.md",
+        "tools/ocore-runtime/u9fs/README.md",
+        "tools/ocore-runtime/u9fs/aarch64.codecs.recipe.json",
+        "tools/ocore-runtime/u9fs/aarch64.memory.recipe.json",
+        "tools/ocore-runtime/u9fs/build_component.py",
+        "tools/ocore-runtime/u9fs/build_native.py",
+        "tools/ocore-runtime/u9fs/carrier-aarch64.S",
+        "tools/ocore-runtime/u9fs/carrier-x86_64.S",
+        "tools/ocore-runtime/u9fs/verify_component.c",
+        "tools/ocore-runtime/u9fs/x86_64.codecs.recipe.json",
+        "tools/ocore-runtime/u9fs/x86_64.memory.recipe.json",
+    }
+)
+
+# Most patches remain local/research debris. This one is reviewed input to the
+# original u9fs provider source build and must travel with that build recipe.
+ALLOWED_SOURCE_PATCH_PATHS = frozenset(
+    {"ocore/guest/linux/package-domain/u9fs-path-hardening.patch"}
 )
 
 REQUIRED_RELEASE_PATHS = frozenset(
@@ -1028,12 +1091,14 @@ REQUIRED_RELEASE_PATHS = frozenset(
     | OSTADIX_API_RELEASE_PATHS
     | frozenset(OSTADIX_API_ROOT_MODULE_PATHS.values())
     | NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS
+    | OKERNEL_PACKAGE_BOOT_RELEASE_PATHS
     | HUMAN_LLM_INTERFACE_RELEASE_PATHS
     | SETUP_COMPONENT_RELEASE_PATHS
 )
 VALID_GIT_MODES = frozenset({"100644", "100755"})
 REQUIRED_EXECUTABLE_RELEASE_PATHS = frozenset(
     {
+        "boot/boot.sh",
         "scripts/bootstrap_offline_kit.sh",
         "scripts/build_offline_kit.py",
     }
@@ -1397,7 +1462,7 @@ def is_allowed_release_path(path: str) -> bool:
     if basename.endswith("~") or basename.startswith(".#"):
         return False
     if basename.endswith(EXCLUDED_SUFFIXES) and path not in (
-        ALLOWED_HTML_PATHS | ALLOWED_BINARY_INPUT_PATHS
+        ALLOWED_HTML_PATHS | ALLOWED_BINARY_INPUT_PATHS | ALLOWED_SOURCE_PATCH_PATHS
     ):
         return False
     return True
@@ -2529,8 +2594,10 @@ def _validate_workspace_facade_release_surface(files: dict[str, bytes]) -> None:
         "dispatch_model",
         "eval_core",
         "placement_protocol",
+        "progress",
         "native_leaf_identity",
         "lifecycle_trace",
+        "step_knobs",
     }
     expected_compatibility_names = (
         set(OSTADIX_API_ROOT_MODULE_PATHS)
