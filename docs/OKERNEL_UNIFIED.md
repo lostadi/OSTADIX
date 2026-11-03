@@ -120,9 +120,10 @@ Cancellation requires discarding the owning Plan 9 domain: original rc can
 create background processes in other note groups. O-core withdraws its grant,
 clears its private RAM and complete architectural/interrupt state, then boots
 the admitted original kernel with a fresh service instance. Linux survives
-this replacement. Other running Plan 9 processes restart with that provider;
-save their work before cancelling a service command. The client accepts final interrupted completion only after
-a native-authoritative recovery acknowledgement.
+this replacement. Other running Plan 9 processes are terminated and must be
+restarted explicitly. Save their work before cancelling a service command.
+The client accepts final interrupted completion only after a native-authoritative
+recovery acknowledgement.
 
 That acknowledgement travels through a Linux-only virtual UART into protected
 Linux-local control files. Plan 9 can edit shared objects, so shared ready or
