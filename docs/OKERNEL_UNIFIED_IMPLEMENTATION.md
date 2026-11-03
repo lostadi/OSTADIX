@@ -474,6 +474,8 @@ python3 scripts/benchmark_okernel_linux_baseline.py \
   --output "$HOME/.cache/okernel-linux-baseline-next" --repetitions 7
 python3 scripts/trace_okernel_posix_baseline.py \
   --output "$HOME/.local/state/ostadix/okernel/posix-application-baseline-next"
+python3 scripts/trace_okernel_cat_fallback.py \
+  --output "$HOME/.local/state/ostadix/okernel/cat-sendfile-fallback-next"
 ```
 
 The timing collector reports file-workload internal time separately from its
@@ -482,6 +484,32 @@ and launcher effects; the observed Python launch floor is recorded and is not
 subtracted or presented as application steady-state RAM. The trace collector
 records unchanged installed BusyBox behavior, not source-built application
 admission. Both leave candidate/whole-system efficiency claims unqualified.
+
+The separate supplied-binary fallback collector pins the retained Ubuntu
+x86-64 `busybox-static` 1:1.36.1-6ubuntu3.1 executable and its historical
+six-case reference. It requires that exact installed binary, the retained
+reference receipt, host Linux and an injection-capable `strace`. Its three
+regular-file-to-pipe cases use the same deterministic 1 MiB input: an
+unmodified control, first-call `sendfile` ENOSYS, and first-call EINVAL.
+The 2026-11-03 run at
+`~/.local/state/ostadix/okernel/cat-sendfile-fallback-20261103-84c7ee18/result.json`
+passed all three with byte-exact stdout, empty stderr and exit 0. The control
+accounted for all bytes through partial `sendfile` returns and EOF. Each
+injected case recorded exactly one intended error, followed by sixteen
+64 KiB reads/writes and input EOF; raw traces also retain the buffer mapping
+and release. This tracer invocation elides read/write payload strings;
+separate retained input/stdout files establish byte equality. Chunk sizes
+describe this observation, not a universal contract.
+
+This adds explicit ENOSYS and injected-EINVAL observations to the earlier
+natural EINVAL stdin-pipe case. It does not qualify other errors,
+cancellation/EINTR/EPIPE, full pipe/job-control semantics, successful Linux
+stat layouts or credential transitions. The static ELF contains its libc;
+the matching Ubuntu source/configuration/patch, libc/CRT and build closure
+remain unidentified. The separate Alpine source-build profile cannot inherit
+this supplied binary's provenance. Native syscall/application admission and
+source lowering require their own matched checks; returning an error or a
+success stub does not establish those semantics.
 
 ## Ownership
 
