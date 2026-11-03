@@ -215,6 +215,17 @@ class Importer:
     VISIBILITY = {0: "default", 1: "hidden", 2: "protected"}
     TLS_PROFILE = "linux-elf-static-nonpreemptive-v1"
     ATOMIC_PROFILE = "coherent-ram-v1"
+    # Explicitly bounded strictfp realization. Expanding the normal importer
+    # with floating operations must not silently expand this environment contract.
+    STRICT_FP_INTEGER_OPERATIONS = {
+        "alloca", "assume", "binary", "cast", "i_cmp", "select", "freeze",
+        "extract_value", "insert_value", "gep", "load", "store", "call",
+        "phi", "memory_copy", "memory_set", "lifetime", "no_alias_scope_decl",
+        "integer_overflow", "integer_min_max", "thread_local_address", "trap",
+        "atomic_load", "atomic_store", "atomic_fence", "atomic_compare_exchange", "atomic_rmw",
+        "landing_pad", "eh_type_id", "invoke", "resume", "return", "jump", "branch",
+        "switch", "unreachable",
+    }
     ATOMIC_ORDERINGS = {1: "unordered", 2: "monotonic", 4: "acquire", 5: "release",
                         6: "acq_rel", 7: "seq_cst"}
     # Public LLVMAtomicRMWBinOp differs from the internal C++ enum after14.
@@ -290,6 +301,7 @@ class Importer:
         self.metadata_personalities = set()
         self.exception_handling = None
         self.symbol = ""
+        self.strict_fp_sites = set()
         self.attribute_names = {}
         for name in self.ERASED | self.ERASED_RESTRICTIONS | {
                 "signext", "zeroext", "uwtable", "align", "dereferenceable", "dereferenceable_or_null",
@@ -483,12 +495,13 @@ class Importer:
             kind = a.GetEnumAttributeKind(attribute)
             name = self.attribute_names.get(kind)
             if name == "strictfp":
-                # This is an execution requirement, not an erasable optimizer
-                # promise. In particular musl formatting uses constrained FP
-                # with round.dynamic; integer-only signature admission cannot
-                # establish the floating environment of its body/providers.
+                if (index != 0xffffffff or not a.IsEnumAttribute(attribute)
+                        or a.GetEnumAttributeValue(attribute) != 0):
+                    self.reject("strictfp requires an enum-zero function-slot attribute")
                 site = "callsite" if call else "function"
-                self.reject(f"strictfp {site} attribute requires faithful floating-point environment support (dynamic rounding mode and exception state), floating value/ABI support and explicit constrained-intrinsic lowering; strictfp cannot be erased or replaced by fixed-rounding arithmetic")
+                self.strict_fp_sites.add((self.symbol, site, index))
+                self.refinements.add(f"{self.symbol}: strictfp-integer-v1 {site} attribute index {index}: preserve ambient floating-point rounding/control and exception state through nonoptimizing integer/pointer operations; retain ordered original calls and their provider effects; no floating arithmetic, conversion, SSA/ABI, constrained intrinsic or inline assembly admitted; no floating operation introduced or fixed rounding assumed; dependency providers remain separate obligations")
+                continue
             pointer_indices = {1} if intrinsic and intrinsic.startswith("llvm.memset.") else {1, 2}
             if intrinsic == "llvm.threadlocal.address.p0" and name == "align":
                 if (not a.IsEnumAttribute(attribute) or index not in {0, 1}
@@ -2186,6 +2199,9 @@ class Importer:
                     self.refinements.add(f"{self.symbol}: retained TLS storage and original access model {tls_model} (LLVM mode {mode}); original type, template initializer, alignment, linkage, visibility and COMDAT retained; own local-exec realization requires complete executable-local nonpreemptive bindings and genuine TLS image/thread-pointer lifecycle providers; no relaxation, interposition or provider closure inferred")
                 globals_.append(global_)
             functions = [self.function(value) for value in source_functions]
+            if self.strict_fp_sites:
+                self.audit_strict_fp_integer_operations(functions)
+                self.refinements.add("strictfp-integer-v1 is bounded by an independent whole-module integer/pointer value, ABI and operation audit; future floating support requires a separate environment realization; binary128 raw storage alone does not establish floating execution")
             definitions = {value for value in source_functions if a.GetFirstBasicBlock(value)}
             definitions.update(value for value in source_globals if a.GetInitializer(value))
             aliases = [self.alias(value, definitions) for value in source_aliases]
@@ -2221,6 +2237,58 @@ class Importer:
                                    "refinements": sorted(self.refinements)}}
         finally:
             a.DisposeTargetData(self.layout)
+
+    def audit_strict_fp_integer_operations(self, functions):
+        """Bound the strictfp realization independently of future IR expansion."""
+        def value_type(ident):
+            record = self.types[ident]
+            if record["kind"] in {"void", "int", "pointer", "metadata"}:
+                return
+            if record["kind"] == "struct":
+                for field in record["fields"]:
+                    value_type(field)
+                return
+            if record["kind"] == "array":
+                value_type(record["element"])
+                return
+            self.reject("strictfp-integer-v1 excludes floating-point and unsupported first-class value/ABI types")
+
+        def values(record):
+            if isinstance(record, dict):
+                for key, child in record.items():
+                    if key == "ty":
+                        value_type(child)
+                    elif key == "signature":
+                        signature(child)
+                    else:
+                        values(child)
+            elif isinstance(record, list):
+                for child in record:
+                    values(child)
+
+        def signature(record):
+            value_type(record["result"])
+            for parameter in record["params"]:
+                value_type(parameter)
+
+        for function in functions:
+            self.symbol = function["name"]
+            signature(function["signature"])
+            for block in function["blocks"]:
+                values(block)
+                operations = [item["operation"] for item in block["instructions"]]
+                operations.append(block["terminator"])
+                for operation in operations:
+                    name = operation["op"]
+                    if name not in self.STRICT_FP_INTEGER_OPERATIONS:
+                        self.reject(f"strictfp-integer-v1 has no audited environment-preserving realization for {name}")
+                    if name == "binary" and operation["kind"] not in {
+                            "add", "sub", "mul", "u_div", "s_div", "u_rem", "s_rem",
+                            "shl", "l_shr", "a_shr", "and", "or", "xor"}:
+                        self.reject("strictfp-integer-v1 requires integer-only binary operations")
+                    if name == "cast" and operation["kind"] not in {
+                            "trunc", "z_ext", "s_ext", "ptr_to_int", "int_to_ptr", "bitcast"}:
+                        self.reject("strictfp-integer-v1 requires integer/pointer-only casts")
 
 
 def preflight_scoped_alias_metadata(a, context, module):
