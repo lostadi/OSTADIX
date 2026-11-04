@@ -136,12 +136,21 @@ signed decimal form; <code>+41</code>, <code>041</code>, out-of-range values and
 reject. The native result crosses back as an O integer. Traps and malformed
 protocol responses fail the operation. There is no hosted evaluation fallback.
 The wrapper disables core dumping before entering module code.</p>
-<p>Before fresh graph admission, the adapter resolves <code>clang</code> and <code>ld</code> from a
-single captured search path, reads their exact ELF bytes, and runs sealed
+<p>Before fresh graph admission, the adapter resolves <code>clang</code> and <code>ld</code>. A tool
+is taken from <code>O_NATIVE_CLANG</code> or <code>O_NATIVE_LD</code> when that is set, and the value
+must be an absolute path to an executable file. Otherwise the tool is looked up
+in the absolute entries of a single captured search path. Empty, <code>.</code> and
+relative entries are skipped, so the caller&#39;s working directory never supplies
+a tool. <code>O_NATIVE_CLANG_SHA256</code> and <code>O_NATIVE_LD_SHA256</code>, when set, pin each
+tool&#39;s bytes: a tool with a different SHA-256 is refused, and a pin that is
+not 64 lowercase hex digits is an error. The adapter reads the tools&#39; exact
+ELF bytes and runs sealed
 copies to assemble and statically link the owned assembly. It preserves their
 original invocation paths as <code>argv[0]</code>. Both tools use one captured working
-directory and an otherwise cleared environment containing <code>LC_ALL=C</code> and the
-same optional <code>LD_LIBRARY_PATH</code> snapshot. The manifest binds the working
+directory and an otherwise cleared environment containing <code>LC_ALL=C</code>. The
+caller&#39;s <code>LD_LIBRARY_PATH</code> never reaches them. When a pinned toolchain needs a
+library path, <code>O_NATIVE_TOOL_LIBRARY_PATH</code> supplies it, and every entry must be
+absolute. The manifest binds the working
 directory and an unambiguous environment digest without exposing its raw
 values. These selected tools, their loaded libraries, the owned emitter and
 adapter, and the Linux kernel are explicit trusted components; pinning tool
@@ -307,6 +316,21 @@ restrictions. LLVM assumptions remain explicit IR operations and are verified;
 the unoptimized emitter does not use them to change computation. Intrinsic
 declarations remain in the source inventory and cannot escape as native addresses.
 This contract is distinct from <code>.oc</code> integer division and shift semantics.</p>
+<p>NativeIR integer division (<code>udiv</code>, <code>sdiv</code>, <code>urem</code>, <code>srem</code>) has one rule at
+every width from 1 through 64, in the native code generator and the reference
+interpreter alike. Only a zero divisor traps, with the target&#39;s explicit trap
+instruction (<code>ud2</code>, <code>brk #1</code>, <code>unimp</code>). Signed minimum divided by <code>-1</code> does
+not trap: <code>sdiv</code> yields the minimum, the wrapped quotient, and <code>srem</code> yields
+<code>0</code>. At <code>i1</code> the minimum and <code>-1</code> are the same value, so <code>-1 sdiv -1</code> is <code>-1</code>
+and <code>-1 srem -1</code> is <code>0</code>. The generator emits the zero check and the
+minimum-by-<code>-1</code> compare as explicit branches before the divide instruction,
+so the hardware never divides by zero or overflows (x86 <code>idiv</code> faults on
+both). A check is left out only when a literal operand proves it can never
+fire: a non-zero divisor needs no zero check, and a divisor other than <code>-1</code>
+or a dividend other than the minimum needs no overflow compare. Compared with
+WebAssembly, division by zero traps in both and <code>rem_s</code> of minimum by <code>-1</code>
+is <code>0</code> in both. The only difference is <code>div_s</code> of minimum by <code>-1</code>, which
+traps in WebAssembly and yields the minimum here.</p>
 <p>The imported scalar <code>llvm.smin.iN</code>, <code>llvm.smax.iN</code>, <code>llvm.umin.iN</code> and
 <code>llvm.umax.iN</code> families use one typed <code>integer_min_max</code> NativeIR operation.
 For the current realization, <code>N</code> is the original integer width from 1 through
@@ -1685,6 +1709,22 @@ not legal inside <code>.oc</code> source and are not linked into freestanding ar
 This preserves O-lang&#39;s polyglot model without making Python, Rust, Nix, JSON,
 or subprocess execution part of the kernel trusted computing base.</p>
 <h3>10.1 Operator CLI and boot boundary</h3>
+<p>The repository&#39;s ordinary system entry is <code>./boot/boot.sh</code>, also reached through
+<code>./boot-and-test.sh kernel</code> and the multikernel driver&#39;s <code>kernel</code> phase. It
+selects the prepared persistent AArch64 monitor with Linux/Alpine userspace,
+mediated networking, the shared native namespace, and the original u9fs/musl
+codec component compiled through O-core. Preparation is explicit; normal startup
+checks the captured component closure, monitor/payload identities and saved
+state before opening the interactive terminal. It never implicitly builds or
+falls back to another kernel. See the <a href="../boot/README.md">boot guide</a> for state,
+QEMU, source-preparation and saved-state-fork commands.</p>
+<p><code>./boot/boot.sh native</code> and <code>./boot-and-test.sh console</code> retain mode 16;
+<code>baseline</code> retains mode 0. An explicit <code>OCORE_PROBE_MODE=0</code> or <code>16</code> preserves
+native-runner selection for the ordinary boot entry. Existing native smoke
+gates remain separate. Linux in the ordinary system profile is still original
+guest code; the codec is the lowered original-source component. This profile
+does not establish complete Linux/Plan 9 source lowering or supersede the
+separate original-9front dual-kernel experiment.</p>
 <p>The repository-owned lowercase CLI exposes the authoritative build and QEMU
 paths without reimplementing them:</p>
 <pre><code class="language-text">o kernel doctor

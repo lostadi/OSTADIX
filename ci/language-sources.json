@@ -235,23 +235,6 @@
       ]
     },
     {
-      "id": "ocore-common-native-9p-runtime-module",
-      "category": "runtime-module",
-      "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
-      "coverage": [
-        {
-          "path": "tests/test_okernel_u9fs_peer.py",
-          "kind": "runtime",
-          "conditions": "Compile the three sources together for aarch64-unknown-none and x86_64-unknown-none with an already-built ocorec; the x86-64 fixture links the original u9fs codec objects and needs clang plus OCORE_U9FS_MANIFEST. Individual sources must parse."
-        }
-      ],
-      "sources": [
-        "ocore/runtime/common/namespace_store.oc",
-        "ocore/runtime/common/u9fs_codec.oc",
-        "ocore/runtime/common/u9fs_namespace_peer.oc"
-      ]
-    },
-    {
       "id": "ocore-kernel-modes-kernel-module",
       "category": "kernel-module",
       "reason": "Part of a declared native compilation unit; target modules and mode-selected stubs must not be combined indiscriminately.",
@@ -737,6 +720,32 @@
       "sources": [
         "audits/nano-source-validation-20260918/generated-program.O",
         "audits/nano-source-validation-20260918/rejected-program.O"
+      ]
+    },
+    {
+      "id": "runtime-okernel-package",
+      "category": "runtime-module",
+      "reason": "Native O-core monitor device and namespace modules for the explicitly admitted AArch64 package boot profile.",
+      "coverage": [
+        {
+          "path": "ocore/kernel/build-aarch64-kernel-world-linux.sh",
+          "kind": "build",
+          "conditions": "AArch64 freestanding monitor build; original-codec mode requires its verified seven-object source recipe manifest."
+        },
+        {
+          "path": "tests/test_okernel_u9fs_peer.py",
+          "kind": "runtime",
+          "conditions": "Production peer/store fixture with explicitly selected verified original codec objects; guest/live qualification is separate."
+        }
+      ],
+      "sources": [
+        "ocore/runtime/aarch64/kernel_world_9p.oc",
+        "ocore/runtime/aarch64/kernel_world_net.oc",
+        "ocore/runtime/aarch64/kernel_world_net_host.oc",
+        "ocore/runtime/common/namespace_peer.oc",
+        "ocore/runtime/common/namespace_store.oc",
+        "ocore/runtime/common/u9fs_codec.oc",
+        "ocore/runtime/common/u9fs_namespace_peer.oc"
       ]
     }
   ],

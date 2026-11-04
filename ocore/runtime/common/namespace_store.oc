@@ -22,11 +22,18 @@ const MAX_FRAME: usize = 8192;
 const GRANT_SLOTS: usize = 5;
 const MAGIC: u64 = 0x3130_3050_3953_4e4f;
 const DIR: u64 = 0x8000_0000;
+// DMTMP is an archive hint, not ORCLOSE or another authority. Original Plan9
+// compilers create their object files with this bit. Keep other mode flags
+// unsupported; their append/exclusive/device semantics are not implemented.
+const MODE_REJECT: u64 = 0x7bff_fe00;
 const NOFID: u64 = 0xffff_ffff;
 
 static mut BASE: usize = 0;
 static mut READY: u64 = 0;
 static mut EPOCH: u64 = 0;
+// Native-internal identities, not credentials. Never recycle a token during
+// this service process, including volume reinitialization with the same epoch.
+// Arbitrary trusted grant generations must not alias another role's session.
 static mut SERIAL: u64 = 0;
 static mut CLOCK: u64 = 0;
 static mut USED: [u8; 3999] = [0; 3999];
@@ -235,7 +242,7 @@ unsafe fn validate() -> bool {
             if field(id, 56) > CLOCK { CLOCK = field(id, 56); }
         }
         if state == 1 {
-            if field(id, 24) == 0 || field(id, 24) > 0xffff_ffff || (field(id, 32) & 0x7fff_fe00) != 0 { return false; }
+            if field(id, 24) == 0 || field(id, 24) > 0xffff_ffff || (field(id, 32) & MODE_REJECT) != 0 { return false; }
             let length: usize = field(id, 64) as usize;
             if id == 1 {
                 if field(id, 8) != 1 || !directory(id) || length != 1 || byte(node(id) + 72) != 47 { return false; }
@@ -269,7 +276,7 @@ unsafe fn validate() -> bool {
 pub unsafe fn init(base: usize, bytes: usize, epoch: u64) -> u64 {
     READY = 0;
     if base == 0 || base % 4096 != 0 || bytes != VOLUME_BYTES || base > 0xffff_ffff_ffff_ffff - bytes || epoch == 0 { return 0; }
-    BASE = base; EPOCH = epoch; SERIAL = 0; CLOCK = 0;
+    BASE = base; EPOCH = epoch; CLOCK = 0;
     let mut i: usize = 0;
     while i < GRANT_SLOTS { SESSION[i] = 0; GENERATION[i] = 0; VERSIONED[i] = 0; MSIZE[i] = MAX_FRAME; i += 1; }
     i = 0; while i < FID_COUNT { F_SESSION[i] = 0; i += 1; }
@@ -317,10 +324,27 @@ pub unsafe fn session_init(grant: u64, generation: u64) -> u64 {
     let slot: usize = grant as usize;
     if generation <= GENERATION[slot] || SERIAL == 0xffff_ffff_ffff_ffff { return 0; }
     clear_fids(SESSION[slot]); SERIAL += 1;
-    let mut handle: u64 = EPOCH ^ (SERIAL * 0x9e37_79b9_7f4a_7c15) ^ (grant << 56) ^ generation;
-    if handle == 0 { handle = 0xffff_ffff_ffff_ffff; }
+    let handle: u64 = SERIAL;
     SESSION[slot] = handle; GENERATION[slot] = generation; VERSIONED[slot] = 0; MSIZE[slot] = MAX_FRAME;
     return handle;
+}
+// Trusted native coordination for serialized service owners. These compare
+// tokens are internal identities, not credentials or an SMP atomic primitive.
+// expected_current=0 claims only an empty role; stale owners cannot replace or
+// revoke the session of a newer owner. Existing monitor APIs remain unchanged.
+pub unsafe fn session_is_current(grant: u64, expected_current: u64) -> u64 {
+    if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 || expected_current == 0 { return 0; }
+    return (SESSION[grant as usize] == expected_current) as u64;
+}
+pub unsafe fn session_claim(grant: u64, generation: u64, expected_current: u64) -> u64 {
+    if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 || generation == 0 { return 0; }
+    if SESSION[grant as usize] != expected_current { return 0; }
+    return session_init(grant, generation);
+}
+pub unsafe fn revoke_if_current(grant: u64, expected_current: u64) -> u64 {
+    if READY == 0 || grant == 0 || grant >= GRANT_SLOTS as u64 || expected_current == 0 { return 0; }
+    if SESSION[grant as usize] != expected_current { return 0; }
+    return revoke(grant);
 }
 unsafe fn find_fid(handle: u64, number: u64) -> usize {
     let mut i: usize = 0;
@@ -357,8 +381,8 @@ unsafe fn emit(value: u64, width: usize) -> void { putle(RESPONSE + OUT, value, 
 unsafe fn emit_bytes(address: usize, count: usize) -> void { copy(RESPONSE + OUT, address, count); OUT += count; }
 unsafe fn emit_string(address: usize, count: usize) -> void { emit(count as u64, 2); emit_bytes(address, count); }
 unsafe fn qid(id: usize) -> void {
-    let mut kind: u64 = 0; if directory(id) { kind = 128; }
-    emit(kind, 1); emit(field(id, 24), 4); emit((field(id, 16) << 32) | id as u64, 8);
+    emit((field(id, 32) >> 24) & 255, 1);
+    emit(field(id, 24), 4); emit((field(id, 16) << 32) | id as u64, 8);
 }
 unsafe fn error(code: u64) -> usize {
     let mut address: usize = (&ERR_PROTOCOL[0]) as usize; let mut count: usize = 14;
@@ -451,7 +475,7 @@ unsafe fn open(grant: usize, handle: u64, creating: bool) -> usize {
     if creating {
         if !writable(grant) { return error(2); }
         if !directory(parent) { return error(7); }
-        if !valid_name(name, length) || (permission & 0x7fff_fe00) != 0 { return error(1); }
+        if !valid_name(name, length) || (permission & MODE_REJECT) != 0 { return error(1); }
         if lookup(parent, name, length) != 0 { return error(6); }
         if (permission & DIR) != 0 && (access != 0 || (mode & 16) != 0) { return error(2); }
         if !next_version(parent) || !clock_room(2) { return error(5); }
@@ -593,7 +617,7 @@ unsafe fn wstat(grant: usize, handle: u64) -> usize {
         let other: usize = lookup(parent, name, name_length); if other != 0 && other != object { return error(6); }
         if !next_version(parent) || !clock_room(2) { return error(5); }
     }
-    if mode != 0xffff_ffff && ((mode & 0x7fff_fe00) != 0 || (mode & DIR) != (field(object, 32) & DIR)) { return error(2); }
+    if mode != 0xffff_ffff && ((mode & MODE_REJECT) != 0 || (mode & DIR) != (field(object, 32) & DIR)) { return error(2); }
     if directory(object) && length != 0xffff_ffff_ffff_ffff && length != 0 { return error(2); }
     if !next_version(object) { return error(5); }
     if RESPONSE_CAP < 7 { return 0; }

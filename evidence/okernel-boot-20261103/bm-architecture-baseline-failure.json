@@ -1,0 +1,13 @@
+{
+  "baseline": "b314fd264b63afcdcfb1e82117e659923bfce3db",
+  "argv": [
+    "/usr/bin/python3",
+    "/tmp/okernel-bm-baseline-mkqz069u/scripts/check_architecture_boundaries.py",
+    "--root",
+    "/tmp/okernel-bm-baseline-mkqz069u"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "architecture boundary: FAIL: crates/ostadix-api/src/private_dir.inc.rs: could not analyze Rust tokens: `crates/ostadix-api/src/private_dir.inc.rs` has an invalid declared module path\narchitecture boundary: FAIL: crates/ostadix-api/src/shims.rs:169: include! source `crates/ostadix-api/src/private_dir.inc.rs` is not declared in ci/architecture-roots.toml\n",
+  "scope": "pristine archived BM origin/master baseline; no implementation files applied"
+}

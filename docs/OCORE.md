@@ -1761,6 +1761,24 @@ or subprocess execution part of the kernel trusted computing base.
 
 ### 10.1 Operator CLI and boot boundary
 
+The repository's ordinary system entry is `./boot/boot.sh`, also reached through
+`./boot-and-test.sh kernel` and the multikernel driver's `kernel` phase. It
+selects the prepared persistent AArch64 monitor with Linux/Alpine userspace,
+mediated networking, the shared native namespace, and the original u9fs/musl
+codec component compiled through O-core. Preparation is explicit; normal startup
+checks the captured component closure, monitor/payload identities and saved
+state before opening the interactive terminal. It never implicitly builds or
+falls back to another kernel. See the [boot guide](../boot/README.md) for state,
+QEMU, source-preparation and saved-state-fork commands.
+
+`./boot/boot.sh native` and `./boot-and-test.sh console` retain mode 16;
+`baseline` retains mode 0. An explicit `OCORE_PROBE_MODE=0` or `16` preserves
+native-runner selection for the ordinary boot entry. Existing native smoke
+gates remain separate. Linux in the ordinary system profile is still original
+guest code; the codec is the lowered original-source component. This profile
+does not establish complete Linux/Plan 9 source lowering or supersede the
+separate original-9front dual-kernel experiment.
+
 The repository-owned lowercase CLI exposes the authoritative build and QEMU
 paths without reimplementing them:
 

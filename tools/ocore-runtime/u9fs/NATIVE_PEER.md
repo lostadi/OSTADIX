@@ -25,7 +25,7 @@ only its monitor. The destination must not already exist. A fork captures the
 selected saved checkpoint; it does not capture unsaved guest changes.
 
 ```sh
-cd "$(git rev-parse --show-toplevel)"
+cd /path/to/OSTADIX
 u9fs_state="$HOME/ok-u9fs/package-domain"
 u9fs_manifest=/absolute/path/to/aarch64-output/native-codec.json
 
@@ -84,8 +84,9 @@ OSTADIX_OKERNEL_PACKAGE_SOCKET=okernel-u9fs \
   bash scripts/okernel-console.sh start
 ```
 
-Detach with `Ctrl+B`, then `D`; repeat the same command to reconnect.
-Detaching does not stop that tmux-hosted VM.
+Detach with `Ctrl+B`, then `D`; repeat the same command to reconnect. Closing
+the chat does not stop that tmux-hosted VM. It does not keep a Codex agent
+working independently.
 
 ## Qualify the native path
 
@@ -116,3 +117,37 @@ The fixture's `memmove` and `strlen` wrappers measure calls made during peer
 initialization and polling. They exclude other namespace-store copies and do
 not measure total memory traffic or end-to-end performance. No efficiency
 improvement is inferred from this integration.
+
+## Recorded live qualification — 2026-11-02
+
+The optimized AArch64 profile passed two boots under QEMU/TCG in the isolated
+state `/home/ustad/okernel-native/package-domain`. The machine-local
+[live receipt](/home/ustad/okernel-native/package-domain/native-codec-live-4ca0c182e66242d4beafc1d941ec0383.json)
+binds both executed monitor snapshots to SHA-256
+`521fa3bac7f2e94492f83834c3bcf71273cca0aa01a502776225a9550f82d9ec`
+and the captured seven-object O1 codec/musl closure. Each boot completed a new
+Linux-to-native-peer shared-file exchange with its own namespace epoch.
+Counter samples read from the exact running monitor increased as follows:
+
+| Boot | Encodes | Decodes | Encoded bytes | Decoded bytes |
+| --- | ---: | ---: | ---: | ---: |
+| Initial | 20 | 20 | 473 | 516 |
+| Restart | 24 | 24 | 548 | 629 |
+
+These are measured deltas around the exchange, including peer polling; they
+are not a fixed operation count or performance result. The guest GCC compiled
+C source read from the shared namespace and executed the resulting Linux
+binary. Original Plan9port `rc` wrote and read shared files. The executable and
+shared files survived the paired disk/namespace save and restart. Independent
+read-only review checked captured object and receipt identities, the exact
+monitor ELF and counter symbols, stored counter bytes, successful command
+completion markers, and the first saved pair used as the second boot's input.
+
+A third interactive boot recorded actual shell output in
+[interactive-acceptance.json](/home/ustad/okernel-native/package-domain/interactive-acceptance.json);
+the operator also verified PTY input and detach without stopping that VM.
+The tested console launcher is `/home/ustad/okernel-native/run`. This milestone
+qualifies the original codec in the live native peer path. Linux remains the
+guest kernel and Plan9port uses its ABI; this does not establish full Linux/Plan 9 source lowering,
+a complete native POSIX system, physical hardware operation, or a self-contained
+interactive `.O` distribution.

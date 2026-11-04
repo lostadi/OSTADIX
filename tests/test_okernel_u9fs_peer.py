@@ -136,7 +136,7 @@ int main(void) {
  linux_session=STORE(session_init)(1,1);assert(linux_session);version(linux_session);attach(linux_session);
  assert(peer_init(43)==1&&peer_poll()==1);
  linux_output(linux_session,"native-9p-peer generation=000000000000002b\nlinux=linux-two\n");
- 
+
  /* Original codec keeps payload bytes binary, including NUL and high bytes. */
  assert(walk(linux_session,1,2,"work")==111 && walk(linux_session,2,3,"from-linux")==111);clunk(linux_session,2);
  assert(openfile(linux_session,3,0x11)==113);
