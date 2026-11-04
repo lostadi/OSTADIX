@@ -1,0 +1,336 @@
+module runtime::aarch64::kernel_world_9p;
+
+// One modern virtio-9P request queue backed by the native shared namespace.
+// No host filesystem, guest fid or path string grants ambient authority.
+use runtime::common::namespace_store::session_init;
+use runtime::common::namespace_store::handle;
+
+extern "ocore" fn kw_guest_address(gpa: u64, length: u64) -> usize;
+extern "ocore" fn kw_memory_barrier() -> void;
+extern "ocore" fn kw_9p_irq_level(asserted: u64) -> void;
+
+const QUEUE_MAX: u64 = 32;
+const MSIZE: usize = 8192;
+const LINUX_NAMESPACE_GRANT: u64 = 1;
+static MOUNT_TAG: [u8; 7] = b"okernel";
+
+static mut ACTIVE: u64 = 0;
+static mut GENERATION: u64 = 0;
+static mut SESSION: u64 = 0;
+static mut SESSION_EPOCH: u64 = 0;
+static mut RAM_BASE: u64 = 0;
+static mut RAM_SIZE: u64 = 0;
+static mut STATUS: u64 = 0;
+static mut DEVICE_FEATURE_SEL: u64 = 0;
+static mut DRIVER_FEATURE_SEL: u64 = 0;
+static mut DRIVER_LOW: u64 = 0;
+static mut DRIVER_HIGH: u64 = 0;
+static mut QUEUE_SEL: u64 = 0;
+static mut QUEUE_SIZE: u64 = 0;
+static mut QUEUE_READY: u64 = 0;
+static mut DESC: u64 = 0;
+static mut AVAIL: u64 = 0;
+static mut USED: u64 = 0;
+static mut LAST_AVAIL: u64 = 0;
+static mut LAST_USED: u64 = 0;
+static mut INTERRUPT: u64 = 0;
+static mut ERROR: u64 = 0;
+static mut DENIED_COUNT: u64 = 0;
+static mut COMPLETED: u64 = 0;
+static mut CHAIN_COUNT: usize = 0;
+static mut READ_COUNT: usize = 0;
+static mut READ_TOTAL: usize = 0;
+static mut WRITE_TOTAL: usize = 0;
+static mut IDS: [u64; 32] = [0; 32];
+static mut ADDRESSES: [u64; 32] = [0; 32];
+static mut LENGTHS: [u64; 32] = [0; 32];
+static mut REQUEST: [u8; 8192] = [0; 8192];
+static mut RESPONSE: [u8; 8192] = [0; 8192];
+
+unsafe fn address(gpa: u64, length: u64) -> usize {
+    if length == 0 || gpa < RAM_BASE || length > RAM_SIZE
+        || gpa - RAM_BASE > RAM_SIZE - length { return 0; }
+    return kw_guest_address(gpa, length);
+}
+fn overlaps(a: u64, alen: u64, b: u64, blen: u64) -> bool {
+    return a < b + blen && b < a + alen;
+}
+unsafe fn load16(gpa: u64) -> u64 {
+    return volatile_load(address(gpa, 2) as *const u16) as u64;
+}
+unsafe fn load32(gpa: u64) -> u64 {
+    return volatile_load(address(gpa, 4) as *const u32) as u64;
+}
+unsafe fn load64(gpa: u64) -> u64 {
+    return volatile_load(address(gpa, 8) as *const u64);
+}
+unsafe fn queue_valid() -> bool {
+    if QUEUE_SIZE == 0 || QUEUE_SIZE > QUEUE_MAX
+        || (QUEUE_SIZE & (QUEUE_SIZE - 1)) != 0
+        || (DESC & 15) != 0 || (AVAIL & 1) != 0 || (USED & 3) != 0 {
+        return false;
+    }
+    let dl: u64 = QUEUE_SIZE * 16;
+    let al: u64 = 4 + QUEUE_SIZE * 2;
+    let ul: u64 = 4 + QUEUE_SIZE * 8;
+    return address(DESC, dl) != 0 && address(AVAIL, al) != 0 && address(USED, ul) != 0
+        && !overlaps(DESC, dl, AVAIL, al) && !overlaps(DESC, dl, USED, ul)
+        && !overlaps(AVAIL, al, USED, ul);
+}
+unsafe fn fail(reason: u64) -> u64 {
+    if ERROR == 0 { ERROR = reason; }
+    if (STATUS & 64) == 0 { DENIED_COUNT += 1; }
+    STATUS = STATUS | 64;
+    INTERRUPT = INTERRUPT | 2;
+    kw_9p_irq_level(1);
+    return 0;
+}
+unsafe fn reset_transport() -> u64 {
+    STATUS = 0;
+    DEVICE_FEATURE_SEL = 0;
+    DRIVER_FEATURE_SEL = 0;
+    DRIVER_LOW = 0;
+    DRIVER_HIGH = 0;
+    QUEUE_SEL = 0;
+    QUEUE_SIZE = 0;
+    QUEUE_READY = 0;
+    DESC = 0;
+    AVAIL = 0;
+    USED = 0;
+    LAST_AVAIL = 0;
+    LAST_USED = 0;
+    INTERRUPT = 0;
+    ERROR = 0;
+    if SESSION_EPOCH == 0xffff_ffff_ffff_ffff { return fail(1); }
+    SESSION_EPOCH += 1;
+    SESSION = session_init(LINUX_NAMESPACE_GRANT, SESSION_EPOCH);
+    kw_9p_irq_level(0);
+    if SESSION == 0 { return fail(1); }
+    return 1;
+}
+
+pub unsafe fn init(guest_base: u64, guest_size: u64, generation: u64) -> u64 {
+    if guest_size == 0 || guest_base > 0xffff_ffff_ffff_ffff - guest_size
+        || generation == 0 || generation <= GENERATION { return 0; }
+    RAM_BASE = guest_base;
+    RAM_SIZE = guest_size;
+    GENERATION = generation;
+    ACTIVE = 1;
+    DENIED_COUNT = 0;
+    COMPLETED = 0;
+    return reset_transport();
+}
+
+pub unsafe fn mmio_read(offset: u64) -> u64 {
+    if offset == 0 { return 0x7472_6976; }
+    if offset == 4 { return 2; }
+    if offset == 8 { return 9; }
+    if offset == 12 { return 0x4f43_4f52; }
+    if offset == 16 {
+        if DEVICE_FEATURE_SEL == 0 { return 1; }
+        if DEVICE_FEATURE_SEL == 1 { return 1; }
+        return 0;
+    }
+    if offset == 52 && QUEUE_SEL == 0 { return QUEUE_MAX; }
+    if offset == 68 && QUEUE_SEL == 0 { return QUEUE_READY; }
+    if offset == 96 { return INTERRUPT; }
+    if offset == 112 { return STATUS; }
+    if offset == 252 { return GENERATION & 255; }
+    // Config is u16 tag_len followed by the non-NUL-terminated mount tag.
+    if offset >= 256 && offset < 268 {
+        let mut value: u64 = 0;
+        let mut byte: usize = 0;
+        while byte < 4 {
+            let position: usize = (offset - 256) as usize + byte;
+            let mut part: u64 = 0;
+            if position == 0 { part = 7; }
+            if position >= 2 && position < 9 { part = MOUNT_TAG[position - 2] as u64; }
+            value = value | (part << (byte * 8));
+            byte += 1;
+        }
+        return value;
+    }
+    return 0;
+}
+
+pub unsafe fn mmio_write(offset: u64, value: u64) -> u64 {
+    if ACTIVE != 1 { return 0; }
+    if value > 0xffff_ffff || (offset & 3) != 0 { return fail(10); }
+    if offset == 100 {
+        INTERRUPT = INTERRUPT & ~(value & 3);
+        kw_9p_irq_level((INTERRUPT != 0) as u64);
+        return 1;
+    }
+    if offset == 112 && value == 0 { return reset_transport(); }
+    if (STATUS & 192) != 0 { return 0; }
+    if offset == 20 { DEVICE_FEATURE_SEL = value; return 1; }
+    if offset == 36 {
+        if (STATUS & 8) != 0 { return fail(11); }
+        DRIVER_FEATURE_SEL = value;
+        return 1;
+    }
+    if offset == 32 {
+        if (STATUS & 8) != 0 { return fail(11); }
+        if DRIVER_FEATURE_SEL == 0 { DRIVER_LOW = value; return 1; }
+        if DRIVER_FEATURE_SEL == 1 { DRIVER_HIGH = value; return 1; }
+        if value != 0 { return fail(11); }
+        return 1;
+    }
+    if offset == 48 { QUEUE_SEL = value; return 1; }
+    if offset == 112 {
+        if (value & STATUS) != STATUS { return fail(12); }
+        if (value & 8) != 0 && ((DRIVER_LOW & ~1) != 0 || DRIVER_HIGH != 1) {
+            STATUS = value & ~8;
+            return 1;
+        }
+        if (value & 4) != 0 && ((value & 11) != 11 || QUEUE_READY != 1) { return fail(13); }
+        STATUS = value;
+        return 1;
+    }
+    if QUEUE_SEL != 0 { return 0; }
+    if offset == 68 {
+        if value == 0 { QUEUE_READY = 0; return 1; }
+        if value == 1 && (STATUS & 8) != 0 && queue_valid() { QUEUE_READY = 1; return 1; }
+        return fail(20);
+    }
+    if offset == 80 {
+        if value != 0 || QUEUE_READY != 1 || (STATUS & 4) == 0 { return fail(21); }
+        return 1;
+    }
+    if QUEUE_READY != 0 { return fail(22); }
+    if offset == 56 { QUEUE_SIZE = value; return 1; }
+    if offset == 128 { DESC = (DESC & 0xffff_ffff_0000_0000) | value; return 1; }
+    if offset == 132 { DESC = (DESC & 0xffff_ffff) | (value << 32); return 1; }
+    if offset == 144 { AVAIL = (AVAIL & 0xffff_ffff_0000_0000) | value; return 1; }
+    if offset == 148 { AVAIL = (AVAIL & 0xffff_ffff) | (value << 32); return 1; }
+    if offset == 160 { USED = (USED & 0xffff_ffff_0000_0000) | value; return 1; }
+    if offset == 164 { USED = (USED & 0xffff_ffff) | (value << 32); return 1; }
+    return 0;
+}
+
+unsafe fn capture(head: u64) -> bool {
+    CHAIN_COUNT = 0;
+    READ_COUNT = 0;
+    READ_TOTAL = 0;
+    WRITE_TOTAL = 0;
+    let mut id: u64 = head;
+    let mut walking: bool = true;
+    let mut writing: bool = false;
+    while walking {
+        if id >= QUEUE_SIZE || CHAIN_COUNT >= 32 { fail(40); return false; }
+        let mut prior: usize = 0;
+        while prior < CHAIN_COUNT {
+            if IDS[prior] == id { fail(41); return false; }
+            prior += 1;
+        }
+        let entry: u64 = DESC + id * 16;
+        let start: u64 = load64(entry);
+        let length: u64 = load32(entry + 8);
+        let flags: u64 = load16(entry + 12);
+        if (flags & ~3) != 0 || length > 65536 || address(start, length) == 0 {
+            fail(42); return false;
+        }
+        if (flags & 2) != 0 { writing = true; }
+        else { if writing { fail(43); return false; } }
+        if overlaps(start, length, DESC, QUEUE_SIZE * 16)
+            || overlaps(start, length, AVAIL, 4 + QUEUE_SIZE * 2)
+            || overlaps(start, length, USED, 4 + QUEUE_SIZE * 8) {
+            fail(44); return false;
+        }
+        prior = 0;
+        while prior < CHAIN_COUNT {
+            // Readable request SGs may reuse input pages. They are copied in
+            // order into REQUEST before handle() can mutate native objects.
+            // Once writable replies begin, reject overlap with every earlier
+            // input/output; the ordering check forbids returning to inputs.
+            if writing && overlaps(start, length, ADDRESSES[prior], LENGTHS[prior]) { fail(44); return false; }
+            prior += 1;
+        }
+        IDS[CHAIN_COUNT] = id;
+        ADDRESSES[CHAIN_COUNT] = start;
+        LENGTHS[CHAIN_COUNT] = length;
+        CHAIN_COUNT += 1;
+        if writing { WRITE_TOTAL += length as usize; }
+        else { READ_COUNT += 1; READ_TOTAL += length as usize; }
+        walking = (flags & 1) != 0;
+        id = load16(entry + 14);
+    }
+    if READ_COUNT == 0 || READ_TOTAL < 7 || READ_TOTAL > MSIZE || WRITE_TOTAL < 7 {
+        fail(45); return false;
+    }
+    return true;
+}
+
+unsafe fn wire_u32(pointer: *const u8) -> usize {
+    return volatile_load(pointer) as usize | (volatile_load(pointer + 1) as usize << 8)
+        | (volatile_load(pointer + 2) as usize << 16) | (volatile_load(pointer + 3) as usize << 24);
+}
+
+pub unsafe fn poll() -> u64 {
+    if ACTIVE != 1 || (STATUS & 4) == 0 || (STATUS & 192) != 0 { return 0; }
+    if QUEUE_READY != 1 || !queue_valid() { return fail(30); }
+    let mut completed: u64 = 0;
+    while completed < QUEUE_MAX {
+        kw_memory_barrier();
+        let available: u64 = load16(AVAIL + 2);
+        let distance: u64 = (available + 65536 - LAST_AVAIL) & 0xffff;
+        if distance > QUEUE_SIZE { return fail(31); }
+        if distance == 0 { break; }
+        let head: u64 = load16(AVAIL + 4 + (LAST_AVAIL % QUEUE_SIZE) * 2);
+        if !capture(head) { return 0; }
+        let mut position: usize = 0;
+        let mut index: usize = 0;
+        while index < READ_COUNT {
+            let source: usize = address(ADDRESSES[index], LENGTHS[index]);
+            let mut byte: usize = 0;
+            while byte < LENGTHS[index] as usize {
+                REQUEST[position] = volatile_load((source + byte) as *const u8);
+                position += 1;
+                byte += 1;
+            }
+            index += 1;
+        }
+        if wire_u32((&REQUEST[0])) != READ_TOTAL { return fail(46); }
+        let mut capacity: usize = WRITE_TOTAL;
+        if capacity > MSIZE { capacity = MSIZE; }
+        position = 0;
+        while position < capacity { RESPONSE[position] = 0; position += 1; }
+        let reply: usize = handle(SESSION, (&REQUEST[0]), READ_TOTAL, (&mut RESPONSE[0]), capacity);
+        if reply < 7 || reply > capacity || wire_u32((&RESPONSE[0])) != reply {
+            return fail(50);
+        }
+        if RESPONSE[5] != REQUEST[5] || RESPONSE[6] != REQUEST[6]
+            || (RESPONSE[4] != 107 && RESPONSE[4] as u64 != REQUEST[4] as u64 + 1) {
+            return fail(51);
+        }
+        position = 0;
+        index = READ_COUNT;
+        while index < CHAIN_COUNT && position < reply {
+            let destination: usize = address(ADDRESSES[index], LENGTHS[index]);
+            let mut byte: usize = 0;
+            while byte < LENGTHS[index] as usize && position < reply {
+                volatile_store((destination + byte) as *mut u8, RESPONSE[position]);
+                position += 1;
+                byte += 1;
+            }
+            index += 1;
+        }
+        let entry: u64 = USED + 4 + (LAST_USED % QUEUE_SIZE) * 8;
+        volatile_store(address(entry, 4) as *mut u32, head as u32);
+        volatile_store(address(entry + 4, 4) as *mut u32, reply as u32);
+        kw_memory_barrier();
+        LAST_USED = (LAST_USED + 1) & 0xffff;
+        volatile_store(address(USED + 2, 2) as *mut u16, LAST_USED as u16);
+        kw_memory_barrier();
+        LAST_AVAIL = (LAST_AVAIL + 1) & 0xffff;
+        if (load16(AVAIL) & 1) == 0 { INTERRUPT = INTERRUPT | 1; kw_9p_irq_level(1); }
+        COMPLETED += 1;
+        completed += 1;
+    }
+    return completed;
+}
+
+pub unsafe fn healthy() -> u64 { return (ACTIVE == 1 && (STATUS & 192) == 0) as u64; }
+pub unsafe fn diagnostic() -> u64 { return ERROR; }
+pub unsafe fn completions() -> u64 { return COMPLETED; }
+pub unsafe fn denials() -> u64 { return DENIED_COUNT; }

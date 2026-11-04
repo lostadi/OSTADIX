@@ -1,0 +1,278 @@
+#!/bin/sh
+# Original Plan9port command-line tools on the Linux ABI, built from a pinned
+# upstream tree. This neither loads Plan 9 executables nor supplies its kernel.
+set -eu
+revision=1f1396913fb5372408f442ed26933f5ae4b399cd
+expected=b8e7bc424479b9fb86c4ccc9bc7b75b2606b1acbd238b83922eaef9906139375
+archive_name="plan9port-$revision.tar.gz"
+url="https://codeload.github.com/9fans/plan9port/tar.gz/$revision"
+u9fs_revision=fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9
+u9fs_expected=56887d41253810986cfeb7a8a559b193b5d4c302ace18bff0a03c48f1dea9bcd
+u9fs_name="u9fs-$u9fs_revision.tar.gz"
+u9fs_url="https://codeload.github.com/Plan9-Archive/u9fs/tar.gz/$u9fs_revision"
+sources="${OSTADIX_PKG_SOURCES:-/sources}"
+work="${OSTADIX_PKG_WORK:-/work}"
+prefix="${OSTADIX_PLAN9_PREFIX:-/usr/local/plan9}"
+bin="${OSTADIX_PLAN9_BIN:-/usr/local/bin}"
+namespace_helper="${OSTADIX_PKG_NAMESPACE_HELPER:-/usr/local/bin/pkg-namespace}"
+bridge_source="${OSTADIX_PKG_9P_BRIDGE_SOURCE:-/usr/local/libexec/okernel-9p-bridge.c}"
+bridge_helper="${OSTADIX_PKG_9P_BRIDGE_HELPER:-/usr/local/bin/pkg-9p}"
+u9fs_patch="${OSTADIX_PKG_U9FS_PATCH:-/usr/local/libexec/u9fs-path-hardening.patch}"
+glibc_cc="${OSTADIX_PKG_GLIBC_CC:-/usr/local/libexec/glibc-cc}"
+glibc_bundle="${OSTADIX_PKG_GLIBC_BUNDLE:-/usr/local/libexec/glibc-abi.tar.gz}"
+glibc_manifest="${OSTADIX_PKG_GLIBC_MANIFEST:-/usr/local/libexec/glibc-abi.json}"
+glibc_stamp="${OSTADIX_PKG_GLIBC_SHA256:-/usr/local/libexec/glibc-abi.sha256}"
+activation_helper="${OSTADIX_PKG_PLAN9_ACTIVATION:-/usr/local/libexec/plan9port-activate}"
+mode="${1:-source}"
+case "$mode" in install|source) ;; *) echo 'Usage: pkg-plan9port install|source' >&2; exit 2 ;; esac
+publish_receipt() {
+    if [ -x "$namespace_helper" ] && "$namespace_helper" status >/dev/null 2>&1; then
+        "$namespace_helper" publish-source plan9port "$receipt"
+    elif [ "${OSTADIX_PKG_NAMESPACE_REQUIRED:-0}" = 1 ]; then
+        echo 'Required native namespace is unavailable; package receipt publication failed.' >&2
+        return 1
+    fi
+}
+invalid_installation() {
+    echo 'Existing Plan9port installation or receipt failed verification; preserving it.' >&2
+    echo 'Use pkg source plan9port for an explicit fresh source build into a new generation.' >&2
+    exit 1
+}
+if [ "$mode" = install ] && { [ -e "$prefix" ] || [ -L "$prefix" ]; }; then
+    [ -L "$prefix" ] || invalid_installation
+    runtime="$(readlink "$prefix")"
+    [ "${runtime%/*}" = "$prefix.generations" ] || invalid_installation
+    [ -d "$runtime" ] && [ ! -L "$runtime" ] || invalid_installation
+    control="$runtime.receipt"
+    [ -f "$control" ] && [ ! -L "$control" ] || invalid_installation
+    {
+        IFS= read -r protocol
+        IFS= read -r installed_revision
+        IFS= read -r installed_archive
+        IFS= read -r installed_u9fs_revision
+        IFS= read -r installed_u9fs_archive
+        IFS= read -r installed_bridge
+        IFS= read -r installed_bridge_helper
+        IFS= read -r installed_u9fs_patch
+        IFS= read -r installed_glibc_cc
+        IFS= read -r installed_glibc_bundle
+        IFS= read -r installed_glibc_manifest
+        IFS= read -r receipt
+        IFS= read -r receipt_identity
+    } < "$control" || invalid_installation
+    [ "$protocol" = ocore.plan9port-installed/v3 ] && [ "$installed_revision" = "$revision" ] && [ "$installed_archive" = "$expected" ] || invalid_installation
+    [ "$installed_u9fs_revision" = "$u9fs_revision" ] && [ "$installed_u9fs_archive" = "$u9fs_expected" ] || invalid_installation
+    [ -f "$bridge_source" ] && [ ! -L "$bridge_source" ] && [ -f "$bridge_helper" ] && [ ! -L "$bridge_helper" ] || invalid_installation
+    [ "$(sha256sum "$bridge_source" | awk '{print $1}')" = "$installed_bridge" ] || invalid_installation
+    [ "$(sha256sum "$bridge_helper" | awk '{print $1}')" = "$installed_bridge_helper" ] || invalid_installation
+    [ -f "$u9fs_patch" ] && [ ! -L "$u9fs_patch" ] || invalid_installation
+    [ "$(sha256sum "$u9fs_patch" | awk '{print $1}')" = "$installed_u9fs_patch" ] || invalid_installation
+    [ -x "$glibc_cc" ] && [ -f "$glibc_bundle" ] && [ ! -L "$glibc_bundle" ] && [ -f "$glibc_manifest" ] && [ ! -L "$glibc_manifest" ] || invalid_installation
+    [ "$(sha256sum "$glibc_cc" | awk '{print $1}')" = "$installed_glibc_cc" ] || invalid_installation
+    [ "$(sha256sum "$glibc_bundle" | awk '{print $1}')" = "$installed_glibc_bundle" ] || invalid_installation
+    [ "$(sha256sum "$glibc_manifest" | awk '{print $1}')" = "$installed_glibc_manifest" ] || invalid_installation
+    [ "$(cat "$glibc_stamp")" = "$installed_glibc_bundle" ] || invalid_installation
+    case "$receipt" in "$work/sources/plan9port-build."*/receipt) ;; *) invalid_installation ;; esac
+    [ -d "$receipt" ] && [ ! -L "$receipt" ] && [ "$(cat "$receipt/status")" = complete ] || invalid_installation
+    [ "$(sha256sum "$receipt/receipt-files.sha256" | awk '{print $1}')" = "$receipt_identity" ] || invalid_installation
+    (cd "$receipt"; sha256sum -c receipt-files.sha256) > /dev/null 2>&1 || invalid_installation
+    [ "$(cat "$receipt/runtime.path")" = "$runtime" ] || invalid_installation
+    [ "$(sha256sum "$0" | awk '{print $1}')" = "$(awk '{print $1}' "$receipt/provider.sha256")" ] || invalid_installation
+    [ -x "$activation_helper" ] && [ ! -L "$activation_helper" ] || invalid_installation
+    [ "$(sha256sum "$activation_helper" | awk '{print $1}')" = "$(awk '{print $1}' "$receipt/activation-helper.sha256")" ] || invalid_installation
+    grep -qx "revision=$revision" "$receipt/source-revision.txt" || invalid_installation
+    grep -qx "$expected  $archive_name" "$receipt/upstream.sha256" || invalid_installation
+    grep -qx "revision=$u9fs_revision" "$receipt/u9fs-source-revision.txt" || invalid_installation
+    grep -qx "$u9fs_expected  $u9fs_name" "$receipt/u9fs-upstream.sha256" || invalid_installation
+    (cd "$runtime"; sha256sum -c "$receipt/outputs.sha256") > /dev/null 2>&1 || invalid_installation
+    (cd "$runtime"; find . -type f -exec sha256sum '{}' + | LC_ALL=C sort) | cmp -s "$receipt/outputs.sha256" - || invalid_installation
+    for command in rc mk 9p 9pserve u9fs okernel-9p-bridge 9; do
+        [ -x "$runtime/bin/$command" ] || invalid_installation
+    done
+    for command in rc mk 9p 9; do
+        [ -L "$bin/$command" ] && [ "$(readlink "$bin/$command")" = "$prefix/bin/$command" ] || invalid_installation
+    done
+    if [ -x "$namespace_helper" ] && "$namespace_helper" status >/dev/null 2>&1; then
+        PLAN9="$prefix" "$bridge_helper" start
+    fi
+    publish_receipt
+    echo 'OKERNEL SOURCE PACKAGE plan9port VERIFIED'
+    printf 'Verified original installed outputs; retained source receipt: %s\n' "$receipt"
+    exit 0
+fi
+apk add build-base gcc make musl-dev linux-headers curl ca-certificates
+[ -f "$bridge_source" ] && [ ! -L "$bridge_source" ] && [ -f "$bridge_helper" ] && [ ! -L "$bridge_helper" ] && [ -f "$u9fs_patch" ] && [ ! -L "$u9fs_patch" ] && [ -x "$activation_helper" ] && [ ! -L "$activation_helper" ] || {
+    echo 'Original 9P service needs the installed local bridge source, pkg-9p helper and declared u9fs hardening patch.' >&2; exit 1;
+}
+mkdir -p "$work/sources/downloads"
+verified_archive() {
+    input_provider="$1"; input_name="$2"; input_url="$3"; input_expected="$4"
+    selected_archive="$sources/$input_provider/$input_name"
+    if [ ! -f "$selected_archive" ]; then
+        selected_archive="$work/sources/downloads/$input_name"
+    if [ ! -f "$selected_archive" ]; then
+        download="$(mktemp "$work/sources/downloads/.plan9port.XXXXXXXX")"
+        if ! curl --fail --location --retry 3 "$input_url" -o "$download"; then
+            rm -f "$download"
+            echo "Original $input_provider source download failed." >&2
+            exit 1
+        fi
+        printf '%s  %s\n' "$input_expected" "$download" | sha256sum -c -
+        mv "$download" "$selected_archive"
+    fi
+    fi
+    printf '%s  %s\n' "$input_expected" "$selected_archive" | sha256sum -c -
+}
+verified_archive plan9port "$archive_name" "$url" "$expected"
+archive="$selected_archive"
+verified_archive u9fs "$u9fs_name" "$u9fs_url" "$u9fs_expected"
+u9fs_archive="$selected_archive"
+[ -x "$glibc_cc" ] && [ -f "$glibc_bundle" ] && [ ! -L "$glibc_bundle" ] && [ -f "$glibc_manifest" ] && [ ! -L "$glibc_manifest" ] || {
+    echo 'The authenticated private GNU libc ABI closure and compiler binding must be staged first.' >&2; exit 1;
+}
+glibc_expected="$(cat "$glibc_stamp")"
+case "$glibc_expected" in ''|*[!0-9a-f]*) echo 'Invalid private GNU ABI identity.' >&2; exit 1 ;; esac
+[ "${#glibc_expected}" -eq 64 ] || { echo 'Invalid private GNU ABI identity length.' >&2; exit 1; }
+printf '%s  %s\n' "$glibc_expected" "$glibc_bundle" | sha256sum -c -
+build_root="$(mktemp -d "$work/sources/plan9port-build.XXXXXXXX")"
+tar -xzf "$archive" -C "$build_root"
+tar -xzf "$u9fs_archive" -C "$build_root"
+tree="$build_root/plan9port-$revision"
+u9fs_tree="$build_root/u9fs-$u9fs_revision"
+receipt="$build_root/receipt"
+mkdir "$receipt"
+cp "$activation_helper" "$receipt/plan9port-activate"
+chmod 0755 "$receipt/plan9port-activate"
+sha256sum "$receipt/plan9port-activate" > "$receipt/activation-helper.sha256"
+mkdir "$build_root/glibc-abi"
+tar -xzf "$glibc_bundle" -C "$build_root/glibc-abi" rootfs manifest.json
+abi_root="$build_root/glibc-abi/rootfs"
+cp "$glibc_manifest" "$receipt/glibc-abi.json"
+cp "$glibc_cc" "$receipt/glibc-cc"
+chmod 0755 "$receipt/glibc-cc"
+glibc_cc_identity="$(sha256sum "$receipt/glibc-cc" | awk '{print $1}')"
+glibc_manifest_identity="$(sha256sum "$receipt/glibc-abi.json" | awk '{print $1}')"
+printf '%s  glibc-abi.tar.gz\n' "$glibc_expected" > "$receipt/glibc-upstream.sha256"
+printf 'incomplete\n' > "$receipt/status"
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1}"
+case "$SOURCE_DATE_EPOCH" in ''|0|*[!0-9]*) echo 'Plan9port requires a positive SOURCE_DATE_EPOCH: upstream mk treats mtime zero as a missing file.' >&2; exit 2 ;; esac
+find "$tree" "$u9fs_tree" -exec touch -h -d "@$SOURCE_DATE_EPOCH" '{}' +
+(cd "$tree"; find . -type f -exec sha256sum '{}' + | LC_ALL=C sort) > "$receipt/source-files.sha256"
+printf '%s  %s\n' "$expected" "$archive_name" > "$receipt/upstream.sha256"
+printf 'repository=https://github.com/9fans/plan9port\nrevision=%s\narchive=%s\n' "$revision" "$url" > "$receipt/source-revision.txt"
+printf '%s  %s\n' "$u9fs_expected" "$u9fs_name" > "$receipt/u9fs-upstream.sha256"
+printf 'repository=https://github.com/Plan9-Archive/u9fs\nrevision=%s\narchive=%s\n' "$u9fs_revision" "$u9fs_url" > "$receipt/u9fs-source-revision.txt"
+(cd "$u9fs_tree"; find . -type f -exec sha256sum '{}' + | LC_ALL=C sort) > "$receipt/u9fs-upstream-files.sha256"
+cp "$u9fs_patch" "$receipt/u9fs-path-hardening.patch"
+u9fs_patch_identity="$(sha256sum "$receipt/u9fs-path-hardening.patch" | awk '{print $1}')"
+printf 'cwd=%s; command=patch --fuzz=0 -p1 < declared u9fs-path-hardening.patch\n' "$u9fs_tree" > "$receipt/commands.txt"
+(cd "$u9fs_tree"; patch --fuzz=0 -p1 < "$receipt/u9fs-path-hardening.patch") > "$receipt/u9fs-patch.log" 2>&1
+find "$u9fs_tree" -exec touch -h -d "@$SOURCE_DATE_EPOCH" '{}' +
+(cd "$u9fs_tree"; find . -type f -exec sha256sum '{}' + | LC_ALL=C sort) > "$receipt/u9fs-source-files.sha256"
+cp "$bridge_source" "$receipt/bridge-source.c"
+cp "$bridge_helper" "$receipt/bridge-helper.sh"
+bridge_identity="$(sha256sum "$receipt/bridge-source.c" | awk '{print $1}')"
+bridge_helper_identity="$(sha256sum "$receipt/bridge-helper.sh" | awk '{print $1}')"
+printf 'schema=ocore.plan9port-source-recipe/v3\nplan9port_revision=%s\nu9fs_revision=%s\nbridge_source_sha256=%s\nbridge_helper_sha256=%s\nu9fs_patch_sha256=%s\nglibc_cc_sha256=%s\nglibc_bundle_sha256=%s\nglibc_manifest_sha256=%s\nu9fs_libc_profile=private-original-glibc-arm64\nother_tools_libc_profile=original-alpine-musl-aarch64\nactivation_helper_sha256=%s\n' \
+    "$revision" "$u9fs_revision" "$bridge_identity" "$bridge_helper_identity" "$u9fs_patch_identity" "$glibc_cc_identity" "$glibc_expected" "$glibc_manifest_identity" "$(awk '{print $1}' "$receipt/activation-helper.sha256")" > "$receipt/runtime-inputs.txt"
+gcc --version > "$receipt/compiler-version.txt"
+sha256sum "$(command -v gcc)" > "$receipt/compiler.sha256"
+sha256sum "$0" > "$receipt/provider.sha256"
+sha256sum "$(gcc -print-prog-name=cc1)" "$(gcc -print-file-name=crtbegin.o)" "$(gcc -print-file-name=crtend.o)" > "$receipt/compiler-components.sha256"
+apk info -vv > "$receipt/installed-packages.txt"
+printf 'CC9=gcc\nCC9FLAGS=\047-g0\047\nWSYSTYPE=nowsys\negrep=\047grep -E\047\n' > "$tree/config"
+cp "$tree/config" "$receipt/build-config.txt"
+printf 'SOURCE_DATE_EPOCH=%s\nPLAN9_TARGET=%s\nNPROC=2\n' "$SOURCE_DATE_EPOCH" "$prefix" > "$receipt/environment.txt"
+printf '%s\n' 'Original command-line scope: mk, rc, 9p, 9pserve, u9fs, yacc, cleanname, original build tools and complete selected library closure.' \
+    'Local okernel-9p-bridge provides process/FD supervision; original u9fs/9pserve retain all 9P parsing and filesystem operations.' \
+    'The declared u9fs path-hardening patch rejects decoded traversal/separators; pristine and patched source identities are both retained.' \
+    'Original u9fs uses the authenticated private full GNU libc ABI to preserve every auth method including ruserok/netgroups; other tools retain original musl.' \
+    'Not a complete Plan 9 binary/kernel ABI. Graphical commands are not built.' > "$receipt/scope.txt"
+export PLAN9="$tree" PLAN9_TARGET="$prefix" NPROC=2
+export PATH="$PLAN9/bin:$PATH"
+unset FORCERCFORMK MKSHELL
+run_original() {
+    label="$1"; shift
+    printf 'Plan9port: %s\n' "$label"
+    printf 'cwd=%s; command=%s\n' "$(pwd)" "$*" >> "$receipt/commands.txt"
+    if "$@" >> "$receipt/build.log" 2>&1; then return 0; else
+        status=$?
+        tail -n 30 "$receipt/build.log" >&2
+        printf 'Original Plan9port build failed (%s); receipt: %s\n' "$status" "$receipt" >&2
+        exit "$status"
+    fi
+}
+(cd "$tree/src"; run_original 'upstream dist/buildmk bootstrap' sh ../dist/buildmk)
+[ -x "$tree/bin/mk" ] || { echo 'Original bootstrap produced no mk executable.' >&2; exit 1; }
+for library in libthread libmux libmp libsec libip libndb libauthsrv libauth lib9pclient; do
+    (cd "$tree/src/$library"; run_original "$library" mk install)
+done
+(cd "$tree/src/cmd"; run_original 'upstream yacc' mk yacc.install)
+(cd "$tree/src/cmd/rc"; run_original 'upstream rc' mk install)
+(cd "$tree/src/cmd"; run_original 'upstream 9p, 9pserve and cleanname' mk 9p.install 9pserve.install cleanname.install)
+export OSTADIX_GLIBC_SYSROOT="$abi_root"
+export OSTADIX_GLIBC_INTERPRETER="$prefix/lib/glibc/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1"
+"$receipt/glibc-cc" -E -v -x c /dev/null > "$receipt/glibc-header-search.txt" 2>&1
+(cd "$u9fs_tree"; run_original 'original u9fs makefile with private original GNU libc' make -j2 "CC=$receipt/glibc-cc" "LD=$receipt/glibc-cc" 'CFLAGS=-O2 -g0 -I.' 'LDFLAGS=')
+run_original 'local process/FD supervisor' gcc -O2 -g0 -std=c11 -Wall -Wextra "$receipt/bridge-source.c" -o "$build_root/okernel-9p-bridge"
+# Keep the authenticated source and its build outputs. Install a separate
+# original runtime closure; a new generation never overwrites a prior tree.
+if [ -e "$prefix" ] && [ ! -L "$prefix" ]; then
+    echo 'Plan9port prefix already exists as a directory; preserving it.' >&2
+    exit 1
+fi
+if [ -L "$prefix" ]; then
+    case "$(readlink "$prefix")" in "$prefix.generations/"*) ;; *) echo 'Plan9port prefix is not owned by this provider.' >&2; exit 1 ;; esac
+fi
+mkdir -p "$prefix.generations" "$bin"
+runtime="$(mktemp -d "$prefix.generations/runtime.XXXXXXXX")"
+for directory in bin lib include src man; do cp -R "$tree/$directory" "$runtime/$directory"; done
+cp "$tree/rcmain" "$tree/config" "$tree/LICENSE" "$runtime/"
+mkdir -p "$runtime/libexec"
+cp "$u9fs_tree/u9fs" "$runtime/libexec/u9fs"
+cp "$build_root/okernel-9p-bridge" "$runtime/bin/"
+cp -R "$abi_root" "$runtime/lib/glibc"
+cat > "$runtime/bin/u9fs" <<'U9FS_LAUNCHER'
+#!/bin/sh
+set -eu
+root="${0%/bin/u9fs}"
+export LD_LIBRARY_PATH="$root/lib/glibc/usr/lib/aarch64-linux-gnu"
+exec "$root/libexec/u9fs" "$@"
+U9FS_LAUNCHER
+chmod 0755 "$runtime/bin/u9fs"
+cp "$u9fs_tree/LICENSE" "$runtime/LICENSE.u9fs"
+for command in rc mk 9p 9pserve u9fs okernel-9p-bridge yacc cleanname 9; do
+    [ -x "$runtime/bin/$command" ] || { echo "Missing original runtime command: $command" >&2; exit 1; }
+done
+PLAN9="$runtime" "$runtime/bin/rc" -c 'echo OKERNEL_PLAN9PORT_RC_PASS' > "$receipt/rc-test.txt"
+grep -qx OKERNEL_PLAN9PORT_RC_PASS "$receipt/rc-test.txt"
+printf 'all:V:\n\techo OKERNEL_PLAN9PORT_MK_PASS\n' > "$receipt/test.mk"
+PLAN9="$runtime" "$runtime/bin/mk" -f "$receipt/test.mk" > "$receipt/mk-test.txt"
+grep -qx OKERNEL_PLAN9PORT_MK_PASS "$receipt/mk-test.txt"
+if PLAN9="$runtime" "$runtime/bin/9p" > "$receipt/9p-usage.txt" 2>&1; then
+    echo 'Original 9p unexpectedly accepted a missing command.' >&2; exit 1
+fi
+grep -q 'usage: 9p' "$receipt/9p-usage.txt"
+for command in rc mk 9p 9pserve okernel-9p-bridge; do ldd "$runtime/bin/$command"; done > "$receipt/dynamic-libraries.txt"
+readelf -h -l -d "$runtime/libexec/u9fs" > "$receipt/u9fs-elf.txt"
+LD_LIBRARY_PATH="$runtime/lib/glibc/usr/lib/aarch64-linux-gnu" \
+    "$runtime/lib/glibc/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1" --list "$runtime/libexec/u9fs" > "$receipt/u9fs-dynamic-libraries.txt"
+(cd "$runtime"; find . -type f -exec sha256sum '{}' + | LC_ALL=C sort) > "$receipt/outputs.sha256"
+for command in rc mk 9p 9; do
+    if [ -e "$bin/$command" ] || [ -L "$bin/$command" ]; then
+        if [ ! -L "$bin/$command" ] || [ "$(readlink "$bin/$command")" != "$prefix/bin/$command" ]; then
+            echo "Preserving an existing unrelated command: $bin/$command" >&2; exit 1
+        fi
+    fi
+done
+"$receipt/plan9port-activate" "$prefix" "$runtime" "$bin" "$receipt" "$namespace_helper" "$bridge_helper"
+printf 'complete\n' > "$receipt/status"
+printf '%s\n' "$runtime" > "$receipt/runtime.path"
+(cd "$receipt"; find . -type f ! -name receipt-files.sha256 -exec sha256sum '{}' + | LC_ALL=C sort) > "$build_root/receipt-files.sha256"
+mv "$build_root/receipt-files.sha256" "$receipt/receipt-files.sha256"
+printf '%s\n' ocore.plan9port-installed/v3 "$revision" "$expected" "$u9fs_revision" "$u9fs_expected" "$bridge_identity" "$bridge_helper_identity" "$u9fs_patch_identity" "$glibc_cc_identity" "$glibc_expected" "$glibc_manifest_identity" "$receipt" \
+    "$(sha256sum "$receipt/receipt-files.sha256" | awk '{print $1}')" > "$runtime.receipt"
+publish_receipt
+sync
+echo 'OKERNEL SOURCE BUILD plan9port PASS'
+printf 'Original Plan9port rc, mk and 9p installed at %s\nSource build receipt: %s\n' "$prefix" "$receipt"
