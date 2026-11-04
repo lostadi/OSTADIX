@@ -1142,6 +1142,8 @@ class Importer:
                           else a.GetInitializer(value))
             if definition or comdat is not None or (not a.IsAFunction(value) and a.IsThreadLocal(value)):
                 self.reject("extern_weak requires a non-TLS declaration without COMDAT membership")
+            if self.symbol.startswith("llvm."):
+                self.reject("extern_weak does not apply to LLVM intrinsics")
             self.refinements.add(f"{self.symbol}: preserved external weak declaration (LLVMExternalWeakLinkage=12); ELF STB_WEAK undefined binding resolves absent providers to zero; native linkage and execution qualification remain required")
         elif linkage in self.MERGEABLE_DEFINITIONS:
             self.refinements.add(f"{self.symbol}: preserved exact LLVM {linkage} definition linkage; no collapse to ordinary weak or inferred COMDAT membership; native binding, qualified closure and whole-group selection remain explicit")
