@@ -1,0 +1,61 @@
+{
+  "base": "b47ff1e002cdf940138995ee4f693a33677c22ca",
+  "deleted_tracked_paths": [],
+  "modified_oc_exports": [
+    {
+      "path": "ocore/runtime/aarch64/kernel_world_monitor.oc",
+      "old_public_names": [
+        "kw_guest_address",
+        "kw_handle_exit",
+        "kw_monitor_init",
+        "kw_unexpected_exit"
+      ],
+      "removed_public_names": [],
+      "added_public_names": []
+    },
+    {
+      "path": "ocore/runtime/aarch64/kernel_world_virtio.oc",
+      "old_public_names": [
+        "arm_hold_next_read",
+        "begin_withdraw",
+        "denials",
+        "generation",
+        "init",
+        "interrupt_pending",
+        "ioerrs",
+        "mmio_read",
+        "mmio_write",
+        "note_guest_consumed",
+        "pending",
+        "poll",
+        "query_completion",
+        "successes"
+      ],
+      "removed_public_names": [],
+      "added_public_names": [
+        "backing_base",
+        "backing_length",
+        "backing_writable",
+        "configure_backing",
+        "detail",
+        "diagnostic",
+        "flushes",
+        "healthy",
+        "read_bytes",
+        "writes",
+        "written_bytes"
+      ]
+    },
+    {
+      "path": "ocore/runtime/aarch64/kernel_world_virtio_selftest.oc",
+      "old_public_names": [
+        "run"
+      ],
+      "removed_public_names": [],
+      "added_public_names": [
+        "run_backing"
+      ]
+    }
+  ],
+  "old_x86_run_qemu_unchanged": true
+}

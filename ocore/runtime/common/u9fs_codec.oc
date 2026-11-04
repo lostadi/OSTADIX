@@ -1,0 +1,98 @@
+module runtime::common::u9fs_codec;
+
+// ABI bridge to unchanged original u9fs convS2M/convM2S lowered through O-core.
+// The pinned plan9.h uses LP64 ulong, hence Fcall=712, Qid=24, align=8 on
+// x86-64/AArch64. The integration fixture checks every used field with the
+// original C headers for both targets. This is a native object adapter, not
+// a second wire parser. Only trusted, bounded peer constructors call setters.
+extern "C" fn convS2M(call: *mut u8, output: *mut u8, capacity: u32) -> u32;
+extern "C" fn convM2S(input: *mut u8, length: u32, call: *mut u8) -> u32;
+extern "C" fn statcheck(input: *mut u8, length: u32) -> i32;
+extern "C" fn convM2D(input: *mut u8, length: u32, directory: *mut u8, strings: *mut u8) -> u32;
+
+static mut CALL: [u64; 89] = [0; 89];
+static mut DIRECTORY: [u64; 12] = [0; 12];
+static mut ENCODE_CALLS: u64 = 0;
+static mut DECODE_CALLS: u64 = 0;
+static mut ENCODE_BYTES: u64 = 0;
+static mut DECODE_BYTES: u64 = 0;
+
+unsafe fn field(offset: usize) -> usize { return (&mut CALL[0]) as usize + offset; }
+unsafe fn put8(offset: usize, value: u8) -> void { volatile_store(field(offset) as *mut u8, value); }
+unsafe fn put16(offset: usize, value: u16) -> void { volatile_store(field(offset) as *mut u16, value); }
+unsafe fn put32(offset: usize, value: u32) -> void { volatile_store(field(offset) as *mut u32, value); }
+unsafe fn put64(offset: usize, value: u64) -> void { volatile_store(field(offset) as *mut u64, value); }
+
+pub unsafe fn reset() -> void {
+    let mut index: usize = 0;
+    while index < 89 { CALL[index] = 0; index += 1; }
+    ENCODE_CALLS = 0; DECODE_CALLS = 0; ENCODE_BYTES = 0; DECODE_BYTES = 0;
+}
+pub unsafe fn begin(kind: u8, tag: u16) -> void { put8(0, kind); put16(8, tag); }
+pub unsafe fn set_version(msize: u32, version: *const u8) -> void {
+    put32(12, msize); put64(16, version as u64);
+}
+pub unsafe fn set_attach(fid: u32, afid: u32, uname: *const u8, aname: *const u8) -> void {
+    put32(4, fid); put32(680, afid); put64(72, uname as u64); put64(80, aname as u64);
+}
+pub unsafe fn set_walk(fid: u32, newfid: u32, name: *const u8) -> void {
+    put32(4, fid); put32(108, newfid); put16(112, (name as usize != 0) as u16); put64(120, name as u64);
+}
+pub unsafe fn set_open(fid: u32, mode: u8) -> void { put32(4, fid); put8(104, mode); }
+pub unsafe fn set_create(fid: u32, name: *const u8, perm: u32, mode: u8) -> void {
+    put32(4, fid); put64(96, name as u64); put32(88, perm); put8(104, mode);
+}
+pub unsafe fn set_fid(fid: u32) -> void { put32(4, fid); }
+pub unsafe fn set_io(fid: u32, offset: u64, count: u32, data: *const u8) -> void {
+    put32(4, fid); put64(640, offset); put32(648, count); put64(656, data as u64);
+}
+pub unsafe fn encode(output: *mut u8, capacity: usize) -> usize {
+    if output as usize == 0 || capacity < 7 || capacity > 8192 { return 0; }
+    ENCODE_CALLS += 1;
+    let result: usize = convS2M(field(0) as *mut u8, output, capacity as u32) as usize;
+    if result >= 7 && result <= capacity { ENCODE_BYTES += result as u64; return result; }
+    return 0;
+}
+pub unsafe fn decode(input: *mut u8, length: usize) -> usize {
+    if input as usize == 0 || length < 7 || length > 8192 { return 0; }
+    DECODE_CALLS += 1;
+    // Original decoder relocates strings within this private reply buffer.
+    // The caller never supplies guest memory or immutable stored object bytes.
+    let result: usize = convM2S(input, length as u32, field(0) as *mut u8) as usize;
+    if result == length { DECODE_BYTES += result as u64; return result; }
+    return 0;
+}
+pub unsafe fn kind() -> u64 { return volatile_load(field(0) as *const u8) as u64; }
+pub unsafe fn tag() -> u64 { return volatile_load(field(8) as *const u16) as u64; }
+pub unsafe fn msize() -> u64 { return volatile_load(field(12) as *const u32) as u64; }
+pub unsafe fn version() -> *const u8 { return volatile_load(field(16) as *const u64) as *const u8; }
+pub unsafe fn walk_count() -> u64 { return volatile_load(field(248) as *const u16) as u64; }
+pub unsafe fn walk_type() -> u64 { return volatile_load(field(272) as *const u8) as u64; }
+pub unsafe fn count() -> u64 { return volatile_load(field(648) as *const u32) as u64; }
+pub unsafe fn data() -> *const u8 { return volatile_load(field(656) as *const u64) as *const u8; }
+// Additive getters for the regular-file service. Original C-header assertions
+// bind Fcall/Dir layouts on both x86-64 and AArch64 in its native fixture.
+pub unsafe fn error_text() -> *const u8 { return volatile_load(field(32) as *const u64) as *const u8; }
+pub unsafe fn iounit() -> u64 { return volatile_load(field(64) as *const u32) as u64; }
+pub unsafe fn decode_stat() -> u64 {
+    if kind() != 125 { return 0; }
+    let length: u32 = volatile_load(field(664) as *const u16) as u32;
+    let input: *mut u8 = volatile_load(field(672) as *const u64) as *mut u8;
+    if input as usize == 0 || length < 49 || length > 8192 { return 0; }
+    // Original convM2D assumes the fixed header exists; validate its minimum
+    // and all four variable strings with original statcheck before decoding.
+    if statcheck(input, length) != 0 { return 0; }
+    let mut index: usize = 0; while index < 12 { DIRECTORY[index] = 0; index += 1; }
+    if convM2D(input, length, (&mut DIRECTORY[0]) as *mut u8, 0 as *mut u8) != length { return 0; }
+    return 1;
+}
+pub unsafe fn stat_inode() -> u64 { return DIRECTORY[1]; }
+pub unsafe fn stat_version() -> u64 { return DIRECTORY[2]; }
+pub unsafe fn stat_mode() -> u64 { return DIRECTORY[4]; }
+pub unsafe fn stat_atime() -> u64 { return DIRECTORY[5]; }
+pub unsafe fn stat_mtime() -> u64 { return DIRECTORY[6]; }
+pub unsafe fn stat_length() -> u64 { return DIRECTORY[7]; }
+pub unsafe fn encodes() -> u64 { return ENCODE_CALLS; }
+pub unsafe fn decodes() -> u64 { return DECODE_CALLS; }
+pub unsafe fn encoded_bytes() -> u64 { return ENCODE_BYTES; }
+pub unsafe fn decoded_bytes() -> u64 { return DECODE_BYTES; }

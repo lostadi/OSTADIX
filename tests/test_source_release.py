@@ -137,8 +137,10 @@ FIXTURE_PRIVATE_ENGINE_MODULES = {
     "dispatch_model",
     "eval_core",
     "placement_protocol",
+    "progress",
     "native_leaf_identity",
     "lifecycle_trace",
+    "step_knobs",
 }
 FIXTURE_PUBLIC_ENGINE_MODULES = (
     set(release.OSTADIX_API_ROOT_MODULE_PATHS) - FIXTURE_PRIVATE_ENGINE_MODULES
@@ -599,6 +601,26 @@ class WorkspaceFacadeReleaseValidationTests(unittest.TestCase):
             release.ReleaseError, "compatibility module closure differs"
         ):
             release._validate_workspace_facade_release_surface(expanded_facade)
+
+    def test_current_private_runtime_helpers_remain_required_without_public_exports(self) -> None:
+        files = self.fixture_files()
+        for name in ("progress", "step_knobs"):
+            path = f"crates/ostadix-api/src/{name}.rs"
+            self.assertIn(path, release.REQUIRED_RELEASE_PATHS)
+            self.assertIn(path, files)
+            self.assertRegex(files["crates/ostadix-api/src/lib.rs"].decode(), rf"mod {name};")
+            self.assertNotIn(name, files["src/lib.rs"].decode())
+        release._validate_workspace_facade_release_surface(files)
+
+        for name in ("progress", "step_knobs"):
+            expanded = dict(files)
+            expanded["src/lib.rs"] = files["src/lib.rs"].replace(
+                b"pub use ostadix_api::{", f"pub use ostadix_api::{{{name}, ".encode()
+            )
+            with self.subTest(name=name), self.assertRaisesRegex(
+                release.ReleaseError, "compatibility module closure differs"
+            ):
+                release._validate_workspace_facade_release_surface(expanded)
 
     def test_tool_authors_cannot_be_made_consistent_across_packages(self) -> None:
         files = self.fixture_files()
@@ -1666,6 +1688,8 @@ class SourceReleaseTests(unittest.TestCase):
             contents.setdefault(path, b"fixture hosted TLS test identity\n")
         for path in release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS:
             contents.setdefault(path, b"fixture native source closure\n")
+        for path in release.OKERNEL_PACKAGE_BOOT_RELEASE_PATHS:
+            contents.setdefault(path, b"fixture package boot source closure\n")
         for path in release.HUMAN_LLM_INTERFACE_RELEASE_PATHS:
             contents.setdefault(path, b"fixture human and LLM interface source\n")
         contents.update(fixture_setup_sources())
@@ -1683,6 +1707,7 @@ class SourceReleaseTests(unittest.TestCase):
                 executable=path
                 in {
                     "boot-and-test.sh",
+                    "boot/boot.sh",
                     "setup.sh",
                     "okernel-multikernel/boot-and-test.sh",
                     "ocore/kernel/build.sh",
@@ -2409,6 +2434,7 @@ class SourceReleaseTests(unittest.TestCase):
             included.update(release.OSTADIX_API_RELEASE_PATHS)
             included.update(release.OSTADIX_API_ROOT_MODULE_PATHS.values())
             included.update(release.NATIVE_DISTRIBUTED_LINUX_RELEASE_PATHS)
+            included.update(release.OKERNEL_PACKAGE_BOOT_RELEASE_PATHS)
             included.update(release.HUMAN_LLM_INTERFACE_RELEASE_PATHS)
             included.update(fixture_setup_sources())
             excluded = {
@@ -3094,6 +3120,63 @@ class SourceReleaseTests(unittest.TestCase):
         self._git("rm", *required)
         self._git("commit", "-q", "-m", "remove native distributed Linux closure")
         self._assert_missing_required_paths("missing-native-systems.zip", required)
+
+    def test_default_kernel_boot_entry_and_dependencies_survive_source_zip(self) -> None:
+        required = (
+            "boot/boot.sh",
+            "boot/README.md",
+            "scripts/boot_okernel.py",
+            "scripts/okernel_package_domain.py",
+            "scripts/okernel_native_codec.py",
+            "ocore/runtime/common/namespace_store.oc",
+            "ocore/runtime/common/u9fs_namespace_peer.oc",
+            "ocore/runtime/aarch64/kernel_world_9p.oc",
+            "ocore/guest/linux/package-domain/u9fs-path-hardening.patch",
+            "tools/ocore-runtime/u9fs/build_native.py",
+            "tools/ocore-runtime/u9fs/aarch64.codecs.recipe.json",
+            "tools/ocore-runtime/u9fs/verify_component.c",
+        )
+        self._commit()
+        archive = self._build("default-kernel-boot.zip")
+        with zipfile.ZipFile(archive.output) as members:
+            for path in required:
+                self.assertIn(f"{archive.prefix}/{path}", members.namelist())
+            self.assertEqual(
+                members.read(f"{archive.prefix}/ocore/guest/linux/package-domain/u9fs-path-hardening.patch"),
+                b"fixture package boot source closure\n",
+            )
+        self.assertTrue(release.is_allowed_release_path("ocore/guest/linux/package-domain/u9fs-path-hardening.patch"))
+        self.assertFalse(release.is_allowed_release_path("boot/unreviewed.sh"))
+        self.assertFalse(release.is_allowed_release_path("one-off.patch"))
+        self.assertFalse(release.is_allowed_release_path("ocore/guest/linux/package-domain/unreviewed.patch"))
+        self._git("rm", *required)
+        self._git("commit", "-q", "-m", "remove default boot dependency closure")
+        self._assert_missing_required_paths("missing-default-kernel.zip", required)
+
+    def test_default_boot_entry_requires_executable_mode_in_source_zip(self) -> None:
+        self._commit()
+        (self.repo / "boot/boot.sh").chmod(0o644)
+        self._git("add", "boot/boot.sh")
+        self._git("commit", "-q", "-m", "remove boot entry executable mode")
+        with self.assertRaisesRegex(
+            release.ReleaseError,
+            r"source release requires executable mode 100755 for: boot/boot\.sh",
+        ):
+            self._build("non-executable-default-kernel.zip")
+
+    def test_current_private_runtime_helper_sources_are_required_in_zip(self) -> None:
+        required = (
+            "crates/ostadix-api/src/progress.rs",
+            "crates/ostadix-api/src/step_knobs.rs",
+        )
+        self._commit()
+        archive = self._build("private-runtime-helpers.zip")
+        with zipfile.ZipFile(archive.output) as members:
+            for path in required:
+                self.assertIn(f"{archive.prefix}/{path}", members.namelist())
+        self._git("rm", *required)
+        self._git("commit", "-q", "-m", "remove current private runtime helpers")
+        self._assert_missing_required_paths("missing-private-helpers.zip", required)
 
     def test_hosted_placement_v6_commands_and_contract_are_required(self) -> None:
         required = (

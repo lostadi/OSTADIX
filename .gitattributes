@@ -8,3 +8,6 @@ tools/syntax/vscode/vendor/** -whitespace
 tools/syntax/vscode/runtime/** -whitespace
 tools/syntax/vim/vendor/** -whitespace
 tools/syntax/sublime/licenses/** -whitespace
+
+# Context indentation is part of the pinned upstream patch format.
+ocore/guest/linux/package-domain/u9fs-path-hardening.patch -whitespace
