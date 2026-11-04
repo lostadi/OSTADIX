@@ -19,7 +19,8 @@
 #     setup    Run ./setup.sh --minimal --verify  (build Rust+C17+Python editions)
 #     hosted   Hosted .O runtime + differential (graph vs serial) + Python/C17 xcheck
 #     ocore    Build ocorec, dump HIR/MIR, emit a freestanding ELF object
-#     kernel   Build the kernel ELF and BOOT it interactively in QEMU (serial console)
+#     kernel   Boot the prepared Linux/native-codec system (serial console)
+#     console  Boot the native mode-16 console; baseline selects mode 0
 #     smoke    Build + run the asserted 4s smoke gate, then the full probe matrix
 #     tests    Rust test suite + parser proptest + reproducibility + example sweep
 #     quick    hosted + ocore + default smoke  (fast confidence check)
@@ -28,8 +29,10 @@
 # ENVIRONMENT
 #   OCORE_LLD   Absolute path to rust-lld / ld.lld if it lives outside the
 #               Rust sysroot, PATH, or Homebrew prefixes (build.sh probes those).
-#   Kernel layer needs: clang (x86_64-unknown-none-elf assembler), an LLD-class
-#   linker, and qemu-system-x86_64. Hosted layer needs: cargo, python3; node for
+#   Normal kernel boot uses boot/boot.sh and its prepared native-codec state;
+#   see boot/README.md for explicit preparation and state/QEMU overrides.
+#   Native console/baseline need clang, LLD and qemu-system-x86_64.
+#   Hosted layer needs: cargo, python3; node for
 #   javascript^, etc. Missing optional tools are reported and skipped.
 #   Host tests default to no debug symbols or incremental caches; explicit
 #   CARGO_PROFILE_DEV_DEBUG, CARGO_PROFILE_TEST_DEBUG and CARGO_INCREMENTAL win.
@@ -153,16 +156,24 @@ phase_ocore() {
 }
 
 # ---- layer 3: boot the Okernel in QEMU (interactive) -----------------------
-phase_kernel() {
-  say "Layer 3 — build + BOOT the O-core kernel (interactive serial console)"
-  need cargo; need clang; need qemu-system-x86_64
-  # build.sh compiles the runtime+kernel .oc unit through ocorec, assembles
-  # boot.S, links with LLD against linker.ld -> target/ocore-kernel/kernel.elf
-  ./ocore/kernel/build.sh || die "kernel build failed (set OCORE_LLD if the linker wasn't found)"
-  ok "kernel.elf built"
-  say "Handing off to QEMU. Ctrl-A X to quit the serial console."
-  # run-qemu.sh rebuilds (cheap) then execs qemu with -serial stdio, no display.
+phase_native_kernel() {
+  say "Layer 3 — boot the selected native O-core kernel"
   exec ./ocore/kernel/run-qemu.sh
+}
+
+phase_kernel() {
+  if [[ -n "${OCORE_PROBE_MODE+x}" ]]; then phase_native_kernel; fi
+  exec ./boot/boot.sh
+}
+
+phase_console() {
+  export OCORE_PROBE_MODE=16
+  phase_native_kernel
+}
+
+phase_baseline() {
+  export OCORE_PROBE_MODE=0
+  phase_native_kernel
 }
 
 # ---- layer 4: smoke-gate matrix --------------------------------------------
@@ -282,7 +293,10 @@ Phases:
   setup    Build and verify the Rust, C17, and Python editions
   hosted   Run hosted runtime and differential checks
   ocore    Exercise the typed O-core compiler pipeline
-  kernel   Boot the kernel interactively in QEMU
+  kernel   Boot the prepared Linux/native-codec system (interactive)
+  console  Boot the native mode-16 command console
+  native   Alias for console
+  baseline Boot the native mode-0 heartbeat kernel
   smoke    Run all required OKernel QEMU gates
   tests    Run the host test and reproducibility suite
   quick    Run hosted, O-core, and the default QEMU smoke (default)
@@ -305,6 +319,8 @@ case "$phase" in
   hosted) phase_hosted ;;
   ocore)  phase_ocore ;;
   kernel) phase_kernel ;;
+  console|native) phase_console ;;
+  baseline) phase_baseline ;;
   smoke)  phase_smoke ;;
   tests)  phase_tests ;;
   quick)  phase_hosted; phase_ocore; say "Layer 3/4 — default smoke gate"; \
