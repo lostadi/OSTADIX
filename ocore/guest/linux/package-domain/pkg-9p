@@ -1,0 +1,121 @@
+#!/bin/sh
+# Publish original Plan9port 9p access to the existing native O-core mount.
+# Only local Unix sockets are used. This is not a Plan 9 executable/kernel ABI.
+set -eu
+prefix="${OSTADIX_PLAN9_PREFIX:-/usr/local/plan9}"
+runtime=/run/okernel-9p
+root=/n/okernel
+export NAMESPACE="$runtime"
+if [ "$#" -gt 1 ]; then echo 'Usage: pkg-9p start|status|stop|env|test' >&2; exit 2; fi
+
+alive() {
+    [ -f "$runtime/supervisor.pid" ] && [ ! -L "$runtime/supervisor.pid" ] || return 1
+    {
+        IFS= read -r pid
+        IFS= read -r started
+        IFS= read -r executable
+    } < "$runtime/supervisor.pid" || return 1
+    case "$pid:$started" in *[!0-9:]*|:*|*:) return 1 ;; esac
+    [ -r "/proc/$pid/stat" ] || return 1
+    process="$(cat "/proc/$pid/stat")"
+    # Field 3 starts after the final comm ')'. The supervisor's recorded start
+    # time prevents a stale PID from authorizing a signal to a reused process.
+    fields="${process##*) }"
+    state="$(printf '%s\n' "$fields" | awk '{print $1}')"
+    current="$(printf '%s\n' "$fields" | awk '{print $20}')"
+    [ "$state" != Z ] && [ "$current" = "$started" ] || return 1
+    [ "$(readlink "/proc/$pid/exe")" = "$executable" ] || return 1
+}
+require_tools() {
+    for command in 9p 9pserve u9fs okernel-9p-bridge; do
+        if [ ! -x "$prefix/bin/$command" ]; then
+            echo "Original bridge tool missing: $prefix/bin/$command" >&2
+            echo 'Prepare the updated source provider explicitly: pkg source plan9port' >&2
+            exit 1
+        fi
+    done
+}
+start() {
+    require_tools
+    if alive; then
+        if [ -S "$runtime/okernel" ] && "$prefix/bin/9p" -n stat okernel/work >/dev/null 2>&1; then
+            echo 'Original 9P bridge is already running.'
+            return
+        fi
+        echo "The owned bridge is running but its service is not ready; inspect $runtime/supervisor.log" >&2
+        return 1
+    fi
+    if [ -e "$runtime" ] || [ -L "$runtime" ]; then
+        [ -d "$runtime" ] && [ ! -L "$runtime" ] || { echo 'Preserving an unrelated runtime path.' >&2; exit 1; }
+    else
+        (umask 077; mkdir "$runtime")
+    fi
+    # The supervisor additionally checks ownership, mode, lock and actual native
+    # mount. It does not export an ordinary fallback directory if the grant is absent.
+    setsid "$prefix/bin/okernel-9p-bridge" "$prefix" "$runtime" \
+        </dev/null >>"$runtime/supervisor.log" 2>&1 &
+    attempt=0
+    while [ "$attempt" -lt 100 ]; do
+        if alive && [ -S "$runtime/okernel" ] \
+                && "$prefix/bin/9p" -n stat okernel/work >/dev/null 2>&1; then
+            printf 'OKERNEL ORIGINAL 9P BRIDGE READY\nService: okernel\nRoot: %s\nNAMESPACE=%s\n' "$root" "$runtime"
+            return
+        fi
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+    # Stop only our identity-checked supervisor if readiness failed. Its own
+    # children are reaped before the service socket is removed.
+    if alive; then stop || true; fi
+    echo "Original 9P bridge did not become ready; inspect $runtime/supervisor.log" >&2
+    return 1
+}
+stop() {
+    if ! alive; then echo 'Original 9P bridge is stopped.'; return; fi
+    kill -TERM "$pid"
+    attempt=0
+    while alive && [ "$attempt" -lt 100 ]; do
+        sleep 0.1
+        attempt=$((attempt + 1))
+    done
+    if alive; then
+        echo 'Bridge cleanup is still pending; its processes were left for inspection.' >&2
+        return 1
+    fi
+    echo 'Original 9P bridge stopped.'
+}
+case "${1:-help}" in
+    start) start ;;
+    stop) stop ;;
+    status)
+        if alive && [ -S "$runtime/okernel" ]; then
+            printf 'Original 9P bridge: running (supervisor %s)\nService: okernel\nRoot: %s\nNAMESPACE=%s\n' "$pid" "$root" "$runtime"
+        else echo 'Original 9P bridge is stopped.'; exit 1; fi
+        ;;
+    env) printf 'NAMESPACE=%s; export NAMESPACE\n' "$runtime" ;;
+    test)
+        start
+        identity="$(cat /proc/sys/kernel/random/uuid)"
+        file="work/original-9p-$identity"
+        trap 'rm -f "$root/$file"' EXIT HUP INT TERM
+        printf 'linux-to-original-9p\n' > "$root/$file"
+        [ "$("$prefix/bin/9p" -n read "okernel/$file")" = linux-to-original-9p ]
+        printf 'original-9p-to-linux\n' | "$prefix/bin/9p" -n write "okernel/$file"
+        [ "$(cat "$root/$file")" = original-9p-to-linux ]
+        "$prefix/bin/9p" -n stat "okernel/$file"
+        # Parent walks remain at the served native root; neither the Linux
+        # root's account database nor its /work can become an exported object.
+        if "$prefix/bin/9p" -n read okernel/../../etc/passwd >/dev/null 2>&1; then
+            echo 'Original bridge unexpectedly escaped its native root.' >&2; exit 1
+        fi
+        echo 'OKERNEL ORIGINAL 9P SHARED OBJECT ROUNDTRIP PASS'
+        ;;
+    help|--help|-h)
+        echo 'pkg-9p start|status|stop   Manage the guest-only original u9fs/9pserve bridge'
+        echo 'pkg-9p env                 Print the Plan9port service namespace setting'
+        echo 'pkg-9p test                Original 9p read/write/stat against native shared objects'
+        echo 'eval "$(pkg-9p env)"; 9p -n ls okernel/work'
+        echo 'The export root is fixed at the mounted /n/okernel native namespace.'
+        ;;
+    *) echo 'Usage: pkg-9p start|status|stop|env|test' >&2; exit 2 ;;
+esac

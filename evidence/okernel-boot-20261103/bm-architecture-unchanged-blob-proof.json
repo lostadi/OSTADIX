@@ -1,0 +1,35 @@
+{
+  "scope": "Proof the one failed architecture current-tree gate concerns unchanged BM baseline files and checker policy",
+  "files": [
+    {
+      "path": "scripts/check_architecture_boundaries.py",
+      "baseline_blob": "f4ca475fcf9165290007f86d58018fb816290ad0",
+      "implementation_blob": "f4ca475fcf9165290007f86d58018fb816290ad0",
+      "unchanged": true
+    },
+    {
+      "path": "tests/test_architecture_boundaries.py",
+      "baseline_blob": "6ffd41421cd1ea5b7de8b74cd422d63bb17569eb",
+      "implementation_blob": "6ffd41421cd1ea5b7de8b74cd422d63bb17569eb",
+      "unchanged": true
+    },
+    {
+      "path": "ci/architecture-roots.toml",
+      "baseline_blob": "f3f112fb5864772b1c0101b9b9300f00ec12b35d",
+      "implementation_blob": "f3f112fb5864772b1c0101b9b9300f00ec12b35d",
+      "unchanged": true
+    },
+    {
+      "path": "crates/ostadix-api/src/shims.rs",
+      "baseline_blob": "398b0749d33c316fe9a277efe337d8256ad50296",
+      "implementation_blob": "398b0749d33c316fe9a277efe337d8256ad50296",
+      "unchanged": true
+    },
+    {
+      "path": "crates/ostadix-api/src/private_dir.inc.rs",
+      "baseline_blob": "08bb809ba652027cc258691531ea28de1a321623",
+      "implementation_blob": "08bb809ba652027cc258691531ea28de1a321623",
+      "unchanged": true
+    }
+  ]
+}

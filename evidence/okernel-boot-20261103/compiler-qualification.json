@@ -1,0 +1,125 @@
+{
+  "schema": "ostadix.okernel-boot-compiler-validation/v1",
+  "base_commit": "b47ff1e002cdf940138995ee4f693a33677c22ca",
+  "scope": "Minimum original-codec compiler features ported to canonical master; standalone native/source-codec verification, not live monitor qualification.",
+  "sources": [
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/scripts/ocore_llvm_import.py",
+      "bytes": 174447,
+      "sha256": "2313dd3866ca6e5479ca890ed41b3cbf9c1dd05e962992d445e5a3a7c2d6ac22"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/crates/ostadix-api/src/ocore/native_codegen.rs",
+      "bytes": 141949,
+      "sha256": "c945f509fb02158bdc7a84a47bc058440fb355756354a3be650be718f9784bea"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/crates/ostadix-api/src/ocore/native_verify.rs",
+      "bytes": 400963,
+      "sha256": "40efdb011774ac00177112683b84802f51c0e8dd543a03f0075600048397b822"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tests/test_ocore_llvm_funnel_shifts.py",
+      "bytes": 10124,
+      "sha256": "1657988453905b219f964fcbd840f95fb3fa48f7460906e7013ff0e832f8259e"
+    },
+    {
+      "path": "/home/ustad/OSTADIX-okernel-boot-20261103/tests/test_ocore_native_stack_addressing.py",
+      "bytes": 8065,
+      "sha256": "2bf0b1db2c13bd02284c8a3781450248c251ed018d9f4155e79541f70ed48c3f"
+    }
+  ],
+  "compilers": [
+    {
+      "path": "/home/ustad/.cache/okernel-boot-target/debug/ocorec",
+      "bytes": 257903664,
+      "sha256": "9877465fd8a1ade31a5c5c3345529f407aef74e1a380a67677b633a81bbc9cc7"
+    },
+    {
+      "path": "/home/ustad/.cache/okernel-boot-target/debug/olangc",
+      "bytes": 317027744,
+      "sha256": "b2baf06a8a0e6dcd9a7d3933831fd4d290acdb46c9b11a30622d077fe7873707"
+    }
+  ],
+  "build_log": {
+    "path": "/home/ustad/.cache/okernel-boot-compiler-build.log",
+    "bytes": 239,
+    "sha256": "240d4ba842cf9be8e8cd398141cdbdb817d07e6605bd99f6e5dd7ad0ca7d4ae2"
+  },
+  "tests": [
+    {
+      "name": "Existing LLVM importer",
+      "methods": 76,
+      "skips": 1,
+      "status": "passed",
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-importer-tests.log",
+        "bytes": 15636,
+        "sha256": "3a09c98e4f7843b224708b857a82b12a69af7cff8538c2186a4ac7b394e88d87"
+      }
+    },
+    {
+      "name": "Scalar funnel shifts",
+      "methods": 4,
+      "status": "passed_all_three_isas",
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-funnel-tests.log",
+        "bytes": 844,
+        "sha256": "095f399bd329f92a7e7ab6a55567380a322066a62eadb3ab8d6e8e20d2e1d62c"
+      },
+      "executions": [
+        {
+          "path": "/home/ustad/.cache/okernel-boot-compiler-validation/funnel/run-yh0atoxx/execution.json",
+          "bytes": 1506,
+          "sha256": "7c720e5db34f8c94303af119afb7d7e6e134495a5e694d08b4a80b2efcbd9d77"
+        }
+      ]
+    },
+    {
+      "name": "Compact and full-range stack addressing",
+      "methods": 1,
+      "status": "passed_all_three_isas",
+      "log": {
+        "path": "/home/ustad/.cache/okernel-boot-stack-tests.log",
+        "bytes": 314,
+        "sha256": "f778f3012cb93b2b032b28290bd3e5ef672e9c51afd3eab2038118a7cc1f78a6"
+      },
+      "commands": [
+        {
+          "path": "/home/ustad/.cache/okernel-boot-compiler-validation/stack/run-r9duv545/commands.json",
+          "bytes": 6912,
+          "sha256": "c32b5ac17e3c6cf4477218d2929676fd42cafd6e4a2bc5d4b0d79e01dea0b5b4"
+        }
+      ]
+    }
+  ],
+  "original_source_codec": {
+    "aarch64": {
+      "manifest": {
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/aarch64/native-codec.json",
+        "bytes": 7835,
+        "sha256": "ec7e5103acfe0d61679ec634d1dfa6ef860c23a448fc1ec6b20fe791090d95d5"
+      },
+      "objects": 7,
+      "unresolved_symbols": [],
+      "semantic_stdout": "Original u9fs and musl via O-core: PASS; checks=114573\n",
+      "scope": "four unchanged original u9fs 9P codec units plus original musl memcpy/memmove/strlen, compiler-owned source capture and O-core native closure; not full server/kernel"
+    },
+    "x86_64": {
+      "manifest": {
+        "path": "/home/ustad/.cache/okernel-boot-codec-20261103/x86_64/native-codec.json",
+        "bytes": 7775,
+        "sha256": "5f34c1a91685b6dde7a570b59a6e7546d3e2f7d9a0cc1d5a851a1d51e8a099fc"
+      },
+      "objects": 7,
+      "unresolved_symbols": [],
+      "semantic_stdout": "Original u9fs and musl via O-core: PASS; checks=114573\n",
+      "scope": "four unchanged original u9fs 9P codec units plus original musl memcpy/memmove/strlen, compiler-owned source capture and O-core native closure; not full server/kernel"
+    }
+  },
+  "checks": {
+    "rustfmt_changed_rust_files": true,
+    "git_diff_check_changed_files": true
+  },
+  "preserved_master_fixes": "Curated three-file compiler.patch applies without replacing the new division/leaf/fidelity code; unrelated weak/strictfp features were not imported."
+}
