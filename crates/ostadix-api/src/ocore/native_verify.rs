@@ -2230,6 +2230,11 @@ impl<'a> Verifier<'a> {
             }
         }
         linkage(&function.linkage, function.entry.is_some(), &context)?;
+        if function.linkage == "extern_weak"
+            && (function.intrinsic.is_some() || function.name.starts_with("llvm."))
+        {
+            return Err(fail(&context, "intrinsic cannot be an extern_weak declaration"));
+        }
         visibility(&function.linkage, function.visibility, &context)?;
         if function.linkage == "common" {
             return Err(fail(&context, "common linkage is only valid for globals"));
