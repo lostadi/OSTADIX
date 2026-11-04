@@ -1,0 +1,124 @@
+{
+  "schema": "ocore-runtime-recipe-v1",
+  "name": "original-u9fs-wire-codecs",
+  "source": {
+    "url": "https://github.com/Plan9-Archive/u9fs.git",
+    "revision": "fcec3e1e2e8e8c28b89270e6c44554c4ca9e50a9",
+    "submodules": false
+  },
+  "toolchain": {
+    "llvm_version": "22.1.6"
+  },
+  "capture_profile": "explicit-original-four-file-9p-codec-component",
+  "intended_execution_profile": "freestanding-component-link-and-execution-required",
+  "intended_targets": [
+    "x86_64-unknown-none"
+  ],
+  "source_inventory_helper": {
+    "path": "build_component.py",
+    "sha256": "69014d68fe7fe7308e064fc3458dac8ec7b92bb7c9ea93053303b7f28f59761b"
+  },
+  "commands": [
+    {
+      "name": "build-original-component",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_component.py",
+        "build",
+        "--component",
+        "codecs",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "69014d68fe7fe7308e064fc3458dac8ec7b92bb7c9ea93053303b7f28f59761b"
+      ]
+    },
+    {
+      "name": "inventory-original-component",
+      "argv": [
+        "python3",
+        "{recipe_dir}/build_component.py",
+        "inventory",
+        "--component",
+        "codecs",
+        "--source",
+        "{source}",
+        "--build",
+        "{build}",
+        "--isa",
+        "x86_64",
+        "--cc",
+        "{cc}",
+        "--expected-helper-sha256",
+        "69014d68fe7fe7308e064fc3458dac8ec7b92bb7c9ea93053303b7f28f59761b"
+      ]
+    }
+  ],
+  "coverage": {
+    "require_full_unit_inventory": true,
+    "audit_roots": [
+      "{build}"
+    ],
+    "required_outputs": [
+      "convM2S.o",
+      "convS2M.o",
+      "convM2D.o",
+      "convD2M.o",
+      "component-build.json",
+      "unit-inventory.json"
+    ],
+    "required_units": [
+      {
+        "id": "original-convM2S",
+        "kind": "clang",
+        "source": "convM2S.c",
+        "role": "runtime",
+        "build_step": "build-original-component"
+      },
+      {
+        "id": "original-convS2M",
+        "kind": "clang",
+        "source": "convS2M.c",
+        "role": "runtime",
+        "build_step": "build-original-component"
+      },
+      {
+        "id": "original-convM2D",
+        "kind": "clang",
+        "source": "convM2D.c",
+        "role": "runtime",
+        "build_step": "build-original-component"
+      },
+      {
+        "id": "original-convD2M",
+        "kind": "clang",
+        "source": "convD2M.c",
+        "role": "runtime",
+        "build_step": "build-original-component"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "original-musl-memory-string-component",
+      "source_pin": null,
+      "status": "required-included-verified-native-module-set"
+    }
+  ],
+  "scope_limits": [
+    "Complete selected component only, not complete u9fs, libc, Linux or Plan9 kernel.",
+    "Reference source-build objects are capture evidence; only imported O-core-generated objects are deliverable code.",
+    "Native execution, final linking, ABI integration and performance are separate gates."
+  ],
+  "header_dependency": {
+    "environment": "OCORE_U9FS_MUSL_SOURCE",
+    "revision": "0784374d561435f7c787a555aeab8ede699ed298",
+    "validation": "clean checkout plus complete tracked file hashes; compiler captures actual header dependencies"
+  }
+}

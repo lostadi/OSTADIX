@@ -1,0 +1,137 @@
+#!/bin/sh
+# Describe installed packages through the pregranted native 9P namespace.
+# Metadata never grants execution, device, or namespace authority.
+set -eu
+export LC_ALL=C
+root="${OSTADIX_PKG_NAMESPACE:-/n/okernel}"
+mounts="${OSTADIX_PKG_MOUNTS:-/proc/mounts}"
+sysfs="${OSTADIX_PKG_VIRTIO_SYSFS:-/sys/bus/virtio/devices}"
+
+mounted() {
+    awk -v target="$root" '$1 == "okernel" && $2 == target && $3 == "9p" { found=1 } END { exit !found }' "$mounts"
+}
+
+require_namespace() {
+    if ! mounted; then
+        echo 'The native OKernel namespace is not mounted; no shared metadata was written.' >&2
+        exit 3
+    fi
+}
+
+publish_source() {
+    if [ "$#" -ne 2 ]; then
+        echo 'Usage: pkg-namespace publish-source NAME RECEIPT_DIRECTORY' >&2
+        exit 2
+    fi
+    package="$1"
+    case "$package" in
+        zlib) provider=alpine-zlib-source ;;
+        plan9port) provider=plan9port-upstream-source ;;
+        *) echo 'Unknown registered source provider.' >&2; exit 2 ;;
+    esac
+    receipt="$2"
+    require_namespace
+    if [ ! -d "$receipt" ] || [ -L "$receipt" ] || [ "$(cat "$receipt/status")" != complete ]; then
+        echo 'A complete original source-build receipt is required.' >&2
+        exit 1
+    fi
+    temporary="$(mktemp -d)"
+    trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+    for required in commands.txt compiler-version.txt compiler.sha256 environment.txt installed-packages.txt outputs.sha256 source-files.sha256; do
+        [ -s "$receipt/$required" ] || { echo "Source-build receipt lacks $required." >&2; exit 1; }
+    done
+    for file in "$receipt"/*; do
+        name="${file##*/}"
+        case "$name" in ''|*[!a-zA-Z0-9_.-]*) echo 'Invalid receipt filename.' >&2; exit 1 ;; esac
+        if [ "$name" = manifest.sha256 ] || [ "$name" = route ]; then
+            echo 'Receipt contains a reserved publication filename.' >&2; exit 1
+        fi
+        if [ ! -f "$file" ] || [ -L "$file" ]; then
+            echo "Source-build receipt has a nonregular $name entry." >&2
+            exit 1
+        fi
+        cp "$file" "$temporary/$name"
+        printf '%s  %s\n' "$(sha256sum "$temporary/$name" | awk '{print $1}')" "$name" >> "$temporary/manifest.sha256"
+    done
+    identity="$(sha256sum "$temporary/manifest.sha256" | awk '{print $1}')"
+    destination="$root/build/$identity"
+    mkdir -p "$destination" "$root/pkg"
+    for file in "$temporary"/*; do
+        name="${file##*/}"
+        if [ -e "$destination/$name" ]; then
+            if ! cmp -s "$temporary/$name" "$destination/$name"; then
+                echo 'Immutable native namespace receipt conflicts with existing bytes.' >&2
+                exit 1
+            fi
+        else
+            cp "$temporary/$name" "$destination/$name"
+        fi
+    done
+    {
+        printf 'schema=ocore.package-route/v1\nname=%s\nprovider=%s\n' "$package" "$provider"
+        printf '%s\n' 'abi=linux-aarch64' 'state=installed-source' 'authority=pregranted-native-namespace'
+        printf 'receipt_sha256=%s\nreceipt=/build/%s\n' "$identity" "$identity"
+        printf '%s\n' 'apk_ownership=false' 'metadata_grants_authority=false'
+    } > "$temporary/route"
+    cp "$temporary/route" "$root/pkg/$package"
+    sync
+    printf 'OKERNEL NATIVE SOURCE RECEIPT /build/%s\n' "$identity"
+}
+
+publish_apk() {
+    if [ "$#" -ne 1 ]; then echo 'Usage: pkg-namespace publish-apk PACKAGE_REQUEST' >&2; exit 2; fi
+    require_namespace
+    request="$1"
+    case "$request" in *'
+'*) echo 'Package request contains a newline.' >&2; exit 2 ;; esac
+    temporary="$(mktemp -d)"
+    trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+    apk info -vv > "$temporary/installed-packages.txt"
+    printf '%s\n' "$request" > "$temporary/request.txt"
+    {
+        printf '%s  installed-packages.txt\n' "$(sha256sum "$temporary/installed-packages.txt" | awk '{print $1}')"
+        printf '%s  request.txt\n' "$(sha256sum "$temporary/request.txt" | awk '{print $1}')"
+    } > "$temporary/manifest.sha256"
+    identity="$(sha256sum "$temporary/manifest.sha256" | awk '{print $1}')"
+    destination="$root/build/$identity"
+    mkdir -p "$destination" "$root/pkg"
+    for name in installed-packages.txt request.txt manifest.sha256; do
+        if [ -e "$destination/$name" ]; then
+            cmp -s "$temporary/$name" "$destination/$name" || { echo 'Immutable APK metadata conflicts.' >&2; exit 1; }
+        else cp "$temporary/$name" "$destination/$name"; fi
+    done
+    case "$request" in ''|*[!a-zA-Z0-9+_.-]*) catalog="apk-request-$identity" ;; *) catalog="$request" ;; esac
+    {
+        printf '%s\n' 'schema=ocore.package-route/v1' 'provider=original-apk' 'abi=linux-aarch64' 'state=installed-apk'
+        printf 'request=%s\nreceipt_sha256=%s\nreceipt=/build/%s\n' "$request" "$identity" "$identity"
+        printf '%s\n' 'authority=pregranted-native-namespace' 'metadata_grants_authority=false'
+    } > "$temporary/route"
+    cp "$temporary/route" "$root/pkg/$catalog"
+    sync
+    printf 'OKERNEL NATIVE APK RECEIPT /build/%s\n' "$identity"
+}
+
+case "${1:-help}" in
+    mount)
+        if mounted; then echo 'OKERNEL NATIVE NAMESPACE MOUNTED'; exit 0; fi
+        found=0
+        for tag in "$sysfs"/virtio*/mount_tag; do
+            if [ -f "$tag" ] && [ "$(cat "$tag")" = okernel ]; then found=1; break; fi
+        done
+        if [ "$found" -ne 1 ]; then echo 'No native OKernel 9P device grant is present.' >&2; exit 3; fi
+        mkdir -p "$root"
+        mount -t 9p -o trans=virtio,version=9p2000,msize=8192,cache=none okernel "$root"
+        require_namespace
+        mkdir -p "$root/work" "$root/pkg" "$root/build"
+        echo 'OKERNEL NATIVE NAMESPACE MOUNTED'
+        ;;
+    status) require_namespace; printf 'Native OKernel namespace: %s\n' "$root" ;;
+    publish-source) shift; publish_source "$@" ;;
+    publish-apk) shift; publish_apk "$@" ;;
+    help|--help|-h)
+        echo 'pkg-namespace mount         Mount the explicitly granted native 9P namespace'
+        echo 'pkg-namespace status        Check the native namespace mount'
+        echo 'Build receipts/catalogs are descriptive and do not grant authority.'
+        ;;
+    *) echo 'Usage: pkg-namespace mount|status|publish-source|publish-apk' >&2; exit 2 ;;
+esac
