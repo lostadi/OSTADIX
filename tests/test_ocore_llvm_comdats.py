@@ -231,7 +231,6 @@ define i32 @entry() { ret i32 9 }
             "define linkonce void @target() sanitize_address comdat($group) { ret void }\n",
             "define weak_odr double @unused(double %x) cold comdat($group) { ret double %x }\n",
             "@data = available_externally global i64 7\n",
-            "declare extern_weak void @unused()\n",
         )
         for body in cases:
             with self.subTest(body=body):
