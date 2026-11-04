@@ -764,6 +764,7 @@ struct Emitter<'a> {
 }
 
 impl<'a> Emitter<'a> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         module: &'a NativeModule,
         function: &'a Function,
